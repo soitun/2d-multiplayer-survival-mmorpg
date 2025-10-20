@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, Furnace as SpacetimeDBFurnace } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
 import StatusBar from './StatusBar';

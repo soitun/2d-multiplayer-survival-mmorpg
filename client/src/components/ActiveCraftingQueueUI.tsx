@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CraftingQueueItem, ItemDefinition } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 
 interface ActiveCraftingQueueUIProps {

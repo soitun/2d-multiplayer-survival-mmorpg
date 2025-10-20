@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Player, ItemDefinition, RangedWeaponStats } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 
 interface TargetingReticleProps {
   localPlayer: Player | null;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
 import * as SpacetimeDB from '../generated';
 import { DbConnection, Player, ItemDefinition, ActiveEquipment, WoodenStorageBox, Stash } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from './usePlacementManager'; // Assuming usePlacementManager exports these
 import React from 'react';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';

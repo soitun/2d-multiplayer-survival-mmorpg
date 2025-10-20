@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, RefObject, useMemo } from 'react';
 import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage } from '../generated'; // Assuming Message and Player types are generated
-import { Identity } from '@clockworklabs/spacetimedb-sdk'; // Import Identity directly from SDK
+import { Identity } from 'spacetimedb'; // Import Identity directly from SDK
 import styles from './Chat.module.css';
 
 // Combined message type for internal use

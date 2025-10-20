@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Grass as SpacetimeDBGrass, GrassAppearanceType } from '../generated'; // Assuming generated types
-import { Timestamp as SpacetimeDBTimestamp } from '@clockworklabs/spacetimedb-sdk'; // For Timestamp type
+import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb'; // For Timestamp type
 
 // Define a server update interval, though grass position is static,
 // this can be relevant if other properties change frequently or for consistency.

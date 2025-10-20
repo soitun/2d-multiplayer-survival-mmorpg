@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment } from '../generated';
-import { Identity, Timestamp } from '@clockworklabs/spacetimedb-sdk';
+import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
 

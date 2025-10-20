@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Player, ItemDefinition } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { FISHING_CONSTANTS } from '../types/fishing';
 
 interface FishingReticleProps {

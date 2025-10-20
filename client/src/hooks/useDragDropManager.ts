@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DraggedItemInfo, DragSourceSlotInfo } from '../types/dragDropTypes';
 import { DbConnection, InventoryItem } from '../generated'; // Import connection type and InventoryItem
-import { Identity } from '@clockworklabs/spacetimedb-sdk'; // Ensure Identity is imported
+import { Identity } from 'spacetimedb'; // Ensure Identity is imported
 // Import location data types if not already present
 import { InventoryLocationData, HotbarLocationData } from '../generated'; 
 // Import the new container utilities

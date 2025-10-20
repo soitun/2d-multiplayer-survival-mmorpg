@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { InteractionConfig, InteractableTarget, INTERACTION_CONFIGS, hasSecondaryHoldAction, getSecondaryHoldDuration } from '../types/interactions';
 import { DbConnection, InventoryItem, Campfire, Lantern } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 
 // Define the shape of the interaction target
 export type InteractionTarget = { type: string; id: number | bigint } | null;

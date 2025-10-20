@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Player, ItemDefinition, DbConnection, FishingSession, WorldState } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import FishingReticle from './FishingReticle';
 import { FishingState, FISHING_CONSTANTS } from '../types/fishing';
 import bobberImage from '../assets/doodads/primitive_reed_bobble.png';

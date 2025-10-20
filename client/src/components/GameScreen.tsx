@@ -73,7 +73,7 @@ import {
     AnimalCorpse as SpacetimeDBAnimalCorpse,
     Barrel as SpacetimeDBBarrel, // ADDED Barrel import
 } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
 import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DraggedItemInfo, DragSourceSlotInfo } from '../types/dragDropTypes';

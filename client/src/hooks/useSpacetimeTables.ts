@@ -6,7 +6,7 @@ import {
     Projectile as SpacetimeDBProjectile,
     ViperSpittle as SpacetimeDBViperSpittle
 } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { getChunkIndicesForViewport, getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 

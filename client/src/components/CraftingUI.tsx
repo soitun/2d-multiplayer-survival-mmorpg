@@ -11,7 +11,7 @@ import {
     HotbarLocationData,
     ItemCategory,
 } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 import { PopulatedItem } from './InventoryUI'; // Reuse PopulatedItem type
 import { getItemIcon } from '../utils/itemIconUtils';
 import CraftingSearchBar from './CraftingSearchBar'; // Import the new component

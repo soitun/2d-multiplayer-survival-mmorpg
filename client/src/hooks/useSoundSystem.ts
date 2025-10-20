@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 
 interface SoundSystemProps {
     soundEvents: Map<string, SpacetimeDB.SoundEvent>;

@@ -1,1 +1,0 @@
-TileType: std::cmp::Eq

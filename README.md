@@ -33,9 +33,22 @@ I've committed to open sourcing the entire project and providing the best docume
 
 For experienced users familiar with Node.js, Rust, and SpacetimeDB. See detailed sections below for troubleshooting or authentication specifics.
 
+### 📦 Required Versions
+
+This project uses:
+- **SpacetimeDB CLI**: `1.6.0`
+- **SpacetimeDB Rust Crate**: `1.6.0` (from `spacetimedb = "1.1"` in Cargo.toml)
+- **SpacetimeDB TypeScript SDK**: `spacetimedb@1.6.1` (npm package)
+
 **0. Install SpacetimeDB CLI:**
 Follow the instructions for your OS: [https://spacetimedb.com/install](https://spacetimedb.com/install)
 (e.g., `curl -sSf https://install.spacetimedb.com | sh` on macOS/Linux)
+
+After installation, set the correct version:
+```bash
+spacetime version install 1.6.0
+spacetime version use 1.6.0
+```
 
 **1. Clone & Install Dependencies:**
 ```bash

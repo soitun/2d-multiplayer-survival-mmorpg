@@ -42,7 +42,7 @@ import {
     ActiveConsumableEffect,
     KnockedOutStatus
 } from '../generated';
-import { Identity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity } from 'spacetimedb';
 // NEW: Import placement types
 import { PlacementItemInfo} from '../hooks/usePlacementManager';
 // ADD: Import CraftingUI component

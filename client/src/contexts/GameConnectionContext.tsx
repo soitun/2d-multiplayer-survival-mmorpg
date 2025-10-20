@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
-import { Identity as SpacetimeDBIdentity } from '@clockworklabs/spacetimedb-sdk';
+import { Identity as SpacetimeDBIdentity } from 'spacetimedb';
 import { DbConnection } from '../generated';
 import { useAuth } from './AuthContext'; // Import useAuth
 

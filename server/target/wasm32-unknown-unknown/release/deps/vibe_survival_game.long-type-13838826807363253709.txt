@@ -1,3 +1,0 @@
-projectile::CollisionResult
-projectile::CollisionResult: SpacetimeType
-std::option::Option<projectile::CollisionResult>

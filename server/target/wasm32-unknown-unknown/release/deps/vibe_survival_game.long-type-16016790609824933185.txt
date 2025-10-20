@@ -1,2 +1,0 @@
-projectile::CollisionResult: spacetimedb::Serialize
-std::option::Option<projectile::CollisionResult>

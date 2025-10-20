@@ -1,7 +1,7 @@
 import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../../generated';
 // import { applyStandardDropShadow } from './shadowUtils'; // Not used
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Use this instead
-import { Identity } from '@clockworklabs/spacetimedb-sdk'; // For Identity comparison
+import { Identity } from 'spacetimedb'; // For Identity comparison
 
 interface RenderShelterProps {
   ctx: CanvasRenderingContext2D;

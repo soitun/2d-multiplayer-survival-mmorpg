@@ -6,8 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Map the import name used by spacetime CLI 1.6.0+ to the actual package
-      'spacetimedb': '@clockworklabs/spacetimedb-sdk',
+      // No alias needed - using spacetimedb package directly
     },
   },
   server: {

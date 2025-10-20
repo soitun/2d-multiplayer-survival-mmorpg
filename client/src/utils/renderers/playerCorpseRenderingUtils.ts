@@ -1,7 +1,7 @@
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { Player as SpacetimeDBPlayer } from '../../generated/player_type';
 import { renderPlayer, IDLE_FRAME_INDEX } from './playerRenderingUtils';
-import { Identity, Timestamp } from '@clockworklabs/spacetimedb-sdk';
+import { Identity, Timestamp } from 'spacetimedb';
 
 // Constants for shake effect
 const SHAKE_DURATION_MS = 150;     // How long the shake effect lasts
