@@ -394,9 +394,9 @@ function drawUnderwaterShadow(
     0, 0, gameConfig.spriteWidth, gameConfig.spriteHeight    // Destination: full temporary canvas
   );
   
-  // Shadow offset: adjusted to center under player after transformations
-  const shadowOffsetX = spriteWidth * 0.5; // Shift right to center under player (accounting for flip/rotation)
-  const shadowOffsetY = spriteHeight * 1.0; // Same vertical distance (directly below player)
+  // Shadow offset: positioned close to the character for top-down underwater view
+  const shadowOffsetX = spriteWidth * 0.28; // Small shift right (~10-12 pixels)
+  const shadowOffsetY = spriteHeight * 0.9; // Small shift down (~14-18 pixels)
   
   // Shadow position
   const shadowX = centerX + shadowOffsetX;
@@ -404,16 +404,15 @@ function drawUnderwaterShadow(
   
   ctx.save();
   
-  // Translate to shadow position for rotation and flip
+  // Apply transformations for underwater shadow distortion
   ctx.translate(shadowX, shadowY);
   
-  // Flip vertically for realistic mirror reflection
-  ctx.scale(-1, 1);
+  // Make shadow smaller than character with slight horizontal distortion
+  ctx.scale(0.85, 0.75); // 85% width, 75% height - smaller and compressed underwater
   
-  // Rotate 45 degrees to the right (PI/4 radians)
-  ctx.rotate(Math.PI / 4);
+  // Rotate for slanting shadow effect (without flipping)
+  ctx.rotate(Math.PI / 6); // 30 degrees clockwise
   
-  // Translate back
   ctx.translate(-shadowX, -shadowY);
   
   // Use drawDynamicGroundShadow with custom parameters for underwater effect
@@ -425,11 +424,11 @@ function drawUnderwaterShadow(
     imageDrawWidth: spriteWidth,
     imageDrawHeight: spriteHeight,
     cycleProgress: 0.5, // Fixed "noon" lighting for consistent underwater shadow
-    baseShadowColor: '0, 30, 50', // Blue-ish underwater tint
+    baseShadowColor: '6, 30, 38', // Matches water color (#0C3E4F) but darker for sea floor shadow
     maxShadowAlpha: 0.75, // Slightly more transparent (deeper underwater)
     maxStretchFactor: 1.0, // Minimal stretch (water diffuses light)
     minStretchFactor: 0.9, // Keep shadow compact
-    shadowBlur: 2, // Reduced blur for sharper shadow (was 6)
+    shadowBlur: 2, // Reduced blur for sharper shadow
     pivotYOffset: 0,
   });
   
