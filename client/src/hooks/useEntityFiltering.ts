@@ -711,11 +711,15 @@ export function useEntityFiltering(
     [clouds, isEntityInView, viewBounds, stableTimestamp]
   );
 
-  const visiblePlantedSeeds = useMemo(() => 
-    plantedSeeds ? Array.from(plantedSeeds.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [plantedSeeds, isEntityInView, viewBounds, stableTimestamp]
-  );
+  const visiblePlantedSeeds = useMemo(() => {
+    if (!plantedSeeds) return [];
+    
+    // Convert to array and filter
+    const seedsArray = Array.from(plantedSeeds.values());
+    const filtered = seedsArray.filter(e => isEntityInView(e, viewBounds, stableTimestamp));
+    
+    return filtered;
+  }, [plantedSeeds, plantedSeeds?.size, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleRainCollectors = useMemo(() => 
     rainCollectors ? Array.from(rainCollectors.values()).filter(e => !e.isDestroyed && isEntityInView(e, viewBounds, stableTimestamp))

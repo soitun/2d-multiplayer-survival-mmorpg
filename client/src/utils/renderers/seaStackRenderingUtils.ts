@@ -287,7 +287,10 @@ function drawWaterLineEffects(
   height: number,
   currentTimeMs: number
 ): void {
-  const waterLineY = -WATER_LINE_CONFIG.HEIGHT_OFFSET;
+  // Position water line at the exact split between base and tower (11% from bottom)
+  const BASE_PORTION = 0.11; // Must match the BASE_PORTION in renderSeaStack
+  const baseHeight = height * BASE_PORTION;
+  const waterLineY = -baseHeight; // Negative because we're measuring from stack.y (anchor point)
   const time = currentTimeMs;
   
   // Get contour points at the water line level
@@ -338,12 +341,12 @@ function drawWaterLineEffects(
     // Apply clipping and fill with gradient underwater tint
     ctx.clip();
     
-    // Create aggressive gradient that quickly covers the sea stack
+    // Create gradient that gets fully opaque at bottom to blend with sea
     const underwaterGradient = ctx.createLinearGradient(0, waterLineY, 0, waterLineY + 60);
-    underwaterGradient.addColorStop(0, 'rgba(12, 62, 79, 0.7)'); // Strong tint right at water line
-    underwaterGradient.addColorStop(0.2, 'rgba(12, 62, 79, 0.9)'); // Very strong tint quickly
-    underwaterGradient.addColorStop(0.5, 'rgba(12, 62, 79, 1)'); // Fully opaque halfway down
-    underwaterGradient.addColorStop(1, 'rgba(12, 62, 79, 1)'); // Stay fully opaque to bottom
+    underwaterGradient.addColorStop(0, 'rgba(12, 62, 79, 0.3)'); // Light tint at water line
+    underwaterGradient.addColorStop(0.3, 'rgba(12, 62, 79, 0.6)'); // Medium tint
+    underwaterGradient.addColorStop(0.6, 'rgba(12, 62, 79, 0.85)'); // Strong tint
+    underwaterGradient.addColorStop(1, 'rgba(12, 62, 79, 1.0)'); // Fully opaque at bottom - merges with sea
     
     ctx.fillStyle = underwaterGradient;
     ctx.fillRect(constrainedLeft, waterLineY, constrainedRight - constrainedLeft, Math.min(100, stackBounds.bottom - waterLineY));
@@ -407,21 +410,23 @@ function renderSeaStack(
   
   // Draw dynamic ground shadow first (before the sea stack)
   if (!skipDrawingShadow && cycleProgress !== undefined) {
-    // Adjust shadow position to the water line (visual base) instead of image bottom
-    const shadowBaseY = stack.y - WATER_LINE_CONFIG.HEIGHT_OFFSET;
+    // Position shadow at the base of the sea stack (where base and tower split)
+    const BASE_PORTION = 0.11; // Must match the BASE_PORTION below
+    const baseHeight = height * BASE_PORTION;
+    const shadowBaseY = stack.y - baseHeight; // Shadow at the actual base level
     
     drawDynamicGroundShadow({
       ctx,
       entityImage: image,
-      entityCenterX: stack.x - 30,
-      entityBaseY: shadowBaseY + 30, // Shadow positioned at water line level
+      entityCenterX: stack.x,
+      entityBaseY: shadowBaseY, // Shadow positioned at base level
       imageDrawWidth: width,
       imageDrawHeight: height,
       cycleProgress,
-      maxStretchFactor: 2.0, // Sea stacks cast substantial shadows
-      minStretchFactor: 0.2,  // Decent minimum shadow
-      shadowBlur: 3,
-      pivotYOffset: 20, // Sea stacks are tall, shadow slightly forward
+      maxStretchFactor: 2.5, // Sea stacks cast longer shadows
+      minStretchFactor: 0.3,  // Decent minimum shadow
+      shadowBlur: 4,
+      pivotYOffset: -15, // Moderate offset - shadow starts close but has angular skew
     });
   }
   
@@ -435,24 +440,39 @@ function renderSeaStack(
   ctx.rotate(stack.rotation);
   ctx.globalAlpha = stack.opacity;
   
-    // Draw the sea stack centered (simple and clean) with optional half-rendering
+  // Draw the sea stack centered (simple and clean) with optional base/tower rendering
   const halfMode = renderHalfMode || 'full';
   
+  // The "base" is the underwater portion - roughly player height (~48-64 pixels)
+  // For sea stacks that are 800-1200px tall, this is about 1/15th to 1/20th
+  const BASE_PORTION = 0.15; // Bottom 8% is the underwater base
+  
   if (halfMode === 'bottom') {
-    // Render only bottom 50% of sea stack (underwater portion)
-    const halfHeight = height / 2;
+    // Render only the small underwater base (bottom ~10% of sea stack)
+    // NO water effects here - those render later with the top portion
+    const baseHeight = height * BASE_PORTION;
+    const sourceBaseHeight = image.naturalHeight * BASE_PORTION;
+    
     ctx.drawImage(
       image,
-      0, image.naturalHeight / 2, image.naturalWidth, image.naturalHeight / 2, // Source: bottom half
-      -width / 2, -halfHeight, width, halfHeight // Destination: bottom half
+      0, image.naturalHeight - sourceBaseHeight, // Source: bottom 10% of image
+      image.naturalWidth, sourceBaseHeight,
+      -width / 2, -baseHeight, // Destination: bottom portion at water level
+      width, baseHeight
     );
   } else if (halfMode === 'top') {
-    // Render only top 50% of sea stack (above water portion)
-    const halfHeight = height / 2;
+    // Render only the tower portion (top ~90% of sea stack)
+    // NO water effects here - those are rendered separately in Step 3.5
+    const baseHeight = height * BASE_PORTION;
+    const towerHeight = height * (1 - BASE_PORTION);
+    const sourceTowerHeight = image.naturalHeight * (1 - BASE_PORTION);
+    
     ctx.drawImage(
       image,
-      0, 0, image.naturalWidth, image.naturalHeight / 2, // Source: top half  
-      -width / 2, -height, width, halfHeight // Destination: top half
+      0, 0, // Source: top 90% of image
+      image.naturalWidth, sourceTowerHeight,
+      -width / 2, -height, // Destination: tower portion from top down
+      width, towerHeight
     );
   } else {
     // Render full sea stack (default behavior)
@@ -463,11 +483,11 @@ function renderSeaStack(
       width,
       height
     );
-  }
-  
-  // Add simple water line effect if time is provided
-  if (currentTimeMs !== undefined) {
-    drawWaterLineEffects(ctx, stack, image, width, height, currentTimeMs);
+    
+    // Add water line effect for full rendering
+    if (currentTimeMs !== undefined) {
+      drawWaterLineEffects(ctx, stack, image, width, height, currentTimeMs);
+    }
   }
   
   ctx.restore();
@@ -517,8 +537,245 @@ export function renderSeaStackSingle(
         imageIndex: imageIndex
       };
       
-    // Render with water effects (pass current time for animations)
-    renderSeaStack(ctx, clientStack, stackImage, cycleProgress, false, false, currentTimeMs || Date.now(), renderHalfMode);
+    // Render with water effects, but skip shadow (drawn separately)
+    renderSeaStack(ctx, clientStack, stackImage, cycleProgress, false, true, currentTimeMs || Date.now(), renderHalfMode);
+  }
+}
+
+/**
+ * Renders ONLY the shadow for a sea stack (no rock texture)
+ * This should be called first, before any sea stack portions
+ */
+export function renderSeaStackShadowOnly(
+  ctx: CanvasRenderingContext2D,
+  seaStack: any, // Server-provided sea stack entity
+  doodadImages: Map<string, HTMLImageElement> | null,
+  cycleProgress?: number // Day/night cycle for dynamic shadows
+): void {
+  // Trigger image preloading
+  preloadSeaStackImages();
+  if (!imagesLoaded || preloadedImages.length === 0) return;
+  
+  // Map server variant to image index
+  let imageIndex = 0;
+  if (seaStack.variant && seaStack.variant.tag) {
+    switch (seaStack.variant.tag) {
+      case 'Tall': imageIndex = 0; break;
+      case 'Medium': imageIndex = 1; break;
+      case 'Wide': imageIndex = 2; break;
+      default: imageIndex = 0; break;
+    }
+  }
+  
+  imageIndex = Math.min(imageIndex, preloadedImages.length - 1);
+  const stackImage = preloadedImages[imageIndex];
+  
+  if (stackImage && stackImage.complete) {
+    const clientStack: SeaStack = {
+      x: seaStack.posX,
+      y: seaStack.posY,
+      scale: seaStack.scale || 1.0,
+      rotation: 0.0,
+      opacity: seaStack.opacity || 1.0,
+      imageIndex: imageIndex
+    };
+    
+    // Render with onlyDrawShadow = true, skipDrawingShadow = false
+    renderSeaStack(ctx, clientStack, stackImage, cycleProgress, true, false, undefined, 'full');
+  }
+}
+
+/**
+ * Renders only the bottom half of a sea stack WITHOUT shadows (underwater portion)
+ * This should be called after shadows but before swimming players
+ */
+export function renderSeaStackBottomOnly(
+  ctx: CanvasRenderingContext2D,
+  seaStack: any, // Server-provided sea stack entity
+  doodadImages: Map<string, HTMLImageElement> | null,
+  cycleProgress?: number, // Day/night cycle for dynamic shadows
+  currentTimeMs?: number // Current time for animations
+): void {
+  // Render only the bottom half, skipping shadow (already drawn separately)
+  renderSeaStackSingle(ctx, seaStack, doodadImages, cycleProgress, currentTimeMs, 'bottom');
+}
+
+/**
+ * Draws ONLY the animated water line (without gradient)
+ * This should be rendered on top of everything
+ */
+function drawWaterLineOnly(
+  ctx: CanvasRenderingContext2D,
+  stack: SeaStack,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+  currentTimeMs: number
+): void {
+  // Position water line at the exact split between base and tower (11% from bottom)
+  const BASE_PORTION = 0.11;
+  const baseHeight = height * BASE_PORTION;
+  const waterLineY = -baseHeight;
+  const time = currentTimeMs;
+  
+  // Get contour points at the water line level
+  const contourPoints = getImageContourAtLevel(image, waterLineY, width, height);
+  
+  if (contourPoints.length === 0) return;
+  
+  // Create animated wave offset
+  const baseWaveOffset = Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY + stack.x * 0.01) * WATER_LINE_CONFIG.WAVE_AMPLITUDE;
+  const shimmerIntensity = (Math.sin(time * WATER_LINE_CONFIG.SHIMMER_FREQUENCY * 2) + 1) * 0.5;
+  
+  ctx.save();
+  
+  // Draw the animated water line following the contour
+  ctx.strokeStyle = `rgba(100, 200, 255, ${0.6 + shimmerIntensity * 0.3})`;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  ctx.beginPath();
+  
+  // Draw water line segments following the contour
+  contourPoints.forEach((x, index) => {
+    const localWaveOffset = baseWaveOffset + Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY * 3 + index * 0.3) * 1;
+    const y = waterLineY + localWaveOffset;
+    
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  
+  ctx.stroke();
+  
+  // Add shimmer highlights on the water line
+  if (shimmerIntensity > 0.7) {
+    ctx.strokeStyle = `rgba(255, 255, 255, ${(shimmerIntensity - 0.7) * 2})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
+
+/**
+ * Renders only the water line effects for sea stacks (blue gradient overlay)
+ * This should be called AFTER swimming players to ensure the water appears over them
+ */
+export function renderSeaStackWaterEffectsOnly(
+  ctx: CanvasRenderingContext2D,
+  seaStack: any, // Server-provided sea stack entity
+  doodadImages: Map<string, HTMLImageElement> | null,
+  currentTimeMs?: number // Current time for animations
+): void {
+  // Trigger image preloading on first call
+  preloadSeaStackImages();
+  
+  // Early exit if images not loaded yet
+  if (!imagesLoaded || preloadedImages.length === 0) return;
+    
+  // Map server variant to image index
+  let imageIndex = 0;
+  if (seaStack.variant && seaStack.variant.tag) {
+    switch (seaStack.variant.tag) {
+      case 'Tall': imageIndex = 0; break;
+      case 'Medium': imageIndex = 1; break;
+      case 'Wide': imageIndex = 2; break;
+      default: imageIndex = 0; break;
+    }
+  }
+  
+  // Ensure valid image index
+  imageIndex = Math.min(imageIndex, preloadedImages.length - 1);
+  const stackImage = preloadedImages[imageIndex];
+  
+  if (stackImage && stackImage.complete) {
+    // Create client-side rendering object from server data
+    const clientStack: SeaStack = {
+      x: seaStack.posX,
+      y: seaStack.posY,
+      scale: seaStack.scale || 1.0,
+      rotation: 0.0,
+      opacity: seaStack.opacity || 1.0,
+      imageIndex: imageIndex
+    };
+    
+    const width = SEA_STACK_CONFIG.BASE_WIDTH * clientStack.scale;
+    const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
+    
+    // Draw ONLY the water effects in the stack's coordinate space
+    ctx.save();
+    ctx.translate(clientStack.x, clientStack.y);
+    ctx.rotate(clientStack.rotation);
+    ctx.globalAlpha = clientStack.opacity;
+    
+    if (currentTimeMs !== undefined) {
+      drawWaterLineEffects(ctx, clientStack, stackImage, width, height, currentTimeMs);
+    }
+    
+    ctx.restore();
+  }
+}
+
+/**
+ * Renders only the water line (animated line, no gradient)
+ * This should be called LAST to render the water line on top of both base and tower
+ */
+export function renderSeaStackWaterLineOnly(
+  ctx: CanvasRenderingContext2D,
+  seaStack: any, // Server-provided sea stack entity
+  doodadImages: Map<string, HTMLImageElement> | null,
+  currentTimeMs?: number // Current time for animations
+): void {
+  // Trigger image preloading on first call
+  preloadSeaStackImages();
+  
+  // Early exit if images not loaded yet
+  if (!imagesLoaded || preloadedImages.length === 0) return;
+    
+  // Map server variant to image index
+  let imageIndex = 0;
+  if (seaStack.variant && seaStack.variant.tag) {
+    switch (seaStack.variant.tag) {
+      case 'Tall': imageIndex = 0; break;
+      case 'Medium': imageIndex = 1; break;
+      case 'Wide': imageIndex = 2; break;
+      default: imageIndex = 0; break;
+    }
+  }
+  
+  // Ensure valid image index
+  imageIndex = Math.min(imageIndex, preloadedImages.length - 1);
+  const stackImage = preloadedImages[imageIndex];
+  
+  if (stackImage && stackImage.complete) {
+    // Create client-side rendering object from server data
+    const clientStack: SeaStack = {
+      x: seaStack.posX,
+      y: seaStack.posY,
+      scale: seaStack.scale || 1.0,
+      rotation: 0.0,
+      opacity: seaStack.opacity || 1.0,
+      imageIndex: imageIndex
+    };
+    
+    const width = SEA_STACK_CONFIG.BASE_WIDTH * clientStack.scale;
+    const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
+    
+    // Draw ONLY the water line in the stack's coordinate space
+    ctx.save();
+    ctx.translate(clientStack.x, clientStack.y);
+    ctx.rotate(clientStack.rotation);
+    ctx.globalAlpha = clientStack.opacity;
+    
+    if (currentTimeMs !== undefined) {
+      drawWaterLineOnly(ctx, clientStack, stackImage, width, height, currentTimeMs);
+    }
+    
+    ctx.restore();
   }
 }
 

@@ -87,7 +87,7 @@ import { setShelterClippingData } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
-import { renderSeaStackSingle } from '../utils/renderers/seaStackRenderingUtils';
+import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly } from '../utils/renderers/seaStackRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
@@ -606,6 +606,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [visibleWorldTiles, updateTileCache]);
 
+  // PERFORMANCE: Create fast lookup Map for water tile checks (O(1) instead of O(n))
+  // This is critical for 50+ players checking shadow positions every frame
+  const waterTileLookup = useMemo(() => {
+    const lookup = new Map<string, boolean>();
+    if (visibleWorldTiles) {
+      visibleWorldTiles.forEach(tile => {
+        const key = `${tile.worldX},${tile.worldY}`;
+        lookup.set(key, tile.tileType?.tag === 'Sea');
+      });
+    }
+    return lookup;
+  }, [visibleWorldTiles]);
+
   // --- Interaction Finding System ---
   const {
     closestInteractableTarget,
@@ -1039,6 +1052,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });*/
     // --- End Ground Items --- 
 
+    // --- STEP 0.4: Render sea stack SHADOWS ONLY (below everything) ---
+    visibleSeaStacks.forEach(seaStack => {
+      renderSeaStackShadowOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress);
+    });
+    // --- END SEA STACK SHADOWS ---
+
+    // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
+    visibleSeaStacks.forEach(seaStack => {
+      renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms);
+    });
+    // --- END SEA STACK BOTTOMS ---
+
+    // --- STEP 0.6: Render sea stack water effects (blue gradient overlay OVER the rock) ---
+    // This creates the underwater tint over the sea stack base
+    visibleSeaStacks.forEach(seaStack => {
+      renderSeaStackWaterEffectsOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
+    });
+    // --- END SEA STACK WATER EFFECTS ---
+
+    // --- STEP 0.7: Render sea stack water lines (animated lines BELOW players) ---
+    visibleSeaStacks.forEach(seaStack => {
+      renderSeaStackWaterLineOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
+    });
+    // --- END SEA STACK WATER LINES ---
+
+    // Now players render OVER the rock, water gradient, AND water line
+
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
     const swimmingPlayersForBottomHalf = Array.from(players.values())
@@ -1248,17 +1288,38 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           0      // dodgeRollProgress
         );
 
-        // Call the underwater shadow function with animated sprite coordinates
-        drawUnderwaterShadowOnly(
-          ctx,
-          heroImg,
-          sx, // Use calculated sprite x coordinate
-          sy, // Use calculated sprite y coordinate
-          spriteBaseX,
-          spriteBaseY,
-          drawWidth,
-          drawHeight
-        );
+        // Calculate shadow position (same offset as in drawUnderwaterShadow function)
+        const centerX = playerForRendering.positionX;
+        const centerY = playerForRendering.positionY;
+        const shadowOffsetX = drawWidth * 0.28; // Small shift right
+        const shadowOffsetY = drawHeight * 0.9; // Small shift down
+        const shadowX = centerX + shadowOffsetX;
+        const shadowY = centerY + shadowOffsetY;
+
+        // Check if shadow position is over water before rendering
+        // Convert world position to tile coordinates
+        const shadowTileX = Math.floor(shadowX / gameConfig.tileSize);
+        const shadowTileY = Math.floor(shadowY / gameConfig.tileSize);
+
+        // PERFORMANCE: O(1) lookup using pre-computed Map instead of O(n) iteration
+        // Critical for 50+ players checking shadow positions every frame
+        const shadowTileKey = `${shadowTileX},${shadowTileY}`;
+        const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
+
+        // Only render shadow if it's over water
+        if (isShadowOverWater) {
+          // Call the underwater shadow function with animated sprite coordinates
+          drawUnderwaterShadowOnly(
+            ctx,
+            heroImg,
+            sx, // Use calculated sprite x coordinate
+            sy, // Use calculated sprite y coordinate
+            spriteBaseX,
+            spriteBaseY,
+            drawWidth,
+            drawHeight
+          );
+        }
       }
     });
     // --- END UNDERWATER SHADOWS ---
@@ -1274,8 +1335,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       visibleWorldTiles
     );
     // --- END WATER OVERLAY ---
-
-
 
     // --- STEP 3: Render ALL entities together in proper Y-sorted order (except swimming player bottom halves) ---
 

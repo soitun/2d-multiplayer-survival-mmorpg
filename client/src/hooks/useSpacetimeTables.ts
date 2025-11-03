@@ -733,7 +733,13 @@ export const useSpacetimeTables = ({
             };
             
             // --- Planted Seed Subscriptions ---
-            const handlePlantedSeedInsert = (ctx: any, seed: SpacetimeDB.PlantedSeed) => setPlantedSeeds(prev => new Map(prev).set(seed.id.toString(), seed));
+            const handlePlantedSeedInsert = (ctx: any, seed: SpacetimeDB.PlantedSeed) => {
+                setPlantedSeeds(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(seed.id.toString(), seed);
+                    return newMap;
+                });
+            };
             const handlePlantedSeedUpdate = (ctx: any, oldSeed: SpacetimeDB.PlantedSeed, newSeed: SpacetimeDB.PlantedSeed) => {
                 const changed = oldSeed.willMatureAt !== newSeed.willMatureAt || oldSeed.chunkIndex !== newSeed.chunkIndex;
                 if (changed) {

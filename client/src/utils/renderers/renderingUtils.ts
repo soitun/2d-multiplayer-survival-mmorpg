@@ -1006,8 +1006,8 @@ export const renderYSortedEntities = ({
             }
         } else if (type === 'sea_stack') {
             const seaStack = entity as any; // Sea stack from SpacetimeDB
-            // Render full sea stack with underwater tinting zones
-            renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'full');
+            // Render ONLY top half - bottom half is rendered separately before swimming players
+            renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top');
         } else if (type === 'shelter') {
             // Shelters are fully rendered in the first pass, including shadows.
             // No action needed in this second (shadow-only) pass.
