@@ -915,6 +915,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 gameCanvasRef={canvasRef}
                 cameraOffsetX={cameraOffsetX}
                 cameraOffsetY={cameraOffsetY}
+                isInventoryOpen={showInventoryState}
+                isGameMenuOpen={currentMenu !== null}
             />
 
             <FishingManager
