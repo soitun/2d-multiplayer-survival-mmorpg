@@ -250,7 +250,8 @@ function AppContent() {
             shelters,
             players,
             wildAnimals, // Add wild animals to collision system
-            barrels // Add barrels to collision system
+            barrels, // Add barrels to collision system
+            seaStacks // Add sea stacks to collision system
         }
     });
 

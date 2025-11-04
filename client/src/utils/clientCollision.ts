@@ -282,6 +282,30 @@ function getCollisionCandidates(
     });
   }
   
+  // Filter sea stacks
+  const nearbySeaStacks = filterEntitiesByDistance(
+    entities.seaStacks,
+    playerX,
+    playerY,
+    COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ,
+    COLLISION_PERF.MAX_STRUCTURES_TO_CHECK
+  );
+  
+  for (const seaStack of nearbySeaStacks) {
+    // Use circular collision (like trees) for smooth sliding behavior
+    // Scale the radius based on sea stack's scale property
+    const seaStackScale = seaStack.scale || 1.0;
+    const scaledRadius = COLLISION_RADII.SEA_STACK * seaStackScale;
+    
+    shapes.push({
+      id: seaStack.id.toString(),
+      type: `sea_stack-${seaStack.id.toString()}`,
+      x: seaStack.posX + COLLISION_OFFSETS.SEA_STACK.x,
+      y: seaStack.posY + COLLISION_OFFSETS.SEA_STACK.y,
+      radius: scaledRadius // Circular collision for smooth sliding
+    });
+  }
+  
   return shapes;
 }
 
@@ -295,6 +319,7 @@ const COLLISION_RADII = {
   PLAYER: PLAYER_RADIUS,
   WILD_ANIMAL: 40, // Add wild animal collision radius
   BARREL: 25, // Smaller barrel collision radius for better accuracy
+  SEA_STACK: 60, // Base radius for sea stacks - reduced significantly for smoother collision like trees
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -307,6 +332,7 @@ const COLLISION_OFFSETS = {
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
+  SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
 } as const;
 
 // Shelter AABB dimensions
@@ -336,6 +362,7 @@ export interface GameEntities {
   players: Map<string, Player>;
   wildAnimals: Map<string, WildAnimal>; // Add wild animals
   barrels: Map<string, Barrel>; // Add barrels
+  seaStacks: Map<string, any>; // Sea stacks from SpacetimeDB
 }
 
 interface CollisionShape {
@@ -601,8 +628,13 @@ function calculateSlideResponse(
     moveDir: { x: number; y: number },
     hit: CollisionHit
   ): { x: number; y: number } {
-    // 🚀 GRAVITY WELL FIX: Ensure much larger separation to prevent trapping
-    const MIN_SEPARATION = 8.0; // Minimum separation distance (was 1.5px, now 8px)
+    // Adaptive separation based on object size - smaller separation for large objects to prevent bouncing
+    const objectRadius = hit.shape.radius || 0;
+    // For large objects (like sea stacks), use smaller separation to prevent aggressive bouncing
+    // For normal objects (trees, etc.), use standard separation
+    const MIN_SEPARATION = objectRadius > 50 
+      ? 2.0  // Smaller separation for large objects (sea stacks) - prevents bouncing
+      : 8.0; // Standard separation for normal objects (trees, stones, etc.)
     
     // Always apply penetration correction for proper separation
     let correctedTo = { x: to.x, y: to.y };

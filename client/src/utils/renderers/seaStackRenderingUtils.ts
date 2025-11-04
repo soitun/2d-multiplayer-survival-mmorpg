@@ -341,12 +341,13 @@ function drawWaterLineEffects(
     // Apply clipping and fill with gradient underwater tint
     ctx.clip();
     
-    // Create gradient that gets fully opaque at bottom to blend with sea
+    // Create gradient that gets fully opaque sooner for better underwater effect
     const underwaterGradient = ctx.createLinearGradient(0, waterLineY, 0, waterLineY + 60);
     underwaterGradient.addColorStop(0, 'rgba(12, 62, 79, 0.3)'); // Light tint at water line
-    underwaterGradient.addColorStop(0.3, 'rgba(12, 62, 79, 0.6)'); // Medium tint
-    underwaterGradient.addColorStop(0.6, 'rgba(12, 62, 79, 0.85)'); // Strong tint
-    underwaterGradient.addColorStop(1, 'rgba(12, 62, 79, 1.0)'); // Fully opaque at bottom - merges with sea
+    underwaterGradient.addColorStop(0.2, 'rgba(12, 62, 79, 0.6)'); // Medium tint
+    underwaterGradient.addColorStop(0.4, 'rgba(12, 62, 79, 0.9)'); // Strong tint - reaches 90% much sooner
+    underwaterGradient.addColorStop(0.6, 'rgba(12, 62, 79, 1.0)'); // Fully opaque at 60% instead of 100%
+    underwaterGradient.addColorStop(1, 'rgba(12, 62, 79, 1.0)'); // Stay fully opaque to bottom
     
     ctx.fillStyle = underwaterGradient;
     ctx.fillRect(constrainedLeft, waterLineY, constrainedRight - constrainedLeft, Math.min(100, stackBounds.bottom - waterLineY));
@@ -448,31 +449,35 @@ function renderSeaStack(
   const BASE_PORTION = 0.15; // Bottom 8% is the underwater base
   
   if (halfMode === 'bottom') {
-    // Render only the small underwater base (bottom ~10% of sea stack)
+    // Render only the small underwater base (bottom ~15% of sea stack)
     // NO water effects here - those render later with the top portion
     const baseHeight = height * BASE_PORTION;
     const sourceBaseHeight = image.naturalHeight * BASE_PORTION;
     
     ctx.drawImage(
       image,
-      0, image.naturalHeight - sourceBaseHeight, // Source: bottom 10% of image
+      0, image.naturalHeight - sourceBaseHeight, // Source: bottom 15% of image
       image.naturalWidth, sourceBaseHeight,
       -width / 2, -baseHeight, // Destination: bottom portion at water level
       width, baseHeight
     );
   } else if (halfMode === 'top') {
-    // Render only the tower portion (top ~90% of sea stack)
+    // Render only the tower portion (top ~85% of sea stack)
     // NO water effects here - those are rendered separately in Step 3.5
     const baseHeight = height * BASE_PORTION;
     const towerHeight = height * (1 - BASE_PORTION);
     const sourceTowerHeight = image.naturalHeight * (1 - BASE_PORTION);
     
+    // Add 1-pixel overlap to eliminate seam between base and tower
+    const overlapPixels = 1;
+    const sourceOverlapPixels = Math.floor(overlapPixels * (image.naturalHeight / height));
+    
     ctx.drawImage(
       image,
-      0, 0, // Source: top 90% of image
-      image.naturalWidth, sourceTowerHeight,
+      0, 0, // Source: top 85% of image (starting from top)
+      image.naturalWidth, sourceTowerHeight + sourceOverlapPixels, // Add overlap to source
       -width / 2, -height, // Destination: tower portion from top down
-      width, towerHeight
+      width, towerHeight + overlapPixels // Add overlap to destination to eliminate seam
     );
   } else {
     // Render full sea stack (default behavior)
