@@ -98,7 +98,7 @@ const ENABLE_AGGRESSIVE_CULLING = true; // Enhanced viewport culling for better 
 const ENABLE_GRASS_PERF_LOGGING = false; // Reduce log spam for cleaner testing
 
 // --- NEW: Define which grass types should sway ---
-const SWAYING_GRASS_TYPES = new Set([
+const SWAYING_GRASS_TYPES = new Set<string>([
     GrassAppearanceType.PatchA.tag,
     GrassAppearanceType.PatchB.tag,
     GrassAppearanceType.PatchC.tag,
