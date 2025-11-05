@@ -3,6 +3,21 @@ node_modules/
 /.pnp
 .pnp.js
 
+# Python
+venv/
+env/
+ENV/
+.venv/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+*.egg
+
 # Rust
 /target/
 **/*.rs.bk

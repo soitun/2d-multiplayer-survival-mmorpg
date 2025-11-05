@@ -410,7 +410,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`,
+                                    // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`
@@ -476,7 +476,7 @@ export const useSpacetimeTables = ({
                             newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`));
+                            // REMOVED: WildAnimal - now subscribed globally like players to prevent disappearing
                             newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
 
@@ -965,7 +965,7 @@ export const useSpacetimeTables = ({
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
                 
-                console.log(`[DODGE DEBUG] Server state INSERT for player ${dodgeState.playerId.toHexString()}`);
+                // console.log(`[DODGE DEBUG] Server state INSERT for player ${dodgeState.playerId.toHexString()}`);
                 playerDodgeRollStatesRef.current.set(dodgeState.playerId.toHexString(), stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
             };
@@ -977,12 +977,12 @@ export const useSpacetimeTables = ({
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
                 
-                console.log(`[DODGE DEBUG] Server state UPDATE for player ${newDodgeState.playerId.toHexString()}`);
+                // console.log(`[DODGE DEBUG] Server state UPDATE for player ${newDodgeState.playerId.toHexString()}`);
                 playerDodgeRollStatesRef.current.set(newDodgeState.playerId.toHexString(), stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
             };
             const handlePlayerDodgeRollStateDelete = (ctx: any, dodgeState: SpacetimeDB.PlayerDodgeRollState) => {
-                console.log(`[DODGE DEBUG] Server state DELETE for player ${dodgeState.playerId.toHexString()}`);
+                // console.log(`[DODGE DEBUG] Server state DELETE for player ${dodgeState.playerId.toHexString()}`);
                 playerDodgeRollStatesRef.current.delete(dodgeState.playerId.toHexString());
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
             };
@@ -1061,12 +1061,25 @@ export const useSpacetimeTables = ({
 
             // Wild Animal handlers
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                setWildAnimals(prev => new Map(prev).set(animal.id.toString(), animal));
+                // CRITICAL FIX: Always update animal on INSERT, even if already in cache
+                // This ensures animals transitioning between chunks are immediately updated
+                // when the new chunk subscription picks them up
+                setWildAnimals(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(animal.id.toString(), animal);
+                    return newMap;
+                });
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
+                // CRITICAL FIX: Always update when chunk_index changes to prevent disappearing animals
+                // When an animal moves between chunks, we MUST update it even if other fields haven't changed
+                const chunkIndexChanged = oldAnimal.chunkIndex !== newAnimal.chunkIndex;
+                
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore timing micro-updates (lastAttackTime, stateChangeTime, etc.) that cause excessive re-renders
+                // BUT: Always update if chunk_index changed OR if animal is moving (position changed)
                 const visuallySignificant = 
+                    chunkIndexChanged ||                                      // CRITICAL: Chunk index changed (prevents disappearing)
                     Math.abs(oldAnimal.posX - newAnimal.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldAnimal.posY - newAnimal.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldAnimal.health - newAnimal.health) > 0.1 || // Health changed significantly
@@ -1079,7 +1092,25 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                setWildAnimals(prev => { const newMap = new Map(prev); newMap.delete(animal.id.toString()); return newMap; });
+                // CRITICAL FIX: Don't delete animals when they're just moving chunks!
+                // Only delete if animal is actually dead or truly removed from the database
+                // When chunk_index changes, SpacetimeDB sends DELETE from old chunk subscription,
+                // but the animal still exists - it just moved to a new chunk
+                // We'll keep it in cache until the new chunk subscription picks it up
+                
+                // Check if animal is actually dead
+                const isDead = animal.health <= 0;
+                
+                // Only delete if truly dead - otherwise keep in cache for chunk transitions
+                // The new chunk subscription will send an INSERT event that will update the animal
+                if (isDead) {
+                    setWildAnimals(prev => { const newMap = new Map(prev); newMap.delete(animal.id.toString()); return newMap; });
+                } else {
+                    // Animal is alive - this is likely a chunk transition, keep it in cache
+                    // The new chunk subscription will update it with the new chunk_index via INSERT
+                    // This prevents the "blinking" effect when animals cross chunk boundaries
+                    // Note: Animal stays in cache with last known position until new subscription arrives
+                }
             };
 
             const handleViperSpittleInsert = (ctx: any, spittle: SpacetimeDBViperSpittle) => {
@@ -1361,6 +1392,12 @@ export const useSpacetimeTables = ({
                   connection.subscriptionBuilder()
                      .onError((err) => console.error("[ANIMAL_CORPSE Sub Error]:", err))
                      .subscribe('SELECT * FROM animal_corpse'),
+                  // CRITICAL FIX: Subscribe to wild_animal globally (like players) to prevent disappearing
+                  // Animals are relatively few in number, so global subscription is fine and prevents
+                  // chunk-boundary disappearing issues
+                  connection.subscriptionBuilder()
+                     .onError((err) => console.error("[WILD_ANIMAL Sub Error]:", err))
+                     .subscribe('SELECT * FROM wild_animal'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -1446,7 +1483,8 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
+                                    // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
+                                    `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`
                                 ];
                                 // Removed excessive initial chunk debug logging

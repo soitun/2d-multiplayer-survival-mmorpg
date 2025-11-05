@@ -29,9 +29,71 @@ export interface PlacementActions {
 }
 
 /**
+ * Gets tile type from compressed chunk data (matching GameCanvas.tsx logic)
+ * Returns tile type tag string or null if not found
+ */
+function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number, tileY: number): string | null {
+  if (!connection) return null;
+  
+  // Default chunk size (typically 8 tiles per chunk)
+  let chunkSize = 8;
+  
+  // Try to find chunk size from any chunk data
+  for (const chunk of connection.db.worldChunkData.iter()) {
+    if (chunk.chunkSize) {
+      chunkSize = chunk.chunkSize;
+      break;
+    }
+  }
+  
+  // Calculate which chunk this tile belongs to (matching GameCanvas.tsx logic)
+  const chunkX = Math.floor(tileX / chunkSize);
+  const chunkY = Math.floor(tileY / chunkSize);
+  
+  // Look up the compressed chunk data using the same key format as GameCanvas
+  const chunkKey = `${chunkX},${chunkY}`;
+  
+  // Find chunk by iterating (since we don't have the chunkCacheRef)
+  for (const chunk of connection.db.worldChunkData.iter()) {
+    if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
+      // Calculate local tile position within the chunk (matching GameCanvas.tsx logic)
+      const localX = tileX % chunkSize;
+      const localY = tileY % chunkSize;
+      
+      // Handle negative mod (for negative tile coordinates)
+      const localTileX = localX < 0 ? localX + chunkSize : localX;
+      const localTileY = localY < 0 ? localY + chunkSize : localY;
+      
+      // Use chunk.chunkSize (which may differ from default) for index calculation
+      const actualChunkSize = chunk.chunkSize || chunkSize;
+      const tileIndex = localTileY * actualChunkSize + localTileX;
+      
+      // Check bounds and extract tile type
+      if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
+        const tileTypeU8 = chunk.tileTypes[tileIndex];
+        // Convert Uint8 to tile type tag (matching server-side enum)
+        switch (tileTypeU8) {
+          case 0: return 'Grass';
+          case 1: return 'Dirt';
+          case 2: return 'DirtRoad';
+          case 3: return 'Sea';
+          case 4: return 'Beach';
+          case 5: return 'Sand';
+          default: return 'Grass';
+        }
+      }
+      break; // Found the chunk, no need to continue
+    }
+  }
+  
+  return null; // No compressed data found for this position
+}
+
+/**
  * Converts world pixel coordinates to tile coordinates
  */
 function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; tileY: number } {
+  const TILE_SIZE = 48; // pixels per tile (matches server TILE_SIZE_PX and GameCanvas.tsx)
   const tileX = Math.floor(worldX / TILE_SIZE);
   const tileY = Math.floor(worldY / TILE_SIZE);
   return { tileX, tileY };
@@ -39,7 +101,8 @@ function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; 
 
 /**
  * Checks if a world position is on a water tile (Sea type).
- * Returns true if the position is on water and placement should be blocked.
+ * Uses compressed chunk data for efficient lookup.
+ * Returns true if the position is on water.
  */
 function isPositionOnWater(connection: DbConnection | null, worldX: number, worldY: number): boolean {
   if (!connection) {
@@ -48,16 +111,17 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
 
   const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
   
-  // Check all world tiles to find the one at this position
-  for (const tile of connection.db.worldTile.iter()) {
-    if (tile.worldX === tileX && tile.worldY === tileY) {
-      // Found the tile at this position, check if it's water
-      return tile.tileType.tag === 'Sea';
-    }
+  // Use compressed chunk data lookup
+  const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+  const isWater = tileType === 'Sea';
+  
+  console.log(`[WaterCheck] Tile at (${tileX}, ${tileY}): type=${tileType}, isWater=${isWater}`);
+  
+  if (tileType === null) {
+    console.log(`[WaterCheck] No chunk data found for tile (${tileX}, ${tileY}), assuming not water`);
   }
   
-  // No tile found at this position, assume it's safe to place (fallback)
-  return false;
+  return isWater;
 }
 
 /**
@@ -65,20 +129,27 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
  * Returns distance in pixels, or -1 if position is not on water.
  */
 function calculateShoreDistance(connection: DbConnection | null, worldX: number, worldY: number): number {
-  if (!connection) return -1;
+  if (!connection) {
+    console.log('[ShoreDistance] No connection, returning -1');
+    return -1;
+  }
   
-  const TILE_SIZE = 64; // pixels per tile
-  const MAX_SEARCH_RADIUS = 20; // tiles (matching server-side 20m limit)
+  const TILE_SIZE = 48; // pixels per tile (matches server TILE_SIZE_PX and GameCanvas.tsx)
+  const MAX_SEARCH_RADIUS_PIXELS = 200.0; // Matching server-side limit (20 meters = 200 pixels)
+  const MAX_SEARCH_RADIUS_TILES = Math.ceil(MAX_SEARCH_RADIUS_PIXELS / TILE_SIZE); // ~5 tiles
   
   const { tileX: centerTileX, tileY: centerTileY } = worldPosToTileCoords(worldX, worldY);
+  console.log(`[ShoreDistance] Searching from tile (${centerTileX}, ${centerTileY}), max radius: ${MAX_SEARCH_RADIUS_TILES} tiles`);
   
   // First verify we're on water
   if (!isPositionOnWater(connection, worldX, worldY)) {
+    console.log('[ShoreDistance] Not on water, returning -1');
     return -1; // Not on water
   }
   
   // Search outward in concentric circles to find nearest non-water tile
-  for (let radius = 1; radius <= MAX_SEARCH_RADIUS; radius++) {
+  // Limit search to MAX_SEARCH_RADIUS_TILES to match server-side 500 pixel limit
+  for (let radius = 1; radius <= MAX_SEARCH_RADIUS_TILES; radius++) {
     for (let dx = -radius; dx <= radius; dx++) {
       for (let dy = -radius; dy <= radius; dy++) {
         // Only check tiles on the perimeter of the current radius
@@ -87,21 +158,24 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
         const checkTileX = centerTileX + dx;
         const checkTileY = centerTileY + dy;
         
-        // Find this tile
-        for (const tile of connection.db.worldTile.iter()) {
-          if (tile.worldX === checkTileX && tile.worldY === checkTileY) {
-            // If this tile is not water, we found shore
-            if (tile.tileType.tag !== 'Sea') {
-              return radius * TILE_SIZE; // Return distance in pixels
-            }
-            break;
-          }
+        // Find this tile using compressed chunk data
+        const checkTileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
+        
+        // If this tile is not water, we found shore
+        if (checkTileType !== null && checkTileType !== 'Sea') {
+          const distancePixels = radius * TILE_SIZE;
+          const finalDistance = Math.min(distancePixels, MAX_SEARCH_RADIUS_PIXELS);
+          console.log(`[ShoreDistance] Found shore at tile (${checkTileX}, ${checkTileY}), type=${checkTileType}, radius ${radius} tiles = ${distancePixels}px, final: ${finalDistance}px`);
+          // Cap at MAX_SEARCH_RADIUS_PIXELS to match server behavior
+          return finalDistance;
         }
       }
     }
   }
   
-  return MAX_SEARCH_RADIUS * TILE_SIZE + 1; // Beyond max search radius
+  const result = MAX_SEARCH_RADIUS_PIXELS + 1;
+  console.log(`[ShoreDistance] No shore found within ${MAX_SEARCH_RADIUS_TILES} tiles, returning ${result}px`);
+  return result; // Beyond max search radius
 }
 
 /**
@@ -109,21 +183,32 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
  * Returns true if placement should be blocked.
  */
 function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
-  if (!connection) return false;
+  if (!connection) {
+    console.log('[ReedRhizome] No connection, allowing placement');
+    return false;
+  }
   
   // Reed Rhizomes must be on water
-  if (!isPositionOnWater(connection, worldX, worldY)) {
+  const isOnWater = isPositionOnWater(connection, worldX, worldY);
+  console.log(`[ReedRhizome] Position (${worldX.toFixed(1)}, ${worldY.toFixed(1)}) - isOnWater: ${isOnWater}`);
+  
+  if (!isOnWater) {
+    console.log('[ReedRhizome] BLOCKED: Not on water');
     return true; // Block if not on water
   }
   
-  // Reed Rhizomes must be within 20m (1280 pixels) of shore
+  // Reed Rhizomes must be within 50m (500 pixels) of shore - MATCHING SERVER-SIDE LIMIT
   const shoreDistance = calculateShoreDistance(connection, worldX, worldY);
-  const MAX_SHORE_DISTANCE = 20 * 64; // 20 tiles * 64 pixels/tile = 1280 pixels
+  const MAX_SHORE_DISTANCE = 200.0; // 50 meters = 500 pixels (matching server-side constant)
+  
+  console.log(`[ReedRhizome] Shore distance: ${shoreDistance.toFixed(1)}px, Max: ${MAX_SHORE_DISTANCE}px`);
   
   if (shoreDistance < 0 || shoreDistance > MAX_SHORE_DISTANCE) {
+    console.log(`[ReedRhizome] BLOCKED: Too far from shore (distance: ${shoreDistance.toFixed(1)}px)`);
     return true; // Block if too far from shore
   }
   
+  console.log('[ReedRhizome] VALID: Placement allowed');
   return false; // Valid placement
 }
 

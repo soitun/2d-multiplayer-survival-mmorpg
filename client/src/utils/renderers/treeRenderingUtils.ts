@@ -103,7 +103,7 @@ const treeConfig: GroundEntityConfig<Tree> = {
         drawDynamicGroundShadow({
             ctx,
             entityImage,
-            entityCenterX: entityPosX,
+            entityCenterX: entityPosX + 25, // Offset to the right to center shadow better
             entityBaseY: entityPosY,
             imageDrawWidth,
             imageDrawHeight,
@@ -111,7 +111,7 @@ const treeConfig: GroundEntityConfig<Tree> = {
             maxStretchFactor: 1.8,
             minStretchFactor: 0.15,
             shadowBlur: 2,
-            pivotYOffset: 15,
+            pivotYOffset: 25, // Positive offset moves anchor UP, aligning shadow with tree base
             // NEW: Pass shake offsets so shadow moves with the tree
             shakeOffsetX,
             shakeOffsetY
@@ -260,7 +260,7 @@ function renderFallingTree(
             maxStretchFactor: 1.8,
             minStretchFactor: 0.15,
             shadowBlur: 2,
-            pivotYOffset: 15,
+            pivotYOffset: 25, // Positive offset moves anchor UP, aligning shadow with tree base
             // Aggressive fade-out - disappears completely by 90%
             baseShadowColor: '0, 0, 0', // Standard shadow color
             maxShadowAlpha: shadowAlpha

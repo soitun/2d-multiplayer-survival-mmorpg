@@ -4,8 +4,34 @@
 import { type GameContext } from '../utils/gameContextBuilder';
 import { getGameKnowledgeForSOVA, getRandomSOVAJoke } from '../utils/gameKnowledgeExtractor';
 
-const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY || 'your-openai-api-key-here';
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+// Always use secure proxy - API keys never exposed to client
+const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';
+const OPENAI_API_URL = `${PROXY_URL}/api/openai/chat`;
+
+export interface OpenAITiming {
+  requestStartTime: number;
+  responseReceivedTime: number;
+  totalLatencyMs: number;
+  promptLength: number;
+  responseLength: number;
+  timestamp: string;
+  success: boolean;
+}
+
+export interface OpenAIPerformanceReport {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  averageLatencyMs: number;
+  medianLatencyMs: number;
+  minLatencyMs: number;
+  maxLatencyMs: number;
+  averagePromptLength: number;
+  averageResponseLength: number;
+  averageThroughputCharsPerSecond: number;
+  recentTimings: OpenAITiming[];
+  generatedAt: string;
+}
 
 export interface OpenAIResponse {
   success: boolean;
@@ -28,10 +54,11 @@ export interface SOVAPromptRequest {
 }
 
 class OpenAIService {
-  private apiKey: string;
+  private performanceData: OpenAITiming[] = [];
+  private maxStoredTimings = 100; // Keep last 100 requests for analysis
 
   constructor() {
-    this.apiKey = OPENAI_API_KEY;
+    console.log('[OpenAI] 🔒 Using secure proxy - API key never exposed to client');
   }
 
   /**
@@ -67,20 +94,27 @@ class OpenAIService {
     try {
       console.log('[OpenAI] Generating SOVA response for:', request.userMessage);
 
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Proxy handles authentication server-side - no API key needed here
+
       const response = await fetch(OPENAI_API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
+        headers,
         body: JSON.stringify({
-          model: 'gpt-4o-mini', // Much faster and cheaper model
+          model: 'gpt-4o', // Optimized for speed + better instruction following
+          // Alternatives:
+          // 'gpt-4o-mini' - Cheaper, but less capable for complex instructions
+          // 'gpt-4-turbo' - Older model, slower than GPT-4o
+          // 'o1-mini' - Good reasoning but slower due to chain-of-thought
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
           max_completion_tokens: 1500, // Increased significantly to handle large recipe lists
-          temperature: 1, // Reduced for more consistent, factual responses
+          temperature: 0.8, // Reduced for more consistent, factual responses
           presence_penalty: 0.0, // Removed to avoid penalizing factual information
           frequency_penalty: 0.0, // Removed to avoid penalizing repeated factual data
         }),
@@ -114,6 +148,12 @@ class OpenAIService {
         throughput: `${(timing.responseLength / (timing.totalLatencyMs / 1000)).toFixed(2)} chars/sec`
       });
 
+      // Record successful timing
+      this.recordTiming({
+        ...timing,
+        success: true,
+      }, true);
+
       return {
         success: true,
         response: sovaResponse,
@@ -130,6 +170,12 @@ class OpenAIService {
       const fallbackResponse = this.getFallbackResponse(request.userMessage);
       timing.responseLength = fallbackResponse.length;
       
+      // Record failed timing
+      this.recordTiming({
+        ...timing,
+        success: false,
+      }, false);
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -137,6 +183,79 @@ class OpenAIService {
         timing,
       };
     }
+  }
+
+  /**
+   * Record timing data for performance analysis
+   */
+  private recordTiming(timing: OpenAITiming, success: boolean = true) {
+    this.performanceData.push(timing);
+
+    if (this.performanceData.length > this.maxStoredTimings) {
+      this.performanceData = this.performanceData.slice(-this.maxStoredTimings);
+    }
+
+    console.log(`[OpenAI] 📈 REQUEST SUMMARY:`, {
+      success,
+      prompt: `${timing.promptLength} chars`,
+      response: `${timing.responseLength} chars`,
+      latency: `${timing.totalLatencyMs.toFixed(2)}ms`,
+      throughput: `${(timing.responseLength / (timing.totalLatencyMs / 1000)).toFixed(2)} chars/sec`
+    });
+  }
+
+  /**
+   * Generate performance report
+   */
+  generatePerformanceReport(): OpenAIPerformanceReport {
+    if (this.performanceData.length === 0) {
+      return {
+        totalRequests: 0,
+        successfulRequests: 0,
+        failedRequests: 0,
+        averageLatencyMs: 0,
+        medianLatencyMs: 0,
+        minLatencyMs: 0,
+        maxLatencyMs: 0,
+        averagePromptLength: 0,
+        averageResponseLength: 0,
+        averageThroughputCharsPerSecond: 0,
+        recentTimings: [],
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
+    const latencies = this.performanceData.map(t => t.totalLatencyMs);
+    const successful = this.performanceData.filter(t => t.success);
+
+    const sortedLatencies = [...latencies].sort((a, b) => a - b);
+    const medianIndex = Math.floor(sortedLatencies.length / 2);
+    const median = sortedLatencies.length % 2 === 0
+      ? (sortedLatencies[medianIndex - 1] + sortedLatencies[medianIndex]) / 2
+      : sortedLatencies[medianIndex];
+
+    return {
+      totalRequests: this.performanceData.length,
+      successfulRequests: successful.length,
+      failedRequests: this.performanceData.length - successful.length,
+      averageLatencyMs: latencies.reduce((sum, lat) => sum + lat, 0) / latencies.length,
+      medianLatencyMs: median,
+      minLatencyMs: Math.min(...latencies),
+      maxLatencyMs: Math.max(...latencies),
+      averagePromptLength: this.performanceData.reduce((sum, t) => sum + t.promptLength, 0) / this.performanceData.length,
+      averageResponseLength: this.performanceData.reduce((sum, t) => sum + t.responseLength, 0) / this.performanceData.length,
+      averageThroughputCharsPerSecond: successful.reduce((sum, t) => sum + (t.responseLength / (t.totalLatencyMs / 1000)), 0) / (successful.length || 1),
+      recentTimings: this.performanceData.slice(-20),
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Clear performance data
+   */
+  clearPerformanceData() {
+    this.performanceData = [];
+    console.log('[OpenAI] Performance data cleared');
   }
 
   /**
@@ -205,8 +324,12 @@ ${getGameKnowledgeForSOVA()}
 
 CRITICAL TACTICAL RULES:
 🔥 CAMPFIRE & TORCH LOGIC:
-- Campfires are EXTINGUISHED by heavy rain/storms (HeavyRain, HeavyStorm) - these prevent ignition
-- Campfires work fine in light rain, moderate rain, and clear weather
+- Campfires are EXTINGUISHED by heavy rain/storms (HeavyRain, HeavyStorm) - these prevent ignition in OPEN AREAS
+- Campfires CAN work in rain if built UNDER TREES or WITHIN SHELTERS - these provide protection from rain
+- Always recommend building campfires under trees or in shelters when raining
+- Campfires work fine in light rain, moderate rain, and clear weather (even better under trees/shelters when raining)
+- Standing under trees provides shelter from rain - prevents getting wet and reduces hypothermia risk
+- Always mention tree sheltering when advising about rain survival
 
 📊 STAT VALUE INTERPRETATION (CRITICAL):
 - Health ranges from 0-100, hunger and thirst range from 0-250, warmth ranges from 0-100+
@@ -218,8 +341,10 @@ CRITICAL TACTICAL RULES:
 🌦️ WEATHER ASSESSMENT:
 - ALWAYS use the exact weather data provided - never contradict environmental readings
 - If weather shows "Raining" with ANY intensity > 0%, acknowledge the rain
-- Heavy rain/storms make campfires impossible to light
+- Heavy rain/storms make campfires impossible to light in open areas
+- Campfires CAN work in rain if built under trees or within shelters - these provide protection
 - Rain affects player warmth and visibility - recommend appropriate shelter/tools
+- Always mention that standing under trees provides shelter from rain, preventing getting wet and hypothermia
 
 🔥 FUEL CALCULATION EXPERTISE (FROM ACTUAL SERVER CODE):
 - Wood burn rate: 5 seconds per piece (direct from item definition)
@@ -465,13 +590,21 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
       
       if (isHeavyWeather && (isNightTime || isDuskTime)) {
         prompt += `- CRITICAL: Heavy rain/storm + Dark conditions = Recommend TORCHES (portable, weatherproof light/warmth)\\n`;
-        prompt += `- DO NOT suggest campfires (extinguished by heavy rain/storms)\\n`;
+        prompt += `- DO NOT suggest campfires in open areas (extinguished by heavy rain/storms)\\n`;
+        prompt += `- If campfire needed: Can be built UNDER TREES or WITHIN SHELTERS for protection\\n`;
+        prompt += `- Urgent: Recommend standing under trees to prevent getting wet and hypothermia\\n`;
       } else if (isHeavyWeather) {
-        prompt += `- Heavy rain/storm = Campfires are extinguished, recommend TORCHES or shelter\\n`;
+        prompt += `- Heavy rain/storm = Campfires extinguished in open areas, recommend TORCHES or shelter\\n`;
+        prompt += `- Campfires CAN work if built UNDER TREES or WITHIN SHELTERS - recommend this option\\n`;
+        prompt += `- CRITICAL: Recommend standing under trees to stay dry and prevent hypothermia\\n`;
       } else if (isLightOrModerateRain && (isNightTime || isDuskTime)) {
-        prompt += `- Light/Moderate rain + Dark conditions = Recommend TORCHES for mobility, but campfires still work if stationary\\n`;
+        prompt += `- Light/Moderate rain + Dark conditions = Recommend TORCHES for mobility, but campfires work if stationary\\n`;
+        prompt += `- For campfires in rain: Build UNDER TREES or WITHIN SHELTERS for protection\\n`;
+        prompt += `- Standing under trees prevents getting wet and reduces hypothermia risk\\n`;
       } else if (isLightOrModerateRain) {
-        prompt += `- Light/Moderate rain = Campfires still work, but TORCHES recommended for mobility\\n`;
+        prompt += `- Light/Moderate rain = Campfires work in open areas, but better UNDER TREES or IN SHELTERS\\n`;
+        prompt += `- Recommend building campfires under trees or in shelters when raining\\n`;
+        prompt += `- Standing under trees provides shelter from rain - prevents getting wet\\n`;
       } else if (isNightTime) {
         prompt += `- Night operations = Prioritize TORCHES for mobility and safety\\n`;
       } else if (isDuskTime) {
@@ -553,7 +686,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
     }
 
     if (message.includes('rain') || message.includes('storm') || message.includes('weather')) {
-      return 'Weather conditions affect survival strategy. Use torches instead of campfires in wet conditions, Operative.';
+      return 'Weather conditions affect survival strategy. Stand under trees to stay dry, Operative. Build campfires under trees or in shelters when raining.';
     }
 
     if (message.includes('cold') || message.includes('warm') || message.includes('fire')) {
@@ -570,9 +703,10 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
 
   /**
    * Check if OpenAI API key is configured
+   * Always returns true - proxy handles authentication server-side
    */
   isConfigured(): boolean {
-    return this.apiKey !== 'your-openai-api-key-here' && this.apiKey.length > 0;
+    return true; // Proxy handles authentication
   }
 }
 

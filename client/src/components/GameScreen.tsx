@@ -566,18 +566,17 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     
                     <button 
                         onClick={(e) => {
-                            // Toggle between day and night for testing lighting
-                            const currentTimeOfDay = worldState?.timeOfDay?.tag;
-                            const isNight = currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight';
+                            // Cycle through all times of day for testing lighting
+                            const timeOrder = ['Dawn', 'TwilightMorning', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
+                            const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
+                            const currentIndex = timeOrder.indexOf(currentTimeOfDay);
+                            const nextIndex = (currentIndex + 1) % timeOrder.length;
+                            const nextTime = timeOrder[nextIndex];
                             
                             if (connection) {
                                 try {
-                                    // Call reducer to toggle time (only available in debug builds)
-                                    if (isNight) {
-                                        (connection.reducers as any).debugSetTime('Noon');
-                                    } else {
-                                        (connection.reducers as any).debugSetTime('Night');
-                                    }
+                                    // Call reducer to set time (only available in debug builds)
+                                    (connection.reducers as any).debugSetTime(nextTime);
                                 } catch (error) {
                                     console.warn('Debug time function not available (production build?):', error);
                                 }
@@ -590,7 +589,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                         style={{
                             backgroundColor: (() => {
                                 const timeOfDay = worldState?.timeOfDay?.tag;
-                                return (timeOfDay === 'Night' || timeOfDay === 'Midnight') ? '#3F51B5' : '#FFC107';
+                                if (timeOfDay === 'Night' || timeOfDay === 'Midnight') return '#3F51B5';
+                                if (timeOfDay === 'Dawn' || timeOfDay === 'Dusk') return '#FF9800';
+                                if (timeOfDay === 'TwilightMorning' || timeOfDay === 'TwilightEvening') return '#9C27B0';
+                                return '#FFC107';
                             })(),
                             color: 'white',
                             border: 'none',
@@ -600,10 +602,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                             cursor: 'pointer'
                         }}
                     >
-                        Time: {(() => {
-                            const timeOfDay = worldState?.timeOfDay?.tag;
-                            return (timeOfDay === 'Night' || timeOfDay === 'Midnight') ? 'NIGHT' : 'DAY';
-                        })()}
+                        Time: {worldState?.timeOfDay?.tag || 'UNKNOWN'}
                     </button>
                 </div>
             )}

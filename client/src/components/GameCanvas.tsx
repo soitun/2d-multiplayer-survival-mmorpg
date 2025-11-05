@@ -1695,7 +1695,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Post-Processing (Day/Night, Indicators, Lights, Minimap) ---
     // Day/Night mask overlay
     if (overlayRgba !== 'transparent' && overlayRgba !== 'rgba(0,0,0,0.00)' && maskCanvas) {
+      // Debug logging for overlay rendering
+      const overlayMatch = overlayRgba.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
+      if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
+        console.log(`[GameCanvas] DRAWING OVERLAY - overlayRgba: ${overlayRgba}, maskCanvas size: ${maskCanvas.width}x${maskCanvas.height}`);
+      }
       ctx.drawImage(maskCanvas, 0, 0);
+    } else {
+      // Debug: Log when overlay is NOT being drawn
+      if (overlayRgba && overlayRgba !== 'transparent' && overlayRgba !== 'rgba(0,0,0,0.00)') {
+        console.log(`[GameCanvas] OVERLAY SKIPPED - overlayRgba: ${overlayRgba}, maskCanvas exists: ${!!maskCanvas}`);
+      }
     }
 
     // Interaction indicators - Draw only for visible entities that are interactable

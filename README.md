@@ -65,7 +65,7 @@ openssl genpkey -algorithm RSA -out keys/private.pem -pkeyopt rsa_keygen_bits:20
 openssl rsa -pubout -in keys/private.pem -out keys/public.pem
 ```
 
-**3. Start All Services (3 Terminals):**
+**3. Start Core Services (3 Terminals):**
 
 **Terminal 1 - Auth Server:**
 ```bash
@@ -99,6 +99,44 @@ spacetime generate --lang typescript --out-dir ../client/src/generated --project
 ```
 
 🎉 **That's it! Your multiplayer survival game is up and running!** 🎮✨
+
+---
+
+### 🤖 Optional: SOVA AI Assistant Setup
+
+**Only needed if you want to use the in-game AI assistant (SOVA).**
+
+**Terminal 4 - API Proxy (Secure OpenAI):**
+```bash
+# Create .env file in project root first
+echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > .env
+echo "PROXY_PORT=8002" >> .env
+
+# Start proxy server
+cd api-proxy
+npm install
+npm start
+# API Proxy running on http://localhost:8002
+```
+
+**Terminal 5 - Kokoro TTS Backend:**
+```bash
+cd tts-backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1  # Windows PowerShell
+pip install -r requirements.txt
+python app.py
+# Kokoro TTS running on http://localhost:8001
+```
+
+**Client Environment Variables (for AI assistant):**
+```bash
+# Add to .env file in project root
+echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
+echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
+```
+
+See the [SOVA AI Assistant Configuration](#-sova-ai-assistant-configuration) section below for details.
 
 ---
 
@@ -315,22 +353,58 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 
 ### Quick Setup
 
-1. **AI Personality (OpenAI API):**
+**All API keys are secured server-side - never exposed to the browser!**
+
+1. **Start Secure API Proxy:**
    ```bash
-   # Create client/.env file
-   echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > client/.env
+   # Create .env file in project root
+   echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > .env
+   echo "PROXY_PORT=8002" >> .env
+   
+   # Start proxy server
+   cd api-proxy
+   npm install
+   npm start
    ```
 
-2. **Voice Synthesis (ElevenLabs API - Optional):**
+2. **Start Kokoro TTS Backend (Self-hosted, Free):**
+   
+   **Prerequisites:** Python 3.10-3.12 (Python 3.13 not supported yet)
+   
+   ```powershell
+   # PowerShell: Start Kokoro backend
+   cd tts-backend
+   
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate virtual environment
+   .\venv\Scripts\Activate.ps1
+   # If you get execution policy error, run first:
+   # Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   
+   # Start the service
+   python app.py
+   # Should see: "Application startup complete" and running on http://127.0.0.1:8001
+   ```
+   
+   **See [KOKORO_INTEGRATION.md](./KOKORO_INTEGRATION.md) for detailed setup instructions, troubleshooting, and system requirements.**
+
+3. **Configure Client (No API Keys Needed!):**
    ```bash
-   # Add to client/.env file
-   echo "ELEVENLABS_API_KEY=your-elevenlabs-api-key-here" >> client/.env
+   # Add to .env file in project root
+   echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
+   echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
    ```
 
 ### Features
-- 🎤 **Voice Synthesis:** High-quality voice responses using ElevenLabs API
-- 🎙️ **Voice Commands:** Hold V key for speech-to-text input (OpenAI Whisper)
-- 🧠 **AI Personality:** Intelligent responses powered by OpenAI GPT-4o
+- 🎤 **Voice Synthesis:** High-quality voice responses using Kokoro TTS (self-hosted, free)
+- 🎙️ **Voice Commands:** Hold V key for speech-to-text input (OpenAI Whisper via secure proxy)
+- 🧠 **AI Personality:** Intelligent responses powered by OpenAI GPT-4o (via secure proxy)
+- 🔒 **Secure:** All API keys stay on server - never exposed to browser
 - 🎯 **Game Knowledge:** Contextual survival tips and tactical advice
 - 🎪 **Easter Eggs:** Special responses (try asking "What does SOVA stand for?")
 - 🔄 **Fallback System:** Works without API keys using predefined responses
@@ -338,13 +412,23 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 ### Voice Interface
 - **Push-to-Talk:** Hold **V** key to activate voice recording
 - **Cyberpunk UI:** Animated recording interface with status indicators
-- **Speech-to-Text:** OpenAI Whisper converts speech to text
+- **Speech-to-Text:** OpenAI Whisper converts speech to text (via secure proxy)
 - **Chat Integration:** Voice messages appear in chat like typed messages
-- **AI Response:** SOVA responds intelligently with voice synthesis
+- **AI Response:** SOVA responds intelligently with voice synthesis (Kokoro TTS)
+
+### Services Required
+
+You need **3 services running** for full voice functionality:
+
+1. **API Proxy Server** (`api-proxy/`) - Handles OpenAI API calls securely
+2. **Kokoro TTS Backend** (`tts-backend/`) - Local text-to-speech synthesis
+3. **Game Client** (`npm run dev`) - React frontend
 
 ### Documentation
 - **[ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md)** - Complete environment variable guide
-- **[OPENAI_SETUP.md](./OPENAI_SETUP.md)** - AI personality configuration
+- **[SECURE_API_SETUP.md](./SECURE_API_SETUP.md)** - Secure proxy setup guide
+- **[KOKORO_INTEGRATION.md](./KOKORO_INTEGRATION.md)** - **Complete Kokoro TTS setup guide** (Python version requirements, troubleshooting, voice options)
+- **[WHISPER_OPTIMIZATION.md](./WHISPER_OPTIMIZATION.md)** - Speech-to-text optimization guide
 
 ## 🌍 World Configuration (Tile Size & Map Dimensions)
 
@@ -450,10 +534,17 @@ spacetime publish vibe-survival-game
 vibe-coding-starter-pack-2d-survival/
 ├── .cursor/                # Cursor AI configuration
 │   └── rules/              # *.mdc rule files for AI context
+├── api-proxy/              # Secure API proxy server (Node.js/Express)
+│   ├── server.ts          # Proxy server for OpenAI API calls
+│   └── package.json       # Node.js dependencies
 ├── auth-server-openauth/   # Authentication server (Node.js/Hono)
 │   ├── data/              # User storage (users.json)
 │   ├── index.ts           # Main auth server logic
 │   └── package.json       # Node.js dependencies
+├── tts-backend/            # Kokoro TTS backend (Python/FastAPI)
+│   ├── app.py             # FastAPI server for text-to-speech
+│   ├── requirements.txt  # Python dependencies
+│   └── README.md          # Kokoro setup instructions
 ├── client/                # React frontend (UI, rendering, input)
 │   ├── public/            # Static files (index.html, favicons)
 │   ├── src/

@@ -19,9 +19,12 @@ use crate::sound_events;
 const FUEL_ITEM_CONSUME_PER_SECOND: f32 = 0.2; // e.g., 1 wood every 5 seconds
 
 // --- Constants ---
-const DAY_DURATION_SECONDS: f32 = 3600.0; // 60 minutes  
-const NIGHT_DURATION_SECONDS: f32 = 900.0;  // 15 minutes
-const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 75 minutes total
+// Fast-paced cycle for combat + survival game (Blazing Beaks + Rust style)
+// 25-minute total cycle: 20 min day + 5 min night
+// Players get 2-3 cycles per hour-long session, keeping action fast-paced
+const DAY_DURATION_SECONDS: f32 = 1200.0; // 20 minutes  
+const NIGHT_DURATION_SECONDS: f32 = 300.0;  // 5 minutes
+const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 25 minutes total
 
 // Season duration constants for plant respawn calculations
 pub const SEASON_DURATION_HOURS: f32 = 90.0 * 24.0; // 90 days per season * 24 hours per day = 2160 hours
@@ -247,10 +250,12 @@ pub fn debug_set_weather(ctx: &ReducerContext, weather_type_str: String) -> Resu
 pub fn debug_set_time(ctx: &ReducerContext, time_type_str: String) -> Result<(), String> {
     let (new_progress, new_time_of_day) = match time_type_str.as_str() {
         "Dawn" => (0.02, TimeOfDay::Dawn),
+        "TwilightMorning" => (0.08, TimeOfDay::TwilightMorning), // Morning twilight (0.05-0.12)
         "Morning" => (0.20, TimeOfDay::Morning),
         "Noon" => (0.40, TimeOfDay::Noon),
         "Afternoon" => (0.55, TimeOfDay::Afternoon),
-        "Dusk" => (0.69, TimeOfDay::Dusk),
+        "Dusk" => (0.74, TimeOfDay::Dusk), // Middle of Dusk range (0.72-0.76)
+        "TwilightEvening" => (0.78, TimeOfDay::TwilightEvening), // Evening twilight (0.76-0.80)
         "Night" => (0.80, TimeOfDay::Night),     // Regular night (0.75-0.90)
         "Midnight" => (0.95, TimeOfDay::Midnight), // Deep night (0.90-1.0)
         _ => return Err(format!("Invalid time type: {}", time_type_str)),
@@ -344,17 +349,18 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
         }
 
         // Determine the new TimeOfDay based on new_progress
-        // Day is now 0.0 to 0.8 (60min), Night is 0.8 to 1.0 (15min)
+        // Day is now 0.0 to 0.8 (20min), Night is 0.8 to 1.0 (5min)
+        // Progress thresholds remain the same (0.0-1.0), durations scale proportionally
         let new_time_of_day = match new_progress {
-            p if p < 0.05 => TimeOfDay::Dawn,     // Orange (0.0 - 0.05) - 3.75min
-            p if p < 0.12 => TimeOfDay::TwilightMorning, // Purple (0.05 - 0.12) - 5.25min LONGER
-            p if p < 0.35 => TimeOfDay::Morning,   // Yellow (0.12 - 0.35) - 17.25min
-            p if p < 0.55 => TimeOfDay::Noon,      // Bright Yellow (0.35 - 0.55) - 15min
-            p if p < 0.72 => TimeOfDay::Afternoon, // Yellow (0.55 - 0.72) - 12.75min
-            p if p < 0.76 => TimeOfDay::Dusk,      // Orange (0.72 - 0.76) - 3min
-            p if p < 0.80 => TimeOfDay::TwilightEvening, // Purple (0.76 - 0.80) - 3min LONGER
-            p if p < 0.92 => TimeOfDay::Night,     // Dark Blue (0.80 - 0.92) - 9min
-            _             => TimeOfDay::Midnight, // Very Dark Blue/Black (0.92 - 1.0) - 6min, also default
+            p if p < 0.05 => TimeOfDay::Dawn,     // Orange (0.0 - 0.05) - 1.25min
+            p if p < 0.12 => TimeOfDay::TwilightMorning, // Purple (0.05 - 0.12) - 1.75min
+            p if p < 0.35 => TimeOfDay::Morning,   // Yellow (0.12 - 0.35) - 5.75min
+            p if p < 0.55 => TimeOfDay::Noon,      // Bright Yellow (0.35 - 0.55) - 5min
+            p if p < 0.72 => TimeOfDay::Afternoon, // Yellow (0.55 - 0.72) - 4.25min
+            p if p < 0.76 => TimeOfDay::Dusk,      // Orange (0.72 - 0.76) - 1min
+            p if p < 0.80 => TimeOfDay::TwilightEvening, // Purple (0.76 - 0.80) - 1min
+            p if p < 0.92 => TimeOfDay::Night,     // Dark Blue (0.80 - 0.92) - 3min
+            _             => TimeOfDay::Midnight, // Very Dark Blue/Black (0.92 - 1.0) - 2min, also default
         };
 
         // Assign the calculated new values to the world_state object

@@ -190,7 +190,7 @@ lazy_static! {
         
         configs.insert(PlantType::Reed, PlantConfig {
             entity_name: "Common Reed Stalk".to_string(),
-            density_percent: 0.0012, // INCREASED 6.4x: was 0.0001875 (~47 plants) → now ~300 plants (SUPPLEMENTARY FIBER)
+            density_percent: 0.0018, // INCREASED 1.5x: was 0.0012 (~300 plants) → now ~450 plants (MORE RIVER REEDS)
             min_distance_sq: 25.0 * 25.0,
             min_tree_distance_sq: 15.0 * 15.0,
             min_stone_distance_sq: 20.0 * 20.0,

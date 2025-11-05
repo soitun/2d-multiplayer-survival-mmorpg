@@ -348,7 +348,7 @@ fn calculate_shore_distance(ctx: &ReducerContext, x: f32, y: f32) -> f32 {
     // Use efficient radial search instead of grid search
     // This reduces checks from ~1,000 to ~50-100 and stops early when shore is found
     
-    const MAX_SEARCH_RADIUS: f32 = 200.0; // Maximum search distance in pixels
+    const MAX_SEARCH_RADIUS: f32 = 200.0; // Maximum search distance in pixels (increased from 200 to match new 50m limit)
     const RADIUS_STEP: f32 = 16.0; // Check every 16 pixels radially
     const ANGLE_STEP: f32 = std::f32::consts::PI / 8.0; // Check 16 directions (22.5° apart)
     
@@ -387,7 +387,7 @@ fn calculate_shore_distance(ctx: &ReducerContext, x: f32, y: f32) -> f32 {
 }
 
 /// Validate reed rhizome planting location
-/// Reed rhizomes can only be planted on water tiles within 20 meters of shore
+/// Reed rhizomes can only be planted on water tiles within 50 meters of shore
 fn validate_reed_rhizome_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
     // First check if it's a water tile
     if !is_water_tile(ctx, x, y) {
@@ -395,11 +395,11 @@ fn validate_reed_rhizome_planting(ctx: &ReducerContext, x: f32, y: f32) -> Resul
     }
     
     // Check distance to shore (20 meters = ~200 pixels at current scale)
-    const MAX_SHORE_DISTANCE: f32 = 200.0; // 20 meters in pixels
+    const MAX_SHORE_DISTANCE: f32 = 200.0;
     let shore_distance = calculate_shore_distance(ctx, x, y);
     
     if shore_distance > MAX_SHORE_DISTANCE {
-        return Err(format!("Reed Rhizome must be planted within 20m of shore (current distance: {:.1}m)", shore_distance / 10.0));
+        return Err(format!("Reed Rhizome must be planted within 50m of shore (current distance: {:.1}m)", shore_distance / 10.0));
     }
     
     log::info!("Reed Rhizome planting validated at ({:.1}, {:.1}) - {:.1}m from shore", x, y, shore_distance / 10.0);

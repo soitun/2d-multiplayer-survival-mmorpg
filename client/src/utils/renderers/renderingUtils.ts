@@ -597,9 +597,9 @@ export const renderYSortedEntities = ({
                    isDodgeRolling = true;
                    dodgeRollProgress = elapsed / 500.0;
                    // Only log successful dodge rolls occasionally to reduce spam
-                   if (Math.random() < 0.05) { // 5% chance to log
-                       console.log(`[DODGE] Player dodging - Progress: ${(dodgeRollProgress * 100).toFixed(1)}%, elapsed: ${elapsed.toFixed(0)}ms`);
-                   }
+                  //  if (Math.random() < 0.05) { // 5% chance to log
+                  //      console.log(`[DODGE] Player dodging - Progress: ${(dodgeRollProgress * 100).toFixed(1)}%, elapsed: ${elapsed.toFixed(0)}ms`);
+                  //  }
                }
                // Silently ignore expired dodge states (elapsed > 500ms)
            }

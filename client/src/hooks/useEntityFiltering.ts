@@ -727,11 +727,30 @@ export function useEntityFiltering(
     [rainCollectors, isEntityInView, viewBounds, stableTimestamp]
   );
 
-  const visibleWildAnimals = useMemo(() => 
-    wildAnimals ? Array.from(wildAnimals.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [wildAnimals, isEntityInView, viewBounds, stableTimestamp]
-  );
+  const visibleWildAnimals = useMemo(() => {
+    if (!wildAnimals) return [];
+    
+    // CRITICAL FIX: Add generous padding for animals to prevent disappearing during chunk transitions
+    // Animals can move quickly between chunks, so we need to show them even if they're slightly
+    // outside the normal viewport bounds during transitions
+    const animalPadding = 200; // Generous padding for fast-moving animals
+    
+    return Array.from(wildAnimals.values()).filter(e => {
+      // Always show animals that are alive (health > 0)
+      // This ensures animals transitioning between chunks remain visible
+      if (e.health <= 0) return false;
+      
+      // Check viewport with generous padding for animals
+      const paddedBounds = {
+        viewMinX: viewBounds.viewMinX - animalPadding,
+        viewMaxX: viewBounds.viewMaxX + animalPadding,
+        viewMinY: viewBounds.viewMinY - animalPadding,
+        viewMaxY: viewBounds.viewMaxY + animalPadding,
+      };
+      
+      return isEntityInView(e, paddedBounds, stableTimestamp);
+    });
+  }, [wildAnimals, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleViperSpittles = useMemo(() => 
     viperSpittles ? Array.from(viperSpittles.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))

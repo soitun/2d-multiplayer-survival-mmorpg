@@ -43,7 +43,7 @@ export const baseKeyframes: Record<number, ColorPoint> = {
 const TORCH_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 0.8; // Slightly smaller than campfire
 const TORCH_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.7; // Added for torch flicker
 
-// Define RGB colors for overlay tints - UPDATED FOR 75-MINUTE CYCLE (60min day + 15min night)
+// Define RGB colors for overlay tints - UPDATED FOR 25-MINUTE CYCLE (20min day + 5min night)
 interface ColorAlphaKeyframe {
   progress: number;
   rgb: [number, number, number];
@@ -54,7 +54,7 @@ interface ColorAlphaKeyframe {
 const DAY_COLOR_CONFIG = { rgb: [0, 0, 0] as [number, number, number], alpha: 0.0 }; // Color doesn't matter when alpha is 0
 
 const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // Midnight to Pre-Dawn (75-minute cycle: 60min day + 15min night)
+  // Midnight to Pre-Dawn (25-minute cycle: 20min day + 5min night)
   { progress: 0.0,  rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight
   { progress: 0.02, rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Late Midnight
 
@@ -80,10 +80,11 @@ const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 0.70, ...DAY_COLOR_CONFIG }, // Afternoon clear
 
   // Dusk (Server: 0.72 - 0.76, gradual transitions)
-  { progress: 0.72, rgb: [255, 190, 110], alpha: 0.05 },   // Late Afternoon hint of warmth
-  { progress: 0.735, rgb: [255, 160, 70],  alpha: 0.15 },   // Sunset approaching
-  { progress: 0.75, rgb: [240, 120, 50],  alpha: 0.30 },   // Golden Hour
-  { progress: 0.76, rgb: [200, 80, 60],   alpha: 0.50 },   // Sunset Peak
+  // Match TwilightMorning style - same colors and alpha progression
+  { progress: 0.72, rgb: [120, 70, 90],   alpha: 0.55 },   // Early evening purples - matches TwilightMorning start
+  { progress: 0.735, rgb: [160, 80, 90],  alpha: 0.50 },   // Pinks and Muted Oranges - matches TwilightMorning
+  { progress: 0.75, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen - matches TwilightMorning middle
+  { progress: 0.76, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges - matches TwilightMorning end
 
   // Twilight Evening (Server: 0.76 - 0.80, LONGER gradual transitions)
   { progress: 0.77, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dusk
@@ -96,7 +97,7 @@ const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
 ];
 
 const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // Midnight to Pre-Dawn (Full Moon, 75-minute cycle: 60min day + 15min night)
+  // Midnight to Pre-Dawn (Full Moon, 25-minute cycle: 20min day + 5min night)
   { progress: 0.0,  rgb: [130, 150, 190], alpha: 0.40 },   // Lighter Midnight
   { progress: 0.02, rgb: [135, 155, 195], alpha: 0.38 },   // Late Midnight
 
@@ -122,10 +123,11 @@ const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 0.70, ...DAY_COLOR_CONFIG },
 
   // Dusk (Full Moon, gradual transitions)
-  { progress: 0.72, rgb: [255, 215, 160], alpha: 0.01 },   // Late Afternoon hint of warmth
-  { progress: 0.735, rgb: [250, 190, 130], alpha: 0.06 },   // Sunset approaching
-  { progress: 0.75, rgb: [230, 160, 110], alpha: 0.12 },   // Muted Golden Hour
-  { progress: 0.76, rgb: [200, 140, 120], alpha: 0.20 },   // Sunset Peak
+  // Match Full Moon TwilightMorning style - same colors and alpha progression
+  { progress: 0.72, rgb: [200, 175, 165], alpha: 0.15 },   // Early evening silver-pink - matches Full Moon TwilightMorning start
+  { progress: 0.735, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges - matches Full Moon TwilightMorning
+  { progress: 0.75, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen - matches Full Moon TwilightMorning
+  { progress: 0.76, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges - matches Full Moon TwilightMorning end
 
   // Twilight Evening (Full Moon, LONGER gradual transitions)
   { progress: 0.77, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dusk
@@ -147,7 +149,7 @@ function calculateOverlayRgbaString(
     const isCurrentlyFullMoon = worldState?.isFullMoon ?? false;
     const currentCycleCount = worldState?.cycleCount ?? 0;
 
-    const GRACE_PERIOD_END_PROGRESS = 0.05; // Dawn period ends at 0.05 in new 75-minute cycle
+    const GRACE_PERIOD_END_PROGRESS = 0.05; // Dawn period ends at 0.05 in 25-minute cycle
     const REGULAR_DAWN_PEAK_PROGRESS = REGULAR_CYCLE_KEYFRAMES.find(kf => kf.progress === 0.125)?.progress ?? 0.125; // Updated to match new sunrise peak
 
     // --- Special Transition 1: Full Moon cycle STARTS, but PREVIOUS was Regular (or first cycle) ---
@@ -218,6 +220,11 @@ function calculateOverlayRgbaString(
     const g = Math.round(prevKf.rgb[1] * (1 - t) + nextKf.rgb[1] * t);
     const b = Math.round(prevKf.rgb[2] * (1 - t) + nextKf.rgb[2] * t);
     const alpha = prevKf.alpha * (1 - t) + nextKf.alpha * t;
+
+    // Debug logging for Dusk overlay (0.72 - 0.76)
+    if (cycleProgress >= 0.72 && cycleProgress <= 0.76) {
+        console.log(`[DayNightCycle] DUSK DEBUG - Progress: ${cycleProgress.toFixed(3)}, Prev: ${prevKf.progress} (alpha: ${prevKf.alpha}), Next: ${nextKf.progress} (alpha: ${nextKf.alpha}), T: ${t.toFixed(3)}, Final Alpha: ${alpha.toFixed(2)}, RGB: [${r},${g},${b}]`);
+    }
 
     return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
 }
@@ -313,8 +320,23 @@ export function useDayNightCycle({
                 currentCycleProgress,
                 worldState // Pass the whole worldState object
             );
+            
+            // Enhanced debug logging - show time of day and overlay
+            const timeOfDayTag = worldState?.timeOfDay?.tag || 'Unknown';
+            const isDusk = timeOfDayTag === 'Dusk' || (currentCycleProgress >= 0.72 && currentCycleProgress <= 0.76);
+            
+            if (isDusk) {
+                console.log(`[DayNightCycle] DUSK DEBUG - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}, FullMoon: ${worldState?.isFullMoon ?? false}`);
+            }
+            
+            // Log whenever overlay changes significantly (has alpha > 0.1)
+            const overlayMatch = calculatedOverlayString.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
+            if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
+                console.log(`[DayNightCycle] VISIBLE OVERLAY - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}`);
+            }
         } else {
             calculatedOverlayString = 'rgba(0,0,0,0)'; // Default to fully transparent day
+            console.warn('[DayNightCycle] No cycleProgress available, using transparent overlay');
         }
         
         // OPTIMIZED: Only update state if the overlay value actually changed
@@ -325,6 +347,13 @@ export function useDayNightCycle({
 
         maskCtx.fillStyle = calculatedOverlayString; 
         maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+        // Debug: Log when mask canvas is drawn with visible overlay
+        const overlayMatch = calculatedOverlayString.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
+        if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
+            const timeOfDayTag = worldState?.timeOfDay?.tag || 'Unknown';
+            console.log(`[DayNightCycle] MASK CANVAS DRAWN - TimeOfDay: ${timeOfDayTag}, Canvas size: ${maskCanvas.width}x${maskCanvas.height}, Overlay: ${calculatedOverlayString}`);
+        }
 
         maskCtx.globalCompositeOperation = 'destination-out';
 

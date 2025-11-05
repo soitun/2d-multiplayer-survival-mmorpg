@@ -4,9 +4,10 @@ import ChatInput from './ChatInput';
 import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, EventContext } from '../generated'; // Assuming types
 import styles from './Chat.module.css';
 import sovaIcon from '../assets/ui/sova.png';
-import { elevenLabsService } from '../services/elevenLabsService';
 import { openaiService } from '../services/openaiService';
 import { buildGameContext, type GameContextBuilderProps } from '../utils/gameContextBuilder';
+import apiPerformanceService from '../services/apiPerformanceService';
+import { kokoroService } from '../services/kokoroService';
 
 interface ChatProps {
   connection: DbConnection | null;
@@ -185,15 +186,15 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         };
         setSovaMessages(prev => [...prev, botResponse]);
 
-        // Try to synthesize and play voice response
+        // Try to synthesize and play voice response using Kokoro TTS
         try {
-          const voiceResult = await elevenLabsService.synthesizeVoice({
+          const voiceResult = await kokoroService.synthesizeVoice({
             text: aiResponse.response,
             voiceStyle: 'sova'
           });
           
           if (voiceResult.success && voiceResult.audioUrl) {
-            await elevenLabsService.playAudio(voiceResult.audioUrl);
+            await kokoroService.playAudio(voiceResult.audioUrl);
             console.log('[Chat] SOVA voice response played successfully');
           } else {
             console.error('[Chat] Voice synthesis failed:', voiceResult.error);
@@ -233,20 +234,20 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
 
   // Handle performance report generation
   const handleGenerateReport = useCallback(() => {
-    elevenLabsService.logPerformanceReport();
+    console.log('[Chat] Generating unified API performance report...');
     setShowPerformanceReport(true);
   }, []);
 
   // Handle copying report to clipboard
   const handleCopyReport = useCallback(async () => {
     try {
-      const report = elevenLabsService.generateFormattedReport();
+      const report = apiPerformanceService.generateFormattedReport();
       await navigator.clipboard.writeText(report);
       
       // Add a message to SOVA chat confirming the copy
       const confirmMessage = {
         id: `sova-report-${Date.now()}`,
-        text: 'Performance report copied to clipboard! You can now share it with the ElevenLabs API team.',
+        text: 'API performance report copied to clipboard! Contains data from OpenAI (GPT-4o & Whisper) and Kokoro TTS.',
         isUser: false,
         timestamp: new Date()
       };
@@ -561,11 +562,11 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         <div className={styles.performanceReportModal}>
           <div className={styles.performanceReportContent}>
             <div className={styles.performanceReportTitle}>
-              🎤 ELEVENLABS API PERFORMANCE REPORT
+              📊 SOVA API PERFORMANCE REPORT
             </div>
             
             <pre className={styles.performanceReportText}>
-              {elevenLabsService.generateFormattedReport()}
+              {apiPerformanceService.generateFormattedReport()}
             </pre>
             
             <div className={styles.performanceReportActions}>

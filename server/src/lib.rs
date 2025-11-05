@@ -498,8 +498,8 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     crate::crafting_queue::init_crafting_schedule(ctx)?;
     // Re-enable the player stat update schedule for TreeCover effects
     crate::player_stats::init_player_stat_schedule(ctx)?;
-    // [TEMP DISABLED] Initialize the global tick schedule - testing if it affects rubber banding
-    // crate::global_tick::init_global_tick_schedule(ctx)?;
+    // Initialize the global tick schedule - enables time progression and resource respawns
+    crate::global_tick::init_global_tick_schedule(ctx)?;
     // <<< UPDATED: Initialize StatThresholdsConfig table >>>
     crate::player_stats::init_stat_thresholds_config(ctx)?;
     // Re-enable active effects processing - needed for health regen, bleeding, poisoning, etc.

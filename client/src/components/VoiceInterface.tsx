@@ -4,7 +4,38 @@ import { openaiService } from '../services/openaiService';
 import { buildGameContext, type GameContextBuilderProps } from '../utils/gameContextBuilder';
 import sovaIcon from '../assets/ui/sova.png';
 import './VoiceInterface.css';
-import { elevenLabsService } from '../services/elevenLabsService';
+import { kokoroService } from '../services/kokoroService';
+
+// TTS Provider selection: 'kokoro' (default) | 'auto' (auto-detect)
+const TTS_PROVIDER = import.meta.env.VITE_TTS_PROVIDER || 'kokoro';
+
+/**
+ * Determine which TTS provider to use based on configuration and availability
+ * Currently only supports Kokoro (local TTS backend)
+ */
+async function shouldUseKokoro(): Promise<boolean> {
+  // If explicitly set to kokoro, use it
+  if (TTS_PROVIDER === 'kokoro') return true;
+  
+  // Auto-detect: Check if Kokoro service is available
+  if (TTS_PROVIDER === 'auto') {
+    try {
+      const testResult = await kokoroService.testConnection();
+      if (testResult.success) {
+        console.log('[VoiceInterface] ✅ Kokoro service available, using Kokoro TTS');
+        return true;
+      }
+    } catch (error) {
+      console.error('[VoiceInterface] ❌ Kokoro service not available:', error);
+    }
+    
+    // No fallback - Kokoro is required
+    return false;
+  }
+  
+  // Default to Kokoro
+  return true;
+}
 
 interface VoiceInterfaceProps {
   isVisible: boolean;
@@ -77,74 +108,53 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
     });
   }, [onAddSOVAMessage]);
 
-  // NEW: Clear previous state when interface becomes visible (V key pressed)
-  useEffect(() => {
-    if (isVisible) {
-      console.log('[VoiceInterface] Interface opened - clearing previous state');
-      setVoiceState(prev => ({
-        ...prev,
-        transcribedText: '', // Clear previous transcription
-        error: null, // Clear previous errors
-        isTranscribing: false,
-        isGeneratingResponse: false,
-        isSynthesizingVoice: false,
-        isPlayingAudio: false,
-      }));
-      
-      // Start recording if not already started
-      if (!voiceState.isRecording && !recordingStartedRef.current) {
-        startRecording();
-      }
-    }
-  }, [isVisible]);
-
-  // NEW: Notify parent component of loading state changes
-  useEffect(() => {
-    if (onLoadingStateChange) {
-      const currentPhase = voiceState.isRecording ? 'Listening...' :
-                          voiceState.isTranscribing ? 'Processing speech...' :
-                          voiceState.isGeneratingResponse ? 'Generating response...' :
-                          voiceState.isSynthesizingVoice ? 'Creating voice...' :
-                          voiceState.isPlayingAudio ? 'Playing response...' :
-                          'Ready';
-      
-      onLoadingStateChange({
-        isRecording: voiceState.isRecording,
-        isTranscribing: voiceState.isTranscribing,
-        isGeneratingResponse: voiceState.isGeneratingResponse,
-        isSynthesizingVoice: voiceState.isSynthesizingVoice,
-        isPlayingAudio: voiceState.isPlayingAudio,
-        transcribedText: voiceState.transcribedText,
-        currentPhase,
-      });
-    }
-  }, [voiceState, onLoadingStateChange]);
-
   // Start voice recording
   const startRecording = useCallback(async () => {
-    if (recordingStartedRef.current || processingRef.current) return;
+    console.log('[VoiceInterface] startRecording() called', {
+      recordingStarted: recordingStartedRef.current,
+      processing: processingRef.current
+    });
+    
+    if (recordingStartedRef.current || processingRef.current) {
+      console.log('[VoiceInterface] ⚠️ Skipping startRecording - already in progress');
+      return;
+    }
 
     console.log('[VoiceInterface] Starting recording...');
     recordingStartedRef.current = true;
 
     // Check if services are available
-    if (!whisperService.isSupported()) {
+    const isSupported = whisperService.isSupported();
+    console.log('[VoiceInterface] Browser support check:', isSupported);
+    
+    if (!isSupported) {
       const error = 'Voice recording not supported in this browser';
+      console.error('[VoiceInterface] ❌', error);
       setVoiceState(prev => ({ ...prev, error }));
       onError?.(error);
+      recordingStartedRef.current = false;
       return;
     }
 
-    if (!whisperService.isConfigured()) {
+    const isConfigured = whisperService.isConfigured();
+    console.log('[VoiceInterface] API key configured:', isConfigured);
+    
+    if (!isConfigured) {
       const error = 'OpenAI API key not configured for voice transcription';
+      console.error('[VoiceInterface] ❌', error);
       setVoiceState(prev => ({ ...prev, error }));
       onError?.(error);
+      recordingStartedRef.current = false;
       return;
     }
 
     try {
+      console.log('[VoiceInterface] Calling whisperService.startRecording()...');
       const success = await whisperService.startRecording();
+      console.log('[VoiceInterface] whisperService.startRecording() returned:', success);
+      
       if (success) {
+        console.log('[VoiceInterface] ✅ Recording started successfully');
         setVoiceState(prev => ({
           ...prev,
           isRecording: true,
@@ -152,13 +162,28 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
           recordingStartTime: Date.now(),
         }));
       } else {
-        throw new Error('Failed to start recording');
+        throw new Error('Failed to start recording - no error thrown but startRecording returned false');
       }
     } catch (error) {
-      console.error('[VoiceInterface] Recording start failed:', error);
+      console.error('[VoiceInterface] ❌ Recording start failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to start recording';
-      setVoiceState(prev => ({ ...prev, error: errorMessage }));
-      onError?.(errorMessage);
+      
+      // Provide more helpful error messages
+      let userFriendlyError = errorMessage;
+      if (errorMessage.includes('permission denied') || errorMessage.includes('PermissionDenied')) {
+        userFriendlyError = 'Microphone permission denied. Click the lock icon in your browser address bar and allow microphone access.';
+      } else if (errorMessage.includes('NotFound') || errorMessage.includes('microphone found')) {
+        userFriendlyError = 'No microphone detected. Please connect a microphone and refresh the page.';
+      } else if (errorMessage.includes('NotReadable') || errorMessage.includes('already in use')) {
+        userFriendlyError = 'Microphone is in use by another app. Close other apps using the microphone and try again.';
+      }
+      
+      setVoiceState(prev => ({ 
+        ...prev, 
+        error: userFriendlyError,
+        isRecording: false
+      }));
+      onError?.(userFriendlyError);
       recordingStartedRef.current = false;
     }
   }, [onError]);
@@ -280,23 +305,37 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
 
         // Generate voice synthesis with timing data collection
         console.log('[VoiceInterface] 🎤 Generating voice synthesis...');
-        const voiceResponse = await elevenLabsService.synthesizeVoice({
+        
+        // Use Kokoro TTS provider
+        const useKokoro = await shouldUseKokoro();
+        if (!useKokoro) {
+          throw new Error('Kokoro TTS service is not available. Please ensure the Kokoro backend is running.');
+        }
+        
+        const ttsService = kokoroService;
+        const serviceName = 'Kokoro';
+        
+        console.log(`[VoiceInterface] Using ${serviceName} TTS provider`);
+        
+        const voiceResponse = await ttsService.synthesizeVoice({
           text: aiResponse.response,
           voiceStyle: 'sova'
         });
 
-        // Update ElevenLabs service with complete pipeline timing
+        // Update TTS service with complete pipeline timing
         if (transcriptionResult.timing && aiResponse.timing && voiceResponse.timing) {
-          elevenLabsService.updatePipelineTiming(
+          ttsService.updatePipelineTiming(
             transcriptionResult.timing.totalLatencyMs,
             aiResponse.timing.totalLatencyMs
           );
           
-          console.log('[VoiceInterface] 📊 Complete Pipeline Performance:', {
+          const ttsLatency = voiceResponse.timing.apiLatencyMs;
+          
+          console.log(`[VoiceInterface] 📊 Complete Pipeline Performance (${serviceName}):`, {
             whisperLatency: `${transcriptionResult.timing.totalLatencyMs.toFixed(2)}ms`,
             openaiLatency: `${aiResponse.timing.totalLatencyMs.toFixed(2)}ms`,
             apiLatency: `${voiceResponse.timing.apiLatencyMs.toFixed(2)}ms`,
-            elevenLabsLatency: `${voiceResponse.timing.elevenLabsApiLatencyMs.toFixed(2)}ms`,
+            ttsLatency: `${ttsLatency.toFixed(2)}ms`,
             totalPipeline: `${(transcriptionResult.timing.totalLatencyMs + aiResponse.timing.totalLatencyMs + voiceResponse.timing.totalLatencyMs).toFixed(2)}ms`
           });
         }
@@ -331,7 +370,7 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
 
           // Play audio response
           console.log('[VoiceInterface] 🔊 Playing audio response...');
-          await elevenLabsService.playAudio(voiceResponse.audioUrl);
+          await ttsService.playAudio(voiceResponse.audioUrl);
           console.log('[VoiceInterface] ✅ Audio playback completed');
           
           setVoiceState(prev => ({
@@ -370,12 +409,65 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
     }
   }, [onTranscriptionComplete, onError, onAddSOVAMessage, localPlayerIdentity, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems]);
 
-  // Handle interface hiding (stop recording)
+  // NEW: Clear previous state when interface becomes visible (V key pressed) and start recording
   useEffect(() => {
-    if (!isVisible && voiceState.isRecording) {
-      stopRecordingAndProcess();
+    if (isVisible) {
+      console.log('[VoiceInterface] Interface opened - clearing previous state');
+      setVoiceState(prev => ({
+        ...prev,
+        transcribedText: '', // Clear previous transcription
+        error: null, // Clear previous errors
+        isTranscribing: false,
+        isGeneratingResponse: false,
+        isSynthesizingVoice: false,
+        isPlayingAudio: false,
+      }));
+      
+      // Start recording if not already started
+      // Use a small delay to ensure state is cleared first
+      const timer = setTimeout(() => {
+        if (!recordingStartedRef.current && !processingRef.current) {
+          console.log('[VoiceInterface] Calling startRecording()...');
+          startRecording();
+        } else {
+          console.log('[VoiceInterface] Skipping startRecording - already in progress', {
+            recordingStarted: recordingStartedRef.current,
+            processing: processingRef.current
+          });
+        }
+      }, 50); // Small delay to ensure state update completes
+      
+      return () => clearTimeout(timer);
+    } else {
+      // When interface closes, stop recording if it's active
+      if (recordingStartedRef.current) {
+        console.log('[VoiceInterface] Interface closed - stopping recording');
+        stopRecordingAndProcess();
+      }
     }
-  }, [isVisible, voiceState.isRecording, stopRecordingAndProcess]);
+  }, [isVisible, startRecording, stopRecordingAndProcess]);
+
+  // NEW: Notify parent component of loading state changes
+  useEffect(() => {
+    if (onLoadingStateChange) {
+      const currentPhase = voiceState.isRecording ? 'Listening...' :
+                          voiceState.isTranscribing ? 'Processing speech...' :
+                          voiceState.isGeneratingResponse ? 'Generating response...' :
+                          voiceState.isSynthesizingVoice ? 'Creating voice...' :
+                          voiceState.isPlayingAudio ? 'Playing response...' :
+                          'Ready';
+      
+      onLoadingStateChange({
+        isRecording: voiceState.isRecording,
+        isTranscribing: voiceState.isTranscribing,
+        isGeneratingResponse: voiceState.isGeneratingResponse,
+        isSynthesizingVoice: voiceState.isSynthesizingVoice,
+        isPlayingAudio: voiceState.isPlayingAudio,
+        transcribedText: voiceState.transcribedText,
+        currentPhase,
+      });
+    }
+  }, [voiceState, onLoadingStateChange]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -440,9 +532,9 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
           ) : voiceState.isRecording ? (
             `LISTENING... ${recordingDuration}s`
           ) : voiceState.error ? (
-            'ERROR'
+            'ERROR - CHECK CONSOLE'
           ) : (
-            'VOICE READY'
+            'VOICE READY - HOLD V TO SPEAK'
           )}
         </div>
 

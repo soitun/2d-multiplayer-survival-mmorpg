@@ -162,11 +162,22 @@ pub fn is_water_tile(ctx: &ReducerContext, x: f32, y: f32) -> bool {
     // Convert world position to tile coordinates
     let (tile_x, tile_y) = world_pos_to_tile_coords(x, y);
     
-    // Get the tile type at this position
-    match get_tile_type_at_position(ctx, tile_x, tile_y) {
-        Some(TileType::Sea) => true,
-        _ => false,
+    // NEW: Try compressed lookup first for better performance
+    if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type == TileType::Sea;
     }
+    
+    // FALLBACK: Use original method if compressed data not available
+    use crate::world_tile as WorldTileTableTrait;
+    let world_tiles = ctx.db.world_tile();
+    
+    // Use the indexed world_position btree for fast lookup
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type == TileType::Sea;
+    }
+    
+    // No tile found at this position, assume not water (safety fallback)
+    false
 }
 
 // Fishing range check
