@@ -68,4 +68,5 @@ export type GrowlSnake = { tag: "GrowlSnake" };
 export type GrowlWalrus = { tag: "GrowlWalrus" };
 export type Walking = { tag: "Walking" };
 export type Swimming = { tag: "Swimming" };
+export type FoundationWoodConstructed = { tag: "FoundationWoodConstructed" };
 

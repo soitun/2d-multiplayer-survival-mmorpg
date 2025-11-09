@@ -21,7 +21,8 @@ import {
     RainCollector as SpacetimeDBRainCollector,
     WildAnimal as SpacetimeDBWildAnimal,
     ViperSpittle as SpacetimeDBViperSpittle,
-    AnimalCorpse as SpacetimeDBAnimalCorpse
+    AnimalCorpse as SpacetimeDBAnimalCorpse,
+    FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
 } from '../../generated';
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { gameConfig } from '../../config/gameConfig';
@@ -42,6 +43,7 @@ import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderLantern } from './lanternRenderingUtils';
+import { renderFoundation } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
 // Import shelter renderer
@@ -395,6 +397,10 @@ interface RenderYSortedEntitiesProps {
   // NEW: Falling tree animation state
   isTreeFalling?: (treeId: string) => boolean;
   getFallProgress?: (treeId: string) => number;
+  // ADDED: Camera offsets for foundation rendering
+  cameraOffsetX?: number;
+  cameraOffsetY?: number;
+  foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
 }
 
 
@@ -453,6 +459,10 @@ export const renderYSortedEntities = ({
     // NEW: Falling tree animation state
     isTreeFalling,
     getFallProgress,
+    // ADDED: Camera offsets for foundation rendering
+    cameraOffsetX = 0,
+    cameraOffsetY = 0,
+    foundationTileImagesRef,
 }: RenderYSortedEntitiesProps) => {
     // PERFORMANCE: Clean up memory caches periodically
     cleanupCaches();
@@ -1008,6 +1018,17 @@ export const renderYSortedEntities = ({
             const seaStack = entity as any; // Sea stack from SpacetimeDB
             // Render ONLY top half - bottom half is rendered separately before swimming players
             renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top');
+        } else if (type === 'foundation_cell') {
+            const foundation = entity as SpacetimeDBFoundationCell;
+            // Foundations use cell coordinates directly - renderFoundation handles conversion
+            renderFoundation({
+                ctx,
+                foundation: foundation,
+                worldScale: 1.0,
+                viewOffsetX: -cameraOffsetX, // Convert camera offset to view offset
+                viewOffsetY: -cameraOffsetY,
+                foundationTileImagesRef: foundationTileImagesRef,
+            });
         } else if (type === 'shelter') {
             // Shelters are fully rendered in the first pass, including shadows.
             // No action needed in this second (shadow-only) pass.
@@ -1067,6 +1088,9 @@ export const renderYSortedEntities = ({
             // Barrels are fully rendered in the first pass - no second pass needed
         } else if (type === 'sea_stack') {
             // Sea stacks are fully rendered in the first pass - no second pass needed
+        } else if (type === 'foundation_cell') {
+            // Foundations are fully rendered in the first pass (ground level).
+            // No action needed in this second (shadow-only) pass.
         } else {
             console.warn('Unhandled entity type for Y-sorting (second pass):', type, entity);
         }

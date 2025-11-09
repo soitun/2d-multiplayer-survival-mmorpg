@@ -199,6 +199,8 @@ import { PickupStorageBox } from "./pickup_storage_box_reducer.ts";
 export { PickupStorageBox };
 import { PlaceCampfire } from "./place_campfire_reducer.ts";
 export { PlaceCampfire };
+import { PlaceFoundation } from "./place_foundation_reducer.ts";
+export { PlaceFoundation };
 import { PlaceFurnace } from "./place_furnace_reducer.ts";
 export { PlaceFurnace };
 import { PlaceLantern } from "./place_lantern_reducer.ts";
@@ -435,6 +437,8 @@ import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
+import { FoundationCellTableHandle } from "./foundation_cell_table.ts";
+export { FoundationCellTableHandle };
 import { FurnaceTableHandle } from "./furnace_table.ts";
 export { FurnaceTableHandle };
 import { FurnaceProcessingScheduleTableHandle } from "./furnace_processing_schedule_table.ts";
@@ -617,6 +621,8 @@ import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
+import { FoundationCell } from "./foundation_cell_type.ts";
+export { FoundationCell };
 import { Furnace } from "./furnace_type.ts";
 export { Furnace };
 import { FurnaceProcessingSchedule } from "./furnace_processing_schedule_type.ts";
@@ -964,6 +970,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "itemDefId",
         colType: (FoodPoisoningRisk.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    foundation_cell: {
+      tableName: "foundation_cell" as const,
+      rowType: FoundationCell.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FoundationCell.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     furnace: {
@@ -1808,6 +1823,10 @@ const REMOTE_MODULE = {
       reducerName: "place_campfire",
       argsType: PlaceCampfire.getTypeScriptAlgebraicType(),
     },
+    place_foundation: {
+      reducerName: "place_foundation",
+      argsType: PlaceFoundation.getTypeScriptAlgebraicType(),
+    },
     place_furnace: {
       reducerName: "place_furnace",
       argsType: PlaceFurnace.getTypeScriptAlgebraicType(),
@@ -2302,6 +2321,7 @@ export type Reducer = never
 | { name: "PickupLantern", args: PickupLantern }
 | { name: "PickupStorageBox", args: PickupStorageBox }
 | { name: "PlaceCampfire", args: PlaceCampfire }
+| { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
 | { name: "PlaceLantern", args: PlaceLantern }
 | { name: "PlaceRainCollector", args: PlaceRainCollector }
@@ -3676,6 +3696,22 @@ export class RemoteReducers {
 
   removeOnPlaceCampfire(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
     this.connection.offReducer("place_campfire", callback);
+  }
+
+  placeFoundation(cellX: bigint, cellY: bigint, shape: number, tier: number) {
+    const __args = { cellX, cellY, shape, tier };
+    let __writer = new __BinaryWriter(1024);
+    PlaceFoundation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_foundation", __argsBuffer, this.setCallReducerFlags.placeFoundationFlags);
+  }
+
+  onPlaceFoundation(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, shape: number, tier: number) => void) {
+    this.connection.onReducer("place_foundation", callback);
+  }
+
+  removeOnPlaceFoundation(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, shape: number, tier: number) => void) {
+    this.connection.offReducer("place_foundation", callback);
   }
 
   placeFurnace(itemInstanceId: bigint, worldX: number, worldY: number) {
@@ -5567,6 +5603,11 @@ export class SetReducerFlags {
     this.placeCampfireFlags = flags;
   }
 
+  placeFoundationFlags: __CallReducerFlags = 'FullUpdate';
+  placeFoundation(flags: __CallReducerFlags) {
+    this.placeFoundationFlags = flags;
+  }
+
   placeFurnaceFlags: __CallReducerFlags = 'FullUpdate';
   placeFurnace(flags: __CallReducerFlags) {
     this.placeFurnaceFlags = flags;
@@ -6155,6 +6196,11 @@ export class RemoteTables {
   get foodPoisoningRisk(): FoodPoisoningRiskTableHandle<'food_poisoning_risk'> {
     // clientCache is a private property
     return new FoodPoisoningRiskTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoodPoisoningRisk>(REMOTE_MODULE.tables.food_poisoning_risk));
+  }
+
+  get foundationCell(): FoundationCellTableHandle<'foundation_cell'> {
+    // clientCache is a private property
+    return new FoundationCellTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoundationCell>(REMOTE_MODULE.tables.foundation_cell));
   }
 
   get furnace(): FurnaceTableHandle<'furnace'> {

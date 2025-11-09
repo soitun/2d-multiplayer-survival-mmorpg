@@ -213,9 +213,84 @@ class AmbientAudioCache {
         // Check cache first
         let audio = this.get(filename);
         if (audio) {
-            const cloned = audio.cloneNode() as HTMLAudioElement;
-            // console.log(`🌊 [CACHE HIT] ${filename} from cache (duration: ${audio.duration})`);
-            return cloned;
+            // Verify cached audio is still valid (has valid duration)
+            if (audio.duration && audio.duration > 0 && !isNaN(audio.duration) && isFinite(audio.duration)) {
+                // Create a new Audio element instead of cloning to ensure metadata loads properly
+                // Cloned elements don't automatically have metadata loaded
+                const fullPath = AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
+                const newAudio = new Audio(fullPath);
+                newAudio.preload = 'metadata';
+                newAudio.crossOrigin = 'anonymous';
+                
+                // Wait for metadata to load on the new element with a reasonable timeout
+                await new Promise<void>((resolve, reject) => {
+                    const loadTimeout = setTimeout(() => {
+                        // If metadata doesn't load quickly, check if we can use the cached duration
+                        // Sometimes browser cache means metadata loads instantly, sometimes it needs a moment
+                        if (newAudio.readyState >= 1 && newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                            resolve();
+                        } else {
+                            // Try one more time with a small delay
+                            setTimeout(() => {
+                                if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                                    resolve();
+                                } else {
+                                    reject(new Error(`Metadata load timeout for cached ${filename} (readyState: ${newAudio.readyState}, duration: ${newAudio.duration})`));
+                                }
+                            }, 200);
+                        }
+                    }, 1500); // 1.5 second timeout for cached files
+                    
+                    const onLoadedMetadata = () => {
+                        clearTimeout(loadTimeout);
+                        if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                            resolve();
+                        } else {
+                            // Even after loadedmetadata event, duration might not be set immediately
+                            // Wait a tiny bit and check again
+                            setTimeout(() => {
+                                if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                                    resolve();
+                                } else {
+                                    reject(new Error(`Invalid duration after loadedmetadata for cached ${filename} (duration: ${newAudio.duration})`));
+                                }
+                            }, 50);
+                        }
+                    };
+                    
+                    if (newAudio.readyState >= 1) {
+                        // Metadata might already be loaded
+                        if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                            clearTimeout(loadTimeout);
+                            resolve();
+                        } else {
+                            // Wait for the event
+                            newAudio.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+                            newAudio.load();
+                        }
+                    } else {
+                        newAudio.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+                        newAudio.addEventListener('error', () => {
+                            clearTimeout(loadTimeout);
+                            reject(new Error(`Error loading metadata for cached ${filename}`));
+                        }, { once: true });
+                        newAudio.load();
+                    }
+                });
+                
+                // Final verification before returning
+                if (!newAudio.duration || isNaN(newAudio.duration) || !isFinite(newAudio.duration) || newAudio.duration <= 0) {
+                    throw new Error(`Invalid duration for cached ${filename} after metadata load (duration: ${newAudio.duration})`);
+                }
+                
+                // console.log(`🌊 [CACHE HIT] ${filename} from cache (duration: ${newAudio.duration})`);
+                return newAudio;
+            } else {
+                // Cached audio is invalid, remove it and reload
+                console.warn(`🌊 [CACHE INVALID] Removing invalid cached audio: ${filename}`);
+                this.cache.delete(filename);
+                this.accessOrder.delete(filename);
+            }
         }
         
         try {
@@ -236,19 +311,44 @@ class AmbientAudioCache {
                 // Wait for loadedmetadata instead of canplaythrough for faster response
                 audio!.addEventListener('loadedmetadata', () => {
                     clearTimeout(loadTimeout);
+                    
+                    // Verify the audio actually loaded successfully
+                    if (audio!.networkState === 2) { // NETWORK_ERROR
+                        reject(new Error(`Network error loading ${filename} (networkState: ${audio!.networkState})`));
+                        return;
+                    }
+                    
+                    if (!audio!.duration || isNaN(audio!.duration) || !isFinite(audio!.duration)) {
+                        reject(new Error(`Invalid duration for ${filename}: ${audio!.duration}`));
+                        return;
+                    }
+                    
                     // console.log(`🌊 [METADATA LOADED] ${filename} - duration: ${audio!.duration}s`);
                     resolve(null);
                 }, { once: true });
                 
                 audio!.addEventListener('error', (e) => {
                     clearTimeout(loadTimeout);
-                    console.error(`🌊 [LOAD ERROR] Failed to load ${filename}:`, e);
-                    reject(new Error(`Failed to load audio: ${filename} - ${e}`));
+                    const errorMsg = `Failed to load audio: ${filename} (networkState: ${audio!.networkState}, readyState: ${audio!.readyState})`;
+                    console.error(`🌊 [LOAD ERROR] ${errorMsg}:`, e);
+                    reject(new Error(errorMsg));
                 }, { once: true });
                 
                 // Also listen for canplaythrough as backup
                 audio!.addEventListener('canplaythrough', () => {
                     clearTimeout(loadTimeout);
+                    
+                    // Verify the audio actually loaded successfully
+                    if (audio!.networkState === 2) { // NETWORK_ERROR
+                        reject(new Error(`Network error loading ${filename} (networkState: ${audio!.networkState})`));
+                        return;
+                    }
+                    
+                    if (!audio!.duration || isNaN(audio!.duration) || !isFinite(audio!.duration)) {
+                        reject(new Error(`Invalid duration for ${filename}: ${audio!.duration}`));
+                        return;
+                    }
+                    
                     // console.log(`🌊 [CAN PLAY] ${filename} ready to play`);
                     resolve(null);
                 }, { once: true });
@@ -256,16 +356,75 @@ class AmbientAudioCache {
                 audio!.load();
             });
             
+            // Double-check before caching
+            if (audio.networkState === 2 || !audio.duration || isNaN(audio.duration) || !isFinite(audio.duration)) {
+                throw new Error(`Audio validation failed for ${filename} (networkState: ${audio.networkState}, duration: ${audio.duration})`);
+            }
+            
             this.set(filename, audio);
-            const cloned = audio.cloneNode() as HTMLAudioElement;
-            // console.log(`🌊 [CACHED] ${filename} stored in cache and cloned`);
-            return cloned;
+            
+            // Create a new Audio element instead of cloning to ensure metadata loads properly
+            // Even though we just loaded it, cloned elements don't automatically have metadata
+            const newAudio = new Audio(fullPath);
+            newAudio.preload = 'metadata';
+            newAudio.crossOrigin = 'anonymous';
+            
+            // Wait briefly for metadata to load (should be fast since file is already cached by browser)
+            await new Promise<void>((resolve, reject) => {
+                const loadTimeout = setTimeout(() => {
+                    // If metadata doesn't load quickly, check readyState
+                    if (newAudio.readyState >= 1 && newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Metadata load timeout for newly loaded ${filename}`));
+                    }
+                }, 1000);
+                
+                const onLoadedMetadata = () => {
+                    clearTimeout(loadTimeout);
+                    if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                        resolve();
+                    } else {
+                        // Wait a tiny bit more
+                        setTimeout(() => {
+                            if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Invalid duration after loadedmetadata for newly loaded ${filename}`));
+                            }
+                        }, 50);
+                    }
+                };
+                
+                if (newAudio.readyState >= 1) {
+                    if (newAudio.duration && newAudio.duration > 0 && !isNaN(newAudio.duration) && isFinite(newAudio.duration)) {
+                        clearTimeout(loadTimeout);
+                        resolve();
+                    } else {
+                        newAudio.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+                        newAudio.load();
+                    }
+                } else {
+                    newAudio.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+                    newAudio.addEventListener('error', () => {
+                        clearTimeout(loadTimeout);
+                        reject(new Error(`Error loading metadata for newly loaded ${filename}`));
+                    }, { once: true });
+                    newAudio.load();
+                }
+            });
+            
+            // Final verification
+            if (!newAudio.duration || isNaN(newAudio.duration) || !isFinite(newAudio.duration) || newAudio.duration <= 0) {
+                throw new Error(`Invalid duration for newly loaded ${filename} after metadata load (duration: ${newAudio.duration})`);
+            }
+            
+            // console.log(`🌊 [CACHED] ${filename} stored in cache and new element created`);
+            return newAudio;
         } catch (error) {
-            console.warn(`🌊 [FALLBACK] Failed to load ${filename}, using silent fallback:`, error);
-            // Return silent fallback
-            const silentAudio = new Audio();
-            this.set(filename, silentAudio);
-            return silentAudio;
+            console.warn(`🌊 [LOAD FAILED] Failed to load ${filename}, NOT caching fallback:`, error);
+            // Don't cache failed loads - throw error so caller can handle it
+            throw error;
         }
     }
 
@@ -844,26 +1003,25 @@ export const useAmbientSounds = ({
                 //     i === 0 ? definition.filename : definition.filename.replace('.mp3', `${i + 1}.mp3`)
                 // ).join(', ')}`); 
 
-                const audio = await ambientAudioCache.loadAudio(filename);
-                const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume;
-                
-                // Wait a moment for audio metadata to load before checking duration
-                await new Promise(resolve => setTimeout(resolve, 200));
-                
-                // Verify the audio actually loaded (duration > 0 means it exists)
-                if (audio.duration === 0 || isNaN(audio.duration) || !isFinite(audio.duration)) {
+                let audio: HTMLAudioElement;
+                try {
+                    audio = await ambientAudioCache.loadAudio(filename);
+                    
+                    // Audio should already be validated in loadAudio, but double-check
+                    if (!audio.duration || isNaN(audio.duration) || !isFinite(audio.duration) || audio.duration <= 0) {
+                        console.warn(`🌊 ⚠️ [VARIANT ERROR] Invalid audio duration for variant: ${filename} (duration: ${audio.duration})`);
+                        return; // Skip playing this variant
+                    }
+                    
+                    // console.log(`🌊 ✅ [VARIANT SUCCESS] Successfully loaded: ${filename} (${audio.duration.toFixed(2)}s)`);
+                } catch (error) {
                     console.warn(`🌊 ⚠️ [VARIANT ERROR] Failed to load variant: ${filename}`);
                     console.warn(`   - Full path attempted: ${AMBIENT_CONFIG.SOUNDS_BASE_PATH}${filename}`);
-                    console.warn(`   - Audio duration: ${audio.duration}`);
-                    console.warn(`   - Audio readyState: ${audio.readyState}`);
-                    console.warn(`   - Audio networkState: ${audio.networkState}`);
-                    
-                    // Try to trigger loading
-                    audio.load();
-                    return; // Skip playing this variant
-                } else {
-                    // console.log(`🌊 ✅ [VARIANT SUCCESS] Successfully loaded: ${filename} (${audio.duration.toFixed(2)}s)`);
+                    console.warn(`   - Error:`, error);
+                    return; // Skip playing this variant - loadAudio already logged the error
                 }
+                
+                const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume;
                 
                 // Start at 0 volume for fade-in
                 audio.volume = 0;

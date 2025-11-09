@@ -134,6 +134,7 @@ export interface SpacetimeTableStates {
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
     barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
     seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
+    foundationCells: Map<string, SpacetimeDB.FoundationCell>; // ADDED: Building foundations
 }   
 
 // Define the props the hook accepts
@@ -197,6 +198,7 @@ export const useSpacetimeTables = ({
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
     const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
+    const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
 
 
 
@@ -413,7 +415,8 @@ export const useSpacetimeTables = ({
                                     // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`
+                                    `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`
                                 ];
                                 // Removed excessive debug logging to improve performance
                             newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
@@ -1158,6 +1161,28 @@ export const useSpacetimeTables = ({
             };
             const handleSeaStackDelete = (ctx: any, seaStack: SpacetimeDB.SeaStack) => setSeaStacks(prev => { const newMap = new Map(prev); newMap.delete(seaStack.id.toString()); return newMap; });
 
+            // Foundation Cell handlers - SPATIAL
+            const handleFoundationCellInsert = (ctx: any, foundation: SpacetimeDB.FoundationCell) => {
+                setFoundationCells(prev => new Map(prev).set(foundation.id.toString(), foundation));
+            };
+            const handleFoundationCellUpdate = (ctx: any, oldFoundation: SpacetimeDB.FoundationCell, newFoundation: SpacetimeDB.FoundationCell) => {
+                // Only update for visually significant changes
+                const visuallySignificant = 
+                    oldFoundation.cellX !== newFoundation.cellX ||
+                    oldFoundation.cellY !== newFoundation.cellY ||
+                    oldFoundation.shape !== newFoundation.shape ||
+                    oldFoundation.tier !== newFoundation.tier ||
+                    Math.abs(oldFoundation.health - newFoundation.health) > 0.1 ||
+                    oldFoundation.isDestroyed !== newFoundation.isDestroyed;
+                
+                if (visuallySignificant) {
+                    setFoundationCells(prev => new Map(prev).set(newFoundation.id.toString(), newFoundation));
+                }
+            };
+            const handleFoundationCellDelete = (ctx: any, foundation: SpacetimeDB.FoundationCell) => {
+                setFoundationCells(prev => { const newMap = new Map(prev); newMap.delete(foundation.id.toString()); return newMap; });
+            };
+
             // --- Register Callbacks ---
             connection.db.player.onInsert(handlePlayerInsert); connection.db.player.onUpdate(handlePlayerUpdate); connection.db.player.onDelete(handlePlayerDelete);
             connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
@@ -1294,6 +1319,11 @@ export const useSpacetimeTables = ({
             connection.db.seaStack.onInsert(handleSeaStackInsert);
             connection.db.seaStack.onUpdate(handleSeaStackUpdate);
             connection.db.seaStack.onDelete(handleSeaStackDelete);
+
+            // Register FoundationCell callbacks - SPATIAL
+            connection.db.foundationCell.onInsert(handleFoundationCellInsert);
+            connection.db.foundationCell.onUpdate(handleFoundationCellUpdate);
+            connection.db.foundationCell.onDelete(handleFoundationCellDelete);
 
 
 
@@ -1485,7 +1515,8 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
                                     // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`
+                                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}` // ADDED: Foundation initial spatial subscription
                                 ];
                                 // Removed excessive initial chunk debug logging
                                 newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
@@ -1668,5 +1699,6 @@ export const useSpacetimeTables = ({
         animalCorpses,
         barrels, // ADDED barrels
         seaStacks, // ADDED sea stacks
+        foundationCells, // ADDED: Building foundations
     };
 }; 

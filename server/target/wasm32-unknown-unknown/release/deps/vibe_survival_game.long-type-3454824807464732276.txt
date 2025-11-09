@@ -1,0 +1,1 @@
+for<'a> fn(&'a ReducerContext, i32, i32, u8, u8) -> Result<u64, std::string::String> {place_foundation}

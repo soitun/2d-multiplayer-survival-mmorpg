@@ -70,6 +70,8 @@ import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridB
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
 import { renderInteractionLabels } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
+import { useBuildingManager, BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager'; // ADDED: Building manager
+import { BuildingRadialMenu } from './BuildingRadialMenu'; // ADDED: Building radial menu
 import { drawInteractionIndicator } from '../utils/interactionIndicator';
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
@@ -174,6 +176,7 @@ interface GameCanvasProps {
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>; // Add viper spittles
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   seaStacks: Map<string, any>; // Add sea stacks
+  foundationCells: Map<string, any>; // ADDED: Building foundations
   setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
   // Add ambient sound volume control
   environmentalVolume?: number; // 0-1 scale for ambient/environmental sounds
@@ -245,6 +248,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   animalCorpses,
   barrels,
   seaStacks,
+  foundationCells, // ADDED: Building foundations
   setMusicPanelVisible,
   environmentalVolume,
   movementDirection,
@@ -299,7 +303,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   
   const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, grassImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
   const doodadImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map()); // ADDED: Foundation tile images
   const { worldMousePos, canvasMousePos } = useMousePosition({ canvasRef: gameCanvasRef, cameraOffsetX, cameraOffsetY, canvasSize });
+  
+  // ADDED: Building manager hook (after worldMousePos is available)
+  const localPlayerX = predictedPosition?.x ?? localPlayer?.positionX ?? 0;
+  const localPlayerY = predictedPosition?.y ?? localPlayer?.positionY ?? 0;
+  const [buildingState, buildingActions] = useBuildingManager(connection, localPlayerX, localPlayerY, activeEquipments, itemDefinitions, localPlayerId, worldMousePos.x, worldMousePos.y);
 
   // Add a state to track when images are loaded to trigger re-renders
   const [imageLoadTrigger, setImageLoadTrigger] = useState(0);
@@ -471,6 +481,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     animalCorpses,
     barrels,
     seaStacks,
+    foundationCells, // ADDED: Building foundations
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
   );
 
@@ -679,6 +690,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     currentJumpOffsetY,
     isAutoAttacking,
     isCrouching: localPlayerIsCrouching,
+    showBuildingRadialMenu,
+    radialMenuMouseX,
+    radialMenuMouseY,
+    setShowBuildingRadialMenu,
     processInputsAndActions,
   } = useInputHandler({
     canvasRef: gameCanvasRef,
@@ -690,6 +705,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     inventoryItems,
     placementInfo,
     placementActions,
+    buildingState, // ADDED: Building state
+    buildingActions, // ADDED: Building actions
     worldMousePos,
     // UNIFIED INTERACTION TARGET - single source of truth (includes water fallback)
     closestInteractableTarget: unifiedInteractableTarget,
@@ -778,6 +795,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         doodadImagesRef.current.set('reed_rain_collector.png', img);
       };
       img.onerror = () => console.error('Failed to load reed_rain_collector.png');
+      img.src = module.default;
+    });
+
+    // Load foundation tile images
+    import('../assets/tiles/foundation_wood.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        foundationTileImagesRef.current.set('foundation_wood.png', img);
+      };
+      img.onerror = () => console.error('Failed to load foundation_wood.png');
       img.src = module.default;
     });
   }, []);
@@ -1221,6 +1248,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         // NEW: Pass falling tree animation state
         isTreeFalling,
         getFallProgress,
+        // ADDED: Pass camera offsets for foundation rendering
+        cameraOffsetX,
+        cameraOffsetY,
+        foundationTileImagesRef,
       });
     }
 
@@ -1598,6 +1629,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           // NEW: Pass falling tree animation state
           isTreeFalling,
           getFallProgress,
+          // ADDED: Pass camera offsets for foundation rendering
+          cameraOffsetX,
+          cameraOffsetY,
+          foundationTileImagesRef,
         });
       }
     });
@@ -1654,9 +1689,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       rainCollectors: rainCollectors,
     });
     renderPlacementPreview({
-      ctx, placementInfo, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
+      ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
       worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,
       doodadImagesRef,
+      worldScale: 1,
+      viewOffsetX: -cameraOffsetX,
+      viewOffsetY: -cameraOffsetY,
+      localPlayerX,
+      localPlayerY,
+      inventoryItems,
+      itemDefinitions,
+      foundationTileImagesRef,
     });
 
     // --- Render Clouds on Canvas --- (NEW POSITION)
@@ -1698,7 +1741,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Debug logging for overlay rendering
       const overlayMatch = overlayRgba.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
       if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
-        console.log(`[GameCanvas] DRAWING OVERLAY - overlayRgba: ${overlayRgba}, maskCanvas size: ${maskCanvas.width}x${maskCanvas.height}`);
+        // console.log(`[GameCanvas] DRAWING OVERLAY - overlayRgba: ${overlayRgba}, maskCanvas size: ${maskCanvas.width}x${maskCanvas.height}`);
       }
       ctx.drawImage(maskCanvas, 0, 0);
     } else {
@@ -2220,6 +2263,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             />
           </InterfaceContainer>
         </>
+      )}
+      
+      {/* Building Radial Menu */}
+      {showBuildingRadialMenu && (
+        <BuildingRadialMenu
+          isVisible={showBuildingRadialMenu}
+          mouseX={radialMenuMouseX}
+          mouseY={radialMenuMouseY}
+          connection={connection}
+          inventoryItems={inventoryItems}
+          itemDefinitions={itemDefinitions}
+          onSelect={(mode: BuildingMode, tier: BuildingTier, initialShape?: FoundationShape) => {
+            if (buildingActions) {
+              buildingActions.startBuildingMode(mode, tier, initialShape);
+            }
+            setShowBuildingRadialMenu(false); // Close menu after selection
+          }}
+          onCancel={() => {
+            setShowBuildingRadialMenu(false); // Close menu on cancel
+            buildingActions.cancelBuildingMode(); // Clear building selection
+          }}
+        />
       )}
       
       {/* Planted Seed Tooltip - shows info when hovering over seeds */}

@@ -69,7 +69,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrowlSnake |
   SoundTypeVariants.GrowlWalrus |
   SoundTypeVariants.Walking |
-  SoundTypeVariants.Swimming;
+  SoundTypeVariants.Swimming |
+  SoundTypeVariants.FoundationWoodConstructed;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -121,6 +122,7 @@ export const SoundType = {
   GrowlWalrus: { tag: "GrowlWalrus" } as const,
   Walking: { tag: "Walking" } as const,
   Swimming: { tag: "Swimming" } as const,
+  FoundationWoodConstructed: { tag: "FoundationWoodConstructed" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -166,6 +168,7 @@ export const SoundType = {
       { name: "GrowlWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Walking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoundationWoodConstructed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

@@ -1,4 +1,5 @@
 import { PlacementItemInfo } from '../../hooks/usePlacementManager';
+import { BuildingPlacementState, BuildingMode } from '../../hooks/useBuildingManager';
 // Import dimensions directly from their respective rendering utility files
 import { CAMPFIRE_WIDTH_PREVIEW, CAMPFIRE_HEIGHT_PREVIEW } from './campfireRenderingUtils';
 import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
@@ -9,6 +10,7 @@ import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingU
 import { TILE_SIZE } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement } from '../plantsUtils';
+import { renderFoundationPreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
 const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 80.0 * 80.0; // From useInteractionFinder.ts
@@ -20,6 +22,7 @@ const MIN_SEED_DISTANCE = 20;
 interface RenderPlacementPreviewParams {
     ctx: CanvasRenderingContext2D;
     placementInfo: PlacementItemInfo | null;
+    buildingState: BuildingPlacementState | null; // NEW: Building placement state
     itemImagesRef: React.RefObject<Map<string, HTMLImageElement>>;
     doodadImagesRef: React.RefObject<Map<string, HTMLImageElement>>;
     shelterImageRef?: React.RefObject<HTMLImageElement | null>;
@@ -27,7 +30,15 @@ interface RenderPlacementPreviewParams {
     worldMouseY: number | null;
     isPlacementTooFar: boolean;
     placementError: string | null;
-    connection: DbConnection | null; // Add connection parameter
+    connection: DbConnection | null;
+    worldScale: number; // NEW: World scale for building previews
+    viewOffsetX: number; // NEW: View offset for building previews
+    viewOffsetY: number; // NEW: View offset for building previews
+    localPlayerX: number; // NEW: Player position for validation
+    localPlayerY: number; // NEW: Player position for validation
+    inventoryItems?: Map<string, any>; // NEW: Inventory items for resource checking
+    itemDefinitions?: Map<string, any>; // NEW: Item definitions for resource checking
+    foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
 }
 
 /**
@@ -261,11 +272,85 @@ export function isPlacementTooFar(
  */
 
 /**
+ * Check if foundation placement is valid (client-side validation)
+ * Now includes resource checking
+ */
+function isFoundationPlacementValid(
+    connection: DbConnection | null,
+    cellX: number,
+    cellY: number,
+    shape: number,
+    playerX: number,
+    playerY: number,
+    inventoryItems?: Map<string, any>,
+    itemDefinitions?: Map<string, any>
+): boolean {
+    if (!connection) return false;
+
+    const BUILDING_PLACEMENT_MAX_DISTANCE = 128.0;
+    const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
+    
+    // Cost depends on shape: 50 for full, 25 for triangles
+    const REQUIRED_WOOD = (shape === 1) ? 50 : 25; // 1 = Full, 2-5 = Triangles
+
+    // Convert cell coordinates to world pixel coordinates (center of tile)
+    const worldX = (cellX * TILE_SIZE) + (TILE_SIZE / 2);
+    const worldY = (cellY * TILE_SIZE) + (TILE_SIZE / 2);
+
+    // Check distance
+    const dx = worldX - playerX;
+    const dy = worldY - playerY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED) {
+        return false;
+    }
+
+    // Check if position is already occupied
+    for (const foundation of connection.db.foundationCell.iter()) {
+        if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
+            return false; // Position occupied
+        }
+    }
+
+    // Check if player has enough resources (cost depends on shape)
+    if (inventoryItems && itemDefinitions) {
+        // Find Wood item definition
+        let woodDefId: bigint | null = null;
+        for (const def of itemDefinitions.values()) {
+            if (def.name === 'Wood') {
+                woodDefId = def.id;
+                break;
+            }
+        }
+        
+        if (woodDefId) {
+            // Sum up all wood items (inventory + hotbar)
+            let totalWood = 0;
+            for (const item of inventoryItems.values()) {
+                if (item.itemDefId === woodDefId) {
+                    totalWood += item.quantity;
+                }
+            }
+            
+            if (totalWood < REQUIRED_WOOD) {
+                return false; // Not enough resources
+            }
+        } else {
+            // Can't find wood definition, assume invalid
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Renders the placement preview item/structure following the mouse.
  */
 export function renderPlacementPreview({
     ctx,
     placementInfo,
+    buildingState,
     itemImagesRef,
     doodadImagesRef,
     shelterImageRef,
@@ -274,7 +359,48 @@ export function renderPlacementPreview({
     isPlacementTooFar,
     placementError,
     connection,
+    worldScale,
+    viewOffsetX,
+    viewOffsetY,
+    localPlayerX,
+    localPlayerY,
+    inventoryItems,
+    itemDefinitions,
+    foundationTileImagesRef,
 }: RenderPlacementPreviewParams): void {
+    // Handle building preview first
+    if (buildingState?.isBuilding && worldMouseX !== null && worldMouseY !== null) {
+        const { tileX, tileY } = worldPosToTileCoords(worldMouseX, worldMouseY);
+        
+        if (buildingState.mode === BuildingMode.Foundation) {
+            const isValid = isFoundationPlacementValid(
+                connection,
+                tileX,
+                tileY,
+                buildingState.foundationShape,
+                localPlayerX,
+                localPlayerY,
+                inventoryItems,
+                itemDefinitions
+            );
+
+            renderFoundationPreview({
+                ctx,
+                cellX: tileX,
+                cellY: tileY,
+                shape: buildingState.foundationShape,
+                tier: buildingState.buildingTier,
+                isValid,
+                worldScale,
+                viewOffsetX,
+                viewOffsetY,
+                foundationTileImagesRef,
+            });
+        }
+        return; // Building preview rendered, exit early
+    }
+
+    // Handle item placement preview (existing logic)
     if (!placementInfo || worldMouseX === null || worldMouseY === null) {
         return; // Nothing to render
     }

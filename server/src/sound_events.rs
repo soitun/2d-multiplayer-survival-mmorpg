@@ -47,6 +47,7 @@ pub enum SoundType {
     GrowlWalrus,    // growl_walrus.mp3 (3 variations - when walruses are disturbed)
     Walking,        // walking.mp3 (4 variations - footstep sounds when player moves)
     Swimming,       // swimming.mp3 (4 variations - swimming sounds when player moves in water)
+    FoundationWoodConstructed, // foundation_wood_constructed.mp3 (1 variation - when foundation is placed)
     // Add more as needed - extensible system
 }
 
@@ -94,6 +95,7 @@ impl SoundType {
             SoundType::GrowlWalrus => "growl_walrus",
             SoundType::Walking => "walking",
             SoundType::Swimming => "swimming",
+            SoundType::FoundationWoodConstructed => "foundation_wood_constructed",
         }
     }
 
@@ -140,6 +142,7 @@ impl SoundType {
             SoundType::GrowlWalrus => 3,
             SoundType::Walking => 4,
             SoundType::Swimming => 4,
+            SoundType::FoundationWoodConstructed => 1,
         }
     }
 
@@ -551,6 +554,11 @@ pub fn emit_walking_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_i
 /// Emit swimming sound (when player moves in water)
 pub fn emit_swimming_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::Swimming, pos_x, pos_y, 0.8, 450.0, player_id);
+}
+
+/// Emit a foundation wood constructed sound (when foundation is placed)
+pub fn emit_foundation_wood_constructed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationWoodConstructed, pos_x, pos_y, 1.0, 700.0, player_id);
 }
 
 /// Emit a global sound that plays to all clients at full volume regardless of position

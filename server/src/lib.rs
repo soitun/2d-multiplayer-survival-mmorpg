@@ -78,6 +78,7 @@ mod barrel; // <<< ADDED roadside barrel loot system
 mod metadata_providers; // <<< ADDED: Provides plant/seed metadata to client
 mod sea_stack; // <<< ADDED: Sea stack decorative entities
 mod memory_grid; // <<< ADDED: Memory Grid tech tree system
+mod building; // <<< ADDED: Building system (foundations, walls, doors)
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -126,6 +127,9 @@ pub use metadata_providers::{is_plantable_seed, get_plant_type_from_seed_name};
 
 // ADD: Re-export memory grid reducers
 pub use memory_grid::{purchase_memory_grid_node, initialize_player_memory_grid};
+
+// ADD: Re-export building reducers
+pub use building::place_foundation;
 
 // Define a constant for the /kill command cooldown (e.g., 5 minutes)
 pub const KILL_COMMAND_COOLDOWN_SECONDS: u64 = 300;

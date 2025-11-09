@@ -108,6 +108,48 @@ pub enum TargetType {
     Shelter, // ADDED Shelter TargetType
     RainCollector, // ADDED RainCollector TargetType
     Barrel, // ADDED Barrel TargetType
+    Foundation, // ADDED: Building foundation target type
+    Wall, // ADDED: Building wall target type
+    DoorFrame, // ADDED: Building doorframe target type
+    Door, // ADDED: Building door target type
+}
+
+// Building system enums
+#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum FoundationShape {
+    Empty = 0,
+    Full = 1,
+    TriNW = 2,  // Triangle pointing NW
+    TriNE = 3,  // Triangle pointing NE
+    TriSE = 4,  // Triangle pointing SE
+    TriSW = 5,  // Triangle pointing SW
+}
+
+#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum BuildingEdge {
+    N = 0,      // North (top)
+    E = 1,      // East (right)
+    S = 2,      // South (bottom)
+    W = 3,      // West (left)
+    DiagNE_SW = 4,  // Diagonal NE-SW (only for triangles)
+    DiagNW_SE = 5,  // Diagonal NW-SE (only for triangles)
+}
+
+#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum BuildingFacing {
+    Interior = 0,
+    Exterior = 1,
+}
+
+#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum BuildingTier {
+    Wood = 0,
+    Stone = 1,
+    Metal = 2,
 }
 
 // Enum to represent the type of an active consumable effect

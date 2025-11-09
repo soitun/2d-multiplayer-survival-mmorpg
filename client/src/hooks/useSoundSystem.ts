@@ -68,6 +68,10 @@ const SOUND_DEFINITIONS = {
     swimming: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 450 }, // Player swimming sounds in water
     // UI/Item interaction sounds - immediate (no server sync needed)
     crush_bones: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Local client sound
+    // Building sounds - server only (all players hear)
+    foundation_wood_constructed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation placement sound
+    // Building sounds - immediate (local feedback)
+    construction_placement_error: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation placement error sound
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -443,6 +447,8 @@ const playLocalSound = async (
                 variationCount = 1; // weapon_swing.mp3
             } else if (soundType === 'crush_bones') {
                 variationCount = 1; // crush_bones.mp3
+            } else if (soundType === 'construction_placement_error') {
+                variationCount = 1; // construction_placement_error.mp3
             } else if (soundType === 'arrow_hit') {
                 variationCount = 1; // arrow_hit.mp3
             } else if (soundType === 'shoot_bow') {

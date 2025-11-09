@@ -332,7 +332,7 @@ export function useDayNightCycle({
             // Log whenever overlay changes significantly (has alpha > 0.1)
             const overlayMatch = calculatedOverlayString.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
             if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
-                console.log(`[DayNightCycle] VISIBLE OVERLAY - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}`);
+                // console.log(`[DayNightCycle] VISIBLE OVERLAY - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}`);
             }
         } else {
             calculatedOverlayString = 'rgba(0,0,0,0)'; // Default to fully transparent day
@@ -352,7 +352,7 @@ export function useDayNightCycle({
         const overlayMatch = calculatedOverlayString.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);
         if (overlayMatch && parseFloat(overlayMatch[4]) > 0.1) {
             const timeOfDayTag = worldState?.timeOfDay?.tag || 'Unknown';
-            console.log(`[DayNightCycle] MASK CANVAS DRAWN - TimeOfDay: ${timeOfDayTag}, Canvas size: ${maskCanvas.width}x${maskCanvas.height}, Overlay: ${calculatedOverlayString}`);
+            // console.log(`[DayNightCycle] MASK CANVAS DRAWN - TimeOfDay: ${timeOfDayTag}, Canvas size: ${maskCanvas.width}x${maskCanvas.height}, Overlay: ${calculatedOverlayString}`);
         }
 
         maskCtx.globalCompositeOperation = 'destination-out';

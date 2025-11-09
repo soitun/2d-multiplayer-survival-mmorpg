@@ -22,6 +22,7 @@ import {
   ViperSpittle as SpacetimeDBViperSpittle,
   AnimalCorpse as SpacetimeDBAnimalCorpse,
   Barrel as SpacetimeDBBarrel, // ADDED Barrel type
+  FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
 } from '../generated';
 import {
@@ -93,6 +94,8 @@ interface EntityFilteringResult {
   visibleBarrelsMap: Map<string, SpacetimeDBBarrel>; // ADDED
   visibleSeaStacks: any[]; // ADDED
   visibleSeaStacksMap: Map<string, any>; // ADDED
+  visibleFoundationCells: SpacetimeDBFoundationCell[]; // ADDED: Building foundations
+  visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>; // ADDED: Building foundations map
 }
 
 // Define a unified entity type for sorting
@@ -117,7 +120,8 @@ export type YSortedEntityType =
   | { type: 'viper_spittle'; entity: SpacetimeDBViperSpittle }
   | { type: 'animal_corpse'; entity: SpacetimeDBAnimalCorpse }
   | { type: 'barrel'; entity: SpacetimeDBBarrel }
-  | { type: 'sea_stack'; entity: any }; // Server-provided sea stack entities
+  | { type: 'sea_stack'; entity: any } // Server-provided sea stack entities
+  | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell }; // ADDED: Building foundations
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
@@ -141,6 +145,13 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'wild_animal':
     case 'barrel':
       return entity.posY;
+    case 'foundation_cell': {
+      // Foundation cells use cell coordinates - convert to world pixel Y
+      // Use top edge of tile (cellY * 48) to ensure foundations always render below players
+      // This ensures ground tiles are always sorted below entities that stand on them
+      const foundation = entity as SpacetimeDBFoundationCell;
+      return foundation.cellY * 48; // TILE_SIZE = 48, use top edge for Y-sorting (lower Y = renders first/below)
+    }
     case 'grass':
       return entity.serverPosY;
     case 'projectile': {
@@ -179,6 +190,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'harvestable_resource': return 12;
     case 'barrel': return 15;
     case 'rain_collector': return 18;
+    case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
     case 'projectile': return 19;
     case 'viper_spittle': return 19;
     case 'animal_corpse': return 20;
@@ -365,6 +377,7 @@ export function useEntityFiltering(
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>, // ADDED animalCorpses argument
   barrels: Map<string, SpacetimeDBBarrel>, // ADDED barrels argument
   seaStacks: Map<string, any>, // ADDED sea stacks argument
+  foundationCells: Map<string, SpacetimeDBFoundationCell>, // ADDED: Building foundations
   isTreeFalling?: (treeId: string) => boolean // NEW: Check if tree is falling
 ): EntityFilteringResult {
   // Increment frame counter for throttling
@@ -783,6 +796,24 @@ export function useEntityFiltering(
     [seaStacks, isEntityInView, viewBounds, stableTimestamp]
   );
 
+  // ADDED: Filter visible foundation cells
+  const visibleFoundationCells = useMemo(() => {
+    if (!foundationCells || typeof foundationCells.values !== 'function') return [];
+    
+    // Foundation cells use cell coordinates - need custom viewport check
+    return Array.from(foundationCells.values()).filter(foundation => {
+      if (foundation.isDestroyed) return false;
+      
+      // Convert cell coordinates to world pixel coordinates (center of tile)
+      const worldX = (foundation.cellX * 48) + 24; // TILE_SIZE = 48
+      const worldY = (foundation.cellY * 48) + 24;
+      
+      // Check if foundation is in viewport
+      return worldX >= viewBounds.viewMinX && worldX <= viewBounds.viewMaxX &&
+             worldY >= viewBounds.viewMinY && worldY <= viewBounds.viewMaxY;
+    });
+  }, [foundationCells, viewBounds, stableTimestamp]);
+
   const visibleHarvestableResourcesMap = useMemo(() => 
     new Map(visibleHarvestableResources.map(hr => [hr.id.toString(), hr])), 
     [visibleHarvestableResources]
@@ -901,6 +932,12 @@ export function useEntityFiltering(
     [visibleSeaStacks]
   );
 
+  // ADDED: Map for visible foundation cells
+  const visibleFoundationCellsMap = useMemo(() =>
+    new Map(visibleFoundationCells.map(f => [f.id.toString(), f])),
+    [visibleFoundationCells]
+  );
+
   // ===== CACHED Y-SORTING WITH DIRTY FLAG SYSTEM =====
   // Cache for Y-sorted entities to avoid recalculating every frame
   const ySortedCache = useMemo(() => ({
@@ -943,6 +980,7 @@ export function useEntityFiltering(
       animalCorpses: visibleAnimalCorpses.length,
       barrels: visibleBarrels.length,
       seaStacks: visibleSeaStacks.length,
+      foundationCells: visibleFoundationCells.length,
       harvestableResources: visibleHarvestableResources.length,
       playerCorpses: visiblePlayerCorpses.length,
       stashes: visibleStashes.length
@@ -989,6 +1027,7 @@ export function useEntityFiltering(
     visibleBarrels.forEach(e => allEntities[index++] = { type: 'barrel', entity: e });
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
+    visibleFoundationCells.forEach(e => allEntities[index++] = { type: 'foundation_cell', entity: e }); // ADDED: Foundations
 
     // Trim array to actual size in case some entities were filtered out (e.g., stones with 0 health)
     allEntities.length = index;
@@ -1033,6 +1072,7 @@ export function useEntityFiltering(
     visibleBarrels,
     visibleSeaStacks,
     visibleHarvestableResources,
+    visibleFoundationCells, // ADDED: Foundations dependency
     stableTimestamp, // Only include stableTimestamp for projectile calculations
     hasEntityCountChanged, // Add callback dependency
     frameCounter // Add frame counter for cache invalidation
@@ -1086,5 +1126,7 @@ export function useEntityFiltering(
     visibleSeaStacksMap,
     visibleFurnaces,
     visibleFurnacesMap,
+    visibleFoundationCells,
+    visibleFoundationCellsMap,
   };
 } 

@@ -209,6 +209,7 @@ function AppContent() {
       animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
       barrels, // <<< ADD barrels HERE
       seaStacks, // <<< ADD sea stacks HERE
+      foundationCells, // ADDED: Building foundations
       playerDodgeRollStates,
     } = useSpacetimeTables({ 
         connection, 
@@ -827,6 +828,7 @@ function AppContent() {
                             animalCorpses={animalCorpses}
                             barrels={barrels}
                             seaStacks={seaStacks}
+                            foundationCells={foundationCells}
                             inventoryItems={inventoryItems}
                             itemDefinitions={itemDefinitions}
                             worldState={worldState}

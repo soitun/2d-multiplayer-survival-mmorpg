@@ -44,7 +44,11 @@ export type TargetType = TargetTypeVariants.Tree |
   TargetTypeVariants.AnimalCorpse |
   TargetTypeVariants.Shelter |
   TargetTypeVariants.RainCollector |
-  TargetTypeVariants.Barrel;
+  TargetTypeVariants.Barrel |
+  TargetTypeVariants.Foundation |
+  TargetTypeVariants.Wall |
+  TargetTypeVariants.DoorFrame |
+  TargetTypeVariants.Door;
 
 let _cached_TargetType_type_value: __AlgebraicTypeType | null = null;
 
@@ -71,6 +75,10 @@ export const TargetType = {
   Shelter: { tag: "Shelter" } as const,
   RainCollector: { tag: "RainCollector" } as const,
   Barrel: { tag: "Barrel" } as const,
+  Foundation: { tag: "Foundation" } as const,
+  Wall: { tag: "Wall" } as const,
+  DoorFrame: { tag: "DoorFrame" } as const,
+  Door: { tag: "Door" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TargetType_type_value) return _cached_TargetType_type_value;
@@ -91,6 +99,10 @@ export const TargetType = {
       { name: "Shelter", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "RainCollector", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Barrel", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Foundation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Wall", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DoorFrame", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Door", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TargetType_type_value;
   },

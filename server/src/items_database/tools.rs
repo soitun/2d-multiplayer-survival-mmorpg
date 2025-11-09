@@ -215,16 +215,16 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Utility Tools
-        // ItemBuilder::new("Blueprint", "A blueprint that allows you to build structures.", ItemCategory::Tool)
-        //     .icon("blueprint.png")
-        //     .equippable(None)
+        ItemBuilder::new("Blueprint", "A blueprint that allows you to build structures.", ItemCategory::Tool)
+            .icon("blueprint.png")
+            .equippable(None)
             
-        //     .crafting_cost(vec![
-        //         CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
-        //     ])
-        //     .crafting_output(1, 10)
-        //     .respawn_time(300)
-        //     .build(),
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
+            ])
+            .crafting_output(1, 10)
+            .respawn_time(300)
+            .build(),
 
         // Reed-based Tools
         ItemBuilder::new("Primitive Reed Snorkel", "A basic underwater breathing device made from a hollow reed sealed with tallow. Allows limited underwater exploration and resource gathering.", ItemCategory::Tool)

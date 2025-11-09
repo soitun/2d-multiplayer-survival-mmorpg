@@ -3,6 +3,7 @@ import * as SpacetimeDB from '../generated';
 import { DbConnection, Player, ItemDefinition, ActiveEquipment, WoodenStorageBox, Stash } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from './usePlacementManager'; // Assuming usePlacementManager exports these
+import { BuildingMode } from './useBuildingManager'; // ADDED: Building mode enum
 import React from 'react';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { JUMP_DURATION_MS, JUMP_HEIGHT_PX, HOLD_INTERACTION_DURATION_MS } from '../config/gameConfig'; // <<< ADDED IMPORT
@@ -54,7 +55,10 @@ interface InputHandlerProps {
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
     placementInfo: PlacementItemInfo | null;
     placementActions: PlacementActions;
+    buildingState?: { isBuilding: boolean; mode: string }; // ADDED: Building state
+    buildingActions?: { startBuildingMode: (mode: BuildingMode, tier?: number, initialShape?: number) => void; attemptPlacement: (worldX: number, worldY: number) => void; cancelBuildingMode: () => void; cycleFoundationShape: (direction: 'next' | 'prev') => void; rotateTriangleShape: () => void }; // ADDED: rotateTriangleShape
     worldMousePos: { x: number | null; y: number | null };
+    canvasMousePos?: { x: number | null; y: number | null }; // ADDED: Canvas mouse position for radial menu
     
     // UNIFIED INTERACTION TARGET - replaces all individual closestInteractable* props
     closestInteractableTarget: InteractableTarget | null;
@@ -85,6 +89,11 @@ export interface InputHandlerState {
     currentJumpOffsetY: number; // <<< ADDED
     isAutoAttacking: boolean; // Auto-attack state
     isCrouching: boolean; // Local crouch state for immediate visual feedback
+    // ADDED: Building radial menu state
+    showBuildingRadialMenu: boolean;
+    radialMenuMouseX: number;
+    radialMenuMouseY: number;
+    setShowBuildingRadialMenu: (show: boolean) => void;
     // Function to be called each frame by the game loop
     processInputsAndActions: () => void;
 }
@@ -123,6 +132,8 @@ export const useInputHandler = ({
     inventoryItems,
     placementInfo,
     placementActions,
+    buildingState, // ADDED: Building state
+    buildingActions, // ADDED: Building actions
     worldMousePos,
     
     // UNIFIED INTERACTION TARGET - single source of truth
@@ -189,6 +200,13 @@ export const useInputHandler = ({
 
     // Add after existing refs in the hook
     const isRightMouseDownRef = useRef<boolean>(false);
+    
+    // ADDED: Building radial menu state
+    const [showBuildingRadialMenu, setShowBuildingRadialMenu] = useState(false);
+    const [radialMenuMouseX, setRadialMenuMouseX] = useState(0);
+    const [radialMenuMouseY, setRadialMenuMouseY] = useState(0);
+    const radialMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const radialMenuShownRef = useRef<boolean>(false); // Track if menu is shown to avoid clearing timeout prematurely
 
     // --- Derive input disabled state based ONLY on player death --- 
     const isPlayerDead = localPlayer?.isDead ?? false;
@@ -216,6 +234,10 @@ export const useInputHandler = ({
 
     // Update refs when props change
     useEffect(() => { placementActionsRef.current = placementActions; }, [placementActions]);
+    const buildingActionsRef = useRef(buildingActions);
+    useEffect(() => { buildingActionsRef.current = buildingActions; }, [buildingActions]);
+    const buildingStateRef = useRef(buildingState);
+    useEffect(() => { buildingStateRef.current = buildingState; }, [buildingState]);
     useEffect(() => { connectionRef.current = connection; }, [connection]);
     useEffect(() => { localPlayerRef.current = localPlayer; }, [localPlayer]);
     useEffect(() => { activeEquipmentsRef.current = activeEquipments; }, [activeEquipments]);
@@ -513,6 +535,13 @@ export const useInputHandler = ({
                         setMusicPanelVisible(prev => !prev);
                         event.preventDefault(); // Prevent typing 'm' in chat etc.
                         console.log('[M-Key] Toggled music control panel');
+                        return;
+                    case 'r': // ADDED: Rotate triangle foundation shape
+                        if (buildingStateRef.current?.isBuilding && buildingActionsRef.current) {
+                            event.preventDefault();
+                            buildingActionsRef.current.rotateTriangleShape();
+                            console.log('[R-Key] Rotated triangle foundation shape');
+                        }
                         return;
                 }
             }
@@ -1050,6 +1079,33 @@ export const useInputHandler = ({
                 // console.log("[InputHandler] Right mouse button pressed");
                 isRightMouseDownRef.current = true;
 
+                // ADDED: Check for Blueprint on right mouse down
+                const localPlayerActiveEquipment = localPlayerId ? activeEquipmentsRef.current?.get(localPlayerId) : undefined;
+                if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
+                    const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
+                    if (equippedItemDef?.name === "Blueprint") {
+                        // Get mouse position for radial menu
+                        const mouseX = event.clientX;
+                        const mouseY = event.clientY;
+                        setRadialMenuMouseX(mouseX);
+                        setRadialMenuMouseY(mouseY);
+                        // Show menu after a short delay to allow for drag detection
+                        if (radialMenuTimeoutRef.current) {
+                            clearTimeout(radialMenuTimeoutRef.current);
+                        }
+                        console.log('[BuildingRadialMenu] Right-click detected with Blueprint, setting up menu at', mouseX, mouseY);
+                        radialMenuTimeoutRef.current = setTimeout(() => {
+                            console.log('[BuildingRadialMenu] Timeout fired, isRightMouseDown:', isRightMouseDownRef.current);
+                            if (isRightMouseDownRef.current) {
+                                console.log('[BuildingRadialMenu] Showing radial menu');
+                                radialMenuShownRef.current = true;
+                                setShowBuildingRadialMenu(true);
+                            }
+                        }, 100); // 100ms delay before showing menu
+                        return;
+                    }
+                }
+
                 // Normal right-click logic for context menu, etc.
             }
         };
@@ -1058,8 +1114,27 @@ export const useInputHandler = ({
             // Handle both left and right mouse button releases
             if (event.button === 0) { // Left mouse
                 isMouseDownRef.current = false;
+                // ADDED: Close radial menu on left click
+                if (showBuildingRadialMenu) {
+                    setShowBuildingRadialMenu(false);
+                    radialMenuShownRef.current = false;
+                }
             } else if (event.button === 2) { // Right mouse
                 isRightMouseDownRef.current = false;
+                
+                // ADDED: Close radial menu on right mouse release (menu component will handle selection before this)
+                if (showBuildingRadialMenu) {
+                    // Small delay to let menu component handle selection first
+                    setTimeout(() => {
+                        setShowBuildingRadialMenu(false);
+                        radialMenuShownRef.current = false;
+                    }, 50);
+                }
+                // Only clear timeout if menu wasn't shown yet (user released before delay)
+                if (radialMenuTimeoutRef.current && !radialMenuShownRef.current) {
+                    clearTimeout(radialMenuTimeoutRef.current);
+                    radialMenuTimeoutRef.current = null;
+                }
             }
         };
 
@@ -1074,6 +1149,12 @@ export const useInputHandler = ({
                 return;
             }
 
+            // ADDED: Handle building placement first
+            if (buildingStateRef.current?.isBuilding && buildingActionsRef.current && worldMousePosRefInternal.current.x !== null && worldMousePosRefInternal.current.y !== null) {
+                buildingActionsRef.current.attemptPlacement(worldMousePosRefInternal.current.x, worldMousePosRefInternal.current.y);
+                return;
+            }
+            
             if (placementInfo && worldMousePosRefInternal.current.x !== null && worldMousePosRefInternal.current.y !== null) {
                 const localPlayerPosition = localPlayerRef.current;
                 const isTooFar = localPlayerPosition
@@ -1200,6 +1281,10 @@ export const useInputHandler = ({
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleTorch.");
                         }
+                        return;
+                    } else if (equippedItemDef.name === "Blueprint") {
+                        // ADDED: Blueprint right-click - prevent context menu, radial menu is handled in mousedown
+                        event.preventDefault();
                         return;
                     } else if (equippedItemDef.name === "Bandage") {
                         // console.log("[InputHandler CTXMENU] Bandage equipped. Attempting to use.");
@@ -1340,6 +1425,15 @@ export const useInputHandler = ({
                 event.preventDefault();
                 placementActionsRef.current?.cancelPlacement();
             }
+            
+            // REMOVED: Cancel building mode on right-click - interferes with radial menu flow
+            
+            // ADDED: Hide radial menu on context menu
+            if (showBuildingRadialMenu) {
+                event.preventDefault();
+                radialMenuShownRef.current = false;
+                setShowBuildingRadialMenu(false);
+            }
         };
 
         // --- Wheel for Placement Cancellation (optional) ---
@@ -1347,6 +1441,14 @@ export const useInputHandler = ({
             // Don't interfere with scrolling when game menus are open
             if (isGameMenuOpen) {
                 return; // Let menus handle their own scrolling
+            }
+
+            // ADDED: Cycle foundation shapes when in building mode
+            if (buildingStateRef.current?.isBuilding && buildingActionsRef.current) {
+                event.preventDefault();
+                const direction = event.deltaY > 0 ? 'next' : 'prev';
+                buildingActionsRef.current.cycleFoundationShape(direction);
+                return;
             }
 
             if (placementInfo) {
@@ -1574,6 +1676,18 @@ export const useInputHandler = ({
         return result;
     }, []);
 
+    // ADDED: Helper function to check if Blueprint is equipped
+    const isBlueprintEquipped = useCallback(() => {
+        if (!localPlayerId || !activeEquipmentsRef.current || !itemDefinitionsRef.current) return false;
+        const equipment = activeEquipmentsRef.current.get(localPlayerId);
+        if (!equipment?.equippedItemDefId) return false;
+        const itemDef = itemDefinitionsRef.current.get(String(equipment.equippedItemDefId));
+        return itemDef?.name === 'Blueprint';
+    }, [localPlayerId]);
+
+    // ADDED: Only show radial menu if Blueprint is equipped
+    const shouldShowRadialMenu = showBuildingRadialMenu && isBlueprintEquipped();
+
     // --- Return State & Actions ---
     return {
         interactionProgress,
@@ -1581,6 +1695,11 @@ export const useInputHandler = ({
         currentJumpOffsetY: currentJumpOffsetYRef.current, // Return current ref value
         isAutoAttacking,
         isCrouching, // Include local crouch state
+        // ADDED: Building radial menu state
+        showBuildingRadialMenu: shouldShowRadialMenu,
+        radialMenuMouseX,
+        radialMenuMouseY,
+        setShowBuildingRadialMenu, // Expose setter so parent can close menu
         processInputsAndActions,
     };
 }; 
