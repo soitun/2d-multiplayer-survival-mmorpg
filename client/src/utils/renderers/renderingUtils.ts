@@ -1033,23 +1033,6 @@ export const renderYSortedEntities = ({
             });
         } else if (type === 'wall_cell') {
             const wall = entity as SpacetimeDBWallCell;
-            // Extract player positions from ySortedEntities for transparency check
-            const playerPositions = ySortedEntities
-                .filter(item => item.type === 'player')
-                .map(item => {
-                    const player = item.entity as SpacetimeDBPlayer;
-                    const playerId = player.identity.toHexString();
-                    const isLocalPlayer = localPlayerId === playerId;
-                    
-                    // Use predicted/interpolated position if available
-                    if (isLocalPlayer && localPlayerPosition) {
-                        return { x: localPlayerPosition.x, y: localPlayerPosition.y };
-                    } else if (!isLocalPlayer && remotePlayerInterpolation) {
-                        const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-                        return { x: interpolatedPosition.x, y: interpolatedPosition.y };
-                    }
-                    return { x: player.positionX, y: player.positionY };
-                });
             
             // Walls use cell coordinates directly - renderWall handles conversion
             renderWall({
@@ -1059,7 +1042,6 @@ export const renderYSortedEntities = ({
                 viewOffsetX: -cameraOffsetX, // Convert camera offset to view offset
                 viewOffsetY: -cameraOffsetY,
                 foundationTileImagesRef: foundationTileImagesRef,
-                playerPositions: playerPositions, // ADDED: Pass player positions for transparency check
             });
         } else if (type === 'shelter') {
             // Shelters are fully rendered in the first pass, including shadows.

@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { DbConnection } from '../generated';
-import { TILE_SIZE } from '../config/gameConfig';
+import { FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
 const BUILDING_PLACEMENT_MAX_DISTANCE = 128.0;
 const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
@@ -58,22 +58,21 @@ export function useBuildingTileTargeting<T extends TargetableBuildingTile>(
       return { tile: null, tileX: null, tileY: null };
     }
 
-    // Convert mouse position to tile coordinates
-    const mouseTileX = Math.floor(worldMouseX / TILE_SIZE);
-    const mouseTileY = Math.floor(worldMouseY / TILE_SIZE);
+    // Convert mouse position to foundation cell coordinates (96px grid)
+    const mouseCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
+    const mouseCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
 
     // Find all tiles within range
     let closestTile: T | null = null;
     let closestDistanceSq = Infinity;
-    let closestTileX = mouseTileX;
-    let closestTileY = mouseTileY;
+    let closestTileX = mouseCellX;
+    let closestTileY = mouseCellY;
 
     for (const tile of getTiles(connection)) {
       if (tile.isDestroyed) continue;
 
-      // Convert tile cell to world coordinates (center of tile)
-      const tileWorldX = (tile.cellX * TILE_SIZE) + (TILE_SIZE / 2);
-      const tileWorldY = (tile.cellY * TILE_SIZE) + (TILE_SIZE / 2);
+      // Convert foundation cell to world coordinates (center of foundation cell)
+      const { x: tileWorldX, y: tileWorldY } = foundationCellToWorldCenter(tile.cellX, tile.cellY);
 
       // Check distance from player
       const dx = tileWorldX - localPlayerX;
@@ -98,7 +97,7 @@ export function useBuildingTileTargeting<T extends TargetableBuildingTile>(
     }
 
     // Only return tile if it's within reasonable mouse distance (snap threshold)
-    const SNAP_THRESHOLD_SQUARED = (TILE_SIZE * 1.5) * (TILE_SIZE * 1.5); // 1.5 tiles
+    const SNAP_THRESHOLD_SQUARED = (FOUNDATION_TILE_SIZE * 1.5) * (FOUNDATION_TILE_SIZE * 1.5); // 1.5 foundation cells
     if (closestTile && closestDistanceSq <= SNAP_THRESHOLD_SQUARED) {
       return {
         tile: closestTile,

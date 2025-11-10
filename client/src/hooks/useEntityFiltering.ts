@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { gameConfig } from '../config/gameConfig';
+import { gameConfig, FOUNDATION_TILE_SIZE } from '../config/gameConfig';
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -161,24 +161,18 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return foundation.cellY * 48; // TILE_SIZE = 48, use top edge for Y-sorting
     }
     case 'wall_cell': {
-      // Walls use cell coordinates - convert to world pixel Y
-      // Match foundation approach: use cellY * TILE_SIZE (top edge)
-      // CRITICAL FIX: Add increment based on cellY to ensure walls further south
-      // (higher cellY) have higher Y values and render last (in front)
       const wall = entity as SpacetimeDBWallCell;
-      const TILE_SIZE = 48;
-      const baseY = wall.cellY * TILE_SIZE; // Same as foundations
-      // Add increment: higher cellY = higher Y = renders last (in front)
-      // Use larger increment to ensure walls on adjacent rows always sort correctly
-      const cellYIncrement = wall.cellY * 0.1; // Increment per row (ensures >0.1 difference)
+      const FOUNDATION_TILE_SIZE = 96;
+      const baseY = wall.cellY * FOUNDATION_TILE_SIZE;
       
       if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls: add offset to render above players
-        // Include cellY increment to ensure proper wall-to-wall ordering
-        return baseY + 50 + cellYIncrement;
+        // North/south walls: render ABOVE players
+        // Use bottom edge + large offset to render after all players behind the wall
+        const bottomEdgeY = baseY + FOUNDATION_TILE_SIZE;
+        return bottomEdgeY + 10000; // High value ensures walls render above players
       } else {
-        // East/west walls: render slightly above foundations
-        return baseY + 0.5 + cellYIncrement;
+        // East/west walls: render at foundation level
+        return baseY + 0.5;
       }
     }
     case 'grass':
@@ -221,11 +215,12 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'rain_collector': return 18;
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
     case 'wall_cell': {
-      // North/south walls render above players, east/west walls render at foundation level
       const wall = item.entity as SpacetimeDBWallCell;
       if (wall.edge === 0 || wall.edge === 2) {
-        return 22; // North/south walls render after players (higher priority)
+        // North/south walls render above players
+        return 22; // Render after players (priority 21)
       } else {
+        // East/west walls render at foundation level
         return 0.6; // East/west walls render after foundations
       }
     }
@@ -248,14 +243,21 @@ const isPlayerOnSameTileAsBuilding = (
   // Convert player position to tile coordinates (using floor to match server-side logic)
   const playerTileX = Math.floor(player.positionX / TILE_SIZE);
   const playerTileY = Math.floor(player.positionY / TILE_SIZE);
-  // Building cells use cell coordinates directly (they're already tile coordinates)
-  // Use strict equality check
-  const isOnSameTile = playerTileX === building.cellX && playerTileY === building.cellY;
   
-  // Debug logging (can be removed later)
-  if (isOnSameTile) {
-    // console.log(`[Y-SORT DEBUG] Player at tile (${playerTileX}, ${playerTileY}) matches building at (${building.cellX}, ${building.cellY})`);
-  }
+  // Foundation cells use 96px grid (2x world tiles)
+  // A foundation cell at (cellX, cellY) covers world tiles:
+  // X: cellX * 2 to cellX * 2 + 1
+  // Y: cellY * 2 to cellY * 2 + 1
+  const foundationCellWorldTileMinX = building.cellX * 2;
+  const foundationCellWorldTileMaxX = building.cellX * 2 + 1;
+  const foundationCellWorldTileMinY = building.cellY * 2;
+  const foundationCellWorldTileMaxY = building.cellY * 2 + 1;
+  
+  // Check if player is within the foundation cell's world tile range
+  const isOnSameTile = playerTileX >= foundationCellWorldTileMinX && 
+                       playerTileX <= foundationCellWorldTileMaxX &&
+                       playerTileY >= foundationCellWorldTileMinY && 
+                       playerTileY <= foundationCellWorldTileMaxY;
   
   return isOnSameTile;
 };
@@ -865,9 +867,9 @@ export function useEntityFiltering(
     return Array.from(foundationCells.values()).filter(foundation => {
       if (foundation.isDestroyed) return false;
       
-      // Convert cell coordinates to world pixel coordinates (center of tile)
-      const worldX = (foundation.cellX * 48) + 24; // TILE_SIZE = 48
-      const worldY = (foundation.cellY * 48) + 24;
+      // Convert foundation cell coordinates to world pixel coordinates (center of foundation cell)
+      const worldX = (foundation.cellX * 96) + 48; // FOUNDATION_TILE_SIZE = 96
+      const worldY = (foundation.cellY * 96) + 48;
       
       // Check if foundation is in viewport
       return worldX >= viewBounds.viewMinX && worldX <= viewBounds.viewMaxX &&
@@ -883,37 +885,37 @@ export function useEntityFiltering(
   const visibleWallCells = useMemo(() => {
     if (!wallCells || typeof wallCells.values !== 'function') return [];
     
-    // Wall cells use cell coordinates - need custom viewport check
-    // North/south walls extend beyond tile boundaries (2 tiles tall), so need extra padding
-    const TILE_SIZE = 48;
+    // Wall cells use foundation cell coordinates - need custom viewport check
+    // North/south walls extend beyond foundation boundaries (2 tiles tall), so need extra padding
+    const FOUNDATION_TILE_SIZE = 96;
     const padding = 50; // Extra padding to catch walls on edges
-    const northSouthWallHeight = TILE_SIZE * 2; // North/south walls are 2 tiles tall
+    const northSouthWallHeight = FOUNDATION_TILE_SIZE * 2; // North/south walls are 2 foundation cells tall
     
     return Array.from(wallCells.values()).filter(wall => {
       if (wall.isDestroyed) return false;
       
-      // Convert cell coordinates to world pixel coordinates (center of tile)
-      const worldX = (wall.cellX * TILE_SIZE) + 24;
-      const worldY = (wall.cellY * TILE_SIZE) + 24;
+      // Convert foundation cell coordinates to world pixel coordinates (center of foundation cell)
+      const worldX = (wall.cellX * FOUNDATION_TILE_SIZE) + 48;
+      const worldY = (wall.cellY * FOUNDATION_TILE_SIZE) + 48;
       
-      // North/south walls extend beyond tile boundaries (both extend upward)
+      // North/south walls extend beyond foundation boundaries (both extend upward)
       if (wall.edge === 0 || wall.edge === 2) {
         // Both north and south walls extend upward for isometric depth
         // North wall: extends from top edge upward
         // South wall: extends from bottom edge upward
-        const tileTopY = wall.cellY * TILE_SIZE;
-        const tileBottomY = tileTopY + TILE_SIZE;
+        const foundationTopY = wall.cellY * FOUNDATION_TILE_SIZE;
+        const foundationBottomY = foundationTopY + FOUNDATION_TILE_SIZE;
         
         if (wall.edge === 0) {
           // North wall - extends upward from top edge
-          const minY = tileTopY - northSouthWallHeight; // Top of wall extends upward
-          const maxY = tileTopY; // Bottom of wall is at tile top
+          const minY = foundationTopY - northSouthWallHeight; // Top of wall extends upward
+          const maxY = foundationTopY; // Bottom of wall is at foundation top
           return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
                  maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding;
         } else {
           // South wall - extends upward from bottom edge
-          const minY = tileBottomY - northSouthWallHeight; // Top of wall (extends upward from bottom)
-          const maxY = tileBottomY; // Bottom of wall is at tile bottom
+          const minY = foundationBottomY - northSouthWallHeight; // Top of wall (extends upward from bottom)
+          const maxY = foundationBottomY; // Bottom of wall is at foundation bottom
           return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
                  maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding;
         }
@@ -1218,16 +1220,17 @@ export function useEntityFiltering(
     allEntities.sort((a, b) => {
       // CRITICAL FIX: Explicitly check if a player is on the same tile as a foundation/wall
       // For foundations and east/west walls: player ALWAYS renders after (above)
-      // For north/south walls: wall ALWAYS renders after (above) player (for isometric depth)
+      // For north/south walls: wall ALWAYS renders after (above) player
       if (a.type === 'player' && b.type === 'wall_cell') {
         const player = a.entity as SpacetimeDBPlayer;
         const wall = b.entity as SpacetimeDBWallCell;
         if (isPlayerOnSameTileAsBuilding(player, wall)) {
-          // North/south walls render above players
           if (wall.edge === 0 || wall.edge === 2) {
-            return -1; // Wall renders after (above) player
+            // North/south walls: wall renders after (above) player
+            return -1;
           } else {
-            return 1; // Player renders after (above) east/west walls
+            // East/west walls: player renders after (above) wall
+            return 1;
           }
         }
       }
@@ -1235,11 +1238,12 @@ export function useEntityFiltering(
         const player = b.entity as SpacetimeDBPlayer;
         const wall = a.entity as SpacetimeDBWallCell;
         if (isPlayerOnSameTileAsBuilding(player, wall)) {
-          // North/south walls render above players
           if (wall.edge === 0 || wall.edge === 2) {
-            return 1; // Wall renders after (above) player
+            // North/south walls: wall renders after (above) player
+            return 1;
           } else {
-            return -1; // Player renders after (above) east/west walls
+            // East/west walls: player renders after (above) wall
+            return -1;
           }
         }
       }

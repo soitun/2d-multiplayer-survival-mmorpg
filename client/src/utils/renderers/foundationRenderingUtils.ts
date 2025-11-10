@@ -8,7 +8,7 @@
 import { FoundationCell } from '../../generated';
 // WallCell will be available after regenerating client bindings
 // For now, using any type - will be fixed after running: spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
-import { TILE_SIZE } from '../../config/gameConfig';
+import { TILE_SIZE, FOUNDATION_TILE_SIZE, foundationCellToWorldPixels } from '../../config/gameConfig';
 import React from 'react';
 
 // Foundation colors for preview (cyberpunk neon theme)
@@ -66,13 +66,10 @@ function getWallTileFilename(tier: number): string {
 }
 
 /**
- * Convert cell coordinates to world pixel coordinates (top-left corner of tile)
+ * Convert foundation cell coordinates to world pixel coordinates (top-left corner of foundation cell)
  */
 function cellToWorldPixels(cellX: number, cellY: number): { x: number; y: number } {
-  return {
-    x: cellX * TILE_SIZE,
-    y: cellY * TILE_SIZE,
-  };
+  return foundationCellToWorldPixels(cellX, cellY);
 }
 
 /**
@@ -143,7 +140,7 @@ export function renderFoundation({
   // we just use world coordinates directly (same as preview)
   const screenX = worldX;
   const screenY = worldY;
-  const screenSize = TILE_SIZE * worldScale;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
 
   // Get foundation tile image
   const tileFilename = getFoundationTileFilename(foundation.tier);
@@ -248,7 +245,7 @@ export function renderFoundationPreview({
   // Actually, since context is translated, we just use world coordinates directly!
   const screenX = worldX;
   const screenY = worldY;
-  const screenSize = TILE_SIZE * worldScale;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
 
   // Get foundation tile image
   const tileFilename = getFoundationTileFilename(tier);
@@ -363,7 +360,7 @@ export function renderFoundationTargetIndicator({
   const { x: worldX, y: worldY } = cellToWorldPixels(foundation.cellX, foundation.cellY);
   const screenX = worldX;
   const screenY = worldY;
-  const screenSize = TILE_SIZE * worldScale;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
 
   ctx.save();
 
@@ -435,7 +432,6 @@ export interface RenderWallParams {
   viewOffsetX: number;
   viewOffsetY: number;
   foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
-  playerPositions?: Array<{ x: number; y: number }>; // ADDED: Player positions for transparency check
 }
 
 export function renderWall({
@@ -445,7 +441,6 @@ export function renderWall({
   viewOffsetX,
   viewOffsetY,
   foundationTileImagesRef,
-  playerPositions = [], // ADDED: Player positions for transparency check
 }: RenderWallParams): void {
   if (wall.isDestroyed) {
     return;
@@ -455,7 +450,7 @@ export function renderWall({
   
   const screenX = worldX;
   const screenY = worldY;
-  const screenSize = TILE_SIZE * worldScale;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
   
   // Wall thickness (thin rectangle)
   const WALL_THICKNESS = 4 * worldScale; // 4 pixels thick
@@ -502,7 +497,8 @@ export function renderWall({
       break;
     case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth
       wallX = screenX;
-      wallY = screenY + screenSize - NORTH_SOUTH_WALL_HEIGHT + WALL_THICKNESS / 2; // Start at bottom edge, extend upward
+      // Start at bottom edge and extend UPWARD (negative Y direction for isometric depth)
+      wallY = screenY + screenSize - NORTH_SOUTH_WALL_HEIGHT; // Bottom edge minus wall height
       wallWidth = screenSize;
       wallHeight = NORTH_SOUTH_WALL_HEIGHT;
       break;
@@ -679,69 +675,12 @@ export function renderWall({
       // For vertical walls (E/W), we take a vertical strip from the tile
       // Horizontal wall - draw scaled tile for north/south walls (taller for isometric)
       if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls - check if any player is beneath the wall extension
-        // Since walls extend 2 tiles upward, check if player Y position is within the wall's vertical bounds
-        const TILE_SIZE = 48;
-        const wallTileX = wall.cellX;
-        const wallTileY = wall.cellY;
-        let hasPlayerOnTile = false;
-        
-        // Calculate wall's vertical bounds in world pixel coordinates
-        // Wall extends from wallY (top) to wallY + wallHeight (bottom)
-        const wallTopY = wallY;
-        const wallBottomY = wallY + wallHeight;
-        
-        // Check if any player is within the wall's horizontal and vertical bounds
-        if (playerPositions && playerPositions.length > 0) {
-          for (const playerPos of playerPositions) {
-            // Convert player world pixel position to tile coordinates
-            const playerTileX = Math.floor(playerPos.x / TILE_SIZE);
-            const playerTileY = Math.floor(playerPos.y / TILE_SIZE);
-            
-            // Check if player is horizontally aligned with the wall (same tile column)
-            // and on a tile that the wall covers (wall's base tile or the tile above it)
-            if (playerTileX === wallTileX && (playerTileY === wallTileY || playerTileY === wallTileY - 1)) {
-              // Player is on a tile that the wall covers
-              // Make top half transparent so player is visible
-              hasPlayerOnTile = true;
-              console.log(`[Wall Transparency] Player at (${playerPos.x.toFixed(1)}, ${playerPos.y.toFixed(1)}) tile (${playerTileX}, ${playerTileY}), wall at tile (${wallTileX}, ${wallTileY}), edge ${wall.edge}, making top half transparent`);
-              break;
-            }
-          }
-        }
-        
-        // Split wall into two halves: bottom (opaque) and top (transparent if player present)
-        const halfHeight = wallHeight / 2;
-        const bottomHalfY = wallY + halfHeight;
-        const topHalfY = wallY;
-        
-        // Draw bottom half (always opaque) 
-        ctx.save();
-        ctx.globalAlpha = 1.0;
+        // North/south walls - draw full wall extension
         ctx.drawImage(
           wallImage,
-          0, wallImage.height / 2, wallImage.width, wallImage.height / 2, // Source: bottom half of tile
-          wallX, bottomHalfY, wallWidth, halfHeight // Destination: bottom half of wall
+          0, 0, wallImage.width, wallImage.height, // Source: full tile
+          wallX, wallY, wallWidth, wallHeight // Destination: full wall
         );
-        ctx.restore();
-        
-        // Draw top half (skip if player is on tile, otherwise draw opaque)
-        if (!hasPlayerOnTile) {
-          ctx.save();
-          ctx.globalAlpha = 1.0;
-          ctx.drawImage(
-            wallImage,
-            0, 0, wallImage.width, wallImage.height / 2, // Source: top half of tile
-            wallX, topHalfY, wallWidth, halfHeight // Destination: top half of wall
-          );
-          ctx.restore();
-        } else {
-          // Player is present - don't draw top half so player is fully visible
-          console.log(`[Wall Transparency] Skipping top half render for wall at tile (${wallTileX}, ${wallTileY}), edge ${wall.edge}`);
-        }
-        
-        // Store hasPlayerOnTile for outline drawing later
-        (wall as any).__hasPlayerOnTile = hasPlayerOnTile;
       } else {
         // Vertical wall - draw vertical strip from tile
         const sourceX = wall.edge === 3 ? 0 : wallImage.width - WALL_THICKNESS / worldScale;
@@ -761,92 +700,20 @@ export function renderWall({
       };
       
       if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls - check if any player is beneath the wall extension
-        // Since walls extend 2 tiles upward, check if player Y position is within the wall's vertical bounds
-        const TILE_SIZE = 48;
-        const wallTileX = wall.cellX;
-        const wallTileY = wall.cellY;
-        let hasPlayerOnTile = false;
-        
-        // Calculate wall's vertical bounds in world pixel coordinates
-        // Wall extends from wallY (top) to wallY + wallHeight (bottom)
-        const wallTopY = wallY;
-        const wallBottomY = wallY + wallHeight;
-        
-        // Check if any player is within the wall's horizontal and vertical bounds
-        if (playerPositions && playerPositions.length > 0) {
-          for (const playerPos of playerPositions) {
-            // Convert player world pixel position to tile coordinates
-            const playerTileX = Math.floor(playerPos.x / TILE_SIZE);
-            const playerTileY = Math.floor(playerPos.y / TILE_SIZE);
-            
-            // Check if player is horizontally aligned with the wall (same tile column)
-            // and on a tile that the wall covers (wall's base tile or the tile above it)
-            if (playerTileX === wallTileX && (playerTileY === wallTileY || playerTileY === wallTileY - 1)) {
-              // Player is on a tile that the wall covers
-              // Make top half transparent so player is visible
-              hasPlayerOnTile = true;
-              // console.log(`[Wall Transparency Fallback] Player at (${playerPos.x.toFixed(1)}, ${playerPos.y.toFixed(1)}) tile (${playerTileX}, ${playerTileY}), wall at tile (${wallTileX}, ${wallTileY}), edge ${wall.edge}, making top half transparent`);
-              break;
-            }
-          }
-        }
-        
-        // Split wall into two halves: bottom (opaque) and top (transparent if player present)
-        const halfHeight = wallHeight / 2;
-        const bottomHalfY = wallY + halfHeight;
-        const topHalfY = wallY;
-        
-        // Draw bottom half (always opaque)
-        ctx.save();
-        ctx.globalAlpha = 1.0;
+        // North/south walls - draw full wall extension
         ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
-        ctx.fillRect(wallX, bottomHalfY, wallWidth, halfHeight);
-        ctx.restore();
-        
-        // Draw top half (skip if player is on tile, otherwise draw opaque)
-        if (!hasPlayerOnTile) {
-          ctx.save();
-          ctx.globalAlpha = 1.0;
-          ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
-          ctx.fillRect(wallX, topHalfY, wallWidth, halfHeight);
-          ctx.restore();
-        } else {
-          // Player is present - don't draw top half so player is fully visible
-          console.log(`[Wall Transparency Fallback] Skipping top half render for wall at tile (${wallTileX}, ${wallTileY}), edge ${wall.edge}`);
-        }
-        
-        // Store hasPlayerOnTile for outline drawing later
-        (wall as any).__hasPlayerOnTile = hasPlayerOnTile;
+        ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
       } else {
-        // East/west walls - draw normally (no transparency needed)
+        // East/west walls - draw normally
         ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
         ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
       }
     }
     
-    // Draw black border around the entire rectangle
-    // For north/south walls with transparency, only draw outline for the visible part
+    // Draw black border around the wall
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
-    
-    if ((wall.edge === 0 || wall.edge === 2)) {
-      // For north/south walls, check if top half was skipped
-      const hasPlayerOnTile = (wall as any).__hasPlayerOnTile || false;
-      
-      if (hasPlayerOnTile) {
-        // Only draw outline for bottom half when top half is skipped
-        const halfHeight = wallHeight / 2;
-        const bottomHalfY = wallY + halfHeight;
-        ctx.strokeRect(wallX, bottomHalfY, wallWidth, halfHeight);
-      } else {
-        // Draw full outline when both halves are present
-        ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
-      }
-    } else {
-      // For east/west walls, always draw full outline
-      ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
-    }
+    ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
   }
   
   if (isTriangle) {
@@ -891,9 +758,9 @@ export function renderWallPreview({
   
   const screenX = worldX;
   const screenY = worldY;
-  const screenSize = TILE_SIZE * worldScale;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
   
-  // Calculate tile center
+  // Calculate foundation cell center
   const tileCenterX = worldX + screenSize / 2;
   const tileCenterY = worldY + screenSize / 2;
   
@@ -1005,11 +872,14 @@ export function renderWallPreview({
       wallWidth = WALL_THICKNESS;
       wallHeight = screenSize;
       break;
-    case 2: // South (bottom edge) - center on edge (half above, half below)
+    case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth
       wallX = screenX;
-      wallY = screenY + screenSize - WALL_THICKNESS / 2;
+      // Start at bottom edge and extend UPWARD (negative Y direction for isometric depth)
+      // For preview, use same logic as actual wall rendering
+      const previewNorthSouthHeight = screenSize * 2; // 2 foundation cells tall
+      wallY = screenY + screenSize - previewNorthSouthHeight; // Bottom edge minus wall height
       wallWidth = screenSize;
-      wallHeight = WALL_THICKNESS;
+      wallHeight = previewNorthSouthHeight;
       break;
     case 3: // West (left edge) - center on edge (half inside, half outside)
       wallX = screenX - WALL_THICKNESS / 2;

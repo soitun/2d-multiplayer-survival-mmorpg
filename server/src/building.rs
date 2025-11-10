@@ -51,6 +51,9 @@ pub const DOOR_METAL_MAX_HEALTH: f32 = 600.0; // ~60 hits
 pub const BUILDING_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
 pub const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
 
+// Foundation grid is 2x world tiles (96px) for larger building pieces
+pub const FOUNDATION_TILE_SIZE_PX: u32 = 96; // 2x TILE_SIZE_PX
+
 // --- Foundation Cell Table ---
 #[spacetimedb::table(
     name = foundation_cell,
@@ -63,8 +66,8 @@ pub struct FoundationCell {
     #[primary_key]
     #[auto_inc]
     pub id: u64,
-    pub cell_x: i32,  // Tile X coordinate (1:1 mapping with tiles)
-    pub cell_y: i32,  // Tile Y coordinate
+    pub cell_x: i32,  // Foundation cell X coordinate (96px grid, 2x world tiles)
+    pub cell_y: i32,  // Foundation cell Y coordinate (96px grid, 2x world tiles)
     pub chunk_index: u32,  // For chunk-based spatial subscriptions
     pub shape: u8,    // FoundationShape enum (0-5)
     pub tier: u8,     // BuildingTier enum (0-3: Twig, Wood, Stone, Metal)
@@ -91,8 +94,8 @@ pub struct WallCell {
     #[primary_key]
     #[auto_inc]
     pub id: u64,
-    pub cell_x: i32,  // Tile X coordinate (wall is on edge of this tile)
-    pub cell_y: i32,  // Tile Y coordinate
+    pub cell_x: i32,  // Foundation cell X coordinate (wall is on edge of this foundation cell)
+    pub cell_y: i32,  // Foundation cell Y coordinate (96px grid, 2x world tiles)
     pub chunk_index: u32,  // For chunk-based spatial subscriptions
     pub edge: u8,     // BuildingEdge enum (0-3: N, E, S, W)
     pub facing: u8,   // BuildingFacing enum (0: Interior, 1: Exterior)
@@ -215,9 +218,9 @@ pub fn determine_wall_edge_and_facing(
     player_y: f32,
     foundation_shape: FoundationShape,
 ) -> (BuildingEdge, BuildingFacing) {
-    // Calculate tile center
-    let tile_center_x = (cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let tile_center_y = (cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    // Calculate foundation cell center (96px grid)
+    let tile_center_x = (cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let tile_center_y = (cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     // Calculate offset from tile center
     let dx = world_x - tile_center_x;
@@ -576,9 +579,9 @@ pub fn place_foundation(
     }
     
     // 5. Check if position is on water (foundations cannot be placed on water tiles)
-    // Convert cell coordinates to world pixel coordinates (center of tile)
-    let world_x = (cell_x_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let world_y = (cell_y_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    // Convert foundation cell coordinates to world pixel coordinates (center of foundation cell)
+    let world_x = (cell_x_i32 as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (cell_y_i32 as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     if is_position_on_water(ctx, world_x, world_y) {
         return Err("Cannot place foundation on water tiles.".to_string());
@@ -767,8 +770,8 @@ pub fn upgrade_foundation(
     }
     
     // 6. Check placement distance from player
-    let world_x = (foundation.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let world_y = (foundation.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_x = (foundation.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (foundation.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     let dx = world_x - player.position_x;
     let dy = world_y - player.position_y;
@@ -1046,8 +1049,8 @@ pub fn destroy_foundation(ctx: &ReducerContext, foundation_id: u64) -> Result<()
     }
     
     // 5. Check placement distance from player
-    let world_x = (foundation.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let world_y = (foundation.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_x = (foundation.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (foundation.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     let dx = world_x - player.position_x;
     let dy = world_y - player.position_y;
@@ -1161,8 +1164,8 @@ pub fn place_wall(
     is_wall_position_valid(ctx, cell_x_i32, cell_y_i32, edge, facing)?;
     
     // 8. Check placement distance from player
-    let tile_center_x = (cell_x_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let tile_center_y = (cell_y_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let tile_center_x = (cell_x_i32 as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let tile_center_y = (cell_y_i32 as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     let dx = tile_center_x - player.position_x;
     let dy = tile_center_y - player.position_y;

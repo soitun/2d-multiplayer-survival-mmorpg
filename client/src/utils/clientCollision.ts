@@ -1,10 +1,11 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell } from '../generated';
-import { gameConfig } from '../config/gameConfig';
+import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell } from '../generated';
+import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
 // Add at top after imports:
 // Spatial filtering constants
 const COLLISION_QUERY_EXPANSION = 100; // Extra padding around movement path for safety
+const FOUNDATION_COLLISION_THICKNESS = 8; // Thickness for triangle hypotenuse collision
 
 // Helper to check if shape intersects with query box
 function shapeIntersectsBox(shape: CollisionShape, minX: number, minY: number, maxX: number, maxY: number): boolean {
@@ -24,6 +25,30 @@ function shapeIntersectsBox(shape: CollisionShape, minX: number, minY: number, m
     const shapeMaxX = shape.x + shape.width / 2;
     const shapeMaxY = shape.y + shape.height / 2;
     return !(shapeMaxX < minX || shapeMinX > maxX || shapeMaxY < minY || shapeMinY > maxY);
+  } else if (shape.lineStartX !== undefined && shape.lineStartY !== undefined && 
+             shape.lineEndX !== undefined && shape.lineEndY !== undefined) {
+    // Line segment check - check if line segment intersects with query box
+    const lineStartX = shape.lineStartX;
+    const lineStartY = shape.lineStartY;
+    const lineEndX = shape.lineEndX;
+    const lineEndY = shape.lineEndY;
+    const lineThickness = shape.lineThickness || FOUNDATION_COLLISION_THICKNESS;
+    
+    // Expand query box by line thickness
+    const expandedMinX = minX - lineThickness / 2;
+    const expandedMinY = minY - lineThickness / 2;
+    const expandedMaxX = maxX + lineThickness / 2;
+    const expandedMaxY = maxY + lineThickness / 2;
+    
+    // Check if line segment intersects expanded box
+    // Simple AABB check for line segment bounding box
+    const lineMinX = Math.min(lineStartX, lineEndX);
+    const lineMaxX = Math.max(lineStartX, lineEndX);
+    const lineMinY = Math.min(lineStartY, lineEndY);
+    const lineMaxY = Math.max(lineStartY, lineEndY);
+    
+    return !(lineMaxX < expandedMinX || lineMinX > expandedMaxX || 
+             lineMaxY < expandedMinY || lineMinY > expandedMaxY);
   }
   return false;
 }
@@ -307,7 +332,7 @@ function getCollisionCandidates(
   }
   
   // Filter wall cells - create thin collision edges along wall boundaries
-  const TILE_SIZE = 48; // Tile size in pixels
+  const FOUNDATION_TILE_SIZE = 96; // Foundation tile size in pixels (2x world tiles)
   const WALL_COLLISION_THICKNESS = 6; // Thin collision thickness (slightly thicker than visual 4px to prevent walking through)
   
   if (entities.wallCells && entities.wallCells.size > 0) {
@@ -315,9 +340,9 @@ function getCollisionCandidates(
     for (const wall of entities.wallCells.values()) {
       if (wall.isDestroyed) continue; // Skip destroyed walls
       
-      // Calculate tile center position
-      const tileCenterX = wall.cellX * TILE_SIZE + TILE_SIZE / 2;
-      const tileCenterY = wall.cellY * TILE_SIZE + TILE_SIZE / 2;
+      // Calculate foundation cell center position
+      const tileCenterX = wall.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+      const tileCenterY = wall.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
       
       // Check distance to player
       const dx = tileCenterX - playerX;
@@ -334,27 +359,27 @@ function getCollisionCandidates(
       switch (wall.edge) {
         case 0: // North (top edge) - horizontal line
           wallX = tileCenterX;
-          wallY = wall.cellY * TILE_SIZE; // Top edge of tile
-          wallWidth = TILE_SIZE; // Full tile width
+          wallY = wall.cellY * FOUNDATION_TILE_SIZE; // Top edge of foundation cell
+          wallWidth = FOUNDATION_TILE_SIZE; // Full foundation cell width
           wallHeight = WALL_COLLISION_THICKNESS; // Thin thickness
           break;
         case 1: // East (right edge) - vertical line
-          wallX = wall.cellX * TILE_SIZE + TILE_SIZE; // Right edge of tile
+          wallX = wall.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE; // Right edge of foundation cell
           wallY = tileCenterY;
           wallWidth = WALL_COLLISION_THICKNESS; // Thin thickness
-          wallHeight = TILE_SIZE; // Full tile height
+          wallHeight = FOUNDATION_TILE_SIZE; // Full foundation cell height
           break;
         case 2: // South (bottom edge) - horizontal line
           wallX = tileCenterX;
-          wallY = wall.cellY * TILE_SIZE + TILE_SIZE; // Bottom edge of tile
-          wallWidth = TILE_SIZE; // Full tile width
+          wallY = wall.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE; // Bottom edge of foundation cell
+          wallWidth = FOUNDATION_TILE_SIZE; // Full foundation cell width
           wallHeight = WALL_COLLISION_THICKNESS; // Thin thickness
           break;
         case 3: // West (left edge) - vertical line
-          wallX = wall.cellX * TILE_SIZE; // Left edge of tile
+          wallX = wall.cellX * FOUNDATION_TILE_SIZE; // Left edge of foundation cell
           wallY = tileCenterY;
           wallWidth = WALL_COLLISION_THICKNESS; // Thin thickness
-          wallHeight = TILE_SIZE; // Full tile height
+          wallHeight = FOUNDATION_TILE_SIZE; // Full foundation cell height
           break;
         default:
           continue; // Skip diagonal or invalid edges
@@ -368,6 +393,97 @@ function getCollisionCandidates(
         width: wallWidth,
         height: wallHeight
       });
+    }
+  }
+  
+  // Filter foundation cells - create collision along edges (especially hypotenuse for triangles)
+  
+  if (entities.foundationCells && entities.foundationCells.size > 0) {
+    // Check foundations within reasonable distance
+    for (const foundation of entities.foundationCells.values()) {
+      if (foundation.isDestroyed) continue; // Skip destroyed foundations
+      
+      // Calculate foundation cell center position
+      const { x: foundationCenterX, y: foundationCenterY } = foundationCellToWorldCenter(foundation.cellX, foundation.cellY);
+      
+      // Check distance to player
+      const dx = foundationCenterX - playerX;
+      const dy = foundationCenterY - playerY;
+      const distanceSq = dx * dx + dy * dy;
+      const maxDistanceSq = 150 * 150; // Check foundations within 150px
+      
+      if (distanceSq > maxDistanceSq) continue;
+      
+      const foundationShape = foundation.shape as number;
+      const isTriangle = foundationShape >= 2 && foundationShape <= 5;
+      
+      if (isTriangle) {
+        // Triangle foundations - create collision along the hypotenuse (outer edge)
+        // Triangle shapes: 2=TriNW, 3=TriNE, 4=TriSE, 5=TriSW
+        // Hypotenuse coordinates:
+        // TriNW (2): DiagNW_SE - from (cellX+1, cellY) to (cellX, cellY+1) in cell space
+        // TriNE (3): DiagNE_SW - from (cellX, cellY) to (cellX+1, cellY+1) in cell space
+        // TriSE (4): DiagNW_SE - from (cellX, cellY+1) to (cellX+1, cellY) in cell space
+        // TriSW (5): DiagNE_SW - from (cellX+1, cellY+1) to (cellX, cellY) in cell space
+        
+        const cellTopLeftX = foundation.cellX * FOUNDATION_TILE_SIZE;
+        const cellTopLeftY = foundation.cellY * FOUNDATION_TILE_SIZE;
+        const cellBottomRightX = cellTopLeftX + FOUNDATION_TILE_SIZE;
+        const cellBottomRightY = cellTopLeftY + FOUNDATION_TILE_SIZE;
+        
+        let hypStartX: number, hypStartY: number, hypEndX: number, hypEndY: number;
+        
+        switch (foundationShape) {
+          case 2: // TriNW - hypotenuse from top-right to bottom-left
+            hypStartX = cellBottomRightX;
+            hypStartY = cellTopLeftY;
+            hypEndX = cellTopLeftX;
+            hypEndY = cellBottomRightY;
+            break;
+          case 3: // TriNE - hypotenuse from top-left to bottom-right
+            hypStartX = cellTopLeftX;
+            hypStartY = cellTopLeftY;
+            hypEndX = cellBottomRightX;
+            hypEndY = cellBottomRightY;
+            break;
+          case 4: // TriSE - hypotenuse from bottom-left to top-right
+            hypStartX = cellTopLeftX;
+            hypStartY = cellBottomRightY;
+            hypEndX = cellBottomRightX;
+            hypEndY = cellTopLeftY;
+            break;
+          case 5: // TriSW - hypotenuse from bottom-right to top-left
+            hypStartX = cellBottomRightX;
+            hypStartY = cellBottomRightY;
+            hypEndX = cellTopLeftX;
+            hypEndY = cellTopLeftY;
+            break;
+          default:
+            continue; // Invalid triangle shape
+        }
+        
+        // Create a collision shape along ONLY the hypotenuse edge (line segment)
+        // This allows players to walk through the empty part and inside part of the triangle
+        const hypLength = Math.sqrt((hypEndX - hypStartX) ** 2 + (hypEndY - hypStartY) ** 2);
+        
+        // Create a thin line segment collision shape
+        shapes.push({
+          id: `foundation-triangle-${foundation.id.toString()}`,
+          type: `foundation-triangle-${foundation.id.toString()}`,
+          x: hypStartX, // Use start point as reference
+          y: hypStartY,
+          lineStartX: hypStartX,
+          lineStartY: hypStartY,
+          lineEndX: hypEndX,
+          lineEndY: hypEndY,
+          lineThickness: FOUNDATION_COLLISION_THICKNESS
+        });
+      } else {
+        // Full foundation - create collision along all edges
+        // For full foundations, walls handle edge collision, but we can add foundation base collision
+        // Actually, full foundations don't need collision - walls handle it
+        // But we could add a base collision if needed
+      }
     }
   }
   
@@ -429,6 +545,7 @@ export interface GameEntities {
   barrels: Map<string, Barrel>; // Add barrels
   seaStacks: Map<string, any>; // Sea stacks from SpacetimeDB
   wallCells: Map<string, WallCell>; // Add wall cells for collision
+  foundationCells: Map<string, FoundationCell>; // Add foundation cells for collision
 }
 
 interface CollisionShape {
@@ -439,6 +556,11 @@ interface CollisionShape {
   radius?: number; // For circular collision
   width?: number;  // For AABB collision
   height?: number; // For AABB collision
+  lineStartX?: number; // For line segment collision (triangle hypotenuse)
+  lineStartY?: number;
+  lineEndX?: number;
+  lineEndY?: number;
+  lineThickness?: number; // Thickness of line segment collision
 }
 
 interface CollisionHit {
@@ -578,6 +700,10 @@ function checkCollisionWithShape(
   } else if (shape.width !== undefined && shape.height !== undefined) {
     // Circle vs AABB collision
     return checkAABBCollision(from, to, playerRadius, shape);
+  } else if (shape.lineStartX !== undefined && shape.lineStartY !== undefined && 
+             shape.lineEndX !== undefined && shape.lineEndY !== undefined) {
+    // Circle vs Line Segment collision (for triangle hypotenuse)
+    return checkLineSegmentCollision(from, to, playerRadius, shape);
   }
   return null;
 }
@@ -683,6 +809,73 @@ function checkAABBCollision(
   return {
     shape,
     normal,
+    penetration,
+    distance
+  };
+}
+
+function checkLineSegmentCollision(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  playerRadius: number,
+  shape: CollisionShape
+): CollisionHit | null {
+  const lineStart = { x: shape.lineStartX!, y: shape.lineStartY! };
+  const lineEnd = { x: shape.lineEndX!, y: shape.lineEndY! };
+  const lineThickness = shape.lineThickness || FOUNDATION_COLLISION_THICKNESS;
+  
+  // Find closest point on line segment to player's destination
+  const lineVec = { x: lineEnd.x - lineStart.x, y: lineEnd.y - lineStart.y };
+  const lineLengthSq = lineVec.x * lineVec.x + lineVec.y * lineVec.y;
+  
+  if (lineLengthSq < 0.001) {
+    // Degenerate line segment (start == end)
+    return null;
+  }
+  
+  // Project player position onto line segment
+  const toLineStart = { x: to.x - lineStart.x, y: to.y - lineStart.y };
+  const t = Math.max(0, Math.min(1, (toLineStart.x * lineVec.x + toLineStart.y * lineVec.y) / lineLengthSq));
+  
+  const closestPoint = {
+    x: lineStart.x + t * lineVec.x,
+    y: lineStart.y + t * lineVec.y
+  };
+  
+  // Calculate distance from player to closest point on line
+  const dx = to.x - closestPoint.x;
+  const dy = to.y - closestPoint.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  // Check if player circle intersects the thick line segment
+  const totalThickness = playerRadius + lineThickness / 2;
+  if (distance >= totalThickness) {
+    return null; // No collision
+  }
+  
+  // Calculate normal (perpendicular to line segment, pointing away from player)
+  let lineNormal = { x: -lineVec.y, y: lineVec.x }; // Perpendicular to line
+  const normalLength = Math.sqrt(lineNormal.x * lineNormal.x + lineNormal.y * lineNormal.y);
+  if (normalLength > 0.001) {
+    lineNormal.x /= normalLength;
+    lineNormal.y /= normalLength;
+  } else {
+    lineNormal = { x: 1, y: 0 }; // Fallback
+  }
+  
+  // Ensure normal points away from player
+  const toClosest = { x: closestPoint.x - to.x, y: closestPoint.y - to.y };
+  const dot = lineNormal.x * toClosest.x + lineNormal.y * toClosest.y;
+  if (dot < 0) {
+    lineNormal.x = -lineNormal.x;
+    lineNormal.y = -lineNormal.y;
+  }
+  
+  const penetration = totalThickness - distance;
+  
+  return {
+    shape,
+    normal: lineNormal,
     penetration,
     distance
   };

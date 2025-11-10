@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection } from '../generated';
-import { TILE_SIZE } from '../config/gameConfig';
+import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../config/gameConfig';
 import { playImmediateSound } from './useSoundSystem';
 import { getTileTypeFromChunkData } from '../utils/renderers/placementRenderingUtils';
 
@@ -110,9 +110,8 @@ function isFoundationPlacementTooFar(
   const BUILDING_PLACEMENT_MAX_DISTANCE = 128.0;
   const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
   
-  // Convert cell coordinates to world pixel coordinates (center of tile)
-  const worldX = (cellX * TILE_SIZE) + (TILE_SIZE / 2);
-  const worldY = (cellY * TILE_SIZE) + (TILE_SIZE / 2);
+  // Convert cell coordinates to world pixel coordinates (center of foundation cell)
+  const { x: worldX, y: worldY } = foundationCellToWorldCenter(cellX, cellY);
   
   const dx = worldX - playerX;
   const dy = worldY - playerY;
@@ -589,19 +588,22 @@ export const useBuildingManager = (
 
     setPlacementError(null);
 
-    // Convert world coordinates to tile coordinates
-    const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+    // Convert world coordinates to foundation cell coordinates (96px grid)
+    const { cellX, cellY } = worldPixelsToFoundationCell(worldX, worldY);
 
     try {
       if (mode === BuildingMode.Foundation) {
         // Check client-side validation
-        if (isFoundationPlacementTooFar(connection, tileX, tileY, localPlayerX, localPlayerY)) {
+        if (isFoundationPlacementTooFar(connection, cellX, cellY, localPlayerX, localPlayerY)) {
           setPlacementError('Too far away');
           playImmediateSound('construction_placement_error', 1.0);
           return;
         }
 
         // Check if position is on water (foundations cannot be placed on water tiles)
+        // Convert foundation cell to world tile for water check
+        const { x: foundationCenterX, y: foundationCenterY } = foundationCellToWorldCenter(cellX, cellY);
+        const { tileX, tileY } = worldPosToTileCoords(foundationCenterX, foundationCenterY);
         const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
         if (tileType === 'Sea') {
           setPlacementError('Cannot place foundation on water');
@@ -609,19 +611,19 @@ export const useBuildingManager = (
           return;
         }
 
-        if (isFoundationPositionOccupied(connection, tileX, tileY, foundationShape)) {
-          console.log('[BuildingManager] Client-side validation: Position already occupied at', { tileX, tileY });
+        if (isFoundationPositionOccupied(connection, cellX, cellY, foundationShape)) {
+          console.log('[BuildingManager] Client-side validation: Position already occupied at', { cellX, cellY });
           setPlacementError('Position already occupied');
           playImmediateSound('construction_placement_error', 1.0);
           return;
         }
 
         // Call server reducer
-        console.log('[BuildingManager] Calling placeFoundation reducer:', { tileX, tileY, shape: foundationShape, tier: buildingTier });
+        console.log('[BuildingManager] Calling placeFoundation reducer:', { cellX, cellY, shape: foundationShape, tier: buildingTier });
         try {
           connection.reducers.placeFoundation(
-            BigInt(tileX),
-            BigInt(tileY),
+            BigInt(cellX),
+            BigInt(cellY),
             foundationShape as number, // FoundationShape enum value (0-5)
             buildingTier as number // BuildingTier enum value (0-2)
           );
@@ -637,7 +639,7 @@ export const useBuildingManager = (
       } else if (mode === BuildingMode.Wall) {
         // Wall placement logic
         // Check client-side validation
-        if (isFoundationPlacementTooFar(connection, tileX, tileY, localPlayerX, localPlayerY)) {
+        if (isFoundationPlacementTooFar(connection, cellX, cellY, localPlayerX, localPlayerY)) {
           setPlacementError('Too far away');
           playImmediateSound('construction_placement_error', 1.0);
           return;
@@ -646,7 +648,7 @@ export const useBuildingManager = (
         // Check if there's a foundation at this cell (walls require a foundation)
         let hasFoundation = false;
         for (const foundation of connection.db.foundationCell.iter()) {
-          if (foundation.cellX === tileX && foundation.cellY === tileY && !foundation.isDestroyed) {
+          if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
             hasFoundation = true;
             break;
           }
@@ -659,11 +661,11 @@ export const useBuildingManager = (
         }
 
         // Call server reducer - server will determine edge and facing from world coordinates
-        console.log('[BuildingManager] Calling placeWall reducer:', { tileX, tileY, worldX, worldY, tier: buildingTier });
+        console.log('[BuildingManager] Calling placeWall reducer:', { cellX, cellY, worldX, worldY, tier: buildingTier });
         try {
           connection.reducers.placeWall(
-            BigInt(tileX),
-            BigInt(tileY),
+            BigInt(cellX),
+            BigInt(cellY),
             worldX,
             worldY,
             buildingTier as number // BuildingTier enum value (0-3)

@@ -254,7 +254,8 @@ function AppContent() {
             wildAnimals, // Add wild animals to collision system
             barrels, // Add barrels to collision system
             seaStacks, // Add sea stacks to collision system
-            wallCells // Add wall cells for collision detection
+            wallCells, // Add wall cells for collision detection
+            foundationCells // Add foundation cells for collision detection (especially triangle hypotenuses)
         }
     });
 

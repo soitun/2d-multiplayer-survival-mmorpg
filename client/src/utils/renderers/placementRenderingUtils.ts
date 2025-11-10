@@ -7,7 +7,7 @@ import { LANTERN_WIDTH_PREVIEW, LANTERN_HEIGHT_PREVIEW } from './lanternRenderin
 import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingUtils';
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
-import { TILE_SIZE } from '../../config/gameConfig';
+import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview } from './foundationRenderingUtils';
@@ -293,9 +293,8 @@ function isFoundationPlacementValid(
     // Cost depends on shape: 50 for full, 25 for triangles
     const REQUIRED_WOOD = (shape === 1) ? 50 : 25; // 1 = Full, 2-5 = Triangles
 
-    // Convert cell coordinates to world pixel coordinates (center of tile)
-    const worldX = (cellX * TILE_SIZE) + (TILE_SIZE / 2);
-    const worldY = (cellY * TILE_SIZE) + (TILE_SIZE / 2);
+    // Convert cell coordinates to world pixel coordinates (center of foundation cell)
+    const { x: worldX, y: worldY } = foundationCellToWorldCenter(cellX, cellY);
 
     // Check distance
     const dx = worldX - playerX;
@@ -413,9 +412,8 @@ function isWallPlacementValid(
     // Wall cost: 15 wood for Twig tier
     const REQUIRED_WOOD = 15;
 
-    // Convert cell coordinates to world pixel coordinates (center of tile)
-    const worldX = (cellX * TILE_SIZE) + (TILE_SIZE / 2);
-    const worldY = (cellY * TILE_SIZE) + (TILE_SIZE / 2);
+    // Convert cell coordinates to world pixel coordinates (center of foundation cell)
+    const { x: worldX, y: worldY } = foundationCellToWorldCenter(cellX, cellY);
 
     // Check distance
     const dx = worldX - playerX;
@@ -444,8 +442,10 @@ function isWallPlacementValid(
     const isTriangle = foundationShape >= 2 && foundationShape <= 5;
 
     // Determine edge based on mouse position (same logic as server)
-    const tileCenterX = worldX;
-    const tileCenterY = worldY;
+    // Convert foundation cell center to world coordinates
+    const { x: foundationCenterX, y: foundationCenterY } = foundationCellToWorldCenter(cellX, cellY);
+    const tileCenterX = foundationCenterX;
+    const tileCenterY = foundationCenterY;
     const dxFromCenter = worldMouseX - tileCenterX;
     const dyFromCenter = worldMouseY - tileCenterY;
     const absDx = Math.abs(dxFromCenter);
@@ -636,13 +636,14 @@ export function renderPlacementPreview({
 }: RenderPlacementPreviewParams): void {
     // Handle building preview first
     if (buildingState?.isBuilding && worldMouseX !== null && worldMouseY !== null) {
-        const { tileX, tileY } = worldPosToTileCoords(worldMouseX, worldMouseY);
+        // Convert mouse position to foundation cell coordinates (96px grid)
+        const { cellX, cellY } = worldPixelsToFoundationCell(worldMouseX, worldMouseY);
         
         if (buildingState.mode === BuildingMode.Foundation) {
             const isValid = isFoundationPlacementValid(
                 connection,
-                tileX,
-                tileY,
+                cellX,
+                cellY,
                 buildingState.foundationShape,
                 localPlayerX,
                 localPlayerY,
@@ -652,8 +653,8 @@ export function renderPlacementPreview({
 
             renderFoundationPreview({
                 ctx,
-                cellX: tileX,
-                cellY: tileY,
+                cellX: cellX,
+                cellY: cellY,
                 shape: buildingState.foundationShape,
                 tier: buildingState.buildingTier,
                 isValid,
@@ -665,8 +666,8 @@ export function renderPlacementPreview({
         } else if (buildingState.mode === BuildingMode.Wall) {
             const isValid = isWallPlacementValid(
                 connection,
-                tileX,
-                tileY,
+                cellX,
+                cellY,
                 worldMouseX,
                 worldMouseY,
                 localPlayerX,
@@ -677,8 +678,8 @@ export function renderPlacementPreview({
 
             renderWallPreview({
                 ctx,
-                cellX: tileX,
-                cellY: tileY,
+                cellX: cellX,
+                cellY: cellY,
                 worldMouseX,
                 worldMouseY,
                 tier: buildingState.buildingTier,

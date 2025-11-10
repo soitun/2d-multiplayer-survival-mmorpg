@@ -10,6 +10,9 @@
 const TILE_SIZE = 48;
 export { TILE_SIZE };
 
+// Foundation grid is 2x world tiles (96px) for larger building pieces
+export const FOUNDATION_TILE_SIZE = 96; // 2x TILE_SIZE
+
 // --- Server World & Chunk Configuration (Client-Side Assumption - TODO: Make Server-Driven) ---
 // These values MUST match the server's current world generation settings.
 const SERVER_WORLD_WIDTH_TILES = 400; // Assumed width of the server world in tiles (matches lib.rs)
@@ -76,7 +79,61 @@ export const gameConfig = {
   // Calculated grid cell size in pixels based on the diagonal tile target.
   // Avoids hardcoding pixel size directly.
   minimapGridCellSizePixels: MINIMAP_GRID_CELL_SIZE_PIXELS, // Assign the calculated value
+
+  // Foundation grid configuration
+  foundationTileSize: FOUNDATION_TILE_SIZE,
 };
+
+// --- Foundation Grid Conversion Utilities ---
+/**
+ * Convert foundation cell coordinates to world pixel coordinates (top-left corner)
+ */
+export function foundationCellToWorldPixels(cellX: number, cellY: number): { x: number; y: number } {
+  return {
+    x: cellX * FOUNDATION_TILE_SIZE,
+    y: cellY * FOUNDATION_TILE_SIZE,
+  };
+}
+
+/**
+ * Convert foundation cell coordinates to world pixel coordinates (center)
+ */
+export function foundationCellToWorldCenter(cellX: number, cellY: number): { x: number; y: number } {
+  return {
+    x: (cellX * FOUNDATION_TILE_SIZE) + (FOUNDATION_TILE_SIZE / 2),
+    y: (cellY * FOUNDATION_TILE_SIZE) + (FOUNDATION_TILE_SIZE / 2),
+  };
+}
+
+/**
+ * Convert world pixel coordinates to foundation cell coordinates
+ */
+export function worldPixelsToFoundationCell(worldX: number, worldY: number): { cellX: number; cellY: number } {
+  return {
+    cellX: Math.floor(worldX / FOUNDATION_TILE_SIZE),
+    cellY: Math.floor(worldY / FOUNDATION_TILE_SIZE),
+  };
+}
+
+/**
+ * Convert world tile coordinates (48px) to foundation cell coordinates (96px)
+ */
+export function worldTileToFoundationCell(tileX: number, tileY: number): { cellX: number; cellY: number } {
+  return {
+    cellX: Math.floor(tileX / 2),
+    cellY: Math.floor(tileY / 2),
+  };
+}
+
+/**
+ * Convert foundation cell coordinates to world tile coordinates (48px)
+ */
+export function foundationCellToWorldTile(cellX: number, cellY: number): { tileX: number; tileY: number } {
+  return {
+    tileX: cellX * 2,
+    tileY: cellY * 2,
+  };
+}
 
 // --- Rendering & Interaction Constants ---
 export const MOVEMENT_POSITION_THRESHOLD = 0.1; // Small threshold to account for float precision
