@@ -1,81 +1,82 @@
 /**
- * Building Radial Menu Component
+ * Upgrade Radial Menu Component
  * 
- * Shows a radial menu when right-clicking with Blueprint equipped.
- * Allows selection of building pieces (foundations, walls, doors, etc.)
+ * Shows a radial menu when right-clicking with Repair Hammer equipped on a foundation.
+ * Allows selection of upgrade tiers (Wood, Stone, Metal) based on available resources.
  * Shows resource requirements and greys out unavailable options.
  * 
- * Styled similar to Rust's building menu - pie slice sectors with full sector highlighting.
+ * Styled similar to BuildingRadialMenu - pie slice sectors with full sector highlighting.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager';
-import { DbConnection, InventoryItem, ItemDefinition } from '../generated';
+import { BuildingTier } from '../hooks/useBuildingManager';
+import { DbConnection, InventoryItem, ItemDefinition, FoundationCell } from '../generated';
 
-interface BuildingRadialMenuProps {
+interface UpgradeRadialMenuProps {
   isVisible: boolean;
   mouseX: number;
   mouseY: number;
   connection: DbConnection | null;
   inventoryItems: Map<string, InventoryItem>;
   itemDefinitions: Map<string, ItemDefinition>;
-  onSelect: (mode: BuildingMode, tier: BuildingTier, initialShape?: FoundationShape) => void; // ADDED: initialShape parameter
+  foundation: FoundationCell | null; // The foundation being upgraded
+  onSelect: (tier: BuildingTier) => void;
   onCancel: () => void;
+  onDestroy?: () => void; // ADDED: Destroy callback
 }
 
-interface BuildingOption {
-  mode: BuildingMode;
+interface UpgradeOption {
+  tier: BuildingTier;
   name: string;
-  icon: string; // For now, just a colored square
+  icon: string;
   requirements: {
     wood?: number;
     stone?: number;
     metal?: number;
   };
   available: boolean;
-  reason?: string; // Why it's unavailable
-  isTriangle?: boolean; // ADDED: Flag to indicate triangle foundation
+  reason?: string;
 }
 
-const RADIUS = 144; // Outer radius of the radial menu (20% larger: 120 * 1.2)
-const INNER_RADIUS = 25; // Inner radius (center cancel area) (20% larger: 50 * 1.2)
+const RADIUS = 144;
+const INNER_RADIUS = 25;
 const MENU_SIZE = RADIUS * 2;
 
-export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
+export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
   isVisible,
   mouseX,
   mouseY,
   connection,
   inventoryItems,
   itemDefinitions,
+  foundation,
   onSelect,
   onCancel,
+  onDestroy, // ADDED: Destroy callback
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const isSelectingRef = useRef(false); // Prevent multiple selections
+  const isSelectingRef = useRef(false);
 
-  // Calculate total wood in inventory
-  const getWoodCount = (): number => {
+  // Get resource counts
+  const getResourceCount = (resourceName: string): number => {
     if (!connection || !itemDefinitions) return 0;
     
-    // Find Wood item definition
-    let woodDefId: bigint | null = null;
+    let resourceDefId: bigint | null = null;
     for (const def of itemDefinitions.values()) {
-      if (def.name === 'Wood') {
-        woodDefId = def.id;
+      if (def.name === resourceName) {
+        resourceDefId = def.id;
         break;
       }
     }
     
-    if (!woodDefId) return 0;
+    if (!resourceDefId) return 0;
     
-    // Sum up all wood items (inventory + hotbar)
     let total = 0;
     for (const item of inventoryItems.values()) {
-      if (item.itemDefId === woodDefId) {
+      if (item.itemDefId === resourceDefId) {
         total += item.quantity;
       }
     }
@@ -83,57 +84,87 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
     return total;
   };
 
-  const woodCount = getWoodCount();
+  const woodCount = getResourceCount('Wood');
+  const stoneCount = getResourceCount('Stone');
+  const metalCount = getResourceCount('Metal Fragments');
 
-  // Define building options
-  const buildingOptions: BuildingOption[] = [
-    {
-      mode: BuildingMode.Foundation,
-      name: 'Foundation',
-      icon: '🟫', // Brown square emoji for now
-      requirements: { wood: 50 },
-      available: woodCount >= 50,
-      reason: woodCount < 50 ? `Need 50 wood (have ${woodCount})` : undefined,
-    },
-    {
-      mode: BuildingMode.Foundation,
-      name: 'Triangle Foundation',
-      icon: '🔺', // Triangle emoji
-      requirements: { wood: 25 },
-      available: woodCount >= 25,
-      reason: woodCount < 25 ? `Need 25 wood (have ${woodCount})` : undefined,
-      isTriangle: true, // ADDED: Flag to indicate this is a triangle foundation
-    },
-    {
-      mode: BuildingMode.Wall,
-      name: 'Wall',
-      icon: '⬛', // Black square
-      requirements: { wood: 0 }, // Not implemented yet
-      available: false,
-      reason: 'Not implemented',
-    },
-    {
-      mode: BuildingMode.DoorFrame,
-      name: 'Door Frame',
-      icon: '🚪', // Door emoji
-      requirements: { wood: 0 },
-      available: false,
-      reason: 'Not implemented',
-    },
-    {
-      mode: BuildingMode.Door,
-      name: 'Door',
-      icon: '🚪',
-      requirements: { wood: 0 },
-      available: false,
-      reason: 'Not implemented',
-    },
-  ];
+  // Determine current tier
+  const currentTier = foundation ? (foundation.tier as BuildingTier) : BuildingTier.Twig;
+  
+  // Determine shape multiplier (full = 1.0, triangle = 0.5)
+  const isTriangle = foundation && foundation.shape >= 2 && foundation.shape <= 5;
+  const shapeMultiplier = isTriangle ? 0.5 : 1.0;
+
+  // Define upgrade options (always show all 3 tiers, grey out unavailable ones)
+  const upgradeOptions: UpgradeOption[] = [];
+
+  // Wood upgrade (Twig -> Wood)
+  const requiredWood = Math.ceil(50 * shapeMultiplier);
+  const canUpgradeToWood = currentTier < BuildingTier.Wood && woodCount >= requiredWood;
+  upgradeOptions.push({
+    tier: BuildingTier.Wood,
+    name: 'Upgrade to Wood',
+    icon: '🪵',
+    requirements: { wood: requiredWood },
+    available: canUpgradeToWood,
+    reason: currentTier >= BuildingTier.Wood 
+      ? 'Already at or above this tier' 
+      : woodCount < requiredWood 
+        ? `Need ${requiredWood} wood (have ${woodCount})` 
+        : undefined,
+  });
+
+  // Stone upgrade (-> Stone)
+  const requiredStone = Math.ceil(100 * shapeMultiplier);
+  const canUpgradeToStone = currentTier < BuildingTier.Stone && stoneCount >= requiredStone;
+  upgradeOptions.push({
+    tier: BuildingTier.Stone,
+    name: 'Upgrade to Stone',
+    icon: '🪨',
+    requirements: { stone: requiredStone },
+    available: canUpgradeToStone,
+    reason: currentTier >= BuildingTier.Stone 
+      ? 'Already at or above this tier' 
+      : stoneCount < requiredStone 
+        ? `Need ${requiredStone} stone (have ${stoneCount})` 
+        : undefined,
+  });
+
+  // Metal upgrade (-> Metal)
+  const requiredMetal = Math.ceil(50 * shapeMultiplier);
+  const canUpgradeToMetal = currentTier < BuildingTier.Metal && metalCount >= requiredMetal;
+  upgradeOptions.push({
+    tier: BuildingTier.Metal,
+    name: 'Upgrade to Metal',
+    icon: '⚙️',
+    requirements: { metal: requiredMetal },
+    available: canUpgradeToMetal,
+    reason: currentTier >= BuildingTier.Metal 
+      ? 'Already at or above this tier' 
+      : metalCount < requiredMetal 
+        ? `Need ${requiredMetal} metal fragments (have ${metalCount})` 
+        : undefined,
+  });
+
+  // Destroy option (only for Twig foundations)
+  if (currentTier === BuildingTier.Twig) {
+    upgradeOptions.push({
+      tier: BuildingTier.Twig, // Use Twig as placeholder, but name indicates destroy
+      name: 'Destroy Foundation',
+      icon: '🗑️',
+      requirements: {},
+      available: true, // Always available for twig foundations
+      reason: undefined,
+    });
+  }
+
+  // Calculate total number of options for sector calculations
+  const totalOptions = upgradeOptions.length;
 
   // Calculate angle for each sector
   const getSectorAngles = (index: number, total: number) => {
     const sectorAngle = (2 * Math.PI) / total;
-    const startAngle = (index * sectorAngle) - Math.PI / 2; // Start from top
+    const startAngle = (index * sectorAngle) - Math.PI / 2;
     const endAngle = startAngle + sectorAngle;
     return { startAngle, endAngle, sectorAngle };
   };
@@ -143,13 +174,11 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
     const centerX = MENU_SIZE / 2;
     const centerY = MENU_SIZE / 2;
 
-    // Outer arc
     const x1 = centerX + Math.cos(startAngle) * outerRadius;
     const y1 = centerY + Math.sin(startAngle) * outerRadius;
     const x2 = centerX + Math.cos(endAngle) * outerRadius;
     const y2 = centerY + Math.sin(endAngle) * outerRadius;
 
-    // Inner arc
     const x3 = centerX + Math.cos(endAngle) * innerRadius;
     const y3 = centerY + Math.sin(endAngle) * innerRadius;
     const x4 = centerX + Math.cos(startAngle) * innerRadius;
@@ -158,12 +187,12 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
     const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
 
     return [
-      `M ${centerX} ${centerY}`, // Move to center
-      `L ${x4} ${y4}`, // Line to inner start
-      `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 1 ${x3} ${y3}`, // Inner arc
-      `L ${x2} ${y2}`, // Line to outer end
-      `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 0 ${x1} ${y1}`, // Outer arc
-      `Z`, // Close path
+      `M ${centerX} ${centerY}`,
+      `L ${x4} ${y4}`,
+      `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 1 ${x3} ${y3}`,
+      `L ${x2} ${y2}`,
+      `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 0 ${x1} ${y1}`,
+      `Z`,
     ].join(' ');
   };
 
@@ -178,27 +207,23 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
     const clickY = clientY - centerY;
     const distance = Math.sqrt(clickX * clickX + clickY * clickY);
 
-    // Check if clicked on center (cancel)
     if (distance < INNER_RADIUS) {
       return -1; // Center/cancel
     }
 
-    // Check if clicked within the radial menu area
     if (distance >= INNER_RADIUS && distance <= RADIUS) {
-      // Calculate angle
       const angle = Math.atan2(clickY, clickX);
-      // Normalize angle to 0-2π and adjust for top start
       let normalizedAngle = angle + Math.PI / 2;
       if (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
       
-      // Find which sector this angle corresponds to
-      const sectorAngle = (2 * Math.PI) / buildingOptions.length;
+      // Use dynamic number of sectors based on options (3 or 4)
+      const sectorAngle = (2 * Math.PI) / upgradeOptions.length;
       const index = Math.floor(normalizedAngle / sectorAngle);
       
-      return index % buildingOptions.length;
+      return index % upgradeOptions.length;
     }
 
-    return null; // Outside menu
+    return null;
   };
 
   // Get position for text/icon in the middle of a sector
@@ -231,35 +256,31 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
       const sectorIndex = getSectorFromMousePosition(e.clientX, e.clientY);
 
       if (sectorIndex === -1) {
-        // Clicked on center (cancel) - clear building selection
+        // Clicked on center (cancel)
         onCancel();
         isSelectingRef.current = false;
-      } else if (sectorIndex !== null) {
-        // Clicked on a sector
-        const option = buildingOptions[sectorIndex];
+      } else if (sectorIndex !== null && sectorIndex < upgradeOptions.length) { // Use dynamic total
+        const option = upgradeOptions[sectorIndex];
         setSelectedIndex(sectorIndex);
         
         if (option.available) {
-          // Small delay for visual feedback
           setTimeout(() => {
-            if (option.isTriangle) {
-              // Triangle foundation - pass TriNW as initial shape
-              onSelect(option.mode, BuildingTier.Twig, FoundationShape.TriNW);
+            // Check if this is the destroy option (Twig tier with destroy name)
+            if (option.name === 'Destroy Foundation' && onDestroy) {
+              onDestroy();
             } else {
-              // Regular foundation or other building types
-              onSelect(option.mode, BuildingTier.Twig);
+              onSelect(option.tier);
             }
             isSelectingRef.current = false;
           }, 50);
         } else {
-          // Option not available - clear building selection
           setTimeout(() => {
-            onCancel(); // This will clear building mode
+            onCancel();
             isSelectingRef.current = false;
           }, 50);
         }
       } else {
-        // Clicked outside menu - clear building selection
+        // Clicked outside menu - close it
         onCancel();
         isSelectingRef.current = false;
       }
@@ -270,7 +291,7 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
       window.removeEventListener('mouseup', handleMouseUp);
       isSelectingRef.current = false;
     };
-  }, [isVisible, buildingOptions, onSelect, onCancel]);
+  }, [isVisible, upgradeOptions, onSelect, onCancel, onDestroy]); // ADDED: onDestroy to deps
 
   // Update hovered index based on mouse position
   useEffect(() => {
@@ -302,7 +323,7 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
         zIndex: 10000,
         userSelect: 'none',
       }}
-      onContextMenu={(e) => e.preventDefault()} // Prevent context menu
+      onContextMenu={(e) => e.preventDefault()}
     >
       <svg
         ref={svgRef}
@@ -315,14 +336,13 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
           pointerEvents: 'none',
         }}
       >
-        {/* Outer glow effect */}
         <defs>
-          <radialGradient id="outerGlow">
-            <stop offset="0%" stopColor="rgba(100, 150, 200, 0.4)" />
-            <stop offset="70%" stopColor="rgba(100, 150, 200, 0.1)" />
+          <radialGradient id="upgradeOuterGlow">
+            <stop offset="0%" stopColor="rgba(150, 100, 200, 0.4)" />
+            <stop offset="70%" stopColor="rgba(150, 100, 200, 0.1)" />
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
-          <filter id="glow">
+          <filter id="upgradeGlow">
             <feGaussianBlur stdDeviation="4" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
@@ -331,18 +351,16 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
           </filter>
         </defs>
 
-        {/* Background circle */}
         <circle
           cx={MENU_SIZE / 2}
           cy={MENU_SIZE / 2}
           r={RADIUS}
-          fill="url(#outerGlow)"
+          fill="url(#upgradeOuterGlow)"
           opacity="0.3"
         />
 
-        {/* Render each sector */}
-        {buildingOptions.map((option, index) => {
-          const { startAngle, endAngle } = getSectorAngles(index, buildingOptions.length);
+        {upgradeOptions.map((option, index) => {
+          const { startAngle, endAngle } = getSectorAngles(index, upgradeOptions.length); // Use dynamic total
           const isHovered = hoveredIndex === index;
           const isSelected = selectedIndex === index;
           const isAvailable = option.available;
@@ -351,27 +369,26 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
 
           return (
             <g key={index}>
-              {/* Sector background */}
               <path
                 d={sectorPath}
                 fill={
                   isAvailable
                     ? isHovered || isSelected
-                      ? 'rgba(80, 150, 100, 0.85)'
+                      ? 'rgba(100, 150, 200, 0.85)'
                       : 'rgba(30, 35, 40, 0.9)'
                     : 'rgba(20, 20, 25, 0.7)'
                 }
                 stroke={
                   isAvailable
                     ? isHovered || isSelected
-                      ? 'rgba(150, 255, 180, 0.8)'
+                      ? 'rgba(150, 200, 255, 0.8)'
                       : 'rgba(80, 90, 100, 0.5)'
                     : 'rgba(50, 50, 50, 0.4)'
                 }
                 strokeWidth={isHovered || isSelected ? 3 : 2}
                 style={{
                   transition: 'all 0.15s ease',
-                  filter: isHovered || isSelected ? 'url(#glow)' : 'none',
+                  filter: isHovered || isSelected ? 'url(#upgradeGlow)' : 'none',
                   cursor: isAvailable ? 'pointer' : 'not-allowed',
                   pointerEvents: 'auto',
                 }}
@@ -381,7 +398,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
           );
         })}
 
-        {/* Center cancel circle */}
         <circle
           cx={MENU_SIZE / 2}
           cy={MENU_SIZE / 2}
@@ -401,12 +417,11 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
             transition: 'all 0.15s ease',
             cursor: 'pointer',
             pointerEvents: 'auto',
-            filter: hoveredIndex === -1 ? 'url(#glow)' : 'none',
+            filter: hoveredIndex === -1 ? 'url(#upgradeGlow)' : 'none',
           }}
         />
       </svg>
 
-      {/* Text and icons overlay */}
       <div
         style={{
           position: 'absolute',
@@ -417,7 +432,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
           pointerEvents: 'none',
         }}
       >
-        {/* Center cancel X */}
         <div
           style={{
             position: 'absolute',
@@ -434,9 +448,8 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
           ✕
         </div>
 
-        {/* Sector labels and icons */}
-        {buildingOptions.map((option, index) => {
-          const pos = getSectorCenterPosition(index, buildingOptions.length);
+        {upgradeOptions.map((option, index) => {
+          const pos = getSectorCenterPosition(index, upgradeOptions.length); // Use dynamic total
           const isHovered = hoveredIndex === index;
           const isAvailable = option.available;
 
@@ -456,7 +469,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
                 pointerEvents: 'none',
               }}
             >
-              {/* Icon */}
               <div
                 style={{
                   fontSize: '36px',
@@ -468,7 +480,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
                 {option.icon}
               </div>
 
-              {/* Name */}
               <div
                 style={{
                   fontSize: '12px',
@@ -482,7 +493,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
                 {option.name}
               </div>
 
-              {/* Requirements tooltip on hover */}
               {isHovered && (
                 <div
                   style={{
@@ -502,24 +512,28 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
                     minWidth: '150px',
                   }}
                 >
-                  {option.requirements.wood && (
+                  {option.requirements.wood !== undefined && (
                     <div style={{ marginBottom: '4px' }}>
                       <span style={{ color: '#8B4513', fontWeight: 'bold' }}>Wood:</span>{' '}
-                      <span style={{ color: woodCount >= (option.requirements.wood || 0) ? '#90EE90' : '#FF6B6B' }}>
+                      <span style={{ color: woodCount >= option.requirements.wood ? '#90EE90' : '#FF6B6B' }}>
                         {option.requirements.wood} ({woodCount} available)
                       </span>
                     </div>
                   )}
-                  {option.requirements.stone && (
+                  {option.requirements.stone !== undefined && (
                     <div style={{ marginBottom: '4px' }}>
                       <span style={{ color: '#808080', fontWeight: 'bold' }}>Stone:</span>{' '}
-                      {option.requirements.stone}
+                      <span style={{ color: stoneCount >= option.requirements.stone ? '#90EE90' : '#FF6B6B' }}>
+                        {option.requirements.stone} ({stoneCount} available)
+                      </span>
                     </div>
                   )}
-                  {option.requirements.metal && (
+                  {option.requirements.metal !== undefined && (
                     <div style={{ marginBottom: '4px' }}>
                       <span style={{ color: '#C0C0C0', fontWeight: 'bold' }}>Metal:</span>{' '}
-                      {option.requirements.metal}
+                      <span style={{ color: metalCount >= option.requirements.metal ? '#90EE90' : '#FF6B6B' }}>
+                        {option.requirements.metal} ({metalCount} available)
+                      </span>
                     </div>
                   )}
                   {option.reason && (

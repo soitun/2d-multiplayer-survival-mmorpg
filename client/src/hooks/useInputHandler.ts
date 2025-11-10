@@ -78,6 +78,7 @@ interface InputHandlerProps {
     isFishing: boolean;
     setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
     movementDirection: { x: number; y: number };
+    targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
 }
 
 // --- Hook Return Value Interface ---
@@ -94,6 +95,8 @@ export interface InputHandlerState {
     radialMenuMouseX: number;
     radialMenuMouseY: number;
     setShowBuildingRadialMenu: (show: boolean) => void;
+    showUpgradeRadialMenu: boolean;
+    setShowUpgradeRadialMenu: (show: boolean) => void;
     // Function to be called each frame by the game loop
     processInputsAndActions: () => void;
 }
@@ -154,6 +157,7 @@ export const useInputHandler = ({
     isFishing,
     setMusicPanelVisible,
     movementDirection,
+    targetedFoundation, // ADDED: Targeted foundation
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
     // Get player actions from the context instead of props
@@ -196,6 +200,7 @@ export const useInputHandler = ({
     const woodenStorageBoxesRef = useRef(woodenStorageBoxes); // <<< ADDED Ref
     const stashesRef = useRef(stashes); // Added stashesRef
     const playersRef = useRef(players); // Added playersRef for knocked out revive
+    const targetedFoundationRef = useRef(targetedFoundation); // ADDED: Targeted foundation ref
     const itemDefinitionsRef = useRef(itemDefinitions); // <<< ADDED Ref
 
     // Add after existing refs in the hook
@@ -203,10 +208,12 @@ export const useInputHandler = ({
     
     // ADDED: Building radial menu state
     const [showBuildingRadialMenu, setShowBuildingRadialMenu] = useState(false);
+    const [showUpgradeRadialMenu, setShowUpgradeRadialMenu] = useState(false);
     const [radialMenuMouseX, setRadialMenuMouseX] = useState(0);
     const [radialMenuMouseY, setRadialMenuMouseY] = useState(0);
     const radialMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const radialMenuShownRef = useRef<boolean>(false); // Track if menu is shown to avoid clearing timeout prematurely
+    const upgradeMenuFoundationIdRef = useRef<bigint | null>(null); // Store foundation ID when menu opens
 
     // --- Derive input disabled state based ONLY on player death --- 
     const isPlayerDead = localPlayer?.isDead ?? false;
@@ -241,6 +248,47 @@ export const useInputHandler = ({
     useEffect(() => { connectionRef.current = connection; }, [connection]);
     useEffect(() => { localPlayerRef.current = localPlayer; }, [localPlayer]);
     useEffect(() => { activeEquipmentsRef.current = activeEquipments; }, [activeEquipments]);
+    useEffect(() => { targetedFoundationRef.current = targetedFoundation; }, [targetedFoundation]);
+
+    // ADDED: Reset upgrade menu refs when menu closes
+    useEffect(() => {
+        if (!showUpgradeRadialMenu) {
+            // Menu closed - reset all refs to allow menu to open again
+            upgradeMenuFoundationIdRef.current = null;
+            radialMenuShownRef.current = false;
+            // Clear any pending timeout
+            if (radialMenuTimeoutRef.current) {
+                clearTimeout(radialMenuTimeoutRef.current);
+                radialMenuTimeoutRef.current = null;
+            }
+        }
+    }, [showUpgradeRadialMenu]);
+
+    // ADDED: Reset building menu refs when menu closes
+    useEffect(() => {
+        if (!showBuildingRadialMenu) {
+            // Building menu closed - reset refs
+            radialMenuShownRef.current = false;
+            // Clear any pending timeout
+            if (radialMenuTimeoutRef.current) {
+                clearTimeout(radialMenuTimeoutRef.current);
+                radialMenuTimeoutRef.current = null;
+            }
+        }
+    }, [showBuildingRadialMenu]);
+
+    // ADDED: Clear radial menu state when building mode ends (switching tools)
+    useEffect(() => {
+        if (!buildingState?.isBuilding) {
+            // Building mode ended - clear all radial menu state
+            radialMenuShownRef.current = false;
+            setShowBuildingRadialMenu(false);
+            if (radialMenuTimeoutRef.current) {
+                clearTimeout(radialMenuTimeoutRef.current);
+                radialMenuTimeoutRef.current = null;
+            }
+        }
+    }, [buildingState?.isBuilding]);
     useEffect(() => { movementDirectionRef.current = movementDirection; }, [movementDirection]);
     
     // Synchronize local crouch state with server state to prevent desync
@@ -1084,6 +1132,16 @@ export const useInputHandler = ({
                 if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
                     const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
                     if (equippedItemDef?.name === "Blueprint") {
+                        // Clear upgrade menu if it's showing (switching from hammer to blueprint)
+                        if (showUpgradeRadialMenu) {
+                            setShowUpgradeRadialMenu(false);
+                            upgradeMenuFoundationIdRef.current = null;
+                            radialMenuShownRef.current = false;
+                        }
+                        // Don't show menu if it's already showing (prevent flickering)
+                        if (showBuildingRadialMenu || radialMenuShownRef.current) {
+                            return;
+                        }
                         // Get mouse position for radial menu
                         const mouseX = event.clientX;
                         const mouseY = event.clientY;
@@ -1092,6 +1150,7 @@ export const useInputHandler = ({
                         // Show menu after a short delay to allow for drag detection
                         if (radialMenuTimeoutRef.current) {
                             clearTimeout(radialMenuTimeoutRef.current);
+                            radialMenuTimeoutRef.current = null;
                         }
                         console.log('[BuildingRadialMenu] Right-click detected with Blueprint, setting up menu at', mouseX, mouseY);
                         radialMenuTimeoutRef.current = setTimeout(() => {
@@ -1102,6 +1161,44 @@ export const useInputHandler = ({
                                 setShowBuildingRadialMenu(true);
                             }
                         }, 100); // 100ms delay before showing menu
+                        return;
+                    }
+                    // ADDED: Check for Repair Hammer on right mouse down
+                    // Only show menu if we have a targeted foundation (like blueprint menu)
+                    if (equippedItemDef?.name === "Repair Hammer" && targetedFoundationRef.current) {
+                        // Don't show menu if it's already showing (prevent flickering)
+                        // Also check if building menu is showing - if so, clear it first
+                        if (showBuildingRadialMenu) {
+                            setShowBuildingRadialMenu(false);
+                            radialMenuShownRef.current = false;
+                        }
+                        if (showUpgradeRadialMenu || radialMenuShownRef.current) {
+                            return;
+                        }
+                        // Store the foundation ID so menu stays open even if targetedFoundation changes
+                        upgradeMenuFoundationIdRef.current = targetedFoundationRef.current.id;
+                        // Get mouse position for upgrade radial menu
+                        const mouseX = event.clientX;
+                        const mouseY = event.clientY;
+                        setRadialMenuMouseX(mouseX);
+                        setRadialMenuMouseY(mouseY);
+                        // Show menu after a short delay to allow for drag detection (same as blueprint)
+                        if (radialMenuTimeoutRef.current) {
+                            clearTimeout(radialMenuTimeoutRef.current);
+                            radialMenuTimeoutRef.current = null;
+                        }
+                        console.log('[UpgradeRadialMenu] Right-click detected with Repair Hammer on foundation, setting up menu at', mouseX, mouseY);
+                        radialMenuTimeoutRef.current = setTimeout(() => {
+                            console.log('[UpgradeRadialMenu] Timeout fired, isRightMouseDown:', isRightMouseDownRef.current);
+                            if (isRightMouseDownRef.current && upgradeMenuFoundationIdRef.current !== null) {
+                                console.log('[UpgradeRadialMenu] Showing upgrade radial menu');
+                                radialMenuShownRef.current = true;
+                                setShowUpgradeRadialMenu(true);
+                            } else {
+                                // Clear the foundation ID if menu didn't show
+                                upgradeMenuFoundationIdRef.current = null;
+                            }
+                        }, 100); // 100ms delay before showing menu (same as blueprint)
                         return;
                     }
                 }
@@ -1119,6 +1216,8 @@ export const useInputHandler = ({
                     setShowBuildingRadialMenu(false);
                     radialMenuShownRef.current = false;
                 }
+                // Upgrade menu handles its own clicks - don't close it here
+                // It will close itself when clicking outside
             } else if (event.button === 2) { // Right mouse
                 isRightMouseDownRef.current = false;
                 
@@ -1130,10 +1229,21 @@ export const useInputHandler = ({
                         radialMenuShownRef.current = false;
                     }, 50);
                 }
+                // Close upgrade menu on right mouse release (same as blueprint)
+                if (showUpgradeRadialMenu) {
+                    // Clear the stored foundation ID
+                    upgradeMenuFoundationIdRef.current = null;
+                    // Small delay to let menu component handle selection first
+                    setTimeout(() => {
+                        setShowUpgradeRadialMenu(false);
+                        radialMenuShownRef.current = false;
+                    }, 50);
+                }
                 // Only clear timeout if menu wasn't shown yet (user released before delay)
                 if (radialMenuTimeoutRef.current && !radialMenuShownRef.current) {
                     clearTimeout(radialMenuTimeoutRef.current);
                     radialMenuTimeoutRef.current = null;
+                    upgradeMenuFoundationIdRef.current = null;
                 }
             }
         };
@@ -1286,6 +1396,12 @@ export const useInputHandler = ({
                         // ADDED: Blueprint right-click - prevent context menu, radial menu is handled in mousedown
                         event.preventDefault();
                         return;
+                    } else if (equippedItemDef.name === "Repair Hammer") {
+                        // ADDED: Repair Hammer right-click - prevent context menu and throwing
+                        // Upgrade radial menu is handled in mousedown
+                        // Always prevent context menu when Repair Hammer is equipped
+                        event.preventDefault();
+                        return;
                     } else if (equippedItemDef.name === "Bandage") {
                         // console.log("[InputHandler CTXMENU] Bandage equipped. Attempting to use.");
                         event.preventDefault();
@@ -1433,6 +1549,11 @@ export const useInputHandler = ({
                 event.preventDefault();
                 radialMenuShownRef.current = false;
                 setShowBuildingRadialMenu(false);
+            }
+            // Prevent context menu when upgrade menu is showing (but don't close it)
+            if (showUpgradeRadialMenu) {
+                event.preventDefault();
+                return;
             }
         };
 
@@ -1659,7 +1780,7 @@ export const useInputHandler = ({
         // Allow throwing tools and melee weapons
         const throwableNames = [
             "Rock", "Spear", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle",
-            "Bone Club", "Bone Knife", "Repair Hammer", "Stone Spear", "Wooden Spear",
+            "Bone Club", "Bone Knife", "Stone Spear", "Wooden Spear",
             "Stone Axe", "Stone Knife", "Wooden Club", "Improvised Knife", "Bone Gaff Hook",
             "Bush Knife"
         ];
@@ -1700,6 +1821,8 @@ export const useInputHandler = ({
         radialMenuMouseX,
         radialMenuMouseY,
         setShowBuildingRadialMenu, // Expose setter so parent can close menu
+        showUpgradeRadialMenu,
+        setShowUpgradeRadialMenu,
         processInputsAndActions,
     };
 }; 

@@ -41,10 +41,11 @@ export interface RenderFoundationPreviewParams {
  */
 function getFoundationTileFilename(tier: number): string {
   switch (tier) {
-    case 0: return 'foundation_wood.png'; // Wood
-    case 1: return 'foundation_stone.png'; // Stone (if exists)
-    case 2: return 'foundation_metal.png'; // Metal (if exists)
-    default: return 'foundation_wood.png'; // Default to wood
+    case 0: return 'foundation_twig.png'; // Twig (default tier)
+    case 1: return 'foundation_wood.png'; // Wood
+    case 2: return 'foundation_stone.png'; // Stone
+    case 3: return 'foundation_metal.png'; // Metal
+    default: return 'foundation_twig.png'; // Default to twig
   }
 }
 
@@ -321,6 +322,91 @@ export function renderFoundationPreview({
     ctx.fillText('Empty', screenX + screenSize / 2, screenY + screenSize / 2);
     ctx.shadowBlur = 0; // Reset shadow
   }
+}
+
+/**
+ * Render a highlight overlay on a targeted foundation (for upgrade targeting)
+ */
+export function renderFoundationTargetIndicator({
+  ctx,
+  foundation,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  foundation: FoundationCell;
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  if (foundation.isDestroyed) {
+    return;
+  }
+
+  const { x: worldX, y: worldY } = cellToWorldPixels(foundation.cellX, foundation.cellY);
+  const screenX = worldX;
+  const screenY = worldY;
+  const screenSize = TILE_SIZE * worldScale;
+
+  ctx.save();
+
+  // Draw pulsing highlight overlay
+  const pulsePhase = (Date.now() % 2000) / 2000; // 0 to 1 over 2 seconds
+  const pulseAlpha = 0.3 + (Math.sin(pulsePhase * Math.PI * 2) * 0.2); // Pulse between 0.3 and 0.5
+
+  const isTriangle = foundation.shape >= 2 && foundation.shape <= 5;
+  if (isTriangle) {
+    setupTriangleClipPath(ctx, screenX, screenY, screenSize, foundation.shape);
+  }
+
+  // Draw highlight overlay (golden/yellow tint for upgrade targeting)
+  ctx.fillStyle = `rgba(255, 215, 0, ${pulseAlpha})`; // Gold color with pulsing alpha
+  if (isTriangle) {
+    ctx.fill(); // Fill clipped triangle path
+  } else {
+    ctx.fillRect(screenX, screenY, screenSize, screenSize);
+  }
+
+  // Draw border highlight
+  ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 + pulseAlpha * 0.2})`;
+  ctx.lineWidth = 3;
+  if (isTriangle) {
+    // Draw triangle border - use the same coordinates as setupTriangleClipPath
+    ctx.beginPath();
+    switch (foundation.shape) {
+      case 2: // TriNW - Top-left triangle
+        ctx.moveTo(screenX, screenY);
+        ctx.lineTo(screenX + screenSize, screenY);
+        ctx.lineTo(screenX, screenY + screenSize);
+        ctx.closePath();
+        break;
+      case 3: // TriNE - Top-right triangle
+        ctx.moveTo(screenX + screenSize, screenY);
+        ctx.lineTo(screenX + screenSize, screenY + screenSize);
+        ctx.lineTo(screenX, screenY);
+        ctx.closePath();
+        break;
+      case 4: // TriSE - Bottom-right triangle
+        ctx.moveTo(screenX + screenSize, screenY + screenSize);
+        ctx.lineTo(screenX, screenY + screenSize);
+        ctx.lineTo(screenX + screenSize, screenY);
+        ctx.closePath();
+        break;
+      case 5: // TriSW - Bottom-left triangle
+        ctx.moveTo(screenX, screenY + screenSize);
+        ctx.lineTo(screenX, screenY);
+        ctx.lineTo(screenX + screenSize, screenY + screenSize);
+        ctx.closePath();
+        break;
+    }
+    ctx.stroke();
+  } else {
+    // Draw rectangle border
+    ctx.strokeRect(screenX, screenY, screenSize, screenSize);
+  }
+
+  ctx.restore();
 }
 
 /**

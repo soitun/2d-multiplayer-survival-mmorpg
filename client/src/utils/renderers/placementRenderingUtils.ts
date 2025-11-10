@@ -55,7 +55,7 @@ function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; 
  * Gets tile type from compressed chunk data (matching GameCanvas.tsx logic)
  * Returns tile type tag string or null if not found
  */
-function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number, tileY: number): string | null {
+export function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number, tileY: number): string | null {
     if (!connection) return null;
     
     // Default chunk size (typically 8 tiles per chunk)

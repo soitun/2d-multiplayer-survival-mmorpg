@@ -9,7 +9,7 @@
 use spacetimedb::{Identity, Timestamp, ReducerContext, Table, log};
 use crate::{
     models::{FoundationShape, BuildingEdge, BuildingFacing, BuildingTier, TargetType, ItemLocation},
-    environment::calculate_chunk_index,
+    environment::{calculate_chunk_index, is_position_on_water},
     TILE_SIZE_PX,
     world_pos_to_tile_coords,
 };
@@ -23,21 +23,29 @@ use crate::items::{item_definition as ItemDefinitionTableTrait, inventory_item a
 // --- Constants ---
 
 // Building health constants (per tier)
-pub const FOUNDATION_WOOD_MAX_HEALTH: f32 = 500.0;
-pub const FOUNDATION_STONE_MAX_HEALTH: f32 = 1000.0;
-pub const FOUNDATION_METAL_MAX_HEALTH: f32 = 2000.0;
+// Twig tier: Easy to break with Combat Ladle (10 dmg/hit) - ~5-8 hits for foundations
+pub const FOUNDATION_TWIG_MAX_HEALTH: f32 = 75.0;   // ~8 hits with Combat Ladle
+pub const FOUNDATION_WOOD_MAX_HEALTH: f32 = 500.0; // ~50 hits (2x old Wood)
+pub const FOUNDATION_STONE_MAX_HEALTH: f32 = 1000.0; // ~100 hits
+pub const FOUNDATION_METAL_MAX_HEALTH: f32 = 2000.0; // ~200 hits
 
-pub const WALL_WOOD_MAX_HEALTH: f32 = 250.0;
-pub const WALL_STONE_MAX_HEALTH: f32 = 500.0;
-pub const WALL_METAL_MAX_HEALTH: f32 = 1000.0;
+// Walls: Thinner than foundations, easier to break
+pub const WALL_TWIG_MAX_HEALTH: f32 = 50.0;   // ~5 hits with Combat Ladle
+pub const WALL_WOOD_MAX_HEALTH: f32 = 250.0;  // ~25 hits
+pub const WALL_STONE_MAX_HEALTH: f32 = 500.0; // ~50 hits
+pub const WALL_METAL_MAX_HEALTH: f32 = 1000.0; // ~100 hits
 
-pub const DOORFRAME_WOOD_MAX_HEALTH: f32 = 200.0;
-pub const DOORFRAME_STONE_MAX_HEALTH: f32 = 400.0;
-pub const DOORFRAME_METAL_MAX_HEALTH: f32 = 800.0;
+// Doorframes: Similar to walls but slightly weaker
+pub const DOORFRAME_TWIG_MAX_HEALTH: f32 = 40.0;  // ~4 hits with Combat Ladle
+pub const DOORFRAME_WOOD_MAX_HEALTH: f32 = 200.0; // ~20 hits
+pub const DOORFRAME_STONE_MAX_HEALTH: f32 = 400.0; // ~40 hits
+pub const DOORFRAME_METAL_MAX_HEALTH: f32 = 800.0; // ~80 hits
 
-pub const DOOR_WOOD_MAX_HEALTH: f32 = 150.0;
-pub const DOOR_STONE_MAX_HEALTH: f32 = 300.0;
-pub const DOOR_METAL_MAX_HEALTH: f32 = 600.0;
+// Doors: Weakest building piece, easiest to break
+pub const DOOR_TWIG_MAX_HEALTH: f32 = 30.0;  // ~3 hits with Combat Ladle
+pub const DOOR_WOOD_MAX_HEALTH: f32 = 150.0; // ~15 hits
+pub const DOOR_STONE_MAX_HEALTH: f32 = 300.0; // ~30 hits
+pub const DOOR_METAL_MAX_HEALTH: f32 = 600.0; // ~60 hits
 
 // Placement distance
 pub const BUILDING_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
@@ -59,7 +67,7 @@ pub struct FoundationCell {
     pub cell_y: i32,  // Tile Y coordinate
     pub chunk_index: u32,  // For chunk-based spatial subscriptions
     pub shape: u8,    // FoundationShape enum (0-5)
-    pub tier: u8,     // BuildingTier enum (0-2: Wood, Stone, Metal)
+    pub tier: u8,     // BuildingTier enum (0-3: Twig, Wood, Stone, Metal)
     pub health: f32,
     pub max_health: f32,
     pub owner: Identity,
@@ -89,12 +97,59 @@ pub fn player_has_blueprint(ctx: &ReducerContext, player_id: Identity) -> bool {
     false
 }
 
+/// Check if player has Repair Hammer equipped
+pub fn player_has_repair_hammer(ctx: &ReducerContext, player_id: Identity) -> bool {
+    let active_equipments = ctx.db.active_equipment();
+    let item_defs = ctx.db.item_definition();
+    
+    if let Some(equipment) = active_equipments.player_identity().find(&player_id) {
+        if let Some(item_def_id) = equipment.equipped_item_def_id {
+            if let Some(item_def) = item_defs.id().find(&item_def_id) {
+                return item_def.name == "Repair Hammer";
+            }
+        }
+    }
+    
+    false
+}
+
 /// Get foundation max health based on tier
 pub fn get_foundation_max_health(tier: BuildingTier) -> f32 {
     match tier {
+        BuildingTier::Twig => FOUNDATION_TWIG_MAX_HEALTH,
         BuildingTier::Wood => FOUNDATION_WOOD_MAX_HEALTH,
         BuildingTier::Stone => FOUNDATION_STONE_MAX_HEALTH,
         BuildingTier::Metal => FOUNDATION_METAL_MAX_HEALTH,
+    }
+}
+
+/// Get wall max health based on tier
+pub fn get_wall_max_health(tier: BuildingTier) -> f32 {
+    match tier {
+        BuildingTier::Twig => WALL_TWIG_MAX_HEALTH,
+        BuildingTier::Wood => WALL_WOOD_MAX_HEALTH,
+        BuildingTier::Stone => WALL_STONE_MAX_HEALTH,
+        BuildingTier::Metal => WALL_METAL_MAX_HEALTH,
+    }
+}
+
+/// Get doorframe max health based on tier
+pub fn get_doorframe_max_health(tier: BuildingTier) -> f32 {
+    match tier {
+        BuildingTier::Twig => DOORFRAME_TWIG_MAX_HEALTH,
+        BuildingTier::Wood => DOORFRAME_WOOD_MAX_HEALTH,
+        BuildingTier::Stone => DOORFRAME_STONE_MAX_HEALTH,
+        BuildingTier::Metal => DOORFRAME_METAL_MAX_HEALTH,
+    }
+}
+
+/// Get door max health based on tier
+pub fn get_door_max_health(tier: BuildingTier) -> f32 {
+    match tier {
+        BuildingTier::Twig => DOOR_TWIG_MAX_HEALTH,
+        BuildingTier::Wood => DOOR_WOOD_MAX_HEALTH,
+        BuildingTier::Stone => DOOR_STONE_MAX_HEALTH,
+        BuildingTier::Metal => DOOR_METAL_MAX_HEALTH,
     }
 }
 
@@ -105,7 +160,7 @@ pub fn is_valid_foundation_shape(shape: u8) -> bool {
 
 /// Validate building tier enum value
 pub fn is_valid_building_tier(tier: u8) -> bool {
-    matches!(tier, 0..=2) // Wood, Stone, Metal
+    matches!(tier, 0..=3) // Twig, Wood, Stone, Metal
 }
 
 /// Check if a foundation cell position is valid (not overlapping with existing foundation)
@@ -220,7 +275,7 @@ pub fn place_foundation(
     }
     
     if !is_valid_building_tier(tier) {
-        return Err(format!("Invalid building tier: {}. Must be 0-2 (Wood, Stone, Metal).", tier));
+        return Err(format!("Invalid building tier: {}. Must be 0-3 (Twig, Wood, Stone, Metal).", tier));
     }
     
     let foundation_shape = match shape {
@@ -234,9 +289,10 @@ pub fn place_foundation(
     };
     
     let building_tier = match tier {
-        0 => BuildingTier::Wood,
-        1 => BuildingTier::Stone,
-        2 => BuildingTier::Metal,
+        0 => BuildingTier::Twig,
+        1 => BuildingTier::Wood,
+        2 => BuildingTier::Stone,
+        3 => BuildingTier::Metal,
         _ => return Err("Invalid building tier".to_string()),
     };
     
@@ -247,11 +303,16 @@ pub fn place_foundation(
         return Err(format!("Cannot place foundation at ({}, {}): position already occupied or invalid.", cell_x, cell_y));
     }
     
-    // 5. Check placement distance from player
+    // 5. Check if position is on water (foundations cannot be placed on water tiles)
     // Convert cell coordinates to world pixel coordinates (center of tile)
     let world_x = (cell_x_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
     let world_y = (cell_y_i32 as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
     
+    if is_position_on_water(ctx, world_x, world_y) {
+        return Err("Cannot place foundation on water tiles.".to_string());
+    }
+    
+    // 6. Check placement distance from player
     let dx = world_x - player.position_x;
     let dy = world_y - player.position_y;
     let dist_sq = dx * dx + dy * dy;
@@ -264,13 +325,13 @@ pub fn place_foundation(
         ));
     }
     
-    // 6. Calculate chunk index
+    // 7. Calculate chunk index
     let chunk_index = calculate_chunk_index(world_x, world_y);
     
-    // 7. Get max health for this tier
+    // 8. Get max health for this tier
     let max_health = get_foundation_max_health(building_tier);
     
-    // 8. Check and consume wood (cost depends on shape: 50 for full, 25 for triangles)
+    // 9. Check and consume resources (Twig tier uses wood, cost depends on shape: 50 for full, 25 for triangles)
     let required_wood = match foundation_shape {
         FoundationShape::Full => 50,
         FoundationShape::TriNW | FoundationShape::TriNE | FoundationShape::TriSE | FoundationShape::TriSW => 25,
@@ -361,6 +422,382 @@ pub fn place_foundation(
     log::info!(
         "[PlaceFoundation] Successfully placed foundation at cell ({}, {}), tier={:?}, health={:.1}",
         cell_x, cell_y, building_tier, max_health
+    );
+    
+    Ok(())
+}
+
+/// Upgrade a foundation to a higher tier
+#[spacetimedb::reducer]
+pub fn upgrade_foundation(
+    ctx: &ReducerContext,
+    foundation_id: u64,
+    new_tier: u8,
+) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let players = ctx.db.player();
+    let foundations = ctx.db.foundation_cell();
+    
+    log::info!(
+        "[UpgradeFoundation] Player {:?} attempting to upgrade foundation {} to tier {}",
+        sender_id, foundation_id, new_tier
+    );
+    
+    // 1. Validate player
+    let player = players.identity().find(&sender_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    if player.is_dead {
+        return Err("Cannot upgrade foundation while dead.".to_string());
+    }
+    
+    if player.is_knocked_out {
+        return Err("Cannot upgrade foundation while knocked out.".to_string());
+    }
+    
+    // 2. Validate Repair Hammer equipped
+    if !player_has_repair_hammer(ctx, sender_id) {
+        return Err("Repair Hammer must be equipped to upgrade foundations.".to_string());
+    }
+    
+    // 3. Find foundation
+    let foundation = foundations.id().find(&foundation_id)
+        .ok_or_else(|| "Foundation not found".to_string())?;
+    
+    if foundation.is_destroyed {
+        return Err("Cannot upgrade destroyed foundation.".to_string());
+    }
+    
+    // 4. Validate new tier
+    if !is_valid_building_tier(new_tier) {
+        return Err(format!("Invalid building tier: {}. Must be 0-3 (Twig, Wood, Stone, Metal).", new_tier));
+    }
+    
+    let current_tier = match foundation.tier {
+        0 => BuildingTier::Twig,
+        1 => BuildingTier::Wood,
+        2 => BuildingTier::Stone,
+        3 => BuildingTier::Metal,
+        _ => return Err("Foundation has invalid tier".to_string()),
+    };
+    
+    let target_tier = match new_tier {
+        0 => BuildingTier::Twig,
+        1 => BuildingTier::Wood,
+        2 => BuildingTier::Stone,
+        3 => BuildingTier::Metal,
+        _ => return Err("Invalid target tier".to_string()),
+    };
+    
+    // 5. Check if upgrade is valid (can only upgrade to higher tier)
+    if target_tier as u8 <= current_tier as u8 {
+        return Err(format!("Cannot downgrade foundation. Current tier: {:?}, Target tier: {:?}", current_tier, target_tier));
+    }
+    
+    // 6. Check placement distance from player
+    let world_x = (foundation.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (foundation.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    
+    let dx = world_x - player.position_x;
+    let dy = world_y - player.position_y;
+    let dist_sq = dx * dx + dy * dy;
+    
+    if dist_sq > BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED {
+        return Err(format!(
+            "Foundation upgrade too far from player. Distance: {:.1}px, Max: {:.1}px",
+            dist_sq.sqrt(),
+            BUILDING_PLACEMENT_MAX_DISTANCE
+        ));
+    }
+    
+    // 7. Calculate resource costs based on target tier and shape
+    let inventory = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    // Determine shape for cost calculation
+    let foundation_shape = match foundation.shape {
+        0 => FoundationShape::Empty,
+        1 => FoundationShape::Full,
+        2 => FoundationShape::TriNW,
+        3 => FoundationShape::TriNE,
+        4 => FoundationShape::TriSE,
+        5 => FoundationShape::TriSW,
+        _ => return Err("Foundation has invalid shape".to_string()),
+    };
+    
+    let shape_multiplier = match foundation_shape {
+        FoundationShape::Full => 1.0,
+        FoundationShape::TriNW | FoundationShape::TriNE | FoundationShape::TriSE | FoundationShape::TriSW => 0.5,
+        _ => 1.0,
+    };
+    
+    // Resource costs per tier upgrade
+    let (required_wood, required_stone, required_metal) = match target_tier {
+        BuildingTier::Wood => {
+            // Twig -> Wood: 50 wood for full, 25 for triangle
+            ((50.0 * shape_multiplier) as u32, 0, 0)
+        },
+        BuildingTier::Stone => {
+            // -> Stone: 100 stone for full, 50 for triangle
+            (0, (100.0 * shape_multiplier) as u32, 0)
+        },
+        BuildingTier::Metal => {
+            // -> Metal: 50 metal fragments for full, 25 for triangle
+            (0, 0, (50.0 * shape_multiplier) as u32)
+        },
+        BuildingTier::Twig => {
+            // Can't upgrade to Twig (it's the base tier)
+            return Err("Cannot upgrade to Twig tier".to_string());
+        },
+    };
+    
+    // 8. Check and consume resources
+    if required_wood > 0 {
+        let wood_item_def = item_defs.iter()
+            .find(|def| def.name == "Wood")
+            .ok_or_else(|| "Wood item definition not found".to_string())?;
+        
+        let mut wood_items: Vec<_> = inventory.iter()
+            .filter(|item| {
+                let is_owned = match &item.location {
+                    ItemLocation::Inventory(data) => data.owner_id == sender_id,
+                    ItemLocation::Hotbar(data) => data.owner_id == sender_id,
+                    _ => false,
+                };
+                is_owned &&
+                item.item_def_id == wood_item_def.id &&
+                item.quantity > 0
+            })
+            .collect();
+        
+        let total_wood: u32 = wood_items.iter().map(|item| item.quantity).sum();
+        
+        if total_wood < required_wood {
+            return Err(format!(
+                "Not enough wood. Required: {}, Available: {}",
+                required_wood, total_wood
+            ));
+        }
+        
+        // Consume wood
+        let mut remaining_to_consume = required_wood;
+        for wood_item in &wood_items {
+            if remaining_to_consume == 0 {
+                break;
+            }
+            
+            let consume_from_this = remaining_to_consume.min(wood_item.quantity);
+            let new_quantity = wood_item.quantity - consume_from_this;
+            remaining_to_consume -= consume_from_this;
+            
+            if new_quantity == 0 {
+                ctx.db.inventory_item().instance_id().delete(wood_item.instance_id);
+            } else {
+                let mut updated_item = wood_item.clone();
+                updated_item.quantity = new_quantity;
+                ctx.db.inventory_item().instance_id().update(updated_item);
+            }
+        }
+        
+        log::info!("[UpgradeFoundation] Consumed {} wood from player {:?}", required_wood, sender_id);
+    }
+    
+    if required_stone > 0 {
+        let stone_item_def = item_defs.iter()
+            .find(|def| def.name == "Stone")
+            .ok_or_else(|| "Stone item definition not found".to_string())?;
+        
+        let mut stone_items: Vec<_> = inventory.iter()
+            .filter(|item| {
+                let is_owned = match &item.location {
+                    ItemLocation::Inventory(data) => data.owner_id == sender_id,
+                    ItemLocation::Hotbar(data) => data.owner_id == sender_id,
+                    _ => false,
+                };
+                is_owned &&
+                item.item_def_id == stone_item_def.id &&
+                item.quantity > 0
+            })
+            .collect();
+        
+        let total_stone: u32 = stone_items.iter().map(|item| item.quantity).sum();
+        
+        if total_stone < required_stone {
+            return Err(format!(
+                "Not enough stone. Required: {}, Available: {}",
+                required_stone, total_stone
+            ));
+        }
+        
+        // Consume stone
+        let mut remaining_to_consume = required_stone;
+        for stone_item in &stone_items {
+            if remaining_to_consume == 0 {
+                break;
+            }
+            
+            let consume_from_this = remaining_to_consume.min(stone_item.quantity);
+            let new_quantity = stone_item.quantity - consume_from_this;
+            remaining_to_consume -= consume_from_this;
+            
+            if new_quantity == 0 {
+                ctx.db.inventory_item().instance_id().delete(stone_item.instance_id);
+            } else {
+                let mut updated_item = stone_item.clone();
+                updated_item.quantity = new_quantity;
+                ctx.db.inventory_item().instance_id().update(updated_item);
+            }
+        }
+        
+        log::info!("[UpgradeFoundation] Consumed {} stone from player {:?}", required_stone, sender_id);
+    }
+    
+    if required_metal > 0 {
+        let metal_item_def = item_defs.iter()
+            .find(|def| def.name == "Metal Fragments")
+            .ok_or_else(|| "Metal Fragments item definition not found".to_string())?;
+        
+        let mut metal_items: Vec<_> = inventory.iter()
+            .filter(|item| {
+                let is_owned = match &item.location {
+                    ItemLocation::Inventory(data) => data.owner_id == sender_id,
+                    ItemLocation::Hotbar(data) => data.owner_id == sender_id,
+                    _ => false,
+                };
+                is_owned &&
+                item.item_def_id == metal_item_def.id &&
+                item.quantity > 0
+            })
+            .collect();
+        
+        let total_metal: u32 = metal_items.iter().map(|item| item.quantity).sum();
+        
+        if total_metal < required_metal {
+            return Err(format!(
+                "Not enough metal fragments. Required: {}, Available: {}",
+                required_metal, total_metal
+            ));
+        }
+        
+        // Consume metal
+        let mut remaining_to_consume = required_metal;
+        for metal_item in &metal_items {
+            if remaining_to_consume == 0 {
+                break;
+            }
+            
+            let consume_from_this = remaining_to_consume.min(metal_item.quantity);
+            let new_quantity = metal_item.quantity - consume_from_this;
+            remaining_to_consume -= consume_from_this;
+            
+            if new_quantity == 0 {
+                ctx.db.inventory_item().instance_id().delete(metal_item.instance_id);
+            } else {
+                let mut updated_item = metal_item.clone();
+                updated_item.quantity = new_quantity;
+                ctx.db.inventory_item().instance_id().update(updated_item);
+            }
+        }
+        
+        log::info!("[UpgradeFoundation] Consumed {} metal fragments from player {:?}", required_metal, sender_id);
+    }
+    
+    // 9. Update foundation tier and health
+    let new_max_health = get_foundation_max_health(target_tier);
+    let health_ratio = foundation.health / foundation.max_health;
+    let new_health = new_max_health * health_ratio; // Preserve health percentage
+    
+    let mut updated_foundation = foundation.clone();
+    updated_foundation.tier = new_tier;
+    updated_foundation.max_health = new_max_health;
+    updated_foundation.health = new_health;
+    
+    foundations.id().update(updated_foundation);
+    
+    // 10. Emit upgrade sound based on tier
+    match target_tier {
+        BuildingTier::Wood => {
+            crate::sound_events::emit_foundation_wood_upgraded_sound(ctx, world_x, world_y, sender_id);
+        },
+        BuildingTier::Stone => {
+            crate::sound_events::emit_foundation_stone_upgraded_sound(ctx, world_x, world_y, sender_id);
+        },
+        BuildingTier::Metal => {
+            crate::sound_events::emit_foundation_metal_upgraded_sound(ctx, world_x, world_y, sender_id);
+        },
+        BuildingTier::Twig => {
+            // Should not happen, but handle it
+        },
+    }
+    
+    log::info!(
+        "[UpgradeFoundation] Successfully upgraded foundation {} from {:?} to {:?}, health={:.1}/{:.1}",
+        foundation_id, current_tier, target_tier, new_health, new_max_health
+    );
+    
+    Ok(())
+}
+
+/// Destroy a twig foundation (only twig foundations can be destroyed)
+#[spacetimedb::reducer]
+pub fn destroy_foundation(ctx: &ReducerContext, foundation_id: u64) -> Result<(), String> {
+    use crate::sound_events;
+    
+    let sender_id = ctx.sender;
+    let foundations = ctx.db.foundation_cell();
+    let players = ctx.db.player();
+    
+    // 1. Validate player exists and is not knocked out
+    let player = players.identity().find(&sender_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    if player.is_knocked_out {
+        return Err("Cannot destroy foundation while knocked out.".to_string());
+    }
+    
+    // 2. Validate Repair Hammer equipped
+    if !player_has_repair_hammer(ctx, sender_id) {
+        return Err("Repair Hammer must be equipped to destroy foundations.".to_string());
+    }
+    
+    // 3. Find foundation
+    let foundation = foundations.id().find(&foundation_id)
+        .ok_or_else(|| "Foundation not found".to_string())?;
+    
+    if foundation.is_destroyed {
+        return Err("Foundation is already destroyed.".to_string());
+    }
+    
+    // 4. Only twig foundations can be destroyed
+    if foundation.tier != 0 {
+        return Err("Only twig foundations can be destroyed.".to_string());
+    }
+    
+    // 5. Check placement distance from player
+    let world_x = (foundation.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (foundation.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    
+    let dx = world_x - player.position_x;
+    let dy = world_y - player.position_y;
+    let dist_sq = dx * dx + dy * dy;
+    
+    if dist_sq > BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED {
+        return Err("Foundation is too far away.".to_string());
+    }
+    
+    // 6. Mark foundation as destroyed
+    let mut updated_foundation = foundation.clone();
+    updated_foundation.is_destroyed = true;
+    updated_foundation.destroyed_at = Some(ctx.timestamp);
+    
+    foundations.id().update(updated_foundation);
+    
+    // 7. Emit destroy sound
+    sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, sender_id);
+    
+    log::info!(
+        "[DestroyFoundation] Successfully destroyed twig foundation {} at ({}, {})",
+        foundation_id, foundation.cell_x, foundation.cell_y
     );
     
     Ok(())

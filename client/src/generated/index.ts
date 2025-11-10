@@ -73,6 +73,8 @@ import { DebugUpdateCloudIntensity } from "./debug_update_cloud_intensity_reduce
 export { DebugUpdateCloudIntensity };
 import { DespawnExpiredItems } from "./despawn_expired_items_reducer.ts";
 export { DespawnExpiredItems };
+import { DestroyFoundation } from "./destroy_foundation_reducer.ts";
+export { DestroyFoundation };
 import { DodgeRoll } from "./dodge_roll_reducer.ts";
 export { DodgeRoll };
 import { DrinkWater } from "./drink_water_reducer.ts";
@@ -387,6 +389,8 @@ import { UpdateViewport } from "./update_viewport_reducer.ts";
 export { UpdateViewport };
 import { UpdateViperSpittle } from "./update_viper_spittle_reducer.ts";
 export { UpdateViperSpittle };
+import { UpgradeFoundation } from "./upgrade_foundation_reducer.ts";
+export { UpgradeFoundation };
 import { UseEquippedItem } from "./use_equipped_item_reducer.ts";
 export { UseEquippedItem };
 import { WaterCrops } from "./water_crops_reducer.ts";
@@ -1571,6 +1575,10 @@ const REMOTE_MODULE = {
       reducerName: "despawn_expired_items",
       argsType: DespawnExpiredItems.getTypeScriptAlgebraicType(),
     },
+    destroy_foundation: {
+      reducerName: "destroy_foundation",
+      argsType: DestroyFoundation.getTypeScriptAlgebraicType(),
+    },
     dodge_roll: {
       reducerName: "dodge_roll",
       argsType: DodgeRoll.getTypeScriptAlgebraicType(),
@@ -2199,6 +2207,10 @@ const REMOTE_MODULE = {
       reducerName: "update_viper_spittle",
       argsType: UpdateViperSpittle.getTypeScriptAlgebraicType(),
     },
+    upgrade_foundation: {
+      reducerName: "upgrade_foundation",
+      argsType: UpgradeFoundation.getTypeScriptAlgebraicType(),
+    },
     use_equipped_item: {
       reducerName: "use_equipped_item",
       argsType: UseEquippedItem.getTypeScriptAlgebraicType(),
@@ -2258,6 +2270,7 @@ export type Reducer = never
 | { name: "DebugSetWeather", args: DebugSetWeather }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
 | { name: "DespawnExpiredItems", args: DespawnExpiredItems }
+| { name: "DestroyFoundation", args: DestroyFoundation }
 | { name: "DodgeRoll", args: DodgeRoll }
 | { name: "DrinkWater", args: DrinkWater }
 | { name: "DropItem", args: DropItem }
@@ -2415,6 +2428,7 @@ export type Reducer = never
 | { name: "UpdateProjectiles", args: UpdateProjectiles }
 | { name: "UpdateViewport", args: UpdateViewport }
 | { name: "UpdateViperSpittle", args: UpdateViperSpittle }
+| { name: "UpgradeFoundation", args: UpgradeFoundation }
 | { name: "UseEquippedItem", args: UseEquippedItem }
 | { name: "WaterCrops", args: WaterCrops }
 ;
@@ -2736,6 +2750,22 @@ export class RemoteReducers {
 
   removeOnDespawnExpiredItems(callback: (ctx: ReducerEventContext, schedule: DroppedItemDespawnSchedule) => void) {
     this.connection.offReducer("despawn_expired_items", callback);
+  }
+
+  destroyFoundation(foundationId: bigint) {
+    const __args = { foundationId };
+    let __writer = new __BinaryWriter(1024);
+    DestroyFoundation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("destroy_foundation", __argsBuffer, this.setCallReducerFlags.destroyFoundationFlags);
+  }
+
+  onDestroyFoundation(callback: (ctx: ReducerEventContext, foundationId: bigint) => void) {
+    this.connection.onReducer("destroy_foundation", callback);
+  }
+
+  removeOnDestroyFoundation(callback: (ctx: ReducerEventContext, foundationId: bigint) => void) {
+    this.connection.offReducer("destroy_foundation", callback);
   }
 
   dodgeRoll(moveX: number, moveY: number) {
@@ -5162,6 +5192,22 @@ export class RemoteReducers {
     this.connection.offReducer("update_viper_spittle", callback);
   }
 
+  upgradeFoundation(foundationId: bigint, newTier: number) {
+    const __args = { foundationId, newTier };
+    let __writer = new __BinaryWriter(1024);
+    UpgradeFoundation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("upgrade_foundation", __argsBuffer, this.setCallReducerFlags.upgradeFoundationFlags);
+  }
+
+  onUpgradeFoundation(callback: (ctx: ReducerEventContext, foundationId: bigint, newTier: number) => void) {
+    this.connection.onReducer("upgrade_foundation", callback);
+  }
+
+  removeOnUpgradeFoundation(callback: (ctx: ReducerEventContext, foundationId: bigint, newTier: number) => void) {
+    this.connection.offReducer("upgrade_foundation", callback);
+  }
+
   useEquippedItem() {
     this.connection.callReducer("use_equipped_item", new Uint8Array(0), this.setCallReducerFlags.useEquippedItemFlags);
   }
@@ -5296,6 +5342,11 @@ export class SetReducerFlags {
   despawnExpiredItemsFlags: __CallReducerFlags = 'FullUpdate';
   despawnExpiredItems(flags: __CallReducerFlags) {
     this.despawnExpiredItemsFlags = flags;
+  }
+
+  destroyFoundationFlags: __CallReducerFlags = 'FullUpdate';
+  destroyFoundation(flags: __CallReducerFlags) {
+    this.destroyFoundationFlags = flags;
   }
 
   dodgeRollFlags: __CallReducerFlags = 'FullUpdate';
@@ -6071,6 +6122,11 @@ export class SetReducerFlags {
   updateViperSpittleFlags: __CallReducerFlags = 'FullUpdate';
   updateViperSpittle(flags: __CallReducerFlags) {
     this.updateViperSpittleFlags = flags;
+  }
+
+  upgradeFoundationFlags: __CallReducerFlags = 'FullUpdate';
+  upgradeFoundation(flags: __CallReducerFlags) {
+    this.upgradeFoundationFlags = flags;
   }
 
   useEquippedItemFlags: __CallReducerFlags = 'FullUpdate';

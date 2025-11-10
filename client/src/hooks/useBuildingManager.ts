@@ -13,6 +13,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection } from '../generated';
 import { TILE_SIZE } from '../config/gameConfig';
 import { playImmediateSound } from './useSoundSystem';
+import { getTileTypeFromChunkData } from '../utils/renderers/placementRenderingUtils';
 
 // Building placement modes
 export enum BuildingMode {
@@ -51,9 +52,10 @@ export enum BuildingFacing {
 
 // Building tiers (matching server-side BuildingTier enum)
 export enum BuildingTier {
-  Wood = 0,
-  Stone = 1,
-  Metal = 2,
+  Twig = 0,
+  Wood = 1,
+  Stone = 2,
+  Metal = 3,
 }
 
 // Building placement state
@@ -375,7 +377,7 @@ export const useBuildingManager = (
   const [foundationShape, setFoundationShape] = useState<FoundationShape>(FoundationShape.Full);
   const [buildingEdge, setBuildingEdge] = useState<BuildingEdge>(BuildingEdge.N);
   const [buildingFacing, setBuildingFacing] = useState<BuildingFacing>(BuildingFacing.Exterior);
-  const [buildingTier, setBuildingTier] = useState<BuildingTier>(BuildingTier.Wood);
+  const [buildingTier, setBuildingTier] = useState<BuildingTier>(BuildingTier.Twig);
   const [placementError, setPlacementError] = useState<string | null>(null);
   
   // Track manually set shape (when R is pressed) to prevent auto-prediction from overriding
@@ -577,6 +579,14 @@ export const useBuildingManager = (
         // Check client-side validation
         if (isFoundationPlacementTooFar(connection, tileX, tileY, localPlayerX, localPlayerY)) {
           setPlacementError('Too far away');
+          playImmediateSound('construction_placement_error', 1.0);
+          return;
+        }
+
+        // Check if position is on water (foundations cannot be placed on water tiles)
+        const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+        if (tileType === 'Sea') {
+          setPlacementError('Cannot place foundation on water');
           playImmediateSound('construction_placement_error', 1.0);
           return;
         }

@@ -1419,7 +1419,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
             // Allow specific throwable items
             let throwable_names = [
                 "Rock", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle",
-                "Bone Club", "Bone Knife", "Repair Hammer", "Stone Spear", "Wooden Spear",
+                "Bone Club", "Bone Knife", "Stone Spear", "Wooden Spear",
                 "Stone Axe", "Wooden Club", "Bone Gaff Hook",
                 "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Engineers Maul", "Military Crowbar",
                 "Human Skull", "Fox Skull", "Wolf Skull", "Viper Skull"
@@ -1565,6 +1565,9 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     };
 
     ctx.db.projectile().insert(projectile);
+
+    // Emit item thrown sound
+    sound_events::emit_item_thrown_sound(ctx, player.position_x, player.position_y, player_id);
 
     // Update last attack timestamp
     let timestamp_record = PlayerLastAttackTimestamp {

@@ -69,4 +69,9 @@ export type GrowlWalrus = { tag: "GrowlWalrus" };
 export type Walking = { tag: "Walking" };
 export type Swimming = { tag: "Swimming" };
 export type FoundationWoodConstructed = { tag: "FoundationWoodConstructed" };
+export type FoundationWoodUpgraded = { tag: "FoundationWoodUpgraded" };
+export type FoundationStoneUpgraded = { tag: "FoundationStoneUpgraded" };
+export type FoundationMetalUpgraded = { tag: "FoundationMetalUpgraded" };
+export type FoundationTwigDestroyed = { tag: "FoundationTwigDestroyed" };
+export type ItemThrown = { tag: "ItemThrown" };
 

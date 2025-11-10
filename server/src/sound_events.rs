@@ -48,6 +48,11 @@ pub enum SoundType {
     Walking,        // walking.mp3 (4 variations - footstep sounds when player moves)
     Swimming,       // swimming.mp3 (4 variations - swimming sounds when player moves in water)
     FoundationWoodConstructed, // foundation_wood_constructed.mp3 (1 variation - when foundation is placed)
+    FoundationWoodUpgraded,    // foundation_wood_upgraded.mp3 (1 variation - when foundation upgraded to wood)
+    FoundationStoneUpgraded,   // foundation_stone_upgraded.mp3 (1 variation - when foundation upgraded to stone)
+    FoundationMetalUpgraded,   // foundation_metal_upgraded.mp3 (1 variation - when foundation upgraded to metal)
+    FoundationTwigDestroyed,   // twig_foundation_destroyed.mp3 (1 variation - when twig foundation is destroyed)
+    ItemThrown,                // item_thrown.mp3 (1 variation - when a weapon/item is thrown)
     // Add more as needed - extensible system
 }
 
@@ -96,6 +101,11 @@ impl SoundType {
             SoundType::Walking => "walking",
             SoundType::Swimming => "swimming",
             SoundType::FoundationWoodConstructed => "foundation_wood_constructed",
+            SoundType::FoundationWoodUpgraded => "foundation_wood_upgraded",
+            SoundType::FoundationStoneUpgraded => "foundation_stone_upgraded",
+            SoundType::FoundationMetalUpgraded => "foundation_metal_upgraded",
+            SoundType::FoundationTwigDestroyed => "twig_foundation_destroyed",
+            SoundType::ItemThrown => "item_thrown",
         }
     }
 
@@ -143,6 +153,11 @@ impl SoundType {
             SoundType::Walking => 4,
             SoundType::Swimming => 4,
             SoundType::FoundationWoodConstructed => 1,
+            SoundType::FoundationWoodUpgraded => 1,
+            SoundType::FoundationStoneUpgraded => 1,
+            SoundType::FoundationMetalUpgraded => 1,
+            SoundType::FoundationTwigDestroyed => 1,
+            SoundType::ItemThrown => 1,
         }
     }
 
@@ -559,6 +574,31 @@ pub fn emit_swimming_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_
 /// Emit a foundation wood constructed sound (when foundation is placed)
 pub fn emit_foundation_wood_constructed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationWoodConstructed, pos_x, pos_y, 1.0, 700.0, player_id);
+}
+
+/// Emit a foundation wood upgraded sound (when foundation upgraded to wood)
+pub fn emit_foundation_wood_upgraded_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationWoodUpgraded, pos_x, pos_y, 1.0, 700.0, player_id);
+}
+
+/// Emit a foundation stone upgraded sound (when foundation upgraded to stone)
+pub fn emit_foundation_stone_upgraded_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationStoneUpgraded, pos_x, pos_y, 1.0, 700.0, player_id);
+}
+
+/// Emit a foundation metal upgraded sound (when foundation upgraded to metal)
+pub fn emit_foundation_metal_upgraded_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationMetalUpgraded, pos_x, pos_y, 1.0, 700.0, player_id);
+}
+
+/// Emit a twig foundation destroyed sound (when twig foundation is destroyed)
+pub fn emit_foundation_twig_destroyed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FoundationTwigDestroyed, pos_x, pos_y, 1.0, 700.0, player_id);
+}
+
+/// Emit an item thrown sound (when a weapon/item is thrown)
+pub fn emit_item_thrown_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::ItemThrown, pos_x, pos_y, 0.9, 500.0, player_id);
 }
 
 /// Emit a global sound that plays to all clients at full volume regardless of position

@@ -147,9 +147,10 @@ pub enum BuildingFacing {
 #[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum BuildingTier {
-    Wood = 0,
-    Stone = 1,
-    Metal = 2,
+    Twig = 0,
+    Wood = 1,
+    Stone = 2,
+    Metal = 3,
 }
 
 // Enum to represent the type of an active consumable effect

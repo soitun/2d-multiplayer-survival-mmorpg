@@ -51,6 +51,7 @@ const SOUND_DEFINITIONS = {
     extinguish_torch: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.9, maxDistance: 450 }, // Extinguishing a torch
     melee_hit_blunt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 600 }, // Blunt weapon hits on players/corpses
     weapon_swing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 400 }, // All weapon swings
+    item_thrown: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.9, maxDistance: 500 }, // Item/weapon thrown sound
     arrow_hit: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.1, maxDistance: 550 }, // Arrow hits on players/corpses
     shoot_bow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 800 }, // Hunting bow firing
     shoot_crossbow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.1, maxDistance: 850 }, // Crossbow firing
@@ -70,6 +71,10 @@ const SOUND_DEFINITIONS = {
     crush_bones: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Local client sound
     // Building sounds - server only (all players hear)
     foundation_wood_constructed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation placement sound
+    foundation_wood_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to wood sound
+    foundation_stone_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to stone sound
+    foundation_metal_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to metal sound
+    twig_foundation_destroyed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Twig foundation destroyed sound
     // Building sounds - immediate (local feedback)
     construction_placement_error: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation placement error sound
 } as const;
@@ -228,6 +233,7 @@ const PRELOAD_SOUNDS = [
     'crush_bones.mp3',                                      // 1 crush bones variation
     'melee_hit_blunt.mp3',                                  // 1 melee hit blunt variation
     'weapon_swing.mp3',                                     // 1 weapon swing variation
+    'item_thrown.mp3',                                      // 1 item thrown variation
     'arrow_hit.mp3',                                        // 1 arrow hit variation
     'shoot_bow.mp3',                                        // 1 shoot bow variation
     'shoot_crossbow.mp3',                                    // 1 shoot crossbow variation
@@ -248,6 +254,11 @@ const PRELOAD_SOUNDS = [
     'swimming1.mp3',
     'swimming2.mp3',
     'swimming3.mp3',
+    'foundation_wood_constructed.mp3',                      // 1 foundation wood constructed variation
+    'foundation_wood_upgraded.mp3',                         // 1 foundation wood upgraded variation
+    'foundation_stone_upgraded.mp3',                        // 1 foundation stone upgraded variation
+    'foundation_metal_upgraded.mp3',                        // 1 foundation metal upgraded variation
+    'twig_foundation_destroyed.mp3',                        // 1 twig foundation destroyed variation
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -445,6 +456,8 @@ const playLocalSound = async (
                 variationCount = 1; // melee_hit_blunt.mp3
             } else if (soundType === 'weapon_swing') {
                 variationCount = 1; // weapon_swing.mp3
+            } else if (soundType === 'item_thrown') {
+                variationCount = 1; // item_thrown.mp3
             } else if (soundType === 'crush_bones') {
                 variationCount = 1; // crush_bones.mp3
             } else if (soundType === 'construction_placement_error') {
@@ -475,6 +488,16 @@ const playLocalSound = async (
                 variationCount = 4; // walking.mp3, walking1.mp3, walking2.mp3, walking3.mp3
             } else if (soundType === 'swimming') {
                 variationCount = 4; // swimming.mp3, swimming1.mp3, swimming2.mp3, swimming3.mp3
+            } else if (soundType === 'foundation_wood_constructed') {
+                variationCount = 1; // foundation_wood_constructed.mp3
+            } else if (soundType === 'foundation_wood_upgraded') {
+                variationCount = 1; // foundation_wood_upgraded.mp3
+            } else if (soundType === 'foundation_stone_upgraded') {
+                variationCount = 1; // foundation_stone_upgraded.mp3
+            } else if (soundType === 'foundation_metal_upgraded') {
+                variationCount = 1; // foundation_metal_upgraded.mp3
+            } else if (soundType === 'twig_foundation_destroyed') {
+                variationCount = 1; // twig_foundation_destroyed.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);

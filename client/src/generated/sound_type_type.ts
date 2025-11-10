@@ -70,7 +70,12 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrowlWalrus |
   SoundTypeVariants.Walking |
   SoundTypeVariants.Swimming |
-  SoundTypeVariants.FoundationWoodConstructed;
+  SoundTypeVariants.FoundationWoodConstructed |
+  SoundTypeVariants.FoundationWoodUpgraded |
+  SoundTypeVariants.FoundationStoneUpgraded |
+  SoundTypeVariants.FoundationMetalUpgraded |
+  SoundTypeVariants.FoundationTwigDestroyed |
+  SoundTypeVariants.ItemThrown;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -123,6 +128,11 @@ export const SoundType = {
   Walking: { tag: "Walking" } as const,
   Swimming: { tag: "Swimming" } as const,
   FoundationWoodConstructed: { tag: "FoundationWoodConstructed" } as const,
+  FoundationWoodUpgraded: { tag: "FoundationWoodUpgraded" } as const,
+  FoundationStoneUpgraded: { tag: "FoundationStoneUpgraded" } as const,
+  FoundationMetalUpgraded: { tag: "FoundationMetalUpgraded" } as const,
+  FoundationTwigDestroyed: { tag: "FoundationTwigDestroyed" } as const,
+  ItemThrown: { tag: "ItemThrown" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -169,6 +179,11 @@ export const SoundType = {
       { name: "Walking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "FoundationWoodConstructed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoundationWoodUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoundationStoneUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoundationMetalUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoundationTwigDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ItemThrown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },
