@@ -56,20 +56,17 @@ const DAY_COLOR_CONFIG = { rgb: [0, 0, 0] as [number, number, number], alpha: 0.
 const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
   // Midnight to Pre-Dawn (25-minute cycle: 20min day + 5min night)
   { progress: 0.0,  rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight
-  { progress: 0.02, rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Late Midnight
-
+  
   // Dawn (Server: 0.0 - 0.05, gradual transitions)
   { progress: 0.025, rgb: [30, 25, 65],    alpha: 0.85 },   // Faint Blues/Purples emerge
   { progress: 0.035, rgb: [50, 40, 80],    alpha: 0.78 },   // Darker Purples becoming more visible
   { progress: 0.045, rgb: [90, 60, 100],   alpha: 0.65 },   // Purples lighten, hint of pink
 
-  // Twilight Morning (Server: 0.05 - 0.12, LONGER gradual transitions)
+  // Morning - Transition to Clear Day (Server: 0.05 - 0.35)
   { progress: 0.06, rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples
   { progress: 0.08, rgb: [160, 80, 90],   alpha: 0.50 },   // Pinks and Muted Oranges appear
   { progress: 0.10, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen
   { progress: 0.115, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges, lower alpha
-
-  // Morning - Transition to Clear Day (Server: 0.12 - 0.35)
   { progress: 0.125, rgb: [255, 170, 80],  alpha: 0.10 },   // Sunrise Peak
   { progress: 0.15, rgb: [255, 190, 100], alpha: 0.05 },   // Lingering soft yellow/orange glow
   { progress: 0.18, ...DAY_COLOR_CONFIG },                // Morning fully clear
@@ -80,20 +77,30 @@ const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 0.70, ...DAY_COLOR_CONFIG }, // Afternoon clear
 
   // Dusk (Server: 0.72 - 0.76, gradual transitions)
-  // Match TwilightMorning style - same colors and alpha progression
-  { progress: 0.72, rgb: [120, 70, 90],   alpha: 0.55 },   // Early evening purples - matches TwilightMorning start
-  { progress: 0.735, rgb: [160, 80, 90],  alpha: 0.50 },   // Pinks and Muted Oranges - matches TwilightMorning
-  { progress: 0.75, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen - matches TwilightMorning middle
-  { progress: 0.76, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges - matches TwilightMorning end
+  // Match TwilightMorning style - same colors and alpha progression (in reverse)
+  { progress: 0.72, rgb: [120, 70, 90],   alpha: 0.55 },   // Early evening purples - matches TwilightMorning end
+  { progress: 0.735, rgb: [160, 80, 90],  alpha: 0.50 },   // Pinks and Muted Oranges
+  { progress: 0.75, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen
+  { progress: 0.76, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges
 
   // Twilight Evening (Server: 0.76 - 0.80, LONGER gradual transitions)
-  { progress: 0.77, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dusk
-  { progress: 0.785, rgb: [80, 50, 90],    alpha: 0.80 },   // Nautical Dusk
-  { progress: 0.80, rgb: [5, 5, 10],      alpha: 0.96 },   // Astronomical Dusk
+  { progress: 0.77, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dusk (matches TwilightMorning civil dawn)
+  { progress: 0.785, rgb: [80, 50, 90],    alpha: 0.80 },   // Nautical Dusk (matches TwilightMorning nautical dawn)
+  { progress: 0.80, rgb: [5, 5, 10],      alpha: 0.96 },   // Astronomical Dusk (matches TwilightMorning astronomical dawn)
 
-  // Night to Midnight (Server: 0.80 - 1.0, 20% of cycle)
-  { progress: 0.92, rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Early Night
-  { progress: 1.0,  rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight
+  // Night (Server: 0.80 - 0.92) - Slightly lighter than midnight
+  { progress: 0.85, rgb: [10, 15, 20],    alpha: 0.88 },   // Deep Night (lighter than midnight)
+
+  // Twilight Morning (Server: 0.92 - 0.97, pre-dawn twilight RIGHT BEFORE dawn)
+  // This wraps around - after 0.97 comes 0.0 (Dawn)
+  { progress: 0.92, rgb: [5, 5, 10],      alpha: 0.96 },   // Astronomical Dawn (darkest, matches TwilightEvening end)
+  { progress: 0.935, rgb: [80, 50, 90],    alpha: 0.80 },   // Nautical Dawn
+  { progress: 0.95, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dawn
+  { progress: 0.965, rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples (matches Dusk start)
+  { progress: 0.97, rgb: [30, 25, 65],    alpha: 0.85 },   // Transition to Dawn (matches Dawn start)
+
+  // End of cycle - wraps to 0.0
+  { progress: 1.0,  rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight (wraps to 0.0)
 ];
 
 const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
@@ -106,13 +113,11 @@ const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 0.035, rgb: [170, 165, 180], alpha: 0.25 },   // Purplish silver
   { progress: 0.045, rgb: [190, 170, 170], alpha: 0.18 },   // More silver, hint of warmth
 
-  // Twilight Morning (Full Moon, LONGER gradual transitions)
+  // Morning - Transition to Clear Day (Full Moon)
   { progress: 0.06, rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink
   { progress: 0.08, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges appear
   { progress: 0.10, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen
   { progress: 0.115, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges
-
-  // Morning - Transition to Clear Day (Full Moon)
   { progress: 0.125, rgb: [255, 215, 150], alpha: 0.02 },   // Sunrise Peak
   { progress: 0.15, rgb: [255, 225, 170], alpha: 0.01 },   // Lingering soft glow
   { progress: 0.18, ...DAY_COLOR_CONFIG },                // Morning fully clear
@@ -123,20 +128,30 @@ const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 0.70, ...DAY_COLOR_CONFIG },
 
   // Dusk (Full Moon, gradual transitions)
-  // Match Full Moon TwilightMorning style - same colors and alpha progression
-  { progress: 0.72, rgb: [200, 175, 165], alpha: 0.15 },   // Early evening silver-pink - matches Full Moon TwilightMorning start
-  { progress: 0.735, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges - matches Full Moon TwilightMorning
-  { progress: 0.75, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen - matches Full Moon TwilightMorning
-  { progress: 0.76, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges - matches Full Moon TwilightMorning end
+  // Match Full Moon TwilightMorning style - same colors and alpha progression (in reverse)
+  { progress: 0.72, rgb: [200, 175, 165], alpha: 0.15 },   // Early evening silver-pink - matches Full Moon TwilightMorning end
+  { progress: 0.735, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges
+  { progress: 0.75, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen
+  { progress: 0.76, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges
 
   // Twilight Evening (Full Moon, LONGER gradual transitions)
-  { progress: 0.77, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dusk
-  { progress: 0.785, rgb: [150, 150, 190], alpha: 0.35 },   // Nautical Dusk
-  { progress: 0.80, rgb: [140, 150, 190], alpha: 0.38 },   // Astronomical Dusk
+  { progress: 0.77, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dusk (matches TwilightMorning civil dawn)
+  { progress: 0.785, rgb: [150, 150, 190], alpha: 0.35 },   // Nautical Dusk (matches TwilightMorning nautical dawn)
+  { progress: 0.80, rgb: [140, 150, 190], alpha: 0.38 },   // Astronomical Dusk (matches TwilightMorning astronomical dawn)
 
-  // Night to Midnight (Full Moon, 20% of cycle)
-  { progress: 0.92, rgb: [135, 155, 195], alpha: 0.39 },   // Early Night
-  { progress: 1.0,  rgb: [130, 150, 190], alpha: 0.40 },   // Lighter Midnight
+  // Night (Full Moon, Server: 0.80 - 0.92)
+  { progress: 0.85, rgb: [135, 155, 195], alpha: 0.39 },   // Deep Night
+
+  // Twilight Morning (Full Moon, Server: 0.92 - 0.97, pre-dawn twilight RIGHT BEFORE dawn)
+  // This wraps around - after 0.97 comes 0.0 (Dawn)
+  { progress: 0.92, rgb: [140, 150, 190], alpha: 0.38 },   // Astronomical Dawn (matches TwilightEvening end)
+  { progress: 0.935, rgb: [150, 150, 190], alpha: 0.35 },   // Nautical Dawn
+  { progress: 0.95, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dawn
+  { progress: 0.965, rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink (matches Dusk start)
+  { progress: 0.97, rgb: [150, 160, 190], alpha: 0.32 },   // Transition to Dawn (matches Dawn start)
+
+  // End of cycle - wraps to 0.0
+  { progress: 1.0,  rgb: [130, 150, 190], alpha: 0.40 },   // Lighter Midnight (wraps to 0.0)
 ];
 
 // Server's full moon cycle interval
@@ -190,6 +205,26 @@ function calculateOverlayRgbaString(
     // --- Default Interpolation (covers all other cases) ---
     const keyframesToUse = isCurrentlyFullMoon ? FULL_MOON_NIGHT_KEYFRAMES : REGULAR_CYCLE_KEYFRAMES;
     
+    // Handle wrap-around: TwilightMorning (0.92-0.97) wraps to Dawn (0.0-0.05)
+    // If we're in the wrap-around zone (0.97-1.0), interpolate from last keyframe to first Dawn keyframe
+    if (cycleProgress >= 0.97) {
+        // Find the last keyframe (should be around 0.97 or 1.0)
+        const lastKf = keyframesToUse[keyframesToUse.length - 1];
+        // Find the first Dawn keyframe (should be 0.0 or 0.025)
+        const firstDawnKf = keyframesToUse.find(kf => kf.progress <= 0.05) || keyframesToUse[0];
+        
+        // Normalize progress: 0.97-1.0 maps to 0.0-1.0 for interpolation
+        const normalizedProgress = (cycleProgress - 0.97) / (1.0 - 0.97);
+        const t = Math.max(0, Math.min(normalizedProgress, 1));
+        
+        const r = Math.round(lastKf.rgb[0] * (1 - t) + firstDawnKf.rgb[0] * t);
+        const g = Math.round(lastKf.rgb[1] * (1 - t) + firstDawnKf.rgb[1] * t);
+        const b = Math.round(lastKf.rgb[2] * (1 - t) + firstDawnKf.rgb[2] * t);
+        const alpha = lastKf.alpha * (1 - t) + firstDawnKf.alpha * t;
+        
+        return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+    }
+    
     // Standard keyframe lookup and interpolation
     let prevKf = keyframesToUse[0];
     let nextKf = keyframesToUse[keyframesToUse.length - 1];
@@ -197,9 +232,6 @@ function calculateOverlayRgbaString(
     if (cycleProgress <= keyframesToUse[0].progress) {
         prevKf = keyframesToUse[0];
         nextKf = keyframesToUse[0];
-    } else if (cycleProgress >= keyframesToUse[keyframesToUse.length - 1].progress) {
-        prevKf = keyframesToUse[keyframesToUse.length - 1];
-        nextKf = keyframesToUse[keyframesToUse.length - 1];
     } else {
         for (let i = 0; i < keyframesToUse.length - 1; i++) {
             if (cycleProgress >= keyframesToUse[i].progress && cycleProgress < keyframesToUse[i + 1].progress) {

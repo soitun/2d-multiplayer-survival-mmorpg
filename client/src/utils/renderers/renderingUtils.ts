@@ -45,7 +45,7 @@ import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderLantern } from './lanternRenderingUtils';
 import { renderFoundation } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
-import { renderWall } from './foundationRenderingUtils'; // ADDED: Wall renderer import
+import { renderWall, renderWallInteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
 // Import shelter renderer
@@ -403,6 +403,8 @@ interface RenderYSortedEntitiesProps {
   cameraOffsetX?: number;
   cameraOffsetY?: number;
   foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
+    allWalls?: Map<string, any>; // ADDED: All walls to check for adjacent walls
+    allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
 }
 
 
@@ -461,10 +463,12 @@ export const renderYSortedEntities = ({
     // NEW: Falling tree animation state
     isTreeFalling,
     getFallProgress,
-    // ADDED: Camera offsets for foundation rendering
+    // ADDED: Pass camera offsets for foundation rendering
     cameraOffsetX = 0,
     cameraOffsetY = 0,
     foundationTileImagesRef,
+    allWalls, // ADDED: All walls to check for adjacent walls
+    allFoundations, // ADDED: All foundations to check for adjacent foundations
 }: RenderYSortedEntitiesProps) => {
     // PERFORMANCE: Clean up memory caches periodically
     cleanupCaches();
@@ -868,6 +872,9 @@ export const renderYSortedEntities = ({
             const droppedItem = entity as SpacetimeDBDroppedItem;
             const itemDef = itemDefinitions.get(droppedItem.itemDefId.toString());
             renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+        } else if (type === 'sleeping_bag') {
+            const sleepingBag = entity as SpacetimeDBSleepingBag;
+            renderSleepingBag(ctx, sleepingBag, nowMs, cycleProgress);
         } else if (type === 'stash') {
             const stash = entity as SpacetimeDBStash;
             const isTheClosestTarget = closestInteractableTarget?.type === 'stash' && closestInteractableTarget?.id === stash.id;
@@ -1030,7 +1037,9 @@ export const renderYSortedEntities = ({
                 viewOffsetX: -cameraOffsetX, // Convert camera offset to view offset
                 viewOffsetY: -cameraOffsetY,
                 foundationTileImagesRef: foundationTileImagesRef,
+                allFoundations: allFoundations, // Pass all foundations to check for adjacent foundations
             });
+            
         } else if (type === 'wall_cell') {
             const wall = entity as SpacetimeDBWallCell;
             
@@ -1042,6 +1051,7 @@ export const renderYSortedEntities = ({
                 viewOffsetX: -cameraOffsetX, // Convert camera offset to view offset
                 viewOffsetY: -cameraOffsetY,
                 foundationTileImagesRef: foundationTileImagesRef,
+                allWalls: allWalls, // Pass all walls to check for adjacent walls
             });
         } else if (type === 'shelter') {
             // Shelters are fully rendered in the first pass, including shadows.
@@ -1072,6 +1082,8 @@ export const renderYSortedEntities = ({
             // Lanterns are fully rendered in the first pass - no second pass needed
         } else if (type === 'dropped_item') {
             // Dropped items handle their own shadows
+        } else if (type === 'sleeping_bag') {
+            // Sleeping bags handle their own shadows (via renderConfiguredGroundEntity)
         } else if (type === 'stash') {
             // Stashes handle their own shadows within their main render function
         } else if (type === 'wooden_storage_box') {
@@ -1106,8 +1118,18 @@ export const renderYSortedEntities = ({
             // Foundations are fully rendered in the first pass (ground level).
             // No action needed in this second (shadow-only) pass.
         } else if (type === 'wall_cell') {
-            // Walls are fully rendered in the first pass (on foundation edges).
-            // No action needed in this second (shadow-only) pass.
+            // Render exterior wall shadows (change throughout the day based on sun position)
+            // Shadows are cast outward onto the ground outside the building
+            const wall = entity as SpacetimeDBWallCell;
+            // Cast shadows based on edge position and time of day
+            renderWallInteriorShadow({
+                ctx,
+                wall: wall as any,
+                worldScale: 1.0,
+                cycleProgress,
+                viewOffsetX: -cameraOffsetX,
+                viewOffsetY: -cameraOffsetY,
+            });
         } else {
             console.warn('Unhandled entity type for Y-sorting (second pass):', type, entity);
         }

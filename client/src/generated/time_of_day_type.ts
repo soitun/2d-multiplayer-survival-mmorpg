@@ -30,8 +30,8 @@ import {
 import * as TimeOfDayVariants from './time_of_day_variants'
 
 // The tagged union or sum type for the algebraic type `TimeOfDay`.
-export type TimeOfDay = TimeOfDayVariants.Dawn |
-  TimeOfDayVariants.TwilightMorning |
+export type TimeOfDay = TimeOfDayVariants.TwilightMorning |
+  TimeOfDayVariants.Dawn |
   TimeOfDayVariants.Morning |
   TimeOfDayVariants.Noon |
   TimeOfDayVariants.Afternoon |
@@ -50,8 +50,8 @@ export const TimeOfDay = {
   // assert!(foo.tag === "A");
   // assert!(foo.value === 42);
   // ```
-  Dawn: { tag: "Dawn" } as const,
   TwilightMorning: { tag: "TwilightMorning" } as const,
+  Dawn: { tag: "Dawn" } as const,
   Morning: { tag: "Morning" } as const,
   Noon: { tag: "Noon" } as const,
   Afternoon: { tag: "Afternoon" } as const,
@@ -64,8 +64,8 @@ export const TimeOfDay = {
     if (_cached_TimeOfDay_type_value) return _cached_TimeOfDay_type_value;
     _cached_TimeOfDay_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
     _cached_TimeOfDay_type_value.value.variants.push(
-      { name: "Dawn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TwilightMorning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Dawn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Morning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Noon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Afternoon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

@@ -69,18 +69,17 @@ import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
-import { renderFoundationTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation target indicator
+import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
 import { renderInteractionLabels } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
 import { useBuildingManager, BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager'; // ADDED: Building manager
 import { BuildingRadialMenu } from './BuildingRadialMenu'; // ADDED: Building radial menu
 import { UpgradeRadialMenu } from './UpgradeRadialMenu'; // ADDED: Upgrade radial menu
 import { useFoundationTargeting } from '../hooks/useFoundationTargeting'; // ADDED: Foundation targeting
+import { useWallTargeting } from '../hooks/useWallTargeting'; // ADDED: Wall targeting
 import { drawInteractionIndicator } from '../utils/interactionIndicator';
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
-import { renderDroppedItem } from '../utils/renderers/droppedItemRenderingUtils.ts';
-import { renderSleepingBag } from '../utils/renderers/sleepingBagRenderingUtils';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderPlayerTorchLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
@@ -328,6 +327,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Foundation targeting when Repair Hammer is equipped
   const { targetedFoundation, targetTileX, targetTileY } = useFoundationTargeting(
+    connection,
+    localPlayerX,
+    localPlayerY,
+    worldMousePos.x,
+    worldMousePos.y,
+    hasRepairHammer
+  );
+
+  // Wall targeting when Repair Hammer is equipped (prioritize over foundations)
+  const { targetedWall, targetTileX: targetWallTileX, targetTileY: targetWallTileY } = useWallTargeting(
     connection,
     localPlayerX,
     localPlayerY,
@@ -753,28 +762,37 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     setMusicPanelVisible,
     movementDirection,
     targetedFoundation, // ADDED: Pass targeted foundation to input handler
+    targetedWall, // ADDED: Pass targeted wall to input handler
     // Individual entity IDs for consistency and backward compatibility
   });
 
-  // Store the foundation when upgrade menu opens (prevents flickering)
+  // Store the foundation/wall when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
+  const upgradeMenuWallRef = useRef<any | null>(null); // WallCell type
   const prevShowUpgradeRadialMenuRef = useRef(false);
   
-  // Update stored foundation when menu opens (only when menu state changes from false to true)
+  // Update stored foundation/wall when menu opens (only when menu state changes from false to true)
   useEffect(() => {
     const wasOpen = prevShowUpgradeRadialMenuRef.current;
     const isOpen = showUpgradeRadialMenu;
     
-    if (!wasOpen && isOpen && targetedFoundation) {
-      // Menu just opened - store the foundation
-      upgradeMenuFoundationRef.current = targetedFoundation;
+    if (!wasOpen && isOpen) {
+      // Menu just opened - store the foundation or wall
+      if (targetedWall) {
+        upgradeMenuWallRef.current = targetedWall;
+        upgradeMenuFoundationRef.current = null;
+      } else if (targetedFoundation) {
+        upgradeMenuFoundationRef.current = targetedFoundation;
+        upgradeMenuWallRef.current = null;
+      }
     } else if (!isOpen) {
-      // Menu closed - clear the stored foundation
+      // Menu closed - clear the stored foundation/wall
       upgradeMenuFoundationRef.current = null;
+      upgradeMenuWallRef.current = null;
     }
     
     prevShowUpgradeRadialMenuRef.current = isOpen;
-  }, [showUpgradeRadialMenu, targetedFoundation]);
+  }, [showUpgradeRadialMenu, targetedFoundation, targetedWall]);
 
   // Define camera and canvas dimensions for rendering
   const camera = { x: cameraOffsetX, y: cameraOffsetY };
@@ -923,7 +941,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.onerror = () => console.error('Failed to load wall_metal.png');
       img.src = module.default;
     });
+
+    // Note: Interior wall images are no longer needed - interior walls now use the same
+    // images as exterior walls with visual modifications (lighter color, bottom half, shadow)
   }, []);
+
+  // Register reducer callbacks for wall upgrades
+  useEffect(() => {
+    if (!connection) return;
+
+    const handleUpgradeWallResult = (ctx: any, wallId: bigint, newTier: number) => {
+      console.log('[GameCanvas] upgradeWall reducer result:', ctx.event?.status);
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Failed to upgrade wall';
+        console.error('[GameCanvas] upgradeWall failed:', errorMsg);
+      } else if (ctx.event?.status?.tag === 'Committed') {
+        console.log('[GameCanvas] upgradeWall succeeded! Wall', wallId, 'upgraded to tier', newTier);
+        // The wall tier update will come through SpacetimeDB subscriptions automatically
+        // The sound is played server-side via sound events
+      }
+    };
+
+    connection.reducers.onUpgradeWall(handleUpgradeWallResult);
+
+    return () => {
+      connection.reducers.removeOnUpgradeWall(handleUpgradeWallResult);
+    };
+  }, [connection]);
 
   // Preload wild animal images
   useEffect(() => {
@@ -1178,17 +1222,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     /*visibleCampfires.forEach(campfire => {
         renderCampfire(ctx, campfire, now_ms, currentCycleProgress, false, !campfire.isBurning );
     });*/
-    // Render Dropped Items
-    visibleDroppedItems.forEach(item => {
-      const itemDef = itemDefinitions.get(item.itemDefId.toString());
-      renderDroppedItem({ ctx, item, itemDef, nowMs: now_ms, cycleProgress: currentCycleProgress });
-    });
+    // Note: Dropped items are now handled by the Y-sorted entities system
     // Note: Mushrooms, Corn, Pumpkins, and Hemp are now handled by the unified resource renderer
     // through the Y-sorted entities system
-    // Render Sleeping Bags
-    visibleSleepingBags.forEach(sleepingBag => {
-      renderSleepingBag(ctx, sleepingBag, now_ms, currentCycleProgress);
-    });
+    // Note: Sleeping bags are now handled by the Y-sorted entities system
     // Render Stashes (Remove direct rendering as it's now y-sorted)
     /*visibleStashes.forEach(stash => {
         renderStash(ctx, stash, now_ms, currentCycleProgress);
@@ -1749,13 +1786,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           cameraOffsetX,
           cameraOffsetY,
           foundationTileImagesRef,
+          allWalls: wallCells, // Pass all walls to check for adjacent walls
+          allFoundations: foundationCells, // Pass all foundations to check for adjacent foundations
         });
       }
     });
     // --- End Y-Sorted Entities ---
 
     // --- Render Foundation Target Indicator (for upgrade targeting) ---
-    if (targetedFoundation && hasRepairHammer && ctx) {
+    if (targetedFoundation && hasRepairHammer && !targetedWall && ctx) {
+      // Only show foundation indicator if no wall is targeted
       renderFoundationTargetIndicator({
         ctx,
         foundation: targetedFoundation,
@@ -1765,6 +1805,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     // --- End Foundation Target Indicator ---
+
+    // --- Render Wall Target Indicator (for upgrade targeting) ---
+    // Render AFTER walls so it's visible on top
+    if (targetedWall && hasRepairHammer && ctx) {
+      renderWallTargetIndicator({
+        ctx,
+        wall: targetedWall,
+        worldScale: 1.0,
+        viewOffsetX: -cameraOffsetX,
+        viewOffsetY: -cameraOffsetY,
+      });
+    }
+    // --- End Wall Target Indicator ---
 
     // REMOVED: Top half rendering now integrated into Y-sorted system above
     // REMOVED: Swimming shadows now render earlier, before sea stacks
@@ -2415,7 +2468,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         />
       )}
 
-      {/* Upgrade Radial Menu */}
+      {/* Upgrade Radial Menu - for foundations */}
       {showUpgradeRadialMenu && upgradeMenuFoundationRef.current && (
         <UpgradeRadialMenu
           isVisible={showUpgradeRadialMenu}
@@ -2451,6 +2504,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
             upgradeMenuFoundationRef.current = null;
+          }}
+        />
+      )}
+      
+      {/* Upgrade Radial Menu - for walls */}
+      {showUpgradeRadialMenu && upgradeMenuWallRef.current && (
+        <UpgradeRadialMenu
+          isVisible={showUpgradeRadialMenu}
+          mouseX={radialMenuMouseX}
+          mouseY={radialMenuMouseY}
+          connection={connection}
+          inventoryItems={inventoryItems}
+          itemDefinitions={itemDefinitions}
+          tile={upgradeMenuWallRef.current}
+          tileType="wall"
+          onSelect={(tier: BuildingTier) => {
+            if (connection && upgradeMenuWallRef.current) {
+              console.log('[UpgradeRadialMenu] Upgrading wall', upgradeMenuWallRef.current.id, 'to tier', tier);
+              connection.reducers.upgradeWall(
+                upgradeMenuWallRef.current.id,
+                tier as number
+              );
+            }
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuWallRef.current = null;
+          }}
+          onCancel={() => {
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuWallRef.current = null;
+          }}
+          onDestroy={() => {
+            if (connection && upgradeMenuWallRef.current) {
+              console.log('[UpgradeRadialMenu] Destroying wall', upgradeMenuWallRef.current.id);
+              connection.reducers.destroyWall(upgradeMenuWallRef.current.id);
+            }
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuWallRef.current = null;
           }}
         />
       )}

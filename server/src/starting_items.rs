@@ -34,7 +34,7 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Wood", 5000, None, Some(0u16)),
         ("Stone", 5000, None, Some(1u16)),
         ("Metal Fragments", 5000, None, Some(2u16)),
-        // ("Stone", 1000, None, Some(3u16)),
+        ("Sleeping Bag", 1, None, Some(3u16)),
         // ("Metal Ore", 1000, None, Some(4u16)),
         // ("Raw Twigfish", 20, None, Some(5u16)),
         // ("Hunting Bow", 1, None, Some(6u16)),

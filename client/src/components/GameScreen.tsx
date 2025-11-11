@@ -383,7 +383,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setAutoActionStates({ isAutoAttacking });
     }, []);
 
-    // Combined keyboard handler for game menu (Escape) and refresh confirmation (Ctrl+R)
+    // Combined keyboard handler for game menu (Escape), refresh confirmation (Ctrl+R), and time debug cycler (Arrow keys)
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             // Handle Escape key for game menu
@@ -409,13 +409,39 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             else if (event.key === 'm' || event.key === 'M') {
                 toggleMusicDebug();
             }
+            // Handle Arrow keys for time debug cycler (only when menu is closed and not typing)
+            else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentMenu === null && !isChatting) {
+                event.preventDefault();
+                const timeOrder = ['TwilightMorning', 'Dawn', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
+                const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
+                const currentIndex = timeOrder.indexOf(currentTimeOfDay);
+                
+                let newIndex: number;
+                if (event.key === 'ArrowRight') {
+                    // Move forward
+                    newIndex = (currentIndex + 1) % timeOrder.length;
+                } else {
+                    // Move backward
+                    newIndex = (currentIndex - 1 + timeOrder.length) % timeOrder.length;
+                }
+                
+                const newTime = timeOrder[newIndex];
+                
+                if (connection) {
+                    try {
+                        (connection.reducers as any).debugSetTime(newTime);
+                    } catch (error) {
+                        console.warn('Debug time function not available (production build?):', error);
+                    }
+                }
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [currentMenu]); // Include currentMenu in dependencies
+    }, [currentMenu, worldState?.timeOfDay?.tag, connection, isChatting]); // Include dependencies
 
     // Handler for refresh dialog actions
     const handleRefreshConfirm = () => {
@@ -566,46 +592,111 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                         })()}
                     </button>
                     
-                    <button 
-                        onClick={(e) => {
-                            // Cycle through all times of day for testing lighting
-                            const timeOrder = ['Dawn', 'TwilightMorning', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
-                            const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
-                            const currentIndex = timeOrder.indexOf(currentTimeOfDay);
-                            const nextIndex = (currentIndex + 1) % timeOrder.length;
-                            const nextTime = timeOrder[nextIndex];
-                            
-                            if (connection) {
-                                try {
-                                    // Call reducer to set time (only available in debug builds)
-                                    (connection.reducers as any).debugSetTime(nextTime);
-                                } catch (error) {
-                                    console.warn('Debug time function not available (production build?):', error);
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                        <button 
+                            onClick={(e) => {
+                                // Cycle forward through times
+                                const timeOrder = ['TwilightMorning', 'Dawn', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
+                                const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
+                                const currentIndex = timeOrder.indexOf(currentTimeOfDay);
+                                const nextIndex = (currentIndex + 1) % timeOrder.length;
+                                const nextTime = timeOrder[nextIndex];
+                                
+                                if (connection) {
+                                    try {
+                                        (connection.reducers as any).debugSetTime(nextTime);
+                                    } catch (error) {
+                                        console.warn('Debug time function not available (production build?):', error);
+                                    }
                                 }
-                            }
-                            e.currentTarget.blur(); // Remove focus immediately after clicking
-                        }}
-                        onFocus={(e) => {
-                            e.currentTarget.blur(); // Prevent the button from staying focused
-                        }}
-                        style={{
-                            backgroundColor: (() => {
-                                const timeOfDay = worldState?.timeOfDay?.tag;
-                                if (timeOfDay === 'Night' || timeOfDay === 'Midnight') return '#3F51B5';
-                                if (timeOfDay === 'Dawn' || timeOfDay === 'Dusk') return '#FF9800';
-                                if (timeOfDay === 'TwilightMorning' || timeOfDay === 'TwilightEvening') return '#9C27B0';
-                                return '#FFC107';
-                            })(),
-                            color: 'white',
-                            border: 'none',
-                            padding: '4px 8px',
-                            borderRadius: '2px',
-                            fontSize: '10px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Time: {worldState?.timeOfDay?.tag || 'UNKNOWN'}
-                    </button>
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                backgroundColor: (() => {
+                                    const timeOfDay = worldState?.timeOfDay?.tag;
+                                    if (timeOfDay === 'Night' || timeOfDay === 'Midnight') return '#3F51B5';
+                                    if (timeOfDay === 'Dawn' || timeOfDay === 'Dusk') return '#FF9800';
+                                    if (timeOfDay === 'TwilightMorning' || timeOfDay === 'TwilightEvening') return '#9C27B0';
+                                    return '#FFC107';
+                                })(),
+                                color: 'white',
+                                border: 'none',
+                                padding: '4px 8px',
+                                borderRadius: '2px',
+                                fontSize: '10px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Time: {worldState?.timeOfDay?.tag || 'UNKNOWN'}
+                        </button>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            <button 
+                                onClick={(e) => {
+                                    // Cycle backward through times
+                                    const timeOrder = ['TwilightMorning', 'Dawn', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
+                                    const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
+                                    const currentIndex = timeOrder.indexOf(currentTimeOfDay);
+                                    const prevIndex = (currentIndex - 1 + timeOrder.length) % timeOrder.length;
+                                    const prevTime = timeOrder[prevIndex];
+                                    
+                                    if (connection) {
+                                        try {
+                                            (connection.reducers as any).debugSetTime(prevTime);
+                                        } catch (error) {
+                                            console.warn('Debug time function not available (production build?):', error);
+                                        }
+                                    }
+                                    e.currentTarget.blur();
+                                }}
+                                onFocus={(e) => e.currentTarget.blur()}
+                                style={{
+                                    backgroundColor: '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '2px 6px',
+                                    borderRadius: '2px',
+                                    fontSize: '10px',
+                                    cursor: 'pointer',
+                                    minWidth: '24px'
+                                }}
+                            >
+                                ←
+                            </button>
+                            <button 
+                                onClick={(e) => {
+                                    // Cycle forward through times
+                                    const timeOrder = ['TwilightMorning', 'Dawn', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening', 'Night', 'Midnight'];
+                                    const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
+                                    const currentIndex = timeOrder.indexOf(currentTimeOfDay);
+                                    const nextIndex = (currentIndex + 1) % timeOrder.length;
+                                    const nextTime = timeOrder[nextIndex];
+                                    
+                                    if (connection) {
+                                        try {
+                                            (connection.reducers as any).debugSetTime(nextTime);
+                                        } catch (error) {
+                                            console.warn('Debug time function not available (production build?):', error);
+                                        }
+                                    }
+                                    e.currentTarget.blur();
+                                }}
+                                onFocus={(e) => e.currentTarget.blur()}
+                                style={{
+                                    backgroundColor: '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '2px 6px',
+                                    borderRadius: '2px',
+                                    fontSize: '10px',
+                                    cursor: 'pointer',
+                                    minWidth: '24px'
+                                }}
+                            >
+                                →
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

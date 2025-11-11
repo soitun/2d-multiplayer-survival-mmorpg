@@ -65,41 +65,67 @@ export function applyStandardDropShadow(
   const minNightAlpha = 0.15; // Subtle night shadows (increased from 0.0)
 
   // Day: 0.0 (Dawn) to 0.75 (Dusk ends). Night: 0.75 to 1.0
-  if (cycleProgress < 0.05) { // Dawn (0.0 - 0.05)
+  // Server ranges: TwilightMorning (0.92-0.97) -> Dawn (0.0-0.05) -> Morning (0.05-0.35) -> Noon (0.35-0.55) -> Afternoon (0.55-0.72) -> Dusk (0.72-0.76) -> TwilightEvening (0.76-0.80) -> Night (0.80-0.92) -> Midnight (0.97-1.0)
+  
+  // Twilight Morning (0.92 - 0.97): Pre-dawn twilight
+  // SYMMETRY: TM(0.92) should match TE(0.80), TM(0.97) should match TE(0.76)
+  if (cycleProgress >= 0.92 && cycleProgress < 0.97) {
+    const t = (cycleProgress - 0.92) / 0.05;
+    alphaMultiplier = lerp(minNightAlpha, lerp(minNightAlpha, maxDayAlpha, 0.5), t); // Fading in from night
+    currentOffsetX = lerp(8, 10, t); // Behind and to the right (positive X) - sun in east
+    currentOffsetY = lerp(8, 7, t);  // Behind (positive Y)
+    currentBlur = lerp(sunriseSunsetBlur, sunriseSunsetBlur, t); // Soft blur
+  } else if (cycleProgress < 0.05) { // Dawn (0.0 - 0.05)
+    // SYMMETRY: Dawn(0.0) should match Dusk(0.76), Dawn(0.05) should match Dusk(0.72)
     const t = cycleProgress / 0.05;
-    alphaMultiplier = lerp(minNightAlpha, maxDayAlpha, t);
-    currentOffsetX = lerp(8, 12, t); // Behind and to the right (positive X)
-    currentOffsetY = lerp(8, 6, t);  // Behind (positive Y)
+    alphaMultiplier = lerp(lerp(minNightAlpha, maxDayAlpha, 0.5), maxDayAlpha, t);
+    currentOffsetX = lerp(10, 12, t); // Behind and to the right (positive X) - sun in east
+    currentOffsetY = lerp(7, 6, t);  // Behind (positive Y)
     currentBlur = lerp(sunriseSunsetBlur, defaultDayBlur, t);
-  } else if (cycleProgress < 0.40) { // Morning to Pre-Noon (0.05 - 0.40)
-    const t = (cycleProgress - 0.05) / (0.40 - 0.05);
+  } else if (cycleProgress < 0.35) { // Morning (0.05 - 0.35)
+    // SYMMETRY: Morning(0.05) should match Afternoon(0.72), Morning(0.35) should match Afternoon(0.55)
+    const t = (cycleProgress - 0.05) / (0.35 - 0.05);
     alphaMultiplier = maxDayAlpha;
-    currentOffsetX = lerp(12, 6, t);  // Moving from far right to closer right
+    currentOffsetX = lerp(12, 0, t);  // Moving from far right to center (positive X) - sun rising in east
     currentOffsetY = lerp(6, 3, t);   // Moving from far behind to closer behind
     currentBlur = defaultDayBlur;
-  } else if (cycleProgress < 0.50) { // Noon-ish (0.40 - 0.50)
-    // Shadow slightly behind and to the right, shortest
+  } else if (cycleProgress < 0.55) { // Noon (0.35 - 0.55)
+    // Shadow directly below, shortest - perfectly centered for symmetry
     alphaMultiplier = maxDayAlpha;
-    currentOffsetX = 6; // Slightly to the right
+    currentOffsetX = 0; // Centered (no horizontal offset for perfect symmetry)
     currentOffsetY = 3; // Slightly behind
     currentBlur = noonBlur;
-  } else if (cycleProgress < 0.70) { // Afternoon (0.50 - 0.70)
-    const t = (cycleProgress - 0.50) / (0.70 - 0.50);
+  } else if (cycleProgress < 0.72) { // Afternoon (0.55 - 0.72)
+    // SYMMETRY: Afternoon(0.55) should match Morning(0.35), Afternoon(0.72) should match Morning(0.05)
+    const t = (cycleProgress - 0.55) / (0.72 - 0.55);
     alphaMultiplier = maxDayAlpha;
-    currentOffsetX = lerp(6, 12, t);   // Moving from closer right to far right
-    currentOffsetY = lerp(3, 6, t);    // Moving from closer behind to far behind
+    currentOffsetX = lerp(0, -12, t);   // Moving from center to far left (negative X) - sun setting in west (mirror of Morning)
+    currentOffsetY = lerp(3, 6, t);    // Moving from closer behind to far behind (mirror of Morning)
     currentBlur = defaultDayBlur;
-  } else if (cycleProgress < 0.75) { // Dusk (0.70 - 0.75)
-    const t = (cycleProgress - 0.70) / 0.05;
-    alphaMultiplier = lerp(maxDayAlpha, minNightAlpha, t);
-    currentOffsetX = lerp(12, 8, t);   // Moving back towards dawn position
-    currentOffsetY = lerp(6, 8, t);    // Moving back towards dawn position
+  } else if (cycleProgress < 0.76) { // Dusk (0.72 - 0.76)
+    // SYMMETRY: Dusk(0.72) should match Dawn(0.05), Dusk(0.76) should match Dawn(0.0)
+    const t = (cycleProgress - 0.72) / 0.04;
+    alphaMultiplier = lerp(maxDayAlpha, lerp(maxDayAlpha, minNightAlpha, 0.5), t);
+    currentOffsetX = lerp(-12, -10, t);   // Moving back towards twilight position (negative X) - sun in west (mirror of Dawn)
+    currentOffsetY = lerp(6, 7, t);    // Moving back towards twilight position (same as Dawn)
     currentBlur = lerp(defaultDayBlur, sunriseSunsetBlur, t);
-  } else { // Night (0.75 - 1.0)
+  } else if (cycleProgress < 0.80) { // Twilight Evening (0.76 - 0.80)
+    // SYMMETRY: TE(0.76) should match TM(0.97), TE(0.80) should match TM(0.92)
+    const t = (cycleProgress - 0.76) / 0.04;
+    alphaMultiplier = lerp(lerp(maxDayAlpha, minNightAlpha, 0.5), minNightAlpha, t); // Fading out to night, matching TwilightMorning symmetry
+    currentOffsetX = lerp(-10, -8, t);   // Moving back towards night position (negative X) - sun in west (mirror of TM)
+    currentOffsetY = lerp(7, 8, t);    // Moving back towards night position (same as TM)
+    currentBlur = sunriseSunsetBlur; // Soft blur
+  } else if (cycleProgress < 0.92) { // Night (0.80 - 0.92)
     alphaMultiplier = minNightAlpha;
-    currentOffsetX = 0; // Offset doesn't matter much if alpha is 0
+    currentOffsetX = 0; // Offset doesn't matter much if alpha is low
     currentOffsetY = 0;
-    currentBlur = defaultDayBlur; // Blur doesn't matter if alpha is 0
+    currentBlur = defaultDayBlur; // Blur doesn't matter if alpha is low
+  } else { // Midnight (0.97 - 1.0, but TwilightMorning handles 0.92-0.97)
+    alphaMultiplier = minNightAlpha;
+    currentOffsetX = 0; // Offset doesn't matter much if alpha is low
+    currentOffsetY = 0;
+    currentBlur = defaultDayBlur; // Blur doesn't matter if alpha is low
   }
   ctx.shadowColor = `rgba(${baseRGB},${alphaMultiplier.toFixed(2)})`;
   ctx.shadowBlur = Math.round(currentBlur);
@@ -218,66 +244,98 @@ export function drawDynamicGroundShadow({
 
   // Calculate sun position throughout the day
   // 0.0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk, 1.0 = midnight
+  // Server ranges: TwilightMorning (0.92-0.97) -> Dawn (0.0-0.05) -> Morning (0.05-0.35) -> Noon (0.35-0.55) -> Afternoon (0.55-0.72) -> Dusk (0.72-0.76) -> TwilightEvening (0.76-0.80) -> Night (0.80-0.92) -> Midnight (0.97-1.0)
   
-  // Day: 0.0 (Dawn) to 0.75 (Dusk ends). Night: 0.75 to 1.0
-  if (cycleProgress < 0.05) { // Dawn (0.0 - 0.05)
+  // Twilight Morning (0.92 - 0.97): Pre-dawn twilight, long shadows preparing for dawn
+  // Check this FIRST since it's at the end of the cycle (wraps before Dawn)
+  // SYMMETRY: TM(0.92) should match TE(0.80), TM(0.97) should match TE(0.76)
+  if (cycleProgress >= 0.92 && cycleProgress < 0.97) {
+    const t = (cycleProgress - 0.92) / 0.05;
+    // Alpha: 0.3 at start (0.92, near night) → 0.5 at end (0.97, near dawn)
+    overallAlpha = lerp(maxShadowAlpha * 0.3, maxShadowAlpha * 0.5, t);
+    // Length: 0.9 at start (0.92) → 0.8 at end (0.97) - matches TE reversed
+    shadowLength = lerp(maxStretchFactor * 0.9, maxStretchFactor * 0.8, t);
+    // Twilight Morning: Sun preparing to rise in east, shadows point west (positive X direction)
+    shadowShearX = lerp(1.3, 1.2, t); // Strong rightward lean
+    shadowScaleY = lerp(0.25, 0.3, t); // Very flattened
+  } else if (cycleProgress < 0.05) { // Dawn (0.0 - 0.05)
+    // SYMMETRY: Dawn(0.0) should match Dusk(0.76), Dawn(0.05) should match Dusk(0.72)
     const t = cycleProgress / 0.05;
-    overallAlpha = lerp(0, maxShadowAlpha, t); // Fade in
-    shadowLength = lerp(maxStretchFactor * 0.8, maxStretchFactor * 0.6, t); // Long shadows
+    // Alpha: 0.5 at start (0.0, from TM) → 1.0 at end (0.05, to Morning)
+    overallAlpha = lerp(maxShadowAlpha * 0.5, maxShadowAlpha, t);
+    // Length: 0.8 at start (0.0) → 0.6 at end (0.05) - matches Dusk reversed
+    shadowLength = lerp(maxStretchFactor * 0.8, maxStretchFactor * 0.6, t);
     // Dawn: Sun low in the east, shadows point west (positive X direction)
-    shadowShearX = lerp(1.2, 0.8, t); // Strong rightward lean
-    shadowScaleY = lerp(0.3, 0.4, t); // Flattened shadow
-  } else if (cycleProgress < 0.40) { // Morning to Pre-Noon (0.05 - 0.40)
-    const t = (cycleProgress - 0.05) / (0.40 - 0.05);
+    shadowShearX = lerp(1.2, 0.8, t); // Strong rightward lean reducing
+    shadowScaleY = lerp(0.3, 0.4, t); // Flattened shadow becoming less flat
+  } else if (cycleProgress < 0.35) { // Morning (0.05 - 0.35)
+    // SYMMETRY: Morning(0.05) should match Afternoon(0.72), Morning(0.35) should match Afternoon(0.55)
+    const t = (cycleProgress - 0.05) / (0.35 - 0.05);
     overallAlpha = maxShadowAlpha;
-    shadowLength = lerp(maxStretchFactor * 0.6, minStretchFactor * 2, t); // Shortening
+    // Length: 0.6 at start (0.05) → 0.3 at end (0.35) - matches Afternoon reversed
+    shadowLength = lerp(maxStretchFactor * 0.6, minStretchFactor * 2, t);
     // Morning: Sun rising, shadows moving from right to center
-    shadowShearX = lerp(0.8, 0.1, t); // Reducing rightward lean
+    shadowShearX = lerp(0.8, 0, t); // Reducing rightward lean to zero (perfect symmetry)
     shadowScaleY = lerp(0.4, 0.7, t); // Less flattened
-  } else if (cycleProgress < 0.50) { // Noon-ish (0.40 - 0.50)
+  } else if (cycleProgress < 0.55) { // Noon (0.35 - 0.55)
+    // Noon transitions from morning end to shortest, then back to afternoon start
+    const t = (cycleProgress - 0.35) / (0.55 - 0.35);
     overallAlpha = maxShadowAlpha;
-    shadowLength = minStretchFactor; // Shortest
+    // Shadow shrinks to shortest at t=0.5 (middle of noon), then grows again
+    // Creates smooth parabolic transition: 0.5 → 0.25 → 0.5
+    const noonFactor = 1.0 - Math.abs(t - 0.5) * 2.0; // 0 at edges, 1 at center
+    shadowLength = lerp(minStretchFactor * 2, minStretchFactor, noonFactor);
     // Noon: Sun overhead, shadow directly below
-    shadowShearX = 0; // No horizontal lean
-    shadowScaleY = 0.8; // Mostly vertical, minimal shadow
-  } else if (cycleProgress < 0.70) { // Afternoon (0.50 - 0.70)
-    const t = (cycleProgress - 0.50) / (0.70 - 0.50);
+    shadowShearX = 0; // No horizontal lean (perfectly centered)
+    // ScaleY also transitions smoothly through noon
+    shadowScaleY = lerp(0.7, 0.8, noonFactor); // Gets taller at peak noon, then back down
+  } else if (cycleProgress < 0.72) { // Afternoon (0.55 - 0.72)
+    // SYMMETRY: START with same length as morning START (1.32)
+    const t = (cycleProgress - 0.55) / (0.72 - 0.55);
     overallAlpha = maxShadowAlpha;
-    shadowLength = lerp(minStretchFactor * 2, maxStretchFactor * 0.6, t); // Lengthening
-    // Afternoon: Sun moving west, shadows pointing east (negative X direction)
-    shadowShearX = lerp(-0.1, -0.8, t); // Increasing leftward lean
-    shadowScaleY = lerp(0.7, 0.4, t); // More flattened
-  } else if (cycleProgress < 0.75) { // Dusk (0.70 - 0.75)
-    const t = (cycleProgress - 0.70) / 0.05;
-    overallAlpha = lerp(maxShadowAlpha, 0, t); // Fade out completely
-    shadowLength = lerp(maxStretchFactor * 0.6, maxStretchFactor * 0.8, t); // Long shadows
-    // Dusk: Sun low in the west, shadows continue pointing east (negative X direction)
-    shadowShearX = lerp(-0.8, -1.2, t); // Continue strong leftward lean
-    shadowScaleY = lerp(0.4, 0.3, t); // Very flattened
-  } else if (cycleProgress < 0.85) { // Early Night (0.75 - 0.85)
-    // Shadows should be completely invisible during early night
+    // Length: START at 1.32 (same as morning start) → END at 0.5 (same as morning end)
+    shadowLength = lerp(maxStretchFactor * 0.6, minStretchFactor * 2, t);
+    // Direction: Start centered, move LEFT as sun sets (mirror of morning: right to center)
+    shadowShearX = lerp(0, -0.8, t); // Center → Left (opposite of morning's Right → Center)
+    // ScaleY: Same as morning
+    shadowScaleY = lerp(0.4, 0.7, t);
+  } else if (cycleProgress < 0.76) { // Dusk (0.72 - 0.76)
+    // SYMMETRY: Dusk(0.72) should match Dawn(0.05), Dusk(0.76) should match Dawn(0.0)
+    const t = (cycleProgress - 0.72) / 0.04;
+    // Alpha: 1.0 at start (0.72, from Afternoon) → 0.5 at end (0.76, to TE) - matches Dawn reversed
+    overallAlpha = lerp(maxShadowAlpha, maxShadowAlpha * 0.5, t);
+    // Length: 0.6 at start (0.72) → 0.8 at end (0.76) - matches Dawn reversed
+    shadowLength = lerp(maxStretchFactor * 0.6, maxStretchFactor * 0.8, t);
+    // Dusk: Sun low in WEST, shadows pointing EAST (LEFT/negative X direction)
+    shadowShearX = lerp(-0.8, -1.2, t); // Continue strong leftward lean (opposite of Dawn)
+    shadowScaleY = lerp(0.4, 0.3, t); // Very flattened (mirror of Dawn)
+  } else if (cycleProgress < 0.80) { // Twilight Evening (0.76 - 0.80)
+    // SYMMETRY: TE(0.76) should match TM(0.97), TE(0.80) should match TM(0.92)
+    const t = (cycleProgress - 0.76) / 0.04;
+    // Alpha: 0.5 at start (0.76, from Dusk) → 0.3 at end (0.80, to night) - matches TM reversed
+    overallAlpha = lerp(maxShadowAlpha * 0.5, maxShadowAlpha * 0.3, t);
+    // Length: 0.8 at start (0.76) → 0.9 at end (0.80) - matches TM reversed
+    shadowLength = lerp(maxStretchFactor * 0.8, maxStretchFactor * 0.9, t);
+    // Twilight Evening: Sun setting in WEST, shadows pointing EAST (LEFT/negative X direction)
+    shadowShearX = lerp(-1.2, -1.3, t); // Strong leftward lean (opposite of TM)
+    shadowScaleY = lerp(0.3, 0.25, t); // Very flattened (mirror of TM)
+  } else if (cycleProgress < 0.92) { // Night (0.80 - 0.92)
+    // Shadows should be completely invisible during night
     overallAlpha = 0;
     shadowLength = 0;
     shadowShearX = 0;
     shadowScaleY = 0.5;
-  } else { // Late Night to Midnight (0.85 - 1.0)
-    // Shadows start to appear again as we approach dawn
-    const t = (cycleProgress - 0.85) / 0.15;
-    overallAlpha = lerp(0, maxShadowAlpha * 0.3, t); // Very subtle pre-dawn shadows
-    shadowLength = lerp(0, maxStretchFactor * 0.9, t); // Long pre-dawn shadows
-    // Pre-dawn: Preparing for sun to rise in east, shadows will point west
-    shadowShearX = lerp(0, 1.3, t); // Building up rightward lean for dawn
-    shadowScaleY = lerp(0.5, 0.25, t); // Very flattened pre-dawn shadows
+  } else { // Midnight (0.97 - 1.0)
+    // No shadows during deepest night (TwilightMorning handles 0.92-0.97)
+    overallAlpha = 0;
+    shadowLength = 0;
+    shadowShearX = 0;
+    shadowScaleY = 0.5;
   }
 
   if (overallAlpha < 0.01 || shadowLength < 0.01) {
-    // Debug: Log when shadows are skipped
-    // console.log(`[Dynamic Shadow] Skipped shadow - Alpha: ${overallAlpha.toFixed(3)}, Length: ${shadowLength.toFixed(3)}, CycleProgress: ${cycleProgress.toFixed(3)}`);
     return; // No shadow if invisible or too small
   }
-  
-  // Debug: Log when shadows are rendered (enabled for debugging)
-  // console.log(`[Dynamic Shadow] Rendering shadow - Alpha: ${overallAlpha.toFixed(3)}, Length: ${shadowLength.toFixed(3)}, ShearX: ${shadowShearX.toFixed(2)}, ScaleY: ${shadowScaleY.toFixed(2)}, CycleProgress: ${cycleProgress.toFixed(3)}`);
 
   // Generate a cache key for the silhouette
   const cacheKey = entityImage instanceof HTMLImageElement 
@@ -331,11 +389,13 @@ export function drawDynamicGroundShadow({
 
   // Apply shadow transformation matrix to create realistic shadow casting
   // The shadow is anchored at the entity's base and stretches/leans based on sun position
+  // Morning: positive shearX (shadows point right/west)
+  // Afternoon: negative shearX (shadows point left/east)
   ctx.transform(
     1.0,                    // Scale X (keep original width)
     0,                      // Shear Y (no vertical shear)
-    shadowShearX,           // Shear X (horizontal lean based on sun position)
-    shadowScaleY,           // Scale Y (vertical compression/stretch)
+    shadowShearX,          // Shear X (positive = right/west, negative = left/east)
+    shadowScaleY,          // Scale Y (vertical compression/stretch)
     0,                      // Translate X (no additional translation - anchored)
     0                       // Translate Y (no additional translation - anchored)
   );
@@ -350,12 +410,14 @@ export function drawDynamicGroundShadow({
   
   // Draw the offscreen (silhouette) canvas onto the main canvas
   // The shadow is drawn from the anchor point (entity base)
+  // Apply shadowLength to scale the shadow height for realistic shadow casting
+  const scaledShadowHeight = imageDrawHeight * shadowLength;
   ctx.drawImage(
     offscreenCanvas,     // Source is now the prepared offscreen canvas
-    -imageDrawWidth / 2, // Centered horizontally on the anchor
-    -imageDrawHeight,    // Position so the bottom of the shadow aligns with the anchor
+    -imageDrawWidth / 2, // Centered horizontally on the anchor (transform handles flip)
+    -scaledShadowHeight, // Position so the bottom of the shadow aligns with the anchor, scaled by shadowLength
     imageDrawWidth,
-    imageDrawHeight
+    scaledShadowHeight   // Scale shadow height based on shadowLength
   );
 
   // Reset filter and alpha

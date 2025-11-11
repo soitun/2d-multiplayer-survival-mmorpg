@@ -28,8 +28,8 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Dawn = { tag: "Dawn" };
 export type TwilightMorning = { tag: "TwilightMorning" };
+export type Dawn = { tag: "Dawn" };
 export type Morning = { tag: "Morning" };
 export type Noon = { tag: "Noon" };
 export type Afternoon = { tag: "Afternoon" };

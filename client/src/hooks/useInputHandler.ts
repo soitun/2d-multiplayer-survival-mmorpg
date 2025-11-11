@@ -79,6 +79,7 @@ interface InputHandlerProps {
     setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
     movementDirection: { x: number; y: number };
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
+    targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
 }
 
 // --- Hook Return Value Interface ---
@@ -158,6 +159,7 @@ export const useInputHandler = ({
     setMusicPanelVisible,
     movementDirection,
     targetedFoundation, // ADDED: Targeted foundation
+    targetedWall, // ADDED: Targeted wall
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
     // Get player actions from the context instead of props
@@ -201,6 +203,7 @@ export const useInputHandler = ({
     const stashesRef = useRef(stashes); // Added stashesRef
     const playersRef = useRef(players); // Added playersRef for knocked out revive
     const targetedFoundationRef = useRef(targetedFoundation); // ADDED: Targeted foundation ref
+    const targetedWallRef = useRef(targetedWall); // ADDED: Targeted wall ref
     const itemDefinitionsRef = useRef(itemDefinitions); // <<< ADDED Ref
 
     // Add after existing refs in the hook
@@ -214,6 +217,7 @@ export const useInputHandler = ({
     const radialMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const radialMenuShownRef = useRef<boolean>(false); // Track if menu is shown to avoid clearing timeout prematurely
     const upgradeMenuFoundationIdRef = useRef<bigint | null>(null); // Store foundation ID when menu opens
+    const upgradeMenuWallIdRef = useRef<bigint | null>(null); // Store wall ID when menu opens
 
     // --- Derive input disabled state based ONLY on player death --- 
     const isPlayerDead = localPlayer?.isDead ?? false;
@@ -249,12 +253,14 @@ export const useInputHandler = ({
     useEffect(() => { localPlayerRef.current = localPlayer; }, [localPlayer]);
     useEffect(() => { activeEquipmentsRef.current = activeEquipments; }, [activeEquipments]);
     useEffect(() => { targetedFoundationRef.current = targetedFoundation; }, [targetedFoundation]);
+    useEffect(() => { targetedWallRef.current = targetedWall; }, [targetedWall]);
 
     // ADDED: Reset upgrade menu refs when menu closes
     useEffect(() => {
         if (!showUpgradeRadialMenu) {
             // Menu closed - reset all refs to allow menu to open again
             upgradeMenuFoundationIdRef.current = null;
+            upgradeMenuWallIdRef.current = null;
             radialMenuShownRef.current = false;
             // Clear any pending timeout
             if (radialMenuTimeoutRef.current) {
@@ -1164,42 +1170,78 @@ export const useInputHandler = ({
                         return;
                     }
                     // ADDED: Check for Repair Hammer on right mouse down
-                    // Only show menu if we have a targeted foundation (like blueprint menu)
-                    if (equippedItemDef?.name === "Repair Hammer" && targetedFoundationRef.current) {
-                        // Don't show menu if it's already showing (prevent flickering)
-                        // Also check if building menu is showing - if so, clear it first
-                        if (showBuildingRadialMenu) {
-                            setShowBuildingRadialMenu(false);
-                            radialMenuShownRef.current = false;
-                        }
-                        if (showUpgradeRadialMenu || radialMenuShownRef.current) {
+                    // Prioritize walls over foundations - check walls first
+                    if (equippedItemDef?.name === "Repair Hammer") {
+                        // Check for targeted wall first
+                        if (targetedWallRef.current) {
+                            // Don't show menu if it's already showing (prevent flickering)
+                            if (showBuildingRadialMenu) {
+                                setShowBuildingRadialMenu(false);
+                                radialMenuShownRef.current = false;
+                            }
+                            if (showUpgradeRadialMenu || radialMenuShownRef.current) {
+                                return;
+                            }
+                            // Store the wall ID so menu stays open even if targetedWall changes
+                            upgradeMenuWallIdRef.current = targetedWallRef.current.id;
+                            // Get mouse position for upgrade radial menu
+                            const mouseX = event.clientX;
+                            const mouseY = event.clientY;
+                            setRadialMenuMouseX(mouseX);
+                            setRadialMenuMouseY(mouseY);
+                            // Show menu after a short delay to allow for drag detection
+                            if (radialMenuTimeoutRef.current) {
+                                clearTimeout(radialMenuTimeoutRef.current);
+                                radialMenuTimeoutRef.current = null;
+                            }
+                            console.log('[UpgradeRadialMenu] Right-click detected with Repair Hammer on wall, setting up menu at', mouseX, mouseY);
+                            radialMenuTimeoutRef.current = setTimeout(() => {
+                                if (isRightMouseDownRef.current && upgradeMenuWallIdRef.current !== null) {
+                                    console.log('[UpgradeRadialMenu] Showing upgrade radial menu for wall');
+                                    radialMenuShownRef.current = true;
+                                    setShowUpgradeRadialMenu(true);
+                                } else {
+                                    // Clear the wall ID if menu didn't show
+                                    upgradeMenuWallIdRef.current = null;
+                                }
+                            }, 100);
                             return;
                         }
-                        // Store the foundation ID so menu stays open even if targetedFoundation changes
-                        upgradeMenuFoundationIdRef.current = targetedFoundationRef.current.id;
-                        // Get mouse position for upgrade radial menu
-                        const mouseX = event.clientX;
-                        const mouseY = event.clientY;
-                        setRadialMenuMouseX(mouseX);
-                        setRadialMenuMouseY(mouseY);
-                        // Show menu after a short delay to allow for drag detection (same as blueprint)
-                        if (radialMenuTimeoutRef.current) {
-                            clearTimeout(radialMenuTimeoutRef.current);
-                            radialMenuTimeoutRef.current = null;
-                        }
-                        console.log('[UpgradeRadialMenu] Right-click detected with Repair Hammer on foundation, setting up menu at', mouseX, mouseY);
-                        radialMenuTimeoutRef.current = setTimeout(() => {
-                            console.log('[UpgradeRadialMenu] Timeout fired, isRightMouseDown:', isRightMouseDownRef.current);
-                            if (isRightMouseDownRef.current && upgradeMenuFoundationIdRef.current !== null) {
-                                console.log('[UpgradeRadialMenu] Showing upgrade radial menu');
-                                radialMenuShownRef.current = true;
-                                setShowUpgradeRadialMenu(true);
-                            } else {
-                                // Clear the foundation ID if menu didn't show
-                                upgradeMenuFoundationIdRef.current = null;
+                        // Fall back to foundation if no wall is targeted
+                        else if (targetedFoundationRef.current) {
+                            // Don't show menu if it's already showing (prevent flickering)
+                            if (showBuildingRadialMenu) {
+                                setShowBuildingRadialMenu(false);
+                                radialMenuShownRef.current = false;
                             }
-                        }, 100); // 100ms delay before showing menu (same as blueprint)
-                        return;
+                            if (showUpgradeRadialMenu || radialMenuShownRef.current) {
+                                return;
+                            }
+                            // Store the foundation ID so menu stays open even if targetedFoundation changes
+                            upgradeMenuFoundationIdRef.current = targetedFoundationRef.current.id;
+                            // Get mouse position for upgrade radial menu
+                            const mouseX = event.clientX;
+                            const mouseY = event.clientY;
+                            setRadialMenuMouseX(mouseX);
+                            setRadialMenuMouseY(mouseY);
+                            // Show menu after a short delay to allow for drag detection
+                            if (radialMenuTimeoutRef.current) {
+                                clearTimeout(radialMenuTimeoutRef.current);
+                                radialMenuTimeoutRef.current = null;
+                            }
+                            console.log('[UpgradeRadialMenu] Right-click detected with Repair Hammer on foundation, setting up menu at', mouseX, mouseY);
+                            radialMenuTimeoutRef.current = setTimeout(() => {
+                                if (isRightMouseDownRef.current && upgradeMenuFoundationIdRef.current !== null) {
+                                    console.log('[UpgradeRadialMenu] Showing upgrade radial menu for foundation');
+                                    radialMenuShownRef.current = true;
+                                    setShowUpgradeRadialMenu(true);
+                                } else {
+                                    // Clear the foundation ID if menu didn't show
+                                    upgradeMenuFoundationIdRef.current = null;
+                                }
+                            }, 100);
+                            return;
+                        }
                     }
                 }
 
@@ -1231,8 +1273,9 @@ export const useInputHandler = ({
                 }
                 // Close upgrade menu on right mouse release (same as blueprint)
                 if (showUpgradeRadialMenu) {
-                    // Clear the stored foundation ID
+                    // Clear the stored IDs
                     upgradeMenuFoundationIdRef.current = null;
+                    upgradeMenuWallIdRef.current = null;
                     // Small delay to let menu component handle selection first
                     setTimeout(() => {
                         setShowUpgradeRadialMenu(false);
@@ -1244,6 +1287,7 @@ export const useInputHandler = ({
                     clearTimeout(radialMenuTimeoutRef.current);
                     radialMenuTimeoutRef.current = null;
                     upgradeMenuFoundationIdRef.current = null;
+                    upgradeMenuWallIdRef.current = null;
                 }
             }
         };

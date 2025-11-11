@@ -74,15 +74,15 @@ pub enum Season {
 
 #[derive(Clone, Debug, PartialEq, spacetimedb::SpacetimeType)]
 pub enum TimeOfDay {
-    Dawn,    // Transition from night to day
-    TwilightMorning, // Purple hue after dawn
-    Morning, // Early day
-    Noon,    // Midday, brightest
-    Afternoon, // Late day
-    Dusk,    // Transition from day to night
-    TwilightEvening, // Purple hue after dusk
-    Night,   // Darkest part
-    Midnight, // Middle of the night
+    TwilightMorning, // Purple hue BEFORE dawn (pre-dawn twilight) - 0.92-0.97
+    Dawn,    // Transition from night to day - 0.0-0.05
+    Morning, // Early day - 0.05-0.35
+    Noon,    // Midday, brightest - 0.35-0.55
+    Afternoon, // Late day - 0.55-0.72
+    Dusk,    // Transition from day to night - 0.72-0.76
+    TwilightEvening, // Purple hue after dusk - 0.76-0.80
+    Night,   // Darkest part - 0.80-0.92
+    Midnight, // Middle of the night - 0.97-1.0
 }
 
 #[spacetimedb::table(name = thunder_event, public)]
@@ -250,14 +250,14 @@ pub fn debug_set_weather(ctx: &ReducerContext, weather_type_str: String) -> Resu
 pub fn debug_set_time(ctx: &ReducerContext, time_type_str: String) -> Result<(), String> {
     let (new_progress, new_time_of_day) = match time_type_str.as_str() {
         "Dawn" => (0.02, TimeOfDay::Dawn),
-        "TwilightMorning" => (0.08, TimeOfDay::TwilightMorning), // Morning twilight (0.05-0.12)
+        "TwilightMorning" => (0.945, TimeOfDay::TwilightMorning), // Pre-dawn twilight (0.92-0.97)
         "Morning" => (0.20, TimeOfDay::Morning),
         "Noon" => (0.40, TimeOfDay::Noon),
         "Afternoon" => (0.55, TimeOfDay::Afternoon),
         "Dusk" => (0.74, TimeOfDay::Dusk), // Middle of Dusk range (0.72-0.76)
         "TwilightEvening" => (0.78, TimeOfDay::TwilightEvening), // Evening twilight (0.76-0.80)
-        "Night" => (0.80, TimeOfDay::Night),     // Regular night (0.75-0.90)
-        "Midnight" => (0.95, TimeOfDay::Midnight), // Deep night (0.90-1.0)
+        "Night" => (0.86, TimeOfDay::Night),     // Regular night (0.80-0.92)
+        "Midnight" => (0.985, TimeOfDay::Midnight), // Deep night (0.97-1.0)
         _ => return Err(format!("Invalid time type: {}", time_type_str)),
     };
 
@@ -351,16 +351,17 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
         // Determine the new TimeOfDay based on new_progress
         // Day is now 0.0 to 0.8 (20min), Night is 0.8 to 1.0 (5min)
         // Progress thresholds remain the same (0.0-1.0), durations scale proportionally
+        // Order: TwilightMorning (pre-dawn) -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night -> Midnight
         let new_time_of_day = match new_progress {
+            p if p >= 0.92 && p < 0.97 => TimeOfDay::TwilightMorning, // Purple (0.92 - 0.97) - pre-dawn twilight RIGHT BEFORE dawn
             p if p < 0.05 => TimeOfDay::Dawn,     // Orange (0.0 - 0.05) - 1.25min
-            p if p < 0.12 => TimeOfDay::TwilightMorning, // Purple (0.05 - 0.12) - 1.75min
-            p if p < 0.35 => TimeOfDay::Morning,   // Yellow (0.12 - 0.35) - 5.75min
+            p if p < 0.35 => TimeOfDay::Morning,   // Yellow (0.05 - 0.35) - 7.5min
             p if p < 0.55 => TimeOfDay::Noon,      // Bright Yellow (0.35 - 0.55) - 5min
             p if p < 0.72 => TimeOfDay::Afternoon, // Yellow (0.55 - 0.72) - 4.25min
             p if p < 0.76 => TimeOfDay::Dusk,      // Orange (0.72 - 0.76) - 1min
             p if p < 0.80 => TimeOfDay::TwilightEvening, // Purple (0.76 - 0.80) - 1min
             p if p < 0.92 => TimeOfDay::Night,     // Dark Blue (0.80 - 0.92) - 3min
-            _             => TimeOfDay::Midnight, // Very Dark Blue/Black (0.92 - 1.0) - 2min, also default
+            _             => TimeOfDay::Midnight, // Very Dark Blue/Black (0.97 - 1.0) - 0.75min, also default
         };
 
         // Assign the calculated new values to the world_state object

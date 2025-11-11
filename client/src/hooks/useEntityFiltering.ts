@@ -124,6 +124,7 @@ export type YSortedEntityType =
   | { type: 'animal_corpse'; entity: SpacetimeDBAnimalCorpse }
   | { type: 'barrel'; entity: SpacetimeDBBarrel }
   | { type: 'sea_stack'; entity: any } // Server-provided sea stack entities
+  | { type: 'sleeping_bag'; entity: SpacetimeDBSleepingBag } // ADDED: Sleeping bags
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
   | { type: 'wall_cell'; entity: SpacetimeDBWallCell }; // ADDED: Building walls
 
@@ -152,6 +153,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'player_corpse':
     case 'wild_animal':
     case 'barrel':
+    case 'sleeping_bag':
       return entity.posY;
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -166,13 +168,15 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       const baseY = wall.cellY * FOUNDATION_TILE_SIZE;
       
       if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls: render ABOVE players
-        // Use bottom edge + large offset to render after all players behind the wall
+        // North/south walls: render ABOVE players but BELOW east/west walls
+        // Use bottom edge + offset to render after players behind the wall
         const bottomEdgeY = baseY + FOUNDATION_TILE_SIZE;
         return bottomEdgeY + 10000; // High value ensures walls render above players
       } else {
-        // East/west walls: render at foundation level
-        return baseY + 0.5;
+        // East/west walls: render ABOVE north walls (closer to viewer in 3/4 perspective)
+        // Use even higher Y value to ensure they render after north walls
+        const bottomEdgeY = baseY + FOUNDATION_TILE_SIZE;
+        return bottomEdgeY + 20000; // Higher than north walls to render on top
       }
     }
     case 'grass':
@@ -211,17 +215,18 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'planted_seed': return 10;
     case 'dropped_item': return 11;
     case 'harvestable_resource': return 12;
+    case 'sleeping_bag': return 13; // Render after dropped items, before barrels
     case 'barrel': return 15;
     case 'rain_collector': return 18;
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
     case 'wall_cell': {
       const wall = item.entity as SpacetimeDBWallCell;
       if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls render above players
+        // North/south walls render above players but below east/west walls
         return 22; // Render after players (priority 21)
       } else {
-        // East/west walls render at foundation level
-        return 0.6; // East/west walls render after foundations
+        // East/west walls render ABOVE north walls (closer to viewer in 3/4 perspective)
+        return 23; // Higher priority than north walls (22) to render on top
       }
     }
     case 'projectile': return 19;
@@ -1205,6 +1210,7 @@ export function useEntityFiltering(
     visiblePlayerCorpses.forEach(e => allEntities[index++] = { type: 'player_corpse', entity: e });
     visibleWildAnimals.forEach(e => allEntities[index++] = { type: 'wild_animal', entity: e });
     visibleBarrels.forEach(e => allEntities[index++] = { type: 'barrel', entity: e });
+    visibleSleepingBags.forEach(e => allEntities[index++] = { type: 'sleeping_bag', entity: e }); // ADDED: Sleeping bags
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
     visibleFoundationCells.forEach(e => allEntities[index++] = { type: 'foundation_cell', entity: e }); // ADDED: Foundations
@@ -1243,6 +1249,27 @@ export function useEntityFiltering(
             return 1;
           } else {
             // East/west walls: player renders after (above) wall
+            return -1;
+          }
+        }
+      }
+      // Ensure east/west walls render above north walls (3/4 perspective)
+      if (a.type === 'wall_cell' && b.type === 'wall_cell') {
+        const wallA = a.entity as SpacetimeDBWallCell;
+        const wallB = b.entity as SpacetimeDBWallCell;
+        // If walls are on the same tile, east/west should render above north/south
+        if (wallA.cellX === wallB.cellX && wallA.cellY === wallB.cellY) {
+          const isA_EastWest = wallA.edge === 1 || wallA.edge === 3;
+          const isB_EastWest = wallB.edge === 1 || wallB.edge === 3;
+          const isA_NorthSouth = wallA.edge === 0 || wallA.edge === 2;
+          const isB_NorthSouth = wallB.edge === 0 || wallB.edge === 2;
+          
+          // If A is east/west and B is north/south, A renders after (above)
+          if (isA_EastWest && isB_NorthSouth) {
+            return 1;
+          }
+          // If B is east/west and A is north/south, B renders after (above)
+          if (isB_EastWest && isA_NorthSouth) {
             return -1;
           }
         }

@@ -1345,8 +1345,8 @@ pub fn upgrade_wall(
     }
     
     // 6. Check placement distance from player
-    let world_x = (wall.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let world_y = (wall.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_x = (wall.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (wall.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     let dx = world_x - player.position_x;
     let dy = world_y - player.position_y;
@@ -1587,8 +1587,8 @@ pub fn destroy_wall(ctx: &ReducerContext, wall_id: u64) -> Result<(), String> {
     }
     
     // 5. Check placement distance from player
-    let world_x = (wall.cell_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-    let world_y = (wall.cell_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+    let world_x = (wall.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let world_y = (wall.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
     
     let dx = world_x - player.position_x;
     let dy = world_y - player.position_y;

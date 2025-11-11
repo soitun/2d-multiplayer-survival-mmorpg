@@ -10,6 +10,7 @@ import { FoundationCell } from '../../generated';
 // For now, using any type - will be fixed after running: spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, foundationCellToWorldPixels } from '../../config/gameConfig';
 import React from 'react';
+import { drawDynamicGroundShadow } from './shadowUtils'; // ADDED: For wall shadows
 
 // Foundation colors for preview (cyberpunk neon theme)
 const FOUNDATION_PREVIEW_COLORS = {
@@ -24,6 +25,7 @@ export interface RenderFoundationParams {
   viewOffsetX: number;
   viewOffsetY: number;
   foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
+  allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
 }
 
 export interface RenderFoundationPreviewParams {
@@ -54,8 +56,10 @@ function getFoundationTileFilename(tier: number): string {
 
 /**
  * Get wall tile image filename based on tier
+ * Note: Interior walls now use the same image as exterior walls (with visual modifications in rendering)
  */
-function getWallTileFilename(tier: number): string {
+function getWallTileFilename(tier: number, isInterior: boolean = false): string {
+  // Always return the regular wall image - interior walls will be modified visually during rendering
   switch (tier) {
     case 0: return 'wall_twig.png'; // Twig (default tier)
     case 1: return 'wall_wood.png'; // Wood
@@ -128,6 +132,7 @@ export function renderFoundation({
   viewOffsetX,
   viewOffsetY,
   foundationTileImagesRef,
+  allFoundations,
 }: RenderFoundationParams): void {
   if (foundation.isDestroyed) {
     // Don't render destroyed foundations (or render them differently)
@@ -165,43 +170,173 @@ export function renderFoundation({
 
   ctx.restore();
 
-  // Draw border for all foundation shapes
+  // Check which edges have adjacent foundations - only draw borders on exposed edges
+  let hasNorthFoundation = false;
+  let hasSouthFoundation = false;
+  let hasEastFoundation = false;
+  let hasWestFoundation = false;
+  
+  if (allFoundations) {
+    for (const [_, otherFoundation] of allFoundations) {
+      if (otherFoundation.isDestroyed) continue;
+      
+      // Check adjacent cells
+      if (otherFoundation.cellX === foundation.cellX && otherFoundation.cellY === foundation.cellY - 1) {
+        hasNorthFoundation = true;
+      }
+      if (otherFoundation.cellX === foundation.cellX && otherFoundation.cellY === foundation.cellY + 1) {
+        hasSouthFoundation = true;
+      }
+      if (otherFoundation.cellX === foundation.cellX + 1 && otherFoundation.cellY === foundation.cellY) {
+        hasEastFoundation = true;
+      }
+      if (otherFoundation.cellX === foundation.cellX - 1 && otherFoundation.cellY === foundation.cellY) {
+        hasWestFoundation = true;
+      }
+    }
+  }
+
+  // Draw borders only on exposed edges (not shared with adjacent foundations)
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 1;
   
   if (isTriangle) {
-    // Draw triangle border for triangle shapes
+    // Draw triangle border, but skip edges with adjacent foundations
     ctx.beginPath();
+    let pathStarted = false;
+    
     switch (foundation.shape) {
-      case 2: // TriNW
-        ctx.moveTo(screenX, screenY);
-        ctx.lineTo(screenX + screenSize, screenY);
+      case 2: // TriNW - has top, left, and diagonal edges
+        // Top edge
+        if (!hasNorthFoundation) {
+          ctx.moveTo(screenX, screenY);
+          ctx.lineTo(screenX + screenSize, screenY);
+          pathStarted = true;
+        }
+        // Left edge
+        if (!hasWestFoundation) {
+          if (!pathStarted) {
+            ctx.moveTo(screenX, screenY);
+            pathStarted = true;
+          }
+          ctx.lineTo(screenX, screenY + screenSize);
+        }
+        // Diagonal edge (always draw - it's the hypotenuse)
+        if (!pathStarted) {
+          ctx.moveTo(screenX + screenSize, screenY);
+        }
         ctx.lineTo(screenX, screenY + screenSize);
-        ctx.closePath();
         break;
-      case 3: // TriNE
-        ctx.moveTo(screenX + screenSize, screenY);
+      case 3: // TriNE - has top, right, and diagonal edges
+        // Top edge
+        if (!hasNorthFoundation) {
+          ctx.moveTo(screenX + screenSize, screenY);
+          ctx.lineTo(screenX, screenY);
+          pathStarted = true;
+        }
+        // Right edge
+        if (!hasEastFoundation) {
+          if (!pathStarted) {
+            ctx.moveTo(screenX + screenSize, screenY);
+            pathStarted = true;
+          }
+          ctx.lineTo(screenX + screenSize, screenY + screenSize);
+        }
+        // Diagonal edge (always draw)
+        if (!pathStarted) {
+          ctx.moveTo(screenX, screenY);
+        }
         ctx.lineTo(screenX + screenSize, screenY + screenSize);
-        ctx.lineTo(screenX, screenY);
-        ctx.closePath();
         break;
-      case 4: // TriSE
-        ctx.moveTo(screenX + screenSize, screenY + screenSize);
+      case 4: // TriSE - has bottom, right, and diagonal edges
+        // Bottom edge
+        if (!hasSouthFoundation) {
+          ctx.moveTo(screenX, screenY + screenSize);
+          ctx.lineTo(screenX + screenSize, screenY + screenSize);
+          pathStarted = true;
+        }
+        // Right edge
+        if (!hasEastFoundation) {
+          if (!pathStarted) {
+            ctx.moveTo(screenX + screenSize, screenY + screenSize);
+            pathStarted = true;
+          }
+          ctx.lineTo(screenX + screenSize, screenY);
+        }
+        // Diagonal edge (always draw)
+        if (!pathStarted) {
+          ctx.moveTo(screenX + screenSize, screenY);
+        }
         ctx.lineTo(screenX, screenY + screenSize);
-        ctx.lineTo(screenX + screenSize, screenY);
-        ctx.closePath();
         break;
-      case 5: // TriSW
-        ctx.moveTo(screenX, screenY + screenSize);
-        ctx.lineTo(screenX, screenY);
+      case 5: // TriSW - has bottom, left, and diagonal edges
+        // Bottom edge
+        if (!hasSouthFoundation) {
+          ctx.moveTo(screenX + screenSize, screenY + screenSize);
+          ctx.lineTo(screenX, screenY + screenSize);
+          pathStarted = true;
+        }
+        // Left edge
+        if (!hasWestFoundation) {
+          if (!pathStarted) {
+            ctx.moveTo(screenX, screenY + screenSize);
+            pathStarted = true;
+          }
+          ctx.lineTo(screenX, screenY);
+        }
+        // Diagonal edge (always draw)
+        if (!pathStarted) {
+          ctx.moveTo(screenX, screenY);
+        }
         ctx.lineTo(screenX + screenSize, screenY + screenSize);
-        ctx.closePath();
         break;
     }
-    ctx.stroke();
+    
+    if (pathStarted || foundation.shape === 2 || foundation.shape === 3 || foundation.shape === 4 || foundation.shape === 5) {
+      ctx.stroke();
+    }
   } else {
-    // Draw rectangle border for full foundations
-    ctx.strokeRect(screenX, screenY, screenSize, screenSize);
+    // Full foundation - draw rectangle border, but skip edges with adjacent foundations
+    ctx.beginPath();
+    let pathStarted = false;
+    
+    // Top edge
+    if (!hasNorthFoundation) {
+      ctx.moveTo(screenX, screenY);
+      ctx.lineTo(screenX + screenSize, screenY);
+      pathStarted = true;
+    }
+    
+    // Right edge
+    if (!hasEastFoundation) {
+      if (!pathStarted) {
+        ctx.moveTo(screenX + screenSize, screenY);
+        pathStarted = true;
+      }
+      ctx.lineTo(screenX + screenSize, screenY + screenSize);
+    }
+    
+    // Bottom edge
+    if (!hasSouthFoundation) {
+      if (!pathStarted) {
+        ctx.moveTo(screenX + screenSize, screenY + screenSize);
+        pathStarted = true;
+      }
+      ctx.lineTo(screenX, screenY + screenSize);
+    }
+    
+    // Left edge
+    if (!hasWestFoundation) {
+      if (!pathStarted) {
+        ctx.moveTo(screenX, screenY + screenSize);
+        pathStarted = true;
+      }
+      ctx.lineTo(screenX, screenY);
+    }
+    
+    if (pathStarted) {
+      ctx.stroke();
+    }
   }
 
   // Draw health bar if damaged (optional)
@@ -423,6 +558,162 @@ export function renderFoundationTargetIndicator({
 }
 
 /**
+ * Render a highlight overlay on a targeted wall (for upgrade targeting)
+ */
+export function renderWallTargetIndicator({
+  ctx,
+  wall,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  wall: any; // WallCell type
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  if (wall.isDestroyed) {
+    return;
+  }
+
+  const { x: worldX, y: worldY } = cellToWorldPixels(wall.cellX, wall.cellY);
+  const screenX = worldX;
+  const screenY = worldY;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
+  
+  // Wall thickness constants (match actual wall rendering)
+  const WALL_THICKNESS = 4 * worldScale; // For north/south walls
+  const EAST_WEST_WALL_THICKNESS = 12 * worldScale; // For east/west walls
+  const DIAGONAL_WALL_THICKNESS = 12 * worldScale; // For diagonal walls
+  // Perspective correction: North walls (away from viewer) appear shorter
+  const NORTH_WALL_HEIGHT = screenSize * 0.75; // 0.75 tiles tall (away from viewer)
+  const SOUTH_WALL_HEIGHT = screenSize; // 1 tile tall (closer to viewer)
+
+  ctx.save();
+
+  // Draw pulsing highlight overlay
+  const pulsePhase = (Date.now() % 2000) / 2000; // 0 to 1 over 2 seconds
+  const pulseAlpha = 0.4 + (Math.sin(pulsePhase * Math.PI * 2) * 0.3); // Pulse between 0.4 and 0.7 (more visible)
+
+  // Determine wall rectangle position and size based on edge (same logic as renderWall)
+  let wallX = screenX;
+  let wallY = screenY;
+  let wallWidth = screenSize;
+  let wallHeight = WALL_THICKNESS;
+
+  switch (wall.edge) {
+    case 0: // North (top edge) - highlight only the bottom rectangle on foundation edge, not the extension
+      // The actual wall extends upward from screenY - screenSize + WALL_THICKNESS/2
+      // The bottom edge of the wall (on foundation) is at screenY - screenSize + WALL_THICKNESS/2 + screenSize = screenY + WALL_THICKNESS/2
+      // But we want to highlight just the thin rectangle at the foundation edge (screenY)
+      wallX = screenX;
+      wallY = screenY - WALL_THICKNESS / 2; // Top edge of foundation, centered on wall thickness
+      wallWidth = screenSize;
+      wallHeight = WALL_THICKNESS; // Just the thin rectangle, not the tall extension
+      break;
+    case 1: // East (right edge)
+      wallX = screenX + screenSize - EAST_WEST_WALL_THICKNESS / 2;
+      wallY = screenY;
+      wallWidth = EAST_WEST_WALL_THICKNESS;
+      wallHeight = screenSize;
+      break;
+    case 2: // South (bottom edge) - highlight only the bottom rectangle on foundation edge, not the extension
+      // The actual wall extends upward from screenY + screenSize - screenSize = screenY
+      // The bottom edge of the wall (on foundation) is at screenY + screenSize
+      wallX = screenX;
+      wallY = screenY + screenSize - WALL_THICKNESS / 2; // Bottom edge of foundation, centered on wall thickness
+      wallWidth = screenSize;
+      wallHeight = WALL_THICKNESS; // Just the thin rectangle, not the tall extension
+      break;
+    case 3: // West (left edge)
+      wallX = screenX - EAST_WEST_WALL_THICKNESS / 2;
+      wallY = screenY;
+      wallWidth = EAST_WEST_WALL_THICKNESS;
+      wallHeight = screenSize;
+      break;
+    case 4: // DiagNE_SW
+    case 5: // DiagNW_SE
+      // For diagonal walls, calculate hypotenuse coordinates
+      const isTriangle = wall.foundationShape >= 2 && wall.foundationShape <= 5;
+      let hypStartX: number, hypStartY: number, hypEndX: number, hypEndY: number;
+      
+      switch (wall.foundationShape) {
+        case 2: // TriNW - DiagNW_SE (edge 5)
+          hypStartX = screenX + screenSize;
+          hypStartY = screenY;
+          hypEndX = screenX;
+          hypEndY = screenY + screenSize;
+          break;
+        case 3: // TriNE - DiagNE_SW (edge 4)
+          hypStartX = screenX;
+          hypStartY = screenY;
+          hypEndX = screenX + screenSize;
+          hypEndY = screenY + screenSize;
+          break;
+        case 4: // TriSE - DiagNW_SE (edge 5)
+          hypStartX = screenX;
+          hypStartY = screenY + screenSize;
+          hypEndX = screenX + screenSize;
+          hypEndY = screenY;
+          break;
+        case 5: // TriSW - DiagNE_SW (edge 4)
+          hypStartX = screenX + screenSize;
+          hypStartY = screenY + screenSize;
+          hypEndX = screenX;
+          hypEndY = screenY;
+          break;
+        default:
+          hypStartX = screenX;
+          hypStartY = screenY;
+          hypEndX = screenX + screenSize;
+          hypEndY = screenY + screenSize;
+          break;
+      }
+      
+      // Draw diagonal highlight
+      ctx.strokeStyle = `rgba(255, 215, 0, ${0.9 + pulseAlpha * 0.1})`;
+      ctx.lineWidth = DIAGONAL_WALL_THICKNESS + 4; // Thicker than wall for visibility
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(hypStartX, hypStartY);
+      ctx.lineTo(hypEndX, hypEndY);
+      ctx.stroke();
+      
+      // Draw filled rectangle along diagonal for better visibility
+      const centerX = (hypStartX + hypEndX) / 2;
+      const centerY = (hypStartY + hypEndY) / 2;
+      const angle = Math.atan2(hypEndY - hypStartY, hypEndX - hypStartX);
+      const stripWidth = Math.sqrt((hypEndX - hypStartX) ** 2 + (hypEndY - hypStartY) ** 2);
+      const stripHeight = DIAGONAL_WALL_THICKNESS + 4;
+      
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angle);
+      ctx.fillStyle = `rgba(255, 215, 0, ${pulseAlpha})`;
+      ctx.fillRect(-stripWidth / 2, -stripHeight / 2, stripWidth, stripHeight);
+      ctx.restore();
+      
+      ctx.restore();
+      return; // Early return for diagonal walls
+    default:
+      ctx.restore();
+      return;
+  }
+
+  // Draw highlight overlay for cardinal walls (golden/yellow tint)
+  ctx.fillStyle = `rgba(255, 215, 0, ${pulseAlpha})`;
+  ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
+
+  // Draw border highlight (thicker and brighter)
+  ctx.strokeStyle = `rgba(255, 215, 0, ${0.9 + pulseAlpha * 0.1})`;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
+
+  ctx.restore();
+}
+
+/**
  * Render a wall cell as a thin rectangle on the edge of a foundation tile
  */
 export interface RenderWallParams {
@@ -432,6 +723,7 @@ export interface RenderWallParams {
   viewOffsetX: number;
   viewOffsetY: number;
   foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
+  allWalls?: Map<string, any>; // ADDED: All walls to check for adjacent walls
 }
 
 export function renderWall({
@@ -441,6 +733,7 @@ export function renderWall({
   viewOffsetX,
   viewOffsetY,
   foundationTileImagesRef,
+  allWalls,
 }: RenderWallParams): void {
   if (wall.isDestroyed) {
     return;
@@ -458,8 +751,15 @@ export function renderWall({
   const DIAGONAL_WALL_THICKNESS = 12 * worldScale; // 12 pixels thick for diagonal walls (more visible)
   
   // Get wall image based on tier (use wall-specific images)
-  const wallFilename = getWallTileFilename(wall.tier);
+  // North walls (edge 0) show the interior side since they're away from the viewer
+  const isNorthWall = wall.edge === 0;
+  const wallFilename = getWallTileFilename(wall.tier, isNorthWall);
   const wallImage = foundationTileImagesRef?.current?.get(wallFilename);
+  
+  // Debug: Log wall tier and image loading (only once per wall to avoid spam)
+  if (wallImage === undefined && foundationTileImagesRef?.current) {
+    console.warn(`[renderWall] Wall image not found for tier ${wall.tier}: ${wallFilename}. Available images:`, Array.from(foundationTileImagesRef.current.keys()));
+  }
   
   ctx.save();
   
@@ -481,15 +781,16 @@ export function renderWall({
     ctx.clip();
   }
   
-  // For north/south walls in isometric view, make them taller (1 tile tall) to render above players
-  const NORTH_SOUTH_WALL_HEIGHT = screenSize; // 1 tile tall for isometric depth
+  // Perspective correction: North walls (away from viewer) appear shorter than south walls (closer to viewer)
+  const NORTH_WALL_HEIGHT = screenSize * 0.75; // 0.75 tiles tall (away from viewer, foreshortened)
+  const SOUTH_WALL_HEIGHT = screenSize; // 1 tile tall (closer to viewer, full height)
   
   switch (wall.edge) {
-    case 0: // North (top edge) - extend upward for isometric depth
+    case 0: // North (top edge) - extend upward for isometric depth (SHORTER due to perspective)
       wallX = screenX;
-      wallY = screenY - NORTH_SOUTH_WALL_HEIGHT + WALL_THICKNESS / 2; // Extend upward
+      wallY = screenY - NORTH_WALL_HEIGHT + WALL_THICKNESS / 2; // Extend upward (shorter)
       wallWidth = screenSize;
-      wallHeight = NORTH_SOUTH_WALL_HEIGHT;
+      wallHeight = NORTH_WALL_HEIGHT;
       break;
     case 1: // East (right edge) - center on edge (half inside, half outside)
       wallX = screenX + screenSize - EAST_WEST_WALL_THICKNESS / 2;
@@ -497,12 +798,12 @@ export function renderWall({
       wallWidth = EAST_WEST_WALL_THICKNESS;
       wallHeight = screenSize;
       break;
-    case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth
+    case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth (TALLER as closer to viewer)
       wallX = screenX;
       // Start at bottom edge and extend UPWARD (negative Y direction for isometric depth)
-      wallY = screenY + screenSize - NORTH_SOUTH_WALL_HEIGHT; // Bottom edge minus wall height
+      wallY = screenY + screenSize - SOUTH_WALL_HEIGHT; // Bottom edge minus wall height
       wallWidth = screenSize;
-      wallHeight = NORTH_SOUTH_WALL_HEIGHT;
+      wallHeight = SOUTH_WALL_HEIGHT;
       break;
     case 3: // West (left edge) - center on edge (half inside, half outside)
       wallX = screenX - EAST_WEST_WALL_THICKNESS / 2;
@@ -676,12 +977,51 @@ export function renderWall({
       // For horizontal walls (N/S), we take a horizontal strip from the tile
       // For vertical walls (E/W), we take a vertical strip from the tile
       // Horizontal wall - draw scaled tile for north/south walls (taller for isometric)
-      if (wall.edge === 0 || wall.edge === 2) {
-        // North/south walls - draw full wall extension
+      if (wall.edge === 0) {
+        // North wall (interior) - use BOTTOM half of texture, make it lighter, add shadow at base
+        const sourceY = wallImage.height * 0.5; // Start from middle (bottom half)
+        const sourceHeight = wallImage.height * 0.5; // Bottom half of texture
+        
+        ctx.save();
+        
+        // Draw the bottom half of the image
+        ctx.drawImage(
+          wallImage,
+          0, sourceY, wallImage.width, sourceHeight, // Source: BOTTOM half of texture
+          wallX, wallY, wallWidth, wallHeight // Destination: wall dimensions (NORTH_WALL_HEIGHT)
+        );
+        
+        // Apply darkening overlay (make it darker/shaded) for interior north walls
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.15; // Darkening intensity
+        ctx.fillStyle = '#000000'; // Black for darkening
+        ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
+        
+        // Reset composite operation
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+        
+        // Draw shadow BELOW the wall, projected onto the ground/foundation
+        // Sea of Stars style - softer, more gradual fade
+        // Shadow should be on the foundation tile below, not on the wall itself
+        const shadowHeight = screenSize * 0.3; // Shadow extends onto the foundation below
+        const shadowY = screenY; // Start at the top of the foundation tile (where wall meets ground)
+        
+        const shadowGradient = ctx.createLinearGradient(wallX, shadowY, wallX, shadowY + shadowHeight);
+        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)'); // More intense start
+        shadowGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.3)'); // Gradual fade midpoint
+        shadowGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)'); // Soft before end
+        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)'); // Fade to transparent at bottom
+        ctx.fillStyle = shadowGradient;
+        ctx.fillRect(wallX, shadowY, wallWidth, shadowHeight);
+        
+        ctx.restore();
+      } else if (wall.edge === 2) {
+        // South wall - use full texture for full height (1 tile)
         ctx.drawImage(
           wallImage,
           0, 0, wallImage.width, wallImage.height, // Source: full tile
-          wallX, wallY, wallWidth, wallHeight // Destination: full wall
+          wallX, wallY, wallWidth, wallHeight // Destination: full wall (SOUTH_WALL_HEIGHT)
         );
       } else {
         // Vertical wall - draw vertical strip from tile
@@ -705,6 +1045,35 @@ export function renderWall({
         // North/south walls - draw full wall extension
         ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
         ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
+        
+        // For north walls (interior), make them lighter and add shadow
+        if (wall.edge === 0) {
+          ctx.save();
+          // Apply darkening overlay (make it darker/shaded) for interior north walls
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = 0.3; // Darkening intensity
+          ctx.fillStyle = '#000000'; // Black for darkening
+          ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
+          
+          // Reset composite operation
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0;
+          
+          // Draw shadow BELOW the wall, projected onto the ground/foundation (fallback)
+          // Sea of Stars style - softer, more gradual fade
+          // Shadow should be on the foundation tile below, not on the wall itself
+          const shadowHeight = screenSize * 0.3; // Shadow extends onto the foundation below
+          const shadowY = screenY; // Start at the top of the foundation tile (where wall meets ground)
+          
+          const shadowGradient = ctx.createLinearGradient(wallX, shadowY, wallX, shadowY + shadowHeight);
+          shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)'); // More intense start
+          shadowGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.3)'); // Gradual fade midpoint
+          shadowGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)'); // Soft before end
+          shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)'); // Fade to transparent at bottom
+          ctx.fillStyle = shadowGradient;
+          ctx.fillRect(wallX, shadowY, wallWidth, shadowHeight);
+          ctx.restore();
+        }
       } else {
         // East/west walls - draw normally
         ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
@@ -712,16 +1081,371 @@ export function renderWall({
       }
     }
     
+    // For north walls, check if we need to draw vertical side walls (support beams)
+    // Only draw on the leftmost and rightmost north walls (edges of the structure)
+    // This runs AFTER the main wall rendering (both image and fallback paths)
+    if (wall.edge === 0 && allWalls) {
+      // Check if there's a north wall on adjacent cells to determine if this is an edge wall
+      let hasNorthWallToLeft = false; // Check cell to the left (cellX - 1)
+      let hasNorthWallToRight = false; // Check cell to the right (cellX + 1)
+      
+      for (const [_, otherWall] of allWalls) {
+        if (otherWall.isDestroyed) continue;
+        // Skip checking against self (though this shouldn't happen with adjacent cell checks)
+        if (otherWall.cellX === wall.cellX && otherWall.cellY === wall.cellY && otherWall.edge === wall.edge) {
+          continue;
+        }
+        // Check for north wall on cell to the left (same row)
+        if (otherWall.cellX === wall.cellX - 1 && otherWall.cellY === wall.cellY && otherWall.edge === 0) {
+          hasNorthWallToLeft = true;
+          if (hasNorthWallToRight) break; // Both found, can exit early
+        }
+        // Check for north wall on cell to the right (same row)
+        if (otherWall.cellX === wall.cellX + 1 && otherWall.cellY === wall.cellY && otherWall.edge === 0) {
+          hasNorthWallToRight = true;
+          if (hasNorthWallToLeft) break; // Both found, can exit early
+        }
+      }
+      
+      // Draw left side wall ONLY if this is the leftmost north wall (no north wall to the left)
+      // Position it as a thin vertical strip at the left edge of the tile
+      // Side walls should NOT have brightness overlay - they're support beams, darker
+      if (!hasNorthWallToLeft) {
+        const sideWallX = screenX; // Start at the left edge of the tile
+        const sideWallY = wallY;
+        const sideWallWidth = EAST_WEST_WALL_THICKNESS / 2; // Make it thinner - half the thickness
+        const sideWallHeight = wallHeight;
+        
+        ctx.save();
+        // Draw vertical strip from wall image (left side) - NO brightness overlay
+        if (wallImage && wallImage.complete && wallImage.naturalHeight !== 0) {
+          const sourceX = 0; // Left edge of image
+          const sourceWidth = EAST_WEST_WALL_THICKNESS / 2 / worldScale; // Match the thinner width
+          ctx.drawImage(
+            wallImage,
+            sourceX, 0, sourceWidth, wallImage.height, // Source: left vertical strip (thinner)
+            sideWallX, sideWallY, sideWallWidth, sideWallHeight // Destination
+          );
+          // NO brightness overlay for side walls - they're support beams
+        } else {
+          // Fallback: colored rectangle
+          const tierColors: Record<number, string> = {
+            0: '#8B4513', 1: '#654321', 2: '#808080', 3: '#C0C0C0',
+          };
+          ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
+          ctx.fillRect(sideWallX, sideWallY, sideWallWidth, sideWallHeight);
+          // NO brightness overlay for side walls
+        }
+        
+        // Draw border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sideWallX, sideWallY, sideWallWidth, sideWallHeight);
+        ctx.restore();
+      }
+      
+      // Draw right side wall ONLY if this is the rightmost north wall (no north wall to the right)
+      // Position it as a thin vertical strip at the right edge of the tile
+      // Side walls should NOT have brightness overlay - they're support beams, darker
+      if (!hasNorthWallToRight) {
+        const sideWallX = screenX + screenSize - EAST_WEST_WALL_THICKNESS / 2; // End at the right edge, thin strip
+        const sideWallY = wallY;
+        const sideWallWidth = EAST_WEST_WALL_THICKNESS / 2; // Make it thinner - half the thickness
+        const sideWallHeight = wallHeight;
+        
+        ctx.save();
+        // Draw vertical strip from wall image (right side) - NO brightness overlay
+        if (wallImage && wallImage.complete && wallImage.naturalHeight !== 0) {
+          const sourceWidth = EAST_WEST_WALL_THICKNESS / 2 / worldScale; // Match the thinner width
+          const sourceX = wallImage.width - sourceWidth; // Right edge of image
+          ctx.drawImage(
+            wallImage,
+            sourceX, 0, sourceWidth, wallImage.height, // Source: right vertical strip (thinner)
+            sideWallX, sideWallY, sideWallWidth, sideWallHeight // Destination
+          );
+          // NO brightness overlay for side walls - they're support beams
+        } else {
+          // Fallback: colored rectangle
+          const tierColors: Record<number, string> = {
+            0: '#8B4513', 1: '#654321', 2: '#808080', 3: '#C0C0C0',
+          };
+          ctx.fillStyle = tierColors[wall.tier] || '#8B4513';
+          ctx.fillRect(sideWallX, sideWallY, sideWallWidth, sideWallHeight);
+          // NO brightness overlay for side walls
+        }
+        
+        // Draw border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sideWallX, sideWallY, sideWallWidth, sideWallHeight);
+        ctx.restore();
+      }
+    }
+    
     // Draw black border around the wall
+    // For north walls, skip the bottom border to avoid thick line at the base
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
-    ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
+    if (wall.edge === 0) {
+      // North wall - draw border on top and sides only, not bottom
+      ctx.beginPath();
+      ctx.moveTo(wallX, wallY); // Top left
+      ctx.lineTo(wallX + wallWidth, wallY); // Top right
+      ctx.moveTo(wallX, wallY); // Top left
+      ctx.lineTo(wallX, wallY + wallHeight); // Left side
+      ctx.moveTo(wallX + wallWidth, wallY); // Top right
+      ctx.lineTo(wallX + wallWidth, wallY + wallHeight); // Right side
+      ctx.stroke();
+    } else {
+      // Other walls - draw full border
+      ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
+    }
   }
   
   if (isTriangle) {
     ctx.restore();
   }
   
+  ctx.restore();
+}
+
+/**
+ * Render exterior wall shadows that change throughout the day based on sun position
+ * Sea of Stars style - soft, atmospheric shadows throughout all time periods
+ * Despite the name, this renders EXTERIOR shadows, not interior ones
+ */
+export function renderWallInteriorShadow({
+  ctx,
+  wall,
+  worldScale,
+  cycleProgress,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  wall: any; // WallCell type
+  worldScale: number;
+  cycleProgress: number; // Day/night cycle progress (0.0 to 1.0)
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  if (wall.isDestroyed) {
+    return;
+  }
+
+  const { x: worldX, y: worldY } = cellToWorldPixels(wall.cellX, wall.cellY);
+  const screenX = worldX;
+  const screenY = worldY;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
+
+  // Determine shadow parameters based on time of day (Sea of Stars style)
+  let shouldCastShadow = false;
+  let shadowAlpha = 0.0;
+  let shadowDepth = screenSize * 0.6;
+  let shadowColor = { r: 0, g: 0, b: 0 }; // Can tint shadows based on time of day
+  let gradientStops = [0, 0.6, 1.0]; // Default gradient stops
+  
+  // Dawn (0.0 - 0.05): Very soft shadows, sun rising from east
+  if (cycleProgress >= 0.0 && cycleProgress < 0.05) {
+    shouldCastShadow = wall.edge === 3; // West walls cast long, soft shadows
+    shadowAlpha = 0.25 + (cycleProgress / 0.05) * 0.15; // 0.25 -> 0.40
+    shadowDepth = screenSize * (1.2 - (cycleProgress / 0.05) * 0.4); // 1.2 -> 0.8 (long to medium)
+    shadowColor = { r: 20, g: 10, b: 40 }; // Bluish-purple dawn shadows
+    gradientStops = [0, 0.7, 1.0]; // Softer falloff
+  }
+  // Morning (0.05 - 0.35): Sun in east, shadows cast west
+  else if (cycleProgress >= 0.05 && cycleProgress < 0.35) {
+    shouldCastShadow = wall.edge === 3; // West walls
+    const morningProgress = (cycleProgress - 0.05) / 0.30;
+    shadowAlpha = 0.40 + morningProgress * 0.10; // 0.40 -> 0.50
+    shadowDepth = screenSize * (0.8 - morningProgress * 0.1); // 0.8 -> 0.7
+    shadowColor = { r: 10, g: 5, b: 20 }; // Slight cool tint
+    gradientStops = [0, 0.65, 1.0];
+  }
+  // Noon (0.35 - 0.55): Sun overhead, short shadows from all sides
+  else if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+    shouldCastShadow = true; // All walls cast shadows
+    const noonProgress = (cycleProgress - 0.35) / 0.20;
+    const peakNoon = Math.abs(noonProgress - 0.5) * 2; // 0 at exact noon (0.45), 1 at edges
+    shadowAlpha = 0.20 + peakNoon * 0.05; // 0.20 at noon, 0.25 at edges
+    shadowDepth = screenSize * 0.4; // Very short shadows
+    shadowColor = { r: 0, g: 0, b: 0 }; // Pure black at noon
+    gradientStops = [0, 0.5, 1.0]; // Tight gradient
+  }
+  // Afternoon (0.55 - 0.72): Sun in west, shadows cast east
+  else if (cycleProgress >= 0.55 && cycleProgress < 0.72) {
+    shouldCastShadow = wall.edge === 1; // East walls
+    const afternoonProgress = (cycleProgress - 0.55) / 0.17;
+    shadowAlpha = 0.50 - afternoonProgress * 0.05; // 0.50 -> 0.45
+    shadowDepth = screenSize * (0.7 + afternoonProgress * 0.2); // 0.7 -> 0.9 (getting longer)
+    shadowColor = { r: 15, g: 10, b: 5 }; // Warm afternoon tint
+    gradientStops = [0, 0.65, 1.0];
+  }
+  // Dusk (0.72 - 0.76): Sun setting in west, long soft shadows
+  else if (cycleProgress >= 0.72 && cycleProgress < 0.76) {
+    shouldCastShadow = wall.edge === 1; // East walls cast long shadows
+    const duskProgress = (cycleProgress - 0.72) / 0.04;
+    shadowAlpha = 0.45 - duskProgress * 0.15; // 0.45 -> 0.30
+    shadowDepth = screenSize * (0.9 + duskProgress * 0.3); // 0.9 -> 1.2 (very long)
+    shadowColor = { r: 30, g: 15, b: 40 }; // Purple-orange dusk shadows
+    gradientStops = [0, 0.75, 1.0]; // Very soft falloff
+  }
+  // Twilight Evening (0.76 - 0.80): Ambient shadows, very soft
+  else if (cycleProgress >= 0.76 && cycleProgress < 0.80) {
+    shouldCastShadow = true; // All walls cast ambient shadows
+    const twilightProgress = (cycleProgress - 0.76) / 0.04;
+    shadowAlpha = 0.30 - twilightProgress * 0.15; // 0.30 -> 0.15
+    shadowDepth = screenSize * 0.5; // Medium, diffuse
+    shadowColor = { r: 10, g: 5, b: 30 }; // Deep blue twilight
+    gradientStops = [0, 0.8, 1.0]; // Very soft, ambient
+  }
+  // Night (0.80 - 0.92): Minimal ambient shadows
+  else if (cycleProgress >= 0.80 && cycleProgress < 0.92) {
+    shouldCastShadow = true; // Faint ambient shadows from all walls
+    shadowAlpha = 0.12; // Very faint
+    shadowDepth = screenSize * 0.3; // Short, diffuse
+    shadowColor = { r: 5, g: 5, b: 15 }; // Dark blue night
+    gradientStops = [0, 0.85, 1.0]; // Extremely soft, almost imperceptible
+  }
+  // Twilight Morning / Pre-Dawn (0.92 - 1.0): Starting to get directional
+  else if (cycleProgress >= 0.92 && cycleProgress <= 1.0) {
+    const preDawnProgress = (cycleProgress - 0.92) / 0.08;
+    shouldCastShadow = wall.edge === 3; // West walls start casting shadows
+    shadowAlpha = 0.12 + preDawnProgress * 0.13; // 0.12 -> 0.25
+    shadowDepth = screenSize * (0.5 + preDawnProgress * 0.7); // 0.5 -> 1.2
+    shadowColor = { r: 15, g: 8, b: 35 }; // Purple pre-dawn
+    gradientStops = [0, 0.8, 1.0]; // Soft
+  }
+  
+  if (!shouldCastShadow) {
+    return;
+  }
+
+  ctx.save();
+
+  // Helper to create AAA-style shadow with smooth fade
+  const createSoftShadow = (
+    x: number, y: number, width: number, height: number,
+    fadeDirection: 'north' | 'south' | 'east' | 'west'
+  ) => {
+    const { r, g, b } = shadowColor;
+    
+    // Create main linear gradient in the fade direction
+    let gradient: CanvasGradient;
+    if (fadeDirection === 'north' || fadeDirection === 'south') {
+      // Vertical fade
+      gradient = ctx.createLinearGradient(x, y + (fadeDirection === 'north' ? height : 0), x, y + (fadeDirection === 'north' ? 0 : height));
+    } else {
+      // Horizontal fade
+      gradient = ctx.createLinearGradient(x + (fadeDirection === 'west' ? width : 0), y, x + (fadeDirection === 'west' ? 0 : width), y);
+    }
+    
+    // Smooth multi-stop gradient for AAA quality
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${shadowAlpha})`); // Wall edge: Full intensity
+    gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.8})`); // Near wall
+    gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.4})`); // Mid fade
+    gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.1})`); // Soft fade
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`); // Edge: Fully transparent
+    
+    return gradient;
+  };
+
+  // Create shadow shape based on wall edge with smooth fade
+  // Shadow extends from wall edge OUTWARD onto the ground outside the building
+  switch (wall.edge) {
+    case 0: // North (top edge) - shadow extends north (upward/outward)
+      {
+        const shadowX = screenX;
+        const shadowY = screenY - shadowDepth;
+        const shadowWidth = screenSize;
+        const shadowHeight = shadowDepth;
+        
+        const gradient = createSoftShadow(shadowX, shadowY, shadowWidth, shadowHeight, 'north');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
+      }
+      break;
+      
+    case 1: // East (right edge) - shadow extends east (rightward/outward)
+      {
+        const shadowX = screenX + screenSize;
+        const shadowY = screenY;
+        const shadowWidth = shadowDepth;
+        const shadowHeight = screenSize;
+        
+        const gradient = createSoftShadow(shadowX, shadowY, shadowWidth, shadowHeight, 'east');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
+      }
+      break;
+      
+    case 2: // South (bottom edge) - shadow extends south (downward/outward)
+      {
+        const shadowX = screenX;
+        const shadowY = screenY + screenSize;
+        const shadowWidth = screenSize;
+        const shadowHeight = shadowDepth;
+        
+        const gradient = createSoftShadow(shadowX, shadowY, shadowWidth, shadowHeight, 'south');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
+      }
+      break;
+      
+    case 3: // West (left edge) - shadow extends west (leftward/outward)
+      {
+        const shadowX = screenX - shadowDepth;
+        const shadowY = screenY;
+        const shadowWidth = shadowDepth;
+        const shadowHeight = screenSize;
+        
+        const gradient = createSoftShadow(shadowX, shadowY, shadowWidth, shadowHeight, 'west');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
+      }
+      break;
+      
+    case 4: // DiagNE_SW
+    case 5: // DiagNW_SE
+      // For diagonal walls, create a shadow along the diagonal edge extending outward
+      {
+        const centerX = screenX + screenSize / 2;
+        const centerY = screenY + screenSize / 2;
+        const angle = wall.edge === 4 ? Math.PI / 4 : -Math.PI / 4;
+        
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle);
+        
+        // Create a shadow strip along the diagonal extending outward
+        const stripWidth = Math.sqrt(screenSize * screenSize * 2); // Diagonal length
+        const stripHeight = shadowDepth;
+        
+        // Create gradient perpendicular to the diagonal, extending outward
+        const { r, g, b } = shadowColor;
+        const gradient = ctx.createLinearGradient(
+          -stripWidth / 2, -stripHeight / 2, // Edge (wall)
+          -stripWidth / 2, -stripHeight / 2 - stripHeight // Exterior
+        );
+        
+        // Smooth multi-stop gradient
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${shadowAlpha})`);
+        gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.8})`);
+        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.4})`);
+        gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, ${shadowAlpha * 0.1})`);
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(-stripWidth / 2, -stripHeight / 2 - stripHeight, stripWidth, stripHeight);
+        ctx.restore();
+      }
+      break;
+  }
+
   ctx.restore();
 }
 
@@ -863,15 +1587,16 @@ export function renderWallPreview({
   let wallHeight = WALL_THICKNESS;
   let isDiagonal = edge === 4 || edge === 5;
   
-  // For north/south walls in isometric view, make them taller (1 tile tall) to render above players
-  const PREVIEW_NORTH_SOUTH_WALL_HEIGHT = screenSize; // 1 tile tall for isometric depth
+  // Perspective correction: North walls (away from viewer) appear shorter than south walls (closer to viewer)
+  const PREVIEW_NORTH_WALL_HEIGHT = screenSize * 0.75; // 0.75 tiles tall (away from viewer, foreshortened)
+  const PREVIEW_SOUTH_WALL_HEIGHT = screenSize; // 1 tile tall (closer to viewer, full height)
   
   switch (edge) {
-    case 0: // North (top edge) - extend upward for isometric depth
+    case 0: // North (top edge) - extend upward for isometric depth (SHORTER due to perspective)
       wallX = screenX;
-      wallY = screenY - PREVIEW_NORTH_SOUTH_WALL_HEIGHT + WALL_THICKNESS / 2; // Extend upward
+      wallY = screenY - PREVIEW_NORTH_WALL_HEIGHT + WALL_THICKNESS / 2; // Extend upward (shorter)
       wallWidth = screenSize;
-      wallHeight = PREVIEW_NORTH_SOUTH_WALL_HEIGHT;
+      wallHeight = PREVIEW_NORTH_WALL_HEIGHT;
       break;
     case 1: // East (right edge) - center on edge (half inside, half outside)
       wallX = screenX + screenSize - EAST_WEST_WALL_THICKNESS / 2;
@@ -879,12 +1604,12 @@ export function renderWallPreview({
       wallWidth = EAST_WEST_WALL_THICKNESS;
       wallHeight = screenSize;
       break;
-    case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth
+    case 2: // South (bottom edge) - extend upward from bottom edge for isometric depth (TALLER as closer to viewer)
       wallX = screenX;
       // Start at bottom edge and extend UPWARD (negative Y direction for isometric depth)
-      wallY = screenY + screenSize - PREVIEW_NORTH_SOUTH_WALL_HEIGHT; // Bottom edge minus wall height
+      wallY = screenY + screenSize - PREVIEW_SOUTH_WALL_HEIGHT; // Bottom edge minus wall height
       wallWidth = screenSize;
-      wallHeight = PREVIEW_NORTH_SOUTH_WALL_HEIGHT;
+      wallHeight = PREVIEW_SOUTH_WALL_HEIGHT;
       break;
     case 3: // West (left edge) - center on edge (half inside, half outside)
       wallX = screenX - EAST_WEST_WALL_THICKNESS / 2;
@@ -903,7 +1628,9 @@ export function renderWallPreview({
   ctx.save();
   
   // Get wall tile image for wall preview texture
-  const wallFilename = getWallTileFilename(tier);
+  // North walls (edge 0) show the interior side since they're away from the viewer
+  const isNorthWallPreview = edge === 0;
+  const wallFilename = getWallTileFilename(tier, isNorthWallPreview);
   const wallImage = foundationTileImagesRef?.current?.get(wallFilename);
   
   // Apply clipping for triangle foundations
@@ -964,13 +1691,20 @@ export function renderWallPreview({
     // Draw rectangular wall preview
     if (wallImage && wallImage.complete && wallImage.naturalHeight !== 0) {
       // Draw a portion of the wall tile image for the wall preview
-      if (edge === 0 || edge === 2) {
-        // Horizontal wall - draw horizontal strip from tile
-        const sourceY = edge === 0 ? 0 : wallImage.height - WALL_THICKNESS / worldScale;
+      if (edge === 0) {
+        // North wall - use only TOP 3/4 of texture (cropped, not stretched)
+        // Simply crop to top 3/4 and draw at wall dimensions
         ctx.drawImage(
           wallImage,
-          0, sourceY, wallImage.width, WALL_THICKNESS / worldScale, // Source
-          wallX, wallY, wallWidth, wallHeight // Destination
+          0, 0, wallImage.width, wallImage.height * 0.75, // Source: TOP 3/4 of texture
+          wallX, wallY, wallWidth, wallHeight // Destination: wall dimensions
+        );
+      } else if (edge === 2) {
+        // South wall - use full texture for full height
+        ctx.drawImage(
+          wallImage,
+          0, 0, wallImage.width, wallImage.height, // Source: full texture
+          wallX, wallY, wallWidth, wallHeight // Destination: full wall
         );
       } else {
         // Vertical wall - draw vertical strip from tile
