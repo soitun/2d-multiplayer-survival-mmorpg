@@ -858,7 +858,11 @@ pub fn find_targets_in_cone(
     }
     
     // Check walls (can be directly targeted)
+    // Walls require closer range than other targets - use shorter range for melee attacks
     use crate::building::{wall_cell, FOUNDATION_TILE_SIZE_PX};
+    const WALL_ATTACK_RANGE: f32 = 80.0; // Walls can only be hit when very close (80px)
+    const WALL_ATTACK_RANGE_SQ: f32 = WALL_ATTACK_RANGE * WALL_ATTACK_RANGE;
+    
     for wall in ctx.db.wall_cell().iter() {
         if wall.is_destroyed {
             continue;
@@ -872,7 +876,8 @@ pub fn find_targets_in_cone(
         let dy = wall_world_y - player.position_y;
         let dist_sq = dx * dx + dy * dy;
         
-        if dist_sq < (attack_range * attack_range) && dist_sq > 0.0 {
+        // Use shorter range for walls - must be very close to hit
+        if dist_sq < WALL_ATTACK_RANGE_SQ && dist_sq > 0.0 {
             let distance = dist_sq.sqrt();
             let target_vec_x = dx / distance;
             let target_vec_y = dy / distance;
@@ -2457,6 +2462,27 @@ pub fn process_attack(
             attacker_id, wall_id
         );
         
+        // Check if attacker is using repair hammer - repair instead of damage
+        if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+            if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+                if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+                    if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+                        if crate::repair::is_repair_hammer(&item_def) {
+                            // Use repair instead of damage
+                            let (damage, _, _) = calculate_damage_and_yield(&item_def, TargetType::Wall, rng);
+                            match crate::repair::repair_wall(ctx, attacker_id, wall_id, damage, timestamp) {
+                                Ok(result) => return Ok(result),
+                                Err(e) => {
+                                    log::error!("[ProcessAttack] Error repairing Wall {}: {}", wall_id, e);
+                                    // Fall through to block attack even if repair failed
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         // Calculate damage for the wall
         let (damage, _, _) = calculate_damage_and_yield(item_def, TargetType::Wall, rng);
         
@@ -2600,6 +2626,20 @@ pub fn process_attack(
                 })
         },
         TargetId::Wall(wall_id) => {
+            // Direct wall attack - check if repair hammer first
+            if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+                if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+                    if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+                        if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+                            if crate::repair::is_repair_hammer(&item_def) {
+                                // Use repair instead of damage
+                                return crate::repair::repair_wall(ctx, attacker_id, *wall_id, damage, timestamp);
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Direct wall attack - damage the targeted wall
             crate::building::damage_wall(ctx, attacker_id, *wall_id, damage, timestamp)
                 .map(|_| AttackResult {

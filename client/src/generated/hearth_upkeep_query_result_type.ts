@@ -36,6 +36,7 @@ export type HearthUpkeepQueryResult = {
   availableWood: number,
   availableStone: number,
   availableMetal: number,
+  estimatedDecayHours: number | undefined,
   lastUpdated: __Timestamp,
 };
 let _cached_HearthUpkeepQueryResult_type_value: __AlgebraicTypeType | null = null;
@@ -59,6 +60,7 @@ export const HearthUpkeepQueryResult = {
       { name: "availableWood", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "availableStone", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "availableMetal", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "estimatedDecayHours", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "lastUpdated", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );
     return _cached_HearthUpkeepQueryResult_type_value;

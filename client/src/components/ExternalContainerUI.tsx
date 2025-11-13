@@ -40,6 +40,58 @@ import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPer
 import { useContainer } from '../hooks/useContainer';
 import { ContainerType, isFuelContainer, getContainerConfig } from '../utils/containerUtils';
 
+// Helper function to format decay time estimate
+function formatDecayTime(hours: number): string {
+    if (hours < 1) {
+        const minutes = Math.round(hours * 60);
+        return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    } else if (hours < 24) {
+        const wholeHours = Math.floor(hours);
+        const minutes = Math.round((hours - wholeHours) * 60);
+        if (minutes > 0) {
+            return `${wholeHours}h ${minutes}m`;
+        }
+        return `${wholeHours} hour${wholeHours !== 1 ? 's' : ''}`;
+    } else {
+        const days = Math.floor(hours / 24);
+        const remainingHours = Math.floor(hours % 24);
+        if (remainingHours > 0) {
+            return `${days} day${days !== 1 ? 's' : ''} ${remainingHours}h`;
+        }
+        return `${days} day${days !== 1 ? 's' : ''}`;
+    }
+}
+
+// Helper function to calculate how long resources will last
+function calculateResourceDuration(upkeepCosts: {
+    requiredWood: number;
+    requiredStone: number;
+    requiredMetal: number;
+    availableWood: number;
+    availableStone: number;
+    availableMetal: number;
+}): string {
+    // Calculate hours each resource type will last (infinity if not required)
+    const woodHours = upkeepCosts.requiredWood > 0 
+        ? upkeepCosts.availableWood / upkeepCosts.requiredWood 
+        : Infinity;
+    const stoneHours = upkeepCosts.requiredStone > 0 
+        ? upkeepCosts.availableStone / upkeepCosts.requiredStone 
+        : Infinity;
+    const metalHours = upkeepCosts.requiredMetal > 0 
+        ? upkeepCosts.availableMetal / upkeepCosts.requiredMetal 
+        : Infinity;
+    
+    // The shortest duration determines when resources run out
+    const shortestDuration = Math.min(woodHours, stoneHours, metalHours);
+    
+    if (!isFinite(shortestDuration)) {
+        return "indefinitely (no upkeep required)";
+    }
+    
+    return formatDecayTime(shortestDuration);
+}
+
 interface ExternalContainerUIProps {
     interactionTarget: InteractionTarget;
     inventoryItems: Map<string, InventoryItem>;
@@ -443,6 +495,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         availableWood: number;
         availableStone: number;
         availableMetal: number;
+        estimatedDecayHours: number | null | undefined; // Estimated hours until first building decays
     } | null>(null);
 
     // Query upkeep costs when chest is opened - subscribe to table instead of reducer callback
@@ -461,28 +514,22 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             return;
         }
 
-        // Call reducer to trigger update (reducer updates the table)
-        if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function') {
-            connection.reducers.queryHearthUpkeepCosts(hearthId);
-        }
-
-        // Subscribe to table updates - use useCallback pattern to prevent recreating on every render
-        const handleUpkeepUpdate = (ctx: any, result: HearthUpkeepQueryResult) => {
-            if (result.hearthId === hearthId) {
-                setUpkeepCosts({
-                    requiredWood: result.requiredWood,
-                    requiredStone: result.requiredStone,
-                    requiredMetal: result.requiredMetal,
-                    availableWood: result.availableWood,
-                    availableStone: result.availableStone,
-                    availableMetal: result.availableMetal,
-                });
-            }
-        };
-
-        // Check for existing result (only once on mount, not on every render)
+        // Check for existing result first (may already be cached)
         const existingResult = connection.db?.hearthUpkeepQueryResult?.hearthId?.find(hearthId);
+        console.log('[Upkeep] Checking for existing result:', { 
+            hearthId, 
+            hasExistingResult: !!existingResult,
+            existingResult: existingResult ? {
+                requiredWood: existingResult.requiredWood,
+                requiredStone: existingResult.requiredStone,
+                requiredMetal: existingResult.requiredMetal,
+                availableWood: existingResult.availableWood,
+                availableStone: existingResult.availableStone,
+                availableMetal: existingResult.availableMetal,
+            } : null
+        });
         if (existingResult) {
+            console.log('[Upkeep] Found existing result, setting state');
             setUpkeepCosts({
                 requiredWood: existingResult.requiredWood,
                 requiredStone: existingResult.requiredStone,
@@ -490,30 +537,143 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 availableWood: existingResult.availableWood,
                 availableStone: existingResult.availableStone,
                 availableMetal: existingResult.availableMetal,
+                estimatedDecayHours: (existingResult as any).estimatedDecayHours ?? null,
             });
+        } else {
+            // Show loading state if no cached result
+            console.log('[Upkeep] No existing result found, showing loading state');
+            setUpkeepCosts(null);
         }
 
+        // Subscribe to table updates - use useCallback pattern to prevent recreating on every render
+        const handleUpkeepUpdate = (ctx: any, result: HearthUpkeepQueryResult) => {
+            console.log('[Upkeep] Table update received:', { 
+                resultHearthId: result.hearthId, 
+                expectedHearthId: hearthId, 
+                match: result.hearthId === hearthId,
+                data: {
+                    requiredWood: result.requiredWood,
+                    requiredStone: result.requiredStone,
+                    requiredMetal: result.requiredMetal,
+                    availableWood: result.availableWood,
+                    availableStone: result.availableStone,
+                    availableMetal: result.availableMetal,
+                }
+            });
+            if (result.hearthId === hearthId) {
+                console.log('[Upkeep] Setting upkeep costs state');
+                setUpkeepCosts({
+                    requiredWood: result.requiredWood,
+                    requiredStone: result.requiredStone,
+                    requiredMetal: result.requiredMetal,
+                    availableWood: result.availableWood,
+                    availableStone: result.availableStone,
+                    availableMetal: result.availableMetal,
+                    estimatedDecayHours: (result as any).estimatedDecayHours ?? null,
+                });
+            } else {
+                console.log('[Upkeep] Hearth ID mismatch, ignoring update');
+            }
+        };
+
         // Register callbacks for table updates
+        let subscriptionHandle: any = null;
+        let interval: NodeJS.Timeout | null = null;
+        
         if (connection.db?.hearthUpkeepQueryResult) {
             connection.db.hearthUpkeepQueryResult.onInsert(handleUpkeepUpdate);
             connection.db.hearthUpkeepQueryResult.onUpdate(handleUpkeepUpdate);
             
-            // Refresh every 5 seconds by calling reducer again
-            const interval = setInterval(() => {
-                if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function' && hearthId !== null && hearthId !== undefined) {
-                    connection.reducers.queryHearthUpkeepCosts(hearthId);
-                }
-            }, 5000);
+            // Subscribe to the table to receive updates (callbacks only fire for subscribed tables)
+            try {
+                subscriptionHandle = connection
+                    .subscriptionBuilder()
+                    .onError((err: any) => console.error('[Upkeep] Subscription error:', err))
+                    .subscribe([`SELECT * FROM hearth_upkeep_query_result WHERE hearth_id = ${hearthId}`]);
+                console.log('[Upkeep] Subscribed to upkeep query result table for hearth', hearthId);
+            } catch (error) {
+                console.error('[Upkeep] Failed to subscribe to upkeep query result table:', error);
+            }
             
-            return () => {
-                clearInterval(interval);
-                if (connection.db?.hearthUpkeepQueryResult) {
-                    connection.db.hearthUpkeepQueryResult.removeOnInsert(handleUpkeepUpdate);
-                    connection.db.hearthUpkeepQueryResult.removeOnUpdate(handleUpkeepUpdate);
+            // Call reducer to trigger update (reducer updates the table)
+            // Add error handling via reducer callback
+            const handleQueryError = (ctx: any, hearthIdParam: number) => {
+                if (hearthIdParam === hearthId) {
+                    // Check reducer event status
+                    if (ctx.event?.status?.tag === 'Failed') {
+                        const errorMsg = ctx.event.status.value || 'Failed to query upkeep costs';
+                        console.error('[Upkeep] Failed to query upkeep costs for hearth', hearthIdParam, ':', errorMsg);
+                        // Log the error but don't clear existing state - keep showing last known values
+                    } else if (ctx.event?.status?.tag === 'Committed') {
+                        console.log('[Upkeep] Successfully queried upkeep costs for hearth', hearthIdParam);
+                        // Manually check the table after reducer commits (table update callback may not fire immediately)
+                        setTimeout(() => {
+                                const result = connection.db?.hearthUpkeepQueryResult?.hearthId?.find(hearthId);
+                            if (result) {
+                                console.log('[Upkeep] Manually reading table after reducer commit:', result);
+                                setUpkeepCosts({
+                                    requiredWood: result.requiredWood,
+                                    requiredStone: result.requiredStone,
+                                    requiredMetal: result.requiredMetal,
+                                    availableWood: result.availableWood,
+                                    availableStone: result.availableStone,
+                                    availableMetal: result.availableMetal,
+                                    estimatedDecayHours: (result as any).estimatedDecayHours ?? null,
+                                });
+                            } else {
+                                console.warn('[Upkeep] Reducer committed but table result not found yet');
+                            }
+                        }, 100); // Small delay to allow table update to propagate
+                    }
                 }
             };
+            
+            if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function') {
+                // Register error callback
+                connection.reducers.onQueryHearthUpkeepCosts(handleQueryError);
+                
+                // Call reducer to trigger update
+                try {
+                    connection.reducers.queryHearthUpkeepCosts(hearthId);
+                } catch (error) {
+                    console.error('[Upkeep] Error calling queryHearthUpkeepCosts:', error);
+                }
+            }
+            
+            // Refresh every 5 seconds by calling reducer again
+            interval = setInterval(() => {
+                if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function' && hearthId !== null && hearthId !== undefined) {
+                    try {
+                        connection.reducers.queryHearthUpkeepCosts(hearthId);
+                    } catch (error) {
+                        console.error('[Upkeep] Error refreshing upkeep costs:', error);
+                    }
+                }
+            }, 5000);
         }
-    }, [container.containerType, container.containerEntity, container.containerId]); // Removed 'connection' to prevent infinite loops
+        
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+            if (subscriptionHandle) {
+                try {
+                    subscriptionHandle.unsubscribe?.();
+                    console.log('[Upkeep] Unsubscribed from upkeep query result table');
+                } catch (error) {
+                    console.error('[Upkeep] Error unsubscribing:', error);
+                }
+            }
+            if (connection?.db?.hearthUpkeepQueryResult) {
+                connection.db.hearthUpkeepQueryResult.removeOnInsert(handleUpkeepUpdate);
+                connection.db.hearthUpkeepQueryResult.removeOnUpdate(handleUpkeepUpdate);
+            }
+            if (connection?.reducers && typeof connection.reducers.removeOnQueryHearthUpkeepCosts === 'function') {
+                // Note: handleQueryError is defined inside the if block, so we can't remove it here
+                // This is okay - the cleanup will happen when the component unmounts
+            }
+        };
+    }, [container.containerType, container.containerEntity, container.containerId, connection]);
 
     // Special lantern toggle handler (light/extinguish instead of toggle)
     const handleLanternToggle = useCallback(() => {
@@ -672,14 +832,6 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 {currentPlayerHasPrivilege ? 'Revoke Building Privilege' : 'Grant Building Privilege'}
                             </button>
                             
-                            <div style={{ 
-                                marginTop: '6px', 
-                                fontSize: '10px', 
-                                color: '#87CEEB', 
-                                fontStyle: 'italic'
-                            }}>
-                                💡 Hold E near chest to toggle privilege
-                            </div>
                         </div>
 
                         {/* Upkeep UI */}
@@ -726,31 +878,51 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                             ✓ No upkeep required (only twig buildings)
                                         </div>
                                     ) : (
-                                        <div style={{ 
-                                            fontSize: '11px', 
-                                            color: (upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
-                                                   upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
-                                                   upkeepCosts.availableMetal >= upkeepCosts.requiredMetal) 
-                                                ? '#00ff88' : '#ff4444',
-                                            fontWeight: 'bold',
-                                            marginTop: '4px'
-                                        }}>
-                                            {(upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
-                                              upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
-                                              upkeepCosts.availableMetal >= upkeepCosts.requiredMetal) 
-                                                ? '✓ Buildings Protected' 
-                                                : '⚠️ Insufficient Resources - Buildings Will Decay'}
-                                        </div>
+                                        <>
+                                            <div style={{ 
+                                                fontSize: '11px', 
+                                                color: (upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
+                                                       upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
+                                                       upkeepCosts.availableMetal >= upkeepCosts.requiredMetal) 
+                                                    ? '#00ff88' : '#ff4444',
+                                                fontWeight: 'bold',
+                                                marginTop: '4px'
+                                            }}>
+                                                {(upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
+                                                  upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
+                                                  upkeepCosts.availableMetal >= upkeepCosts.requiredMetal) 
+                                                    ? '✓ Buildings Protected' 
+                                                    : '⚠️ Insufficient Resources - Buildings Will Decay'}
+                                            </div>
+                                            
+                                            {/* Show time estimate - resource duration when protected, decay time when unprotected */}
+                                            {upkeepCosts.estimatedDecayHours !== null && 
+                                             upkeepCosts.estimatedDecayHours !== undefined && (
+                                                <div style={{ 
+                                                    fontSize: '12px', 
+                                                    color: (upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
+                                                           upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
+                                                           upkeepCosts.availableMetal >= upkeepCosts.requiredMetal)
+                                                        ? '#87CEEB' : '#ffaa44',
+                                                    marginTop: '4px',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    {(upkeepCosts.availableWood >= upkeepCosts.requiredWood && 
+                                                      upkeepCosts.availableStone >= upkeepCosts.requiredStone && 
+                                                      upkeepCosts.availableMetal >= upkeepCosts.requiredMetal) ? (
+                                                        <>
+                                                            ⏱️ Resources will last: {calculateResourceDuration(upkeepCosts)}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            ⏱️ Buildings will decay in: {formatDecayTime(upkeepCosts.estimatedDecayHours)}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
-                                    
-                                    <div style={{ 
-                                        marginTop: '6px', 
-                                        fontSize: '10px', 
-                                        color: '#87CEEB', 
-                                        fontStyle: 'italic'
-                                    }}>
-                                        💡 Resources consumed every hour. Deposit wood, stone, or metal to maintain buildings.
-                                    </div>
+                                   
                                 </>
                             ) : (
                                 <div style={{ fontSize: '11px', color: '#aaaaaa', fontStyle: 'italic' }}>

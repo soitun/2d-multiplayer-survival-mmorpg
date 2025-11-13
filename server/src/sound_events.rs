@@ -53,6 +53,7 @@ pub enum SoundType {
     FoundationMetalUpgraded,   // foundation_metal_upgraded.mp3 (1 variation - when foundation upgraded to metal)
     FoundationTwigDestroyed,   // twig_foundation_destroyed.mp3 (1 variation - when twig foundation is destroyed)
     ItemThrown,                // item_thrown.mp3 (1 variation - when a weapon/item is thrown)
+    ErrorResources,           // error_resources.mp3 (1 variation - when player doesn't have enough resources)
     // Add more as needed - extensible system
 }
 
@@ -106,6 +107,7 @@ impl SoundType {
             SoundType::FoundationMetalUpgraded => "foundation_metal_upgraded",
             SoundType::FoundationTwigDestroyed => "twig_foundation_destroyed",
             SoundType::ItemThrown => "item_thrown",
+            SoundType::ErrorResources => "error_resources",
         }
     }
 
@@ -158,6 +160,7 @@ impl SoundType {
             SoundType::FoundationMetalUpgraded => 1,
             SoundType::FoundationTwigDestroyed => 1,
             SoundType::ItemThrown => 1,
+            SoundType::ErrorResources => 3, // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
         }
     }
 
@@ -455,6 +458,11 @@ pub fn emit_repair_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id
 /// Emit repair failure sound (when repair fails due to insufficient resources, etc.)
 pub fn emit_repair_fail_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::RepairFail, pos_x, pos_y, 1.0, 525.0, player_id);
+}
+
+/// Emit resource error sound (when player doesn't have enough resources for building/upgrading)
+pub fn emit_error_resources_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::ErrorResources, pos_x, pos_y, 1.0, 525.0, player_id);
 }
 
 /// Emit a melee hit sharp sound (for stone hatchet, stone pickaxe hitting players/corpses)

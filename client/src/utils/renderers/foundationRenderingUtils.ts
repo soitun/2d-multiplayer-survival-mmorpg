@@ -1975,18 +1975,44 @@ export function renderWall({
     if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
       const healthPercentage = Math.max(0, wall.health / wall.maxHealth);
       
-      // Calculate wall center position for health bar
-      // Use the foundation cell center as reference
-      const wallCenterX = screenX + screenSize / 2;
-      const wallCenterY = screenY + screenSize / 2;
+      // Calculate health bar position based on wall edge - position it close to the actual wall
+      // Use the same constants as wall rendering
+      const WALL_THICKNESS = 4 * worldScale;
+      const EAST_WEST_WALL_THICKNESS = 12 * worldScale;
+      const NORTH_WALL_HEIGHT = screenSize * 1.0;
+      const SOUTH_WALL_HEIGHT = screenSize;
       
-      // Position health bar above the wall (or below for north walls)
-      // For north walls (edge 0), position below since they extend upward
-      // For other walls, position above
-      const barOuterX = wallCenterX - HEALTH_BAR_WIDTH / 2;
-      const barOuterY = wall.edge === 0 
-        ? screenY + screenSize + HEALTH_BAR_Y_OFFSET  // Below for north walls
-        : screenY - HEALTH_BAR_Y_OFFSET - HEALTH_BAR_HEIGHT; // Above for other walls
+      let barOuterX: number;
+      let barOuterY: number;
+      
+      switch (wall.edge) {
+        case 0: // North wall - position at top edge of wall
+          barOuterX = screenX + screenSize / 2 - HEALTH_BAR_WIDTH / 2;
+          barOuterY = screenY - NORTH_WALL_HEIGHT + WALL_THICKNESS / 2 - HEALTH_BAR_Y_OFFSET - HEALTH_BAR_HEIGHT;
+          break;
+        case 1: // East wall - position at right edge
+          barOuterX = screenX + screenSize - EAST_WEST_WALL_THICKNESS / 2 + HEALTH_BAR_Y_OFFSET;
+          barOuterY = screenY + screenSize / 2 - HEALTH_BAR_HEIGHT / 2;
+          break;
+        case 2: // South wall - position at bottom edge
+          barOuterX = screenX + screenSize / 2 - HEALTH_BAR_WIDTH / 2;
+          barOuterY = screenY + screenSize - SOUTH_WALL_HEIGHT + HEALTH_BAR_Y_OFFSET;
+          break;
+        case 3: // West wall - position at left edge
+          barOuterX = screenX - EAST_WEST_WALL_THICKNESS / 2 - HEALTH_BAR_Y_OFFSET - HEALTH_BAR_WIDTH;
+          barOuterY = screenY + screenSize / 2 - HEALTH_BAR_HEIGHT / 2;
+          break;
+        case 4: // DiagNE_SW
+        case 5: // DiagNW_SE
+          // For diagonal walls, position at center
+          barOuterX = screenX + screenSize / 2 - HEALTH_BAR_WIDTH / 2;
+          barOuterY = screenY + screenSize / 2 - HEALTH_BAR_Y_OFFSET - HEALTH_BAR_HEIGHT;
+          break;
+        default:
+          // Fallback to center
+          barOuterX = screenX + screenSize / 2 - HEALTH_BAR_WIDTH / 2;
+          barOuterY = screenY + screenSize / 2 - HEALTH_BAR_Y_OFFSET - HEALTH_BAR_HEIGHT;
+      }
       
       const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
       const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2)); // Fade out faster at the end

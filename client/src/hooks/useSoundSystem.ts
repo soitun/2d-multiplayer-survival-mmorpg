@@ -77,6 +77,7 @@ const SOUND_DEFINITIONS = {
     twig_foundation_destroyed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Twig foundation destroyed sound
     // Building sounds - immediate (local feedback)
     construction_placement_error: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation placement error sound
+    error_resources: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Resource error sound (client-side immediate for instant feedback)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -493,6 +494,8 @@ const playLocalSound = async (
                 variationCount = 1; // repair.mp3
             } else if (soundType === 'repair_fail') {
                 variationCount = 1; // repair_fail.mp3
+            } else if (soundType === 'error_resources') {
+                variationCount = 3; // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
             } else if (soundType === 'throwing_up') {
                 variationCount = 1; // throwing_up.mp3
             } else if (soundType === 'eating_food') {
@@ -907,8 +910,29 @@ export const useSoundSystem = ({
             processedSoundEventsRef.current.add(eventId);
             
             // Skip our own sounds if they use PREDICT_CONFIRM strategy
-            const soundType = soundEvent.filename.replace(/\d*\.mp3$/, '') as SoundType;
+            // Extract sound type from filename (fallback) or use soundType field if available
+            let soundType: SoundType;
+            if (soundEvent.soundType && typeof soundEvent.soundType === 'object' && 'tag' in soundEvent.soundType) {
+                // Convert enum tag to filename format (e.g., "ErrorResources" -> "error_resources")
+                const tag = (soundEvent.soundType as any).tag;
+                soundType = tag.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') as SoundType;
+            } else {
+                // Fallback: extract from filename
+                soundType = soundEvent.filename.replace(/\d*\.mp3$/, '') as SoundType;
+            }
             const definition = SOUND_DEFINITIONS[soundType];
+            
+            // Debug logging for error_resources sounds
+            if (soundType === 'error_resources' || (soundEvent.soundType && typeof soundEvent.soundType === 'object' && (soundEvent.soundType as any).tag === 'ErrorResources')) {
+                console.log('[SoundSystem] Processing error_resources sound:', { 
+                    filename: soundEvent.filename, 
+                    soundType: soundEvent.soundType,
+                    extractedType: soundType,
+                    definition: definition,
+                    posX: soundEvent.posX,
+                    posY: soundEvent.posY
+                });
+            }
             
             // Special handling for stop_bandaging
             if (soundType === 'stop_bandaging') {

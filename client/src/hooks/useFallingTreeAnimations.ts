@@ -4,8 +4,10 @@ import { Tree } from '../generated';
 /**
  * Configuration for falling tree animations
  */
-const TREE_FALL_DURATION_MS = 5000; // 5 seconds to match tree_falling.mp3 sound
-const CLEANUP_DELAY_MS = 200; // Quicker cleanup (reduced from 500ms)
+const TREE_FALL_DURATION_MS = 2500; // 2.5 seconds - matches tree falling sound duration
+const POST_FALL_DISAPPEAR_DELAY_MS = 1500; // 1.5 seconds - tree disappears from canvas after fall completes
+const CANVAS_VISIBILITY_DURATION_MS = TREE_FALL_DURATION_MS + POST_FALL_DISAPPEAR_DELAY_MS; // Total: 4 seconds (2.5s fall + 1.5s delay)
+const CLEANUP_DELAY_MS = 100; // Quick cleanup delay
 
 /**
  * Represents a tree that is currently falling
@@ -95,8 +97,8 @@ export function useFallingTreeAnimations(trees: Map<string, Tree>) {
         }
       });
 
-      // Clean up old falling animations that have completed
-      const animationEndTime = now - TREE_FALL_DURATION_MS - CLEANUP_DELAY_MS;
+      // Clean up old falling animations that have completed (after canvas visibility + cleanup delay)
+      const animationEndTime = now - CANVAS_VISIBILITY_DURATION_MS - CLEANUP_DELAY_MS;
       newFallingTrees.forEach((fallingTree, treeId) => {
         if (fallingTree.startTime < animationEndTime) {
           console.log(`[FallingTree] Cleaning up completed animation for tree ${treeId}`);
@@ -113,12 +115,14 @@ export function useFallingTreeAnimations(trees: Map<string, Tree>) {
 
   /**
    * Get the current fall progress for a tree (0.0 = upright, 1.0 = fully fallen)
+   * Progress is calculated based on fall duration (matches sound), not canvas visibility
    */
   const getFallProgress = useCallback((treeId: string): number => {
     const fallingTree = fallingTrees.get(treeId);
     if (!fallingTree) return 0;
 
     const elapsed = Date.now() - fallingTree.startTime;
+    // Use fall duration for animation progress (matches sound duration)
     const progress = Math.min(elapsed / TREE_FALL_DURATION_MS, 1.0);
     
     // Ease-in-out for more natural fall
@@ -128,10 +132,17 @@ export function useFallingTreeAnimations(trees: Map<string, Tree>) {
   }, [fallingTrees]);
 
   /**
-   * Check if a tree is currently falling
+   * Check if a tree is currently falling and should be rendered on canvas
+   * Returns false after fall completes + delay (tree removed from canvas 1.5s after fall)
+   * Animation state is kept until full duration for cleanup
    */
   const isTreeFalling = useCallback((treeId: string): boolean => {
-    return fallingTrees.has(treeId);
+    const fallingTree = fallingTrees.get(treeId);
+    if (!fallingTree) return false;
+    
+    const elapsed = Date.now() - fallingTree.startTime;
+    // Render on canvas during fall (2.5s) + delay after fall completes (1.5s) = 4s total
+    return elapsed < CANVAS_VISIBILITY_DURATION_MS;
   }, [fallingTrees]);
 
   /**

@@ -152,7 +152,7 @@ const ALLOWED_ITEM_NAMES: &[&str] = &[
     "Stone",
     "Metal Fragments",
     "Cloth",
-    "Fiber",
+    "Plant Fiber", // Changed from "Fiber" to "Plant Fiber"
     "Coal",
     "Bone Fragments",
     "Animal Fat",
@@ -356,6 +356,86 @@ pub(crate) fn find_connected_foundations(
     connected
 }
 
+/// Calculate estimated decay time in hours for connected buildings
+/// Always calculates decay time based on building health, regardless of protection status
+pub fn calculate_estimated_decay_time(
+    ctx: &ReducerContext,
+    hearth: &HomesteadHearth,
+) -> Option<f32> {
+    use crate::building::{FoundationCell, WallCell};
+    use crate::building_decay::{get_decay_damage_per_interval, DECAY_PROCESS_INTERVAL_SECONDS};
+    
+    // Find the foundation the hearth is on
+    let hearth_foundation = match find_hearth_foundation(ctx, hearth) {
+        Some(foundation) => foundation,
+        None => return None, // No foundation = no buildings to decay
+    };
+    
+    // Find all connected foundations
+    let connected_foundations = find_connected_foundations(ctx, &hearth_foundation);
+    
+    // Calculate decay rates per hour (convert from per-interval to per-hour)
+    // Decay processes every 5 minutes (300 seconds), so multiply by 12 to get per-hour rate
+    let intervals_per_hour = 3600.0 / (DECAY_PROCESS_INTERVAL_SECONDS as f32);
+    
+    let mut shortest_decay_time: Option<f32> = None;
+    
+    // Check foundations
+    for foundation in &connected_foundations {
+        if foundation.is_destroyed || foundation.tier == 0 {
+            continue; // Twig doesn't decay
+        }
+        
+        let decay_per_interval = get_decay_damage_per_interval(foundation.tier);
+        if decay_per_interval <= 0.0 {
+            continue;
+        }
+        
+        let decay_per_hour = decay_per_interval * intervals_per_hour;
+        let hours_until_decay = foundation.health / decay_per_hour;
+        
+        shortest_decay_time = Some(
+            shortest_decay_time
+                .map(|t| t.min(hours_until_decay))
+                .unwrap_or(hours_until_decay)
+        );
+    }
+    
+    // Check walls
+    let walls = ctx.db.wall_cell();
+    let foundation_cells: std::collections::HashSet<(i32, i32)> = connected_foundations
+        .iter()
+        .map(|f| (f.cell_x, f.cell_y))
+        .collect();
+    
+    for wall in walls.iter() {
+        if wall.is_destroyed || wall.tier == 0 {
+            continue;
+        }
+        
+        // Check if wall is on a connected foundation
+        if !foundation_cells.contains(&(wall.cell_x, wall.cell_y)) {
+            continue;
+        }
+        
+        let decay_per_interval = get_decay_damage_per_interval(wall.tier);
+        if decay_per_interval <= 0.0 {
+            continue;
+        }
+        
+        let decay_per_hour = decay_per_interval * intervals_per_hour;
+        let hours_until_decay = wall.health / decay_per_hour;
+        
+        shortest_decay_time = Some(
+            shortest_decay_time
+                .map(|t| t.min(hours_until_decay))
+                .unwrap_or(hours_until_decay)
+        );
+    }
+    
+    shortest_decay_time
+}
+
 /// Calculate upkeep costs for all buildings connected to a hearth
 pub fn calculate_upkeep_costs(
     ctx: &ReducerContext,
@@ -385,20 +465,21 @@ pub fn calculate_upkeep_costs(
             continue;
         }
         
-        // Only wood, stone, and metal tiers require upkeep (not twig)
+        // Only wood, stone, and metal tiers require minimal upkeep (not twig)
+        // Foundation upkeep is minimal since it's purely aesthetic - main cost is walls
         match foundation.tier {
             1 => { // Wood tier
                 // Full foundation = 1.0, triangle = 0.5
                 let multiplier = if foundation.shape == 1 { 1.0 } else { 0.5 };
-                costs.wood += (10.0 * multiplier) as u32; // 10 wood per hour for full, 5 for triangle
+                costs.wood += (1.0 * multiplier) as u32; // 1 wood per hour for full, 0.5 for triangle (minimal)
             }
             2 => { // Stone tier
                 let multiplier = if foundation.shape == 1 { 1.0 } else { 0.5 };
-                costs.stone += (10.0 * multiplier) as u32; // 10 stone per hour
+                costs.stone += (1.0 * multiplier) as u32; // 1 stone per hour (minimal)
             }
             3 => { // Metal tier
                 let multiplier = if foundation.shape == 1 { 1.0 } else { 0.5 };
-                costs.metal += (5.0 * multiplier) as u32; // 5 metal per hour
+                costs.metal += (1.0 * multiplier) as u32; // 1 metal per hour (minimal)
             }
             _ => {} // Twig tier (0) has no upkeep
         }
@@ -640,6 +721,7 @@ pub struct HearthUpkeepQueryResult {
     pub available_wood: u32,
     pub available_stone: u32,
     pub available_metal: u32,
+    pub estimated_decay_hours: Option<f32>, // Estimated hours until first building decays (None if protected)
     pub last_updated: Timestamp,
 }
 
@@ -760,6 +842,10 @@ pub fn query_hearth_upkeep_costs(
     // Get available resources
     let (available_wood, available_stone, available_metal) = get_hearth_resources(ctx, &hearth);
     
+    // Always calculate estimated decay time (based on building health)
+    // This shows how long buildings would last if unprotected, or how long they'll last with current resources
+    let estimated_decay_hours = calculate_estimated_decay_time(ctx, &hearth);
+    
     // Update or insert query result
     let result = HearthUpkeepQueryResult {
         hearth_id,
@@ -769,6 +855,7 @@ pub fn query_hearth_upkeep_costs(
         available_wood,
         available_stone,
         available_metal,
+        estimated_decay_hours,
         last_updated: ctx.timestamp,
     };
     
@@ -1042,19 +1129,8 @@ pub fn place_homestead_hearth(
     hearths.try_insert(new_hearth)
         .map_err(|e| format!("Failed to insert hearth: {}", e))?;
 
-    // 8. Automatically grant building privilege to the player who placed the hearth
-    if let Err(e) = grant_building_privilege(ctx, sender_id) {
-        log::warn!(
-            "[PlaceHomesteadHearth] Failed to grant building privilege to player {:?}: {}",
-            sender_id, e
-        );
-        // Don't fail the placement if privilege grant fails - hearth is already placed
-    } else {
-        log::info!(
-            "[PlaceHomesteadHearth] Automatically granted building privilege to player {:?}",
-            sender_id
-        );
-    }
+    // Note: Building privilege is NOT automatically granted when placing a hearth
+    // Players must manually hold E near the hearth to gain building privilege
 
     log::info!(
         "[PlaceHomesteadHearth] Successfully placed hearth at ({:.1}, {:.1}) by player {:?}",
@@ -1116,7 +1192,7 @@ pub fn move_item_to_hearth(
         .ok_or_else(|| format!("Item definition {} not found", item_to_move.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Plant Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     // Use generic handler
@@ -1177,7 +1253,7 @@ pub fn split_stack_into_hearth(
         .ok_or_else(|| format!("Item definition {} not found", source_item.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Plant Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     let mut source_item_mut = source_item;
@@ -1265,7 +1341,7 @@ pub fn quick_move_to_hearth(
         .ok_or_else(|| format!("Item definition {} not found", item_to_move.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Plant Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     inventory_management::handle_quick_move_to_container(ctx, &mut hearth, item_instance_id)?;

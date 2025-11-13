@@ -286,6 +286,7 @@ fn get_structure_item_name(target_type: TargetType) -> &'static str {
         TargetType::Shelter => "Shelter",
         TargetType::RainCollector => "Reed Rain Collector",
         TargetType::Furnace => "Furnace",
+        TargetType::Wall => "Wall", // Added for wall repair
         _ => "Unknown",
     }
 }
@@ -616,6 +617,130 @@ pub fn repair_furnace(
     Ok(AttackResult {
         hit: true,
         target_type: Some(TargetType::Furnace),
+        resource_granted: None,
+    })
+}
+
+pub fn repair_wall(
+    ctx: &ReducerContext,
+    repairer_id: Identity,
+    wall_id: u64,
+    _weapon_damage: f32, // Ignore weapon damage, use proper repair amount
+    timestamp: Timestamp,
+) -> Result<AttackResult, String> {
+    use crate::building::{wall_cell, WallCell};
+    use crate::models::BuildingTier;
+    use crate::repair::{can_structure_be_repaired, get_base_repair_amount, consume_repair_resources};
+    use crate::sound_events;
+    
+    let mut walls_table = ctx.db.wall_cell();
+    let mut wall = walls_table.id().find(&wall_id)
+        .ok_or_else(|| format!("Target wall {} not found", wall_id))?;
+
+    if wall.is_destroyed {
+        return Err("Cannot repair destroyed wall".to_string());
+    }
+
+    // Calculate wall position for validation
+    use crate::building::FOUNDATION_TILE_SIZE_PX;
+    let wall_pos_x = (wall.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+    let wall_pos_y = (wall.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+
+    // Check combat cooldown and health status (but don't calculate resources yet - we'll do that based on tier)
+    let base_repair_amount = get_base_repair_amount();
+    let actual_repair_amount = (wall.max_health - wall.health).min(base_repair_amount);
+    
+    // Check if structure is already at full health
+    if wall.health >= wall.max_health {
+        // 🔧 Emit repair fail sound - structure already at full health
+        sound_events::emit_repair_fail_sound(ctx, wall_pos_x, wall_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+    }
+    
+    // Check combat cooldown for PvP balance
+    if let Err(_) = can_structure_be_repaired(wall.last_hit_time, wall.last_damaged_by, repairer_id, wall.owner, timestamp) {
+        // 🔧 Emit repair fail sound for cooldown/permission errors
+        sound_events::emit_repair_fail_sound(ctx, wall_pos_x, wall_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+    }
+    
+    // Calculate tier-specific repair costs
+    // Twig walls: 15 wood, Wood walls: 20 wood, Stone walls: 20 stone, Metal walls: 20 metal
+    let wall_tier = match wall.tier {
+        0 => BuildingTier::Twig,
+        1 => BuildingTier::Wood,
+        2 => BuildingTier::Stone,
+        3 => BuildingTier::Metal,
+        _ => return Err("Invalid wall tier".to_string()),
+    };
+    
+    // Calculate repair costs based on tier and repair amount
+    let repair_fraction = actual_repair_amount / wall.max_health;
+    let (wood_needed, stone_needed, metal_needed) = match wall_tier {
+        BuildingTier::Twig => {
+            // Twig walls cost 15 wood to build, so repair costs proportional amount
+            let base_cost = 15u32;
+            ((base_cost as f32 * repair_fraction).ceil() as u32, 0, 0)
+        },
+        BuildingTier::Wood => {
+            // Wood walls cost 20 wood to upgrade, so repair costs proportional amount
+            let base_cost = 20u32;
+            ((base_cost as f32 * repair_fraction).ceil() as u32, 0, 0)
+        },
+        BuildingTier::Stone => {
+            // Stone walls cost 20 stone to upgrade, so repair costs proportional amount
+            let base_cost = 20u32;
+            (0, (base_cost as f32 * repair_fraction).ceil() as u32, 0)
+        },
+        BuildingTier::Metal => {
+            // Metal walls cost 20 metal fragments to upgrade, so repair costs proportional amount
+            let base_cost = 20u32;
+            (0, 0, (base_cost as f32 * repair_fraction).ceil() as u32)
+        },
+    };
+    
+    // Try to consume resources
+    if let Err(e) = consume_repair_resources(ctx, repairer_id, wood_needed, stone_needed, metal_needed) {
+        // 🔧 Emit repair fail sound for resource shortage
+        sound_events::emit_repair_fail_sound(ctx, wall_pos_x, wall_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+    }
+    
+    let old_health = wall.health;
+    let wall_max_health = wall.max_health;
+    wall.health = (wall.health + actual_repair_amount).min(wall_max_health);
+    wall.last_hit_time = Some(timestamp);
+    wall.last_damaged_by = Some(repairer_id);
+    
+    // Save new health before update
+    let new_health = wall.health;
+
+    walls_table.id().update(wall);
+
+    log::info!(
+        "Player {:?} repaired Wall {} (tier {:?}) for {:.1} health. Health: {:.1} -> {:.1} (Max: {:.1}). Cost: {} wood, {} stone, {} metal",
+        repairer_id, wall_id, wall_tier, actual_repair_amount, old_health, new_health, wall_max_health,
+        wood_needed, stone_needed, metal_needed
+    );
+
+    Ok(AttackResult {
+        hit: true,
+        target_type: Some(TargetType::Wall),
         resource_granted: None,
     })
 }

@@ -66,7 +66,7 @@ pub const DECAY_DAMAGE_METAL_PER_INTERVAL: f32 = 0.167; // ~2 damage/hour (1000 
 pub const DECAY_GRACE_PERIOD_SECONDS: u64 = 3600; // 1 hour grace period
 
 /// Get decay damage per interval based on building tier
-fn get_decay_damage_per_interval(tier: u8) -> f32 {
+pub fn get_decay_damage_per_interval(tier: u8) -> f32 {
     match tier {
         1 => DECAY_DAMAGE_WOOD_PER_INTERVAL,   // Wood tier
         2 => DECAY_DAMAGE_STONE_PER_INTERVAL,  // Stone tier

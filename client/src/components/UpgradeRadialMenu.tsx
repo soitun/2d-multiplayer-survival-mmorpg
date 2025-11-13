@@ -90,24 +90,24 @@ function getUpgradeCosts(tier: BuildingTier, tileType: string, multiplier: numbe
       if (tileType === 'wall') {
         return { wood: Math.ceil(20 * multiplier) };
       }
-      // Foundation, door: 50 wood
-      return { wood: Math.ceil(50 * multiplier) };
+      // Foundation, door: 10 wood (reduced from 50 - minimal since aesthetic)
+      return { wood: Math.ceil(10 * multiplier) };
     
     case BuildingTier.Stone:
       // Stone tier costs depend on tile type
       if (tileType === 'wall') {
         return { stone: Math.ceil(20 * multiplier) };
       }
-      // Foundation, door: 100 stone
-      return { stone: Math.ceil(100 * multiplier) };
+      // Foundation, door: 20 stone (reduced from 100 - minimal since aesthetic)
+      return { stone: Math.ceil(20 * multiplier) };
     
     case BuildingTier.Metal:
       // Metal tier costs depend on tile type
       if (tileType === 'wall') {
         return { metal: Math.ceil(20 * multiplier) };
       }
-      // Foundation, door: 50 metal fragments
-      return { metal: Math.ceil(50 * multiplier) };
+      // Foundation, door: 10 metal fragments (reduced from 50 - minimal since aesthetic)
+      return { metal: Math.ceil(10 * multiplier) };
     
     default:
       return {};

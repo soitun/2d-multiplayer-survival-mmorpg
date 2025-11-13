@@ -513,10 +513,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         }
     }
 
-    // Update cozy effects for players with building privilege near hearths (once per tick, after all players processed)
-    if let Err(e) = crate::homestead_hearth::update_hearth_cozy_effects(ctx) {
-        log::warn!("Failed to update hearth cozy effects: {}", e);
-    }
+    // Note: Matron's Chest (hearth) no longer provides cozy effect - removed hearth cozy update
 
     // No rescheduling needed here, the table's ScheduleAt::Interval handles it
     Ok(())

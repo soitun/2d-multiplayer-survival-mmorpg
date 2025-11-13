@@ -375,7 +375,13 @@ export const useSpacetimeTables = ({
                         clearTimeout(existingTimer);
                         chunkUnsubscribeTimersRef.current.delete(chunkIndex);
                         // console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
-                        return; // Skip resubscription - we're already subscribed
+                        // IMPORTANT: Even if timer was cancelled, verify we're still subscribed
+                        // The timer might have fired but cleanup hasn't completed yet, or subscriptions
+                        // might have been removed by another code path
+                        if (spatialSubsRef.current.has(chunkIndex)) {
+                            return; // We're still subscribed, skip resubscription
+                        }
+                        // If timer was cancelled but we're not subscribed, fall through to resubscribe
                     }
 
                     // Only subscribe if we're not already subscribed

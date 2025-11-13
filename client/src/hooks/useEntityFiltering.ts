@@ -744,7 +744,16 @@ export function useEntityFiltering(
       playerPos,
       (tree) => {
         // Include tree if it has health OR if it's currently falling
+        // Destroyed trees (health === 0) are only shown during their falling animation
         const isFalling = isTreeFalling ? isTreeFalling(tree.id.toString()) : false;
+        const isDestroyed = tree.respawnAt !== null && tree.respawnAt !== undefined;
+        
+        // Show tree if: it has health, OR (it's falling AND destroyed)
+        // Explicitly exclude destroyed trees that are not falling (similar to resources)
+        if (isDestroyed && !isFalling) {
+          return false;
+        }
+        
         return (tree.health > 0 || isFalling) && isEntityInView(tree, viewBounds, stableTimestamp);
       }
     );

@@ -91,6 +91,7 @@ import { renderProjectile } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
+import { renderCombinedHealthOverlays } from '../utils/renderers/healthOverlayUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly } from '../utils/renderers/seaStackRenderingUtils';
@@ -1998,6 +1999,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         console.log(`[GameCanvas] OVERLAY SKIPPED - overlayRgba: ${overlayRgba}, maskCanvas exists: ${!!maskCanvas}`);
       }
     }
+
+    // --- Render Health/Frost Overlays (Above Day/Night, Below UI) ---
+    // These overlays render AFTER day/night so they're visible at night
+    if (localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
+      const healthPercent = localPlayer.health / 100.0; // Health is 0-100
+      const warmthPercent = localPlayer.warmth / 100.0; // Warmth is 0-100
+      
+      // Use combined rendering function that handles blending when both conditions are met
+      renderCombinedHealthOverlays(
+        ctx,
+        currentCanvasWidth,
+        currentCanvasHeight,
+        healthPercent,
+        warmthPercent,
+        deltaTimeRef.current / 1000 // Convert to seconds for animation timing
+      );
+    }
+    // --- End Health/Frost Overlays ---
 
     // Interaction indicators - Draw only for visible entities that are interactable
     const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {

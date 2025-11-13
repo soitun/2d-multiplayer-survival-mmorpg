@@ -747,12 +747,12 @@ pub const COZY_HEALTH_REGEN_MULTIPLIER: f32 = 2.0; // Double passive health rege
 pub const COZY_FOOD_HEALING_MULTIPLIER: f32 = 1.5; // 50% bonus to food healing
 pub const COZY_EFFECT_CHECK_INTERVAL_SECONDS: u32 = 2; // Check cozy conditions every 2 seconds
 
-/// Checks if a player should have the cozy effect based on their proximity to campfires, owned shelters, or hearths (if they have building privilege)
+/// Checks if a player should have the cozy effect based on their proximity to campfires or owned shelters
+/// Note: Matron's Chest (hearth) no longer provides cozy effect
 pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> bool {
     // Import necessary traits
     use crate::campfire::{campfire as CampfireTableTrait, WARMTH_RADIUS_SQUARED};
     use crate::shelter::{shelter as ShelterTableTrait, is_player_inside_shelter};
-    use crate::homestead_hearth::{homestead_hearth as HomesteadHearthTableTrait, HEARTH_COZY_RADIUS_SQUARED, player_has_building_privilege};
     
     // Check for nearby burning campfires
     for campfire in ctx.db.campfire().iter() {
@@ -779,22 +779,7 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
         }
     }
     
-    // Check for hearths (only if player has building privilege)
-    if player_has_building_privilege(ctx, player_id) {
-        for hearth in ctx.db.homestead_hearth().iter() {
-            if hearth.is_destroyed {
-                continue;
-            }
-            let dx = player_x - hearth.pos_x;
-            let dy = player_y - hearth.pos_y;
-            let distance_squared = dx * dx + dy * dy;
-            
-            if distance_squared <= HEARTH_COZY_RADIUS_SQUARED {
-                log::debug!("Player {:?} is cozy near hearth {} (has building privilege)", player_id, hearth.id);
-                return true;
-            }
-        }
-    }
+    // Matron's Chest (hearth) no longer provides cozy effect - removed
     
     false
 }

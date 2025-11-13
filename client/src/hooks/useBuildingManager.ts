@@ -512,8 +512,13 @@ export const useBuildingManager = (
         console.error('[BuildingManager] placeFoundation failed:', errorMsg);
         console.log('[BuildingManager] Failed placement details:', { cellX, cellY, shape, tier, errorMsg });
         setPlacementError(errorMsg);
-        // Play error sound for immediate feedback
-        playImmediateSound('construction_placement_error', 1.0);
+        // Play error_resources sound for resource errors (immediate client-side feedback)
+        // Server-side sound won't play because the transaction rolls back
+        if (errorMsg.includes('Not enough')) {
+          playImmediateSound('error_resources', 1.0);
+        } else {
+          playImmediateSound('construction_placement_error', 1.0);
+        }
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log('[BuildingManager] placeFoundation succeeded!');
         setPlacementError(null);
@@ -528,8 +533,13 @@ export const useBuildingManager = (
         console.error('[BuildingManager] placeWall failed:', errorMsg);
         console.log('[BuildingManager] Failed wall placement details:', { cellX, cellY, worldX, worldY, tier, errorMsg });
         setPlacementError(errorMsg);
-        // Play error sound for immediate feedback
-        playImmediateSound('construction_placement_error', 1.0);
+        // Play error_resources sound for resource errors (immediate client-side feedback)
+        // Server-side sound won't play because the transaction rolls back
+        if (errorMsg.includes('Not enough')) {
+          playImmediateSound('error_resources', 1.0);
+        } else {
+          playImmediateSound('construction_placement_error', 1.0);
+        }
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log('[BuildingManager] placeWall succeeded!');
         setPlacementError(null);

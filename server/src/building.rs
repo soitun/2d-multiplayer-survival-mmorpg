@@ -624,6 +624,8 @@ pub fn place_foundation(
     let total_wood: u32 = wood_items.iter().map(|item| item.quantity).sum();
     
     if total_wood < required_wood {
+        // Emit error sound for instant feedback
+        crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
         return Err(format!(
             "Not enough wood. Required: {}, Available: {}",
             required_wood, total_wood
@@ -817,19 +819,19 @@ pub fn upgrade_foundation(
         _ => 1.0,
     };
     
-    // Resource costs per tier upgrade
+    // Resource costs per tier upgrade - minimal for foundations since they're purely aesthetic
     let (required_wood, required_stone, required_metal) = match target_tier {
         BuildingTier::Wood => {
-            // Twig -> Wood: 50 wood for full, 25 for triangle
-            ((50.0 * shape_multiplier) as u32, 0, 0)
+            // Twig -> Wood: 10 wood for full, 5 for triangle (reduced from 50/25)
+            ((10.0 * shape_multiplier) as u32, 0, 0)
         },
         BuildingTier::Stone => {
-            // -> Stone: 100 stone for full, 50 for triangle
-            (0, (100.0 * shape_multiplier) as u32, 0)
+            // -> Stone: 20 stone for full, 10 for triangle (reduced from 100/50)
+            (0, (20.0 * shape_multiplier) as u32, 0)
         },
         BuildingTier::Metal => {
-            // -> Metal: 50 metal fragments for full, 25 for triangle
-            (0, 0, (50.0 * shape_multiplier) as u32)
+            // -> Metal: 10 metal fragments for full, 5 for triangle (reduced from 50/25)
+            (0, 0, (10.0 * shape_multiplier) as u32)
         },
         BuildingTier::Twig => {
             // Can't upgrade to Twig (it's the base tier)
@@ -859,6 +861,8 @@ pub fn upgrade_foundation(
         let total_wood: u32 = wood_items.iter().map(|item| item.quantity).sum();
         
         if total_wood < required_wood {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough wood. Required: {}, Available: {}",
                 required_wood, total_wood
@@ -909,6 +913,8 @@ pub fn upgrade_foundation(
         let total_stone: u32 = stone_items.iter().map(|item| item.quantity).sum();
         
         if total_stone < required_stone {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough stone. Required: {}, Available: {}",
                 required_stone, total_stone
@@ -959,6 +965,8 @@ pub fn upgrade_foundation(
         let total_metal: u32 = metal_items.iter().map(|item| item.quantity).sum();
         
         if total_metal < required_metal {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough metal fragments. Required: {}, Available: {}",
                 required_metal, total_metal
@@ -1258,6 +1266,8 @@ pub fn place_wall(
     let total_wood: u32 = wood_items.iter().map(|item| item.quantity).sum();
     
     if total_wood < required_wood {
+        // Emit error sound for instant feedback
+        crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
         return Err(format!(
             "Not enough wood. Required: {}, Available: {}",
             required_wood, total_wood
@@ -1457,6 +1467,8 @@ pub fn upgrade_wall(
         let total_wood: u32 = wood_items.iter().map(|item| item.quantity).sum();
         
         if total_wood < required_wood {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough wood. Required: {}, Available: {}",
                 required_wood, total_wood
@@ -1507,6 +1519,8 @@ pub fn upgrade_wall(
         let total_stone: u32 = stone_items.iter().map(|item| item.quantity).sum();
         
         if total_stone < required_stone {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough stone. Required: {}, Available: {}",
                 required_stone, total_stone
@@ -1557,6 +1571,8 @@ pub fn upgrade_wall(
         let total_metal: u32 = metal_items.iter().map(|item| item.quantity).sum();
         
         if total_metal < required_metal {
+            // Emit error sound for instant feedback
+            crate::sound_events::emit_error_resources_sound(ctx, player.position_x, player.position_y, sender_id);
             return Err(format!(
                 "Not enough metal fragments. Required: {}, Available: {}",
                 required_metal, total_metal
