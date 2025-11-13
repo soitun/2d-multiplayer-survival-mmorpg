@@ -357,6 +357,10 @@ function getCollisionCandidates(
   // Filter wall cells - create thin collision edges along wall boundaries
   const FOUNDATION_TILE_SIZE = 96; // Foundation tile size in pixels (2x world tiles)
   const WALL_COLLISION_THICKNESS = 6; // Thin collision thickness (slightly thicker than visual 4px to prevent walking through)
+  // For south walls, use asymmetric collision - only extend north into foundation, not south toward player
+  const SOUTH_WALL_COLLISION_THICKNESS = 4; // Thinner collision for south walls
+  const SOUTH_WALL_NORTH_EXTENT = 3.5; // How far north the collision extends (into foundation)
+  const DIAGONAL_WALL_THICKNESS = 12; // Thickness for diagonal walls (matches visual rendering)
   
   if (entities.wallCells && entities.wallCells.size > 0) {
     // Check walls within reasonable distance
@@ -381,31 +385,178 @@ function getCollisionCandidates(
       
       switch (wall.edge) {
         case 0: // North (top edge) - horizontal line
-          wallX = tileCenterX;
-          wallY = wall.cellY * FOUNDATION_TILE_SIZE; // Top edge of foundation cell
+          // CRITICAL FIX: Position collision box so expanded AABB ends exactly at top edge
+          // INVERTED from south wall: Position BELOW top edge so collision extends INTO foundation (south)
+          // Expanded AABB: minY = wallY - wallHeight/2 - PLAYER_RADIUS
+          // We want: minY = topEdge, so: wallY = topEdge + PLAYER_RADIUS + wallHeight/2
+          wallX = tileCenterX; // Center horizontally on foundation cell
+          const topEdge = wall.cellY * FOUNDATION_TILE_SIZE;
+          // Position collision box so expanded AABB ends at topEdge (same logic as south wall but inverted)
+          // For south: wallY = bottomEdge - PLAYER_RADIUS - height/2 (center ABOVE bottom edge)
+          // For north (inverted): wallY = topEdge + PLAYER_RADIUS + height/2 (center BELOW top edge)
+          // But user said this had opposite effect, so try: wallY = topEdge - PLAYER_RADIUS - height/2 (center ABOVE top edge)
+          wallY = topEdge - PLAYER_RADIUS - SOUTH_WALL_NORTH_EXTENT / 2;
           wallWidth = FOUNDATION_TILE_SIZE; // Full foundation cell width
-          wallHeight = WALL_COLLISION_THICKNESS; // Thin thickness
+          wallHeight = SOUTH_WALL_NORTH_EXTENT; // Only extends south, not north
           break;
         case 1: // East (right edge) - vertical line
-          wallX = wall.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE; // Right edge of foundation cell
-          wallY = tileCenterY;
+          // CRITICAL: AABB collision uses x,y as CENTER, not top-left corner
+          wallX = wall.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE; // Right edge of foundation cell (center of collision box)
+          wallY = tileCenterY; // Center vertically on foundation cell
           wallWidth = WALL_COLLISION_THICKNESS; // Thin thickness
           wallHeight = FOUNDATION_TILE_SIZE; // Full foundation cell height
           break;
         case 2: // South (bottom edge) - horizontal line
-          wallX = tileCenterX;
-          wallY = wall.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE; // Bottom edge of foundation cell
+          // CRITICAL FIX: Position collision box so expanded AABB ends exactly at bottom edge
+          // The AABB collision expands the box by playerRadius (32px), so we need to account for that
+          // Expanded AABB: maxY = wallY + wallHeight/2 + PLAYER_RADIUS
+          // We want: maxY = bottomEdge, so: wallY = bottomEdge - PLAYER_RADIUS - wallHeight/2
+          wallX = tileCenterX; // Center horizontally on foundation cell
+          const bottomEdge = wall.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE;
+          // Position so expanded AABB max Y equals bottomEdge (no extension south)
+          wallY = bottomEdge - PLAYER_RADIUS - SOUTH_WALL_NORTH_EXTENT / 2;
           wallWidth = FOUNDATION_TILE_SIZE; // Full foundation cell width
-          wallHeight = WALL_COLLISION_THICKNESS; // Thin thickness
+          wallHeight = SOUTH_WALL_NORTH_EXTENT; // Only extends north, not south
           break;
         case 3: // West (left edge) - vertical line
-          wallX = wall.cellX * FOUNDATION_TILE_SIZE; // Left edge of foundation cell
-          wallY = tileCenterY;
+          // CRITICAL: AABB collision uses x,y as CENTER, not top-left corner
+          wallX = wall.cellX * FOUNDATION_TILE_SIZE; // Left edge of foundation cell (center of collision box)
+          wallY = tileCenterY; // Center vertically on foundation cell
           wallWidth = WALL_COLLISION_THICKNESS; // Thin thickness
           wallHeight = FOUNDATION_TILE_SIZE; // Full foundation cell height
           break;
+        case 4: // DiagNE_SW (diagonal from NE to SW) - only for triangle foundations
+        case 5: // DiagNW_SE (diagonal from NW to SE) - only for triangle foundations
+          // Only add collision for diagonal walls on triangle foundations
+          const isTriangle = wall.foundationShape >= 2 && wall.foundationShape <= 5;
+          if (!isTriangle) {
+            continue; // Skip diagonal edges on non-triangle foundations
+          }
+          
+          // Calculate diagonal line endpoints - MUST match renderWallTargetIndicator exactly
+          // The coordinates depend on BOTH the foundation shape AND the edge
+          let hypStartX: number, hypStartY: number, hypEndX: number, hypEndY: number;
+          const foundationLeftX = wall.cellX * FOUNDATION_TILE_SIZE;
+          const foundationRightX = foundationLeftX + FOUNDATION_TILE_SIZE;
+          const foundationTopY = wall.cellY * FOUNDATION_TILE_SIZE;
+          const foundationBottomY = foundationTopY + FOUNDATION_TILE_SIZE;
+          
+          // Match the exact coordinates from renderWallTargetIndicator based on foundation shape
+          switch (wall.foundationShape) {
+            case 2: // TriNW - DiagNW_SE (edge 5)
+              if (wall.edge === 5) {
+                hypStartX = foundationRightX; // screenX + screenSize
+                hypStartY = foundationTopY;   // screenY
+                hypEndX = foundationLeftX;     // screenX
+                hypEndY = foundationBottomY;  // screenY + screenSize
+              } else {
+                continue; // Wrong edge for this shape
+              }
+              break;
+            case 3: // TriNE - DiagNE_SW (edge 4)
+              if (wall.edge === 4) {
+                hypStartX = foundationLeftX;   // screenX
+                hypStartY = foundationTopY;   // screenY
+                hypEndX = foundationRightX;    // screenX + screenSize
+                hypEndY = foundationBottomY;  // screenY + screenSize
+              } else {
+                continue; // Wrong edge for this shape
+              }
+              break;
+            case 4: // TriSE - DiagNW_SE (edge 5)
+              if (wall.edge === 5) {
+                hypStartX = foundationLeftX;   // screenX
+                hypStartY = foundationBottomY; // screenY + screenSize
+                hypEndX = foundationRightX;     // screenX + screenSize
+                hypEndY = foundationTopY;      // screenY
+              } else {
+                continue; // Wrong edge for this shape
+              }
+              break;
+            case 5: // TriSW - DiagNE_SW (edge 4)
+              if (wall.edge === 4) {
+                hypStartX = foundationRightX;   // screenX + screenSize
+                hypStartY = foundationBottomY; // screenY + screenSize
+                hypEndX = foundationLeftX;      // screenX
+                hypEndY = foundationTopY;      // screenY
+              } else {
+                continue; // Wrong edge for this shape
+              }
+              break;
+            default:
+              continue; // Not a triangle foundation
+          }
+          
+          // Use many small overlapping AABB boxes along the diagonal
+          // This is more reliable than line segment collision
+          const diagonalLength = Math.sqrt((hypEndX - hypStartX) ** 2 + (hypEndY - hypStartY) ** 2);
+          // Increase density for better coverage - one box every 3 pixels instead of 4
+          const numBoxes = Math.max(25, Math.ceil(diagonalLength / 3)); // Denser coverage to prevent gaps
+          const stepX = (hypEndX - hypStartX) / numBoxes;
+          const stepY = (hypEndY - hypStartY) / numBoxes;
+          
+          // Calculate the diagonal angle and determine which direction is "inward" (toward foundation center)
+          // The foundation center is at (foundationLeftX + FOUNDATION_TILE_SIZE/2, foundationTopY + FOUNDATION_TILE_SIZE/2)
+          const foundationCenterX = foundationLeftX + FOUNDATION_TILE_SIZE / 2;
+          const foundationCenterY = foundationTopY + FOUNDATION_TILE_SIZE / 2;
+          
+          // Find a point on the diagonal (midpoint)
+          const diagonalMidX = (hypStartX + hypEndX) / 2;
+          const diagonalMidY = (hypStartY + hypEndY) / 2;
+          
+          // Calculate perpendicular direction to diagonal
+          const diagonalAngle = Math.atan2(hypEndY - hypStartY, hypEndX - hypStartX);
+          const perpAngle1 = diagonalAngle + Math.PI / 2; // First perpendicular direction
+          const perpAngle2 = diagonalAngle - Math.PI / 2; // Second perpendicular direction
+          
+          // Test which perpendicular direction points toward foundation center
+          const testPoint1X = diagonalMidX + Math.cos(perpAngle1) * 10;
+          const testPoint1Y = diagonalMidY + Math.sin(perpAngle1) * 10;
+          const testPoint2X = diagonalMidX + Math.cos(perpAngle2) * 10;
+          const testPoint2Y = diagonalMidY + Math.sin(perpAngle2) * 10;
+          
+          const dist1 = Math.sqrt((testPoint1X - foundationCenterX) ** 2 + (testPoint1Y - foundationCenterY) ** 2);
+          const dist2 = Math.sqrt((testPoint2X - foundationCenterX) ** 2 + (testPoint2Y - foundationCenterY) ** 2);
+          
+          // Use the perpendicular direction that points toward foundation center (inward)
+          const perpAngle = dist1 < dist2 ? perpAngle1 : perpAngle2;
+          
+          // Offset boxes inward (toward foundation center) to allow closer approach from outside
+          // This moves collision boxes closer to the foundation, allowing players to get closer to the wall edge
+          const inwardOffset = 12; // Offset 12px inward from the diagonal edge (toward foundation center)
+          const offsetX = Math.cos(perpAngle) * inwardOffset;
+          const offsetY = Math.sin(perpAngle) * inwardOffset;
+          
+          // Each box is axis-aligned but overlaps significantly to cover the diagonal
+          // Reduced box width to allow closer approach - boxes are thinner along the diagonal
+          const boxSize = 6; // Smaller box size for tighter collision
+          const boxThickness = DIAGONAL_WALL_THICKNESS * 0.9; // Thinner to allow closer approach
+          
+          // Calculate spacing between box centers
+          const boxSpacing = Math.sqrt(stepX * stepX + stepY * stepY);
+          
+          for (let i = 0; i < numBoxes; i++) {
+            // Position boxes along diagonal, offset inward toward foundation center
+            const boxCenterX = hypStartX + stepX * (i + 0.5) + offsetX;
+            const boxCenterY = hypStartY + stepY * (i + 0.5) + offsetY;
+            
+            // Create boxes with enough overlap to prevent gaps
+            // Width needs to be larger than spacing to ensure seamless coverage
+            // Use 2.2x spacing to ensure good overlap even for steep diagonals
+            const boxWidth = Math.max(boxSize * 1.8, boxSpacing * 2.2);
+            
+            shapes.push({
+              id: `wall-${wall.id.toString()}-diag-${i}`,
+              type: `wall-diagonal-${wall.id.toString()}`,
+              x: boxCenterX,
+              y: boxCenterY,
+              width: boxWidth, // Ensure good overlap to prevent gaps
+              height: boxThickness
+            });
+          }
+          continue; // Skip the single AABB push below
         default:
-          continue; // Skip diagonal or invalid edges
+          continue; // Skip invalid edges
       }
       
       shapes.push({
@@ -786,12 +937,38 @@ function checkLineSegmentCollision(
   const distance = Math.sqrt(dx * dx + dy * dy);
   
   // Check if player circle intersects the thick line segment
-  const totalThickness = playerRadius + lineThickness / 2;
+  // The line extends lineThickness/2 on each side, player has radius playerRadius
+  // Collision occurs when distance < playerRadius + lineThickness/2
+  const totalThickness = playerRadius + (lineThickness / 2);
+  
   if (distance >= totalThickness) {
-    return null; // No collision
+    // Also check if movement path crosses the line (swept collision)
+    const movementVec = { x: to.x - from.x, y: to.y - from.y };
+    const moveLen = Math.sqrt(movementVec.x * movementVec.x + movementVec.y * movementVec.y);
+    
+    if (moveLen > 0.001) {
+      // Check swept circle collision - find closest point on movement path to line
+      const fromToLineStart = { x: from.x - lineStart.x, y: from.y - lineStart.y };
+      const tFrom = Math.max(0, Math.min(1, (fromToLineStart.x * lineVec.x + fromToLineStart.y * lineVec.y) / lineLengthSq));
+      const closestFrom = {
+        x: lineStart.x + tFrom * lineVec.x,
+        y: lineStart.y + tFrom * lineVec.y
+      };
+      const distFrom = Math.sqrt((from.x - closestFrom.x) ** 2 + (from.y - closestFrom.y) ** 2);
+      
+      // If either endpoint is close enough, or path crosses line
+      if (distFrom < totalThickness) {
+        // from position collides
+      } else {
+        return null; // No collision
+      }
+    } else {
+      return null; // No movement, no collision
+    }
   }
   
   // Calculate normal (perpendicular to line segment, pointing away from player)
+  // Use a more stable normal calculation to reduce jitter
   let lineNormal = { x: -lineVec.y, y: lineVec.x }; // Perpendicular to line
   const normalLength = Math.sqrt(lineNormal.x * lineNormal.x + lineNormal.y * lineNormal.y);
   if (normalLength > 0.001) {
@@ -801,12 +978,27 @@ function checkLineSegmentCollision(
     lineNormal = { x: 1, y: 0 }; // Fallback
   }
   
-  // Ensure normal points away from player
-  const toClosest = { x: closestPoint.x - to.x, y: closestPoint.y - to.y };
-  const dot = lineNormal.x * toClosest.x + lineNormal.y * toClosest.y;
-  if (dot < 0) {
-    lineNormal.x = -lineNormal.x;
-    lineNormal.y = -lineNormal.y;
+  // Ensure normal points away from player - use movement direction for stability
+  // This prevents normal flipping when player is exactly on the line
+  const movementVec = { x: to.x - from.x, y: to.y - from.y };
+  const movementDot = lineNormal.x * movementVec.x + lineNormal.y * movementVec.y;
+  
+  // If player is moving, use movement direction to determine normal (more stable)
+  // Otherwise, use position relative to line
+  if (Math.abs(movementVec.x) > 0.01 || Math.abs(movementVec.y) > 0.01) {
+    // Use movement direction to determine normal - prevents jitter
+    if (movementDot < 0) {
+      lineNormal.x = -lineNormal.x;
+      lineNormal.y = -lineNormal.y;
+    }
+  } else {
+    // Player not moving much - use position relative to line
+    const toClosest = { x: closestPoint.x - to.x, y: closestPoint.y - to.y };
+    const dot = lineNormal.x * toClosest.x + lineNormal.y * toClosest.y;
+    if (dot < 0) {
+      lineNormal.x = -lineNormal.x;
+      lineNormal.y = -lineNormal.y;
+    }
   }
   
   const penetration = totalThickness - distance;

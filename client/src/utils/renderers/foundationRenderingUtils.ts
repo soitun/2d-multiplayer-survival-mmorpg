@@ -10,7 +10,6 @@ import { FoundationCell } from '../../generated';
 // For now, using any type - will be fixed after running: spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, foundationCellToWorldPixels } from '../../config/gameConfig';
 import React from 'react';
-import { drawDynamicGroundShadow } from './shadowUtils'; // ADDED: For wall shadows
 
 // Foundation colors for preview (cyberpunk neon theme)
 const FOUNDATION_PREVIEW_COLORS = {
@@ -339,20 +338,35 @@ export function renderFoundation({
     }
   }
 
-  // Draw health bar if damaged (optional)
-  if (foundation.health < foundation.maxHealth) {
-    const healthPercent = foundation.health / foundation.maxHealth;
-    const barWidth = screenSize * healthPercent;
-    const barHeight = 3;
-    const barY = screenY + screenSize - barHeight - 2;
+  // Draw health bar if damaged (only show temporarily after being hit, like walls)
+  const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Show for 3 seconds after being hit
+  if (foundation.health < foundation.maxHealth && foundation.lastHitTime) {
+    const nowMs = Date.now();
+    const lastHitTimeMs = Number(foundation.lastHitTime.microsSinceUnixEpoch / 1000n);
+    const elapsedSinceHit = nowMs - lastHitTimeMs;
+    
+    if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
+      const healthPercent = foundation.health / foundation.maxHealth;
+      const barWidth = screenSize * healthPercent;
+      const barHeight = 3;
+      const barY = screenY + screenSize - barHeight - 2;
+      
+      const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
+      const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2)); // Fade out faster at the end
 
-    // Health bar background (red)
-    ctx.fillStyle = '#FF0000';
-    ctx.fillRect(screenX, barY, screenSize, barHeight);
+      ctx.save();
+      ctx.globalAlpha = opacity;
 
-    // Health bar (green)
-    ctx.fillStyle = '#00FF00';
-    ctx.fillRect(screenX, barY, barWidth, barHeight);
+      // Health bar background (red)
+      ctx.fillStyle = '#FF0000';
+      ctx.fillRect(screenX, barY, screenSize, barHeight);
+
+      // Health bar (green)
+      ctx.fillStyle = '#00FF00';
+      ctx.fillRect(screenX, barY, barWidth, barHeight);
+      
+      ctx.restore();
+    }
   }
 }
 
@@ -1150,15 +1164,43 @@ export function renderWall({
     
     ctx.restore(); // Restore clipping for triangle A
     
-    // Draw border for bottom triangle (A)
+    // Draw border for bottom triangle (A) - exclude the shared interior edge
+    // The shared edge differs by foundation shape:
+    // - Case 2 (TriNW): v1-v2 is shared (top horizontal edge)
+    // - Case 3 (TriNE): v3-v1 is shared (top horizontal edge)
+    // - Case 4 (TriSE): v1-v2 is shared (horizontal bottom edge)
+    // - Case 5 (TriSW): v3-v1 is shared (horizontal bottom edge)
     ctx.save();
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(drawV1X, drawV1Y);
-    ctx.lineTo(drawV2X, drawV2Y);
-    ctx.lineTo(drawV3X, drawV3Y);
-    ctx.closePath();
+    
+    if (wall.foundationShape === 2) {
+      // TriNW: v1-v2 is shared, draw v2-v3 and v3-v1
+      ctx.moveTo(drawV2X, drawV2Y);
+      ctx.lineTo(drawV3X, drawV3Y); // Exterior edge (v2-v3)
+      ctx.lineTo(drawV1X, drawV1Y); // Exterior edge (v3-v1)
+      // Skip v1-v2 as it's the shared interior edge
+    } else if (wall.foundationShape === 3) {
+      // TriNE: v3-v1 is shared, draw v1-v2 and v2-v3
+      ctx.moveTo(drawV1X, drawV1Y);
+      ctx.lineTo(drawV2X, drawV2Y); // Exterior edge (v1-v2)
+      ctx.lineTo(drawV3X, drawV3Y); // Exterior edge (v2-v3)
+      // Skip v3-v1 as it's the shared interior edge
+    } else if (wall.foundationShape === 4) {
+      // TriSE: v1-v2 is shared, draw v2-v3 and v3-v1
+      ctx.moveTo(drawV2X, drawV2Y);
+      ctx.lineTo(drawV3X, drawV3Y); // Exterior edge (v2-v3)
+      ctx.lineTo(drawV1X, drawV1Y); // Exterior edge (v3-v1)
+      // Skip v1-v2 as it's the shared interior edge
+    } else if (wall.foundationShape === 5) {
+      // TriSW: v3-v1 is shared, draw v1-v2 and v2-v3
+      ctx.moveTo(drawV1X, drawV1Y);
+      ctx.lineTo(drawV2X, drawV2Y); // Exterior edge (v1-v2)
+      ctx.lineTo(drawV3X, drawV3Y); // Exterior edge (v2-v3)
+      // Skip v3-v1 as it's the shared interior edge
+    }
+    
     ctx.stroke();
     ctx.restore();
     
@@ -1246,15 +1288,39 @@ export function renderWall({
     
     ctx.restore(); // Restore clipping
     
-    // Draw border for top triangle (B)
+    // Draw border for top triangle (B) - exclude the shared interior edge
+    // The shared edge matches the bottom triangle (A) for the same foundation shape
     ctx.save();
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(mirrorV1X, mirrorV1Y);
-    ctx.lineTo(mirrorV2X, mirrorV2Y);
-    ctx.lineTo(mirrorV3X, mirrorV3Y);
-    ctx.closePath();
+    
+    if (wall.foundationShape === 2) {
+      // TriNW: mirrorV1-mirrorV2 is shared, draw mirrorV2-mirrorV3 and mirrorV3-mirrorV1
+      ctx.moveTo(mirrorV2X, mirrorV2Y);
+      ctx.lineTo(mirrorV3X, mirrorV3Y); // Exterior edge (mirrorV2-mirrorV3)
+      ctx.lineTo(mirrorV1X, mirrorV1Y); // Exterior edge (mirrorV3-mirrorV1)
+      // Skip mirrorV1-mirrorV2 as it's the shared interior edge
+    } else if (wall.foundationShape === 3) {
+      // TriNE: mirrorV3-mirrorV1 is shared, draw mirrorV1-mirrorV2 and mirrorV2-mirrorV3
+      ctx.moveTo(mirrorV1X, mirrorV1Y);
+      ctx.lineTo(mirrorV2X, mirrorV2Y); // Exterior edge (mirrorV1-mirrorV2)
+      ctx.lineTo(mirrorV3X, mirrorV3Y); // Exterior edge (mirrorV2-mirrorV3)
+      // Skip mirrorV3-mirrorV1 as it's the shared interior edge
+    } else if (wall.foundationShape === 4) {
+      // TriSE: mirrorV1-mirrorV2 is shared, draw mirrorV2-mirrorV3 and mirrorV3-mirrorV1
+      ctx.moveTo(mirrorV2X, mirrorV2Y);
+      ctx.lineTo(mirrorV3X, mirrorV3Y); // Exterior edge (mirrorV2-mirrorV3)
+      ctx.lineTo(mirrorV1X, mirrorV1Y); // Exterior edge (mirrorV3-mirrorV1)
+      // Skip mirrorV1-mirrorV2 as it's the shared interior edge
+    } else if (wall.foundationShape === 5) {
+      // TriSW: mirrorV3-mirrorV1 is shared, draw mirrorV1-mirrorV2 and mirrorV2-mirrorV3
+      ctx.moveTo(mirrorV1X, mirrorV1Y);
+      ctx.lineTo(mirrorV2X, mirrorV2Y); // Exterior edge (mirrorV1-mirrorV2)
+      ctx.lineTo(mirrorV3X, mirrorV3Y); // Exterior edge (mirrorV2-mirrorV3)
+      // Skip mirrorV3-mirrorV1 as it's the shared interior edge
+    }
+    
     ctx.stroke();
     ctx.restore();
     
@@ -1889,7 +1955,7 @@ export function renderWallExteriorShadow({
         (wall.foundationShape === 4 && (wall.edge === 4 || wall.edge === 5)) ||
         (wall.foundationShape === 3 && (wall.edge === 4 || wall.edge === 5));
     } else {
-      shouldCastShadow = wall.edge === 3 || wall.edge === 4; // West walls and DiagNE_SW cast long, soft shadows (westward)
+      shouldCastShadow = wall.edge === 3 || wall.edge === 4 || wall.edge === 5; // West walls and both diagonals cast long, soft shadows (westward)
     }
     shadowAlpha = 0.25 + (cycleProgress / 0.05) * 0.15; // 0.25 -> 0.40
     shadowDepth = screenSize * (1.2 - (cycleProgress / 0.05) * 0.4); // 1.2 -> 0.8 (long to medium)
@@ -1903,7 +1969,7 @@ export function renderWallExteriorShadow({
       // TriNW (2) and TriSW (5) don't cast in morning
       shouldCastShadow = wall.edge === 3 || ((wall.edge === 4 || wall.edge === 5) && (wall.foundationShape === 4 || wall.foundationShape === 3));
     } else {
-      shouldCastShadow = wall.edge === 3 || wall.edge === 4; // West walls and DiagNE_SW (westward shadows)
+      shouldCastShadow = wall.edge === 3 || wall.edge === 4 || wall.edge === 5; // West walls and both diagonals (westward shadows)
     }
     const morningProgress = (cycleProgress - 0.05) / 0.30;
     shadowAlpha = 0.40 + morningProgress * 0.10; // 0.40 -> 0.50
@@ -1961,34 +2027,52 @@ export function renderWallExteriorShadow({
     gradientStops = [0, 0.75, 1.0]; // Very soft falloff
   }
   // Twilight Evening (0.76 - 0.80): Ambient shadows, very soft
+  // Sun is in the west, shadows cast EAST (right), so only EAST walls should cast shadows
   else if (cycleProgress >= 0.76 && cycleProgress < 0.80) {
-    shouldCastShadow = true; // All walls cast ambient shadows
+    if (isTriangleFoundation) {
+      // TriSW (5) and TriNW (2) cast shadows right after noon/evening
+      // TriSE (4) and TriNE (3) don't cast after noon
+      shouldCastShadow = wall.edge === 1 || ((wall.edge === 4 || wall.edge === 5) && (wall.foundationShape === 5 || wall.foundationShape === 2));
+    } else {
+      shouldCastShadow = wall.edge === 1 || wall.edge === 5; // East walls and DiagNW_SE cast shadows (eastward)
+    }
     const twilightProgress = (cycleProgress - 0.76) / 0.04;
     shadowAlpha = 0.30 - twilightProgress * 0.15; // 0.30 -> 0.15
     shadowDepth = screenSize * 0.5; // Medium, diffuse
     shadowColor = { r: 10, g: 5, b: 30 }; // Deep blue twilight
     gradientStops = [0, 0.8, 1.0]; // Very soft, ambient
   }
-  // Night (0.80 - 0.92): Minimal ambient shadows
+  // Night (0.80 - 0.92): No directional shadows
   else if (cycleProgress >= 0.80 && cycleProgress < 0.92) {
-    shouldCastShadow = true; // Faint ambient shadows from all walls
-    shadowAlpha = 0.12; // Very faint
-    shadowDepth = screenSize * 0.3; // Short, diffuse
-    shadowColor = { r: 5, g: 5, b: 15 }; // Dark blue night
-    gradientStops = [0, 0.85, 1.0]; // Extremely soft, almost imperceptible
+    shouldCastShadow = false; // No shadows during night
+    shadowAlpha = 0;
+    shadowDepth = 0;
+    shadowColor = { r: 0, g: 0, b: 0 };
+    gradientStops = [0, 0.85, 1.0];
   }
-  // Twilight Morning / Pre-Dawn (0.92 - 1.0): Starting to get directional
-  else if (cycleProgress >= 0.92 && cycleProgress <= 1.0) {
-    const preDawnProgress = (cycleProgress - 0.92) / 0.08;
+  // Midnight (0.92 - 0.97): No shadows, preparing for twilight morning
+  else if (cycleProgress >= 0.92 && cycleProgress < 0.97) {
+    shouldCastShadow = false; // No shadows during midnight
+    shadowAlpha = 0;
+    shadowDepth = 0;
+    shadowColor = { r: 0, g: 0, b: 0 };
+    gradientStops = [0, 0.85, 1.0];
+  }
+  // Twilight Morning / Pre-Dawn (0.97 - 1.0): Starting to get directional
+  // Shadows gradually fade from moderate to match Dawn's start - smooth transition with NO JUMP
+  else if (cycleProgress >= 0.97 && cycleProgress <= 1.0) {
+    const preDawnProgress = (cycleProgress - 0.97) / 0.03;
     if (isTriangleFoundation) {
       // TriSE (4) and TriNE (3) cast shadows left in morning
       // TriNW (2) and TriSW (5) don't cast in morning
       shouldCastShadow = wall.edge === 3 || ((wall.edge === 4 || wall.edge === 5) && (wall.foundationShape === 4 || wall.foundationShape === 3));
     } else {
-      shouldCastShadow = wall.edge === 3 || wall.edge === 4; // West walls and DiagNE_SW start casting shadows (westward)
+      shouldCastShadow = wall.edge === 3 || wall.edge === 4 || wall.edge === 5; // West walls and both diagonals cast shadows (westward)
     }
-    shadowAlpha = 0.12 + preDawnProgress * 0.13; // 0.12 -> 0.25
-    shadowDepth = screenSize * (0.5 + preDawnProgress * 0.7); // 0.5 -> 1.2
+    // Fade from 0.30 down to 0.25 to EXACTLY match Dawn's start - no jump in darkness!
+    // Transition: Midnight (0) -> Twilight Morning starts (0.30) -> fades to (0.25) -> Dawn continues from 0.25 smoothly
+    shadowAlpha = 0.30 - preDawnProgress * 0.05; // 0.30 -> 0.25 (getting slightly lighter, matching Dawn's start)
+    shadowDepth = screenSize * (1.0 - preDawnProgress * 0.2); // 1.0 -> 0.8 (getting shorter, matching Dawn's start)
     shadowColor = { r: 15, g: 8, b: 35 }; // Purple pre-dawn
     gradientStops = [0, 0.8, 1.0]; // Soft
   }
@@ -2180,7 +2264,8 @@ export function renderWallExteriorShadow({
           // Triangle foundations have specific shadow directions based on shape
           if (wall.foundationShape === 4 || wall.foundationShape === 3) {
             // TriSE (4A/4B) and TriNE (3A/3B): cast shadows LEFT in morning only
-            if (cycleProgress >= 0.0 && cycleProgress < 0.55) {
+            // Include Twilight Morning (0.97-1.0) wrap-around in morning shadow direction
+            if ((cycleProgress >= 0.0 && cycleProgress < 0.55) || (cycleProgress >= 0.97 && cycleProgress <= 1.0)) {
               desiredShadowDirX = -1; // Left
               desiredShadowDirY = 0;
             } else {
@@ -2190,17 +2275,19 @@ export function renderWallExteriorShadow({
             }
           } else if (wall.foundationShape === 5 || wall.foundationShape === 2) {
             // TriSW (5A/5B) and TriNW (2A/2B): cast shadows RIGHT after noon only
-            if (cycleProgress >= 0.55) {
+            // Exclude Twilight Morning (0.97-1.0) from afternoon shadows
+            if (cycleProgress >= 0.55 && cycleProgress < 0.97) {
               desiredShadowDirX = 1; // Right
               desiredShadowDirY = 0;
             } else {
-              // Before noon: no shadow (but this shouldn't happen due to time-based check)
+              // Before noon or during Twilight Morning: no shadow
               desiredShadowDirX = 0;
               desiredShadowDirY = 0;
             }
           } else {
             // Fallback: use standard time-based direction
-            if (cycleProgress >= 0.0 && cycleProgress < 0.55) {
+            // Include Twilight Morning (0.97-1.0) wrap-around in morning shadow direction
+            if ((cycleProgress >= 0.0 && cycleProgress < 0.55) || (cycleProgress >= 0.97 && cycleProgress <= 1.0)) {
               desiredShadowDirX = -1; // Left in morning
               desiredShadowDirY = 0;
             } else {
@@ -2210,8 +2297,9 @@ export function renderWallExteriorShadow({
           }
         } else {
           // Non-triangle foundations: use time-based direction
-          if (cycleProgress >= 0.0 && cycleProgress < 0.55) {
-            // Dawn through Morning to Noon: sun in east, shadows cast WEST (left, negative X)
+          // Include Twilight Morning (0.97-1.0) wrap-around in morning shadow direction
+          if ((cycleProgress >= 0.0 && cycleProgress < 0.55) || (cycleProgress >= 0.97 && cycleProgress <= 1.0)) {
+            // Dawn through Morning to Noon, and Twilight Morning: sun in east, shadows cast WEST (left, negative X)
             desiredShadowDirX = -1;
             desiredShadowDirY = 0;
           } else {

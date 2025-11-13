@@ -56,16 +56,17 @@ interface ColorAlphaKeyframe {
 const DAY_COLOR_CONFIG = { rgb: [0, 0, 0] as [number, number, number], alpha: 0.0 }; // Color doesn't matter when alpha is 0
 
 const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // Midnight to Pre-Dawn (25-minute cycle: 20min day + 5min night)
-  { progress: 0.0,  rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight
+  // START at 0.0 matching END of Twilight Morning (1.0) - smooth wrap-around transition!
+  { progress: 0.0,  rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples (matches Twilight Morning end at 1.0)
   
-  // Dawn (Server: 0.0 - 0.05, gradual transitions)
-  { progress: 0.025, rgb: [30, 25, 65],    alpha: 0.85 },   // Faint Blues/Purples emerge
-  { progress: 0.035, rgb: [50, 40, 80],    alpha: 0.78 },   // Darker Purples becoming more visible
-  { progress: 0.045, rgb: [90, 60, 100],   alpha: 0.65 },   // Purples lighten, hint of pink
+  // Dawn (Server: 0.0 - 0.05, gradual transitions) - FADE OUT (get lighter), not darker!
+  { progress: 0.015, rgb: [150, 70, 100],   alpha: 0.45 },   // Getting lighter
+  { progress: 0.025, rgb: [160, 80, 90],    alpha: 0.40 },   // Pinks emerge, getting lighter
+  { progress: 0.035, rgb: [220, 110, 70],   alpha: 0.30 },   // Oranges appear, much lighter
+  { progress: 0.045, rgb: [255, 140, 60],   alpha: 0.20 },   // Bright oranges, very light
 
   // Morning - Transition to Clear Day (Server: 0.05 - 0.35)
-  { progress: 0.06, rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples
+  { progress: 0.06, rgb: [255, 170, 80],   alpha: 0.10 },   // Sunrise peak, almost clear
   { progress: 0.08, rgb: [160, 80, 90],   alpha: 0.50 },   // Pinks and Muted Oranges appear
   { progress: 0.10, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen
   { progress: 0.115, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges, lower alpha
@@ -107,17 +108,17 @@ const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
 ];
 
 const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // Midnight to Pre-Dawn (Full Moon, 25-minute cycle: 20min day + 5min night)
-  { progress: 0.0,  rgb: [130, 150, 190], alpha: 0.40 },   // Lighter Midnight
-  { progress: 0.02, rgb: [135, 155, 195], alpha: 0.38 },   // Late Midnight
+  // START at 0.0 matching END of Full Moon Twilight Morning (1.0) - smooth wrap-around!
+  { progress: 0.0,  rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink (matches Twilight Morning end at 1.0)
 
-  // Dawn (Full Moon, gradual transitions)
-  { progress: 0.025, rgb: [150, 160, 190], alpha: 0.32 },   // Faint warmer blues emerge
-  { progress: 0.035, rgb: [170, 165, 180], alpha: 0.25 },   // Purplish silver
-  { progress: 0.045, rgb: [190, 170, 170], alpha: 0.18 },   // More silver, hint of warmth
+  // Dawn (Full Moon, gradual transitions) - FADE OUT (get lighter), not darker!
+  { progress: 0.015, rgb: [210, 180, 160], alpha: 0.12 },   // Getting lighter
+  { progress: 0.025, rgb: [230, 190, 150], alpha: 0.08 },   // Soft oranges, much lighter
+  { progress: 0.035, rgb: [250, 200, 140], alpha: 0.04 },   // Bright pale oranges, very light
+  { progress: 0.045, rgb: [255, 215, 150], alpha: 0.02 },   // Sunrise peak, almost clear
 
   // Morning - Transition to Clear Day (Full Moon)
-  { progress: 0.06, rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink
+  { progress: 0.06, rgb: [255, 225, 170], alpha: 0.01 },   // Lingering soft glow
   { progress: 0.08, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges appear
   { progress: 0.10, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen
   { progress: 0.115, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges
