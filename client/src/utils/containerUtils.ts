@@ -558,7 +558,7 @@ export function getContainerDisplayName(containerType: ContainerType): string {
         player_corpse: 'Player Corpse',
         stash: 'STASH',
         rain_collector: 'RAIN COLLECTOR',
-        homestead_hearth: 'HOMESTEAD HEARTH'
+        homestead_hearth: "MATRON'S CHEST"
     };
     
     return nameMap[containerType];

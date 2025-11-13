@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { gameConfig, FOUNDATION_TILE_SIZE } from '../config/gameConfig';
+import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -49,6 +49,9 @@ export interface ViewportBounds {
   viewMinY: number;
   viewMaxY: number;
 }
+
+// Import building visibility utilities
+import { getBuildingClusters, getPlayerBuildingClusterId, shouldMaskFoundation, type BuildingCluster } from '../utils/buildingVisibilityUtils';
 
 interface EntityFilteringResult {
   visibleHarvestableResources: SpacetimeDBHarvestableResource[];
@@ -102,6 +105,8 @@ interface EntityFilteringResult {
   visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>; // ADDED: Building foundations map
   visibleWallCells: SpacetimeDBWallCell[]; // ADDED: Building walls
   visibleWallCellsMap: Map<string, SpacetimeDBWallCell>; // ADDED: Building walls map
+  buildingClusters: Map<string, BuildingCluster>; // ADDED: Building clusters for fog of war
+  playerBuildingClusterId: string | null; // ADDED: Which building cluster the player is in
 }
 
 // Define a unified entity type for sorting
@@ -130,7 +135,8 @@ export type YSortedEntityType =
   | { type: 'sea_stack'; entity: any } // Server-provided sea stack entities
   | { type: 'sleeping_bag'; entity: SpacetimeDBSleepingBag } // ADDED: Sleeping bags
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
-  | { type: 'wall_cell'; entity: SpacetimeDBWallCell }; // ADDED: Building walls
+  | { type: 'wall_cell'; entity: SpacetimeDBWallCell } // ADDED: Building walls
+  | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } } }; // ADDED: Fog of war overlay (renders above placeables, below walls)
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
@@ -187,6 +193,17 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Players standing on foundations will have positionY at or near the top edge
       const foundation = entity as SpacetimeDBFoundationCell;
       return foundation.cellY * 48; // TILE_SIZE = 48, use top edge for Y-sorting
+    }
+    case 'fog_overlay': {
+      // Fog overlays must ALWAYS render above placeables but BELOW walls for realism
+      // Strategy: Use explicit sorting for BOTH relationships (most reliable)
+      // Fog Y position: Use the center Y of the building cluster bounds
+      // This ensures fog covers the entire building area
+      const fogEntity = entity as { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } };
+      const centerY = (fogEntity.bounds.minY + fogEntity.bounds.maxY) / 2;
+      // Set fog Y just above typical placeable positions (center + 50)
+      // Explicit checks ensure walls always render above fog
+      return centerY + 50;
     }
     case 'wall_cell': {
       const wall = entity as SpacetimeDBWallCell;
@@ -259,6 +276,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'barrel': return 15;
     case 'rain_collector': return 18;
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
+    case 'fog_overlay': return 19.9; // ADDED: Fog overlays render above ALL placeables (max ~18) but below walls (22+)
     case 'wall_cell': {
       const wall = item.entity as SpacetimeDBWallCell;
       if (wall.edge === 0 || wall.edge === 2) {
@@ -535,6 +553,7 @@ export function useEntityFiltering(
   seaStacks: Map<string, any>, // ADDED sea stacks argument
   foundationCells: Map<string, SpacetimeDBFoundationCell>, // ADDED: Building foundations
   wallCells: Map<string, SpacetimeDBWallCell>, // ADDED: Building walls
+  localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isTreeFalling?: (treeId: string) => boolean // NEW: Check if tree is falling
 ): EntityFilteringResult {
   // Increment frame counter for throttling
@@ -1032,6 +1051,21 @@ export function useEntityFiltering(
     });
   }, [wallCells, wallMapSize, viewBounds, stableTimestamp]);
 
+  // Extract foundation map size BEFORE building clusters computation to ensure React detects changes
+  const foundationMapSize = foundationCells?.size || 0;
+
+  // ADDED: Calculate building clusters for fog of war
+  const buildingClusters = useMemo(() => {
+    if (!foundationCells || !wallCells) return new Map();
+    return getBuildingClusters(foundationCells, wallCells);
+  }, [foundationCells, foundationMapSize, wallCells, wallMapSize]);
+
+  // ADDED: Determine which building cluster the local player is in
+  const playerBuildingClusterId = useMemo(() => {
+    const localPlayer = localPlayerId ? players.get(localPlayerId) : undefined;
+    return getPlayerBuildingClusterId(localPlayer, buildingClusters);
+  }, [localPlayerId, players, buildingClusters]);
+
   const visibleHarvestableResourcesMap = useMemo(() => 
     new Map(visibleHarvestableResources.map(hr => [hr.id.toString(), hr])), 
     [visibleHarvestableResources]
@@ -1191,8 +1225,7 @@ export function useEntityFiltering(
 
   // Y-sorted entities with PERFORMANCE OPTIMIZED sorting
   // CRITICAL: Force recalculation when map sizes change (subscription data loads)
-  // Note: wallMapSize is already extracted above
-  const foundationMapSize = foundationCells?.size || 0;
+  // Note: wallMapSize and foundationMapSize are already extracted above
   const playerMapSize = players?.size || 0;
   
   const ySortedEntities = useMemo(() => {
@@ -1224,7 +1257,29 @@ export function useEntityFiltering(
       wallCells: visibleWallCells.length
     };
     
-    const totalEntities = Object.values(currentEntityCounts).reduce((sum, count) => sum + count, 0);
+    // Calculate fog overlay count (building clusters that should be masked)
+    let fogOverlayCount = 0;
+    if (buildingClusters && buildingClusters.size > 0) {
+      const processedClusters = new Set<string>();
+      visibleFoundationCells.forEach(foundation => {
+        if (foundation.isDestroyed) return;
+
+        // Find which cluster this foundation belongs to
+        for (const [clusterId, cluster] of buildingClusters) {
+          if (cluster.foundationIds.has(foundation.id) && !processedClusters.has(clusterId)) {
+            // Check if this cluster should be masked
+            const shouldMask = cluster.isEnclosed && playerBuildingClusterId !== clusterId;
+            if (shouldMask) {
+          fogOverlayCount++;
+              processedClusters.add(clusterId);
+            }
+            break;
+          }
+        }
+      });
+    }
+    
+    const totalEntities = Object.values(currentEntityCounts).reduce((sum, count) => sum + count, 0) + fogOverlayCount;
     
     // Early exit if no entities
     if (totalEntities === 0) return [];
@@ -1321,6 +1376,51 @@ export function useEntityFiltering(
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
     visibleFoundationCells.forEach(e => allEntities[index++] = { type: 'foundation_cell', entity: e }); // ADDED: Foundations
+    
+    // ADDED: Add fog overlays for building clusters that should be masked
+    // These render above placeables but below walls
+    // CRITICAL: Must always check and add fog overlays when player is outside enclosed buildings
+    // This ensures consistent fog of war for PVP gameplay
+    if (buildingClusters && buildingClusters.size > 0) {
+      const processedClusters = new Set<string>();
+
+      visibleFoundationCells.forEach(foundation => {
+        if (foundation.isDestroyed) return;
+
+        // Find which cluster this foundation belongs to
+        for (const [clusterId, cluster] of buildingClusters) {
+          if (cluster.foundationIds.has(foundation.id) && !processedClusters.has(clusterId)) {
+            // Check if this cluster should be masked
+            const shouldMask = cluster.isEnclosed && playerBuildingClusterId !== clusterId;
+
+        if (shouldMask) {
+              // Calculate cluster bounds
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              cluster.cellCoords.forEach((coord: string) => {
+                const [cellX, cellY] = coord.split(',').map(Number);
+                const worldX = cellX * FOUNDATION_TILE_SIZE;
+                const worldY = cellY * FOUNDATION_TILE_SIZE;
+                minX = Math.min(minX, worldX);
+                minY = Math.min(minY, worldY);
+                maxX = Math.max(maxX, worldX + FOUNDATION_TILE_SIZE);
+                maxY = Math.max(maxY, worldY + FOUNDATION_TILE_SIZE);
+              });
+
+              allEntities[index++] = {
+                type: 'fog_overlay',
+                entity: {
+                  clusterId,
+                  bounds: { minX, minY, maxX, maxY }
+                }
+              };
+              processedClusters.add(clusterId);
+            }
+            break; // Found the cluster, no need to check others
+          }
+        }
+      });
+    }
+    
     visibleWallCells.forEach(e => allEntities[index++] = { type: 'wall_cell', entity: e }); // ADDED: Walls
 
     // Trim array to actual size in case some entities were filtered out (e.g., stones with 0 health)
@@ -1331,6 +1431,56 @@ export function useEntityFiltering(
     // than the old method, but it avoids massive memory allocation, which is the
     // likely cause of the garbage-collection lag spikes.
     allEntities.sort((a, b) => {
+      // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - ABSOLUTE FIRST CHECK
+      // This MUST be the very first check to guarantee walls are never obscured by fog
+      // Walls represent the building structure and should always be visible above fog
+      // Check BOTH type strings explicitly to ensure we catch all cases
+      const aIsFog = a.type === 'fog_overlay';
+      const bIsFog = b.type === 'fog_overlay';
+      const aIsWall = a.type === 'wall_cell';
+      const bIsWall = b.type === 'wall_cell';
+      
+      // If one is fog and the other is wall, wall ALWAYS wins (renders above)
+      if (aIsFog && bIsWall) {
+        return -1; // Fog renders before (below) wall - absolute precedence
+      }
+      if (bIsFog && aIsWall) {
+        return 1; // Wall renders after (above) fog - absolute precedence
+      }
+      
+      // CRITICAL: Ensure fog ALWAYS renders above placeables within masked building clusters - SECOND CHECK (right after walls)
+      // This MUST run before any other logic to guarantee placeables are always hidden by fog
+      const placeableTypes: Array<YSortedEntityType['type']> = [
+        'wooden_storage_box', 'stash', 'campfire', 'furnace', 'lantern', 
+        'homestead_hearth', 'barrel', 'rain_collector', 'sleeping_bag'
+      ];
+      
+      // Helper function to check if a placeable is within a building cluster bounds
+      const isPlaceableInFogBounds = (placeable: any, fogBounds: { minX: number; minY: number; maxX: number; maxY: number }): boolean => {
+        if (!placeable || !placeable.posX || !placeable.posY) return false;
+        return placeable.posX >= fogBounds.minX &&
+               placeable.posX < fogBounds.maxX &&
+               placeable.posY >= fogBounds.minY &&
+               placeable.posY < fogBounds.maxY;
+      };
+      
+      // Fog must render above placeables within the same building cluster
+      if (aIsFog && placeableTypes.includes(b.type)) {
+        const fogEntity = a.entity as { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } };
+        const placeable = b.entity as any;
+        if (isPlaceableInFogBounds(placeable, fogEntity.bounds)) {
+          return 1; // Fog renders after (above) placeable - absolute precedence
+        }
+      }
+      
+      if (bIsFog && placeableTypes.includes(a.type)) {
+        const fogEntity = b.entity as { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } };
+        const placeable = a.entity as any;
+        if (isPlaceableInFogBounds(placeable, fogEntity.bounds)) {
+          return -1; // Fog renders after (above) placeable - absolute precedence
+        }
+      }
+      
       // CRITICAL FIX: Explicitly check if a player is on the same tile as a foundation/wall
       // For foundations and east/west walls: player ALWAYS renders after (above)
       // For north/south walls: wall renders after (above) player ONLY when player is on the correct side
@@ -1572,6 +1722,7 @@ export function useEntityFiltering(
       }
       
       // Primary sort by Y position
+      // Note: Explicit check above ensures walls always render above fog regardless of Y position
       const yDiff = yA - yB;
       if (Math.abs(yDiff) > 0.1) {
         return yDiff;
@@ -1614,7 +1765,9 @@ export function useEntityFiltering(
     playerMapSize, // CRITICAL: Depend on player map size to detect when player data loads
     stableTimestamp, // Only include stableTimestamp for projectile calculations
     hasEntityCountChanged, // Add callback dependency
-    frameCounter // Add frame counter for cache invalidation
+    frameCounter, // Add frame counter for cache invalidation
+    buildingClusters, // ADDED: Depend on building clusters for fog overlay calculation
+    playerBuildingClusterId, // ADDED: Depend on player building cluster for fog overlay calculation
   ]);
 
   // Emergency mode removed
@@ -1671,5 +1824,7 @@ export function useEntityFiltering(
     visibleFoundationCellsMap,
     visibleWallCells,
     visibleWallCellsMap,
+    buildingClusters, // ADDED: Building clusters for fog of war
+    playerBuildingClusterId, // ADDED: Which building the player is in
   };
 } 

@@ -389,7 +389,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         }
     }, [connection, container.containerId, container.containerEntity]);
 
-    // Handle grant building privilege for homestead hearth
+    // Handle grant building privilege for matron's chest
     const handleGrantBuildingPrivilege = useCallback(() => {
         if (!connection?.reducers || container.containerId === null || !container.containerEntity) return;
         
@@ -445,7 +445,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         availableMetal: number;
     } | null>(null);
 
-    // Query upkeep costs when hearth is opened - subscribe to table instead of reducer callback
+    // Query upkeep costs when chest is opened - subscribe to table instead of reducer callback
     useEffect(() => {
         if (container.containerType !== 'homestead_hearth' || !container.containerEntity || !connection) {
             setUpkeepCosts(null);
@@ -629,7 +629,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 </>
             )}
 
-                {/* Homestead hearth building privilege UI */}
+                {/* Matron's Chest building privilege UI */}
                 {container.containerType === 'homestead_hearth' && (
                     <>
                         <div style={{ 
@@ -678,7 +678,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 color: '#87CEEB', 
                                 fontStyle: 'italic'
                             }}>
-                                💡 Hold E near hearth to toggle privilege
+                                💡 Hold E near chest to toggle privilege
                             </div>
                         </div>
 

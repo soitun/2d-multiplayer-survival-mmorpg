@@ -69,6 +69,12 @@ pub(crate) const TORCH_WARMTH_PER_SECOND: f32 = 1.75;
 // Tree cover hydration conservation constant
 pub(crate) const TREE_COVER_HYDRATION_REDUCTION_MULTIPLIER: f32 = 0.75; // 25% reduction in thirst drain (75% of normal rate)
 
+// Indoor warmth protection constant
+// Reduces negative warmth drain when inside shelters or enclosed buildings
+// 0.65 = 35% reduction in cold drain (still get cold, but slower)
+// Example: -2.0 warmth/sec (midnight) becomes -1.3 warmth/sec when indoors
+pub(crate) const INDOOR_WARMTH_PROTECTION_MULTIPLIER: f32 = 0.65;
+
 // Add dodge roll stamina cost constant
 pub(crate) const DODGE_ROLL_STAMINA_COST: f32 = 10.0;
 
@@ -251,7 +257,19 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             TimeOfDay::Dawn => 0.0,
         };
 
+        // Apply indoor warmth protection to reduce cold drain (but not eliminate it)
         let mut total_warmth_change_per_sec = base_warmth_change_per_sec;
+        if player.is_inside_building && base_warmth_change_per_sec < 0.0 {
+            // Reduce negative warmth drain by 35% when indoors
+            total_warmth_change_per_sec = base_warmth_change_per_sec * INDOOR_WARMTH_PROTECTION_MULTIPLIER;
+            log::trace!(
+                "Player {:?} is indoors - cold drain reduced by {:.0}% (from {:.2} to {:.2} warmth/sec)",
+                player_id,
+                (1.0 - INDOOR_WARMTH_PROTECTION_MULTIPLIER) * 100.0,
+                base_warmth_change_per_sec,
+                total_warmth_change_per_sec
+            );
+        }
 
         for fire in campfires.iter() {
             // Only gain warmth from burning campfires

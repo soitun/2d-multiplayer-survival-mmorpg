@@ -1460,7 +1460,7 @@ fn is_heavy_raining(ctx: &ReducerContext) -> bool {
     }
 }
 
-/// Checks if a campfire is protected from rain by being inside a shelter or near a tree
+/// Checks if a campfire is protected from rain by being inside a shelter, building, or near a tree
 fn is_campfire_protected_from_rain(ctx: &ReducerContext, campfire: &Campfire) -> bool {
     // Check if campfire is inside any shelter
     for shelter in ctx.db.shelter().iter() {
@@ -1482,6 +1482,12 @@ fn is_campfire_protected_from_rain(ctx: &ReducerContext, campfire: &Campfire) ->
             log::debug!("Campfire {} is protected from rain by shelter {}", campfire.id, shelter.id);
             return true;
         }
+    }
+    
+    // NEW: Check if campfire is inside an enclosed building (foundation + walls)
+    if crate::building_enclosure::is_position_inside_building(ctx, campfire.pos_x, campfire.pos_y) {
+        log::debug!("Campfire {} is protected from rain by enclosed building", campfire.id);
+        return true;
     }
     
     // Check if campfire is within 100px of any tree (protected by tree cover)

@@ -127,7 +127,7 @@ pub enum FoundationShape {
     TriSW = 5,  // Triangle pointing SW
 }
 
-#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
+#[derive(SpacetimeType, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum BuildingEdge {
     N = 0,      // North (top)

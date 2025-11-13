@@ -91,8 +91,8 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
 
         // === UTILITY STRUCTURES ===
 
-        // Homestead Hearth - Building privilege and material storage
-        ItemBuilder::new("Homestead Hearth", "A central hearth that grants building privilege to those who tend it. Stores building materials and provides warmth to those with building privilege. Hold E to gain building privilege, press E to access inventory.", ItemCategory::Placeable)
+        // Matron's Chest - Building privilege and material storage
+        ItemBuilder::new("Matron's Chest", "A sacred chest blessed by a Pra Matron of Gred. Stores raw materials and building supplies. Hold E to gain building privilege, press E to access inventory.", ItemCategory::Placeable)
             .icon("hearth.png")
             .crafting_cost(vec![
                 CostIngredient { item_name: "Stone".to_string(), quantity: 200 },

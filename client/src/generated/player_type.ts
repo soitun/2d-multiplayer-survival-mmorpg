@@ -54,6 +54,7 @@ export type Player = {
   knockedOutAt: __Timestamp | undefined,
   isOnWater: boolean,
   clientMovementSequence: bigint,
+  isInsideBuilding: boolean,
 };
 let _cached_Player_type_value: __AlgebraicTypeType | null = null;
 
@@ -94,6 +95,7 @@ export const Player = {
       { name: "knockedOutAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "isOnWater", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "clientMovementSequence", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "isInsideBuilding", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Player_type_value;
   },

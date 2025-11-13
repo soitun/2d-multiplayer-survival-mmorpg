@@ -493,6 +493,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleSeaStacksMap,
     visibleHomesteadHearths,
     visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
+    buildingClusters, // ADDED: Building clusters for fog of war
+    playerBuildingClusterId, // ADDED: Which building the player is in
   } = useEntityFiltering(
     players,
     trees,
@@ -524,6 +526,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     seaStacks,
     foundationCells, // ADDED: Building foundations
     wallCells, // ADDED: Building walls
+    localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
   );
 
@@ -1452,6 +1455,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         cameraOffsetX,
         cameraOffsetY,
         foundationTileImagesRef,
+        allWalls: wallCells, // ADDED: All walls to check for adjacent walls
+        allFoundations: foundationCells, // ADDED: All foundations to check for adjacent foundations
+        buildingClusters, // ADDED: Building clusters for fog of war
+        playerBuildingClusterId, // ADDED: Which building the player is in
       });
     }
 
@@ -1835,6 +1842,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           foundationTileImagesRef,
           allWalls: wallCells, // Pass all walls to check for adjacent walls
           allFoundations: foundationCells, // Pass all foundations to check for adjacent foundations
+          buildingClusters, // ADDED: Building clusters for fog of war
+          playerBuildingClusterId, // ADDED: Which building the player is in
         });
       }
     });

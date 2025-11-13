@@ -648,6 +648,18 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             });
         }
         
+        // NEW: Add indoors status if player is inside a shelter or enclosed building
+        if (localPlayer.isInsideBuilding) {
+            effects.push({
+                id: 'indoors',
+                name: 'Indoors',
+                emoji: '🏠',
+                type: 'positive',
+                description: 'Protected from rain. Can light campfires during storms.\nWarmth decay reduced.'
+                // No duration - this is instant on/off based on position (shelter or building)
+            });
+        }
+        
         if (!activeConsumableEffects || !identity) return effects;
         
         const localPlayerIdHex = identity.toHexString();

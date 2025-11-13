@@ -146,7 +146,7 @@ pub struct HomesteadHearth {
     pub upkeep_interval_seconds: u64, // How often upkeep is processed (default: 3600 = 1 hour)
 }
 
-/// Allowed item names for hearth inventory (building materials only)
+/// Allowed item names for hearth inventory (building materials and crafting resources)
 const ALLOWED_ITEM_NAMES: &[&str] = &[
     "Wood",
     "Stone",
@@ -154,6 +154,10 @@ const ALLOWED_ITEM_NAMES: &[&str] = &[
     "Cloth",
     "Fiber",
     "Coal",
+    "Bone Fragments",
+    "Animal Fat",
+    "Tallow",
+    "Animal Leather",
 ];
 
 /// Checks if an item is allowed in the hearth inventory
@@ -889,13 +893,13 @@ pub fn place_homestead_hearth(
 
     // --- Look up Item Definition ID by Name ---
     let hearth_def_id = item_defs.iter()
-        .find(|def| def.name == "Homestead Hearth")
+        .find(|def| def.name == "Matron's Chest")
         .map(|def| def.id)
-        .ok_or_else(|| "Item definition for 'Homestead Hearth' not found.".to_string())?;
+        .ok_or_else(|| "Item definition for 'Matron's Chest' not found.".to_string())?;
     // --- End Look up ---
 
     log::info!(
-        "[PlaceHomesteadHearth] Player {:?} attempting placement of item {} at ({:.1}, {:.1})",
+        "[PlaceMatronsChest] Player {:?} attempting placement of item {} at ({:.1}, {:.1})",
         sender_id, item_instance_id, world_x, world_y
     );
 
@@ -904,11 +908,11 @@ pub fn place_homestead_hearth(
         .ok_or_else(|| "Player not found".to_string())?;
 
     if player.is_dead {
-        return Err("Cannot place hearth while dead.".to_string());
+        return Err("Cannot place Matron's Chest while dead.".to_string());
     }
 
     if player.is_knocked_out {
-        return Err("Cannot place hearth while knocked out.".to_string());
+        return Err("Cannot place Matron's Chest while knocked out.".to_string());
     }
 
     // 2. Check placement distance
@@ -917,7 +921,7 @@ pub fn place_homestead_hearth(
     let distance_squared = dx * dx + dy * dy;
 
     if distance_squared > HEARTH_PLACEMENT_MAX_DISTANCE_SQUARED {
-        return Err("Too far away to place hearth.".to_string());
+        return Err("Too far away to place Matron's Chest.".to_string());
     }
 
     // 2.5. Check that hearth is being placed on a foundation (full or triangle)
@@ -940,7 +944,7 @@ pub fn place_homestead_hearth(
     }
     
     if !has_foundation {
-        return Err("Homestead Hearth must be placed on a foundation (full or triangle).".to_string());
+        return Err("Matron's Chest must be placed on a foundation (full or triangle). Build a foundation first!".to_string());
     }
 
     // 3. Check for collision with other hearths (prevent overlapping building privilege zones)
@@ -951,11 +955,11 @@ pub fn place_homestead_hearth(
         let dx = world_x - existing_hearth.pos_x;
         let dy = world_y - existing_hearth.pos_y;
         let distance_squared = dx * dx + dy * dy;
-        // Prevent placing hearths within building privilege radius of each other
+        // Prevent placing chests within building privilege radius of each other
         // This ensures building privilege zones don't overlap
         if distance_squared < BUILDING_PRIVILEGE_RADIUS_SQUARED {
             return Err(format!(
-                "Cannot place hearth within {}px of another hearth (building privilege radius).",
+                "Cannot place Matron's Chest within {}px of another chest (building privilege radius).",
                 BUILDING_PRIVILEGE_RADIUS
             ));
         }
@@ -982,7 +986,7 @@ pub fn place_homestead_hearth(
         }
     }
     if item_to_consume.item_def_id != hearth_def_id {
-        return Err(format!("Item instance {} is not a Homestead Hearth (expected def {}, got {}).",
+        return Err(format!("Item instance {} is not a Matron's Chest (expected def {}, got {}).",
                         item_instance_id, hearth_def_id, item_to_consume.item_def_id));
     }
 
@@ -1112,7 +1116,7 @@ pub fn move_item_to_hearth(
         .ok_or_else(|| format!("Item definition {} not found", item_to_move.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in hearth inventory. Only building materials (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     // Use generic handler
@@ -1173,7 +1177,7 @@ pub fn split_stack_into_hearth(
         .ok_or_else(|| format!("Item definition {} not found", source_item.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in hearth inventory. Only building materials (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     let mut source_item_mut = source_item;
@@ -1261,7 +1265,7 @@ pub fn quick_move_to_hearth(
         .ok_or_else(|| format!("Item definition {} not found", item_to_move.item_def_id))?;
     
     if !is_item_allowed(&item_def) {
-        return Err(format!("Item '{}' is not allowed in hearth inventory. Only building materials (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal) are allowed.", item_def.name));
+        return Err(format!("Item '{}' is not allowed in Matron's Chest. Only building materials and crafting resources (Wood, Stone, Metal Fragments, Cloth, Fiber, Coal, Bone Fragments, Animal Fat, Tallow, Animal Leather) are allowed.", item_def.name));
     }
     
     inventory_management::handle_quick_move_to_container(ctx, &mut hearth, item_instance_id)?;

@@ -135,7 +135,31 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         let dist_sq_shelter = dx_shelter * dx_shelter + dy_shelter * dy_shelter;
     }
     
-    // TODO: Add collision checks against other large structures (trees, stones, buildings) if necessary.
+    // Check if shelter would be placed on or near a foundation (not allowed)
+    // Shelter is 384x384px, which covers 4x4 foundation cells (96px each)
+    // We check a 5x5 grid centered on shelter position for full coverage
+    use crate::building::{FOUNDATION_TILE_SIZE_PX, foundation_cell as FoundationCellTableTrait};
+    let foundations = ctx.db.foundation_cell();
+    
+    // Convert shelter world position to foundation cell coordinates
+    let center_cell_x = (world_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let center_cell_y = (world_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check 5x5 grid around center (±2 cells in each direction)
+    for offset_x in -2..=2 {
+        for offset_y in -2..=2 {
+            let check_cell_x = center_cell_x + offset_x;
+            let check_cell_y = center_cell_y + offset_y;
+            
+            for foundation in foundations.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
+                if !foundation.is_destroyed {
+                    return Err("Cannot place shelter on or near foundations. Shelters must be placed on natural ground.".to_string());
+                }
+            }
+        }
+    }
+    
+    // TODO: Add collision checks against other large structures (trees, stones) if necessary.
 
     // 2. Find the specific item instance and validate
     let item_to_consume = inventory_items.instance_id().find(item_instance_id)

@@ -747,9 +747,9 @@ export function renderPlacementPreview({
         drawWidth = 96;  // Doubled from 48
         drawHeight = 128; // Doubled from 64
     } else if (placementInfo.iconAssetName === 'hearth.png') {
-        // Homestead hearth preview dimensions (matches actual rendering)
-        drawWidth = HEARTH_WIDTH;  // 96px
-        drawHeight = HEARTH_HEIGHT; // 96px
+        // Matron's Chest preview dimensions (matches actual rendering: 125px, 30% larger than base 96px)
+        drawWidth = HEARTH_WIDTH;  // 125px
+        drawHeight = HEARTH_HEIGHT; // 125px
     } else if (isSeedPlacement) {
         // Seeds should match the actual planted seed size (48x48)
         drawWidth = 48;  
@@ -764,8 +764,53 @@ export function renderPlacementPreview({
     // Check for seed proximity restriction
     const isTooCloseToSeeds = isSeedPlacementTooClose(connection, placementInfo, worldMouseX, worldMouseY);
     
+    // Check if shelter is being placed on a foundation (not allowed)
+    // Shelter is 384x384px, which covers 4x4 foundation cells (96px each)
+    // We check a 5x5 grid centered on mouse position for full coverage
+    const isOnFoundation = placementInfo.itemName === 'Shelter' && connection && 
+        (() => {
+            const FOUNDATION_TILE_SIZE = 96;
+            const centerCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
+            const centerCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
+            
+            // Check 5x5 grid around center (±2 cells in each direction)
+            for (let offsetX = -2; offsetX <= 2; offsetX++) {
+                for (let offsetY = -2; offsetY <= 2; offsetY++) {
+                    const checkCellX = centerCellX + offsetX;
+                    const checkCellY = centerCellY + offsetY;
+                    
+                    for (const foundation of connection.db.foundationCell.iter()) {
+                        if (foundation.cellX === checkCellX && 
+                            foundation.cellY === checkCellY && 
+                            !foundation.isDestroyed) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        })();
+    
+    // Check if Matron's Chest is NOT on a foundation (required)
+    const isNotOnFoundation = placementInfo.itemName === "Matron's Chest" && connection && 
+        (() => {
+            const FOUNDATION_TILE_SIZE = 96;
+            const centerCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
+            const centerCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
+            
+            // Check if there's a foundation at this exact cell
+            for (const foundation of connection.db.foundationCell.iter()) {
+                if (foundation.cellX === centerCellX && 
+                    foundation.cellY === centerCellY && 
+                    !foundation.isDestroyed) {
+                    return false; // Found a foundation, placement is valid
+                }
+            }
+            return true; // No foundation found, placement is invalid
+        })();
+    
     // Apply visual effect - red tint with opacity for any invalid placement
-    const isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || placementError;
+    const isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || placementError;
     
     if (isInvalidPlacement) {
         // Strong red tint for all invalid placements
@@ -778,14 +823,9 @@ export function renderPlacementPreview({
     }
 
     // Calculate the centered position (perfectly centered on cursor)
-    // For hearth, match the actual rendering position exactly (including Y offset)
+    // Preview is always centered on cursor for all items
     const adjustedX = worldMouseX - drawWidth / 2;
-    let adjustedY = worldMouseY - drawHeight / 2;
-    
-    // Apply hearth-specific Y offset to match actual rendering position
-    if (placementInfo.iconAssetName === 'hearth.png') {
-        adjustedY = worldMouseY - drawHeight - HEARTH_RENDER_Y_OFFSET;
-    }
+    const adjustedY = worldMouseY - drawHeight / 2;
 
     // Draw the preview image or fallback
     if (previewImg && previewImg.complete && previewImg.naturalHeight !== 0) {

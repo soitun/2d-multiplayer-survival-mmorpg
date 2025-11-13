@@ -45,7 +45,7 @@ import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderLantern } from './lanternRenderingUtils';
-import { renderFoundation } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
+import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
@@ -408,6 +408,8 @@ interface RenderYSortedEntitiesProps {
   foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
     allWalls?: Map<string, any>; // ADDED: All walls to check for adjacent walls
     allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
+    buildingClusters?: Map<string, any>; // ADDED: Building clusters for fog of war
+    playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
 }
 
 
@@ -472,6 +474,8 @@ export const renderYSortedEntities = ({
     foundationTileImagesRef,
     allWalls, // ADDED: All walls to check for adjacent walls
     allFoundations, // ADDED: All foundations to check for adjacent foundations
+    buildingClusters, // ADDED: Building clusters for fog of war
+    playerBuildingClusterId, // ADDED: Which building the player is in
 }: RenderYSortedEntitiesProps) => {
     // PERFORMANCE: Clean up memory caches periodically
     cleanupCaches();
@@ -1056,6 +1060,17 @@ export const renderYSortedEntities = ({
                 allFoundations: allFoundations, // Pass all foundations to check for adjacent foundations
             });
             
+        } else if (type === 'fog_overlay') {
+            const fogEntity = entity as { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } };
+            // Render fog overlay (black mask) above placeables but below walls
+            renderFogOverlayCluster({
+                ctx,
+                bounds: fogEntity.bounds,
+                worldScale: 1.0,
+                viewOffsetX: -cameraOffsetX, // Convert camera offset to view offset
+                viewOffsetY: -cameraOffsetY,
+            });
+            
         } else if (type === 'wall_cell') {
             const wall = entity as SpacetimeDBWallCell;
             
@@ -1135,6 +1150,9 @@ export const renderYSortedEntities = ({
             // Sea stacks are fully rendered in the first pass - no second pass needed
         } else if (type === 'foundation_cell') {
             // Foundations are fully rendered in the first pass (ground level).
+            // No action needed in this second (shadow-only) pass.
+        } else if (type === 'fog_overlay') {
+            // Fog overlays are fully rendered in the first pass.
             // No action needed in this second (shadow-only) pass.
         } else if (type === 'wall_cell') {
             // Render exterior wall shadows (change throughout the day based on sun position)

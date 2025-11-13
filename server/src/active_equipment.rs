@@ -604,6 +604,13 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         log::debug!("{} detected: Using custom range {:.1}, angle {:.1}", item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
 
+    // NEW: Blueprint doesn't swing/attack - it's only for building
+    // Skip all swing logic to prevent distracting sounds while building
+    if item_def.name == "Blueprint" {
+        log::debug!("[UseEquippedItem] Blueprint equipped - skipping swing (building tool only)");
+        return Ok(());
+    }
+    
     let mut current_equipment_mut = current_equipment.clone(); // Clone to modify for swing time
     current_equipment_mut.swing_start_time_ms = now_ms;
     active_equipments.player_identity().update(current_equipment_mut); // Update with new swing time

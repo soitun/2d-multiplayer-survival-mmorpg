@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection, ItemDefinition } from '../generated'; // Import connection type and ItemDefinition
 import { TILE_SIZE } from '../config/gameConfig';
 import { isSeedItemValid, requiresWaterPlacement } from '../utils/plantsUtils';
+import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
 
 // Minimum distance between planted seeds (in pixels)
 const MIN_SEED_DISTANCE = 20;
@@ -228,7 +229,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Homestead Hearth']; // ADDED: Furnace, Homestead Hearth
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest"]; // ADDED: Furnace, Matron's Chest
   
   // Seeds that don't require water (most seeds) cannot be planted on water
   const isSeedButNotWaterSeed = isSeedItemValid(placementInfo.itemName) && !requiresWaterPlacement(placementInfo.itemName);
@@ -393,9 +394,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           connection.reducers.placeRainCollector(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will need a handleRainCollectorInsert callback to cancel placement on success
           break;
-        case 'Homestead Hearth':
-          // console.log(`[PlacementManager] Calling placeHomesteadHearth reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeHomesteadHearth(placementInfo.instanceId, worldX, worldY);
+        case "Matron's Chest":
+          // Adjust Y coordinate to account for entity rendering offset
+          // Entity renders at: drawY = posY - HEARTH_HEIGHT - HEARTH_RENDER_Y_OFFSET
+          // To center visual on cursor, we need: posY = cursorY + HEARTH_HEIGHT/2 + HEARTH_RENDER_Y_OFFSET
+          const adjustedHearthY = worldY + HEARTH_HEIGHT / 2 + HEARTH_RENDER_Y_OFFSET;
+          // console.log(`[PlacementManager] Calling placeHomesteadHearth reducer with instance ID: ${placementInfo.instanceId}, adjusted Y: ${worldY} -> ${adjustedHearthY}`);
+          connection.reducers.placeHomesteadHearth(placementInfo.instanceId, worldX, adjustedHearthY);
           // Note: We don't call cancelPlacement here.
           // App.tsx's handleHomesteadHearthInsert callback will call it upon success.
           break;

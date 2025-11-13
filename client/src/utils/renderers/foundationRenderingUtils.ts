@@ -122,6 +122,82 @@ function setupTriangleClipPath(
 }
 
 /**
+ * Render fog of war overlay for a foundation cell
+ * This renders a black rectangle over the foundation to hide interior contents
+ * Renders above placeables but below walls
+ * 
+ * NOTE: Fog only covers foundation area (not extended upward) to avoid obscuring doors
+ * Y-sorting ensures placeables never render above fog overlays on the same foundation
+ */
+export function renderFogOverlay({
+  ctx,
+  foundation,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  foundation: FoundationCell;
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  if (foundation.isDestroyed) {
+    return;
+  }
+
+  const { x: worldX, y: worldY } = cellToWorldPixels(foundation.cellX, foundation.cellY);
+  
+  const screenX = worldX;
+  const screenY = worldY;
+  const screenSize = FOUNDATION_TILE_SIZE * worldScale;
+
+  ctx.save();
+
+  // Set up clipping path for triangle shapes (same as foundation)
+  const isTriangle = foundation.shape >= 2 && foundation.shape <= 5;
+  if (isTriangle) {
+    setupTriangleClipPath(ctx, screenX, screenY, screenSize, foundation.shape);
+  }
+
+  // Draw black fog of war overlay (fully opaque) - foundation size only
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(screenX, screenY, screenSize, screenSize);
+
+  ctx.restore();
+}
+
+/**
+ * Render fog of war overlay for an entire building cluster
+ * This renders a black rectangle over the entire cluster bounds to hide interior contents
+ * Renders above placeables but below walls
+ */
+export function renderFogOverlayCluster({
+  ctx,
+  bounds,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  // Since canvas context is already translated by camera offset,
+  // we just use world coordinates directly
+  const screenX = bounds.minX;
+  const screenY = bounds.minY;
+  const screenWidth = (bounds.maxX - bounds.minX) * worldScale;
+  const screenHeight = (bounds.maxY - bounds.minY) * worldScale;
+
+  // Draw black fog of war overlay (fully opaque) - covers entire cluster
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+}
+
+/**
  * Render a foundation cell
  */
 export function renderFoundation({
@@ -158,6 +234,7 @@ export function renderFoundation({
     setupTriangleClipPath(ctx, screenX, screenY, screenSize, foundation.shape);
   }
 
+  // Always render foundation normally (fog overlay is rendered separately as a Y-sorted entity)
   if (tileImage && tileImage.complete && tileImage.naturalHeight !== 0) {
     // Draw foundation tile image (clipped to triangle if needed)
     ctx.drawImage(tileImage, screenX, screenY, screenSize, screenSize);

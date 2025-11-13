@@ -3,6 +3,7 @@ use log;
 use crate::active_effects::{ActiveConsumableEffect, EffectType, active_consumable_effect as ActiveConsumableEffectTableTrait};
 use crate::Player;
 use crate::player;
+use crate::shelter::shelter;
 
 // Constants for wet effect
 pub const WET_COLD_DAMAGE_MULTIPLIER: f32 = 2.0; // Double cold damage when wet
@@ -119,7 +120,7 @@ pub fn should_player_be_wet(ctx: &ReducerContext, player_id: Identity, player: &
 }
 
 
-/// Checks if a player is protected from rain (inside shelter, near campfire, or has tree cover)
+/// Checks if a player is protected from rain (inside shelter, building, near campfire, or has tree cover)
 fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool {
     use crate::shelter::shelter as ShelterTableTrait;
     use crate::campfire::campfire as CampfireTableTrait;
@@ -133,6 +134,11 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool 
         if crate::shelter::is_player_inside_shelter(player.position_x, player.position_y, &shelter) {
             return true;
         }
+    }
+    
+    // NEW: Check if player is inside an enclosed building (foundation + walls)
+    if crate::building_enclosure::is_player_inside_building(ctx, player.position_x, player.position_y) {
+        return true;
     }
     
     // Check if player is near any burning campfire (warmth radius provides rain protection)
@@ -204,6 +210,43 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
         } else if should_be_wet && has_wet_effect {
             // Player is still wet and should be - refresh the effect duration
             apply_wet_effect(ctx, player_id, &reason)?;
+        }
+        
+        // NEW: Update indoor/protected state for status effect display
+        // Check BOTH shelters (fast AABB) and buildings (slower perimeter check)
+        let mut is_inside_shelter = false;
+        for shelter in ctx.db.shelter().iter() {
+            if shelter.is_destroyed {
+                continue;
+            }
+            if crate::shelter::is_player_inside_shelter(player.position_x, player.position_y, &shelter) {
+                is_inside_shelter = true;
+                break;
+            }
+        }
+        
+        // Only check building perimeter if NOT already in shelter (optimization)
+        let is_inside_building = if is_inside_shelter {
+            false // Skip expensive check
+        } else {
+            crate::building_enclosure::is_player_inside_building(
+                ctx, 
+                player.position_x, 
+                player.position_y
+            )
+        };
+        
+        let is_indoors = is_inside_shelter || is_inside_building;
+        
+        // Only update if state changed to avoid unnecessary DB writes
+        if player.is_inside_building != is_indoors {
+            let mut updated_player = player.clone();
+            updated_player.is_inside_building = is_indoors;
+            ctx.db.player().identity().update(updated_player);
+            log::debug!(
+                "Player {:?} indoor state changed: {} -> {} (shelter={}, building={})",
+                player_id, player.is_inside_building, is_indoors, is_inside_shelter, is_inside_building
+            );
         }
     }
     

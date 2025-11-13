@@ -79,6 +79,7 @@ mod metadata_providers; // <<< ADDED: Provides plant/seed metadata to client
 mod sea_stack; // <<< ADDED: Sea stack decorative entities
 mod memory_grid; // <<< ADDED: Memory Grid tech tree system
 mod building; // <<< ADDED: Building system (foundations, walls, doors)
+mod building_enclosure; // <<< ADDED: Building enclosure detection (rain protection, "inside" logic)
 mod homestead_hearth; // <<< ADDED: Homestead Hearth for building privilege system
 mod building_decay; // <<< ADDED: Building decay system
 
@@ -462,6 +463,7 @@ pub struct Player {
     pub knocked_out_at: Option<Timestamp>, // NEW: When the player was knocked out
     pub is_on_water: bool, // NEW: Tracks if the player is currently standing on water
     pub client_movement_sequence: u64,
+    pub is_inside_building: bool, // NEW: Tracks if player is inside an enclosed building (≥70% wall coverage)
 }
 
 // Table to store the last attack timestamp for each player
@@ -1040,6 +1042,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         knocked_out_at: None, // NEW: Initialize knocked out time
         is_on_water: false, // NEW: Initialize is_on_water
         client_movement_sequence: 0,
+        is_inside_building: false, // NEW: Players spawn outside (not inside buildings)
     };
 
     // Insert the new player
