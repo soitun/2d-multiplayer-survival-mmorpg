@@ -29,6 +29,7 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Blueprint", 1, Some(2u8), None),
         ("Repair Hammer", 1, Some(3u8), None),
         ("Camp Fire", 1, Some(4u8), None),
+        ("Hunting Bow", 1, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
         ("Wood", 5000, None, Some(0u16)),
@@ -36,8 +37,8 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Metal Fragments", 5000, None, Some(2u16)),
         ("Sleeping Bag", 1, None, Some(3u16)),
         ("Matron's Chest", 1, None, Some(4u16)),
-        // ("Shelter", 1, None, Some(5u16)),
-        ("Hunting Bow", 1, None, Some(6u16)),
+        ("Shelter", 1, None, Some(5u16)),
+        // ("Hunting Bow", 1, None, Some(6u16)),
         ("Wooden Arrow", 50, None, Some(7u16)),
         // ("Reed Water Bottle", 1, None, Some(8u16)),
         // ("Shelter", 1, None, Some(9u16)),

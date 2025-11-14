@@ -108,7 +108,7 @@ interface UseInteractionFinderResult {
 // Constants for box slots (should match server if possible, or keep fixed)
 const NUM_BOX_SLOTS = 18;
 
-const INTERACTION_CHECK_INTERVAL = 100; // ms
+const INTERACTION_CHECK_INTERVAL = 16; // ms - Reduced for immediate responsiveness (was 100ms)
 
 // --- Locally Defined Interaction Distance Constants (formerly in gameConfig.ts) ---
 // PLAYER_BOX_INTERACTION_DISTANCE_SQUARED is now imported from woodenStorageBoxRenderingUtils
@@ -844,10 +844,23 @@ export function useInteractionFinder({
     }, [localPlayer, harvestableResources, campfires, furnaces, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns]);
 
     useEffect(() => {
-        const interval = setInterval(() => {
+        // Use requestAnimationFrame for frame-synced updates (every ~16ms at 60fps)
+        // This ensures interactions are detected immediately as players move past items
+        let animationFrameId: number | null = null;
+        
+        const updateLoop = () => {
             updateInteractionResult();
-        }, INTERACTION_CHECK_INTERVAL);
-        return () => clearInterval(interval);
+            animationFrameId = requestAnimationFrame(updateLoop);
+        };
+        
+        // Start the update loop
+        animationFrameId = requestAnimationFrame(updateLoop);
+        
+        return () => {
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
     }, [updateInteractionResult]);
 
     return {

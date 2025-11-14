@@ -181,6 +181,7 @@ export const useInputHandler = ({
     const lastServerSwingTimestampRef = useRef<number>(0); // To store server-confirmed swing time
     const eKeyDownTimestampRef = useRef<number>(0);
     const eKeyHoldTimerRef = useRef<NodeJS.Timeout | number | null>(null); // Use number for browser timeout ID
+    const tapActionTriggeredOnKeyDownRef = useRef<boolean>(false); // Track if tap action was already triggered on keyDown
     const [interactionProgress, setInteractionProgress] = useState<InteractionProgressState | null>(null);
     const [isActivelyHolding, setIsActivelyHolding] = useState<boolean>(false);
     // Use ref for jump offset to avoid re-renders every frame
@@ -783,9 +784,22 @@ export const useInputHandler = ({
                         };
                         console.log('[E-KeyDown] Setting up secondary hold target:', holdTarget, 'isEmpty:', currentTarget.data?.isEmpty);
                     }
-                    // If no hold action is available, we'll handle tap action on keyUp
-                    else {
-                        console.log('[E-KeyDown] Target supports tap interaction only:', getActionType(currentTarget));
+                    // If no hold action is available, trigger tap action immediately for instant responsiveness
+                    else if (isTapInteraction(currentTarget)) {
+                        console.log('[E-KeyDown] Immediate tap interaction:', getActionType(currentTarget));
+                        // Trigger tap action immediately for vegetables, dropped items, etc.
+                        tapActionTriggeredOnKeyDownRef.current = true; // Mark that we've triggered the action
+                        switch (currentTarget.type) {
+                            case 'harvestable_resource':
+                                const resourceId = currentTarget.id as bigint;
+                                console.log('[E-KeyDown] Immediate harvest:', resourceId);
+                                currentConnection.reducers.interactWithHarvestableResource(resourceId);
+                                break;
+                            case 'dropped_item':
+                                console.log('[E-KeyDown] Immediate pickup:', currentTarget.id);
+                                currentConnection.reducers.pickupDroppedItem(currentTarget.id as bigint);
+                                break;
+                        }
                     }
                 } else {
                     if (!currentTarget) {
@@ -845,6 +859,10 @@ export const useInputHandler = ({
                     // Also ensure isActivelyHolding is false if E key is up and was part of a hold
                     setIsActivelyHolding(false);
 
+                    // Check if tap action was already triggered on keyDown (for instant responsiveness)
+                    const wasTapActionTriggeredOnKeyDown = tapActionTriggeredOnKeyDownRef.current;
+                    tapActionTriggeredOnKeyDownRef.current = false; // Reset flag
+
                     // Check if it was a TAP or HOLD based on duration and target type
                     const expectedDuration = currentTarget?.type === 'knocked_out_player' ? REVIVE_HOLD_DURATION_MS : 
                                             currentTarget && hasSecondaryHoldAction(currentTarget) ? getSecondaryHoldDuration(currentTarget) :
@@ -854,14 +872,15 @@ export const useInputHandler = ({
                         holdDuration,
                         expectedDuration,
                         wasLongEnough: holdDuration >= expectedDuration,
+                        wasTapActionTriggeredOnKeyDown,
                         currentTarget: currentTarget ? formatTargetForLogging(currentTarget) : 'null'
                     });
 
                     if (holdDuration >= expectedDuration) {
                         // This was a HOLD that completed naturally - actions should have been handled by timer
                         console.log('[E-KeyUp] HOLD completed naturally - timer should have handled action');
-                    } else {
-                        // This was a TAP (or early release) - handle tap interactions
+                    } else if (!wasTapActionTriggeredOnKeyDown) {
+                        // This was a TAP (or early release) - handle tap interactions only if not already triggered on keyDown
                         console.log('[E-KeyUp] Processing as TAP interaction');
                         let tapActionTaken = false;
 
