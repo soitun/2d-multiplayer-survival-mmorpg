@@ -1117,25 +1117,11 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                // CRITICAL FIX: Don't delete animals when they're just moving chunks!
-                // Only delete if animal is actually dead or truly removed from the database
-                // When chunk_index changes, SpacetimeDB sends DELETE from old chunk subscription,
-                // but the animal still exists - it just moved to a new chunk
-                // We'll keep it in cache until the new chunk subscription picks it up
-                
-                // Check if animal is actually dead
-                const isDead = animal.health <= 0;
-                
-                // Only delete if truly dead - otherwise keep in cache for chunk transitions
-                // The new chunk subscription will send an INSERT event that will update the animal
-                if (isDead) {
-                    setWildAnimals(prev => { const newMap = new Map(prev); newMap.delete(animal.id.toString()); return newMap; });
-                } else {
-                    // Animal is alive - this is likely a chunk transition, keep it in cache
-                    // The new chunk subscription will update it with the new chunk_index via INSERT
-                    // This prevents the "blinking" effect when animals cross chunk boundaries
-                    // Note: Animal stays in cache with last known position until new subscription arrives
-                }
+                setWildAnimals(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(animal.id.toString());
+                    return newMap;
+                });
             };
 
             const handleViperSpittleInsert = (ctx: any, spittle: SpacetimeDBViperSpittle) => {

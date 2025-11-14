@@ -1076,6 +1076,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Resource sparkle particle effects - shows sparkles on harvestable resources (viewport-culled)
   const resourceSparkleParticles = useResourceSparkleParticles({
     harvestableResources: visibleHarvestableResourcesMap,
+    cycleProgress: worldState?.cycleProgress ?? 0.5, // Pass current time of day (defaults to noon if not available)
   });
 
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
@@ -1903,7 +1904,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderParticlesToCanvas(ctx, torchParticles);
       renderParticlesToCanvas(ctx, fireArrowParticles);
       renderParticlesToCanvas(ctx, furnaceParticles);
-      renderParticlesToCanvas(ctx, resourceSparkleParticles);
+      // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
       // Render cut grass effects
       renderCutGrassEffects(ctx, now_ms);
@@ -1999,6 +2000,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         console.log(`[GameCanvas] OVERLAY SKIPPED - overlayRgba: ${overlayRgba}, maskCanvas exists: ${!!maskCanvas}`);
       }
     }
+
+    // --- Render Resource Sparkle Particles (Above Day/Night Overlay for visibility) ---
+    // Resource sparkle particles render AFTER day/night overlay so they glow visibly at night
+    ctx.save();
+    ctx.translate(cameraOffsetX, cameraOffsetY); // Re-apply camera translation for world-space particles
+    renderParticlesToCanvas(ctx, resourceSparkleParticles);
+    ctx.restore();
+    // --- End Resource Sparkle Particles ---
 
     // --- Render Health/Frost Overlays (Above Day/Night, Below UI) ---
     // These overlays render AFTER day/night so they're visible at night

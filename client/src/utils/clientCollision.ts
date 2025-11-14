@@ -238,6 +238,10 @@ function getCollisionCandidates(
   );
   
   for (const animal of nearbyAnimals) {
+    // Skip dead animals (health <= 0) - they should not have collision
+    // The corpse entity will handle collision for dead animals instead
+    if (animal.health <= 0) continue;
+    
     shapes.push({
       id: animal.id.toString(),
       type: `animal-${animal.id.toString()}`,

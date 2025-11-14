@@ -12,7 +12,10 @@ const SPARKLE_PARTICLE_SPEED_Y_MAX = -0.6;  // Gentle upward movement
 const SPARKLE_PARTICLE_SPEED_X_SPREAD = 0.2; // Minimal horizontal drift
 const SPARKLE_PARTICLE_SIZE_MIN = 1; 
 const SPARKLE_PARTICLE_SIZE_MAX = 3; 
-const SPARKLE_PARTICLE_COLORS = ["#FFD700", "#FFEB3B", "#FFF59D", "#FFFFFF", "#E1F5FE"]; // Gold, yellow, light yellow, white, light cyan
+// Day colors (yellow/gold)
+const DAY_SPARKLE_COLORS = ["#FFD700", "#FFEB3B", "#FFF59D", "#FFFFFF", "#E1F5FE"]; // Gold, yellow, light yellow, white, light cyan
+// Night colors (cyberpunk blue)
+const NIGHT_SPARKLE_COLORS = ["#00DDFF", "#00BFFF", "#1E90FF", "#87CEEB", "#00FFFF"]; // Cyberpunk blue shades
 const SPARKLES_PER_RESOURCE_FRAME = 0.15; // Lower emission rate for subtle effect
 
 // Import resource configuration system to get heights dynamically
@@ -21,10 +24,19 @@ import { getResourceType } from '../types/resourceTypes';
 
 interface UseResourceSparkleParticlesProps {
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
+    cycleProgress: number; // Current time of day progress (0.0-1.0)
+}
+
+// Helper function to determine if it's night time
+function isNightTime(cycleProgress: number): boolean {
+    // Night periods: Twilight Evening (0.76-0.80), Night (0.80-0.92), Midnight (0.92-0.97), Twilight Morning (0.97-1.0)
+    // Dawn (0.0-0.05) is the start of the new day, so it gets gold sparkles
+    return cycleProgress >= 0.76; // Only 0.76-1.0 is night (blue), everything else is day (gold)
 }
 
 export function useResourceSparkleParticles({
     harvestableResources,
+    cycleProgress,
 }: UseResourceSparkleParticlesProps): Particle[] {
     const particlesRef = useRef<Particle[]>([]);
     const emissionAccumulatorRef = useRef<Map<string, number>>(new Map());
@@ -98,6 +110,9 @@ export function useResourceSparkleParticles({
                         let acc = emissionAccumulatorRef.current.get(`harvestable_${resourceId}`) || 0;
                         acc += SPARKLES_PER_RESOURCE_FRAME * deltaTimeFactor;
 
+                        // Choose color palette based on time of day
+                        const colorPalette = isNightTime(cycleProgress) ? NIGHT_SPARKLE_COLORS : DAY_SPARKLE_COLORS;
+                        
                         while (acc >= 1) {
                             acc -= 1;
                             const lifetime = SPARKLE_PARTICLE_LIFETIME_MIN + Math.random() * (SPARKLE_PARTICLE_LIFETIME_MAX - SPARKLE_PARTICLE_LIFETIME_MIN);
@@ -121,7 +136,7 @@ export function useResourceSparkleParticles({
                             initialLifetime: lifetime,
                             lifetime,
                             size: Math.floor(SPARKLE_PARTICLE_SIZE_MIN + Math.random() * (SPARKLE_PARTICLE_SIZE_MAX - SPARKLE_PARTICLE_SIZE_MIN)) + 1,
-                            color: SPARKLE_PARTICLE_COLORS[Math.floor(Math.random() * SPARKLE_PARTICLE_COLORS.length)],
+                            color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
                             alpha: 1.0,
                         });
                         }
@@ -153,7 +168,7 @@ export function useResourceSparkleParticles({
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [harvestableResources]);
+    }, [harvestableResources, cycleProgress]);
 
     return particlesRef.current;
 } 

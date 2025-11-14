@@ -88,6 +88,7 @@ import skullIcon from '../assets/items/skull.png';
 import foxSkullIcon from '../assets/items/fox_skull.png';
 import wolfSkullIcon from '../assets/items/wolf_skull.png';
 import viperSkullIcon from '../assets/items/viper_skull.png';
+import walrusSkullIcon from '../assets/items/walrus_skull.png';
 
 // === AMMUNITION ===
 // Arrows and projectiles
@@ -354,6 +355,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'fox_skull.png': foxSkullIcon,
   'wolf_skull.png': wolfSkullIcon,
   'viper_skull.png': viperSkullIcon,
+  'walrus_skull.png': walrusSkullIcon,
 
   // === AMMUNITION ===
   'wooden_arrow.png': woodenArrowIcon,
