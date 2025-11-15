@@ -640,8 +640,25 @@ fn trace_road_to_center(roads: &mut Vec<Vec<bool>>, start_x: usize, start_y: usi
     let target_x = target_x as i32;
     let target_y = target_y as i32;
     
-    // Simple pathfinding toward center
-    while (x - target_x).abs() > 8 || (y - target_y).abs() > 8 {
+    // Helper function to safely mark road tiles
+    let mut mark_road_tile = |px: i32, py: i32| {
+        for dy_offset in -2..=2 {
+            for dx_offset in -2..=2 {
+                let road_x = px + dx_offset;
+                let road_y = py + dy_offset;
+                // Check bounds BEFORE casting to usize to avoid wrapping
+                if road_x >= 0 && road_y >= 0 && road_x < width as i32 && road_y < height as i32 {
+                    roads[road_y as usize][road_x as usize] = true;
+                }
+            }
+        }
+    };
+    
+    // Draw the starting position first
+    mark_road_tile(x, y);
+    
+    // Simple pathfinding toward center - continue until we actually reach it
+    while x != target_x || y != target_y {
         // Move toward target
         if (x - target_x).abs() > (y - target_y).abs() {
             x += if target_x > x { 1 } else { -1 };
@@ -649,17 +666,12 @@ fn trace_road_to_center(roads: &mut Vec<Vec<bool>>, start_x: usize, start_y: usi
             y += if target_y > y { 1 } else { -1 };
         }
         
-        // Mark road (with width)
-        for dy in -1..=1 {
-            for dx in -1..=1 {
-                let road_x = (x + dx) as usize;
-                let road_y = (y + dy) as usize;
-                if road_x < width && road_y < height {
-                    roads[road_y][road_x] = true;
-                }
-            }
-        }
+        // Mark road (with width - 5x5 for better coverage)
+        mark_road_tile(x, y);
     }
+    
+    // Ensure final position is drawn
+    mark_road_tile(target_x, target_y);
 }
 
 fn trace_ring_road(roads: &mut Vec<Vec<bool>>, noise: &Perlin, center_x: usize, center_y: usize, width: usize, height: usize) {
@@ -725,17 +737,23 @@ fn draw_road_segment_between_points(roads: &mut Vec<Vec<bool>>, x1: i32, y1: i32
     let mut x = x1;
     let mut y = y1;
     
-    loop {
-        // Draw road with width (3x3 for visibility)
-        for dy_offset in -1..=1 {
-            for dx_offset in -1..=1 {
-                let road_x = (x + dx_offset) as usize;
-                let road_y = (y + dy_offset) as usize;
-                if road_x < width && road_y < height {
-                    roads[road_y][road_x] = true;
+    // Helper function to safely mark road tiles
+    let mut mark_road_tile = |px: i32, py: i32| {
+        for dy_offset in -2..=2 {
+            for dx_offset in -2..=2 {
+                let road_x = px + dx_offset;
+                let road_y = py + dy_offset;
+                // Check bounds BEFORE casting to usize to avoid wrapping
+                if road_x >= 0 && road_y >= 0 && road_x < width as i32 && road_y < height as i32 {
+                    roads[road_y as usize][road_x as usize] = true;
                 }
             }
         }
+    };
+    
+    loop {
+        // Draw road with width (5x5 for better coverage on diagonal roads)
+        mark_road_tile(x, y);
         
         if x == x2 && y == y2 {
             break;
@@ -751,6 +769,9 @@ fn draw_road_segment_between_points(roads: &mut Vec<Vec<bool>>, x1: i32, y1: i32
             y += sy;
         }
     }
+    
+    // Ensure final position is drawn
+    mark_road_tile(x2, y2);
 }
 
 fn connect_ring_to_cross_roads(roads: &mut Vec<Vec<bool>>, ring_points: &[(i32, i32)], center_x: usize, center_y: usize, width: usize, height: usize) {
@@ -852,6 +873,8 @@ fn determine_realistic_tile_type(
         return TileType::Sea;
     }
     
+    // CRITICAL FIX: Check rivers and lakes BEFORE beach check
+    // Rivers and lakes should be Sea, not Beach!
     // Rivers take priority and flow into sea
     if features.river_network[y][x] {
         return TileType::Sea;
@@ -862,12 +885,14 @@ fn determine_realistic_tile_type(
         return TileType::Sea;
     }
     
-    // Beach areas around water
+    // Beach areas around water - CHECK AFTER rivers/lakes
+    // Beaches take priority over roads - roads must end before beach or at beach
     if shore_distance < 10.0 || is_near_water(features, x, y) {
         return TileType::Beach;
     }
     
-    // Roads (main cross-island diagonals and center compound)
+    // Roads can cross deep water (rivers/lakes) but NOT beaches
+    // Check roads AFTER beaches so beaches take priority
     if features.road_network[y][x] {
         return TileType::DirtRoad;
     }

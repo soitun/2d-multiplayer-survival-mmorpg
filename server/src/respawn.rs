@@ -346,6 +346,7 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     // --- Update Timestamp ---
     current_player.last_update = ctx.timestamp;
     current_player.last_stat_update = ctx.timestamp; // Reset stat timestamp on respawn
+    current_player.last_respawn_time = ctx.timestamp; // Track respawn time for fat accumulation
 
     // --- Apply Player Changes ---
     players.identity().update(current_player);

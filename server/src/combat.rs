@@ -962,6 +962,26 @@ pub fn find_best_target(targets: &[Target], item_def: &ItemDefinition) -> Option
 
 // --- Resource & Damage Functions ---
 
+/// Calculates logarithmic fat bonus based on time alive
+/// Uses logarithmic curve to prevent exponential growth
+/// Returns additional fat quantity to add to base yield
+fn calculate_fat_bonus_from_time_alive(spawned_at: Timestamp, death_time: Timestamp) -> u32 {
+    // Calculate time alive in seconds
+    let time_alive_micros = death_time.to_micros_since_unix_epoch()
+        .saturating_sub(spawned_at.to_micros_since_unix_epoch());
+    let time_alive_seconds = (time_alive_micros as f64 / 1_000_000.0).max(0.0);
+    
+    // Logarithmic curve: log10(time_alive + 1) * multiplier
+    // This grows slowly and caps naturally
+    const MULTIPLIER: f64 = 2.0; // Scale factor for balance
+    const MAX_BONUS: f64 = 10.0; // Cap at 10 extra fat (prevents excessive amounts)
+    
+    let log_value = (time_alive_seconds + 1.0).log10(); // log10(time_alive + 1)
+    let bonus = (log_value * MULTIPLIER).min(MAX_BONUS);
+    
+    bonus as u32 // Round down to integer
+}
+
 /// Determines if a target type represents a destructible deployable structure
 /// This makes the system generic for future deployables
 fn is_destructible_deployable(target_type: TargetType) -> bool {
@@ -2266,10 +2286,20 @@ pub fn damage_player_corpse(
         }
     };
 
-    // Example: 50% chance to get 1 Animal Fat per hit, if corpse still has health
+    // Example: 50% chance to get Animal Fat per hit, if corpse still has health
+    // Apply logarithmic bonus based on time alive
     if corpse.health > 0 && rng.gen_bool(actual_chance_fat) {
-        match grant_resource(ctx, attacker_id, "Animal Fat", quantity_per_successful_hit) {
-            Ok(_) => resources_granted.push(("Animal Fat".to_string(), quantity_per_successful_hit)),
+        let base_fat = quantity_per_successful_hit;
+        let time_alive_bonus = calculate_fat_bonus_from_time_alive(corpse.spawned_at, corpse.death_time);
+        let total_fat = base_fat + time_alive_bonus;
+        
+        log::debug!(
+            "[DamagePlayerCorpse:{}] Time alive bonus: {} (base: {}, total: {})",
+            corpse_id, time_alive_bonus, base_fat, total_fat
+        );
+        
+        match grant_resource(ctx, attacker_id, "Animal Fat", total_fat) {
+            Ok(_) => resources_granted.push(("Animal Fat".to_string(), total_fat)),
             Err(e) => log::error!("Failed to grant Animal Fat: {}", e),
         }
     }
@@ -2924,9 +2954,19 @@ pub fn damage_animal_corpse(
     };
 
     // Grant resources based on RNG and animal type
+    // Apply logarithmic bonus based on time alive
     if animal_corpse.health > 0 && rng.gen_bool(actual_fat_chance) {
-        match grant_resource(ctx, attacker_id, "Animal Fat", quantity_per_hit) {
-            Ok(_) => resources_granted.push(("Animal Fat".to_string(), quantity_per_hit)),
+        let base_fat = quantity_per_hit;
+        let time_alive_bonus = calculate_fat_bonus_from_time_alive(animal_corpse.spawned_at, animal_corpse.death_time);
+        let total_fat = base_fat + time_alive_bonus;
+        
+        log::debug!(
+            "[DamageAnimalCorpse:{}] Time alive bonus: {} (base: {}, total: {})",
+            animal_corpse_id, time_alive_bonus, base_fat, total_fat
+        );
+        
+        match grant_resource(ctx, attacker_id, "Animal Fat", total_fat) {
+            Ok(_) => resources_granted.push(("Animal Fat".to_string(), total_fat)),
             Err(e) => log::error!("Failed to grant Animal Fat: {}", e),
         }
     }

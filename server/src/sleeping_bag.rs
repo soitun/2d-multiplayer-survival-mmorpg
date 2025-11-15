@@ -315,6 +315,7 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
     // Update timestamps
     player.last_update = ctx.timestamp;
     player.last_stat_update = ctx.timestamp;
+    player.last_respawn_time = ctx.timestamp; // Track respawn time for fat accumulation
 
     players.identity().update(player);
 

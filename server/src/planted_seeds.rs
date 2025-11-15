@@ -25,6 +25,7 @@ use crate::cloud::cloud as CloudTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
+use crate::tree::tree as TreeTableTrait;
 // Import water tile detection from fishing module
 use crate::fishing::is_water_tile;
 
@@ -273,6 +274,70 @@ fn get_crowding_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: 
     }
     
     multiplier.max(0.1) // Ensure minimum 10% growth rate
+}
+
+/// Calculate mushroom-specific bonus multiplier based on low-light conditions
+/// Mushrooms thrive in darkness: tree cover, cloud cover, and night time
+/// Returns a multiplier bonus (e.g., 1.5x = 50% bonus) for mushrooms in ideal conditions
+fn get_mushroom_bonus_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f32, plant_type: &PlantType, time_of_day: &crate::world_state::TimeOfDay) -> f32 {
+    // Check if this is a mushroom plant type
+    let is_mushroom = matches!(plant_type,
+        PlantType::Chanterelle |
+        PlantType::Porcini |
+        PlantType::FlyAgaric |
+        PlantType::ShaggyInkCap |
+        PlantType::DeadlyWebcap |
+        PlantType::DestroyingAngel
+    );
+    
+    if !is_mushroom {
+        return 1.0; // No bonus for non-mushroom plants
+    }
+    
+    let mut bonus_factors = Vec::new();
+    
+    // 1. Tree cover bonus - mushrooms grow better near trees
+    const TREE_COVER_DISTANCE_SQ: f32 = 150.0 * 150.0; // Same as spawn validation distance
+    let mut has_tree_cover = false;
+    for tree in ctx.db.tree().iter() {
+        let dx = plant_x - tree.pos_x;
+        let dy = plant_y - tree.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= TREE_COVER_DISTANCE_SQ {
+            has_tree_cover = true;
+            // Closer trees = more bonus (up to 1.5x at very close range)
+            let distance = distance_sq.sqrt();
+            let proximity_bonus = 1.0 + (1.0 - (distance / 150.0).min(1.0)) * 0.5; // 1.0x to 1.5x
+            bonus_factors.push(proximity_bonus);
+            break; // Only need one tree for cover
+        }
+    }
+    
+    // 2. Night time bonus - mushrooms grow better in darkness
+    let night_bonus = match time_of_day {
+        crate::world_state::TimeOfDay::Night => 1.5,      // 50% bonus at night
+        crate::world_state::TimeOfDay::Midnight => 1.6,   // 60% bonus at midnight (darkest)
+        crate::world_state::TimeOfDay::TwilightEvening => 1.3, // 30% bonus at evening twilight
+        crate::world_state::TimeOfDay::TwilightMorning => 1.3, // 30% bonus at morning twilight
+        crate::world_state::TimeOfDay::Dusk => 1.2,       // 20% bonus at dusk
+        crate::world_state::TimeOfDay::Dawn => 1.1,       // 10% bonus at dawn
+        _ => 1.0, // No bonus during day
+    };
+    if night_bonus > 1.0 {
+        bonus_factors.push(night_bonus);
+    }
+    
+    // Calculate combined bonus
+    // If multiple factors apply, average them (prevents excessive stacking)
+    if bonus_factors.is_empty() {
+        1.0 // No bonus
+    } else {
+        // Average the bonuses to prevent excessive stacking
+        let average_bonus = bonus_factors.iter().sum::<f32>() / bonus_factors.len() as f32;
+        // Cap at 2.0x maximum (100% bonus)
+        average_bonus.min(2.0)
+    }
 }
 
 /// Calculate shelter penalty for a specific planted seed
@@ -601,7 +666,28 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         }
         
         // Calculate cloud cover effect for this specific plant
-        let cloud_multiplier = get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+        // For mushrooms, clouds help growth, so we'll handle it differently
+        let is_mushroom = matches!(plant.plant_type,
+            PlantType::Chanterelle |
+            PlantType::Porcini |
+            PlantType::FlyAgaric |
+            PlantType::ShaggyInkCap |
+            PlantType::DeadlyWebcap |
+            PlantType::DestroyingAngel
+        );
+        
+        let cloud_multiplier = if is_mushroom {
+            // For mushrooms, clouds help - invert the normal cloud penalty
+            let normal_cloud_mult = get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            // Normal: 0.4 (heavy clouds) to 1.0 (no clouds) - penalizes growth
+            // Mushrooms: invert to 1.0 (heavy clouds) to 0.4 (no clouds) - helps growth
+            // But we want it to help, so: 1.0 + (1.0 - normal_mult) * 0.6
+            // Heavy clouds (0.4) → 1.36x, No clouds (1.0) → 1.0x
+            1.0 + (1.0 - normal_cloud_mult) * 0.6
+        } else {
+            // For regular plants, clouds reduce growth as normal
+            get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
+        };
         
         // Calculate light source effect for this specific plant
         let light_multiplier = get_light_source_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
@@ -615,8 +701,16 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         // Calculate water patch bonus for this specific plant
         let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
         
+        // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
+        let world_state = ctx.db.world_state().iter().next();
+        let mushroom_bonus = if let Some(ref ws) = world_state {
+            get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &ws.time_of_day)
+        } else {
+            1.0
+        };
+        
         // Combine all growth modifiers for this plant
-        let total_growth_multiplier = base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier;
+        let total_growth_multiplier = base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * mushroom_bonus;
         
         // Calculate growth progress increment
         let base_growth_rate = 1.0 / plant.base_growth_time_secs as f32; // Progress per second at 1x multiplier
@@ -663,9 +757,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             plants_updated += 1;
             
             if growth_increment > 0.0 {
-                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (base: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, total: {:.2}x)", 
+                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (base: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, mushroom: {:.2}x, total: {:.2}x)", 
                            plant_id, plant_type, old_progress * 100.0, progress_pct, 
-                           base_growth_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, total_growth_multiplier);
+                           base_growth_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, mushroom_bonus, total_growth_multiplier);
             }
         }
     }

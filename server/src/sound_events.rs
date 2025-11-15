@@ -54,6 +54,7 @@ pub enum SoundType {
     FoundationTwigDestroyed,   // twig_foundation_destroyed.mp3 (1 variation - when twig foundation is destroyed)
     ItemThrown,                // item_thrown.mp3 (1 variation - when a weapon/item is thrown)
     ErrorResources,           // error_resources.mp3 (1 variation - when player doesn't have enough resources)
+    DoneCooking,              // done_cooking.mp3 (1 variation - when items finish cooking in campfire)
     // Add more as needed - extensible system
 }
 
@@ -108,6 +109,7 @@ impl SoundType {
             SoundType::FoundationTwigDestroyed => "twig_foundation_destroyed",
             SoundType::ItemThrown => "item_thrown",
             SoundType::ErrorResources => "error_resources",
+            SoundType::DoneCooking => "done_cooking",
         }
     }
 
@@ -161,6 +163,7 @@ impl SoundType {
             SoundType::FoundationTwigDestroyed => 1,
             SoundType::ItemThrown => 1,
             SoundType::ErrorResources => 3, // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
+            SoundType::DoneCooking => 1,
         }
     }
 

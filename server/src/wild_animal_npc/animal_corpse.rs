@@ -43,6 +43,7 @@ pub struct AnimalCorpse {
 
     pub death_time: Timestamp,
     pub despawn_at: Timestamp, // When this corpse should be removed
+    pub spawned_at: Timestamp, // When the animal spawned (for calculating time alive at harvest)
 
     // --- Harvesting Fields ---
     pub health: u32,
@@ -72,6 +73,7 @@ impl AnimalCorpse {
             chunk_index,
             death_time,
             despawn_at,
+            spawned_at: death_time, // Default to death_time if not set (will be overwritten)
             health: ANIMAL_CORPSE_INITIAL_HEALTH,
             max_health: ANIMAL_CORPSE_INITIAL_HEALTH,
             last_hit_time: None,
@@ -89,13 +91,15 @@ pub fn create_animal_corpse(
     pos_x: f32,
     pos_y: f32,
     death_time: Timestamp,
+    spawned_at: Timestamp, // When the animal spawned (from animal.created_at)
 ) -> Result<u32, String> {
     log::info!(
         "Creating animal corpse for {:?} (ID: {}) at ({:.1}, {:.1})",
         animal_species, animal_id, pos_x, pos_y
     );
 
-    let new_corpse = AnimalCorpse::new(animal_species, animal_id, pos_x, pos_y, death_time);
+    let mut new_corpse = AnimalCorpse::new(animal_species, animal_id, pos_x, pos_y, death_time);
+    new_corpse.spawned_at = spawned_at; // Store spawn time to calculate time alive at harvest
     log::info!(
         "🦴 [SERVER] Animal corpse created with chunk_index: {}, despawn_at: {:?}",
         new_corpse.chunk_index, new_corpse.despawn_at

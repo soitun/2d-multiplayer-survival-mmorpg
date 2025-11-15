@@ -3,6 +3,7 @@ use crate::models::{ItemLocation, ContainerType, ContainerLocationData}; // May 
 use crate::items::{InventoryItem, ItemDefinition, inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait}; // For function signatures
 use std::cmp::min;
 use crate::dropped_item; // For DROP_OFFSET and create_dropped_item_entity
+use crate::sound_events::{self, SoundType}; // For emitting cooking completion sound
 
 // CookingProgress struct (moved from campfire.rs)
 #[derive(SpacetimeType, Clone, Debug, PartialEq)]
@@ -199,6 +200,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
     active_fuel_instance_id: Option<u64>, // MODIFIED: Pass the ID directly
 ) -> Result<bool, String> { // Returns true if the appliance struct was modified
     let mut appliance_struct_modified = false;
+    let mut cooking_completed_this_tick = false; // Track if any item finished cooking to play sound once
     let item_definition_table = ctx.db.item_definition();
 
     for i in 0..appliance.num_processing_slots() as u8 {
@@ -229,6 +231,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                  appliance.get_appliance_entity_id(), i, current_item_def.id, progress_data.current_cook_time_secs, progress_data.target_cook_time_secs, progress_data.target_item_def_name);
 
                         if progress_data.current_cook_time_secs >= progress_data.target_cook_time_secs {
+                            cooking_completed_this_tick = true; // Mark that cooking completed (for sound)
                             match transform_item_in_appliance(ctx, appliance, i, &progress_data.target_item_def_name) {
                                 Ok((transformed_item_def, new_instance_id)) => {
                                     appliance_struct_modified = true; // transform_item_in_appliance might have modified it
@@ -311,6 +314,14 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
             appliance_struct_modified = true;
         }
     }
+    
+    // Play cooking completion sound once if any items finished cooking this tick
+    if cooking_completed_this_tick {
+        if let Err(e) = sound_events::emit_global_sound(ctx, SoundType::DoneCooking, 0.8) {
+            log::warn!("[ApplianceCooking] Failed to emit cooking completion sound: {}", e);
+        }
+    }
+    
     Ok(appliance_struct_modified)
 }
 

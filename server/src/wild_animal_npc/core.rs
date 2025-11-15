@@ -1172,6 +1172,7 @@ pub fn damage_wild_animal(
                 animal.pos_x,
                 animal.pos_y,
                 ctx.timestamp,
+                animal.created_at, // Pass spawn time to calculate time alive at harvest
             ) {
                 log::error!("🦴 [ERROR] Failed to create animal corpse for {} (species: {:?}): {}", animal.id, animal.species, e);
             } else {
@@ -1273,6 +1274,7 @@ pub fn damage_wild_animal_by_animal(
             target_animal.pos_x,
             target_animal.pos_y,
             timestamp,
+            target_animal.created_at, // Pass spawn time to calculate time alive at harvest
         ) {
             log::error!("🦴 [ERROR] Failed to create animal corpse for {} (species: {:?}): {}", target_animal.id, target_animal.species, e);
         } else {

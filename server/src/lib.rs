@@ -464,6 +464,7 @@ pub struct Player {
     pub is_on_water: bool, // NEW: Tracks if the player is currently standing on water
     pub client_movement_sequence: u64,
     pub is_inside_building: bool, // NEW: Tracks if player is inside an enclosed building (≥70% wall coverage)
+    pub last_respawn_time: Timestamp, // NEW: When the player last spawned/respawned (for fat accumulation calculation)
 }
 
 // Table to store the last attack timestamp for each player
@@ -1043,6 +1044,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         is_on_water: false, // NEW: Initialize is_on_water
         client_movement_sequence: 0,
         is_inside_building: false, // NEW: Players spawn outside (not inside buildings)
+        last_respawn_time: ctx.timestamp, // NEW: Track initial spawn time
     };
 
     // Insert the new player

@@ -52,6 +52,7 @@ pub struct PlayerCorpse {
 
     pub death_time: Timestamp,
     pub despawn_scheduled_at: Timestamp, // When this corpse should be removed
+    pub spawned_at: Timestamp, // When the player last spawned/respawned (for calculating time alive at harvest)
 
     // --- Harvesting Fields ---
     pub health: u32,
@@ -631,6 +632,9 @@ fn transfer_inventory_to_corpse(ctx: &ReducerContext, dead_player: &Player) -> R
     }
 
     // 2. Create a new PlayerCorpse instance
+    // Use last_respawn_time to track when player last spawned/respawned
+    let spawned_at = dead_player.last_respawn_time;
+    
     let mut new_corpse = PlayerCorpse {
         id: 0, // Will be auto-incremented
         player_identity: player_id,
@@ -640,6 +644,7 @@ fn transfer_inventory_to_corpse(ctx: &ReducerContext, dead_player: &Player) -> R
         chunk_index: calculate_chunk_index(dead_player.position_x, dead_player.position_y),
         death_time: ctx.timestamp,
         despawn_scheduled_at: ctx.timestamp + Duration::from_secs(DEFAULT_CORPSE_DESPAWN_SECONDS), // This will be set in create_corpse_for_player
+        spawned_at, // Store spawn/respawn time to calculate time alive at harvest
         health: PLAYER_CORPSE_INITIAL_HEALTH, // Initialize health
         max_health: PLAYER_CORPSE_INITIAL_HEALTH, // Initialize max_health
         last_hit_time: None, // Initialize last_hit_time
