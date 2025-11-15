@@ -42,4 +42,6 @@ export type WaterDrinking = { tag: "WaterDrinking" };
 export type Venom = { tag: "Venom" };
 export type Exhausted = { tag: "Exhausted" };
 export type BuildingPrivilege = { tag: "BuildingPrivilege" };
+export type ProductionRune = { tag: "ProductionRune" };
+export type AgrarianRune = { tag: "AgrarianRune" };
 

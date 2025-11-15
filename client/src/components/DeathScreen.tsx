@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache } from '../generated'; // Corrected import
+import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone } from '../generated'; // Corrected import
 import { drawMinimapOntoCanvas, MINIMAP_DIMENSIONS, worldToMinimapCoords, calculateMinimapViewport } from './Minimap'; // Import Minimap drawing and helpers
 import { gameConfig } from '../config/gameConfig'; // Import gameConfig
 
@@ -16,6 +16,7 @@ interface DeathScreenProps {
   players: Map<string, SpacetimeDBPlayer>;
   trees: Map<string, Tree>;
   stones: Map<string, Stone>;
+  runeStones: Map<string, RuneStone>; // Add rune stones
   barrels: Map<string, Barrel>;
   campfires: Map<string, Campfire>; // Use corrected type
   playerPin: PlayerPin | null;
@@ -71,6 +72,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   players,
   trees,
   stones,
+  runeStones, // Add rune stones
   barrels,
   campfires,
   playerPin,
@@ -203,6 +205,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       players, // Pass all players for context if needed
       trees,
       stones,
+      runeStones, // Add rune stones
       barrels,
       campfires,
       sleepingBags: sleepingBagsStringKeys, // Use converted map with string keys
@@ -248,7 +251,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
     }
 
   }, [
-    players, trees, stones, sleepingBagsStringKeys, ownedSleepingBagIds, hoveredBagId,
+    players, trees, stones, runeStones, sleepingBagsStringKeys, ownedSleepingBagIds, hoveredBagId,
     canvasSize.width, canvasSize.height, localPlayer, localPlayerIdentity, minimapZoom, viewCenterOffset, sleepingBagImage,
     campfires,
     localPlayerDeathMarker,
@@ -369,11 +372,21 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
           <div style={styles.deathInfo}>
             {localPlayerDeathMarker.killedBy ? (
               <p style={styles.deathMessage}>
-                Killed by {players.get(localPlayerDeathMarker.killedBy.toHexString())?.username || 'Unknown Player'}
+                Killed by {(() => {
+                  try {
+                    const killerId = localPlayerDeathMarker.killedBy?.toHexString();
+                    if (!killerId) return 'Unknown Player';
+                    const killer = players.get(killerId);
+                    return killer?.username || 'Unknown Player';
+                  } catch (error) {
+                    console.error('[DeathScreen] Error getting killer info:', error);
+                    return 'Unknown Player';
+                  }
+                })()}
               </p>
             ) : (
               <p style={styles.deathMessage}>
-                {getDeathCauseMessage(localPlayerDeathMarker.deathCause)}
+                {getDeathCauseMessage(localPlayerDeathMarker.deathCause || 'Environment')}
               </p>
             )}
           </div>

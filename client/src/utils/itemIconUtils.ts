@@ -126,6 +126,8 @@ import burntPotatoIcon from '../assets/items/burnt_potato.png';
 
 // Vegetables
 import carrotIcon from '../assets/items/carrot.png';
+import cookedCarrotIcon from '../assets/items/cooked_carrot.png';
+import burntCarrotIcon from '../assets/items/burnt_carrot.png';
 import beetsIcon from '../assets/items/beets.png';
 import horseradishIcon from '../assets/items/horseradish.png';
 import salsifyIcon from '../assets/items/salsify.png';
@@ -140,6 +142,8 @@ import chanterelleIcon from '../assets/items/chanterelle.png';
 
 // Herbs & medicinal plants
 import chicoryIcon from '../assets/items/chicory.png';
+import cookedChicoryIcon from '../assets/items/cooked_chicory.png';
+import burntChicoryIcon from '../assets/items/burnt_chicory.png';
 import yarrowIcon from '../assets/items/yarrow.png';
 import chamomileIcon from '../assets/items/chamomile.png';
 import mintIcon from '../assets/items/mint.png';
@@ -172,6 +176,8 @@ import dogbaneFiberIcon from '../assets/items/dogbane.png';
 
 // Other plants
 import sunflowerIcon from '../assets/items/sunflower.png';
+import cookedSunflowerIcon from '../assets/items/cooked_sunflower.png';
+import burntSunflowerIcon from '../assets/items/burnt_sunflower.png';
 import sunflowerSeedsIcon from '../assets/items/sunflower_seeds.png';
 
 // Berries (subarctic/boreal region berries)
@@ -238,6 +244,7 @@ import scurvyGrassSeedsIcon from '../assets/items/scurvy_grass_seeds.png';
 import crowberrySeedsIcon from '../assets/items/crowberry_seeds.png';
 import seaPlantainSeedsIcon from '../assets/items/sea_plantain_seeds.png';
 import glasswortSeedsIcon from '../assets/items/glasswort_seeds.png';
+import beachLymeGrassSeedsIcon from '../assets/items/beach_lyme_grass_seeds.png';
 
 // Berry seeds (subarctic/boreal region berries)
 import lingonberrySeedsIcon from '../assets/items/lingonberry_seeds.png';
@@ -386,6 +393,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'burnt_potato.png': burntPotatoIcon,
   // Vegetables
   'carrot.png': carrotIcon,
+  'cooked_carrot.png': cookedCarrotIcon,
+  'burnt_carrot.png': burntCarrotIcon,
   'beets.png': beetsIcon,
   'horseradish.png': horseradishIcon,
   'salsify.png': salsifyIcon,
@@ -409,6 +418,8 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Herbs & medicinal plants
   'chicory.png': chicoryIcon,
+  'cooked_chicory.png': cookedChicoryIcon,
+  'burnt_chicory.png': burntChicoryIcon,
   'yarrow.png': yarrowIcon,
   'chamomile.png': chamomileIcon,
   'mint.png': mintIcon,
@@ -440,6 +451,8 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Other plants
   'sunflower.png': sunflowerIcon,
+  'cooked_sunflower.png': cookedSunflowerIcon,
+  'burnt_sunflower.png': burntSunflowerIcon,
   'sunflower_seeds.png': sunflowerSeedsIcon,
   
   // Berries (subarctic/boreal region berries)
@@ -502,6 +515,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'crowberry_seeds.png': crowberrySeedsIcon,
   'sea_plantain_seeds.png': seaPlantainSeedsIcon,
   'glasswort_seeds.png': glasswortSeedsIcon,
+  'beach_lyme_grass_seeds.png': beachLymeGrassSeedsIcon,
   
   // Berry seeds (subarctic/boreal region berries)
   'lingonberry_seeds.png': lingonberrySeedsIcon,

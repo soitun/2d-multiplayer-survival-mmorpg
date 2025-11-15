@@ -35,6 +35,7 @@ import {
     Player as SpacetimeDBPlayer,
     Tree as SpacetimeDBTree,
     Stone as SpacetimeDBStone,
+    RuneStone as SpacetimeDBRuneStone,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
     Lantern as SpacetimeDBLantern,
@@ -102,6 +103,7 @@ interface GameScreenProps {
     trees: Map<string, SpacetimeDBTree>;
     clouds: Map<string, SpacetimeDBCloud>;
     stones: Map<string, SpacetimeDBStone>;
+    runeStones: Map<string, SpacetimeDBRuneStone>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
     lanterns: Map<string, SpacetimeDBLantern>;
@@ -262,7 +264,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     
     // Destructure props for cleaner usage
     const {
-        players, trees, stones, campfires, furnaces, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces
+        players, trees, stones, runeStones, campfires, furnaces, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, runeStones
         playerPins, playerCorpses, stashes,
         shelters,
         plantedSeeds,
@@ -881,6 +883,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 trees={trees}
                 clouds={clouds}
                 stones={stones}
+                runeStones={runeStones}
                 campfires={campfires}
                 furnaces={furnaces} // ADDED: Furnaces prop to GameCanvas
                 harvestableResources={harvestableResources}
@@ -954,6 +957,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 players={players}
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}
+                rangedWeaponStats={rangedWeaponStats}
                 recipes={recipes}
                 craftingQueueItems={craftingQueueItems}
                 onItemDragStart={onItemDragStart}
@@ -1096,6 +1100,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 activeEquipments={activeEquipments}
                 inventoryItems={inventoryItems}
                 onLoadingStateChange={handleSOVALoadingStateChange}
+            />
+
+            {/* Hotbar - Player's quick-access item slots */}
+            <Hotbar
+                playerIdentity={playerIdentity}
+                localPlayer={localPlayer}
+                itemDefinitions={itemDefinitions}
+                inventoryItems={inventoryItems}
+                rangedWeaponStats={rangedWeaponStats}
+                connection={connection}
+                onItemDragStart={onItemDragStart}
+                onItemDrop={onItemDrop}
+                draggedItemInfo={draggedItemInfo}
+                interactingWith={interactingWith}
+                campfires={campfires}
+                stashes={stashes}
+                startPlacement={startPlacement}
+                cancelPlacement={cancelPlacement}
+                activeConsumableEffects={activeConsumableEffects}
+                activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity) || null : null}
+                isGameMenuOpen={currentMenu !== null}
+                placementInfo={placementInfo}
             />
 
         </div>

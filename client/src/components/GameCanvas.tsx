@@ -3,6 +3,7 @@ import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
   Stone as SpacetimeDBStone,
+  RuneStone as SpacetimeDBRuneStone,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Lantern as SpacetimeDBLantern,
@@ -51,6 +52,7 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import type { FrameInfo } from '../hooks/useGameLoop';
 import { usePlayerHover } from '../hooks/usePlayerHover';
 import { usePlantedSeedHover } from '../hooks/usePlantedSeedHover';
+import { useRuneStoneHover } from '../hooks/useRuneStoneHover';
 import { useMinimapInteraction } from '../hooks/useMinimapInteraction';
 import { useEntityFiltering, YSortedEntityType } from '../hooks/useEntityFiltering';
 import { useSpacetimeTables } from '../hooks/useSpacetimeTables';
@@ -85,6 +87,7 @@ import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderPlayerTorchLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
+import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
@@ -134,6 +137,7 @@ interface GameCanvasProps {
   trees: Map<string, SpacetimeDBTree>;
   clouds: Map<string, SpacetimeDBCloud>;
   stones: Map<string, SpacetimeDBStone>;
+  runeStones: Map<string, SpacetimeDBRuneStone>;
   campfires: Map<string, SpacetimeDBCampfire>;
   furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
   lanterns: Map<string, SpacetimeDBLantern>;
@@ -208,6 +212,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   trees,
   clouds,
   stones,
+  runeStones,
   campfires,
   furnaces, // ADDED: Furnaces destructuring
   lanterns,
@@ -428,6 +433,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
     homesteadHearths, // ADDED: HomesteadHearths for light cutouts
+    runeStones, // ADDED: RuneStones for night light cutouts
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -468,6 +474,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleCampfiresMap,
     visibleFurnacesMap, // ADDED: Furnaces visible map
     visibleLanternsMap,
+    visibleRuneStonesMap, // ADDED: Rune stones visible map
     visibleDroppedItemsMap,
     visibleBoxesMap,
     visiblePlayerCorpses,
@@ -501,6 +508,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     players,
     trees,
     stones,
+    runeStones,
     campfires,
     furnaces, // ADDED: Furnaces to useEntityFiltering
     lanterns,
@@ -538,6 +546,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Planted Seed Hover Detection ---
   const { hoveredSeed, hoveredSeedId } = usePlantedSeedHover(
     plantedSeeds,
+    worldMousePos.x,
+    worldMousePos.y
+  );
+
+  // --- Rune Stone Hover Detection ---
+  const { hoveredRuneStone, hoveredRuneStoneId } = useRuneStoneHover(
+    runeStones,
     worldMousePos.x,
     worldMousePos.y
   );
@@ -876,43 +891,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || '';
         
-        // CRITICAL FIX: Only play error sound for PRE-FIRE validation errors (weapon not loaded),
-        // NOT for POST-FIRE consumption errors (arrow missing during consumption)
-        // 
-        // The client already checks `isReadyToFire` before calling fireProjectile.
-        // If the server says the arrow isn't there during consumption, it's a sync issue,
-        // not a user error. The weapon will auto-unload, and the player can reload.
-        //
-        // Error messages:
-        // 1. "Weapon is not loaded. Right-click to load ammunition." - PRE-FIRE check failed, play sound
-        // 2. "Weapon is not loaded correctly (missing ammo def ID)." - PRE-FIRE check failed, play sound  
-        // 3. "No loaded ammunition found in inventory to consume..." - POST-FIRE consumption failed, DON'T play sound
-        //
-        // The consumption error happens due to client-server sync issues:
-        // - Client thinks weapon is ready (isReadyToFire = true)
-        // - Client calls fireProjectile
-        // - Server can't find arrow in inventory (maybe moved, consumed, or sync delay)
-        // - Server returns error and auto-unloads weapon
-        // This is a sync issue, not a user error, so don't play error sound
-        
-        // Check for consumption errors FIRST (most specific) to exclude them from sound
-        if (errorMsg.includes('No loaded ammunition found in inventory to consume') ||
-            errorMsg.includes('ammunition found in inventory')) {
-          // Arrow consumption failed - sync issue, don't play sound
-          // This happens when client thinks weapon is ready but server can't find arrow
-          console.debug('[FireProjectile] Arrow consumption sync issue (weapon will auto-unload):', errorMsg);
-          return; // Exit early, don't play sound
-        }
-        
-        // Only play sound for pre-fire validation errors (weapon not loaded before firing)
-        if (errorMsg.includes('Weapon is not loaded')) {
-          // Weapon wasn't loaded before firing - legitimate user error
-          playImmediateSound('error_arrows', 1.0);
-        } else if (errorMsg.includes('not loaded correctly')) {
-          // Weapon state is invalid - legitimate error
+        // CRITICAL: The client only calls fireProjectile if isReadyToFire was true.
+        // If we get here, it means the client thought the weapon was ready when it called fireProjectile.
+        // ANY error from fireProjectile is a sync issue, not a user error.
+        // The weapon state may have gotten out of sync between client and server.
+        console.log('[FireProjectile] Client-server sync issue - suppressing sound for all fireProjectile errors');
+        console.log('[FireProjectile] Error details:', errorMsg);
+        return; // Don't play sound - this is a sync issue, not a user error
+      }
+    };
+
+    const handleLoadRangedWeaponResult = (ctx: any) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || '';
+
+        // This is where the "no arrows detected" error sound should play
+        // The user tried to load the weapon (right-click) but has no arrows
+        console.log('[LoadRangedWeapon] Load failed - this is a legitimate user error:', errorMsg);
+
+        // Play the error sound for legitimate loading failures
+        if (errorMsg.includes('need at least 1 arrow')) {
+          console.log('[LoadRangedWeapon] Playing error sound for no arrows');
           playImmediateSound('error_arrows', 1.0);
         }
-        // Note: We explicitly exclude consumption errors from playing sound
       }
     };
 
@@ -946,12 +947,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection.reducers.onDestroyFoundation(handleDestroyFoundationResult);
     connection.reducers.onDestroyWall(handleDestroyWallResult);
     connection.reducers.onFireProjectile(handleFireProjectileResult);
+    connection.reducers.onLoadRangedWeapon(handleLoadRangedWeaponResult);
     connection.reducers.onUpgradeFoundation(handleUpgradeFoundationResult);
 
     return () => {
       connection.reducers.removeOnDestroyFoundation(handleDestroyFoundationResult);
       connection.reducers.removeOnDestroyWall(handleDestroyWallResult);
       connection.reducers.removeOnFireProjectile(handleFireProjectileResult);
+      connection.reducers.removeOnLoadRangedWeapon(handleLoadRangedWeaponResult);
       connection.reducers.removeOnUpgradeFoundation(handleUpgradeFoundationResult);
     };
   }, [connection]);
@@ -2253,6 +2256,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     });
 
+    // Rune Stone Night Lights - Removed: Now handled by light cutouts in useDayNightCycle hook
+    // The cutouts create the actual light effect that cuts through the darkness overlay
+
      // Homestead hearth interaction indicators (for hold actions like grant building privilege)
      // Hearth visual is 125x125, so use 125 for height to match the visual
      // Offset moved up by ~20% (15px) for better alignment
@@ -2493,6 +2499,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const validPlayers = players instanceof Map ? players : new Map();
     const validTrees = trees instanceof Map ? trees : new Map();
     const validStones = stones instanceof Map ? stones : new Map();
+    const validRuneStones = runeStones instanceof Map ? runeStones : new Map();
     const validSleepingBags = sleepingBags instanceof Map ? sleepingBags : new Map();
     const validCampfires = campfires instanceof Map ? campfires : new Map();
 
@@ -2501,6 +2508,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       players: validPlayers,
       trees: validTrees,
       stones: validStones,
+      runeStones: validRuneStones,
       barrels: barrels instanceof Map ? barrels : new Map(),
       campfires: validCampfires,
       sleepingBags: validSleepingBags,
@@ -2527,6 +2535,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     players,
     trees,
     stones,
+    runeStones,
     sleepingBags,
     campfires,
     localPlayer,
@@ -2595,6 +2604,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           players={players}
           trees={trees}
           stones={stones}
+          runeStones={runeStones}
           barrels={barrels}
           campfires={campfires}
           playerPin={localPlayerPin}

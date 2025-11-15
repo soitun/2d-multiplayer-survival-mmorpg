@@ -108,6 +108,30 @@ export interface GroundEntityConfig<T extends BaseEntity> {
     ) => void;
 
     /**
+     * Optional custom draw function to replace the default drawImage behavior.
+     * If provided, this will be called instead of the standard drawImage.
+     * Useful for vertex-based effects like segmented shaking.
+     * @param ctx Canvas rendering context (already saved/transformed)
+     * @param entity The entity data
+     * @param img The image to draw
+     * @param finalDrawX Final X position (after effects)
+     * @param finalDrawY Final Y position (after effects)
+     * @param targetImgWidth Target image width
+     * @param targetImgHeight Target image height
+     * @param effectsResult Result from applyEffects (may contain custom data)
+     */
+    customDraw?: (
+        ctx: CanvasRenderingContext2D,
+        entity: T,
+        img: HTMLImageElement,
+        finalDrawX: number,
+        finalDrawY: number,
+        targetImgWidth: number,
+        targetImgHeight: number,
+        effectsResult: { offsetX: number; offsetY: number; rotation?: number; scale?: number; [key: string]: any }
+    ) => void;
+
+    /**
      * Optional fallback fill style if image fails to load.
      * Defaults to 'grey'.
      */
@@ -167,9 +191,10 @@ export function renderConfiguredGroundEntity<T extends BaseEntity>({
         let effectOffsetY = 0;
         let effectRotation = 0; // Default rotation
         let effectScale = 1;    // Default scale
+        let effectsResult: { offsetX: number; offsetY: number; rotation?: number; scale?: number; [key: string]: any } = { offsetX: 0, offsetY: 0 };
 
         if (config.applyEffects) {
-            const effectsResult = config.applyEffects(ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress, targetImgWidth, targetImgHeight);
+            effectsResult = config.applyEffects(ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress, targetImgWidth, targetImgHeight);
             effectOffsetX = effectsResult.offsetX;
             effectOffsetY = effectsResult.offsetY;
             if (effectsResult.rotation) effectRotation = effectsResult.rotation;
@@ -191,14 +216,28 @@ export function renderConfiguredGroundEntity<T extends BaseEntity>({
             if (effectRotation) ctx.rotate(effectRotation);
             if (effectScale !== 1) ctx.scale(effectScale, effectScale);
 
-            // Draw the image centered around the new (transformed) origin
-            ctx.drawImage(
-                img, 
-                -targetImgWidth / 2, 
-                -targetImgHeight / 2, 
-                targetImgWidth, 
-                targetImgHeight
-            );
+            // Use custom draw function if provided, otherwise use default drawImage
+            if (config.customDraw) {
+                config.customDraw(
+                    ctx,
+                    entity,
+                    img,
+                    finalDrawX,
+                    finalDrawY,
+                    targetImgWidth,
+                    targetImgHeight,
+                    effectsResult
+                );
+            } else {
+                // Draw the image centered around the new (transformed) origin
+                ctx.drawImage(
+                    img, 
+                    -targetImgWidth / 2, 
+                    -targetImgHeight / 2, 
+                    targetImgWidth, 
+                    targetImgHeight
+                );
+            }
             ctx.restore(); // Restore context after drawing this entity
         }
 

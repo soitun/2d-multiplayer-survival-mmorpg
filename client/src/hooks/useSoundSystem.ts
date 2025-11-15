@@ -81,6 +81,7 @@ const SOUND_DEFINITIONS = {
     error_arrows: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Arrow error sound (client-side immediate for instant feedback when firing without arrows)
     error_building_privilege: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Building privilege error sound (client-side immediate for instant feedback when trying to upgrade without privilege)
     error_tier_upgrade: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Tier upgrade error sound (client-side immediate for instant feedback when trying to upgrade to same or lower tier)
+    error_planting: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Planting error sound (client-side immediate for instant feedback when planting in invalid location)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -91,6 +92,7 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
     'error_arrows',
     'error_building_privilege',
     'error_tier_upgrade',
+    'error_planting',
 ] as SoundType[]);
 
 // Track active error sounds to prevent multiple from playing simultaneously
@@ -312,6 +314,7 @@ const PRELOAD_SOUNDS = [
     'error_resources.mp3',                                   // 1 error resources variation
     'error_building_privilege.mp3',                         // 1 error building privilege variation
     'error_tier_upgrade.mp3',                               // 1 error tier upgrade variation
+    'error_planting.mp3',                                    // 1 error planting variation
     'construction_placement_error.mp3',                     // 1 construction placement error variation
 ] as const;
 
@@ -553,6 +556,8 @@ const playLocalSound = async (
                 variationCount = 1; // error_building_privilege.mp3
             } else if (soundType === 'error_tier_upgrade') {
                 variationCount = 1; // error_tier_upgrade.mp3
+            } else if (soundType === 'error_planting') {
+                variationCount = 1; // error_planting.mp3
             } else if (soundType === 'arrow_hit') {
                 variationCount = 1; // arrow_hit.mp3
             } else if (soundType === 'shoot_bow') {

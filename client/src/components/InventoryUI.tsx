@@ -60,6 +60,8 @@ import ItemInteractionPanel from './ItemInteractionPanel';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 // Import arrow damage calculation helpers
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
+// Import InventorySearchBar component
+import InventorySearchBar from './InventorySearchBar';
 
 // --- Type Definitions ---
 // Define props for InventoryUI component
@@ -171,6 +173,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     // Add ref to track when drag operations complete
     const lastDragCompleteTime = useRef<number>(0);
 
+    // Inventory search state
+    const [inventorySearchTerm, setInventorySearchTerm] = useState<string>('');
+
     // Memoized handleClose to ensure stability if its dependencies are stable.
     const handleClose = useCallback(() => {
         if (isPlacingItem) {
@@ -219,6 +224,20 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     }, [interactionTarget, handleClose]);
 
     // --- Derived State & Data Preparation --- 
+
+    // Helper function to check if an item matches the search term
+    const itemMatchesSearch = useCallback((item: PopulatedItem | undefined, searchTerm: string): boolean => {
+        // If no search term, all items match (show all)
+        if (!searchTerm.trim()) return true;
+        
+        // If no item in slot, it doesn't match (empty slots shouldn't be highlighted)
+        if (!item) return false;
+        
+        const searchLower = searchTerm.toLowerCase().trim();
+        const itemName = item.definition.name.toLowerCase();
+        
+        return itemName.includes(searchLower);
+    }, []);
 
     // Player Inventory & Equipment Data
     const { itemsByInvSlot, itemsByEquipSlot } = useMemo(() => {
@@ -777,11 +796,18 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             {/* Middle Pane: Inventory & Containers */} 
             <div className={styles.middlePane}>
                 <h3 className={styles.sectionTitle}>INVENTORY</h3>
+                <InventorySearchBar
+                    searchTerm={inventorySearchTerm}
+                    onSearchChange={setInventorySearchTerm}
+                    placeholder="Search inventory..."
+                />
                 <div className={styles.inventoryGrid}>
                     {Array.from({ length: TOTAL_INVENTORY_SLOTS }).map((_, index) => {
                         const item = itemsByInvSlot.get(index);
                         const currentSlotInfo: DragSourceSlotInfo = { type: 'inventory', index: index };
                         const isSelected = item && selectedInventoryItem?.instance.instanceId === item.instance.instanceId;
+                        const matchesSearch = itemMatchesSearch(item, inventorySearchTerm);
+                        const hasSearchTerm = inventorySearchTerm.trim().length > 0;
                         
                         return (
                             <DroppableSlot
@@ -790,6 +816,16 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                 onItemDrop={handleItemDropWithTracking}
                                 className={`${styles.slot} ${isSelected ? styles.selectedSlot : ''}`}
                                 isDraggingOver={false}
+                                style={{
+                                    opacity: hasSearchTerm && !matchesSearch ? 0.3 : 1,
+                                    filter: hasSearchTerm && !matchesSearch ? 'grayscale(100%)' : 'none',
+                                    transition: 'opacity 0.2s ease, filter 0.2s ease',
+                                    // Only add highlight border if item matches search AND is not selected (selected state takes priority)
+                                    ...(matchesSearch && hasSearchTerm && !isSelected ? {
+                                        border: '2px solid #4CAF50',
+                                        boxShadow: '0 0 8px rgba(76, 175, 80, 0.5)'
+                                    } : {})
+                                }}
                             >
                                 {item && (
                                     <DraggableItem

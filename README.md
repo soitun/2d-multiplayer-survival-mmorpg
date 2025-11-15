@@ -764,6 +764,30 @@ For questions or discussions about potential contributions, feel free to open an
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+### ⚖️ Copyright & Intellectual Property
+
+While the **codebase** is released under the MIT License, the following elements of **Broth & Bullets** remain the exclusive copyright and intellectual property of **Martin Erlic**:
+
+- **Game Title**: "Broth & Bullets" and all associated branding
+- **Story & Lore**: All narrative content, world-building, character backstories, and plot elements
+- **Original Characters**: Character designs, personalities, and non-AI generated character assets
+- **Custom Art Assets**: Non-AI generated sprites, including but not limited to:
+  - Main player character sprite
+  - Custom character designs
+  - Hand-crafted environmental assets
+  - Unique visual elements specific to Broth & Bullets
+- **Game-Specific Content**: Any content that defines the unique identity of Broth & Bullets as a game
+
+**What this means:**
+- ✅ You can freely use, modify, and distribute the **code** under MIT License
+- ✅ You can use AI-generated assets and generic game systems for your own projects
+- ❌ You cannot use the "Broth & Bullets" name, branding, or story for commercial purposes
+- ❌ You cannot use original character designs or hand-crafted assets without permission
+
+For licensing inquiries regarding Broth & Bullets intellectual property, please contact Martin Erlic.
+
 ---
 
-Created by SeloSlav
+**Created by [SeloSlav](https://x.com/seloslav)**
+
+💬 **Want to chat?** Join the discussion on [Discord](https://discord.com/channels/1037340874172014652/1395802030169391221/threads/1409306941888397496)

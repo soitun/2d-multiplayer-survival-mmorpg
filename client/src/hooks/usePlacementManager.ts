@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection, ItemDefinition } from '../generated'; // Import connection type and ItemDefinition
 import { TILE_SIZE } from '../config/gameConfig';
-import { isSeedItemValid, requiresWaterPlacement } from '../utils/plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../utils/plantsUtils';
 import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
+import { playImmediateSound } from './useSoundSystem';
 
 // Minimum distance between planted seeds (in pixels)
 const MIN_SEED_DISTANCE = 20;
@@ -126,6 +127,23 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
+ * Checks if a world position is on a beach tile (Beach type).
+ * Uses compressed chunk data for efficient lookup.
+ * Returns true if the position is on a beach.
+ */
+function isPositionOnBeach(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    return false; // If no connection, allow placement (fallback)
+  }
+
+  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+  
+  // Use compressed chunk data lookup
+  const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+  return tileType === 'Beach';
+}
+
+/**
  * Calculates the distance to the nearest shore (non-water tile) from a water position.
  * Returns distance in pixels, or -1 if position is not on water.
  */
@@ -214,9 +232,25 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
 }
 
 /**
+ * Checks if Beach Lyme Grass Seeds placement is valid (beach tiles only).
+ * Returns true if placement should be blocked.
+ */
+function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Beach Lyme Grass Seeds must be on beach tiles
+  if (!isPositionOnBeach(connection, worldX, worldY)) {
+    return true; // Block if not on beach
+  }
+  
+  return false; // Valid placement
+}
+
+/**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water instead.
+ * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
   if (!connection || !placementInfo) {
@@ -228,13 +262,20 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     return isReedRhizomePlacementBlocked(connection, worldX, worldY);
   }
 
+  // Special case: Seeds that require beach placement (like Beach Lyme Grass Seeds)
+  if (requiresBeachPlacement(placementInfo.itemName)) {
+    return isBeachLymeGrassPlacementBlocked(connection, worldX, worldY);
+  }
+
   // List of items that cannot be placed on water
   const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest"]; // ADDED: Furnace, Matron's Chest
   
-  // Seeds that don't require water (most seeds) cannot be planted on water
-  const isSeedButNotWaterSeed = isSeedItemValid(placementInfo.itemName) && !requiresWaterPlacement(placementInfo.itemName);
+  // Seeds that don't require water or beach (most seeds) cannot be planted on water
+  const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
+                                   !requiresWaterPlacement(placementInfo.itemName) && 
+                                   !requiresBeachPlacement(placementInfo.itemName);
   
-  if (waterBlockedItems.includes(placementInfo.itemName) || isSeedButNotWaterSeed) {
+  if (waterBlockedItems.includes(placementInfo.itemName) || isSeedButNotSpecialSeed) {
     return isPositionOnWater(connection, worldX, worldY);
   }
   
@@ -288,6 +329,97 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     }
   }, [placementInfo]); // Depend on placementInfo to check if cancelling is needed
 
+  // Register reducer callback to handle planting errors
+  useEffect(() => {
+    console.log('[PlacementManager] useEffect running, connection:', connection ? 'exists' : 'null');
+    if (!connection) {
+      console.log('[PlacementManager] No connection, skipping callback registration');
+      return;
+    }
+    
+    console.log('[PlacementManager] Connection exists, checking reducers:', {
+      hasReducers: !!connection.reducers,
+      hasOnPlantSeed: typeof connection.reducers?.onPlantSeed === 'function'
+    });
+
+    const handlePlantSeedResult = (ctx: any, itemInstanceId: bigint, plantPosX: number, plantPosY: number) => {
+      console.log('[PlacementManager] plantSeed callback triggered:', { 
+        itemInstanceId, 
+        plantPosX, 
+        plantPosY,
+        eventStatus: ctx.event?.status,
+        fullCtx: ctx
+      });
+      
+      // Check for failed status - try multiple ways to access it
+      const status = ctx.event?.status;
+      const isFailed = status?.tag === 'Failed' || status === 'Failed' || (status && typeof status === 'object' && 'Failed' in status);
+      
+      if (isFailed) {
+        // Try to get error message from different possible structures
+        let errorMsg = 'Failed to plant seed';
+        if (status?.tag === 'Failed' && status?.value) {
+          errorMsg = status.value;
+        } else if (status?.Failed) {
+          errorMsg = status.Failed;
+        } else if (typeof status === 'string' && status !== 'Committed') {
+          errorMsg = status;
+        } else if (status && typeof status === 'object') {
+          // Try to extract error message from status object
+          const statusKeys = Object.keys(status);
+          console.log('[PlacementManager] Status object keys:', statusKeys);
+          if (statusKeys.length > 0) {
+            errorMsg = String(status[statusKeys[0]] || errorMsg);
+          }
+        }
+        
+        console.error('[PlacementManager] plantSeed failed:', errorMsg, 'Full status:', status);
+        
+        // Check for any tile type validation errors that should play error_planting sound
+        // This includes errors about planting in water, on beach tiles, or other tile restrictions
+        const errorMsgLower = errorMsg.toLowerCase();
+        const isPlantingLocationError = 
+          errorMsgLower.includes('can only be planted') || // All tile type restrictions (water, beach, etc.)
+          errorMsgLower.includes('cannot be planted on water') || // Normal plants on water tiles
+          errorMsgLower.includes('must be planted'); // Distance/placement requirements (e.g., "must be planted within X meters")
+        
+        console.log('[PlacementManager] Error check:', {
+          errorMsg,
+          errorMsgLower,
+          isPlantingLocationError,
+          matches: {
+            canOnlyBePlanted: errorMsgLower.includes('can only be planted'),
+            cannotBePlantedOnWater: errorMsgLower.includes('cannot be planted on water'),
+            mustBePlanted: errorMsgLower.includes('must be planted')
+          }
+        });
+        
+        if (isPlantingLocationError) {
+          console.log('[PlacementManager] Playing error_planting sound for tile type error:', errorMsg);
+          try {
+            playImmediateSound('error_planting', 1.0);
+            console.log('[PlacementManager] playImmediateSound called successfully');
+          } catch (error) {
+            console.error('[PlacementManager] Error calling playImmediateSound:', error);
+          }
+        } else {
+          console.log('[PlacementManager] Not a tile type error, skipping error_planting sound:', errorMsg);
+        }
+      } else {
+        console.log('[PlacementManager] plantSeed succeeded or status not Failed:', status);
+      }
+    };
+
+    console.log('[PlacementManager] Registering plantSeed reducer callback');
+    connection.reducers.onPlantSeed(handlePlantSeedResult);
+    console.log('[PlacementManager] plantSeed reducer callback registered successfully');
+
+    return () => {
+      console.log('[PlacementManager] Removing plantSeed reducer callback');
+      connection.reducers.removeOnPlantSeed(handlePlantSeedResult);
+    };
+  }, [connection]);
+
   // Effect to auto-cancel placement when seed stack runs out
   useEffect(() => {
     if (!isPlacing || !placementInfo || !connection) return;
@@ -337,6 +469,11 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     // Check for water placement restriction
     if (isWaterPlacementBlocked(connection, placementInfo, worldX, worldY)) {
       // setPlacementError("Cannot place on water");
+      // Play error sound for invalid tile type placement
+      if (isSeedItemValid(placementInfo.itemName)) {
+        console.log('[PlacementManager] Client-side validation: Invalid tile type for planting, playing error sound');
+        playImmediateSound('error_planting', 1.0);
+      }
       return; // Don't proceed with placement
     }
 

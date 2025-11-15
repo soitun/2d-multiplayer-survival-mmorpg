@@ -10,7 +10,7 @@ import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingU
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
-import { isSeedItemValid, requiresWaterPlacement } from '../plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
@@ -131,6 +131,23 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
+ * Checks if a world position is on a beach tile (Beach type).
+ * Uses compressed chunk data for efficient lookup.
+ * Returns true if the position is on a beach.
+ */
+function isPositionOnBeach(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) {
+        return false; // If no connection, allow placement (fallback)
+    }
+
+    const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+    
+    // Use compressed chunk data lookup
+    const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+    return tileType === 'Beach';
+}
+
+/**
  * Calculates the distance to the nearest shore (non-water tile) from a water position.
  * Returns distance in pixels, or -1 if position is not on water.
  */
@@ -199,9 +216,25 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
 }
 
 /**
+ * Checks if Beach Lyme Grass Seeds placement is valid (beach tiles only).
+ * Returns true if placement should be blocked.
+ */
+function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) return false;
+    
+    // Beach Lyme Grass Seeds must be on beach tiles
+    if (!isPositionOnBeach(connection, worldX, worldY)) {
+        return true; // Block if not on beach
+    }
+    
+    return false; // Valid placement
+}
+
+/**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water instead.
+ * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
     if (!connection || !placementInfo) {
@@ -213,13 +246,20 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
         return isReedRhizomePlacementBlocked(connection, worldX, worldY);
     }
 
+    // Special case: Seeds that require beach placement (like Beach Lyme Grass Seeds)
+    if (requiresBeachPlacement(placementInfo.itemName)) {
+        return isBeachLymeGrassPlacementBlocked(connection, worldX, worldY);
+    }
+
     // List of items that cannot be placed on water
     const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector']; // ADDED: Furnace
     
-    // Seeds that don't require water (most seeds) cannot be planted on water
-    const isSeedButNotWaterSeed = isSeedItemValid(placementInfo.itemName) && !requiresWaterPlacement(placementInfo.itemName);
+    // Seeds that don't require water or beach (most seeds) cannot be planted on water
+    const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
+                                     !requiresWaterPlacement(placementInfo.itemName) && 
+                                     !requiresBeachPlacement(placementInfo.itemName);
     
-    if (waterBlockedItems.includes(placementInfo.itemName) || isSeedButNotWaterSeed) {
+    if (waterBlockedItems.includes(placementInfo.itemName) || isSeedButNotSpecialSeed) {
         return isPositionOnWater(connection, worldX, worldY);
     }
     
@@ -343,6 +383,10 @@ export function isPlacementTooFar(
     if (placementInfo.iconAssetName === 'shelter_b.png') {
         // Shelter has a much larger placement range (256px vs 64px for other items)
         clientPlacementRangeSq = SHELTER_PLACEMENT_MAX_DISTANCE * SHELTER_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'hearth.png') {
+        // Matron's Chest has increased placement range (200px) to make placement easier
+        const HEARTH_PLACEMENT_MAX_DISTANCE = 200.0;
+        clientPlacementRangeSq = HEARTH_PLACEMENT_MAX_DISTANCE * HEARTH_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;

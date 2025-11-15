@@ -1,22 +1,36 @@
 .tooltipContainer {
   position: fixed; /* Fixed position to float over other UI */
-  background-color: rgba(20, 20, 30, 0.95); /* Dark, slightly transparent background */
-  border: 1px solid #a0a0c0; /* Consistent border color */
-  border-radius: 4px;
-  padding: 10px 8px; /* Reduced horizontal padding */
-  color: #e0e0e0; /* Light text color */
-  font-family: 'Courier New', Consolas, Monaco, monospace; /* Cyberpunk font */
-  font-size: 0.8rem; /* Base font size for tooltip */
-  z-index: 200; /* Ensure it's above other UI elements like inventory */
-  width: 300px; /* Set a fixed width */
-  box-shadow: 2px 2px 0px rgba(0,0,0,0.4);
-  pointer-events: none; /* Prevent the tooltip from interfering with mouse events */
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.99));
+  border: 2px solid #00aaff;
+  border-radius: 8px;
+  padding: 12px 10px;
+  color: #00ffff;
+  font-family: 'Courier New', Consolas, Monaco, monospace;
+  font-size: 0.8rem;
+  z-index: 200;
+  width: 300px;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.4), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
   line-height: 1.4;
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Spacing between elements */
+  gap: 6px;
   overflow-wrap: break-word;
   box-sizing: border-box;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .tooltipName {
@@ -24,8 +38,9 @@
   font-size: 0.9rem;
   margin-bottom: 4px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #505070; /* Separator line */
+  border-bottom: 2px solid rgba(0, 170, 255, 0.4);
   text-align: center;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
 }
 
 .tooltipName.simple {
@@ -43,23 +58,25 @@
 
 .tooltipCategory {
   font-size: 0.7rem;
-  color: #a0a0c0; /* Lighter, muted color for category */
+  color: #00aaff;
   text-align: center;
   margin-bottom: 2px;
   font-style: italic;
+  text-shadow: 0 0 5px rgba(0, 170, 255, 0.5);
 }
 
 .tooltipDescription {
   font-size: 0.75rem;
-  color: #c0c0c0; /* Slightly brighter than category */
+  color: rgba(0, 255, 255, 0.8);
   margin-bottom: 6px;
-  white-space: pre-wrap; /* Respect newlines in description */
+  white-space: pre-wrap;
+  text-shadow: 0 0 4px rgba(0, 255, 255, 0.3);
 }
 
 .tooltipStatsSection {
   margin-top: 4px;
   padding-top: 6px;
-  border-top: 1px dashed #505070; /* Dashed separator for stats */
+  border-top: 2px dashed rgba(0, 170, 255, 0.3);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -72,15 +89,23 @@
 }
 
 .statLabel {
-  color: #b0b0b0; /* Muted label color */
+  color: #00aaff;
   margin-right: 8px;
+  text-shadow: 0 0 4px rgba(0, 170, 255, 0.4);
 }
 
 .statValue {
-  color: #d0d0d0; /* Default stat value color */
+  color: #00ffff;
   font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
 }
 
 /* Example stat value colors */
-.statValue.positive { color: #4CAF50; } /* Green for positive stats */
-.statValue.negative { color: #F44336; } /* Red for negative stats */ 
+.statValue.positive { 
+  color: #00ff88;
+  text-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
+}
+.statValue.negative { 
+  color: #ff3366;
+  text-shadow: 0 0 6px rgba(255, 51, 102, 0.6);
+} 

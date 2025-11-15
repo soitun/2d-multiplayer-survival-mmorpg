@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -35,6 +35,11 @@ const REMOTE_PLAYER_DOT_COLOR = '#00AAFF'; // Light blue for other players
 const TREE_DOT_COLOR = '#37ff7a'; // Bright emerald green with excellent visibility
 const ROCK_DOT_COLOR = '#bbbbff'; // Light slate blue for rocks
 const BARREL_DOT_COLOR = '#ff4444'; // Bright red for barrels - high visibility
+// Rune stone colors - matching their rune types
+const RUNE_STONE_GREEN_COLOR = '#9dff00'; // Bright cyberpunk yellow-green for agrarian rune stones
+const RUNE_STONE_RED_COLOR = '#ff4400'; // Vibrant orange-red for production rune stones
+const RUNE_STONE_BLUE_COLOR = '#8b5cf6'; // Bright blue-purple cyberpunk violet for memory shard rune stones
+const RUNE_STONE_ICON_SIZE = 12; // Twice as large for better visibility on minimap
 
 const RESOURCE_ICON_OUTLINE_COLOR = '#000000'; // Black outline for resource icons
 const RESOURCE_ICON_OUTLINE_WIDTH = 1; // 1-pixel outline width
@@ -167,6 +172,7 @@ interface MinimapProps {
   players: Map<string, SpacetimeDBPlayer>; // Map of player identities to player data
   trees: Map<string, Tree>; // Map of tree identities/keys to tree data
   stones: Map<string, SpacetimeDBStone>; // Add stones
+  runeStones: Map<string, SpacetimeDBRuneStone>; // Add rune stones
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   campfires: Map<string, SpacetimeDBCampfire>; // Add campfires
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
@@ -225,6 +231,7 @@ export function drawMinimapOntoCanvas({
   players,
   trees,
   stones,
+  runeStones,
   barrels,
   campfires,
   sleepingBags,
@@ -615,6 +622,59 @@ export function drawMinimapOntoCanvas({
       // Fill with stone color
       ctx.fillStyle = ROCK_DOT_COLOR;
       ctx.fillRect(x - halfSize, y - halfSize, iconSize, iconSize);
+      
+      ctx.restore();
+    }
+  });
+
+  // --- Draw Rune Stones ---
+  runeStones.forEach(runeStone => {
+    const screenCoords = worldToMinimap(runeStone.posX, runeStone.posY);
+    if (screenCoords) {
+      const iconSize = RUNE_STONE_ICON_SIZE;
+      const halfSize = iconSize / 2;
+      const x = screenCoords.x;
+      const y = screenCoords.y;
+      
+      // Determine color based on rune type
+      let runeColor = RUNE_STONE_BLUE_COLOR; // Default to blue
+      const runeType = runeStone.runeType?.tag || 'Blue';
+      if (runeType === 'Green') {
+        runeColor = RUNE_STONE_GREEN_COLOR;
+      } else if (runeType === 'Red') {
+        runeColor = RUNE_STONE_RED_COLOR;
+      } else if (runeType === 'Blue') {
+        runeColor = RUNE_STONE_BLUE_COLOR;
+      }
+      
+      // Draw diamond/hexagon rune stone icon (◆)
+      ctx.save();
+      
+      // Add glow effect matching the rune color
+      ctx.shadowColor = runeColor;
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Draw black outline first
+      ctx.strokeStyle = RESOURCE_ICON_OUTLINE_COLOR;
+      ctx.lineWidth = RESOURCE_ICON_OUTLINE_WIDTH;
+      ctx.beginPath();
+      // Draw diamond shape (rotated square)
+      ctx.moveTo(x, y - halfSize); // Top
+      ctx.lineTo(x + halfSize, y); // Right
+      ctx.lineTo(x, y + halfSize); // Bottom
+      ctx.lineTo(x - halfSize, y); // Left
+      ctx.closePath();
+      ctx.stroke();
+      
+      // Fill with rune color (glow will be applied automatically)
+      ctx.fillStyle = runeColor;
+      ctx.fill();
+      
+      // Reset shadow for next drawing operations
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
       
       ctx.restore();
     }

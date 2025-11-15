@@ -43,7 +43,9 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.WaterDrinking |
   EffectTypeVariants.Venom |
   EffectTypeVariants.Exhausted |
-  EffectTypeVariants.BuildingPrivilege;
+  EffectTypeVariants.BuildingPrivilege |
+  EffectTypeVariants.ProductionRune |
+  EffectTypeVariants.AgrarianRune;
 
 let _cached_EffectType_type_value: __AlgebraicTypeType | null = null;
 
@@ -69,6 +71,8 @@ export const EffectType = {
   Venom: { tag: "Venom" } as const,
   Exhausted: { tag: "Exhausted" } as const,
   BuildingPrivilege: { tag: "BuildingPrivilege" } as const,
+  ProductionRune: { tag: "ProductionRune" } as const,
+  AgrarianRune: { tag: "AgrarianRune" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_EffectType_type_value) return _cached_EffectType_type_value;
@@ -88,6 +92,8 @@ export const EffectType = {
       { name: "Venom", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Exhausted", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BuildingPrivilege", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ProductionRune", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AgrarianRune", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_EffectType_type_value;
   },

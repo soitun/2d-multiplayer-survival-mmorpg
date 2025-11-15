@@ -75,4 +75,5 @@ export type FoundationMetalUpgraded = { tag: "FoundationMetalUpgraded" };
 export type FoundationTwigDestroyed = { tag: "FoundationTwigDestroyed" };
 export type ItemThrown = { tag: "ItemThrown" };
 export type ErrorResources = { tag: "ErrorResources" };
+export type DoneCooking = { tag: "DoneCooking" };
 

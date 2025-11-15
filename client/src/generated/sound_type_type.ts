@@ -76,7 +76,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.FoundationMetalUpgraded |
   SoundTypeVariants.FoundationTwigDestroyed |
   SoundTypeVariants.ItemThrown |
-  SoundTypeVariants.ErrorResources;
+  SoundTypeVariants.ErrorResources |
+  SoundTypeVariants.DoneCooking;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -135,6 +136,7 @@ export const SoundType = {
   FoundationTwigDestroyed: { tag: "FoundationTwigDestroyed" } as const,
   ItemThrown: { tag: "ItemThrown" } as const,
   ErrorResources: { tag: "ErrorResources" } as const,
+  DoneCooking: { tag: "DoneCooking" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -187,6 +189,7 @@ export const SoundType = {
       { name: "FoundationTwigDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ItemThrown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorResources", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DoneCooking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

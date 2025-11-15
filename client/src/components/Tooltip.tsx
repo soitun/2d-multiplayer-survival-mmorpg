@@ -20,6 +20,12 @@ interface TooltipProps {
   position: { x: number; y: number };
 }
 
+// Helper function to format category names (e.g., "RangedWeapon" -> "Ranged Weapon")
+const formatCategoryName = (category: string): string => {
+  // Add space before capital letters (except the first one)
+  return category.replace(/([A-Z])/g, ' $1').trim();
+};
+
 const Tooltip: React.FC<TooltipProps> = ({ content, visible, position }) => {
   if (!visible || !content) {
     return null;
@@ -42,7 +48,7 @@ const Tooltip: React.FC<TooltipProps> = ({ content, visible, position }) => {
       <div className={`${styles.tooltipName} ${content.rarity ? styles[content.rarity.toLowerCase()] : ''} ${isSimple ? styles.simple : ''}`}>
         {content.name}
       </div>
-      {content.category && <div className={styles.tooltipCategory}>{content.category}</div>}
+      {content.category && <div className={styles.tooltipCategory}>{formatCategoryName(content.category)}</div>}
       {content.description && <div className={styles.tooltipDescription}>{content.description}</div>}
       {content.stats && content.stats.length > 0 && (
         <div className={styles.tooltipStatsSection}>

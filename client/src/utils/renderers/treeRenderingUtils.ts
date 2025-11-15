@@ -14,7 +14,8 @@ import { imageManager } from './imageManager'; // Import image manager
 const TARGET_TREE_WIDTH_PX = 480; // Target width on screen (base size for tallest tree - Sitka Spruce)
 const TREE_HEIGHT = 120;
 const SHAKE_DURATION_MS = 500;
-const SHAKE_INTENSITY_PX = 8;
+const SHAKE_INTENSITY_PX = 14; // Increased from 8 for more intense shaking
+const VERTEX_SHAKE_SEGMENTS = 8; // Number of vertical segments for vertex-based shaking
 
 // --- Client-side animation tracking for tree shakes ---
 const clientTreeShakeStartTimes = new Map<string, number>(); // treeId -> client timestamp when shake started
@@ -118,9 +119,12 @@ const treeConfig: GroundEntityConfig<Tree> = {
         });
     },
 
-    applyEffects: (ctx, entity, nowMs, _baseDrawX, _baseDrawY, _cycleProgress) => { // cycleProgress not needed here now
-        let shakeOffsetX = 0;
-        let shakeOffsetY = 0;
+    applyEffects: (ctx, entity, nowMs, _baseDrawX, _baseDrawY, _cycleProgress, targetImgWidth, targetImgHeight) => {
+        // Calculate shake intensity (same as before)
+        let baseShakeIntensity = 0;
+        let shakeFactor = 0;
+        let shakeDirectionX = 0;
+        let shakeDirectionY = 0;
 
         if (entity.lastHitTime) { 
             const treeId = entity.id.toString();
@@ -141,10 +145,17 @@ const treeConfig: GroundEntityConfig<Tree> = {
                 const elapsedSinceShake = nowMs - clientStartTime;
                 
                 if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
-                    const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS); 
-                    const currentShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-                    shakeOffsetX = (Math.random() - 0.5) * 2 * currentShakeIntensity;
-                    shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity;
+                    shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS); 
+                    baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                    
+                    // Generate smooth, time-based shake direction using sine waves
+                    // This creates a more natural swaying motion
+                    const timePhase = elapsedSinceShake / 50; // Faster oscillation (50ms per cycle)
+                    const treeSeed = treeId.charCodeAt(0) % 100; // Unique phase offset per tree
+                    
+                    // Use sine/cosine for smooth circular motion
+                    shakeDirectionX = Math.sin(timePhase + treeSeed);
+                    shakeDirectionY = Math.cos(timePhase + treeSeed) * 0.5; // Less vertical movement
                 }
             }
         } else {
@@ -154,7 +165,77 @@ const treeConfig: GroundEntityConfig<Tree> = {
             lastKnownServerTreeShakeTimes.delete(treeId);
         }
         
-        return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
+        // Store shake data for vertex-based rendering
+        // Return zero offset - the custom draw will handle vertex-based shaking
+        return { 
+            offsetX: 0, 
+            offsetY: 0, 
+            vertexShakeIntensity: baseShakeIntensity,
+            shakeDirectionX,
+            shakeDirectionY
+        };
+    },
+
+    /**
+     * Custom draw function for vertex-based shaking.
+     * Draws the tree in vertical segments with increasing shake from base to top.
+     */
+    customDraw: (ctx, entity, img, finalDrawX, finalDrawY, targetImgWidth, targetImgHeight, effectsResult) => {
+        const shakeIntensity = (effectsResult.vertexShakeIntensity as number) || 0;
+        const shakeDirX = (effectsResult.shakeDirectionX as number) || 0;
+        const shakeDirY = (effectsResult.shakeDirectionY as number) || 0;
+
+        // If no shaking, just draw normally
+        if (shakeIntensity <= 0) {
+            ctx.drawImage(
+                img,
+                -targetImgWidth / 2,
+                -targetImgHeight / 2,
+                targetImgWidth,
+                targetImgHeight
+            );
+            return;
+        }
+
+        // Draw tree in vertical segments with vertex-based shaking
+        // Base (bottom) has minimal shake, top has maximum shake
+        const segmentHeight = targetImgHeight / VERTEX_SHAKE_SEGMENTS;
+        
+        for (let i = 0; i < VERTEX_SHAKE_SEGMENTS; i++) {
+            // Calculate normalized position (0 = base/bottom, 1 = top)
+            // i=0 is top of tree, i=VERTEX_SHAKE_SEGMENTS-1 is base
+            const normalizedY = (VERTEX_SHAKE_SEGMENTS - 1 - i) / (VERTEX_SHAKE_SEGMENTS - 1);
+            
+            // Shake intensity increases quadratically from base to top
+            // This creates a more realistic wind effect where the top sways more
+            // Using a slightly steeper curve for more pronounced effect
+            const segmentShakeFactor = Math.pow(normalizedY, 1.8); // Slightly steeper than quadratic for more intensity
+            
+            // Calculate offset for this segment
+            const segmentOffsetX = shakeDirX * shakeIntensity * segmentShakeFactor;
+            const segmentOffsetY = shakeDirY * shakeIntensity * segmentShakeFactor;
+            
+            // Source rectangle (from original image)
+            const sourceY = (img.naturalHeight / VERTEX_SHAKE_SEGMENTS) * i;
+            const sourceHeight = img.naturalHeight / VERTEX_SHAKE_SEGMENTS;
+            
+            // Destination rectangle (on canvas, with offset)
+            const destX = -targetImgWidth / 2 + segmentOffsetX;
+            const destY = -targetImgHeight / 2 + (segmentHeight * i) + segmentOffsetY;
+            
+            // Draw this segment
+            ctx.drawImage(
+                img,
+                0, // Source X (full width)
+                sourceY, // Source Y (segment start)
+                img.naturalWidth, // Source width (full width)
+                sourceHeight, // Source height (segment height)
+                destX, // Destination X (with shake offset)
+                destY, // Destination Y (with shake offset)
+                targetImgWidth, // Destination width (full width)
+                segmentHeight // Destination height (segment height)
+            );
+        }
     },
 
     fallbackColor: 'darkgreen',

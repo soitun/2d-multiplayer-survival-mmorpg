@@ -17,7 +17,7 @@ const WATER_LINE_CONFIG = {
   WAVE_AMPLITUDE: 1.5, // How much the water line moves up/down (even more subtle for cozy feel)
   WAVE_FREQUENCY: 0.0008, // Much slower for cozy, atmospheric feel (was 0.002)
   SHIMMER_FREQUENCY: 0.002, // Slower shimmer for atmospheric feel (was 0.005)
-  UNDERWATER_TINT: 'rgba(12, 62, 79, 0.6)', // Dark blue underwater tint using #0C3E4F
+  UNDERWATER_TINT: 'rgba(44, 88, 103, 0.6)', // Dark blue underwater tint using #2C5867
   CONTOUR_SAMPLE_DENSITY: 4, // Sample every 4 pixels for contour detection
 };
 
@@ -343,11 +343,11 @@ function drawWaterLineEffects(
     
     // Create gradient that gets fully opaque sooner for better underwater effect
     const underwaterGradient = ctx.createLinearGradient(0, waterLineY, 0, waterLineY + 60);
-    underwaterGradient.addColorStop(0, 'rgba(12, 62, 79, 0.3)'); // Light tint at water line
-    underwaterGradient.addColorStop(0.2, 'rgba(12, 62, 79, 0.6)'); // Medium tint
-    underwaterGradient.addColorStop(0.4, 'rgba(12, 62, 79, 0.9)'); // Strong tint - reaches 90% much sooner
-    underwaterGradient.addColorStop(0.6, 'rgba(12, 62, 79, 1.0)'); // Fully opaque at 60% instead of 100%
-    underwaterGradient.addColorStop(1, 'rgba(12, 62, 79, 1.0)'); // Stay fully opaque to bottom
+    underwaterGradient.addColorStop(0, 'rgba(44, 88, 103, 0.3)'); // Light tint at water line
+    underwaterGradient.addColorStop(0.2, 'rgba(44, 88, 103, 0.6)'); // Medium tint
+    underwaterGradient.addColorStop(0.4, 'rgba(44, 88, 103, 0.9)'); // Strong tint - reaches 90% much sooner
+    underwaterGradient.addColorStop(0.6, 'rgba(44, 88, 103, 1.0)'); // Fully opaque at 60% instead of 100%
+    underwaterGradient.addColorStop(1, 'rgba(44, 88, 103, 1.0)'); // Stay fully opaque to bottom
     
     ctx.fillStyle = underwaterGradient;
     ctx.fillRect(constrainedLeft, waterLineY, constrainedRight - constrainedLeft, Math.min(100, stackBounds.bottom - waterLineY));

@@ -7,39 +7,65 @@
   max-width: 1425px; /* Max width */
   height: 80vh;
   max-height: 850px; /* Corrected value */
-  /* Style consistency with PlayerUI */
-  background-color: rgba(40, 40, 60, 0.9);
-  border: 1px solid #a0a0c0;
-  box-shadow: 3px 3px 0px rgba(0,0,0,0.5);
-  border-radius: 6px;
+  /* Cyberpunk SOVA styling */
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
+  border: 2px solid #00aaff;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  border-radius: 8px;
   padding: 20px;
   padding-top: 45px;
   z-index: 100;
   display: flex;
   gap: 15px;
-  color: #eee;
-  font-family: 'Courier New', Consolas, Monaco, monospace;
+  color: #ffffff;
+  font-family: 'Press Start 2P', cursive;
   box-sizing: border-box;
   align-items: flex-start;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+/* Animated scan line effect */
+.inventoryPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00ffff, transparent);
+  animation: scanLine 3s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes scanLine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .closeButton {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: #555;
-  color: #eee;
-  border: 1px solid #777;
+  background: linear-gradient(135deg, rgba(120, 20, 40, 0.8), rgba(80, 10, 30, 0.9));
+  color: #ffffff;
+  border: 2px solid #ff3366;
   border-radius: 4px;
   padding: 5px 10px;
   cursor: pointer;
-  font-size: 16px; /* Slightly larger X */
+  font-size: 16px;
   font-family: inherit;
   z-index: 110;
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.3), inset 0 0 10px rgba(255, 51, 102, 0.1);
+  text-shadow: 0 0 5px currentColor;
+  transition: all 0.3s ease;
 }
 
 .closeButton:hover {
-  background: #777;
+  background: linear-gradient(135deg, rgba(150, 30, 50, 0.9), rgba(100, 15, 35, 1));
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 25px rgba(255, 51, 102, 0.6), inset 0 0 15px rgba(255, 51, 102, 0.2);
 }
 
 /* Panes Layout - Proportions might need adjusting again */
@@ -155,13 +181,13 @@
 }
 
 .craftableItemsSection {
-    height: 250px; /* Adjust height as needed */
+    height: 250px;
     margin-bottom: 15px;
-    /* overflow-y: auto; Already added via class */
-    border: 1px solid #555; /* Add border for clarity */
-    border-radius: 3px;
+    border: 2px solid rgba(0, 170, 255, 0.3);
+    border-radius: 6px;
     padding: 5px;
-    background-color: rgba(0,0,0, 0.1); /* Slightly darker background */
+    background: linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(10, 10, 25, 0.9));
+    box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.1);
 }
 
 .craftableItemsGrid {
@@ -174,12 +200,12 @@
 }
 
 .craftingQueueSection {
-    height: 220px; /* Increased height from 150px */
-    border: 1px solid #555;
-    border-radius: 3px;
+    height: 220px;
+    border: 2px solid rgba(0, 170, 255, 0.3);
+    border-radius: 6px;
     padding: 5px;
-    background-color: rgba(0,0,0, 0.1);
-    /* Add flex properties to allow inner list to grow and scroll */
+    background: linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(10, 10, 25, 0.9));
+    box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.1);
     display: flex;
     flex-direction: column;
 }
@@ -249,48 +275,55 @@
 .interactionButton {
     margin-top: 10px;
     padding: 8px 15px;
-    border: 1px solid #555;
+    border: 2px solid rgba(0, 170, 255, 0.5);
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
-    color: #eee; /* Default text color */
-    font-family: inherit; /* Use panel font */
+    transition: all 0.3s ease;
+    color: #ffffff;
+    font-family: inherit;
     font-size: 11px;
     white-space: nowrap;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.2), inset 0 0 8px rgba(0, 170, 255, 0.1);
+    text-shadow: 0 0 5px currentColor;
 }
 
 .interactionButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background-color: #444; /* Keep a distinct disabled background */
+  background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
   color: #888;
+  border-color: rgba(100, 100, 120, 0.4);
 }
 
 /* Specific styles for campfire actions */
 .lightFireButton {
-  background-color: #e67e22; /* Orange for "Light Fire" */
-  border-color: #d35400;
+  background: linear-gradient(135deg, rgba(230, 126, 34, 0.8), rgba(211, 84, 0, 0.9));
+  border-color: #ff8800;
 }
 
 .lightFireButton:not(:disabled):hover {
-  background-color: #f39c12; /* Lighter orange on hover */
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.9), rgba(230, 126, 34, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 136, 0, 0.5), inset 0 0 12px rgba(255, 136, 0, 0.2);
 }
 
 .extinguishButton {
-  background-color: #c0392b; /* Muted red for "Extinguish" */
-  border-color: #a93226;
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.8), rgba(169, 50, 38, 0.9));
+  border-color: #ff3366;
 }
 
 .extinguishButton:not(:disabled):hover {
-  background-color: #e74c3c; /* Slightly brighter red on hover */
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.5), inset 0 0 12px rgba(255, 51, 102, 0.2);
 }
 
-/* Ensure disabled styles take precedence if needed, though opacity handles most cases */
+/* Ensure disabled styles take precedence */
 .lightFireButton:disabled,
 .extinguishButton:disabled {
-   background-color: #444; /* Override specific colors when disabled */
-   border-color: #555;
+   background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
+   border-color: rgba(100, 100, 120, 0.4);
 }
 
 /* <<< END ADDED >>> */
@@ -304,21 +337,31 @@
 
 /* General Styles */
 .sectionTitle {
-  color: #f0e68c;
-  margin-bottom: 10px; /* Adjust as needed for spacing below title */
+  color: #00ffff;
+  margin-bottom: 10px;
   text-align: center;
   font-size: 1.1em; 
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  margin-top: 0; /* Remove potential top margin */
+  margin-top: 0;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  0% { 
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  }
+  100% { 
+    text-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 0.6);
+  }
 }
 
 .slot {
-  width: 64px; /* Keep standard size */
+  width: 64px;
   height: 64px;
-  /* Match PlayerUI/Hotbar Style more closely */
-  background-color: rgba(0, 0, 0, 0.6); /* Darker background */
-  border: 1px solid #777; /* Lighter border */
+  background: linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9));
+  border: 2px solid rgba(0, 170, 255, 0.4);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -326,48 +369,55 @@
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.1);
+  transition: all 0.2s ease;
 }
 
 .slot:hover {
-    border-color: #aaa; /* Highlight on hover */
+    border-color: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.2);
 }
 
 /* Selected slot styling */
 .selectedSlot {
-    border-color: #f0e68c !important; /* Gold border for selected items */
-    box-shadow: 0 0 4px rgba(240, 230, 140, 0.3); /* Subtle gold glow */
-    background-color: rgba(240, 230, 140, 0.05); /* Very subtle gold background */
+    border-color: #00ffff !important;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2) !important;
+    background: linear-gradient(135deg, rgba(0, 170, 255, 0.2), rgba(0, 150, 255, 0.3)) !important;
 }
 
-/* Custom Scrollbar Styles */
+/* Custom Scrollbar Styles - Cyberpunk theme */
 .craftableItemsSection::-webkit-scrollbar,
 .craftingQueueList::-webkit-scrollbar {
-  width: 8px; /* Width of the vertical scrollbar */
+  width: 8px;
 }
 
 .craftableItemsSection::-webkit-scrollbar-track,
 .craftingQueueList::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3); /* Dark track background */
+  background: rgba(30, 15, 50, 0.8);
   border-radius: 4px;
+  border: 1px solid rgba(0, 170, 255, 0.2);
 }
 
 .craftableItemsSection::-webkit-scrollbar-thumb,
 .craftingQueueList::-webkit-scrollbar-thumb {
-  background-color: rgba(160, 160, 192, 0.5); /* Semi-transparent thumb, matching border color */
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.8), rgba(0, 150, 255, 0.6));
   border-radius: 4px;
-  border: 1px solid rgba(40, 40, 60, 0.8); /* Border similar to panel background */
+  border: 1px solid rgba(0, 170, 255, 0.4);
+  box-shadow: 0 0 8px rgba(0, 170, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.2);
 }
 
 .craftableItemsSection::-webkit-scrollbar-thumb:hover,
 .craftingQueueList::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(180, 180, 210, 0.7); /* Slightly lighter on hover */
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.9), rgba(0, 170, 255, 0.8));
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.3);
+  border-color: rgba(0, 204, 255, 0.6);
 }
 
 /* Class for scrollable areas */
 .scrollableSection {
   overflow-y: auto;
   scrollbar-width: thin; /* For Firefox */
-  scrollbar-color: #888 #333; /* For Firefox */
+  scrollbar-color: rgba(0, 170, 255, 0.8) rgba(30, 15, 50, 0.8); /* For Firefox - thumb track */
 }
 
 /* Style scrollbar for Webkit browsers */
@@ -375,16 +425,20 @@
   width: 8px;
 }
 .scrollableSection::-webkit-scrollbar-track {
-  background: #333;
+  background: rgba(30, 15, 50, 0.8);
   border-radius: 4px;
+  border: 1px solid rgba(0, 170, 255, 0.2);
 }
 .scrollableSection::-webkit-scrollbar-thumb {
-  background-color: #888;
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.8), rgba(0, 150, 255, 0.6));
   border-radius: 4px;
-  border: 2px solid #333;
+  border: 1px solid rgba(0, 170, 255, 0.4);
+  box-shadow: 0 0 8px rgba(0, 170, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.2);
 }
 .scrollableSection::-webkit-scrollbar-thumb:hover {
-  background-color: #aaa;
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.9), rgba(0, 170, 255, 0.8));
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.3);
+  border-color: rgba(0, 204, 255, 0.6);
 }
 
 /* Recipe List Styles */
@@ -458,6 +512,7 @@
   border-radius: 3px;
   /* Remove spinner arrows for a cleaner look in some browsers */
   -moz-appearance: textfield; /* Firefox */
+  appearance: textfield; /* Standard property */
 }
 
 .quantityInput::-webkit-outer-spin-button,
@@ -526,23 +581,29 @@
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
-  border: 1px solid #888;
-  background-color: #5a5;
-  color: white;
+  border: 2px solid #00ff88;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4));
+  color: #ffffff;
   border-radius: 3px;
-  transition: background-color 0.2s ease;
-  white-space: nowrap; /* Prevent button text wrapping */
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.2), inset 0 0 8px rgba(0, 255, 136, 0.1);
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.6);
 }
 
 .craftButton:hover {
-  background-color: #6b6;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.5), rgba(0, 200, 100, 0.6));
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 12px rgba(0, 255, 136, 0.2);
 }
 
 .craftButton:disabled {
-  background-color: #666;
-  border-color: #555;
-  color: #aaa;
+  background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
+  border-color: rgba(100, 100, 120, 0.4);
+  color: #888;
   cursor: not-allowed;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 /* <<< ADDED: Ensure title in right pane has no top margin >>> */
@@ -590,11 +651,11 @@
 }
 
 .filterButton {
-  background: rgba(60, 60, 80, 0.9);
-  border: 1px solid #555;
-  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4));
+  border: 2px solid rgba(0, 170, 255, 0.5);
+  border-radius: 4px;
   padding: 6px 8px;
-  color: #eee;
+  color: #00aaff;
   font-family: inherit;
   font-size: 10px;
   cursor: pointer;
@@ -602,11 +663,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 170, 255, 0.2), inset 0 0 8px rgba(0, 170, 255, 0.1);
+  text-shadow: 0 0 5px rgba(0, 170, 255, 0.6);
+  transition: all 0.3s ease;
 }
 
 .filterButton:hover {
-  background: rgba(80, 80, 100, 0.9);
-  border-color: #777;
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.5), rgba(0, 150, 220, 0.6));
+  border-color: rgba(0, 170, 255, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 170, 255, 0.4), inset 0 0 12px rgba(0, 170, 255, 0.2);
 }
 
 .filterDropdown {
@@ -614,10 +680,11 @@
   top: 100%;
   right: 0;
   margin-top: 2px;
-  background: rgba(40, 40, 60, 0.95);
-  border: 1px solid #777;
-  border-radius: 3px;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.99));
+  border: 2px solid #00aaff;
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.4), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  backdrop-filter: blur(10px);
   z-index: 150;
   min-width: 140px;
   max-height: 250px;
@@ -625,11 +692,13 @@
 }
 
 .filterOption {
-  padding: 8px 12px;
-  color: #eee;
-  font-size: 10px;
+  padding: 10px 14px;
+  color: #00ffff;
+  font-size: 11px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(0, 170, 255, 0.2);
+  transition: all 0.2s ease;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
 }
 
 .filterOption:last-child {
@@ -637,16 +706,20 @@
 }
 
 .filterOption:hover {
-  background: rgba(100, 100, 120, 0.6);
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.2), rgba(0, 150, 220, 0.3));
+  color: #00aaff;
+  box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.1);
 }
 
 .filterOptionSelected {
-  background: rgba(80, 120, 160, 0.8);
-  color: #fff;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 200, 100, 0.3));
+  color: #00ff88;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+  box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.1);
 }
 
 .filterOptionSelected:hover {
-  background: rgba(90, 130, 170, 0.8);
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4));
 }
 
 .equipmentSlot {
@@ -697,13 +770,13 @@
 }
 
 .craftableItemsSection {
-    height: 250px; /* Adjust height as needed */
+    height: 250px;
     margin-bottom: 15px;
-    /* overflow-y: auto; Already added via class */
-    border: 1px solid #555; /* Add border for clarity */
-    border-radius: 3px;
+    border: 2px solid rgba(0, 170, 255, 0.3);
+    border-radius: 6px;
     padding: 5px;
-    background-color: rgba(0,0,0, 0.1); /* Slightly darker background */
+    background: linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(10, 10, 25, 0.9));
+    box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.1);
 }
 
 .craftableItemsGrid {
@@ -716,12 +789,12 @@
 }
 
 .craftingQueueSection {
-    height: 220px; /* Increased height from 150px */
-    border: 1px solid #555;
-    border-radius: 3px;
+    height: 220px;
+    border: 2px solid rgba(0, 170, 255, 0.3);
+    border-radius: 6px;
     padding: 5px;
-    background-color: rgba(0,0,0, 0.1);
-    /* Add flex properties to allow inner list to grow and scroll */
+    background: linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(10, 10, 25, 0.9));
+    box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.1);
     display: flex;
     flex-direction: column;
 }
@@ -791,48 +864,55 @@
 .interactionButton {
     margin-top: 10px;
     padding: 8px 15px;
-    border: 1px solid #555;
+    border: 2px solid rgba(0, 170, 255, 0.5);
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
-    color: #eee; /* Default text color */
-    font-family: inherit; /* Use panel font */
+    transition: all 0.3s ease;
+    color: #ffffff;
+    font-family: inherit;
     font-size: 11px;
     white-space: nowrap;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.2), inset 0 0 8px rgba(0, 170, 255, 0.1);
+    text-shadow: 0 0 5px currentColor;
 }
 
 .interactionButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background-color: #444; /* Keep a distinct disabled background */
+  background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
   color: #888;
+  border-color: rgba(100, 100, 120, 0.4);
 }
 
 /* Specific styles for campfire actions */
 .lightFireButton {
-  background-color: #e67e22; /* Orange for "Light Fire" */
-  border-color: #d35400;
+  background: linear-gradient(135deg, rgba(230, 126, 34, 0.8), rgba(211, 84, 0, 0.9));
+  border-color: #ff8800;
 }
 
 .lightFireButton:not(:disabled):hover {
-  background-color: #f39c12; /* Lighter orange on hover */
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.9), rgba(230, 126, 34, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 136, 0, 0.5), inset 0 0 12px rgba(255, 136, 0, 0.2);
 }
 
 .extinguishButton {
-  background-color: #c0392b; /* Muted red for "Extinguish" */
-  border-color: #a93226;
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.8), rgba(169, 50, 38, 0.9));
+  border-color: #ff3366;
 }
 
 .extinguishButton:not(:disabled):hover {
-  background-color: #e74c3c; /* Slightly brighter red on hover */
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.5), inset 0 0 12px rgba(255, 51, 102, 0.2);
 }
 
-/* Ensure disabled styles take precedence if needed, though opacity handles most cases */
+/* Ensure disabled styles take precedence */
 .lightFireButton:disabled,
 .extinguishButton:disabled {
-   background-color: #444; /* Override specific colors when disabled */
-   border-color: #555;
+   background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
+   border-color: rgba(100, 100, 120, 0.4);
 }
 
 /* <<< END ADDED >>> */
@@ -846,21 +926,31 @@
 
 /* General Styles */
 .sectionTitle {
-  color: #f0e68c;
-  margin-bottom: 10px; /* Adjust as needed for spacing below title */
+  color: #00ffff;
+  margin-bottom: 10px;
   text-align: center;
   font-size: 1.1em; 
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  margin-top: 0; /* Remove potential top margin */
+  margin-top: 0;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  0% { 
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  }
+  100% { 
+    text-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 0.6);
+  }
 }
 
 .slot {
-  width: 64px; /* Keep standard size */
+  width: 64px;
   height: 64px;
-  /* Match PlayerUI/Hotbar Style more closely */
-  background-color: rgba(0, 0, 0, 0.6); /* Darker background */
-  border: 1px solid #777; /* Lighter border */
+  background: linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9));
+  border: 2px solid rgba(0, 170, 255, 0.4);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -868,48 +958,55 @@
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.1);
+  transition: all 0.2s ease;
 }
 
 .slot:hover {
-    border-color: #aaa; /* Highlight on hover */
+    border-color: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.2);
 }
 
 /* Selected slot styling */
 .selectedSlot {
-    border-color: #f0e68c !important; /* Gold border for selected items */
-    box-shadow: 0 0 4px rgba(240, 230, 140, 0.3); /* Subtle gold glow */
-    background-color: rgba(240, 230, 140, 0.05); /* Very subtle gold background */
+    border-color: #00ffff !important;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2) !important;
+    background: linear-gradient(135deg, rgba(0, 170, 255, 0.2), rgba(0, 150, 255, 0.3)) !important;
 }
 
-/* Custom Scrollbar Styles */
+/* Custom Scrollbar Styles - Cyberpunk theme */
 .craftableItemsSection::-webkit-scrollbar,
 .craftingQueueList::-webkit-scrollbar {
-  width: 8px; /* Width of the vertical scrollbar */
+  width: 8px;
 }
 
 .craftableItemsSection::-webkit-scrollbar-track,
 .craftingQueueList::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3); /* Dark track background */
+  background: rgba(30, 15, 50, 0.8);
   border-radius: 4px;
+  border: 1px solid rgba(0, 170, 255, 0.2);
 }
 
 .craftableItemsSection::-webkit-scrollbar-thumb,
 .craftingQueueList::-webkit-scrollbar-thumb {
-  background-color: rgba(160, 160, 192, 0.5); /* Semi-transparent thumb, matching border color */
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.8), rgba(0, 150, 255, 0.6));
   border-radius: 4px;
-  border: 1px solid rgba(40, 40, 60, 0.8); /* Border similar to panel background */
+  border: 1px solid rgba(0, 170, 255, 0.4);
+  box-shadow: 0 0 8px rgba(0, 170, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.2);
 }
 
 .craftableItemsSection::-webkit-scrollbar-thumb:hover,
 .craftingQueueList::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(180, 180, 210, 0.7); /* Slightly lighter on hover */
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.9), rgba(0, 170, 255, 0.8));
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.3);
+  border-color: rgba(0, 204, 255, 0.6);
 }
 
 /* Class for scrollable areas */
 .scrollableSection {
   overflow-y: auto;
   scrollbar-width: thin; /* For Firefox */
-  scrollbar-color: #888 #333; /* For Firefox */
+  scrollbar-color: rgba(0, 170, 255, 0.8) rgba(30, 15, 50, 0.8); /* For Firefox - thumb track */
 }
 
 /* Style scrollbar for Webkit browsers */
@@ -917,16 +1014,20 @@
   width: 8px;
 }
 .scrollableSection::-webkit-scrollbar-track {
-  background: #333;
+  background: rgba(30, 15, 50, 0.8);
   border-radius: 4px;
+  border: 1px solid rgba(0, 170, 255, 0.2);
 }
 .scrollableSection::-webkit-scrollbar-thumb {
-  background-color: #888;
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.8), rgba(0, 150, 255, 0.6));
   border-radius: 4px;
-  border: 2px solid #333;
+  border: 1px solid rgba(0, 170, 255, 0.4);
+  box-shadow: 0 0 8px rgba(0, 170, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.2);
 }
 .scrollableSection::-webkit-scrollbar-thumb:hover {
-  background-color: #aaa;
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.9), rgba(0, 170, 255, 0.8));
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.3);
+  border-color: rgba(0, 204, 255, 0.6);
 }
 
 /* Recipe List Styles */
@@ -1000,6 +1101,7 @@
   border-radius: 3px;
   /* Remove spinner arrows for a cleaner look in some browsers */
   -moz-appearance: textfield; /* Firefox */
+  appearance: textfield; /* Standard property */
 }
 
 .quantityInput::-webkit-outer-spin-button,
@@ -1068,23 +1170,29 @@
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
-  border: 1px solid #888;
-  background-color: #5a5;
-  color: white;
+  border: 2px solid #00ff88;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4));
+  color: #ffffff;
   border-radius: 3px;
-  transition: background-color 0.2s ease;
-  white-space: nowrap; /* Prevent button text wrapping */
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.2), inset 0 0 8px rgba(0, 255, 136, 0.1);
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.6);
 }
 
 .craftButton:hover {
-  background-color: #6b6;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.5), rgba(0, 200, 100, 0.6));
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 12px rgba(0, 255, 136, 0.2);
 }
 
 .craftButton:disabled {
-  background-color: #666;
-  border-color: #555;
-  color: #aaa;
+  background: linear-gradient(135deg, rgba(60, 60, 80, 0.6), rgba(50, 50, 70, 0.7));
+  border-color: rgba(100, 100, 120, 0.4);
+  color: #888;
   cursor: not-allowed;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 /* Styles for Crafting Search Bar */
@@ -1094,24 +1202,28 @@
 }
 
 .craftingSearchInput {
-  width: 100%; /* Make input take full width of its container */
+  width: 100%;
   padding: 8px 10px;
-  font-family: inherit; /* Use panel font */
+  font-family: inherit;
   font-size: 11px;
-  background-color: rgba(0, 0, 0, 0.3); /* Dark background */
-  color: #eee; /* Light text */
-  border: 1px solid #555; /* Border similar to other elements */
-  border-radius: 3px;
-  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+  background: linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9));
+  color: #00ffff;
+  border: 2px solid rgba(0, 170, 255, 0.4);
+  border-radius: 4px;
+  box-sizing: border-box;
+  text-shadow: 0 0 4px rgba(0, 255, 255, 0.4);
+  transition: all 0.3s ease;
 }
 
 .craftingSearchInput::placeholder {
-  color: #888; /* Lighter placeholder text */
-  opacity: 1; /* Ensure placeholder is fully visible */
+  color: rgba(0, 170, 255, 0.6);
+  text-shadow: 0 0 4px rgba(0, 170, 255, 0.3);
+  opacity: 1;
 }
 
 .craftingSearchInput:focus {
-  outline: none; /* Remove default focus outline */
-  border-color: #7799dd; /* Highlight border on focus - matches Max button */
-  box-shadow: 0 0 0 2px rgba(119, 153, 221, 0.3); /* Subtle glow on focus */
+  outline: none;
+  border-color: #00aaff;
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.15), rgba(0, 150, 255, 0.1));
+  box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.2), 0 0 10px rgba(0, 170, 255, 0.3);
 } 

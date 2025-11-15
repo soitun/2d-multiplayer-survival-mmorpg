@@ -81,6 +81,24 @@ export function requiresWaterPlacement(itemName: string, itemDef?: ItemDefinitio
 }
 
 /**
+ * Determines if a seed requires beach placement (like Beach Lyme Grass Seeds, Scurvy Grass Seeds, Sea Plantain Seeds, and Glasswort Seeds)
+ * Uses name/description patterns to infer beach requirements
+ */
+export function requiresBeachPlacement(itemName: string, itemDef?: ItemDefinition): boolean {
+  const name = itemName.toLowerCase();
+  const description = itemDef?.description.toLowerCase() || '';
+  
+  return (
+    name.includes('beach lyme grass') ||
+    name.includes('scurvy grass') ||
+    name.includes('sea plantain') ||
+    name.includes('glasswort') ||
+    description.includes('beach tiles') ||
+    description.includes('beach only')
+  );
+}
+
+/**
  * Determines if a seed can be planted on land (most seeds)
  * Uses name/description patterns to infer land suitability
  */

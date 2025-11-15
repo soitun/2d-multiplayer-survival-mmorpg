@@ -212,6 +212,8 @@ export function getBuildingClusters(
 /**
  * Get the building cluster ID that the player is currently in (if any)
  * Returns null if player is not on any foundation or the foundation is not part of an enclosed building
+ * 
+ * Uses client-side position checking for rapid response (no network delay)
  */
 export function getPlayerBuildingClusterId(
   player: Player | undefined,
@@ -219,25 +221,21 @@ export function getPlayerBuildingClusterId(
 ): string | null {
   if (!player) return null;
 
-  // Use the server-side isInsideBuilding flag as the authoritative source
-  // This ensures we match the server's enclosure detection logic exactly
-  if (!player.isInsideBuilding) {
-    return null;
-  }
-
   // Convert player position to foundation cell coordinates
   const playerCellX = Math.floor(player.positionX / FOUNDATION_TILE_SIZE);
   const playerCellY = Math.floor(player.positionY / FOUNDATION_TILE_SIZE);
   const playerCellKey = getFoundationCellKey(playerCellX, playerCellY);
 
+  // CLIENT-SIDE PREDICTION: Check position immediately without waiting for server
+  // This makes ceiling transitions feel instant when entering/exiting buildings
   // Find which cluster contains this foundation cell
   for (const [clusterId, cluster] of buildingClusters) {
-    if (cluster.cellCoords.has(playerCellKey)) {
-      return clusterId;
+    if (cluster.isEnclosed && cluster.cellCoords.has(playerCellKey)) {
+      return clusterId; // Player is on an enclosed building foundation
     }
   }
 
-  return null;
+  return null; // Player is not inside any enclosed building
 }
 
 /**

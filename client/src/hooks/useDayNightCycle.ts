@@ -8,6 +8,7 @@ import {
     Player as SpacetimeDBPlayer,
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
+    RuneStone as SpacetimeDBRuneStone, // ADDED: RuneStone
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, HEARTH_LIGHT_RADIUS_BASE, HEARTH_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
@@ -96,7 +97,7 @@ const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
 
   // Midnight (Server: 0.92 - 0.97) - Very dark, darkest part of night
   { progress: 0.92, rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight start
-  { progress: 0.945, rgb: [5, 5, 10],      alpha: 0.96 },   // Very dark (midnight peak)
+  { progress: 0.945, rgb: [0, 0, 0],      alpha: 1.0 },   // PITCH BLACK (midnight peak) - true darkness
   { progress: 0.969, rgb: [defaultTransitionNightColor.r, defaultTransitionNightColor.g, defaultTransitionNightColor.b],    alpha: defaultTransitionNightColor.a },   // Transition from midnight to twilight (just before 0.97)
 
   // Twilight Morning (Server: 0.97 - 1.0, pre-dawn twilight RIGHT BEFORE dawn, wraps around)
@@ -272,6 +273,7 @@ interface UseDayNightCycleProps {
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
+    runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -295,6 +297,7 @@ export function useDayNightCycle({
     lanterns,
     furnaces,
     homesteadHearths, // ADDED: HomesteadHearths
+    runeStones, // ADDED: RuneStones
     players,
     activeEquipments,
     itemDefinitions,
@@ -562,10 +565,110 @@ export function useDayNightCycle({
                 maskCtx.fill();
             }
         });
+
+        // Render rune stone light cutouts with colored atmospheric glows (only at night: twilight evening to twilight morning)
+        // Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
+        if (typeof currentCycleProgress === 'number') {
+            const isNightTime = currentCycleProgress >= 0.76; // Twilight evening (0.76) through twilight morning (ends at 1.0)
+            
+            if (isNightTime) {
+                runeStones.forEach(runeStone => {
+                    // Center exactly on the rune stone position
+                    const screenX = runeStone.posX + cameraOffsetX;
+                    const screenY = runeStone.posY + cameraOffsetY;
+                    
+                    // 3x larger cutout radius (was 200, now 600)
+                    const RUNE_STONE_CUTOUT_RADIUS = 600;
+                    const lightRadius = RUNE_STONE_CUTOUT_RADIUS;
+                    
+                    // FIRST: Create the transparent cutout hole
+                    const maskGradient = maskCtx.createRadialGradient(
+                        screenX, screenY, lightRadius * 0.05, // Inner radius (5% of total)
+                        screenX, screenY, lightRadius // Outer radius
+                    );
+                    
+                    // Strong cutout with smooth fade - creates visible light area
+                    maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+                    maskGradient.addColorStop(0.2, 'rgba(0,0,0,0.9)'); // Strong cutout zone
+                    maskGradient.addColorStop(0.4, 'rgba(0,0,0,0.7)'); // Gradual transition
+                    maskGradient.addColorStop(0.6, 'rgba(0,0,0,0.5)'); // Mid fade
+                    maskGradient.addColorStop(0.8, 'rgba(0,0,0,0.25)'); // Gentle fade
+                    maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+                    
+                    maskCtx.fillStyle = maskGradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+                    maskCtx.fill();
+
+                    // SECOND: Fill the entire cutout area with diffuse atmospheric color glow (AAA Sea of Stars quality)
+                    // Multi-layered approach: entire area bathed in magical light, not just a ring
+                    maskCtx.globalCompositeOperation = 'source-over';
+                    
+                    // Determine rune stone color and calculate time-based intensity
+                    const runeType = runeStone.runeType?.tag || 'Blue';
+                    
+                    // Calculate intensity based on time of night (subtle pulsing effect)
+                    let timeIntensity = 1.0;
+                    if (currentCycleProgress < 0.80) {
+                        // Twilight evening (0.76-0.80) - fade in
+                        timeIntensity = (currentCycleProgress - 0.76) / 0.04;
+                    } else if (currentCycleProgress >= 0.97) {
+                        // Twilight morning (0.97-1.0) - fade out
+                        timeIntensity = (1.0 - currentCycleProgress) / 0.03;
+                    }
+                    // Add subtle breathing/pulsing effect (very gentle, mystical)
+                    const breathingPhase = (Date.now() / 3000) % (Math.PI * 2); // 3 second cycle
+                    const breathingIntensity = 1.0 + Math.sin(breathingPhase) * 0.08; // ±8% gentle pulse
+                    const finalIntensity = timeIntensity * breathingIntensity;
+                    
+                    // LAYER 1: Ambient atmospheric glow - fills entire cutout area with soft color tint
+                    // Gradient radius matches cutout radius exactly - fills the entire 600px cutout area
+                    const ambientRadius = lightRadius; // Same as cutout radius - fills entire cutout area
+                    let ambientGradient: CanvasGradient;
+                    
+                    if (runeType === 'Green') {
+                        // Emerald - Mystical agrarian magic: fills entire cutout with strong color
+                        ambientGradient = maskCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
+                        ambientGradient.addColorStop(0, `rgba(40, 140, 50, ${0.25 * finalIntensity})`); // Bright emerald center
+                        ambientGradient.addColorStop(0.2, `rgba(38, 135, 48, ${0.24 * finalIntensity})`); // Strong emerald
+                        ambientGradient.addColorStop(0.5, `rgba(35, 120, 45, ${0.23 * finalIntensity})`); // Rich emerald - maintains strength
+                        ambientGradient.addColorStop(0.8, `rgba(33, 115, 43, ${0.22 * finalIntensity})`); // Still strong emerald
+                        ambientGradient.addColorStop(0.95, `rgba(30, 105, 40, ${0.18 * finalIntensity})`); // Slight fade near edge
+                        ambientGradient.addColorStop(1, 'rgba(25, 90, 35, 0)'); // Only fade at very edge
+                    } else if (runeType === 'Red') {
+                        // Crimson - Forge fire magic: fills entire cutout with strong color
+                        ambientGradient = maskCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
+                        ambientGradient.addColorStop(0, `rgba(200, 50, 50, ${0.28 * finalIntensity})`); // Bright crimson center
+                        ambientGradient.addColorStop(0.2, `rgba(195, 48, 48, ${0.27 * finalIntensity})`); // Strong crimson
+                        ambientGradient.addColorStop(0.5, `rgba(180, 45, 45, ${0.26 * finalIntensity})`); // Rich crimson - maintains strength
+                        ambientGradient.addColorStop(0.8, `rgba(175, 43, 43, ${0.25 * finalIntensity})`); // Still strong crimson
+                        ambientGradient.addColorStop(0.95, `rgba(165, 40, 40, ${0.20 * finalIntensity})`); // Slight fade near edge
+                        ambientGradient.addColorStop(1, 'rgba(150, 35, 35, 0)'); // Only fade at very edge
+                    } else {
+                        // Azure - Memory shard magic: fills entire cutout with strong color
+                        ambientGradient = maskCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
+                        ambientGradient.addColorStop(0, `rgba(60, 140, 220, ${0.26 * finalIntensity})`); // Bright azure center
+                        ambientGradient.addColorStop(0.2, `rgba(58, 135, 215, ${0.25 * finalIntensity})`); // Strong azure
+                        ambientGradient.addColorStop(0.5, `rgba(55, 120, 200, ${0.24 * finalIntensity})`); // Rich azure - maintains strength
+                        ambientGradient.addColorStop(0.8, `rgba(53, 115, 195, ${0.23 * finalIntensity})`); // Still strong azure
+                        ambientGradient.addColorStop(0.95, `rgba(50, 105, 185, ${0.19 * finalIntensity})`); // Slight fade near edge
+                        ambientGradient.addColorStop(1, 'rgba(45, 90, 170, 0)'); // Only fade at very edge
+                    }
+                    
+                    maskCtx.fillStyle = ambientGradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(screenX, screenY, ambientRadius, 0, Math.PI * 2);
+                    maskCtx.fill();
+                    
+                    // Switch back to cutout mode for other lights
+                    maskCtx.globalCompositeOperation = 'destination-out';
+                });
+            }
+        }
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, homesteadHearths, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
+    }, [worldState, campfires, lanterns, furnaces, homesteadHearths, runeStones, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
 
     return { overlayRgba, maskCanvasRef };
 } 

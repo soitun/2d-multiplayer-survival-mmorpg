@@ -4,6 +4,7 @@ import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
   Stone as SpacetimeDBStone,
+  RuneStone as SpacetimeDBRuneStone,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Lantern as SpacetimeDBLantern,
@@ -62,6 +63,7 @@ interface EntityFilteringResult {
   visiblePlayers: SpacetimeDBPlayer[];
   visibleTrees: SpacetimeDBTree[];
   visibleStones: SpacetimeDBStone[];
+  visibleRuneStones: SpacetimeDBRuneStone[];
   visibleWoodenStorageBoxes: SpacetimeDBWoodenStorageBox[];
   visibleSleepingBags: SpacetimeDBSleepingBag[];
   visibleProjectiles: SpacetimeDBProjectile[];
@@ -79,6 +81,7 @@ interface EntityFilteringResult {
   visibleStashesMap: Map<string, SpacetimeDBStash>;
   visibleSleepingBagsMap: Map<string, SpacetimeDBSleepingBag>;
   visibleTreesMap: Map<string, SpacetimeDBTree>;
+  visibleRuneStonesMap: Map<string, SpacetimeDBRuneStone>;
   groundItems: (SpacetimeDBSleepingBag)[];
   ySortedEntities: YSortedEntityType[];
   visibleGrass: InterpolatedGrassData[]; // Use InterpolatedGrassData
@@ -114,6 +117,7 @@ export type YSortedEntityType =
   | { type: 'player'; entity: SpacetimeDBPlayer }
   | { type: 'tree'; entity: SpacetimeDBTree }
   | { type: 'stone'; entity: SpacetimeDBStone }
+  | { type: 'rune_stone'; entity: SpacetimeDBRuneStone }
   | { type: 'wooden_storage_box'; entity: SpacetimeDBWoodenStorageBox }
   | { type: 'player_corpse'; entity: SpacetimeDBPlayerCorpse }
   | { type: 'stash'; entity: SpacetimeDBStash }
@@ -250,6 +254,8 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return entity.posY;
     case 'shelter':
       return entity.posY - 100;
+    case 'rune_stone':
+      return entity.posY;
     default:
       return 0;
   }
@@ -260,6 +266,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'sea_stack': return 1;
     case 'tree': return 2;
     case 'stone': return 3;
+    case 'rune_stone': return 3.5; // Render between stones and animals
     case 'wild_animal': return 4;
     case 'wooden_storage_box': return 5;
     case 'stash': return 6;
@@ -536,6 +543,7 @@ export function useEntityFiltering(
   players: Map<string, SpacetimeDBPlayer>,
   trees: Map<string, SpacetimeDBTree>,
   stones: Map<string, SpacetimeDBStone>,
+  runeStones: Map<string, SpacetimeDBRuneStone>,
   campfires: Map<string, SpacetimeDBCampfire>,
   furnaces: Map<string, SpacetimeDBFurnace>, // ADDED: Furnaces parameter
   lanterns: Map<string, SpacetimeDBLantern>,
@@ -616,6 +624,12 @@ export function useEntityFiltering(
       y = entity.posY;
       width = 64;
       height = 64;
+    } else if ((entity as any).runeType !== undefined) {
+      // Handle rune stones - similar to stones but slightly larger
+      x = (entity as any).posX;
+      y = (entity as any).posY;
+      width = 150; // TARGET_RUNE_STONE_WIDTH_PX
+      height = 150;
     } else if (isCampfire(entity)) {
       x = entity.posX;
       y = entity.posY;
@@ -801,6 +815,11 @@ export function useEntityFiltering(
   // Use cached results instead of original filtering
   let visibleTrees = cachedVisibleTrees;
   const visibleStones = cachedVisibleStones;
+  const visibleRuneStones = useMemo(() => 
+    runeStones ? Array.from(runeStones.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
+    : [],
+    [runeStones, isEntityInView, viewBounds, stableTimestamp]
+  );
   let visibleHarvestableResources = cachedVisibleResources;
 
   // Keep original filtering for less expensive entity types
@@ -1165,6 +1184,12 @@ export function useEntityFiltering(
     return map;
   }, [visibleStones]);
 
+  const visibleRuneStonesMap = useMemo(() => {
+    const map = new Map<string, SpacetimeDBRuneStone>();
+    visibleRuneStones.forEach(e => map.set(e.id.toString(), e));
+    return map;
+  }, [visibleRuneStones]);
+
   const visibleWoodenStorageBoxesMap = useMemo(() => {
     const map = new Map<string, SpacetimeDBWoodenStorageBox>();
     visibleWoodenStorageBoxes.forEach(e => map.set(e.id.toString(), e));
@@ -1374,6 +1399,7 @@ export function useEntityFiltering(
     visiblePlayers.forEach(e => allEntities[index++] = { type: 'player', entity: e });
     visibleTrees.forEach(e => allEntities[index++] = { type: 'tree', entity: e });
     visibleStones.forEach(e => { if (e.health > 0) allEntities[index++] = { type: 'stone', entity: e }; });
+    visibleRuneStones.forEach(e => allEntities[index++] = { type: 'rune_stone', entity: e });
     visibleWoodenStorageBoxes.forEach(e => allEntities[index++] = { type: 'wooden_storage_box', entity: e });
     visibleStashes.forEach(e => allEntities[index++] = { type: 'stash', entity: e });
     visibleCampfires.forEach(e => allEntities[index++] = { type: 'campfire', entity: e });
@@ -1805,7 +1831,7 @@ export function useEntityFiltering(
     return allEntities;
   },
     // Dependencies for cached Y-sorting
-    [visiblePlayers, visibleTrees, visibleStones, visibleWoodenStorageBoxes, 
+    [visiblePlayers, visibleTrees, visibleStones, visibleRuneStones, visibleWoodenStorageBoxes, 
     visiblePlayerCorpses, visibleStashes, 
     visibleCampfires, visibleFurnaces, visibleLanterns, visibleDroppedItems,
     visibleProjectiles, visibleGrass,
@@ -1844,6 +1870,8 @@ export function useEntityFiltering(
     visiblePlayers,
     visibleTrees,
     visibleStones,
+    visibleRuneStones,
+    visibleRuneStonesMap,
     visibleWoodenStorageBoxes,
     visibleSleepingBags,
     visiblePlayerCorpses,

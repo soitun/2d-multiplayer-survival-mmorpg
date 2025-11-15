@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment } from '../generated';
+import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats } from '../generated';
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
@@ -21,14 +21,14 @@ import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PlacementItemInfo } from '../hooks/usePlacementManager';
 
-// Style constants similar to PlayerUI
-const UI_BG_COLOR = 'rgba(40, 40, 60, 0.85)';
-const UI_BORDER_COLOR = '#a0a0c0';
-const UI_SHADOW = '2px 2px 0px rgba(0,0,0,0.5)';
+// Style constants - Cyberpunk SOVA theme
+const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98))';
+const UI_BORDER_COLOR = '#00aaff';
+const UI_SHADOW = '0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1)';
 const UI_FONT_FAMILY = '"Press Start 2P", cursive';
 const SLOT_SIZE = 60; // Size of each hotbar slot in pixels
 const SLOT_MARGIN = 6;
-const SELECTED_BORDER_COLOR = '#ffffff';
+const SELECTED_BORDER_COLOR = '#00ffff';
 const CONSUMPTION_COOLDOWN_MICROS = 1_000_000; // 1 second, matches server
 const DEFAULT_CLIENT_ANIMATION_DURATION_MS = CONSUMPTION_COOLDOWN_MICROS / 1000; // Duration for client animation
 const BANDAGE_CLIENT_ANIMATION_DURATION_MS = 5000; // 5 seconds for bandage visual cooldown
@@ -50,6 +50,7 @@ interface HotbarProps {
   localPlayer: Player | null;
   itemDefinitions: Map<string, ItemDefinition>;
   inventoryItems: Map<string, InventoryItem>;
+  rangedWeaponStats: Map<string, RangedWeaponStats>; // Add ranged weapon stats
   connection: DbConnection | null;
   onItemDragStart: (info: DraggedItemInfo) => void;
   onItemDrop: (targetSlotInfo: DragSourceSlotInfo | null) => void;
@@ -115,6 +116,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     localPlayer,
     itemDefinitions,
     inventoryItems,
+    rangedWeaponStats,
     connection,
     onItemDragStart,
     onItemDrop,
@@ -193,16 +195,44 @@ const Hotbar: React.FC<HotbarProps> = ({
     return null;
   }, [playerIdentity, inventoryItems, itemDefinitions]);
 
-  // Helper function to check if an item is a weapon/tool with attack interval
+  // Helper function to check if an item is a weapon/tool with attack interval or reload time
   const isWeaponWithCooldown = useCallback((itemDef: ItemDefinition): boolean => {
-    return itemDef.attackIntervalSecs !== null && 
-           itemDef.attackIntervalSecs !== undefined && 
-           itemDef.attackIntervalSecs > 0 &&
-           (itemDef.category.tag === 'Weapon' || 
-            itemDef.category.tag === 'RangedWeapon' || 
-            itemDef.category.tag === 'Tool') &&
-           itemDef.isEquippable;
-  }, []);
+    // Check for melee weapons/tools with attackIntervalSecs
+    if (itemDef.attackIntervalSecs !== null &&
+        itemDef.attackIntervalSecs !== undefined &&
+        itemDef.attackIntervalSecs > 0 &&
+        (itemDef.category.tag === 'Weapon' ||
+         itemDef.category.tag === 'Tool') &&
+        itemDef.isEquippable) {
+      return true;
+    }
+
+    // Check for ranged weapons with reload time in rangedWeaponStats
+    if (itemDef.category.tag === 'RangedWeapon' && itemDef.isEquippable && rangedWeaponStats) {
+      const weaponStats = rangedWeaponStats.get(itemDef.name);
+      return weaponStats !== undefined && weaponStats.reloadTimeSecs > 0;
+    }
+
+    return false;
+  }, [rangedWeaponStats]);
+
+  // Helper function to get cooldown duration for any weapon type
+  const getWeaponCooldownDurationMs = useCallback((itemDef: ItemDefinition): number => {
+    // For melee weapons/tools, use attackIntervalSecs
+    if (itemDef.category.tag === 'Weapon' || itemDef.category.tag === 'Tool') {
+      return (itemDef.attackIntervalSecs || 0) * 1000;
+    }
+
+    // For ranged weapons, use reload time from rangedWeaponStats
+    if (itemDef.category.tag === 'RangedWeapon' && rangedWeaponStats) {
+      const weaponStats = rangedWeaponStats.get(itemDef.name);
+      if (weaponStats) {
+        return weaponStats.reloadTimeSecs * 1000;
+      }
+    }
+
+    return 0;
+  }, [rangedWeaponStats]);
 
   // Helper function to check if a slot should be disabled due to water
   const isSlotDisabledByWater = useCallback((slotIndex: number): boolean => {
@@ -255,7 +285,7 @@ const Hotbar: React.FC<HotbarProps> = ({
             if (itemInSlot && BigInt(itemInSlot.instance.instanceId) === activeEquipment.equippedItemInstanceId) {
               
               if (isWeaponWithCooldown(itemInSlot.definition)) {
-                const attackIntervalMs = (itemInSlot.definition.attackIntervalSecs || 0) * 1000;
+                const attackIntervalMs = getWeaponCooldownDurationMs(itemInSlot.definition);
                 const clientStartTime = Date.now();
                 
                 // Record client start time for this weapon
@@ -300,7 +330,7 @@ const Hotbar: React.FC<HotbarProps> = ({
               if (itemInSlot && BigInt(itemInSlot.instance.instanceId) === activeEquipment.equippedItemInstanceId) {
                 
                 if (isWeaponWithCooldown(itemInSlot.definition)) {
-                  const attackIntervalMs = (itemInSlot.definition.attackIntervalSecs || 0) * 1000;
+                  const attackIntervalMs = getWeaponCooldownDurationMs(itemInSlot.definition);
                   
                   // Only continue if cooldown should still be active
                   if (elapsedTime < attackIntervalMs) {
@@ -639,6 +669,13 @@ const Hotbar: React.FC<HotbarProps> = ({
 
 
 
+    // Use the passed currentSelectedSlot (from before state update) to reliably detect double-click
+    // This prevents false positives when state updates synchronously
+    const previousSelectedSlot = currentSelectedSlot !== undefined ? currentSelectedSlot : selectedSlot;
+    const isDoubleClick = previousSelectedSlot === slotIndex && !isMouseWheelScroll;
+    
+    // Handle Consumable category items (food, drinks, etc.)
+    // Note: Seeds are Placeable and should NOT be consumed via hotbar - they're for planting only
     if (categoryTag === 'Consumable') {
       cancelPlacement(); // Always cancel placement if activating a consumable slot
       // Always clear any active item when selecting a consumable
@@ -646,16 +683,9 @@ const Hotbar: React.FC<HotbarProps> = ({
         try { connection.reducers.clearActiveItemReducer(playerIdentity); } catch (err) { console.error("Error clearActiveItemReducer when selecting consumable:", err); }
       }
 
-
-
-      // Use a more reliable way to check if this is the second click on the same consumable
-      // Use the passed currentSelectedSlot parameter if available, otherwise fall back to state
-      const actualCurrentSlot = currentSelectedSlot !== undefined ? currentSelectedSlot : selectedSlot;
-      const isCurrentlySelected = actualCurrentSlot === slotIndex;
+      // console.log(`[Hotbar] Consumable click debug: slotIndex=${slotIndex}, currentSelectedSlot=${currentSelectedSlot}, selectedSlot=${selectedSlot}, previousSelectedSlot=${previousSelectedSlot}, isDoubleClick=${isDoubleClick}, isMouseWheelScroll=${isMouseWheelScroll}`);
       
-      // console.log(`[Hotbar] Consumable click debug: slotIndex=${slotIndex}, currentSelectedSlot=${currentSelectedSlot}, selectedSlot=${selectedSlot}, actualCurrentSlot=${actualCurrentSlot}, isCurrentlySelected=${isCurrentlySelected}, isMouseWheelScroll=${isMouseWheelScroll}`);
-      
-      if (isCurrentlySelected && !isMouseWheelScroll) {
+      if (isDoubleClick) {
         // Second click/press on already selected consumable - actually consume it
         // Check if animation is already running on this slot
         if (isVisualCooldownActive && cooldownSlot === slotIndex) {
@@ -672,16 +702,10 @@ const Hotbar: React.FC<HotbarProps> = ({
         } catch (err) { console.error(`Error consuming item ${instanceId}:`, err); }
       }
       // Note: Slot selection for consumables happens outside this function (handled by caller)
-    } else if (categoryTag === 'Armor') {
-      // console.log(`[Hotbar] Handling armor: ${itemInSlot.definition.name}`);
-      cancelPlacement();
-      try { 
-        connection.reducers.equipArmorFromInventory(instanceId); 
-        // console.log(`[Hotbar] Successfully equipped armor: ${itemInSlot.definition.name}`);
-      } catch (err) { 
-        console.error("Error equipArmorFromInventory:", err); 
-      }
-    } else if (categoryTag === 'Placeable') {
+    }
+    
+    // Handle Placeable items (including seeds on first click)
+    if (categoryTag === 'Placeable') {
       // console.log(`[Hotbar] Handling placeable: ${itemInSlot.definition.name}`);
       
       // Check if we're already placing the same item type from the same slot
@@ -996,17 +1020,16 @@ const Hotbar: React.FC<HotbarProps> = ({
     const tooltipX = rect.left - 10; // 10px gap from slot
     const tooltipY = rect.top + (rect.height / 2); // Center vertically with slot
 
-    // Check if item is consumable and extract restoration values
+    // Check if item has consumable stats (works for Consumable category AND Placeable seeds)
     let consumableStats: { health: number; thirst: number; hunger: number } | undefined = undefined;
-    if (item.definition.category.tag === 'Consumable') {
-      const health = item.definition.consumableHealthGain || 0;
-      const thirst = item.definition.consumableThirstQuenched || 0;
-      const hunger = item.definition.consumableHungerSatiated || 0;
-      
-      // Show stats if at least one value is non-zero (positive OR negative)
-      if (health !== 0 || thirst !== 0 || hunger !== 0) {
-        consumableStats = { health, thirst, hunger };
-      }
+    const health = item.definition.consumableHealthGain ?? 0;
+    const thirst = item.definition.consumableThirstQuenched ?? 0;
+    const hunger = item.definition.consumableHungerSatiated ?? 0;
+    
+    // Show stats if at least one value is non-zero (positive OR negative)
+    // This includes seeds which are Placeable but have consumable stats
+    if (health !== 0 || thirst !== 0 || hunger !== 0) {
+      consumableStats = { health, thirst, hunger };
     }
 
     setTooltip({
@@ -1061,13 +1084,14 @@ const Hotbar: React.FC<HotbarProps> = ({
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        backgroundColor: UI_BG_COLOR,
+        background: UI_BG_COLOR,
         padding: `${SLOT_MARGIN}px`,
-        borderRadius: '4px',
-        border: `1px solid ${UI_BORDER_COLOR}`,
+        borderRadius: '8px',
+        border: `2px solid ${UI_BORDER_COLOR}`,
         boxShadow: UI_SHADOW,
         fontFamily: UI_FONT_FAMILY,
         zIndex: 100,
+        backdropFilter: 'blur(10px)',
       }}>
       {Array.from({ length: numSlots }).map((_, index) => {
         const populatedItem = findItemForSlot(index);
@@ -1093,15 +1117,20 @@ const Hotbar: React.FC<HotbarProps> = ({
                   alignItems: 'center',
                   width: `${SLOT_SIZE}px`,
                   height: `${SLOT_SIZE}px`,
-                  border: `2px solid ${index === selectedSlot ? SELECTED_BORDER_COLOR : UI_BORDER_COLOR}`,
-                  backgroundColor: isDisabledByWater ? 'rgba(100, 100, 150, 0.3)' : 'rgba(0, 0, 0, 0.3)',
-                  borderRadius: '3px',
+                  border: `2px solid ${index === selectedSlot ? SELECTED_BORDER_COLOR : 'rgba(0, 170, 255, 0.4)'}`,
+                  background: isDisabledByWater 
+                    ? 'linear-gradient(135deg, rgba(100, 150, 255, 0.2), rgba(80, 130, 200, 0.3))' 
+                    : 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
+                  borderRadius: '4px',
                   marginLeft: index > 0 ? `${SLOT_MARGIN}px` : '0px',
-                  transition: 'border-color 0.1s ease-in-out',
+                  transition: 'all 0.2s ease',
                   boxSizing: 'border-box',
                   cursor: isDisabledByWater ? 'not-allowed' : 'pointer',
                   overflow: 'hidden',
                   opacity: isDisabledByWater ? 0.6 : 1.0,
+                  boxShadow: index === selectedSlot 
+                    ? '0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2)' 
+                    : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
               }}
               isDraggingOver={false}
               overlayProgress={
@@ -1300,21 +1329,22 @@ const Hotbar: React.FC<HotbarProps> = ({
             position: 'fixed',
             left: `${tooltip.position.x}px`,
             top: `${tooltip.position.y}px`,
-            transform: 'translate(-100%, -50%)', // Position to the left and center vertically
-            backgroundColor: 'rgba(40, 40, 60, 0.95)', // More opaque for better readability
-            border: `1px solid ${UI_BORDER_COLOR}`,
-            borderRadius: '4px',
+            transform: 'translate(-100%, -50%)',
+            background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.99))',
+            border: `2px solid ${UI_BORDER_COLOR}`,
+            borderRadius: '6px',
             padding: '8px 12px',
             fontFamily: UI_FONT_FAMILY,
             fontSize: '12px',
-            color: 'white',
-            boxShadow: UI_SHADOW,
-            zIndex: 10001, // Above all overlays
+            color: '#ffffff',
+            boxShadow: '0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.1)',
+            zIndex: 10001,
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
+            backdropFilter: 'blur(10px)',
           }}
         >
-          <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '2px', color: '#00ffff', textShadow: '0 0 8px rgba(0, 255, 255, 0.6)' }}>
             {tooltip.content.name}
           </div>
           {tooltip.content.consumableStats && (

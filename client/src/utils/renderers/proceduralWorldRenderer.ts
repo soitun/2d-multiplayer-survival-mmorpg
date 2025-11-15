@@ -1,5 +1,5 @@
 import { gameConfig } from '../../config/gameConfig';
-import { TILE_ASSETS, hasAutotileSupport, getAutotileConfig } from './tileRenderingUtils';
+import { TILE_ASSETS, hasAutotileSupport } from './tileRenderingUtils';
 import { WorldTile } from '../../generated/world_tile_type';
 import { shouldUseAutotiling, getAutotileSpriteCoords, getDebugTileInfo, AutotileConfig, AUTOTILE_CONFIGS } from '../autotileUtils';
 
@@ -60,7 +60,7 @@ export class ProceduralWorldRenderer {
         try {
             await Promise.all(promises);
             this.isInitialized = true;
-            console.log('[ProceduralWorldRenderer] Loaded transition autotiles: Grass_Dirt, Grass_Beach, Beach_Sea, Dirt_Beach, DirtRoad_Beach, Dirt_DirtRoad, DirtRoad_Dirt, Grass_DirtRoad, DirtRoad_Grass');
+            console.log('[ProceduralWorldRenderer] Loaded transition autotiles:', Object.keys(AUTOTILE_CONFIGS).join(', '));
         } catch (error) {
             // console.error('[ProceduralWorldRenderer] Failed to preload tile assets:', error);
         }
@@ -175,6 +175,21 @@ export class ProceduralWorldRenderer {
                 ctx.fillStyle = '#8FBC8F';
                 ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
             }
+            
+            // Render tile type abbreviation for missing tiles in debug overlay
+            if (showDebugOverlay) {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.font = 'bold 12px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const textX = pixelX + pixelSize / 2;
+                const textY = pixelY + pixelSize / 2;
+                ctx.strokeText('?', textX, textY);
+                ctx.fillText('?', textX, textY);
+            }
+            
             // Disabled excessive logging - was running every frame
             // if (!(window as any).missingTileCount) (window as any).missingTileCount = 0;
             // (window as any).missingTileCount++;
@@ -185,7 +200,19 @@ export class ProceduralWorldRenderer {
         }
         
         // Check if this tile should use autotiling
-        const tileTypeName = tile.tileType.tag;
+        // CRITICAL: Always use the tile's actual type from the tile object
+        const tileTypeName = tile.tileType?.tag;
+        if (!tileTypeName) {
+            // Can't determine type, render base texture
+            const image = this.getTileImage(tile);
+            if (image && image.complete && image.naturalHeight !== 0) {
+                ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
+            } else {
+                this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
+            }
+            return;
+        }
+        
         const autotileResult = shouldUseAutotiling(tileTypeName, this.tileCache.tiles, tileX, tileY);
         
         if (autotileResult) {
@@ -205,6 +232,21 @@ export class ProceduralWorldRenderer {
                 //     console.log(`[TILES] ${(window as any).failedImageCount} tiles using fallback colors (images not loaded)`);
                 // }
                 this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
+            }
+            
+            // Render tile type abbreviation in debug overlay (only for regular tiles, not autotiles)
+            if (showDebugOverlay && tileTypeName) {
+                const tileTypeAbbr = this.getTileTypeAbbreviation(tileTypeName);
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.font = 'bold 12px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const textX = pixelX + pixelSize / 2;
+                const textY = pixelY + pixelSize / 2;
+                ctx.strokeText(tileTypeAbbr, textX, textY);
+                ctx.fillText(tileTypeAbbr, textX, textY);
             }
         }
     }
@@ -231,24 +273,15 @@ export class ProceduralWorldRenderer {
             }
         }
         
-        // Get the specific transition autotile image
-        let autotileImg = this.tileCache.images.get(`transition_${transitionKey}`);
+        // Get the specific transition autotile image (no fallback to wrong tileset)
+        const autotileImg = this.tileCache.images.get(`transition_${transitionKey}`);
         
-        // Fallback to legacy single autotile if transition not found
-        if (!autotileImg) {
-            autotileImg = this.tileCache.images.get(`${tileTypeName}_autotile`);
-        }
-        
+        // If autotile image is missing, don't render anything (no fallback to wrong tileset)
         const isMissingTileset = !autotileImg || !autotileImg.complete || autotileImg.naturalHeight === 0;
         
         if (isMissingTileset) {
-            // Fallback to regular tile if autotile image not available
-            const regularImg = this.getTileImage(tile);
-            if (regularImg && regularImg.complete && regularImg.naturalHeight !== 0) {
-                ctx.drawImage(regularImg, pixelX, pixelY, pixelSize, pixelSize);
-            } else {
-                this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
-            }
+            // Don't render anything - let the cyberpunk grid background show through
+            // (No fill, just skip rendering this tile)
             
             // Render debug overlay for missing tilesets (same format as existing debug overlay)
             if (showDebugOverlay) {
@@ -285,11 +318,8 @@ export class ProceduralWorldRenderer {
             return;
         }
         
-        const autotileConfig = getAutotileConfig(tileTypeName);
-        if (!autotileConfig) {
-            console.warn(`[ProceduralWorldRenderer] No autotile config for ${tileTypeName}`);
-            return;
-        }
+        // autotileResult.config already contains the correct autotile config
+        // No need to look it up again from TILE_ASSETS
         
         // At this point, autotileImg is guaranteed to exist (we returned early if missing)
         if (!autotileImg) {
@@ -333,7 +363,7 @@ export class ProceduralWorldRenderer {
                 Math.floor(pixelY + pixelSize/4)
             );
             
-            // Show tile index and row/col
+            // Show tile index
             ctx.fillText(
                 `T${debugInfo.tileIndex}`,
                 Math.floor(pixelX + pixelSize/2), 
@@ -378,6 +408,18 @@ export class ProceduralWorldRenderer {
         
         // Return base texture
         return this.tileCache.images.get(`${tileTypeName}_base`) || null;
+    }
+    
+    private getTileTypeAbbreviation(tileType: string): string {
+        const abbreviations: { [key: string]: string } = {
+            'DirtRoad': 'DR',
+            'Dirt': 'D',
+            'Grass': 'G',
+            'Sea': 'S',
+            'Beach': 'B',
+            'Sand': 'Sa'
+        };
+        return abbreviations[tileType] || tileType.substring(0, 2).toUpperCase();
     }
     
     private renderFallbackTile(

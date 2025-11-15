@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth } from '../generated';
+import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -23,6 +23,7 @@ interface PlayerUIProps {
   players: Map<string, Player>;
   inventoryItems: Map<string, InventoryItem>;
   itemDefinitions: Map<string, ItemDefinition>;
+  rangedWeaponStats: Map<string, RangedWeaponStats>;
   connection: DbConnection | null;
   onItemDragStart: (info: DraggedItemInfo) => void;
   onItemDrop: (targetSlotInfo: DragSourceSlotInfo | null) => void;
@@ -58,6 +59,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     players,
     inventoryItems,
     itemDefinitions,
+    rangedWeaponStats,
     connection,
     onItemDragStart,
     onItemDrop,
@@ -794,6 +796,28 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent effect based on needs
                         };
                         break;
+                    case 'ProductionRune':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'production_rune',
+                            name: 'Production Zone',
+                            emoji: '⚙️',
+                            type: 'positive' as const,
+                            description: 'Within a red rune stone\'s influence. ALL crafting 50% faster (1.5x speed).',
+                            // No duration - permanent while in zone
+                        };
+                        break;
+                    case 'AgrarianRune':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'agrarian_rune',
+                            name: 'Agrarian Zone',
+                            emoji: '🌾',
+                            type: 'positive' as const,
+                            description: 'Within a green rune stone\'s influence. ALL plants grow 50% faster (1.5x speed).',
+                            // No duration - permanent while in zone
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)
@@ -853,7 +877,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 }
             }
             
-            if (effectApplies && effectData && (bufferedRemainingTime > 0 || effectData.id === 'cozy' || effectData.id === 'tree_cover' || effectData.id === 'exhausted' || effectData.id === 'building_privilege')) {
+            if (effectApplies && effectData && (bufferedRemainingTime > 0 || effectData.id === 'cozy' || effectData.id === 'tree_cover' || effectData.id === 'exhausted' || effectData.id === 'building_privilege' || effectData.id === 'production_rune' || effectData.id === 'agrarian_rune')) {
                 effects.push(effectData);
             }
         });
@@ -974,6 +998,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             <Hotbar
                 playerIdentity={identity}
                 localPlayer={localPlayer}
+                rangedWeaponStats={rangedWeaponStats}
                 itemDefinitions={itemDefinitions}
                 inventoryItems={inventoryItems}
                 connection={connection}

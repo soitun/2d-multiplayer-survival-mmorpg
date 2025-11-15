@@ -961,6 +961,7 @@ export interface RenderWallParams {
   cycleProgress?: number; // ADDED: Day/night cycle progress for exterior shadows
   localPlayerPosition?: { x: number; y: number } | null; // ADDED: Player position for transparency logic
   playerInsideCluster?: boolean; // ADDED: Only fade walls when player is inside this building cluster
+  isClusterEnclosed?: boolean; // ADDED: Whether this wall's cluster is enclosed (has ceiling)
 }
 
 export function renderWall({
@@ -974,25 +975,26 @@ export function renderWall({
   cycleProgress = 0.5, // Default to noon if not provided
   localPlayerPosition,
   playerInsideCluster = false,
+  isClusterEnclosed = false,
 }: RenderWallParams): void {
   if (wall.isDestroyed) {
     return;
   }
 
-  // When the player is outside of the building, east/west walls should not be rendered.
-  // They would normally be occluded by the ceiling tiles/fog overlay, and rendering them
-  // causes visual artifacts where the wall edges poke through the roof. To avoid this,
-  // simply skip drawing east/west walls unless the player is inside the cluster.
+  // Wall visibility logic:
+  // - South walls (edge 2): Always visible (exterior walls)
+  // - North/East/West walls: Only hide when building is ENCLOSED and player is OUTSIDE
+  // - During construction (not enclosed): Show all walls so player can see what they're building
   const isEastWestWall = wall.edge === 1 || wall.edge === 3;
-  if (isEastWestWall && !playerInsideCluster) {
-    return;
+  const isNorthWall = wall.edge === 0;
+  
+  // Only hide interior walls if the building is actually enclosed AND player is outside
+  if (isClusterEnclosed && !playerInsideCluster) {
+    if (isEastWestWall || isNorthWall) {
+      return; // Hide interior walls when viewing enclosed building from outside
+    }
   }
-
-  // Skip rendering north walls (edge 0) when player is outside the building cluster
-  // North walls are interior walls that should not be visible from outside
-  if (wall.edge === 0 && !playerInsideCluster) {
-    return;
-  }
+  // Otherwise, show all walls (during construction or when inside)
 
   const { x: worldX, y: worldY } = cellToWorldPixels(wall.cellX, wall.cellY);
   
@@ -1112,7 +1114,7 @@ export function renderWall({
   
   // Get wall image based on tier (use wall-specific images)
   // North walls (edge 0) show the interior side since they're away from the viewer
-  const isNorthWall = wall.edge === 0;
+  // (isNorthWall already declared above in visibility logic)
   const wallFilename = getWallTileFilename(wall.tier, isNorthWall);
   const wallImage = foundationTileImagesRef?.current?.get(wallFilename);
   

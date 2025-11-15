@@ -92,6 +92,7 @@ export interface SpacetimeTableStates {
     players: Map<string, SpacetimeDB.Player>;
     trees: Map<string, SpacetimeDB.Tree>;
     stones: Map<string, SpacetimeDB.Stone>;
+    runeStones: Map<string, SpacetimeDB.RuneStone>;
     campfires: Map<string, SpacetimeDB.Campfire>;
     furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
     lanterns: Map<string, SpacetimeDB.Lantern>;
@@ -159,6 +160,7 @@ export const useSpacetimeTables = ({
     const [players, setPlayers] = useState<Map<string, SpacetimeDB.Player>>(() => new Map());
     const [trees, setTrees] = useState<Map<string, SpacetimeDB.Tree>>(() => new Map());
     const [stones, setStones] = useState<Map<string, SpacetimeDB.Stone>>(() => new Map());
+    const [runeStones, setRuneStones] = useState<Map<string, SpacetimeDB.RuneStone>>(() => new Map());
     const [campfires, setCampfires] = useState<Map<string, SpacetimeDB.Campfire>>(() => new Map());
     const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
@@ -414,6 +416,7 @@ export const useSpacetimeTables = ({
                                                             const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone spatial subscription
                                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace spatial subscription
@@ -480,6 +483,7 @@ export const useSpacetimeTables = ({
                             // Individual subscriptions (original approach)
                             newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
+                            newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('Mushroom', `SELECT * FROM mushroom WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('Corn', `SELECT * FROM corn WHERE chunk_index = ${chunkIndex}`));
                             newHandlesForChunk.push(timedSubscribe('Potato', `SELECT * FROM potato WHERE chunk_index = ${chunkIndex}`));
@@ -656,6 +660,21 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleStoneDelete = (ctx: any, stone: SpacetimeDB.Stone) => setStones(prev => { const newMap = new Map(prev); newMap.delete(stone.id.toString()); return newMap; });
+            
+            // --- Rune Stone Subscriptions ---
+            const handleRuneStoneInsert = (ctx: any, runeStone: SpacetimeDB.RuneStone) => setRuneStones(prev => new Map(prev).set(runeStone.id.toString(), runeStone));
+            const handleRuneStoneUpdate = (ctx: any, oldRuneStone: SpacetimeDB.RuneStone, newRuneStone: SpacetimeDB.RuneStone) => {
+                // Only update for visually significant changes
+                const visuallySignificant = 
+                    Math.abs(oldRuneStone.posX - newRuneStone.posX) > 0.1 ||
+                    Math.abs(oldRuneStone.posY - newRuneStone.posY) > 0.1 ||
+                    oldRuneStone.runeType !== newRuneStone.runeType;
+                
+                if (visuallySignificant) {
+                    setRuneStones(prev => new Map(prev).set(newRuneStone.id.toString(), newRuneStone));
+                }
+            };
+            const handleRuneStoneDelete = (ctx: any, runeStone: SpacetimeDB.RuneStone) => setRuneStones(prev => { const newMap = new Map(prev); newMap.delete(runeStone.id.toString()); return newMap; });
             
             // --- Campfire Subscriptions ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {
@@ -1224,6 +1243,7 @@ export const useSpacetimeTables = ({
             connection.db.player.onInsert(handlePlayerInsert); connection.db.player.onUpdate(handlePlayerUpdate); connection.db.player.onDelete(handlePlayerDelete);
             connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
             connection.db.stone.onInsert(handleStoneInsert); connection.db.stone.onUpdate(handleStoneUpdate); connection.db.stone.onDelete(handleStoneDelete);
+            connection.db.runeStone.onInsert(handleRuneStoneInsert); connection.db.runeStone.onUpdate(handleRuneStoneUpdate); connection.db.runeStone.onDelete(handleRuneStoneDelete);
             connection.db.campfire.onInsert(handleCampfireInsert); connection.db.campfire.onUpdate(handleCampfireUpdate); connection.db.campfire.onDelete(handleCampfireDelete);
             connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
             connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
@@ -1380,6 +1400,8 @@ export const useSpacetimeTables = ({
             const currentInitialSubs = [
                  connection.subscriptionBuilder().onError((err) => console.error("[PLAYER Sub Error]:", err))
                     .subscribe('SELECT * FROM player'),
+                 connection.subscriptionBuilder().onError((err) => console.error("[RUNE_STONE Sub Error]:", err))
+                    .subscribe('SELECT * FROM rune_stone'), // Global subscription for minimap visibility
                  connection.subscriptionBuilder().subscribe('SELECT * FROM item_definition'),
                  connection.subscriptionBuilder().subscribe('SELECT * FROM recipe'),
                  connection.subscriptionBuilder().subscribe('SELECT * FROM world_state'),
@@ -1568,6 +1590,7 @@ export const useSpacetimeTables = ({
                             if (ENABLE_BATCHED_SUBSCRIPTIONS) {
                                  const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
                                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
@@ -1764,5 +1787,6 @@ export const useSpacetimeTables = ({
         seaStacks, // ADDED sea stacks
         foundationCells, // ADDED: Building foundations
         wallCells, // ADDED: Building walls
+        runeStones, // ADDED: Rune stones
     };
 }; 

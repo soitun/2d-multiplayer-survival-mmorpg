@@ -2,6 +2,7 @@ import {
     Player as SpacetimeDBPlayer,
     Tree as SpacetimeDBTree,
     Stone as SpacetimeDBStone,
+    RuneStone as SpacetimeDBRuneStone,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
     SleepingBag as SpacetimeDBSleepingBag,
     ActiveConnection,
@@ -32,6 +33,7 @@ import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the consta
 // Import individual rendering functions
 import { renderTree } from './treeRenderingUtils';
 import { renderStone } from './stoneRenderingUtils';
+import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderWoodenStorageBox } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
@@ -480,14 +482,17 @@ export const renderYSortedEntities = ({
     // PERFORMANCE: Clean up memory caches periodically
     cleanupCaches();
     
-    // Precompute mapping from foundation cell coordinates to building cluster IDs
+    // Precompute mapping from foundation cell coordinates to building cluster IDs and enclosure status
     const cellCoordToClusterId = new Map<string, string>();
+    const clusterEnclosureStatus = new Map<string, boolean>();
     if (buildingClusters) {
         buildingClusters.forEach((cluster, clusterId) => {
             if (cluster?.cellCoords) {
                 cluster.cellCoords.forEach((coord: string) => {
                     cellCoordToClusterId.set(coord, clusterId);
                 });
+                // Store whether this cluster is enclosed
+                clusterEnclosureStatus.set(clusterId, cluster.isEnclosed || false);
             }
         });
     }
@@ -845,6 +850,9 @@ export const renderYSortedEntities = ({
         } else if (type === 'stone') {
             // Render stone with its shadow in the normal order (shadow first, then stone)
             renderStone(ctx, entity as SpacetimeDBStone, nowMs, cycleProgress, false, false);
+        } else if (type === 'rune_stone') {
+            // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
+            renderRuneStone(ctx, entity as SpacetimeDBRuneStone, nowMs, cycleProgress, false, false);
         } else if (type === 'shelter') {
             const shelter = entity as SpacetimeDBShelter;
             if (shelterImage) { 
@@ -1104,6 +1112,7 @@ export const renderYSortedEntities = ({
             const wallCellKey = `${wall.cellX},${wall.cellY}`;
             const wallClusterId = cellCoordToClusterId.get(wallCellKey);
             const playerInsideThisCluster = wallClusterId !== undefined && wallClusterId === playerBuildingClusterId;
+            const isEnclosed = wallClusterId ? clusterEnclosureStatus.get(wallClusterId) || false : false;
             
             renderWall({
                 ctx,
@@ -1116,6 +1125,7 @@ export const renderYSortedEntities = ({
                 cycleProgress: cycleProgress,
                 localPlayerPosition: localPlayerPosition,
                 playerInsideCluster: playerInsideThisCluster,
+                isClusterEnclosed: isEnclosed,
             });
         }
     });

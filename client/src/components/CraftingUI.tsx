@@ -112,6 +112,35 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         onItemMouseMove(event);
     }, [onItemMouseMove]);
 
+    // Tooltip handler for output item icon
+    const handleOutputItemIconMouseEnter = useCallback((itemDef: ItemDefinition, event: React.MouseEvent<HTMLDivElement>) => {
+        // Prevent browser tooltip
+        event.currentTarget.removeAttribute('title');
+        
+        // Create PopulatedItem object with the output item definition
+        const outputItem: PopulatedItem = {
+            instance: {
+                instanceId: BigInt(0),
+                itemDefId: itemDef.id,
+                quantity: 0,
+                location: { tag: 'Inventory', value: null as any },
+                durability: null,
+                waterContent: null
+            } as any,
+            definition: itemDef
+        };
+        
+        onItemMouseEnter(outputItem, event);
+    }, [onItemMouseEnter]);
+
+    const handleOutputItemIconMouseLeave = useCallback(() => {
+        onItemMouseLeave();
+    }, [onItemMouseLeave]);
+
+    const handleOutputItemIconMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        onItemMouseMove(event);
+    }, [onItemMouseMove]);
+
     // Memoize player inventory calculation
     const playerInventoryResources = useMemo(() => {
         const resources: Map<string, number> = new Map();
@@ -360,14 +389,34 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                             <div key={recipe.recipeId.toString()} className={styles.craftingRecipeRow} style={{ 
                                 padding: '12px', 
                                 marginBottom: '8px', 
-                                backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+                                background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))', 
                                 borderRadius: '6px',
-                                border: isCraftable ? '1px solid #4a4a4a' : '1px solid #333',
+                                border: isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(0, 170, 255, 0.3)',
+                                boxShadow: isCraftable ? '0 0 15px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
                                 display: 'flex',
-                                gap: '12px'
+                                gap: '12px',
+                                transition: 'all 0.3s ease'
                             }}>
                                 {/* Left Column: Recipe Icon */}
-                                <div style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                                <div 
+                                    style={{ 
+                                        width: '48px', 
+                                        height: '48px', 
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                        transition: 'transform 0.1s ease-out',
+                                        transform: 'scale(1)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                        handleOutputItemIconMouseEnter(outputDef, e);
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                        handleOutputItemIconMouseLeave();
+                                    }}
+                                    onMouseMove={handleOutputItemIconMouseMove}
+                                >
                                     <img
                                         src={getItemIcon(outputDef.iconAssetName)}
                                         alt={outputDef.name}
@@ -382,10 +431,11 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                     <div style={{ 
                                         fontSize: '16px', 
                                         fontWeight: 'bold', 
-                                        color: '#fff',
+                                        color: '#00ffff',
                                         wordBreak: 'break-word',
                                         lineHeight: '1.2',
-                                        textAlign: 'left'
+                                        textAlign: 'left',
+                                        textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
                                     }}>
                                         {outputDef.name}
                                     </div>
@@ -406,14 +456,16 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '4px',
-                                                    backgroundColor: 'rgba(0,0,0,0.2)',
+                                                    background: hasEnough ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 200, 100, 0.2))' : 'linear-gradient(135deg, rgba(255, 51, 102, 0.15), rgba(200, 40, 80, 0.2))',
                                                     padding: '4px 6px',
                                                     borderRadius: '3px',
-                                                    border: `1px solid ${hasEnough ? '#4a4a4a' : '#664444'}`,
-                                                    color: hasEnough ? '#90EE90' : '#FFB6C1',
+                                                    border: hasEnough ? '2px solid rgba(0, 255, 136, 0.4)' : '2px solid rgba(255, 51, 102, 0.4)',
+                                                    boxShadow: hasEnough ? '0 0 8px rgba(0, 255, 136, 0.2)' : '0 0 8px rgba(255, 51, 102, 0.2)',
+                                                    color: hasEnough ? '#00ff88' : '#ff3366',
                                                     cursor: 'pointer',
-                                                    transition: 'transform 0.1s ease-out',
-                                                    transform: 'scale(1)'
+                                                    transition: 'all 0.2s ease',
+                                                    transform: 'scale(1)',
+                                                    textShadow: hasEnough ? '0 0 5px rgba(0, 255, 136, 0.4)' : '0 0 5px rgba(255, 51, 102, 0.4)'
                                                 }}
                                                 onMouseEnter={(e) => {
                                                     e.currentTarget.style.transform = 'scale(1.05)';
@@ -475,14 +527,16 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                     padding: '0',
                                                     fontSize: '14px',
                                                     fontWeight: 'bold',
-                                                    backgroundColor: currentQuantity > 1 ? '#444' : '#222',
-                                                    color: currentQuantity > 1 ? '#fff' : '#666',
-                                                    border: '1px solid #555',
+                                                    background: currentQuantity > 1 ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                                    color: currentQuantity > 1 ? '#00aaff' : '#666',
+                                                    border: currentQuantity > 1 ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
                                                     borderRadius: '3px 0 0 3px',
                                                     cursor: currentQuantity > 1 ? 'pointer' : 'not-allowed',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    justifyContent: 'center'
+                                                    justifyContent: 'center',
+                                                    boxShadow: currentQuantity > 1 ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
+                                                    transition: 'all 0.2s ease'
                                                 }}
                                             >
                                                 −
@@ -500,12 +554,13 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                     padding: '0',
                                                     fontSize: '13px',
                                                     textAlign: 'center',
-                                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                                    border: '1px solid #555',
+                                                    background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
+                                                    border: '2px solid rgba(0, 170, 255, 0.4)',
                                                     borderLeft: 'none',
                                                     borderRight: 'none',
-                                                    color: '#fff',
+                                                    color: '#00ffff',
                                                     outline: 'none',
+                                                    textShadow: '0 0 5px rgba(0, 255, 255, 0.4)',
                                                     // Hide default number input spinners
                                                     MozAppearance: 'textfield'
                                                 }}
@@ -532,14 +587,16 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                     padding: '0',
                                                     fontSize: '14px',
                                                     fontWeight: 'bold',
-                                                    backgroundColor: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '#444' : '#222',
-                                                    color: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '#fff' : '#666',
-                                                    border: '1px solid #555',
+                                                    background: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                                    color: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '#00aaff' : '#666',
+                                                    border: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
                                                     borderRadius: '0 3px 3px 0',
                                                     cursor: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? 'pointer' : 'not-allowed',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    justifyContent: 'center'
+                                                    justifyContent: 'center',
+                                                    boxShadow: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
+                                                    transition: 'all 0.2s ease'
                                                 }}
                                             >
                                                 +
@@ -552,12 +609,15 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                 style={{
                                                     padding: '4px 6px',
                                                     fontSize: '10px',
-                                                    backgroundColor: maxCraftableForThisRecipe > 0 ? '#444' : '#222',
-                                                    color: maxCraftableForThisRecipe > 0 ? '#fff' : '#666',
-                                                    border: '1px solid #555',
+                                                    background: maxCraftableForThisRecipe > 0 ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                                    color: maxCraftableForThisRecipe > 0 ? '#00aaff' : '#666',
+                                                    border: maxCraftableForThisRecipe > 0 ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
                                                     borderRadius: '3px',
                                                     cursor: maxCraftableForThisRecipe > 0 ? 'pointer' : 'not-allowed',
-                                                    marginLeft: '4px'
+                                                    marginLeft: '4px',
+                                                    boxShadow: maxCraftableForThisRecipe > 0 ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
+                                                    textShadow: maxCraftableForThisRecipe > 0 ? '0 0 5px rgba(0, 170, 255, 0.4)' : 'none',
+                                                    transition: 'all 0.2s ease'
                                                 }}
                                             >
                                                 MAX
@@ -571,14 +631,17 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                 padding: '8px 16px',
                                                 fontSize: '13px',
                                                 fontWeight: 'bold',
-                                                backgroundColor: isCraftable ? '#4CAF50' : '#333',
-                                                color: isCraftable ? '#fff' : '#666',
-                                                border: isCraftable ? '1px solid #5CBF60' : '1px solid #444',
+                                                background: isCraftable ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                                color: isCraftable ? '#00ff88' : '#666',
+                                                border: isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(100, 100, 120, 0.3)',
                                                 borderRadius: '4px',
                                                 cursor: isCraftable ? 'pointer' : 'not-allowed',
                                                 minWidth: '70px',
                                                 textTransform: 'uppercase',
-                                                letterSpacing: '0.5px'
+                                                letterSpacing: '0.5px',
+                                                boxShadow: isCraftable ? '0 0 15px rgba(0, 255, 136, 0.3), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none',
+                                                textShadow: isCraftable ? '0 0 8px rgba(0, 255, 136, 0.6)' : 'none',
+                                                transition: 'all 0.3s ease'
                                             }}
                                         >
                                             CRAFT
@@ -593,7 +656,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
 
             {/* Crafting Queue Section (Moved down, potentially needs own scroll later) */}
             <div className={styles.craftingQueueSection}>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', margin: '16px 0 12px 0' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#00ffff', margin: '16px 0 12px 0', textShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>
                     CRAFTING QUEUE ({playerQueue.length})
                 </h4>
                  {/* Added scrollable class and data-attribute */}
@@ -608,10 +671,12 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                 alignItems: 'center',
                                 gap: '12px',
                                 padding: '12px',
-                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                                borderRadius: '4px',
+                                background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))',
+                                borderRadius: '6px',
                                 marginBottom: '8px',
-                                border: '1px solid #333'
+                                border: '2px solid rgba(0, 170, 255, 0.3)',
+                                boxShadow: 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
+                                transition: 'all 0.3s ease'
                             }}>
                                 <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
                                     {outputDef && (
@@ -623,10 +688,10 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                     )}
                                   </div>
                                   <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#00ffff', textShadow: '0 0 8px rgba(0, 255, 255, 0.6)' }}>
                                         {outputDef?.name || 'Unknown Item'}
                                     </div>
-                                    <div style={{ fontSize: '14px', color: '#ccc' }}>
+                                    <div style={{ fontSize: '14px', color: '#00aaff' }}>
                                         {remainingTime > 0 ? `${remainingTime}s remaining` : 'Completing...'}
                                     </div>
                                 </div>
@@ -635,11 +700,14 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                     style={{
                                         padding: '8px 16px',
                                         fontSize: '14px',
-                                        backgroundColor: '#d32f2f',
-                                        color: '#fff',
-                                        border: '1px solid #f44336',
+                                        background: 'linear-gradient(135deg, rgba(255, 51, 102, 0.3), rgba(200, 40, 80, 0.4))',
+                                        color: '#ff3366',
+                                        border: '2px solid rgba(255, 51, 102, 0.5)',
                                         borderRadius: '4px',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        boxShadow: '0 0 15px rgba(255, 51, 102, 0.3), inset 0 0 10px rgba(255, 51, 102, 0.1)',
+                                        textShadow: '0 0 8px rgba(255, 51, 102, 0.6)',
+                                        transition: 'all 0.3s ease'
                                     }}
                                     title="Cancel Craft"
                                 >
@@ -651,9 +719,10 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                     {playerQueue.length === 0 && 
                         <div style={{ 
                             fontSize: '14px', 
-                            color: '#888', 
+                            color: '#00aaff', 
                             textAlign: 'center', 
-                            padding: '20px' 
+                            padding: '20px',
+                            textShadow: '0 0 5px rgba(0, 170, 255, 0.4)'
                         }}>
                             No items in queue
                         </div>
@@ -668,12 +737,15 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                             padding: '12px',
                             fontSize: '14px',
                             fontWeight: 'bold',
-                            backgroundColor: '#d32f2f',
-                            color: '#fff',
-                            border: '1px solid #f44336',
+                            background: 'linear-gradient(135deg, rgba(255, 51, 102, 0.3), rgba(200, 40, 80, 0.4))',
+                            color: '#ff3366',
+                            border: '2px solid rgba(255, 51, 102, 0.5)',
                             borderRadius: '4px',
                             cursor: 'pointer',
-                            marginTop: '8px'
+                            marginTop: '8px',
+                            boxShadow: '0 0 15px rgba(255, 51, 102, 0.3), inset 0 0 10px rgba(255, 51, 102, 0.1)',
+                            textShadow: '0 0 8px rgba(255, 51, 102, 0.6)',
+                            transition: 'all 0.3s ease'
                         }}
                         title="Cancel all items in queue and refund resources"
                     >

@@ -80,11 +80,11 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
   // Helper function to get season emoji
   const getSeasonEmoji = (season: Season) => {
     switch (season.tag) {
-      case 'Spring': return '🌸';
+      case 'Spring': return '🌱';
       case 'Summer': return '☀️';
       case 'Autumn': return '🍂';
       case 'Winter': return '❄️';
-      default: return '🌸'; // Fallback to spring
+      default: return '🌱'; // Fallback to spring
     }
   };
 
@@ -154,23 +154,33 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
           borderRadius: '50%',
           border: `2px solid ${UI_BORDER_COLOR}`,
           boxShadow: UI_SHADOW,
+          backdropFilter: 'blur(10px)',
           zIndex: 50,
           cursor: 'pointer',
-          width: '40px',
-          height: '40px',
+          width: '48px',
+          height: '48px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '14px',
+          fontSize: '16px',
           transition: 'all 0.3s ease',
+          filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1) rotate(5deg)';
+          e.currentTarget.style.filter = 'drop-shadow(0 0 15px rgba(0, 255, 255, 0.9))';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+          e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ marginRight: '2px' }}>
-            {getTimeOfDayEmoji(worldState.timeOfDay, worldState.isFullMoon)}
-          </span>
-          <span style={{ fontSize: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '16px' }}>
             {getSeasonEmoji(worldState.currentSeason)}
+          </span>
+          <span style={{ fontSize: '16px' }}>
+            {getTimeOfDayEmoji(worldState.timeOfDay, worldState.isFullMoon)}
           </span>
         </div>
       </div>
@@ -190,29 +200,53 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
       border: `2px solid ${UI_BORDER_COLOR}`,
       fontFamily: UI_FONT_FAMILY,
       boxShadow: UI_SHADOW,
+      backdropFilter: 'blur(10px)',
       zIndex: 50,
       width: '240px',
       fontSize: '12px',
-      textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
+      textShadow: '0 0 8px rgba(0, 255, 255, 0.7), 0 0 4px rgba(0, 255, 255, 0.4)',
+      overflow: 'hidden'
     }}>
+      {/* Animated scan line effect */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, #00ffff, transparent)',
+        animation: 'trackerScan 3s linear infinite',
+        pointerEvents: 'none',
+        zIndex: 1
+      }} />
+      
       {/* Day/Time Information */}
-      <div style={{ marginBottom: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '14px' }}>
-          <span>Day {worldState.cycleCount}</span>
+      <div style={{ marginBottom: '8px', position: 'relative', zIndex: 2 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
+          <span style={{ textShadow: '0 0 10px rgba(0, 255, 255, 0.8)' }}>Day {worldState.cycleCount}</span>
           <span
             onClick={toggleMinimized}
             style={{
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              opacity: 0.8,
+              transition: 'all 0.3s ease',
+              opacity: 0.9,
               fontSize: '16px',
+              filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+            onMouseEnter={(e) => { 
+              e.currentTarget.style.opacity = '1'; 
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.9))';
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.opacity = '0.9'; 
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
+            }}
           >
-            {getTimeOfDayEmoji(worldState.timeOfDay, worldState.isFullMoon)}
+            {getSeasonEmoji(worldState.currentSeason)}
             <span style={{ marginLeft: '4px' }}>
-              {getSeasonEmoji(worldState.currentSeason)}
+              {getTimeOfDayEmoji(worldState.timeOfDay, worldState.isFullMoon)}
             </span>
           </span>
         </div>
@@ -220,10 +254,10 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
         {/* Season and Year Information */}
         <div style={{ 
           fontSize: '10px', 
-          opacity: 0.9, 
+          opacity: 0.95, 
           marginBottom: '4px',
           color: getSeasonColor(worldState.currentSeason),
-          textShadow: `0 0 4px ${getSeasonColor(worldState.currentSeason)}40`
+          textShadow: `0 0 8px ${getSeasonColor(worldState.currentSeason)}80, 0 0 4px ${getSeasonColor(worldState.currentSeason)}40`
         }}>
           <span>{getSeasonDisplay(worldState.currentSeason)}</span>
           <span style={{ margin: '0 4px' }}>•</span>
@@ -232,14 +266,14 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
           <span>Year {worldState.year}</span>
         </div>
         
-        <div style={{ fontSize: '11px', opacity: 0.8 }}>
+        <div style={{ fontSize: '11px', opacity: 0.9, textShadow: '0 0 5px rgba(0, 255, 255, 0.3)' }}>
           <div>
-            <span>{getTimeOfDayDisplay(worldState.timeOfDay)}</span>
+            <span>{getSeasonDisplay(worldState.currentSeason)}</span>
             <span style={{ margin: '0 4px' }}>|</span>
             <span>{getWeatherDisplay(worldState.currentWeather)}</span>
           </div>
           {worldState.rainIntensity > 0 && (
-            <div style={{ marginTop: '2px', paddingLeft: '8px' }}>
+            <div style={{ marginTop: '2px', paddingLeft: '8px', color: '#00aaff' }}>
               <span>Intensity: {Math.round(worldState.rainIntensity * 100)}%</span>
             </div>
           )}
@@ -249,12 +283,13 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
       {/* Progress bar */}
       <div style={{
         position: 'relative',
-        height: '18px',
-        background: 'linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(10, 10, 25, 0.9))',
+        height: '20px',
+        background: 'linear-gradient(135deg, rgba(15, 15, 35, 0.9), rgba(10, 10, 25, 0.95))',
         borderRadius: '10px',
         overflow: 'hidden',
-        border: '2px solid rgba(0, 170, 255, 0.4)',
-        boxShadow: 'inset 0 0 10px rgba(0, 170, 255, 0.2)',
+        border: '2px solid rgba(0, 170, 255, 0.5)',
+        boxShadow: '0 0 15px rgba(0, 170, 255, 0.3), inset 0 0 15px rgba(0, 170, 255, 0.2)',
+        zIndex: 2
       }}>
         {/* Gradient background representing the day/night cycle */}
         <div style={{
@@ -273,11 +308,12 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
           top: '0',
           left: dialPosition,
           transform: 'translateX(-50%)',
-          width: '4px',
+          width: '5px',
           height: '100%',
-          background: 'linear-gradient(to bottom, #00ffff, #ffffff)',
-          boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), 0 0 15px rgba(0, 255, 255, 0.7)',
-          borderRadius: '2px',
+          background: 'linear-gradient(to bottom, #00ffff, #ffffff, #00ffff)',
+          boxShadow: '0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5)',
+          borderRadius: '3px',
+          animation: 'dialPulse 2s ease-in-out infinite'
         }}></div>
         
         {/* Scan line effect */}
@@ -296,6 +332,19 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState 
         @keyframes cycleScan {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
+        }
+        @keyframes trackerScan {
+          0% { transform: translateX(-100%); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateX(100%); opacity: 0; }
+        }
+        @keyframes dialPulse {
+          0%, 100% { 
+            box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5);
+          }
+          50% { 
+            box-shadow: 0 0 18px rgba(255, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 1), 0 0 45px rgba(0, 255, 255, 0.7);
+          }
         }
       `}</style>
     </div>

@@ -1,4 +1,10 @@
 import { WorldTile } from '../generated/world_tile_type';
+// Import autotile images
+import grassDirtAutotile from '../assets/tiles/tileset_grass_dirt_autotile.png';
+import grassBeachAutotile from '../assets/tiles/tileset_grass_beach_autotile.png';
+import beachSeaAutotile from '../assets/tiles/tileset_beach_sea_autotile.png';
+import grassDirtRoadAutotile from '../assets/tiles/tileset_grass_dirtroad_autotile.png';
+import dirtRoadDirtAutotile from '../assets/tiles/tileset_dirtroad_dirt_autotile.png';
 
 /**
  * Autotile system for handling seamless transitions between different tile types
@@ -359,7 +365,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Grass_Dirt': {
         primaryType: 'Grass',
         secondaryType: 'Dirt', 
-        tilesetPath: '/src/assets/tiles/tileset_grass_dirt_autotile.png',
+        tilesetPath: grassDirtAutotile,
         tileSize: 213, // Keep this for compatibility, but actual sprite size differs
         columns: 6,    // 6 columns: 1280 ÷ 6 ≈ 213.33 pixels wide
         rows: 8        // 8 rows: 1280 ÷ 8 = 160 pixels tall
@@ -367,7 +373,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Grass_Beach': {
         primaryType: 'Grass',
         secondaryType: 'Beach',
-        tilesetPath: '/src/assets/tiles/tileset_grass_beach_autotile.png',
+        tilesetPath: grassBeachAutotile,
         tileSize: 213, // Keep this for compatibility, but actual sprite size differs
         columns: 6,    // 6 columns: 1280 ÷ 6 ≈ 213.33 pixels wide
         rows: 8        // 8 rows: 1280 ÷ 8 = 160 pixels tall
@@ -375,7 +381,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Beach_Sea': {
         primaryType: 'Beach',
         secondaryType: 'Sea',
-        tilesetPath: '/src/assets/tiles/tileset_beach_sea_autotile.png',
+        tilesetPath: beachSeaAutotile,
         tileSize: 213, // Keep this for compatibility, but actual sprite size differs
         columns: 6,    // 6 columns: 1280 ÷ 6 ≈ 213.33 pixels wide
         rows: 8        // 8 rows: 1280 ÷ 8 = 160 pixels tall
@@ -399,7 +405,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Dirt_DirtRoad': {
         primaryType: 'Dirt',
         secondaryType: 'DirtRoad',
-        tilesetPath: '/src/assets/tiles/tileset_dirt_dirtroad_autotile.png',
+        tilesetPath: dirtRoadDirtAutotile, // Same tileset as DirtRoad_Dirt (works both ways)
         tileSize: 213,
         columns: 6,
         rows: 8
@@ -407,7 +413,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'DirtRoad_Dirt': {
         primaryType: 'DirtRoad',
         secondaryType: 'Dirt',
-        tilesetPath: '/src/assets/tiles/tileset_dirtroad_dirt_autotile.png',
+        tilesetPath: dirtRoadDirtAutotile,
         tileSize: 213,
         columns: 6,
         rows: 8
@@ -415,7 +421,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Grass_DirtRoad': {
         primaryType: 'Grass',
         secondaryType: 'DirtRoad',
-        tilesetPath: '/src/assets/tiles/tileset_grass_dirtroad_autotile.png',
+        tilesetPath: grassDirtRoadAutotile,
         tileSize: 213,
         columns: 6,
         rows: 8
@@ -423,7 +429,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'DirtRoad_Grass': {
         primaryType: 'DirtRoad',
         secondaryType: 'Grass',
-        tilesetPath: '/src/assets/tiles/tileset_dirtroad_grass_autotile.png',
+        tilesetPath: grassDirtRoadAutotile, // Same tileset works both ways
         tileSize: 213,
         columns: 6,
         rows: 8
@@ -432,6 +438,10 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
 
 /**
  * Calculate bitmask for autotile selection based on neighboring tiles
+ * 
+ * IMPORTANT: Only counts neighbors that actually exist AND match the secondary type.
+ * Missing neighbors (not in worldTiles map) are NOT counted, ensuring interior tiles
+ * (surrounded by same type) get bitmask 0 and render base texture.
  */
 export function calculateAutotileBitmask(
     centerX: number,
@@ -448,10 +458,14 @@ export function calculateAutotileBitmask(
         const neighborKey = `${neighborX}_${neighborY}`;
         const neighborTile = worldTiles.get(neighborKey);
         
-        // Check if neighbor matches the secondary type (the type we're transitioning TO)
+        // CRITICAL: Only count neighbors that:
+        // 1. Actually exist in the worldTiles map
+        // 2. Match the secondary type (the type we're transitioning TO)
+        // Missing neighbors or neighbors of other types are NOT counted
         if (neighborTile && neighborTile.tileType.tag === secondaryType) {
             bitmask |= NEIGHBOR_BITS[index];
         }
+        // If neighborTile is undefined/null, it's not counted (bitmask stays 0 for that position)
     });
     
     return bitmask;
@@ -478,7 +492,123 @@ export function getAutotilePosition(tileIndex: number, config: AutotileConfig): 
 }
 
 /**
- * Check if a tile type combination should use autotiling
+ * Check if a tile is completely interior (surrounded by tiles of the same type)
+ * Returns true if ALL existing neighbors are the same type as the center tile
+ */
+function isInteriorTile(
+    tileType: string,
+    worldTiles: Map<string, WorldTile>,
+    x: number,
+    y: number
+): boolean {
+    let neighborCount = 0;
+    let sameTypeCount = 0;
+    
+    NEIGHBOR_OFFSETS.forEach((offset) => {
+        const neighborX = x + offset.x;
+        const neighborY = y + offset.y;
+        const neighborKey = `${neighborX}_${neighborY}`;
+        const neighborTile = worldTiles.get(neighborKey);
+        
+        if (neighborTile) {
+            neighborCount++;
+            if (neighborTile.tileType.tag === tileType) {
+                sameTypeCount++;
+            }
+        }
+    });
+    
+    // If we have neighbors and ALL of them are the same type, this is an interior tile
+    return neighborCount > 0 && neighborCount === sameTypeCount;
+}
+
+/**
+ * Get ALL autotile transitions for a tile (a tile can have multiple neighbor types)
+ * Returns array of autotile configs with their bitmasks, one for each neighbor type
+ * No priority system needed - just return all matching transitions
+ * 
+ * IMPORTANT: Only returns autotiles when there are actual neighbors of the secondary type.
+ * Interior tiles (surrounded by same type) will return empty array and should render base texture.
+ */
+export function getAutotilesForTile(
+    tileType: string,
+    worldTiles: Map<string, WorldTile>,
+    x: number,
+    y: number
+): Array<{ config: AutotileConfig; bitmask: number }> {
+    // Get the actual tile to verify type
+    const centerTileKey = `${x}_${y}`;
+    const centerTile = worldTiles.get(centerTileKey);
+    
+    if (!centerTile) {
+        return [];
+    }
+    
+    // Use actual tile type from the tile object
+    const actualTileType = centerTile.tileType?.tag;
+    if (actualTileType) {
+        tileType = actualTileType;
+    }
+    
+    // Use tile's coordinates if available
+    if ('worldX' in centerTile && 'worldY' in centerTile) {
+        const tileWorldX = (centerTile as any).worldX;
+        const tileWorldY = (centerTile as any).worldY;
+        if (tileWorldX !== undefined && tileWorldY !== undefined) {
+            x = tileWorldX;
+            y = tileWorldY;
+        }
+    }
+    
+    // Calculate autotiles - bitmask will be 0 if no neighbors match secondary type
+    const autotiles: Array<{ config: AutotileConfig; bitmask: number }> = [];
+    
+    // Check each autotile configuration
+    for (const [configKey, config] of Object.entries(AUTOTILE_CONFIGS)) {
+        // Only check configs where this tile is the primary type
+        if (tileType === config.primaryType) {
+            // SPECIAL CASE: Do NOT generate DirtRoad -> Grass transitions on DirtRoad tiles.
+            // We only want the Grass tiles to transition into DirtRoad (Grass_DirtRoad),
+            // not the other way around, so inner road tiles stay as pure DirtRoad.
+            if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') {
+                continue;
+            }
+
+            // Calculate bitmask for neighbors of this specific secondary type
+            const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.primaryType, config.secondaryType);
+            
+            // CRITICAL: Verify we actually have neighbors of the secondary type before adding autotile
+            // Double-check by counting actual neighbors of secondary type
+            if (bitmask > 0) {
+                let actualSecondaryNeighborCount = 0;
+                NEIGHBOR_OFFSETS.forEach((offset) => {
+                    const neighborX = x + offset.x;
+                    const neighborY = y + offset.y;
+                    const neighborKey = `${neighborX}_${neighborY}`;
+                    const neighborTile = worldTiles.get(neighborKey);
+                    if (neighborTile && neighborTile.tileType.tag === config.secondaryType) {
+                        actualSecondaryNeighborCount++;
+                    }
+                });
+                
+                // Only add autotile if we actually found neighbors of the secondary type
+                // This prevents false positives from coordinate mismatches or incorrect bitmask calculations
+                if (actualSecondaryNeighborCount > 0) {
+                    autotiles.push({ config, bitmask });
+                }
+            }
+        }
+    }
+    
+    return autotiles;
+}
+
+/**
+ * DEPRECATED: Legacy function for backwards compatibility
+ * Use getAutotilesForTile() instead for proper multi-layer rendering
+ * 
+ * IMPORTANT: Returns null when no autotiles are needed (interior tiles should render base texture).
+ * Only returns an autotile config when there are actual neighbors of a different type.
  */
 export function shouldUseAutotiling(
     tileType: string,
@@ -486,20 +616,22 @@ export function shouldUseAutotiling(
     x: number,
     y: number
 ): { config: AutotileConfig; bitmask: number } | null {
-    // Check each autotile configuration to see if this tile should use autotiling
-    for (const [configKey, config] of Object.entries(AUTOTILE_CONFIGS)) {
-        // Check if this tile is the primary type and has neighbors of the secondary type
-        if (tileType === config.primaryType) {
-            const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.primaryType, config.secondaryType);
-            
-            // Only use autotiling if there are neighboring secondary tiles
-            if (bitmask > 0) {
-                return { config, bitmask };
-            }
-        }
+    const autotiles = getAutotilesForTile(tileType, worldTiles, x, y);
+    
+    // Only return autotile if there are actual transitions needed
+    // Empty array means interior tile (surrounded by same type) - should render base texture
+    if (autotiles.length === 0) {
+        return null;
     }
     
-    return null;
+    // Additional validation: ensure bitmask is > 0
+    const firstAutotile = autotiles[0];
+    if (firstAutotile.bitmask === 0) {
+        return null;
+    }
+    
+    // Return first autotile if valid (for backwards compatibility)
+    return firstAutotile;
 }
 
 /**
