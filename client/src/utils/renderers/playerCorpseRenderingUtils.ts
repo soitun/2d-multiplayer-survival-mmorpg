@@ -87,6 +87,7 @@ export function renderPlayerCorpse({
     deathTimestamp: corpse.deathTime,
     isOnline: false,
     isTorchLit: false,
+    lastRespawnTime: defaultTimestamp,
     lastConsumedAt: defaultTimestamp,
     isCrouching: false,
     isKnockedOut: false,

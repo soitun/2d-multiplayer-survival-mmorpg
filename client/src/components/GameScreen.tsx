@@ -1105,7 +1105,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             {/* Hotbar - Player's quick-access item slots */}
             <Hotbar
                 playerIdentity={playerIdentity}
-                localPlayer={localPlayer}
+                localPlayer={localPlayer || null}
                 itemDefinitions={itemDefinitions}
                 inventoryItems={inventoryItems}
                 rangedWeaponStats={rangedWeaponStats}
@@ -1119,7 +1119,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 startPlacement={startPlacement}
                 cancelPlacement={cancelPlacement}
                 activeConsumableEffects={activeConsumableEffects}
-                activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity) || null : null}
+                activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity.toHexString()) || null : null}
                 isGameMenuOpen={currentMenu !== null}
                 placementInfo={placementInfo}
             />

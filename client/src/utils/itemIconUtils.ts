@@ -101,6 +101,7 @@ import hollowReedArrowIcon from '../assets/items/hollow_reed_arrow.png';
 // === ARMOR ===
 // Protective equipment and clothing
 
+// Cloth armor
 import clothShirtIcon from '../assets/items/cloth_shirt.png';
 import clothPantsIcon from '../assets/items/cloth_pants.png';
 import clothHatIcon from '../assets/items/cloth_hood.png';
@@ -108,6 +109,49 @@ import clothGlovesIcon from '../assets/items/cloth_gloves.png';
 import clothBootsIcon from '../assets/items/cloth_boots.png';
 import burlapCapeIcon from '../assets/items/burlap_cape.png';
 import tallowHeadLampIcon from '../assets/items/tallow_head_lamp.png';
+
+// Bone armor
+import boneHelmetIcon from '../assets/items/bone_helmet.png';
+import boneChestplateIcon from '../assets/items/bone_chestplate.png';
+import boneLeggingsIcon from '../assets/items/bone_leggings.png';
+import boneGauntletsIcon from '../assets/items/bone_gauntlets.png';
+import boneBootsIcon from '../assets/items/bone_boots.png';
+
+// Wooden armor
+import woodenHelmetIcon from '../assets/items/wooden_helmet.png';
+import woodenChestplateIcon from '../assets/items/wooden_chestplate.png';
+import woodenLeggingsIcon from '../assets/items/wooden_leggings.png';
+import woodenGauntletsIcon from '../assets/items/wooden_gauntlets.png';
+import woodenBootsIcon from '../assets/items/wooden_boots.png';
+
+// Leather armor
+import leatherHelmetIcon from '../assets/items/leather_helmet.png';
+import leatherChestplateIcon from '../assets/items/leather_chestplate.png';
+import leatherLeggingsIcon from '../assets/items/leather_leggings.png';
+import leatherGauntletsIcon from '../assets/items/leather_gauntlets.png';
+import leatherBootsIcon from '../assets/items/leather_boots.png';
+import leatherMantleIcon from '../assets/items/leather_mantle.png';
+
+// Scale armor
+import scaleHelmetIcon from '../assets/items/scale_helmet.png';
+import scaleChestplateIcon from '../assets/items/scale_chestplate.png';
+import scaleLeggingsIcon from '../assets/items/scale_leggings.png';
+import scaleGauntletsIcon from '../assets/items/scale_gauntlets.png';
+import scaleBootsIcon from '../assets/items/scale_boots.png';
+
+// Fox fur armor
+import foxFurHoodIcon from '../assets/items/fox_fur_hood.png';
+import foxFurCoatIcon from '../assets/items/fox_fur_coat.png';
+import foxFurLeggingsIcon from '../assets/items/fox_fur_leggings.png';
+import foxFurGlovesIcon from '../assets/items/fox_fur_gloves.png';
+import foxFurBootsIcon from '../assets/items/fox_fur_boots.png';
+
+// Wolf fur armor
+import wolfFurHoodIcon from '../assets/items/wolf_fur_hood.png';
+import wolfFurCoatIcon from '../assets/items/wolf_fur_coat.png';
+import wolfFurLeggingsIcon from '../assets/items/wolf_fur_leggings.png';
+import wolfFurGlovesIcon from '../assets/items/wolf_fur_gloves.png';
+import wolfFurBootsIcon from '../assets/items/wolf_fur_boots.png';
 
 // Containers (wearable storage)
 import burlapSackIcon from '../assets/items/burlap_sack.png';
@@ -371,6 +415,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'hollow_reed_arrow.png': hollowReedArrowIcon,
 
   // === ARMOR ===
+  // Cloth armor
   'cloth_shirt.png': clothShirtIcon,
   'cloth_pants.png': clothPantsIcon,
   'cloth_hood.png': clothHatIcon,
@@ -378,6 +423,49 @@ const iconMap: { [key: string]: string | undefined } = {
   'cloth_boots.png': clothBootsIcon,
   'burlap_cape.png': burlapCapeIcon,
   'tallow_head_lamp.png': tallowHeadLampIcon,
+  
+  // Bone armor
+  'bone_helmet.png': boneHelmetIcon,
+  'bone_chestplate.png': boneChestplateIcon,
+  'bone_leggings.png': boneLeggingsIcon,
+  'bone_gauntlets.png': boneGauntletsIcon,
+  'bone_boots.png': boneBootsIcon,
+  
+  // Wooden armor
+  'wooden_helmet.png': woodenHelmetIcon,
+  'wooden_chestplate.png': woodenChestplateIcon,
+  'wooden_leggings.png': woodenLeggingsIcon,
+  'wooden_gauntlets.png': woodenGauntletsIcon,
+  'wooden_boots.png': woodenBootsIcon,
+  
+  // Leather armor
+  'leather_helmet.png': leatherHelmetIcon,
+  'leather_chestplate.png': leatherChestplateIcon,
+  'leather_leggings.png': leatherLeggingsIcon,
+  'leather_gauntlets.png': leatherGauntletsIcon,
+  'leather_boots.png': leatherBootsIcon,
+  'leather_mantle.png': leatherMantleIcon,
+  
+  // Scale armor
+  'scale_helmet.png': scaleHelmetIcon,
+  'scale_chestplate.png': scaleChestplateIcon,
+  'scale_leggings.png': scaleLeggingsIcon,
+  'scale_gauntlets.png': scaleGauntletsIcon,
+  'scale_boots.png': scaleBootsIcon,
+  
+  // Fox fur armor
+  'fox_fur_hood.png': foxFurHoodIcon,
+  'fox_fur_coat.png': foxFurCoatIcon,
+  'fox_fur_leggings.png': foxFurLeggingsIcon,
+  'fox_fur_gloves.png': foxFurGlovesIcon,
+  'fox_fur_boots.png': foxFurBootsIcon,
+  
+  // Wolf fur armor
+  'wolf_fur_hood.png': wolfFurHoodIcon,
+  'wolf_fur_coat.png': wolfFurCoatIcon,
+  'wolf_fur_leggings.png': wolfFurLeggingsIcon,
+  'wolf_fur_gloves.png': wolfFurGlovesIcon,
+  'wolf_fur_boots.png': wolfFurBootsIcon,
   
   // Containers (wearable storage)
   'burlap_sack.png': burlapSackIcon,

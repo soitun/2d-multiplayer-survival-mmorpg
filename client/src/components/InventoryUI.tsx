@@ -190,7 +190,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
         // console.log('[InventoryUI] Drag operation completed at:', lastDragCompleteTime.current);
         onItemDrop(targetSlotInfo);
     }, [onItemDrop]);
-
+    
     useEffect(() => {
         // Update the current ref
         currentInteractionTargetRef.current = interactionTarget;

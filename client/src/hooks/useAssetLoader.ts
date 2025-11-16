@@ -16,9 +16,10 @@ import deathMarkerUrl from '../assets/items/death_marker.png';
 import shelterSpritePath from '../assets/doodads/shelter_b.png';
 
 // Import animal images for corpse rendering
-import cinderFoxImg from '../assets/cinder_fox.png';
+import cinderFoxImg from '../assets/cinder_fox2.png';
 import tundraWolfImg from '../assets/tundra_wolf.png';
 import cableViperImg from '../assets/cable_viper.png';
+import walrusImg from '../assets/walrus.png';
 
 // Import cloud image paths
 import cloud1Texture from '../assets/environment/clouds/cloud1.png';
@@ -63,7 +64,7 @@ export function useAssetLoader(): AssetLoaderResult {
 
   useEffect(() => {
     let loadedCount = 0;
-    const totalStaticAssets = 6 + 5 + 1 + 3 + 1 + 1 + 2; // hero images (6) + clouds (5) + shelter (1) + animal corpse images (3) + grass (1) + campfire (1) + burlap/death (2) = 19 total
+    const totalStaticAssets = 6 + 5 + 1 + 4 + 1 + 1 + 2; // hero images (6) + clouds (5) + shelter (1) + animal corpse images (4) + grass (1) + campfire (1) + burlap/death (2) = 20 total
     
     // Count total item icons to preload
     const itemIconEntries = Object.entries(itemIcons).filter(([key, iconPath]) => iconPath);
@@ -136,7 +137,8 @@ export function useAssetLoader(): AssetLoaderResult {
     const animalImages = [
       { name: 'cinder_fox', src: cinderFoxImg },
       { name: 'tundra_wolf', src: tundraWolfImg },
-      { name: 'cable_viper', src: cableViperImg }
+      { name: 'cable_viper', src: cableViperImg },
+      { name: 'walrus', src: walrusImg }
     ];
     
     animalImages.forEach(({ name, src }) => {

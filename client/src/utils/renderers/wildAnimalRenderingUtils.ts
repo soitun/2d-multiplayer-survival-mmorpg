@@ -6,6 +6,12 @@ import {
   ANIMAL_COLLISION_SIZES 
 } from '../animalCollisionUtils';
 
+// Import animal images from assets folder (consistent with other game assets)
+import cinderFoxImg from '../../assets/cinder_fox2.png';
+import tundraWolfImg from '../../assets/tundra_wolf.png';
+import cableViperImg from '../../assets/cable_viper.png';
+import walrusImg from '../../assets/walrus.png';
+
 // --- Constants for damage visual effects ---
 const ANIMAL_SHAKE_DURATION_MS = 200; // How long the shake lasts
 const ANIMAL_SHAKE_AMOUNT_PX = 4;     // Max pixels to offset (slightly more than players)
@@ -55,29 +61,19 @@ interface WildAnimalRenderProps {
     localPlayerPosition?: { x: number; y: number } | null;
 }
 
-// Get the appropriate image filename for each species with variations
-function getAnimalImageName(species: AnimalSpecies, animalId?: bigint): string {
+// Get the appropriate image source for each species (using imported assets)
+function getAnimalImageSrc(species: AnimalSpecies, animalId?: bigint): string {
     switch (species.tag) {
         case 'CinderFox':
-            // Use animal ID to deterministically select variation (consistent alive/dead)
-            if (animalId !== undefined) {
-                const variation = Number(animalId) % 2; // 0 or 1
-                return variation === 0 ? 'cinder_fox.png' : 'cinder_fox2.png';
-            }
-            return 'cinder_fox.png'; // Fallback if no ID provided
+            return cinderFoxImg;
         case 'TundraWolf':
-            // Use animal ID to deterministically select variation (consistent alive/dead)
-            if (animalId !== undefined) {
-                const variation = Number(animalId) % 2; // 0 or 1
-                return variation === 0 ? 'tundra_wolf.png' : 'tundra_wolf2.png';
-            }
-            return 'tundra_wolf.png'; // Fallback if no ID provided
+            return tundraWolfImg;
         case 'CableViper':
-            return 'cable_viper.png';
+            return cableViperImg;
         case 'ArcticWalrus':
-            return 'walrus.png';
+            return walrusImg;
         default:
-            return 'cinder_fox.png';
+            return cinderFoxImg;
     }
 }
 
@@ -220,8 +216,8 @@ export function renderWildAnimal({
     // --- Flash Logic ---
     const isFlashing = animal.health > 0 && effectiveHitElapsed < ANIMAL_HIT_FLASH_DURATION_MS;
 
-    const imageName = getAnimalImageName(animal.species, animal.id);
-    const animalImage = imageManager.getImage(`/npcs/${imageName}`);
+    const imageSrc = getAnimalImageSrc(animal.species, animal.id);
+    const animalImage = imageManager.getImage(imageSrc);
     
     // Get fallback color for each species
     const getFallbackColor = (species: AnimalSpecies): string => {
@@ -353,19 +349,17 @@ export function renderWildAnimal({
     ctx.restore();
 }
 
-// Preload wild animal images using imageManager
+// Preload wild animal images using imageManager (using imported assets)
 export function preloadWildAnimalImages(): void {
     const imagesToLoad = [
-        'cinder_fox.png', 
-        'cinder_fox2.png',  // Add the new cinder fox variation
-        'tundra_wolf.png', 
-        'tundra_wolf2.png',  // Add the new variation
-        'cable_viper.png',
-        'walrus.png'  // Add the missing walrus image
+        cinderFoxImg,
+        tundraWolfImg,
+        cableViperImg,
+        walrusImg
     ];
     
-    imagesToLoad.forEach(imageName => {
-        imageManager.preloadImage(`/npcs/${imageName}`);
+    imagesToLoad.forEach(imageSrc => {
+        imageManager.preloadImage(imageSrc);
     });
 }
 
