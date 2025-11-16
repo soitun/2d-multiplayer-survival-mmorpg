@@ -1723,6 +1723,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut grid_cells_used: HashSet<(u32, u32)> = HashSet::new();
     let mut spawned_rune_stone_positions = Vec::<(f32, f32)>::new();
     
+    // Collect barrel positions for distance checking (barrels are seeded before rune stones)
+    let barrel_positions: Vec<(f32, f32)> = ctx.db.barrel().iter()
+        .map(|barrel| (barrel.pos_x, barrel.pos_y))
+        .collect();
+    
     // Track counts per color
     let mut spawned_green_count = 0;
     let mut spawned_red_count = 0;
@@ -1838,51 +1843,86 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     
                     // Check minimum distance from other rune stones
                     let min_dist_sq = crate::rune_stone::MIN_RUNE_STONE_DISTANCE_SQ;
-                    let too_close = spawned_rune_stone_positions.iter().any(|(other_x, other_y)| {
+                    let too_close_to_rune_stone = spawned_rune_stone_positions.iter().any(|(other_x, other_y)| {
                         let dx = pos_x - other_x;
                         let dy = pos_y - other_y;
                         dx * dx + dy * dy < min_dist_sq
                     });
                     
-                    if !too_close {
-                        // Spawn the rune stone
-                        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
-                        let new_rune_stone = crate::rune_stone::RuneStone {
-                            id: 0,
-                            pos_x,
-                            pos_y,
-                            chunk_index: chunk_idx,
-                            rune_type: rune_type.clone(),
-                            agrarian_config: agrarian_config.clone(),
-                            production_config: production_config.clone(),
-                            memory_shard_config: memory_shard_config.clone(),
-                        };
-                        
-                        match rune_stones.try_insert(new_rune_stone) {
-                            Ok(_inserted) => {
-                                // Successfully spawned
-                                spawned_rune_stone_positions.push((pos_x, pos_y));
-                                grid_cells_used.insert((*grid_col, *grid_row));
-                                
-                                // Track counts
-                                match rune_type {
-                                    crate::rune_stone::RuneStoneType::Green => spawned_green_count += 1,
-                                    crate::rune_stone::RuneStoneType::Red => spawned_red_count += 1,
-                                    crate::rune_stone::RuneStoneType::Blue => spawned_blue_count += 1,
-                                }
-                                
-                                log::info!(
-                                    "Spawned {:?} rune stone at ({:.1}, {:.1}) in grid cell ({}, {})",
-                                    rune_type, pos_x, pos_y, grid_col, grid_row
-                                );
-                                
-                                found_position = true;
-                                break;
+                    if too_close_to_rune_stone {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from trees
+                    let too_close_to_tree = spawned_tree_positions.iter().any(|(tree_x, tree_y)| {
+                        let dx = pos_x - tree_x;
+                        let dy = pos_y - tree_y;
+                        dx * dx + dy * dy < crate::rune_stone::MIN_RUNE_STONE_TREE_DISTANCE_SQ
+                    });
+                    
+                    if too_close_to_tree {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from stones
+                    let too_close_to_stone = spawned_stone_positions.iter().any(|(stone_x, stone_y)| {
+                        let dx = pos_x - stone_x;
+                        let dy = pos_y - stone_y;
+                        dx * dx + dy * dy < crate::rune_stone::MIN_RUNE_STONE_STONE_DISTANCE_SQ
+                    });
+                    
+                    if too_close_to_stone {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from barrels
+                    let too_close_to_barrel = barrel_positions.iter().any(|(barrel_x, barrel_y)| {
+                        let dx = pos_x - barrel_x;
+                        let dy = pos_y - barrel_y;
+                        dx * dx + dy * dy < crate::rune_stone::MIN_RUNE_STONE_BARREL_DISTANCE_SQ
+                    });
+                    
+                    if too_close_to_barrel {
+                        continue;
+                    }
+                    
+                    // All distance checks passed - spawn the rune stone
+                    let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+                    let new_rune_stone = crate::rune_stone::RuneStone {
+                        id: 0,
+                        pos_x,
+                        pos_y,
+                        chunk_index: chunk_idx,
+                        rune_type: rune_type.clone(),
+                        agrarian_config: agrarian_config.clone(),
+                        production_config: production_config.clone(),
+                        memory_shard_config: memory_shard_config.clone(),
+                    };
+                    
+                    match rune_stones.try_insert(new_rune_stone) {
+                        Ok(_inserted) => {
+                            // Successfully spawned
+                            spawned_rune_stone_positions.push((pos_x, pos_y));
+                            grid_cells_used.insert((*grid_col, *grid_row));
+                            
+                            // Track counts
+                            match rune_type {
+                                crate::rune_stone::RuneStoneType::Green => spawned_green_count += 1,
+                                crate::rune_stone::RuneStoneType::Red => spawned_red_count += 1,
+                                crate::rune_stone::RuneStoneType::Blue => spawned_blue_count += 1,
                             }
-                            Err(_) => {
-                                // Insert failed (shouldn't happen with auto_inc, but handle gracefully)
-                                log::warn!("Failed to insert rune stone at ({:.1}, {:.1})", pos_x, pos_y);
-                            }
+                            
+                            log::info!(
+                                "Spawned {:?} rune stone at ({:.1}, {:.1}) in grid cell ({}, {})",
+                                rune_type, pos_x, pos_y, grid_col, grid_row
+                            );
+                            
+                            found_position = true;
+                            break;
+                        }
+                        Err(_) => {
+                            // Insert failed (shouldn't happen with auto_inc, but handle gracefully)
+                            log::warn!("Failed to insert rune stone at ({:.1}, {:.1})", pos_x, pos_y);
                         }
                     }
                     

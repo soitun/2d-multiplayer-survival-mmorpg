@@ -56,6 +56,7 @@ pub(crate) const HEALTH_LOSS_MULTIPLIER_AT_ZERO: f32 = 2.0;
 pub(crate) const HEALTH_RECOVERY_THRESHOLD: f32 = 51.0;
 pub(crate) const HEALTH_RECOVERY_PER_SEC: f32 = 1.0;
 pub(crate) const HEALTH_LOSS_PER_SEC_LOW_WARMTH: f32 = 0.25;
+pub(crate) const WARMTH_DAMAGE_THRESHOLD: f32 = 6.67; // Health loss starts when warmth drops below this (3x lower than low_need_threshold of 20.0)
 
 // Add the constants moved from lib.rs and make them pub(crate)
 pub(crate) const SPRINT_SPEED_MULTIPLIER: f32 = 2.0; // MUST MATCH CLIENT (2.0)
@@ -426,7 +427,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                 }
                 health_change_per_sec -= cold_damage;
             }
-        } else if new_warmth < low_need_threshold {
+        } else if new_warmth < WARMTH_DAMAGE_THRESHOLD {
             if has_cold_immunity {
                 log::trace!("Player {:?} is immune to cold damage (armor immunity) despite low warmth at {:.1}", player_id, new_warmth);
             } else {

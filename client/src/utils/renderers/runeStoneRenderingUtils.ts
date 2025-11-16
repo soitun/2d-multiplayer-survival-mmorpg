@@ -99,7 +99,7 @@ function generateRisingParticles(
         const angle = seededRandom(seed++) * Math.PI * 2;
         const distance = seededRandom(seed++) * PARTICLE_SPAWN_RADIUS;
         const baseX = runeStone.posX + Math.cos(angle) * distance;
-        const baseY = runeStone.posY + Math.sin(angle) * distance;
+        const baseY = runeStone.posY + Math.sin(angle) * distance - 40;
         
         // Stagger spawn times for continuous effect
         const spawnOffset = seededRandom(seed++) * PARTICLE_LIFETIME_SECONDS;
@@ -204,11 +204,12 @@ function renderRisingParticles(
         ctx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // LAYER 2: Bright core particle
+        // LAYER 2: Bright core particle (offset upward slightly)
         const coreRadius = currentSize * 0.6;
+        const coreY = screenY - 6; // Move core glow up by 6px
         const coreGlow = ctx.createRadialGradient(
-            screenX, screenY, 0,
-            screenX, screenY, currentSize
+            screenX, coreY, 0,
+            screenX, coreY, currentSize
         );
         coreGlow.addColorStop(0, `rgba(${Math.min(255, particle.color.r + 100)}, ${Math.min(255, particle.color.g + 100)}, ${Math.min(255, particle.color.b + 100)}, ${alpha * 0.9})`);
         coreGlow.addColorStop(0.6, `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha * 0.6})`);
@@ -216,13 +217,14 @@ function renderRisingParticles(
         
         ctx.fillStyle = coreGlow;
         ctx.beginPath();
-        ctx.arc(screenX, screenY, currentSize, 0, Math.PI * 2);
+        ctx.arc(screenX, coreY, currentSize, 0, Math.PI * 2);
         ctx.fill();
         
-        // LAYER 3: Tiny bright sparkle at center
+        // LAYER 3: Tiny bright sparkle at center (offset upward slightly)
+        const sparkleY = screenY - 6; // Move sparkle up by 6px
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
         ctx.beginPath();
-        ctx.arc(screenX, screenY, coreRadius, 0, Math.PI * 2);
+        ctx.arc(screenX, sparkleY, coreRadius, 0, Math.PI * 2);
         ctx.fill();
     });
     
@@ -322,12 +324,13 @@ export function renderRuneStoneNightLight(
     // LAYER 2: Core bright glow - adds depth and intensity at the center
     // Creates a more focused "source of power" feeling while maintaining diffuse quality
     const coreRadius = NIGHT_LIGHT_RADIUS * 0.35;
+    const coreY = lightScreenY - 40; // Move core glow circle up by 40px
     const coreGradient = ctx.createRadialGradient(
         lightScreenX,
-        lightScreenY,
+        coreY,
         0,
         lightScreenX,
-        lightScreenY,
+        coreY,
         coreRadius
     );
 
@@ -350,7 +353,7 @@ export function renderRuneStoneNightLight(
 
     ctx.fillStyle = coreGradient;
     ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.arc(lightScreenX, coreY, coreRadius, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

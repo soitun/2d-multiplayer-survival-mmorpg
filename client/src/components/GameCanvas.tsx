@@ -2256,8 +2256,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     });
 
-    // Rune Stone Night Lights - Removed: Now handled by light cutouts in useDayNightCycle hook
-    // The cutouts create the actual light effect that cuts through the darkness overlay
+    // Rune Stone Night Lights - Light cutouts handled by useDayNightCycle hook
+    // Render rising glowing particles (Sea of Stars style) on top of the light area
+    visibleRuneStonesMap.forEach((runeStone: SpacetimeDBRuneStone) => {
+      renderRuneStoneNightLight(
+        ctx,
+        runeStone,
+        currentCycleProgress,
+        cameraOffsetX,
+        cameraOffsetY,
+        now_ms // Pass nowMs to enable particle rendering
+      );
+    });
 
      // Homestead hearth interaction indicators (for hold actions like grant building privilege)
      // Hearth visual is 125x125, so use 125 for height to match the visual
