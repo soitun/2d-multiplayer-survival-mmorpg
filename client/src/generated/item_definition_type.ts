@@ -96,6 +96,7 @@ export type ItemDefinition = {
   grantsKnockbackImmunity: boolean,
   grantsBleedImmunity: boolean,
   noiseOnSprint: boolean,
+  silencesMovement: boolean,
   intimidatesAnimals: boolean,
 };
 let _cached_ItemDefinition_type_value: __AlgebraicTypeType | null = null;
@@ -160,6 +161,7 @@ export const ItemDefinition = {
       { name: "grantsKnockbackImmunity", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "grantsBleedImmunity", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "noiseOnSprint", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "silencesMovement", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "intimidatesAnimals", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_ItemDefinition_type_value;

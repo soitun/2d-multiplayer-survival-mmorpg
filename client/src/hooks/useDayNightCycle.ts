@@ -260,9 +260,9 @@ function calculateOverlayRgbaString(
     const alpha = prevKf.alpha * (1 - t) + nextKf.alpha * t;
 
     // Debug logging for Dusk overlay (0.72 - 0.76)
-    if (cycleProgress >= 0.72 && cycleProgress <= 0.76) {
-        console.log(`[DayNightCycle] DUSK DEBUG - Progress: ${cycleProgress.toFixed(3)}, Prev: ${prevKf.progress} (alpha: ${prevKf.alpha}), Next: ${nextKf.progress} (alpha: ${nextKf.alpha}), T: ${t.toFixed(3)}, Final Alpha: ${alpha.toFixed(2)}, RGB: [${r},${g},${b}]`);
-    }
+    // if (cycleProgress >= 0.72 && cycleProgress <= 0.76) {
+    //     console.log(`[DayNightCycle] DUSK DEBUG - Progress: ${cycleProgress.toFixed(3)}, Prev: ${prevKf.progress} (alpha: ${prevKf.alpha}), Next: ${nextKf.progress} (alpha: ${nextKf.alpha}), T: ${t.toFixed(3)}, Final Alpha: ${alpha.toFixed(2)}, RGB: [${r},${g},${b}]`);
+    // }
 
     return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
 }
@@ -367,9 +367,9 @@ export function useDayNightCycle({
             const timeOfDayTag = worldState?.timeOfDay?.tag || 'Unknown';
             const isDusk = timeOfDayTag === 'Dusk' || (currentCycleProgress >= 0.72 && currentCycleProgress <= 0.76);
             
-            if (isDusk) {
-                console.log(`[DayNightCycle] DUSK DEBUG - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}, FullMoon: ${worldState?.isFullMoon ?? false}`);
-            }
+            // if (isDusk) {
+            //     console.log(`[DayNightCycle] DUSK DEBUG - TimeOfDay: ${timeOfDayTag}, Progress: ${currentCycleProgress.toFixed(3)}, Overlay: ${calculatedOverlayString}, FullMoon: ${worldState?.isFullMoon ?? false}`);
+            // }
             
             // Log whenever overlay changes significantly (has alpha > 0.1)
             const overlayMatch = calculatedOverlayString.match(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/);

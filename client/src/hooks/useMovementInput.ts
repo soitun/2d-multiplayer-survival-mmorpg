@@ -20,7 +20,6 @@ class InputPerformanceMonitor {
     
     if (inputTime > INPUT_LAG_THRESHOLD) {
       this.lagSpikes++;
-      // console.warn(`🐌 [MovementInput] INPUT LAG SPIKE: ${inputType} took ${inputTime.toFixed(2)}ms (threshold: ${INPUT_LAG_THRESHOLD}ms)`);
     }
 
     const now = Date.now();
@@ -33,21 +32,12 @@ class InputPerformanceMonitor {
 
   logSkippedInput(reason: string) {
     this.skippedInputs++;
-    // console.log(`⏭️ [MovementInput] Input skipped: ${reason}`);
   }
 
   private reportPerformance() {
     if (this.inputTimings.length === 0) return;
-
     const avg = this.inputTimings.reduce((a, b) => a + b, 0) / this.inputTimings.length;
     const max = Math.max(...this.inputTimings);
-
-  //   console.log(`📊 [MovementInput] Performance Report:
-  //     Average Input Time: ${avg.toFixed(2)}ms
-  //     Max Input Time: ${max.toFixed(2)}ms
-  //     Input Lag Spikes: ${this.lagSpikes}/${this.totalInputs} (${((this.lagSpikes/this.totalInputs)*100).toFixed(1)}%)
-  //     Skipped Inputs: ${this.skippedInputs}
-  //     Total Inputs: ${this.totalInputs}`);
   }
 
   private reset() {
@@ -60,35 +50,50 @@ class InputPerformanceMonitor {
 
 const inputMonitor = new InputPerformanceMonitor();
 
-// Convert player direction string to normalized movement vector - RESTORED from old file
-// getDirectionVector removed - no longer needed without auto-walk
+// Convert player facing direction string to normalized movement vector
+const getDirectionVector = (facingDirection: string): { x: number; y: number } => {
+  switch (facingDirection?.toLowerCase()) {
+    case 'up':
+      return { x: 0, y: -1 };
+    case 'down':
+      return { x: 0, y: 1 };
+    case 'left':
+      return { x: -1, y: 0 };
+    case 'right':
+      return { x: 1, y: 0 };
+    default:
+      return { x: 0, y: 0 };
+  }
+};
 
-// Movement input state - keeping the existing interface
+// Movement input state
 export interface MovementInputState {
   direction: { x: number; y: number };
   sprinting: boolean;
 }
 
-// Props interface - removed auto-walk but kept auto-attack
 interface MovementInputProps {
   isUIFocused: boolean;
   localPlayer?: Player | null;
   onToggleAutoAttack?: () => void;
-  // 🎣 FISHING INPUT FIX: Add prop to disable input during fishing
   isFishing?: boolean;
 }
 
-// Simplified movement input hook without auto-walk
 export const useMovementInput = ({ 
   isUIFocused, 
   localPlayer,
   onToggleAutoAttack,
-  isFishing = false // 🎣 FISHING INPUT FIX: Default to false
+  isFishing = false
 }: MovementInputProps) => {
   const [inputState, setInputState] = useState<MovementInputState>({
     direction: { x: 0, y: 0 },
     sprinting: false
   });
+
+  // Auto-walk state
+  const [isAutoWalking, setIsAutoWalking] = useState(false);
+  const autoWalkDirection = useRef<{ x: number; y: number } | null>(null);
+  const autoWalkSprinting = useRef<boolean>(false);
 
   // Performance monitoring references
   const keysPressed = useRef(new Set<string>());
@@ -96,54 +101,82 @@ export const useMovementInput = ({
   const isProcessingInput = useRef(false);
   const lastComputedStateRef = useRef<MovementInputState>({ direction: { x: 0, y: 0 }, sprinting: false });
 
-  // Get player actions for jump, dodge roll, etc.
   const { jump } = usePlayerActions();
 
-  // Enhanced key processing with performance monitoring and stable movement
+  // Key processing with auto-walk support
   const processKeys = useCallback(() => {
     const processStartTime = performance.now();
     
     try {
-      // Skip if already processing to prevent stacking
       if (isProcessingInput.current) {
         inputMonitor.logSkippedInput('Already processing input');
         return;
       }
       isProcessingInput.current = true;
 
-      // Skip processing if UI is focused
       if (isUIFocused) {
         inputMonitor.logSkippedInput('UI focused');
         return;
       }
 
       let x = 0, y = 0;
-      const sprinting = keysPressed.current.has('ShiftLeft') || keysPressed.current.has('ShiftRight');
-
-      // Simple manual movement with normalized precision
-      if (keysPressed.current.has('KeyW') || keysPressed.current.has('ArrowUp')) y -= 1;
-      if (keysPressed.current.has('KeyS') || keysPressed.current.has('ArrowDown')) y += 1;
-      if (keysPressed.current.has('KeyA') || keysPressed.current.has('ArrowLeft')) x -= 1;
-      if (keysPressed.current.has('KeyD') || keysPressed.current.has('ArrowRight')) x += 1;
-
-      // Normalize diagonal movement for consistent speed
-      if (x !== 0 && y !== 0) {
-        const magnitude = Math.sqrt(x * x + y * y);
-        x = Number((x / magnitude).toFixed(3)); // Limit precision to reduce floating point noise
-        y = Number((y / magnitude).toFixed(3));
+      
+      // Sprinting logic: if auto-walking, persist sprint state; otherwise use current shift keys
+      let sprinting = keysPressed.current.has('ShiftLeft') || keysPressed.current.has('ShiftRight');
+      if (isAutoWalking) {
+        if (sprinting) {
+          // Shift is pressed - update persisted sprint state
+          autoWalkSprinting.current = true;
+        } else {
+          // Shift not pressed - use persisted sprint state
+          sprinting = autoWalkSprinting.current;
+        }
       }
 
-      // Create new state with rounded values to prevent micro-jitter
+      // Check if any movement keys are pressed
+      const hasMovementKeys = keysPressed.current.has('KeyW') || keysPressed.current.has('KeyS') || 
+                             keysPressed.current.has('KeyA') || keysPressed.current.has('KeyD') ||
+                             keysPressed.current.has('ArrowUp') || keysPressed.current.has('ArrowDown') ||
+                             keysPressed.current.has('ArrowLeft') || keysPressed.current.has('ArrowRight');
+
+      if (hasMovementKeys) {
+        // Manual input - calculate from keys
+        if (keysPressed.current.has('KeyW') || keysPressed.current.has('ArrowUp')) y -= 1;
+        if (keysPressed.current.has('KeyS') || keysPressed.current.has('ArrowDown')) y += 1;
+        if (keysPressed.current.has('KeyA') || keysPressed.current.has('ArrowLeft')) x -= 1;
+        if (keysPressed.current.has('KeyD') || keysPressed.current.has('ArrowRight')) x += 1;
+
+        // Normalize diagonal movement
+        if (x !== 0 && y !== 0) {
+          const magnitude = Math.sqrt(x * x + y * y);
+          x = x / magnitude;
+          y = y / magnitude;
+        }
+
+        // Manual keys override auto-walk direction, but don't update stored direction
+        // Direction updates happen in handleKeyDown when keys are first pressed
+      } else if (isAutoWalking && autoWalkDirection.current) {
+        // No keys pressed but auto-walk is on - use stored direction
+        x = autoWalkDirection.current.x;
+        y = autoWalkDirection.current.y;
+        console.log(`🚶 [AUTO-WALK ACTIVE] Using direction: (${x.toFixed(3)}, ${y.toFixed(3)})`);
+      } else {
+        // No keys and no auto-walk
+        x = 0;
+        y = 0;
+      }
+
+      // Round to prevent micro-jitter
+      const roundedX = Math.abs(x) < 0.001 ? 0 : Number(x.toFixed(3));
+      const roundedY = Math.abs(y) < 0.001 ? 0 : Number(y.toFixed(3));
+      
       const newState = { 
-        direction: { 
-          x: Math.abs(x) < 0.001 ? 0 : x, 
-          y: Math.abs(y) < 0.001 ? 0 : y 
-        }, 
+        direction: { x: roundedX, y: roundedY }, 
         sprinting 
       };
       const lastState = lastComputedStateRef.current;
       
-      // More robust state change detection with tolerance for floating point precision
+      // Check if state changed
       const hasStateChanged = Math.abs(newState.direction.x - lastState.direction.x) > 0.01 || 
                              Math.abs(newState.direction.y - lastState.direction.y) > 0.01 || 
                              newState.sprinting !== lastState.sprinting;
@@ -162,12 +195,12 @@ export const useMovementInput = ({
       const processTime = performance.now() - processStartTime;
       inputMonitor.logInputTime(processTime, 'processKeys');
     }
-  }, [isUIFocused]);
+  }, [isUIFocused, isAutoWalking]);
 
-  // More aggressive throttling to reduce CPU usage and conflicts
+  // Throttled version
   const throttledProcessKeys = useCallback(() => {
     const now = performance.now();
-    if (now - lastInputTime.current < 20) { // Reduced from 16ms to 20ms (~50fps throttle)
+    if (now - lastInputTime.current < 20) {
       inputMonitor.logSkippedInput('Throttled input');
       return;
     }
@@ -175,7 +208,7 @@ export const useMovementInput = ({
     processKeys();
   }, [processKeys]);
 
-  // Enhanced key handlers with RESTORED action key bindings + performance monitoring
+  // Key down handler
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const keyStartTime = performance.now();
     
@@ -187,11 +220,10 @@ export const useMovementInput = ({
 
       const key = event.code;
       
-      // RESTORED: Handle action keys (Space, Q, Z)
+      // Space: Jump
       if (key === 'Space') {
         event.preventDefault();
         
-        // 🎣 FISHING INPUT FIX: Disable jumping while fishing
         if (isFishing) {
           console.log('[MovementInput] Jump blocked - player is fishing');
           event.stopPropagation();
@@ -199,58 +231,116 @@ export const useMovementInput = ({
           return;
         }
         
-        // Space: Jump (standing still) / Dodge roll (with movement)
         const isMoving = keysPressed.current.has('KeyW') || keysPressed.current.has('KeyS') || 
                         keysPressed.current.has('KeyA') || keysPressed.current.has('KeyD');
         
         if (isMoving) {
-          // Calculate dodge direction
           let dodgeX = 0, dodgeY = 0;
           if (keysPressed.current.has('KeyW')) dodgeY -= 1;
           if (keysPressed.current.has('KeyS')) dodgeY += 1;
           if (keysPressed.current.has('KeyA')) dodgeX -= 1;
           if (keysPressed.current.has('KeyD')) dodgeX += 1;
           
-          // Normalize dodge direction
           if (dodgeX !== 0 || dodgeY !== 0) {
             const magnitude = Math.sqrt(dodgeX * dodgeX + dodgeY * dodgeY);
             dodgeX /= magnitude;
             dodgeY /= magnitude;
           }
-          
-          // console.log(`🤸 [MovementInput] Dodge roll triggered: (${dodgeX.toFixed(2)}, ${dodgeY.toFixed(2)})`);
-          // TODO: Call dodge roll reducer when we find it
         } else {
-          // console.log(`🦘 [MovementInput] Jump triggered`);
           jump();
         }
         return;
       }
       
-      // Q and Z keys removed (were for auto-walk and auto-attack)
+      // Q: Toggle auto-walk
+      if (key === 'KeyQ') {
+        event.preventDefault();
 
+        if (isAutoWalking) {
+          // Turn OFF
+          setIsAutoWalking(false);
+          autoWalkDirection.current = null;
+          autoWalkSprinting.current = false;
+          console.log(`🚶 [AUTO-WALK OFF]`);
+          throttledProcessKeys();
+        } else {
+          // Turn ON - start with facing direction, user can change direction while auto-walking
+          let currentX = 0, currentY = 0;
+
+          // Use facing direction as default
+          if (localPlayer?.direction) {
+            const facingVec = getDirectionVector(localPlayer.direction);
+            currentX = facingVec.x;
+            currentY = facingVec.y;
+            console.log(`🔍 [Q PRESSED] Starting with facing direction: (${currentX}, ${currentY})`);
+          }
+
+          if (currentX !== 0 || currentY !== 0) {
+            setIsAutoWalking(true);
+            autoWalkDirection.current = { x: currentX, y: currentY };
+            console.log(`🚶 [AUTO-WALK ON] Stored direction: (${currentX}, ${currentY}), isDiagonal: ${currentX !== 0 && currentY !== 0}`);
+
+            // Update state
+            setInputState({
+              direction: { x: currentX, y: currentY },
+              sprinting: keysPressed.current.has('ShiftLeft') || keysPressed.current.has('ShiftRight')
+            });
+          } else {
+            console.log(`🚶 [AUTO-WALK] Cannot enable - no direction`);
+          }
+        }
+        return;
+      }
+
+      // Z: Auto-attack
       if (key === 'KeyZ') {
         event.preventDefault();
-        // console.log(`⚔️ [MovementInput] Auto-attack toggle triggered`);
         onToggleAutoAttack?.();
         return;
       }
 
-      // Handle movement keys
+      // Movement keys
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(key)) {
         if (!keysPressed.current.has(key)) {
           keysPressed.current.add(key);
+
+          // 🔥 AUTO-WALK: If auto-walk is ON and a movement key is pressed, update direction
+          if (isAutoWalking && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+            // Calculate direction from all currently pressed movement keys
+            let dirX = 0, dirY = 0;
+            if (keysPressed.current.has('KeyW') || keysPressed.current.has('ArrowUp')) dirY -= 1;
+            if (keysPressed.current.has('KeyS') || keysPressed.current.has('ArrowDown')) dirY += 1;
+            if (keysPressed.current.has('KeyA') || keysPressed.current.has('ArrowLeft')) dirX -= 1;
+            if (keysPressed.current.has('KeyD') || keysPressed.current.has('ArrowRight')) dirX += 1;
+
+            // Normalize if diagonal
+            if (dirX !== 0 && dirY !== 0) {
+              const magnitude = Math.sqrt(dirX * dirX + dirY * dirY);
+              dirX = dirX / magnitude;
+              dirY = dirY / magnitude;
+            }
+
+            const roundedX = Math.abs(dirX) < 0.001 ? 0 : Number(dirX.toFixed(3));
+            const roundedY = Math.abs(dirY) < 0.001 ? 0 : Number(dirY.toFixed(3));
+
+            if (roundedX !== 0 || roundedY !== 0) {
+              autoWalkDirection.current = { x: roundedX, y: roundedY };
+              console.log(`🔄 [AUTO-WALK UPDATED] Direction changed to: (${roundedX.toFixed(3)}, ${roundedY.toFixed(3)}), isDiagonal: ${roundedX !== 0 && roundedY !== 0}`);
+            }
+          }
+
           throttledProcessKeys();
         }
       }
     } catch (error) {
-      // console.error(`❌ [MovementInput] Error in handleKeyDown:`, error);
+      console.error(`❌ [MovementInput] Error in handleKeyDown:`, error);
     } finally {
       const keyTime = performance.now() - keyStartTime;
       inputMonitor.logInputTime(keyTime, `KeyDown-${event.code}`);
     }
-  }, [isUIFocused, throttledProcessKeys, jump, onToggleAutoAttack, isFishing]);
+  }, [isUIFocused, throttledProcessKeys, jump, onToggleAutoAttack, isFishing, isAutoWalking, localPlayer]);
 
+  // Key up handler
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
     const keyStartTime = performance.now();
     
@@ -258,18 +348,18 @@ export const useMovementInput = ({
       const key = event.code;
       if (keysPressed.current.has(key)) {
         keysPressed.current.delete(key);
-        // FIXED: Process key releases immediately without throttling to prevent movement lag
+        // Process immediately on key release
         processKeys();
       }
     } catch (error) {
-      // console.error(`❌ [MovementInput] Error in handleKeyUp:`, error);
+      console.error(`❌ [MovementInput] Error in handleKeyUp:`, error);
     } finally {
       const keyTime = performance.now() - keyStartTime;
       inputMonitor.logInputTime(keyTime, `KeyUp-${event.code}`);
     }
   }, [processKeys]);
 
-  // Event listener setup - keeping the new performance monitoring
+  // Event listeners
   useEffect(() => {
     const setupStartTime = performance.now();
     
@@ -293,16 +383,19 @@ export const useMovementInput = ({
         }
       };
     } catch (error) {
-      // console.error(`❌ [MovementInput] Error in event listener setup:`, error);
+      console.error(`❌ [MovementInput] Error in event listener setup:`, error);
     }
   }, [handleKeyDown, handleKeyUp]);
 
-  // Clear input when UI becomes focused
+  // Clear on UI focus
   useEffect(() => {
     if (isUIFocused) {
       const clearStartTime = performance.now();
       
       keysPressed.current.clear();
+      setIsAutoWalking(false);
+      autoWalkDirection.current = null;
+      autoWalkSprinting.current = false;
       setInputState({
         direction: { x: 0, y: 0 },
         sprinting: false
@@ -315,6 +408,9 @@ export const useMovementInput = ({
     }
   }, [isUIFocused]);
 
-  // RESTORED: Return both inputState and processMovement for compatibility
-  return { inputState, processMovement: processKeys };
-}; 
+  return { 
+    inputState, 
+    processMovement: processKeys,
+    isAutoWalking
+  };
+};

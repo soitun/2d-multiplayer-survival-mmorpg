@@ -62,6 +62,8 @@ import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPer
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
 // Import InventorySearchBar component
 import InventorySearchBar from './InventorySearchBar';
+// Import ArmorStatsPanel component
+import ArmorStatsPanel from './ArmorStatsPanel';
 
 // --- Type Definitions ---
 // Define props for InventoryUI component
@@ -270,6 +272,17 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
         });
         return { itemsByInvSlot: invMap, itemsByEquipSlot: equipMap };
     }, [playerIdentity, inventoryItems, itemDefinitions]);
+
+    // Extract equipped armor definitions for stats panel
+    const equippedArmorDefinitions = useMemo(() => {
+        const armorDefs: ItemDefinition[] = [];
+        itemsByEquipSlot.forEach(item => {
+            if (item.definition.category.tag === 'Armor') {
+                armorDefs.push(item.definition);
+            }
+        });
+        return armorDefs;
+    }, [itemsByEquipSlot]);
 
     // --- Callbacks & Handlers ---
     const handleItemMouseEnter = useCallback((item: PopulatedItem, event: React.MouseEvent<HTMLDivElement>) => {
@@ -791,6 +804,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         );
                     })}
                 </div>
+
+                {/* Armor Stats Panel */}
+                <ArmorStatsPanel equippedArmor={equippedArmorDefinitions} />
             </div>
 
             {/* Middle Pane: Inventory & Containers */} 
