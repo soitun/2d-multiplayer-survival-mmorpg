@@ -193,14 +193,20 @@ spacetime generate --lang typescript --out-dir ../client/src/generated --project
 *   🌱 Farming System: Planting, growing, harvesting crops
 *   🦌 Hunting System: NPC animals (foxes, wolves, etc.), tracking, hunting mechanics
 *   🎨 Terrain Autotiling: Edge detection, Wang tiles, seamless transitions between biomes
-*   🛡️ Advanced Armor System: Damage resistance by type (melee, projectile, fire, blunt, slash, pierce), warmth bonuses, movement speed modifiers, stamina regen modifiers, set-based immunities (burn, cold, wetness, knockback, bleed), special effects (melee damage reflection, detection radius, low health damage bonus, silent movement, animal intimidation), cold resistance scaling, and drying speed modifiers
+*   🛡️ Advanced Armor System: Damage resistance by type (melee, projectile, fire, blunt, slash, pierce), warmth bonuses, movement speed modifiers, set-based immunities (burn, cold, wetness, knockback, bleed), special effects (melee damage reflection, detection radius, low health damage bonus, silent movement, animal intimidation), cold resistance scaling, and drying speed modifiers
 *   🌦️ Dynamic Chunk-Based Weather: Evolving weather patterns with chunk-level granularity, smooth transitions, and gameplay effects (rain intensity, temperature, visibility)
+*   🌍 Procedural World Generation: Multi-biome terrain generation (grasslands, forests, beaches, rivers), island-based maps with configurable parameters, noise-based terrain shaping, and resource distribution
+*   🤖 Advanced AI: Hostile NPC behaviors (wolves, foxes), state-based AI systems (idle, wander, chase, attack, flee), pathfinding, aggression mechanics, and animal-specific behaviors
 
 **Planned (📋):** 
 *   **Core Systems & World:**
-    *   🌍 World Generation: Procedural generation, biomes, monuments
-    *   🤖 Advanced AI: Hostile NPCs behaviors, pathfinding
+    *   🏛️ Monuments System: Pre-designed structures spawned in the world - abandoned buildings, caves, military outposts, research facilities with unique loot tables and environmental storytelling
+    *   🏢 Central NPC Compound: Neutral trading hub with shared crafting stations, vending machines, AI-driven auction house, and insurance pool system for collective resource sharing
     *   👥 Team/Social Features: Shared map markers, team chat, private messaging, player notes, and group formation
+*   **Survival & Crafting:**
+    *   🍲 Broth System: Placeable broth pots over campfires with water filling mechanics, multi-ingredient cooking, stirring mini-game, and recipe spoilage mechanics
+*   **Base Building & Defense:**
+    *   🧱 Walls & Gates: Buildable wooden walls, lockable gates, lockable storage, fire arrow structure damage, and water-based fire extinguishing
 *   **Combat & Items:**
     *   ⚔️ Tool/Weapon Durability
     *   🔫 Firearm System: Guns with ammo types, reloading mechanics, and recoil
