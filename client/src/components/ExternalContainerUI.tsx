@@ -1088,24 +1088,6 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         onClick={() => {
                             if (!connection?.reducers) return;
                             try {
-                                (connection.reducers as any).transferWaterFromContainerToPot(
-                                    attachedBrothPot.id
-                                );
-                            } catch (e: any) {
-                                console.error("Error transferring water from container to pot:", e);
-                            }
-                        }}
-                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
-                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
-                    >
-                        ⬇️ 💧 Transfer Water INTO Pot
-                    </button>
-
-                    <button
-                        onClick={() => {
-                            if (!connection?.reducers) return;
-                            try {
                                 (connection.reducers as any).transferWaterFromPotToContainer(
                                     attachedBrothPot.id
                                 );
@@ -1115,9 +1097,27 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         }}
                         disabled={!waterContainerItem || attachedBrothPot.waterLevelMl <= 0}
                         className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                    >
+                        ⬆️ Transfer Water INTO Container
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            if (!connection?.reducers) return;
+                            try {
+                                (connection.reducers as any).transferWaterFromContainerToPot(
+                                    attachedBrothPot.id
+                                );
+                            } catch (e: any) {
+                                console.error("Error transferring water from container to pot:", e);
+                            }
+                        }}
+                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
+                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
                         style={{ width: '100%', marginBottom: '12px', textShadow: 'none' }}
                     >
-                        ⬆️ 💧 Transfer Water INTO Container
+                        ⬇️ Transfer Water INTO Pot
                     </button>
 
                         {/* Broth pot info and actions */}
