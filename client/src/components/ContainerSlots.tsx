@@ -112,6 +112,21 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                         {itemInSlot && isWaterContainer(itemInSlot.definition.name) && (
                             <WaterLevelIndicator item={itemInSlot} />
                         )}
+                        
+                        {/* Droplet icon for rain collector slot - always show in bottom left */}
+                        {containerType === 'rain_collector' && index === 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                left: '4px',
+                                fontSize: '14px',
+                                zIndex: 5,
+                                pointerEvents: 'none',
+                                textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                            }}>
+                                💧
+                            </div>
+                        )}
                     </DroppableSlot>
                 );
             })}

@@ -1046,6 +1046,42 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 })}
                             </div>
                         </div>
+                        
+                        {/* Water level display with visual bar - right under all inventory slots */}
+                        <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#87CEEB', 
+                                marginBottom: '6px',
+                                textAlign: 'center'
+                            }}>
+                                {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
+                            </div>
+                            
+                            {/* Visual water level bar */}
+                            <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(135, 206, 235, 0.3)',
+                            }}>
+                                <div style={{
+                                    width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
+                                    height: '100%',
+                                    background: attachedBrothPot.waterLevelMl > 0 
+                                        ? (attachedBrothPot.isSeawater 
+                                            ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
+                                            : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
+                                        : 'transparent',
+                                    transition: 'width 0.3s ease',
+                                    boxShadow: attachedBrothPot.waterLevelMl > 0 
+                                        ? '0 0 8px rgba(135, 206, 235, 0.6)' 
+                                        : 'none',
+                                }} />
+                            </div>
+                        </div>
 
                     {/* Bidirectional water transfer buttons */}
                     <button
@@ -1086,41 +1122,6 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
                         {/* Broth pot info and actions */}
                         <div style={{ marginTop: '12px' }}>
-                            {/* Water level display with visual bar */}
-                            <div style={{ marginBottom: '12px' }}>
-                                <div style={{ 
-                                    fontSize: '12px', 
-                                    color: '#87CEEB', 
-                                    marginBottom: '6px',
-                                    textAlign: 'center'
-                                }}>
-                                    {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml {attachedBrothPot.isSeawater && '(Salt)'}
-                                </div>
-                                
-                                {/* Visual water level bar */}
-                                <div style={{
-                                    width: '100%',
-                                    height: '8px',
-                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden',
-                                    border: '1px solid rgba(135, 206, 235, 0.3)',
-                                }}>
-                                    <div style={{
-                                        width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
-                                        height: '100%',
-                                        background: attachedBrothPot.waterLevelMl > 0 
-                                            ? (attachedBrothPot.isSeawater 
-                                                ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
-                                                : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
-                                            : 'transparent',
-                                        transition: 'width 0.3s ease',
-                                        boxShadow: attachedBrothPot.waterLevelMl > 0 
-                                            ? '0 0 8px rgba(135, 206, 235, 0.6)' 
-                                            : 'none',
-                                    }} />
-                                </div>
-                            </div>
 
 
                             {/* Pickup button - always show, water will spill if present */}
@@ -1191,7 +1192,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 marginBottom: '6px',
                                 textAlign: 'center'
                             }}>
-                                {((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater ? '🌊' : '💧'} Collected Water: {(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected.toFixed(1)}L / 40.0L {((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater && '(Salt)'}
+                                {((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater ? '🌊' : '💧'} Water: {Math.round((container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected * 1000)}ml / 40000ml
                             </div>
                             
                             {/* Visual water level bar */}
@@ -1250,15 +1251,6 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             ⬆️ 💧 Transfer Water INTO Reservoir
                         </button>
                         
-                        <div style={{ 
-                            marginTop: '8px', 
-                            color: '#87CEEB', 
-                            fontSize: '11px', 
-                            textAlign: 'center',
-                            fontStyle: 'italic'
-                        }}>
-                            Place water containers (bottles/jugs) to fill during rain or store water
-                    </div>
                 </>
             )}
 
