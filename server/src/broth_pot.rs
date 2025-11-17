@@ -455,6 +455,9 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
                      items.instance_id().find(&broth_pot.output_item_instance_id.unwrap()).is_some();
     
     if has_ingredients || has_output {
+        log::info!("[BrothPot] Player {} tried to pickup pot {} with contents (ingredients: {}, output: {})", 
+                   ctx.sender, broth_pot_id, has_ingredients, has_output);
+        
         // Play error sound for instant feedback
         let _ = sound_events::emit_sound_at_position(
             ctx,

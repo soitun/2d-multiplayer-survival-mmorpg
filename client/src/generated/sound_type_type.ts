@@ -77,6 +77,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.FoundationTwigDestroyed |
   SoundTypeVariants.ItemThrown |
   SoundTypeVariants.ErrorResources |
+  SoundTypeVariants.ErrorCantPickUpCauldron |
   SoundTypeVariants.DoneCooking |
   SoundTypeVariants.SoupBoiling |
   SoundTypeVariants.ErrorJarPlacement |
@@ -139,6 +140,7 @@ export const SoundType = {
   FoundationTwigDestroyed: { tag: "FoundationTwigDestroyed" } as const,
   ItemThrown: { tag: "ItemThrown" } as const,
   ErrorResources: { tag: "ErrorResources" } as const,
+  ErrorCantPickUpCauldron: { tag: "ErrorCantPickUpCauldron" } as const,
   DoneCooking: { tag: "DoneCooking" } as const,
   SoupBoiling: { tag: "SoupBoiling" } as const,
   ErrorJarPlacement: { tag: "ErrorJarPlacement" } as const,
@@ -195,6 +197,7 @@ export const SoundType = {
       { name: "FoundationTwigDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ItemThrown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorResources", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ErrorCantPickUpCauldron", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DoneCooking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SoupBoiling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorJarPlacement", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

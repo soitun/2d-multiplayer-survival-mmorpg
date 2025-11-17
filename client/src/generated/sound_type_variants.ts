@@ -75,6 +75,7 @@ export type FoundationMetalUpgraded = { tag: "FoundationMetalUpgraded" };
 export type FoundationTwigDestroyed = { tag: "FoundationTwigDestroyed" };
 export type ItemThrown = { tag: "ItemThrown" };
 export type ErrorResources = { tag: "ErrorResources" };
+export type ErrorCantPickUpCauldron = { tag: "ErrorCantPickUpCauldron" };
 export type DoneCooking = { tag: "DoneCooking" };
 export type SoupBoiling = { tag: "SoupBoiling" };
 export type ErrorJarPlacement = { tag: "ErrorJarPlacement" };
