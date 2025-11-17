@@ -1130,29 +1130,33 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
                             </div>
                             
-                            {/* Visual water level bar */}
-                            <div style={{
-                                width: '100%',
-                                height: '8px',
-                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                borderRadius: '4px',
-                                overflow: 'hidden',
-                                border: '1px solid rgba(135, 206, 235, 0.3)',
-                            }}>
+                                {/* Visual water level bar */}
                                 <div style={{
-                                    width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
-                                    height: '100%',
-                                    background: attachedBrothPot.waterLevelMl > 0 
-                                        ? (attachedBrothPot.isSeawater 
-                                            ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
-                                            : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
-                                        : 'transparent',
-                                    transition: 'width 0.3s ease',
-                                    boxShadow: attachedBrothPot.waterLevelMl > 0 
-                                        ? '0 0 8px rgba(135, 206, 235, 0.6)' 
-                                        : 'none',
-                                }} />
-                            </div>
+                                    width: '100%',
+                                    height: '8px',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden',
+                                    border: attachedBrothPot.isSeawater 
+                                        ? '1px solid rgba(135, 206, 250, 0.5)' // Lighter cyan border for salt water
+                                        : '1px solid rgba(0, 150, 255, 0.5)', // Blue border for fresh water
+                                }}>
+                                    <div style={{
+                                        width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
+                                        height: '100%',
+                                        background: attachedBrothPot.waterLevelMl > 0 
+                                            ? (attachedBrothPot.isSeawater 
+                                                ? 'linear-gradient(90deg, #87ceeb 0%, #a0d4f0 50%, #b8dce8 100%)' // Light cyan gradient for salt water
+                                                : 'linear-gradient(90deg, #0066cc 0%, #0080ff 50%, #0099ff 100%)') // Deep blue gradient for fresh water
+                                            : 'transparent',
+                                        transition: 'width 0.3s ease',
+                                        boxShadow: attachedBrothPot.waterLevelMl > 0 
+                                            ? (attachedBrothPot.isSeawater 
+                                                ? '0 0 8px rgba(135, 206, 250, 0.6)' // Cyan glow for salt water
+                                                : '0 0 8px rgba(0, 150, 255, 0.6)') // Blue glow for fresh water
+                                            : 'none',
+                                    }} />
+                                </div>
                         </div>
 
                     {/* Bidirectional water transfer buttons */}
@@ -1274,19 +1278,23 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
                                 borderRadius: '4px',
                                 overflow: 'hidden',
-                                border: '1px solid rgba(135, 206, 235, 0.3)',
+                                border: ((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater
+                                    ? '1px solid rgba(135, 206, 250, 0.5)' // Lighter cyan border for salt water
+                                    : '1px solid rgba(0, 150, 255, 0.5)', // Blue border for fresh water
                             }}>
                                 <div style={{
                                     width: `${((container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected / 40.0) * 100}%`,
                                     height: '100%',
                                     background: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
                                         ? (((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater
-                                            ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
-                                            : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
+                                            ? 'linear-gradient(90deg, #87ceeb 0%, #a0d4f0 50%, #b8dce8 100%)' // Light cyan gradient for salt water
+                                            : 'linear-gradient(90deg, #0066cc 0%, #0080ff 50%, #0099ff 100%)') // Deep blue gradient for fresh water
                                         : 'transparent',
                                     transition: 'width 0.3s ease',
                                     boxShadow: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
-                                        ? '0 0 8px rgba(135, 206, 235, 0.6)' 
+                                        ? (((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater
+                                            ? '0 0 8px rgba(135, 206, 250, 0.6)' // Cyan glow for salt water
+                                            : '0 0 8px rgba(0, 150, 255, 0.6)') // Blue glow for fresh water
                                         : 'none',
                                 }} />
                             </div>
