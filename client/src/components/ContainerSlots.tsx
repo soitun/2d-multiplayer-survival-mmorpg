@@ -117,7 +117,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                         {containerType === 'rain_collector' && index === 0 && (
                             <div style={{
                                 position: 'absolute',
-                                bottom: '4px',
+                                top: '4px',
                                 left: '4px',
                                 fontSize: '14px',
                                 zIndex: 5,

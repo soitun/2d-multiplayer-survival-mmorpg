@@ -527,6 +527,45 @@ pub fn transfer_water_from_container_to_collector(ctx: &ReducerContext, collecto
     Ok(())
 }
 
+/// --- Empty Rain Collector Reservoir ---
+/// Empties all water from the rain collector reservoir, resetting it to zero.
+/// Useful for clearing contaminated (salt) water so fresh rainwater can be collected.
+#[spacetimedb::reducer]
+pub fn empty_rain_collector_reservoir(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
+    log::info!("Player {} attempting to empty rain collector {} reservoir", ctx.sender, collector_id);
+
+    // --- Validate interaction ---
+    let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
+
+    // --- Check if there's any water to empty ---
+    if collector.total_water_collected <= 0.0 {
+        return Err("Rain collector reservoir is already empty.".to_string());
+    }
+
+    // --- Capture values before emptying ---
+    let water_spilled = collector.total_water_collected;
+    let was_salt_water = collector.is_salt_water;
+    let collector_pos_x = collector.pos_x;
+    let collector_pos_y = collector.pos_y;
+
+    // --- Empty the reservoir ---
+    collector.total_water_collected = 0.0;
+    collector.is_salt_water = false; // Reset to fresh water state
+
+    // --- Update the collector ---
+    ctx.db.rain_collector().id().update(collector);
+
+    // --- Emit spilling sound effect ---
+    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender);
+
+    log::info!("Successfully emptied {:.1}L of {} water from rain collector {}", 
+               water_spilled, 
+               if was_salt_water { "salt" } else { "fresh" }, 
+               collector_id);
+
+    Ok(())
+}
+
 /// --- Update All Rain Collectors During Rain Events ---
 /// DEPRECATED: This function is no longer used with the chunk-based weather system.
 /// Rain collectors are now updated per-chunk in world_state::update_rain_collectors_in_chunk()

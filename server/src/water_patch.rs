@@ -187,9 +187,15 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
     let container_def = ctx.db.item_definition().id().find(&container_item.item_def_id)
         .ok_or_else(|| "Container definition not found".to_string())?;
     
-    // Check if container can be used for watering
-    if !can_water_with_container(&container_item, &container_def) {
-        return Err("This container cannot be used for watering or doesn't have enough water".to_string());
+    // Check if it's a valid water container type
+    if container_def.name != "Reed Water Bottle" && container_def.name != "Plastic Water Jug" {
+        return Err("This container cannot be used for watering".to_string());
+    }
+    
+    // Check if container has any water at all
+    let current_water = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    if current_water <= 0.0 {
+        return Err("Water container is empty".to_string());
     }
     
     // Calculate where the water should be placed
@@ -221,15 +227,20 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
     let is_salt_water = crate::items::is_salt_water(&container_item);
     
     // Consume water from container first (before checking interactions)
-    let current_water = crate::items::get_water_content(&container_item).unwrap_or(0.0);
-    let new_water_content = current_water - WATER_CONSUMPTION_PER_USE;
+    // Use the minimum of available water or standard consumption amount
+    let water_to_consume = current_water.min(WATER_CONSUMPTION_PER_USE);
+    let new_water_content = current_water - water_to_consume;
     
-    if new_water_content <= 0.0 {
+    if new_water_content <= 0.001 { // Account for floating point precision
         // Container is now empty, remove water content
         crate::items::clear_water_content(&mut container_item);
+        log::info!("Water container {} emptied completely (had {:.3}L, used {:.3}L)", 
+                   container_instance_id, current_water, water_to_consume);
     } else {
         // Update water content, preserving salt water status
         crate::items::set_water_content_with_salt(&mut container_item, new_water_content, is_salt_water)?;
+        log::info!("Water container {} now has {:.3}L (used {:.3}L)", 
+                   container_instance_id, new_water_content, water_to_consume);
     }
     
     ctx.db.inventory_item().instance_id().update(container_item);

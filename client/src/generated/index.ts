@@ -99,6 +99,8 @@ import { DropItemFromLanternSlotToWorld } from "./drop_item_from_lantern_slot_to
 export { DropItemFromLanternSlotToWorld };
 import { DropItemFromStashSlotToWorld } from "./drop_item_from_stash_slot_to_world_reducer.ts";
 export { DropItemFromStashSlotToWorld };
+import { EmptyRainCollectorReservoir } from "./empty_rain_collector_reservoir_reducer.ts";
+export { EmptyRainCollectorReservoir };
 import { EquipArmor } from "./equip_armor_reducer.ts";
 export { EquipArmor };
 import { EquipArmorFromDrag } from "./equip_armor_from_drag_reducer.ts";
@@ -1936,6 +1938,10 @@ const REMOTE_MODULE = {
       reducerName: "drop_item_from_stash_slot_to_world",
       argsType: DropItemFromStashSlotToWorld.getTypeScriptAlgebraicType(),
     },
+    empty_rain_collector_reservoir: {
+      reducerName: "empty_rain_collector_reservoir",
+      argsType: EmptyRainCollectorReservoir.getTypeScriptAlgebraicType(),
+    },
     equip_armor: {
       reducerName: "equip_armor",
       argsType: EquipArmor.getTypeScriptAlgebraicType(),
@@ -2796,6 +2802,7 @@ export type Reducer = never
 | { name: "DropItemFromHearthSlotToWorld", args: DropItemFromHearthSlotToWorld }
 | { name: "DropItemFromLanternSlotToWorld", args: DropItemFromLanternSlotToWorld }
 | { name: "DropItemFromStashSlotToWorld", args: DropItemFromStashSlotToWorld }
+| { name: "EmptyRainCollectorReservoir", args: EmptyRainCollectorReservoir }
 | { name: "EquipArmor", args: EquipArmor }
 | { name: "EquipArmorFromDrag", args: EquipArmorFromDrag }
 | { name: "EquipArmorFromInventory", args: EquipArmorFromInventory }
@@ -3518,6 +3525,22 @@ export class RemoteReducers {
 
   removeOnDropItemFromStashSlotToWorld(callback: (ctx: ReducerEventContext, stashId: number, slotIndex: number) => void) {
     this.connection.offReducer("drop_item_from_stash_slot_to_world", callback);
+  }
+
+  emptyRainCollectorReservoir(collectorId: number) {
+    const __args = { collectorId };
+    let __writer = new __BinaryWriter(1024);
+    EmptyRainCollectorReservoir.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("empty_rain_collector_reservoir", __argsBuffer, this.setCallReducerFlags.emptyRainCollectorReservoirFlags);
+  }
+
+  onEmptyRainCollectorReservoir(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.onReducer("empty_rain_collector_reservoir", callback);
+  }
+
+  removeOnEmptyRainCollectorReservoir(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.offReducer("empty_rain_collector_reservoir", callback);
   }
 
   equipArmor(itemInstanceId: bigint) {
@@ -6767,6 +6790,11 @@ export class SetReducerFlags {
   dropItemFromStashSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
   dropItemFromStashSlotToWorld(flags: __CallReducerFlags) {
     this.dropItemFromStashSlotToWorldFlags = flags;
+  }
+
+  emptyRainCollectorReservoirFlags: __CallReducerFlags = 'FullUpdate';
+  emptyRainCollectorReservoir(flags: __CallReducerFlags) {
+    this.emptyRainCollectorReservoirFlags = flags;
   }
 
   equipArmorFlags: __CallReducerFlags = 'FullUpdate';

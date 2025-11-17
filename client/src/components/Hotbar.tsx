@@ -79,6 +79,7 @@ interface TooltipState {
       hunger: number;
     };
     waterContentMl?: number; // Water content in mL for water containers
+    waterCapacityMl?: number; // Water capacity in mL for water containers
     isSaltWater?: boolean; // Whether the water container has salt water
   } | null;
   position: {
@@ -1054,13 +1055,21 @@ const Hotbar: React.FC<HotbarProps> = ({
 
     // Calculate water content for water containers
     let waterContentMl: number | undefined = undefined;
+    let waterCapacityMl: number | undefined = undefined;
     let isSaltWaterValue: boolean | undefined = undefined;
-    if (isWaterContainer(item.definition.name) && hasWaterContent(item.instance)) {
+    if (isWaterContainer(item.definition.name)) {
       const maxCapacityLiters = getWaterCapacity(item.definition.name);
       const maxCapacityMl = maxCapacityLiters * 1000; // Convert liters to mL
-      const waterLevelPercentage = getWaterLevelPercentage(item.instance, item.definition.name);
-      waterContentMl = Math.round(waterLevelPercentage * maxCapacityMl);
-      isSaltWaterValue = isSaltWater(item.instance);
+      waterCapacityMl = maxCapacityMl;
+      
+      if (hasWaterContent(item.instance)) {
+        const waterLevelPercentage = getWaterLevelPercentage(item.instance, item.definition.name);
+        waterContentMl = Math.round(waterLevelPercentage * maxCapacityMl);
+        isSaltWaterValue = isSaltWater(item.instance);
+      } else {
+        waterContentMl = 0; // Empty container
+        isSaltWaterValue = false;
+      }
     }
 
     // Update tracking ref if requested
@@ -1080,6 +1089,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         quantity: item.instance.quantity,
         consumableStats,
         waterContentMl,
+        waterCapacityMl,
         isSaltWater: isSaltWaterValue
       },
       position: position || prev.position
@@ -1096,12 +1106,18 @@ const Hotbar: React.FC<HotbarProps> = ({
         // Calculate current values
         let currentWaterContentMl: number | undefined = undefined;
         let currentIsSaltWater: boolean | undefined = undefined;
-        if (isWaterContainer(item.definition.name) && hasWaterContent(item.instance)) {
+        if (isWaterContainer(item.definition.name)) {
           const maxCapacityLiters = getWaterCapacity(item.definition.name);
           const maxCapacityMl = maxCapacityLiters * 1000; // Convert liters to mL
-          const waterLevelPercentage = getWaterLevelPercentage(item.instance, item.definition.name);
-          currentWaterContentMl = Math.round(waterLevelPercentage * maxCapacityMl);
-          currentIsSaltWater = isSaltWater(item.instance);
+          
+          if (hasWaterContent(item.instance)) {
+            const waterLevelPercentage = getWaterLevelPercentage(item.instance, item.definition.name);
+            currentWaterContentMl = Math.round(waterLevelPercentage * maxCapacityMl);
+            currentIsSaltWater = isSaltWater(item.instance);
+          } else {
+            currentWaterContentMl = 0; // Empty container
+            currentIsSaltWater = false;
+          }
         }
         
         const currentInstanceId = BigInt(item.instance.instanceId);
@@ -1480,9 +1496,9 @@ const Hotbar: React.FC<HotbarProps> = ({
               )}
             </div>
           )}
-          {tooltip.content.waterContentMl !== undefined && (
+          {tooltip.content.waterContentMl !== undefined && tooltip.content.waterCapacityMl !== undefined && (
             <div style={{ fontSize: '10px', color: 'rgba(100, 200, 255, 0.9)', marginBottom: '2px' }}>
-              {tooltip.content.isSaltWater ? '🌊' : '💧'} {tooltip.content.waterContentMl} mL
+              {tooltip.content.isSaltWater ? '🌊' : '💧'} {tooltip.content.waterContentMl} / {tooltip.content.waterCapacityMl} mL
             </div>
           )}
           <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}>

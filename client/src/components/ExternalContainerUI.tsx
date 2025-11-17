@@ -8,6 +8,8 @@
 
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import styles from './InventoryUI.module.css'; // Reuse styles for now
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUp, faArrowDown, faDroplet } from '@fortawesome/free-solid-svg-icons';
 
 // Import Custom Components
 import ContainerSlots from './ContainerSlots';
@@ -483,6 +485,15 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     // Track if privilege toggle is in progress to prevent double-clicks
     const [isTogglingPrivilege, setIsTogglingPrivilege] = useState(false);
+
+    // Track empty reservoir confirmation dialog
+    const [showEmptyReservoirConfirm, setShowEmptyReservoirConfirm] = useState(false);
+    const [pendingEmptyReservoirId, setPendingEmptyReservoirId] = useState<number | null>(null);
+    const [pendingEmptyReservoirInfo, setPendingEmptyReservoirInfo] = useState<{
+        waterAmount: number;
+        waterType: string;
+        isSalt: boolean;
+    } | null>(null);
 
     // Handle grant building privilege for matron's chest
     // CRITICAL FIX: Add debouncing and proper error handling
@@ -991,10 +1002,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                             )}
                                         </div>
                                     )}
-                                    {/* Water icon in bottom left */}
+                                    {/* Water icon in top left */}
                                     <div style={{
                                         position: 'absolute',
-                                        bottom: '4px',
+                                        top: '4px',
                                         left: '4px',
                                         fontSize: '14px',
                                         zIndex: 5,
@@ -1039,10 +1050,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                     onMouseMove={onExternalItemMouseMove}
                                                 />
                                             )}
-                                            {/* Generic ingredient icon in bottom left */}
+                                            {/* Generic ingredient icon in top left */}
                                             <div style={{
                                                 position: 'absolute',
-                                                bottom: '4px',
+                                                top: '4px',
                                                 left: '4px',
                                                 fontSize: '14px',
                                                 zIndex: 5,
@@ -1113,11 +1124,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                     onMouseMove={onExternalItemMouseMove}
                                                 />
                                             )}
-                                            {/* Soup icon in bottom left for output slot when empty */}
+                                            {/* Soup icon in top left for output slot when empty */}
                                             {!outputItem && (
                                                 <div style={{
                                                     position: 'absolute',
-                                                    bottom: '4px',
+                                                    top: '4px',
                                                     left: '4px',
                                                     fontSize: '14px',
                                                     zIndex: 5,
@@ -1214,6 +1225,36 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             </div>
                         )}
 
+                        {/* Seawater Warning - shown when pot has seawater and ingredients */}
+                        {!attachedBrothPot.isCooking && 
+                         attachedBrothPot.isSeawater && 
+                         attachedBrothPot.waterLevelMl >= 1000 &&
+                         (brothPotItems.some(item => item !== null)) && (
+                            <div style={{
+                                marginTop: '8px',
+                                marginBottom: '12px',
+                                padding: '8px 12px',
+                                backgroundColor: 'rgba(135, 206, 250, 0.15)',
+                                border: '1px solid rgba(135, 206, 250, 0.5)',
+                                borderRadius: '4px',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: '#87CEEB',
+                                    fontStyle: 'italic',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                }}>
+                                    <span style={{ fontSize: '14px' }}>🌊</span>
+                                    <span>Cannot brew with salt water - Desalinate first!</span>
+                                    <span style={{ fontSize: '14px' }}>🌊</span>
+                                </div>
+                            </div>
+                        )}
+
                     {/* Bidirectional water transfer buttons */}
                     <button
                         onClick={() => {
@@ -1228,9 +1269,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         }}
                         disabled={!waterContainerItem || attachedBrothPot.waterLevelMl <= 0}
                         className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     >
-                        ⬆️ Transfer Water INTO Container
+                        <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Field Cauldron
                     </button>
 
                     <button
@@ -1246,9 +1287,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         }}
                         disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
                         className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                        style={{ width: '100%', marginBottom: '12px', textShadow: 'none' }}
+                        style={{ width: '100%', marginBottom: '12px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     >
-                        ⬇️ Transfer Water INTO Pot
+                        <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Field Cauldron
                     </button>
 
                         {/* Broth pot info and actions */}
@@ -1273,10 +1314,13 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                         console.error("Error picking up broth pot:", e);
                                     }
                                 }}
-                                className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                                style={{ width: '100%', marginTop: '8px' }}
+                                className={`${styles.interactionButton} ${styles.extinguishButton}`}
+                                style={{ width: '100%', marginTop: '8px', textShadow: 'none' }}
+                                title={attachedBrothPot.waterLevelMl > 0 
+                                    ? `⚠️ WARNING: Picking up will spill ${attachedBrothPot.waterLevelMl}ml of water! (No confirmation for quick PvP escapes)` 
+                                    : "Pick up the Field Cauldron and return it to your inventory"}
                             >
-                                Pick Up Broth Pot
+                                Pick Up Broth Pot {attachedBrothPot.waterLevelMl > 0 ? '(Will Spill Water!)' : ''}
                             </button>
                         </div>
                     </div>
@@ -1362,9 +1406,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                      !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected <= 0}
                             className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
-                            ⬇️ 💧 Transfer Water INTO Container
+                            <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Rain Collector
                         </button>
 
                         <button
@@ -1381,15 +1425,39 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                      !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected >= 40.0}
                             className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
-                            ⬆️ 💧 Transfer Water INTO Reservoir
+                            <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Rain Collector
+                        </button>
+
+                        {/* Empty Reservoir Button - for clearing contaminated water */}
+                        <button
+                            onClick={() => {
+                                if (!connection?.reducers || container.containerId === null) return;
+                                const rainCollectorIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                                
+                                // Show styled confirmation dialog
+                                const collector = container.containerEntity as SpacetimeDBRainCollector;
+                                const isSalt = ((collector as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater;
+                                const waterAmount = Math.round(collector.totalWaterCollected * 1000);
+                                const waterType = isSalt ? 'salt water' : 'fresh water';
+                                
+                                setPendingEmptyReservoirId(rainCollectorIdNum);
+                                setPendingEmptyReservoirInfo({ waterAmount, waterType, isSalt });
+                                setShowEmptyReservoirConfirm(true);
+                            }}
+                            disabled={(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected <= 0}
+                            className={`${styles.interactionButton} ${styles.extinguishButton}`}
+                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            title="Empty all water from the reservoir. Useful for clearing salt water contamination."
+                        >
+                            <FontAwesomeIcon icon={faDroplet} /> Empty Reservoir (Spill All Water)
                         </button>
                         
                 </>
             )}
 
-                {/* Broth pot pickup button - only show when empty */}
+                {/* Broth pot pickup button - show with warning if has contents */}
                 {container.containerType === 'broth_pot' && (
                     <>
                         {(() => {
@@ -1399,26 +1467,33 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                           !brothPot.ingredientInstanceId1 && 
                                           !brothPot.ingredientInstanceId2;
                             
-                            if (isEmpty) {
-                                return (
-                                    <button
-                                        onClick={() => {
-                                            if (!connection?.reducers || container.containerId === null) return;
-                                            const brothPotIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
-                                            try {
-                                                connection.reducers.pickupBrothPot(brothPotIdNum);
-                                            } catch (e: any) {
-                                                console.error("Error picking up broth pot:", e);
-                                            }
-                                        }}
-                                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                                        style={{ marginTop: '8px' }}
-                                    >
-                                        Pick Up Broth Pot
-                                    </button>
-                                );
-                            }
-                            return null;
+                            return (
+                                <button
+                                    onClick={() => {
+                                        if (!connection?.reducers || container.containerId === null) return;
+                                        const brothPotIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                                        
+                                        // Play spill sound immediately if there's water (client-side instant feedback)
+                                        const hadWater = brothPot.waterLevelMl > 0;
+                                        if (hadWater) {
+                                            playImmediateSound('filling_container', 1.2);
+                                        }
+                                        
+                                        try {
+                                            connection.reducers.pickupBrothPot(brothPotIdNum);
+                                        } catch (e: any) {
+                                            console.error("Error picking up broth pot:", e);
+                                        }
+                                    }}
+                                    className={`${styles.interactionButton} ${isEmpty ? styles.lightFireButton : styles.extinguishButton}`}
+                                    style={{ marginTop: '8px', textShadow: 'none' }}
+                                    title={!isEmpty 
+                                        ? `⚠️ WARNING: Picking up will spill ${brothPot.waterLevelMl}ml of water and drop ingredients! (No confirmation for quick PvP escapes)` 
+                                        : "Pick up the Field Cauldron and return it to your inventory"}
+                                >
+                                    Pick Up Broth Pot {!isEmpty ? '(Will Spill Contents!)' : ''}
+                                </button>
+                            );
                         })()}
                 </>
             )}
@@ -1604,6 +1679,182 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                     {/* Slots are hidden, only show the surface button above */}
                 </div>
             )}
+
+            {/* Empty Reservoir Confirmation Dialog */}
+            {showEmptyReservoirConfirm && pendingEmptyReservoirInfo && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000,
+                        backdropFilter: 'blur(4px)',
+                    }}
+                    onClick={() => setShowEmptyReservoirConfirm(false)}
+                >
+                    <div 
+                        style={{
+                            background: 'linear-gradient(145deg, rgba(40, 20, 60, 0.98), rgba(30, 15, 50, 0.99))',
+                            border: pendingEmptyReservoirInfo.isSalt ? '2px solid #87CEEB' : '2px solid #ff6666',
+                            borderRadius: '12px',
+                            padding: '30px',
+                            maxWidth: '450px',
+                            textAlign: 'center',
+                            boxShadow: pendingEmptyReservoirInfo.isSalt 
+                                ? '0 0 40px rgba(135, 206, 250, 0.4), inset 0 0 20px rgba(135, 206, 250, 0.1)'
+                                : '0 0 40px rgba(255, 102, 102, 0.4), inset 0 0 20px rgba(255, 102, 102, 0.1)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Warning scan line */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: '2px',
+                            background: pendingEmptyReservoirInfo.isSalt
+                                ? 'linear-gradient(90deg, transparent, #87CEEB, transparent)'
+                                : 'linear-gradient(90deg, transparent, #ff6666, transparent)',
+                            animation: 'scanLine 2s linear infinite',
+                        }} />
+                        
+                        <div style={{
+                            color: pendingEmptyReservoirInfo.isSalt ? '#87CEEB' : '#ff9999',
+                            fontSize: '18px',
+                            marginBottom: '15px',
+                            textShadow: pendingEmptyReservoirInfo.isSalt 
+                                ? '0 0 10px rgba(135, 206, 250, 0.8)'
+                                : '0 0 10px rgba(255, 153, 153, 0.8)',
+                            fontFamily: '"Press Start 2P", cursive',
+                            letterSpacing: '1px',
+                        }}>
+                            {pendingEmptyReservoirInfo.isSalt ? '🌊 SPILL SALT WATER?' : '⚠️ SPILL FRESH WATER?'}
+                        </div>
+                        
+                        <div style={{
+                            color: '#ffffff',
+                            fontSize: '14px',
+                            lineHeight: '1.8',
+                            marginBottom: '25px',
+                            padding: '20px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                            borderRadius: '8px',
+                            border: pendingEmptyReservoirInfo.isSalt
+                                ? '1px solid rgba(135, 206, 250, 0.3)'
+                                : '1px solid rgba(255, 102, 102, 0.3)',
+                            fontFamily: '"Press Start 2P", cursive',
+                        }}>
+                            You are about to spill <strong style={{ color: pendingEmptyReservoirInfo.isSalt ? '#87CEEB' : '#66ccff' }}>{pendingEmptyReservoirInfo.waterAmount}ml</strong> of <strong>{pendingEmptyReservoirInfo.waterType}</strong> from the rain collector.
+                            <br /><br />
+                            {pendingEmptyReservoirInfo.isSalt ? (
+                                <>This will clear the salt water contamination and allow fresh rainwater to be collected.</>
+                            ) : (
+                                <>This will permanently destroy this fresh water. Consider transferring it to containers first!</>
+                            )}
+                            <br /><br />
+                            <span style={{ color: '#ff6666' }}>This action cannot be undone.</span>
+                        </div>
+
+                        <div style={{
+                            display: 'flex',
+                            gap: '15px',
+                            justifyContent: 'center',
+                        }}>
+                            <button
+                                onClick={() => {
+                                    if (connection?.reducers && pendingEmptyReservoirId !== null) {
+                                        try {
+                                            (connection.reducers as any).emptyRainCollectorReservoir(pendingEmptyReservoirId);
+                                            playImmediateSound('filling_container', 1.2);
+                                        } catch (e: any) {
+                                            console.error("Error emptying rain collector reservoir:", e);
+                                        }
+                                    }
+                                    setShowEmptyReservoirConfirm(false);
+                                    setPendingEmptyReservoirId(null);
+                                    setPendingEmptyReservoirInfo(null);
+                                }}
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(120, 20, 40, 0.8), rgba(80, 10, 30, 0.9))',
+                                    color: '#ffffff',
+                                    border: '2px solid #ff6666',
+                                    borderRadius: '8px',
+                                    padding: '15px 25px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(255, 102, 102, 0.3), inset 0 0 10px rgba(255, 102, 102, 0.1)',
+                                    textShadow: '0 0 5px currentColor',
+                                    letterSpacing: '1px',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(150, 30, 50, 0.9), rgba(100, 15, 35, 1))';
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 102, 102, 0.6), inset 0 0 15px rgba(255, 102, 102, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 20, 40, 0.8), rgba(80, 10, 30, 0.9))';
+                                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 102, 102, 0.3), inset 0 0 10px rgba(255, 102, 102, 0.1)';
+                                }}
+                            >
+                                CONFIRM SPILL
+                            </button>
+                            
+                            <button
+                                onClick={() => {
+                                    setShowEmptyReservoirConfirm(false);
+                                    setPendingEmptyReservoirId(null);
+                                    setPendingEmptyReservoirInfo(null);
+                                }}
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(20, 40, 80, 0.8), rgba(10, 30, 70, 0.9))',
+                                    color: '#ffffff',
+                                    border: '2px solid #00aaff',
+                                    borderRadius: '8px',
+                                    padding: '15px 25px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(0, 170, 255, 0.3), inset 0 0 10px rgba(0, 170, 255, 0.1)',
+                                    textShadow: '0 0 5px currentColor',
+                                    letterSpacing: '1px',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30, 50, 100, 0.9), rgba(15, 40, 90, 1))';
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 170, 255, 0.6), inset 0 0 15px rgba(0, 170, 255, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20, 40, 80, 0.8), rgba(10, 30, 70, 0.9))';
+                                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 170, 255, 0.3), inset 0 0 10px rgba(0, 170, 255, 0.1)';
+                                }}
+                            >
+                                KEEP WATER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes scanLine {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+            `}</style>
         </div>
     );
 };
