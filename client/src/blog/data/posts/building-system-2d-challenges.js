@@ -146,10 +146,21 @@ export default {
     <h2>Embracing the Constraints</h2>
     
     <p>Building in 2D isn't about trying to replicate 3D building systems - it's about finding what works uniquely well in a top-down perspective. The automatic ceiling generation, the enclosure detection algorithm, the emphasis on horizontal layout strategy - these are solutions that only make sense in 2D.</p>
-    
+
     <p>As we continue development, we're excited to see how players push the building system in unexpected directions. Maybe the future of Broth & Bullets isn't about towering fortresses, but about sprawling farming communes and intricate trap mazes. We'll find out together.</p>
-    
+
     <p>And honestly? That's the fun part of game development - discovering what your game wants to be, even when it's different from what you initially imagined.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Learn more about Broth & Bullets' interconnected survival systems:</p>
+
+    <ul>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/armor-system-design">Armor System: More Than Just Protection</a> - Another example of meaningful survival mechanics</li>
+      <li><a href="/blog/building-2d-multiplayer-survival-games-guide">Complete Guide to Building 2D Multiplayer Survival Games</a> - Comprehensive tutorial</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture enabling real-time building</li>
+    </ul>
   `,
   tags: ["Development", "Building System", "Game Design", "Technical", "2D Challenges", "Algorithms"]
 };

@@ -15,7 +15,7 @@ interface BlogPost {
   date: string;
   author: string;
   excerpt: string;
-  coverImage: string;
+  coverImage?: string;
   content: string;
   tags: string[];
 }

@@ -259,6 +259,18 @@ export default {
     <p>Your feedback will directly shape development of features like the Field Cauldron system, combat mechanics, and expanded building systems. This is your chance to influence the direction of the game while it's still in early development.</p>
     
     <p>Thanks for checking out Broth & Bullets!</p>
+
+    <h2>🔗 Deep Dive Articles</h2>
+
+    <p>Want to learn more about specific systems in Broth & Bullets?</p>
+
+    <ul>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture deep dive</li>
+      <li><a href="/blog/field-cauldron-mechanics">The Field Cauldron: Brewing Innovation in Survival Gameplay</a> - Cooking system mechanics</li>
+      <li><a href="/blog/armor-system-design">Armor System: More Than Just Protection</a> - Combat and survival systems</li>
+      <li><a href="/blog/minimap-spatial-subscriptions">The Hardlight Map: Spatial Awareness in a 2D World</a> - Minimap implementation</li>
+    </ul>
   `,
   tags: ["Alpha Launch", "Broth & Bullets", "SpacetimeDB", "Survival Games", "Multiplayer Gaming", "AI Assistant", "React", "Game Development", "PvP", "Crafting System", "3D Audio", "Wildlife AI", "Alpha Testing", "Seasonal Farming"]
 }; 

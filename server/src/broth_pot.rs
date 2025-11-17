@@ -445,12 +445,25 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
     
     // Check if pot has ingredients or output (water can spill)
-    let has_ingredients = broth_pot.ingredient_instance_id_0.is_some() ||
-                         broth_pot.ingredient_instance_id_1.is_some() ||
-                         broth_pot.ingredient_instance_id_2.is_some();
-    let has_output = broth_pot.output_item_instance_id.is_some();
+    // CRITICAL: Check if items actually exist, not just if slot IDs are present (ghost references)
+    let items = ctx.db.inventory_item();
+    let has_ingredients = 
+        (broth_pot.ingredient_instance_id_0.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_0.unwrap()).is_some()) ||
+        (broth_pot.ingredient_instance_id_1.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_1.unwrap()).is_some()) ||
+        (broth_pot.ingredient_instance_id_2.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_2.unwrap()).is_some());
+    let has_output = broth_pot.output_item_instance_id.is_some() && 
+                     items.instance_id().find(&broth_pot.output_item_instance_id.unwrap()).is_some();
     
     if has_ingredients || has_output {
+        // Play error sound for instant feedback
+        let _ = sound_events::emit_sound_at_position(
+            ctx,
+            sound_events::SoundType::ErrorCantPickUpCauldron,
+            broth_pot.pos_x,
+            broth_pot.pos_y,
+            1.0, // volume
+            ctx.sender,
+        );
         return Err("Cannot pickup broth pot - it must be empty of ingredients and output (water will spill).".to_string());
     }
     
@@ -1382,8 +1395,9 @@ pub fn process_broth_pot_logic_scheduled(
                 let new_water = (current_water + water_to_add_ml).min(broth_pot.max_water_capacity_ml as f32);
                 
                 // --- Reset seawater status when collecting fresh rainwater ---
-                // Rain is always fresh water, so if we're adding water and pot was empty, reset to fresh
-                if current_water <= 0.0 {
+                // Rain is always fresh water. If pot was empty OR had less than 500ml (trace amounts),
+                // the fresh rainwater dilutes/replaces it completely
+                if current_water < 500.0 {
                     broth_pot.is_seawater = false;
                 }
                 
@@ -1701,6 +1715,11 @@ pub fn process_broth_pot_logic_scheduled(
             // Consume 1000mL (1L) of water
             broth_pot.water_level_ml = broth_pot.water_level_ml.saturating_sub(1000);
             
+            // Reset seawater status if pot is now empty (prevents pot from being stuck as "seawater")
+            if broth_pot.water_level_ml <= 0 {
+                broth_pot.is_seawater = false;
+            }
+            
             // Capture output name for logging
             let output_name = recipe_match.tier.output_name.clone();
             
@@ -1726,6 +1745,9 @@ pub fn process_broth_pot_logic_scheduled(
        broth_pot.water_level_ml >= 1000 &&
        !broth_pot.is_seawater {  // Can't brew with salt water!
         
+        log::debug!("[BrothPot] Pot {} checking if can start brewing (water: {}ml, seawater: {})", 
+                   broth_pot_id, broth_pot.water_level_ml, broth_pot.is_seawater);
+        
         // Check if campfire is burning
         let campfire_is_burning = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
             ctx.db.campfire().id().find(&campfire_id)
@@ -1733,6 +1755,8 @@ pub fn process_broth_pot_logic_scheduled(
         } else {
             false
         };
+        
+        log::debug!("[BrothPot] Pot {} campfire burning: {}", broth_pot_id, campfire_is_burning);
         
         if campfire_is_burning {
             // Try to match a recipe

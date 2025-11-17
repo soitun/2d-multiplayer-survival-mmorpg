@@ -151,6 +151,17 @@ export default {
     <p>While I understand we're suppoed to be set in a tundra environment, we've got some work to do on the terrain system. Since scrapping the old system and focusing so much on core gameplay functionality, we've neglected the rich procedural generation system we had before. However, we plan on building it from scratch with some even cooler SpacetimeDB integrations that will make the world generation more dynamic and responsive than ever before.</p>
     
     <p>Stay tuned for our alpha build announcement - things are about to get a lot more interesting.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Explore more about Broth & Bullets and SpacetimeDB:</p>
+
+    <ul>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB Instead of Traditional Game Servers</a> - Complete technical architecture story</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development journey</li>
+      <li><a href="/blog/spacetimedb-tutorial-build-multiplayer-game-30-minutes">SpacetimeDB Tutorial: Build a Multiplayer Game in 30 Minutes</a> - Get started with SpacetimeDB</li>
+      <li><a href="/blog/spatial-subscriptions-multiplayer-games">Implementing Spatial Subscriptions in Multiplayer Games</a> - Technical deep dive</li>
+    </ul>
   `,
   tags: ["SpacetimeDB", "Game Development", "Technical Innovation", "Visual Overhaul", "Dynamic Weather", "PvP Combat", "Alpha Build", "Multiplayer Architecture"]
 };

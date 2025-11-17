@@ -11,9 +11,30 @@ import buildingSystem2DChallenges from './posts/building-system-2d-challenges';
 import armorSystemDesign from './posts/armor-system-design';
 import customBabushkaArtDirection from './posts/custom-babushka-art-direction';
 import minimapSpatialSubscriptions from './posts/minimap-spatial-subscriptions';
+// AI SEO Optimized Posts - SpacetimeDB Focused
+import spacetimedbTutorial30Minutes from './posts/spacetimedb-tutorial-30-minutes';
+import spacetimedbVsFirebaseComparison from './posts/spacetimedb-vs-firebase-comparison';
+import spatialSubscriptionsMultiplayerGames from './posts/spatial-subscriptions-multiplayer-games';
+import building2DMultiplayerSurvivalGamesGuide from './posts/building-2d-multiplayer-survival-games-guide';
+// AI SEO Optimized Posts - Broth Bullets Focused
+import howWeBuiltBrothBullets from './posts/how-we-built-broth-bullets';
+import babushkaArtDirectionBrothBullets from './posts/babushka-art-direction-broth-bullets';
+import brothBulletsSpacetimedbArchitecture from './posts/broth-bullets-spacetimedb-architecture';
+import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-cooking-system-emergent-gameplay';
 
 // Export posts as an array, sorted by date (newest first)
 export const blogPosts = [
+  // AI SEO Optimized Posts - Broth Bullets Focused (November 17, 2025)
+  brothBulletsCookingSystemEmergentGameplay, // Cooking system deep dive
+  brothBulletsSpacetimedbArchitecture, // Why we chose SpacetimeDB
+  babushkaArtDirectionBrothBullets, // Art direction and visual style
+  howWeBuiltBrothBullets, // Complete development story
+  // AI SEO Optimized Posts - SpacetimeDB Focused (November 17, 2025)
+  building2DMultiplayerSurvivalGamesGuide, // Complete guide
+  spatialSubscriptionsMultiplayerGames, // Spatial subscriptions implementation
+  spacetimedbVsFirebaseComparison, // SpacetimeDB vs Firebase
+  spacetimedbTutorial30Minutes, // 30-minute tutorial
+  // Original Posts
   minimapSpatialSubscriptions, // November 17, 2025 - Minimap System
   customBabushkaArtDirection, // November 16, 2025 - Custom Art Direction
   fieldCauldronMechanics, // November 16, 2025

@@ -10,7 +10,7 @@ interface BlogPost {
   date: string;
   author: string;
   excerpt: string;
-  coverImage: string;
+  coverImage?: string;
 }
 
 interface BlogPostPreviewProps {
@@ -33,11 +33,24 @@ function BlogPostPreview({ post }: BlogPostPreviewProps) {
 
   return (
     <article className="blog-post-preview">
-      <Link to={`/blog/${slug}`} className="blog-post-link">
-        <div className="blog-post-image-container">
-          <img src={coverImage} alt={title} className="blog-post-cover-image" />
-        </div>
-      </Link>
+      {coverImage && coverImage.trim() !== "" && (
+        <Link to={`/blog/${slug}`} className="blog-post-link">
+          <div className="blog-post-image-container">
+            <img 
+              src={coverImage} 
+              alt={title} 
+              className="blog-post-cover-image"
+              onError={(e) => {
+                // Hide the entire image container if the image fails to load
+                const container = e.currentTarget.closest('.blog-post-image-container');
+                if (container && container.parentElement) {
+                  container.parentElement.style.display = 'none';
+                }
+              }}
+            />
+          </div>
+        </Link>
+      )}
 
       <div className="blog-post-content">
         <div className="blog-post-main-content">

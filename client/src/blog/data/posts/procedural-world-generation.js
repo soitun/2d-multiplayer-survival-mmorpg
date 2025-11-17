@@ -88,6 +88,17 @@ export default {
     <p>Players will need to weigh the strategic value of controlling these areas against the risks of conflict they attract. A babushka able to secure a geothermal vent gains significant advantages in cooking and survival, but will need to defend it against others seeking the same benefits.</p>
     
     <p>In our next development update, we'll dive deeper into how these procedural systems interact with player-built structures and the persistent elements of our world.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Learn more about Broth & Bullets' world and systems:</p>
+
+    <ul>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story including world design</li>
+      <li><a href="/blog/resource-system-implementation">Resource System: From Harvest to Inventory</a> - How resources are distributed in the world</li>
+      <li><a href="/blog/building-system-2d-challenges">Building in 2D: Solving the Shelter Problem</a> - Player structures in the procedural world</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture enabling dynamic worlds</li>
+    </ul>
   `,
   tags: ["Development", "World Generation", "Game Design", "Technical", "Terrain Features"]
 }; 

@@ -134,8 +134,19 @@ export default {
     <h2>Looking Ahead</h2>
     
     <p>With the core resource and inventory systems now fully functional, we're excited to expand the variety of harvestable nodes, refine the processing mechanics, and begin implementing the crafting recipes that will form the backbone of player progression.</p>
-    
+
     <p>Our next development sprint will focus on the tools system and expanding the AI-driven cauldron mechanics to add more depth to the resource processing pipeline.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Discover how resources integrate with other Broth & Bullets systems:</p>
+
+    <ul>
+      <li><a href="/blog/field-cauldron-mechanics">The Field Cauldron: Brewing Innovation in Survival Gameplay</a> - How resources become powerful consumables</li>
+      <li><a href="/blog/broth-bullets-cooking-system-emergent-gameplay">Creating Emergent Gameplay: The Broth & Bullets Cooking System</a> - AI-powered recipe generation</li>
+      <li><a href="/blog/armor-system-design">Armor System: More Than Just Protection</a> - Crafting armor from gathered resources</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+    </ul>
   `,
   tags: ["Development", "Resource System", "Inventory", "Game Design", "Technical", "AI Integration"]
 };

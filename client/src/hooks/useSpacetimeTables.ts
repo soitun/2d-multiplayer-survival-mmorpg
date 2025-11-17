@@ -469,6 +469,7 @@ export const useSpacetimeTables = ({
                             // console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
                             handles.forEach(safeUnsubscribe);
                             spatialSubsRef.current.delete(chunkIndex);
+                            subscribedChunksRef.current.delete(chunkIndex); // CRITICAL FIX: Remove from subscribed set
                         }
                         chunkUnsubscribeTimersRef.current.delete(chunkIndex);
                     }, CHUNK_UNSUBSCRIBE_DELAY_MS);
@@ -481,9 +482,9 @@ export const useSpacetimeTables = ({
                 // --- Handle Added Chunks ---
                 addedChunks.forEach(chunkIndex => {
                     // Cancel any pending unsubscribe timer for this chunk (it's back!)
-                    const existingTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
-                    if (existingTimer) {
-                        clearTimeout(existingTimer);
+                    const pendingUnsubTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
+                    if (pendingUnsubTimer) {
+                        clearTimeout(pendingUnsubTimer);
                         chunkUnsubscribeTimersRef.current.delete(chunkIndex);
                         // console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
                         // IMPORTANT: Even if timer was cancelled, verify we're still subscribed
@@ -495,18 +496,20 @@ export const useSpacetimeTables = ({
                         // If timer was cancelled but we're not subscribed, fall through to resubscribe
                     }
 
-                    // Only subscribe if we're not already subscribed
-                    if (spatialSubsRef.current.has(chunkIndex)) {
-                        return; // Already subscribed
+                    // Check if we're already subscribed (double-check after timer cancellation)
+                    const alreadySubscribed = spatialSubsRef.current.has(chunkIndex);
+                    
+                    if (alreadySubscribed) {
+                        return; // Already subscribed, skip
                     }
                     
                     const subStartTime = performance.now(); // PERF: Track subscription timing
-                    // Only log chunk subscription creation for debugging if needed
-                    // console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex}`);
+                    // console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!existingTimer})`);
                     
                     const newHandlesForChunk = subscribeToChunk(chunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
+                        subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed
                         
                         // PERF: Log subscription timing
                         const subTime = performance.now() - subStartTime;
@@ -1653,6 +1656,7 @@ export const useSpacetimeTables = ({
                                 console.error("Batched subscriptions are disabled, but non-batched initial subscription is not fully implemented in this path.");
                             }
                             spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
+                            subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed during initial load
                         } catch (error) {
                             newHandlesForChunk.forEach(safeUnsubscribe);
                             console.error(`[CHUNK_ERROR] Failed to create initial subscriptions for chunk ${chunkIndex}:`, error);
@@ -1663,7 +1667,7 @@ export const useSpacetimeTables = ({
                 subscribeToInitialChunks([...newChunkIndicesSet]);
                 
                 currentChunksRef.current = [...newChunkIndicesSet];
-                newChunkIndicesSet.forEach(chunkIndex => subscribedChunksRef.current.add(chunkIndex));
+                // subscribedChunksRef is now updated inside subscribeToInitialChunks for each chunk
                 lastSpatialUpdateRef.current = performance.now(); // Set initial timestamp
 
             } else {

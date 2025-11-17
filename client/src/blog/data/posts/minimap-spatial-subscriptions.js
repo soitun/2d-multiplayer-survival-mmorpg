@@ -38,7 +38,7 @@ export default {
 
     <p>Here's where it gets interesting from a technical perspective. How do you efficiently stream resource data to the client without overwhelming the connection or causing lag spikes?</p>
 
-    <p>Enter SpacetimeDB's chunk-based subscription system. Instead of subscribing to every single entity in the world (which would be insane), we subscribe to spatial chunks - grid squares that contain entities. As you move around the world, the client automatically subscribes to nearby chunks and unsubscribes from distant ones.</p>
+    <p>Enter SpacetimeDB's chunk-based subscription system. Instead of subscribing to every single entity in the world (which would be insane), we subscribe to spatial chunks - grid squares that contain entities. As you move around the world, the client automatically subscribes to nearby chunks and unsubscribes from distant ones. For a detailed guide on implementing this pattern, see our <a href="/blog/spatial-subscriptions-multiplayer-games">spatial subscriptions tutorial</a>.</p>
 
     <p>Here's a peek at how we handle this in our codebase:</p>
 
@@ -113,6 +113,17 @@ const getChunkIndicesForViewportWithBuffer = (viewport, bufferChunks = 1) => {
     </ul>
 
     <p>The foundation is solid, and SpacetimeDB's spatial subscription system makes all of this straightforward to implement. The reducer architecture handles the heavy lifting - clean, declarative queries that automatically stay in sync across all clients.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Want to learn more about the technical systems behind Broth & Bullets?</p>
+
+    <ul>
+      <li><a href="/blog/spatial-subscriptions-multiplayer-games">Implementing Spatial Subscriptions in Multiplayer Games</a> - Deep dive into the chunk-based subscription system</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Our complete technical architecture story</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/building-2d-multiplayer-survival-games-guide">Complete Guide to Building 2D Multiplayer Survival Games</a> - Comprehensive tutorial</li>
+    </ul>
 
     <h2>💬 Join the Discussion</h2>
 

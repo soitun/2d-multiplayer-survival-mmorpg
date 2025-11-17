@@ -18,7 +18,7 @@ interface BlogPost {
   date: string;
   author: string;
   excerpt: string;
-  coverImage: string;
+  coverImage?: string;
   content: string;
   tags: string[];
 }
@@ -86,12 +86,14 @@ function BlogPostPage() {
     
     const images = [];
     
-    // Add cover image first
-    images.push({
-      src: coverImage,
-      alt: title,
-      caption: title
-    });
+    // Add cover image first (only if it exists)
+    if (coverImage && coverImage.trim() !== "") {
+      images.push({
+        src: coverImage,
+        alt: title,
+        caption: title
+      });
+    }
     
     // Add content images
     imgElements.forEach((img) => {
@@ -224,9 +226,21 @@ function BlogPostPage() {
               </div>
             </header>
             
-            <div className="blog-post-cover" onClick={() => openGallery(0)} style={{ cursor: 'pointer' }}>
-              <img src={coverImage} alt={title} />
-            </div>
+            {coverImage && coverImage.trim() !== "" && (
+              <div className="blog-post-cover" onClick={() => openGallery(0)} style={{ cursor: 'pointer' }}>
+                <img 
+                  src={coverImage} 
+                  alt={title}
+                  onError={(e) => {
+                    // Hide the cover image container if the image fails to load
+                    const container = e.currentTarget.closest('.blog-post-cover');
+                    if (container) {
+                      (container as HTMLElement).style.display = 'none';
+                    }
+                  }}
+                />
+              </div>
+            )}
             
             <div 
               className="blog-post-article-content"

@@ -54,6 +54,7 @@ pub enum SoundType {
     FoundationTwigDestroyed,   // twig_foundation_destroyed.mp3 (1 variation - when twig foundation is destroyed)
     ItemThrown,                // item_thrown.mp3 (1 variation - when a weapon/item is thrown)
     ErrorResources,           // error_resources.mp3 (1 variation - when player doesn't have enough resources)
+    ErrorCantPickUpCauldron,  // error_cant_pick_up_cauldron.mp3 (1 variation - when trying to pick up cauldron with contents)
     DoneCooking,              // done_cooking.mp3 (1 variation - when items finish cooking in campfire)
     SoupBoiling,              // soup_boiling.mp3 (1 variation - looping sound while soup is brewing)
     ErrorJarPlacement,       // error_jar_placement.mp3 (1 variation - when trying to place jar back in output slot)
@@ -113,6 +114,7 @@ impl SoundType {
             SoundType::FoundationTwigDestroyed => "twig_foundation_destroyed",
             SoundType::ItemThrown => "item_thrown",
             SoundType::ErrorResources => "error_resources",
+            SoundType::ErrorCantPickUpCauldron => "error_cant_pick_up_cauldron",
             SoundType::DoneCooking => "done_cooking",
             SoundType::SoupBoiling => "soup_boiling",
             SoundType::ErrorJarPlacement => "error_jar_placement",
@@ -170,6 +172,7 @@ impl SoundType {
             SoundType::FoundationTwigDestroyed => 1,
             SoundType::ItemThrown => 1,
             SoundType::ErrorResources => 3, // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
+            SoundType::ErrorCantPickUpCauldron => 1, // error_cant_pick_up_cauldron.mp3 (single variation)
             SoundType::DoneCooking => 1,
             SoundType::SoupBoiling => 1, // soup_boiling.mp3 (single variation - looping sound)
             SoundType::ErrorJarPlacement => 1, // error_jar_placement.mp3 (single variation)
@@ -991,6 +994,13 @@ pub fn emit_error_jar_placement_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f
 pub fn emit_error_broth_not_compatible_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position(ctx, SoundType::ErrorBrothNotCompatible, pos_x, pos_y, 1.0, player_id) {
         log::warn!("Failed to emit error broth not compatible sound: {}", e);
+    }
+}
+
+/// Emit done cooking sound (when items finish cooking in campfire/furnace)
+pub fn emit_done_cooking_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoneCooking, pos_x, pos_y, 1.2, 700.0, player_id) {
+        log::warn!("Failed to emit done cooking sound: {}", e);
     }
 }
 

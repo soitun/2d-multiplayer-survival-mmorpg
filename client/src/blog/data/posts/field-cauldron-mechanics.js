@@ -154,7 +154,7 @@ export default {
     
     <h2>🚀 SpacetimeDB: The Engine Behind the Magic</h2>
     
-    <p>One of the most exciting aspects of developing the Field Cauldron system has been leveraging SpacetimeDB's reducer architecture to create genuinely emergent gameplay interactions. Unlike traditional game servers that require complex state synchronization logic, SpacetimeDB's reducers make it trivial to implement sophisticated systems that interact in real-time.</p>
+    <p>One of the most exciting aspects of developing the Field Cauldron system has been leveraging SpacetimeDB's reducer architecture to create genuinely emergent gameplay interactions. Unlike traditional game servers that require complex state synchronization logic, SpacetimeDB's reducers make it trivial to implement sophisticated systems that interact in real-time. Learn more about our technical architecture in <a href="/blog/broth-bullets-spacetimedb-architecture">why we chose SpacetimeDB</a>.</p>
     
     <h3>🌧️ Real-Time Environmental Interactions</h3>
     
@@ -216,8 +216,19 @@ export default {
     
     <p>The Field Cauldron is more than a feature - it's the heart of what makes Broth & Bullets unique in the crowded survival genre. We can't wait to see what recipes players discover when they get their hands on it.</p>
     
+    <h2>🔗 Related Articles</h2>
+
+    <p>Dive deeper into Broth & Bullets' systems and design philosophy:</p>
+
+    <ul>
+      <li><a href="/blog/broth-bullets-cooking-system-emergent-gameplay">Creating Emergent Gameplay: The Broth & Bullets Cooking System</a> - Deep dive into AI recipe generation and emergent gameplay</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture behind the real-time systems</li>
+      <li><a href="/blog/resource-system-implementation">Resource System: From Harvest to Inventory</a> - How resources integrate with cooking</li>
+    </ul>
+
     <h2>🎮 Join the Alpha</h2>
-    
+
     <p>Broth & Bullets is currently in active development with alpha testing ongoing. <a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer">Join our Discord</a> to stay updated on development progress, participate in test weekends, and be among the first to experiment with the Field Cauldron system when it goes live.</p>
   `,
   tags: ["Development", "Game Mechanics", "Field Cauldron", "Cooking System", "Survival", "Game Design", "SpacetimeDB", "Technical"]

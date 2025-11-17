@@ -277,6 +277,17 @@ export default {
     <p>For players seeking the most innovative mechanics that create truly unique experiences every time you play, Broth & Bullets represents the future of the genre. Its semantic generation system creates something genuinely new in a genre that has seen relatively incremental innovation over the past decade.</p>
     
     <p>Are you ready to experience the next evolution in survival crafting? Join the Broth & Bullets early access program and discover how AI is transforming survival gameplay.</p>
+
+    <h2>🔗 Learn More About Broth & Bullets</h2>
+
+    <p>Interested in learning more about what makes Broth & Bullets unique?</p>
+
+    <ul>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/broth-bullets-cooking-system-emergent-gameplay">Creating Emergent Gameplay: The Broth & Bullets Cooking System</a> - Our signature AI-powered cooking system</li>
+      <li><a href="/blog/babushka-art-direction-broth-bullets">Babushka Art Direction: Creating Broth & Bullets' Unique Visual Style</a> - Our distinctive art style</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture behind the innovation</li>
+    </ul>
   `,
   tags: ["2D Survival Games", "Game Comparison", "Don't Starve Together", "Terraria", "Oxygen Not Included", "Broth & Bullets", "Cataclysm Dark Days Ahead", "Top 10", "Game Rankings", "Survival Crafting"]
 }; 

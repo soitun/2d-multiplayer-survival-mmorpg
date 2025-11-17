@@ -201,6 +201,17 @@ export default {
     <p>This is where decisions get made, where we share early prototypes, and where the community helps shape what Broth & Bullets becomes. Don't just read about the development - be part of it.</p>
     
     <p><a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join the Broth & Bullets Discord</a></p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Explore more about Broth & Bullets' art and design philosophy:</p>
+
+    <ul>
+      <li><a href="/blog/babushka-art-direction-broth-bullets">Babushka Art Direction: Creating Broth & Bullets' Unique Visual Style</a> - Our complete art direction story</li>
+      <li><a href="/blog/babushka-sprite-evolution">The Evolution of Our Babushka: From Simple Sprites to Battle-Hardened Matriarchs</a> - Character design journey</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/armor-system-design">Armor System: More Than Just Protection</a> - Visual customization challenges</li>
+    </ul>
   `,
   tags: ["Pixel Art", "Art Direction", "Game Development", "Character Design", "Visual Style", "Development Process", "Hand-Crafted"]
 };

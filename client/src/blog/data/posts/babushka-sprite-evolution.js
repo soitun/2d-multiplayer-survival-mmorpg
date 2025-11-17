@@ -89,6 +89,17 @@ export default {
     <p>This will allow players to create unique-looking babushkas while still maintaining the core visual identity that makes our characters instantly recognizable.</p>
     
     <p>The evolution of our character sprites represents our commitment to creating a game world that feels authentic, distinctive, and charged with personality. After all, if you're going to spend hours fighting for survival as a babushka, that babushka better have style!</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Dive deeper into Broth & Bullets' art and design:</p>
+
+    <ul>
+      <li><a href="/blog/babushka-art-direction-broth-bullets">Babushka Art Direction: Creating Broth & Bullets' Unique Visual Style</a> - Our complete art direction philosophy</li>
+      <li><a href="/blog/custom-babushka-art-direction">Crafting Our Babushka: A Journey Toward a Unique Art Style</a> - Hand-pixeling process and future plans</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/armor-system-design">Armor System: More Than Just Protection</a> - Visual customization in gameplay</li>
+    </ul>
   `,
   tags: ["Pixel Art", "Character Design", "Game Development", "Sprites", "Animation", "Art Process"]
 }; 

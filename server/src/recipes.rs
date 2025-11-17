@@ -11,6 +11,7 @@ use spacetimedb::{ReducerContext, log, Table};
 use crate::broth_pot::BrothPot;
 use crate::sound_events;
 use crate::items::item_definition as ItemDefinitionTableTrait;
+use crate::items::inventory_item as InventoryItemTableTrait;
 
 /// Recipe tier information - defines how recipe output changes based on ingredient count
 #[derive(Clone, Debug)]
@@ -80,8 +81,10 @@ fn get_stone_soup_recipe() -> Recipe {
 }
 
 /// Collect ingredient names from a broth pot
+/// Only returns names for items that actually exist (not deleted/consumed)
 pub fn collect_ingredient_names(ctx: &ReducerContext, broth_pot: &BrothPot) -> Result<Vec<String>, String> {
     let item_defs = ctx.db.item_definition();
+    let items = ctx.db.inventory_item();
     let mut ingredient_names = Vec::new();
     
     let ingredient_slots = [
@@ -91,9 +94,12 @@ pub fn collect_ingredient_names(ctx: &ReducerContext, broth_pot: &BrothPot) -> R
     ];
     
     for (instance_id_opt, def_id_opt) in ingredient_slots.iter() {
-        if let (Some(_instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
-            if let Some(item_def) = item_defs.id().find(def_id) {
-                ingredient_names.push(item_def.name.clone());
+        if let (Some(instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
+            // CRITICAL: Check if the item actually exists (it might have been consumed/deleted)
+            if let Some(_item) = items.instance_id().find(instance_id) {
+                if let Some(item_def) = item_defs.id().find(def_id) {
+                    ingredient_names.push(item_def.name.clone());
+                }
             }
         }
     }
@@ -102,8 +108,10 @@ pub fn collect_ingredient_names(ctx: &ReducerContext, broth_pot: &BrothPot) -> R
 }
 
 /// Count occurrences of a specific ingredient in a broth pot
+/// Counts the total QUANTITY of items across all slots, not just number of slots
 pub fn count_ingredient(ctx: &ReducerContext, broth_pot: &BrothPot, ingredient_name: &str) -> u32 {
     let item_defs = ctx.db.item_definition();
+    let items = ctx.db.inventory_item();
     let mut count = 0;
     
     let ingredient_slots = [
@@ -113,10 +121,14 @@ pub fn count_ingredient(ctx: &ReducerContext, broth_pot: &BrothPot, ingredient_n
     ];
     
     for (instance_id_opt, def_id_opt) in ingredient_slots.iter() {
-        if let (Some(_instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
-            if let Some(item_def) = item_defs.id().find(def_id) {
-                if item_def.name == ingredient_name {
-                    count += 1;
+        if let (Some(instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
+            // CRITICAL: Check if the item actually exists (it might have been consumed/deleted)
+            if let Some(item) = items.instance_id().find(instance_id) {
+                if let Some(item_def) = item_defs.id().find(def_id) {
+                    if item_def.name == ingredient_name {
+                        // Count the actual quantity, not just the slot
+                        count += item.quantity;
+                    }
                 }
             }
         }
@@ -130,6 +142,8 @@ pub fn count_ingredient(ctx: &ReducerContext, broth_pot: &BrothPot, ingredient_n
 pub fn match_recipe(ctx: &ReducerContext, broth_pot: &BrothPot) -> Option<RecipeMatch> {
     let recipes = get_all_recipes();
     let ingredient_names = collect_ingredient_names(ctx, broth_pot).ok()?;
+    
+    log::info!("[RecipeMatcher] Pot {} has ingredients: {:?}", broth_pot.id, ingredient_names);
     
     // Try each recipe
     for recipe in recipes {
@@ -148,6 +162,9 @@ pub fn match_recipe(ctx: &ReducerContext, broth_pot: &BrothPot) -> Option<Recipe
         
         // Count primary ingredient occurrences
         let primary_count = count_ingredient(ctx, broth_pot, &recipe.primary_ingredient);
+        
+        log::info!("[RecipeMatcher] Recipe '{}' primary ingredient '{}' count: {}", 
+                   recipe.name, recipe.primary_ingredient, primary_count);
         
         if primary_count == 0 {
             continue;
@@ -169,6 +186,8 @@ pub fn match_recipe(ctx: &ReducerContext, broth_pot: &BrothPot) -> Option<Recipe
         }
         
         if let Some(tier) = best_tier {
+            log::info!("[RecipeMatcher] ✓ Matched recipe '{}' tier '{}' (needs {} ingredients, have {})", 
+                       recipe.name, tier.output_name, tier.min_ingredient_count, primary_count);
             return Some(RecipeMatch {
                 recipe: recipe.clone(),
                 tier: tier.clone(),
@@ -177,6 +196,7 @@ pub fn match_recipe(ctx: &ReducerContext, broth_pot: &BrothPot) -> Option<Recipe
         }
     }
     
+    log::warn!("[RecipeMatcher] ✗ No recipe matched for pot {}", broth_pot.id);
     None
 }
 

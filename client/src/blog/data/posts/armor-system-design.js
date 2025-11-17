@@ -408,10 +408,21 @@ export default {
     <h2>The Result</h2>
     
     <p>What we've ended up with is an armor system that creates meaningful choices at every step. Do you prioritize speed, protection, or special abilities? Do you mix sets or focus on one? Do you craft early-game cloth armor or save resources for late-game fur sets?</p>
-    
+
     <p>There's no single "best" answer - and that's exactly what we wanted. The armor system should support different playstyles, not dictate them. And from what we're seeing in alpha testing, players are finding creative ways to combine pieces that we didn't even anticipate.</p>
-    
+
     <p>That's the sign of a good system - when players discover strategies you didn't plan for, you know you've created something with depth and flexibility.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Explore more of Broth & Bullets' interconnected survival systems:</p>
+
+    <ul>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/resource-system-implementation">Resource System: From Harvest to Inventory</a> - Gathering materials for crafting armor</li>
+      <li><a href="/blog/building-system-2d-challenges">Building in 2D: Solving the Shelter Problem</a> - Complementary survival mechanics</li>
+      <li><a href="/blog/broth-bullets-spacetimedb-architecture">Why Broth & Bullets Uses SpacetimeDB</a> - Technical architecture enabling complex systems</li>
+    </ul>
   `,
   tags: ["Development", "Armor System", "Game Design", "Combat", "Crafting", "Survival Mechanics", "Technical"]
 };

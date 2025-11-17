@@ -231,7 +231,12 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                  appliance.get_appliance_entity_id(), i, current_item_def.id, progress_data.current_cook_time_secs, progress_data.target_cook_time_secs, progress_data.target_item_def_name);
 
                         if progress_data.current_cook_time_secs >= progress_data.target_cook_time_secs {
-                            cooking_completed_this_tick = true; // Mark that cooking completed (for sound)
+                            // Only play sound for raw → cooked transitions, not for cooked → burnt or burnt → charcoal
+                            let is_desirable_cooking = !progress_data.target_item_def_name.starts_with("Burnt") 
+                                && progress_data.target_item_def_name != "Charcoal";
+                            if is_desirable_cooking {
+                                cooking_completed_this_tick = true; // Mark that cooking completed (for sound)
+                            }
                             match transform_item_in_appliance(ctx, appliance, i, &progress_data.target_item_def_name) {
                                 Ok((transformed_item_def, new_instance_id)) => {
                                     appliance_struct_modified = true; // transform_item_in_appliance might have modified it
@@ -317,9 +322,8 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
     
     // Play cooking completion sound once if any items finished cooking this tick
     if cooking_completed_this_tick {
-        if let Err(e) = sound_events::emit_global_sound(ctx, SoundType::DoneCooking, 0.8) {
-            log::warn!("[ApplianceCooking] Failed to emit cooking completion sound: {}", e);
-        }
+        let (pos_x, pos_y) = appliance.get_appliance_world_position();
+        sound_events::emit_done_cooking_sound(ctx, pos_x, pos_y, ctx.identity());
     }
     
     Ok(appliance_struct_modified)

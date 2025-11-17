@@ -110,6 +110,17 @@ export default {
     <h2>Experience Semantic Generation Yourself</h2>
     
     <p>Broth & Bullets is currently in closed alpha testing, with open beta scheduled for Q3 2025. Players interested in experiencing this innovative crafting system can join our Discord server for the latest development updates and a chance to participate in upcoming test weekends.</p>
+
+    <h2>🔗 Related Articles</h2>
+
+    <p>Learn more about the Field Cauldron and Broth & Bullets' innovative systems:</p>
+
+    <ul>
+      <li><a href="/blog/field-cauldron-mechanics">The Field Cauldron: Brewing Innovation in Survival Gameplay</a> - Complete mechanics breakdown</li>
+      <li><a href="/blog/broth-bullets-cooking-system-emergent-gameplay">Creating Emergent Gameplay: The Broth & Bullets Cooking System</a> - Deep dive into emergent gameplay</li>
+      <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a> - The complete development story</li>
+      <li><a href="/blog/resource-system-implementation">Resource System: From Harvest to Inventory</a> - Gathering ingredients for cooking</li>
+    </ul>
   `,
   tags: ["Survival Games", "Game Innovation", "Broth & Bullets", "AI Integration", "Procedural Generation", "Semantic Crafting"]
 }; 
