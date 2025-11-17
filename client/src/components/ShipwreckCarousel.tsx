@@ -22,7 +22,7 @@ const carouselItems: CarouselItem[] = [
     },
     {
         title: "Cerametal Field Cauldron",
-        description: "Your Scavenger-grade Cerametal Field Cauldron, Mk.I is where you actually brew life-sustaining broths and sterilize contaminated water. Must be placed on a campfire to function, but can cook much faster when positioned over natural geysers and steam vents you discover in the world.",
+        description: "Your Scavenger-grade Cerametal Field Cauldron, Mk.II is where you brew life-sustaining broths and sterilize contaminated water. Must be placed on a campfire to function, but can cook much faster when positioned over natural geysers and steam vents you discover in the world.",
         icon: fieldCauldron,
     },
 ];

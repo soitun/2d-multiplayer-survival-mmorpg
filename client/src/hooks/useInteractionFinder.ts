@@ -770,12 +770,15 @@ export function useInteractionFinder({
                 }
             }
             if (closestRainCollectorId) {
-                candidates.push({
-                    type: 'rain_collector',
-                    id: closestRainCollectorId,
-                    position: { x: 0, y: 0 },
-                    distance: Math.sqrt(closestRainCollectorDistSq)
-                });
+                const rainCollector = rainCollectors?.get(String(closestRainCollectorId));
+                if (rainCollector) {
+                    candidates.push({
+                        type: 'rain_collector',
+                        id: closestRainCollectorId,
+                        position: { x: rainCollector.posX, y: rainCollector.posY },
+                        distance: Math.sqrt(closestRainCollectorDistSq)
+                    });
+                }
             }
             if (closestSleepingBagId) {
                 candidates.push({

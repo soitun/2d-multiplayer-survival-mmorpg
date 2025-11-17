@@ -46,6 +46,7 @@ pub struct WaterPatch {
     pub created_by: Identity,
     pub water_amount: f32, // How much water was used to create this patch (affects duration)
     pub current_opacity: f32, // Visual opacity (1.0 = fully visible, 0.0 = invisible)
+    pub is_salt_water: bool, // Whether this water patch contains salt water (negative effect on crops)
 }
 
 // --- Cleanup Schedule Table ---
@@ -115,8 +116,9 @@ fn has_water_patch_at_location(ctx: &ReducerContext, x: f32, y: f32) -> bool {
 }
 
 /// Get the growth bonus multiplier for a planted seed based on nearby water patches
+/// Returns a multiplier that can be positive (fresh water) or negative (salt water)
 pub fn get_water_patch_growth_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f32) -> f32 {
-    let mut max_bonus: f32 = 1.0; // Base multiplier (no bonus)
+    let mut best_multiplier: f32 = 1.0; // Base multiplier (no effect)
     
     for patch in ctx.db.water_patch().iter() {
         let dx = patch.pos_x - plant_x;
@@ -125,23 +127,31 @@ pub fn get_water_patch_growth_multiplier(ctx: &ReducerContext, plant_x: f32, pla
         let effect_radius_sq = WATER_PATCH_GROWTH_EFFECT_RADIUS * WATER_PATCH_GROWTH_EFFECT_RADIUS;
         
         if distance_sq <= effect_radius_sq {
-            // Calculate bonus based on distance (closer = stronger effect)
+            // Calculate effect strength based on distance (closer = stronger effect)
             let distance = distance_sq.sqrt();
             let distance_factor = (WATER_PATCH_GROWTH_EFFECT_RADIUS - distance) / WATER_PATCH_GROWTH_EFFECT_RADIUS;
             let distance_factor = distance_factor.max(0.0).min(1.0);
             
-            // Calculate bonus based on patch opacity (fresher patches = stronger effect)
+            // Calculate effect strength based on patch opacity (fresher patches = stronger effect)
             let opacity_factor = patch.current_opacity;
             
-            // Combine factors for this patch's bonus
-            let patch_bonus = 1.0 + (GROWTH_BONUS_MULTIPLIER - 1.0) * distance_factor * opacity_factor;
-            
-            // Use the strongest bonus found (non-stacking)
-            max_bonus = max_bonus.max(patch_bonus);
+            if patch.is_salt_water {
+                // Salt water: negative effect (reduces growth)
+                // Maximum penalty: -50% growth (0.5x multiplier) when very close
+                // Minimum penalty: -10% growth (0.9x multiplier) at edge of radius
+                let salt_penalty = 0.5 + (0.4 * (1.0 - distance_factor * opacity_factor));
+                best_multiplier = best_multiplier.min(salt_penalty); // Use worst (lowest) multiplier
+            } else {
+                // Fresh water: positive effect (boosts growth)
+                // Maximum bonus: +100% growth (2.0x multiplier) when very close
+                // Minimum bonus: +15% growth (1.15x multiplier) at edge of radius
+                let fresh_bonus = 1.0 + (GROWTH_BONUS_MULTIPLIER - 1.0) * distance_factor * opacity_factor;
+                best_multiplier = best_multiplier.max(fresh_bonus); // Use best (highest) multiplier
+            }
         }
     }
     
-    max_bonus
+    best_multiplier
 }
 
 // --- Reducers ---
@@ -207,16 +217,19 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
     };
     let (water_x, water_y) = calculate_watering_position(player.position_x, player.position_y, facing_angle);
     
+    // Check if container has salt water before consuming
+    let is_salt_water = crate::items::is_salt_water(&container_item);
+    
     // Consume water from container first (before checking interactions)
     let current_water = crate::items::get_water_content(&container_item).unwrap_or(0.0);
     let new_water_content = current_water - WATER_CONSUMPTION_PER_USE;
     
     if new_water_content <= 0.0 {
         // Container is now empty, remove water content
-        crate::items::set_water_content(&mut container_item, 0.0)?;
+        crate::items::clear_water_content(&mut container_item);
     } else {
-        // Update water content
-        crate::items::set_water_content(&mut container_item, new_water_content)?;
+        // Update water content, preserving salt water status
+        crate::items::set_water_content_with_salt(&mut container_item, new_water_content, is_salt_water)?;
     }
     
     ctx.db.inventory_item().instance_id().update(container_item);
@@ -318,12 +331,18 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
             created_by: player_id,
             water_amount: WATER_CONSUMPTION_PER_USE,
             current_opacity: 1.0, // Start fully visible
+            is_salt_water, // Track if this is salt water (negative effect on crops)
         };
         
         ctx.db.water_patch().insert(water_patch);
         
-        log::info!("Player {} created water patch at ({:.1}, {:.1}) using {:.1}L of water", 
-                   player_id, water_x, water_y, WATER_CONSUMPTION_PER_USE);
+        if is_salt_water {
+            log::info!("Player {} created salt water patch at ({:.1}, {:.1}) using {:.1}L of salt water (will harm crops)", 
+                       player_id, water_x, water_y, WATER_CONSUMPTION_PER_USE);
+        } else {
+            log::info!("Player {} created water patch at ({:.1}, {:.1}) using {:.1}L of water", 
+                       player_id, water_x, water_y, WATER_CONSUMPTION_PER_USE);
+        }
         
         // Emit watering sound effect
         crate::sound_events::emit_watering_sound(ctx, water_x, water_y, player_id);

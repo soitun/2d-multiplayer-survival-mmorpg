@@ -778,6 +778,12 @@ fn update_all_rain_collectors(
         let water_after = collector.total_water_collected;
         collector.last_collection_time = Some(ctx.timestamp);
         
+        // --- Reset salt water status when collecting fresh rainwater ---
+        // Rain is always fresh water, so if we're adding water and collector was empty, reset to fresh
+        if water_before <= 0.0 {
+            collector.is_salt_water = false;
+        }
+        
         // Update the collector in the database
         ctx.db.rain_collector().id().update(collector);
         updated_count += 1;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone } from '../generated';
 import styles from './PlantedSeedTooltip.module.css';
 
 interface PlantedSeedTooltipProps {
@@ -15,6 +15,7 @@ interface PlantedSeedTooltipProps {
   lanterns: Map<string, Lantern>;
   furnaces: Map<string, Furnace>;
   trees: Map<string, Tree>; // Added for mushroom tree cover check
+  runeStones: Map<string, RuneStone>; // Added for rune stone growth boost check
 }
 
 const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({ 
@@ -28,7 +29,8 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   campfires,
   lanterns,
   furnaces,
-  trees
+  trees,
+  runeStones
 }) => {
   if (!visible || !seed) {
     return null;
@@ -94,21 +96,48 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return cloudCoverage;
   };
   
-  // Check if seed is near water
-  const isNearWater = (): boolean => {
-    const waterCheckRadius = 50; // pixels
+  // Check if seed is near water and calculate water patch effect
+  const getWaterPatchEffect = (): { hasWater: boolean; isSaltWater: boolean; multiplier: number } => {
+    const WATER_PATCH_GROWTH_EFFECT_RADIUS = 60; // pixels (matching server constant)
+    const WATER_PATCH_GROWTH_EFFECT_RADIUS_SQ = WATER_PATCH_GROWTH_EFFECT_RADIUS * WATER_PATCH_GROWTH_EFFECT_RADIUS;
+    
+    let bestMultiplier = 1.0; // Base multiplier (no effect)
+    let hasWater = false;
+    let isSaltWater = false;
     
     for (const waterPatch of waterPatches.values()) {
       const dx = seed.posX - waterPatch.posX;
       const dy = seed.posY - waterPatch.posY;
       const distanceSq = dx * dx + dy * dy;
       
-      if (distanceSq <= waterCheckRadius * waterCheckRadius) {
-        return true;
+      if (distanceSq <= WATER_PATCH_GROWTH_EFFECT_RADIUS_SQ) {
+        hasWater = true;
+        
+        // Calculate effect strength based on distance (closer = stronger effect)
+        const distance = Math.sqrt(distanceSq);
+        const distanceFactor = Math.max(0, Math.min(1, (WATER_PATCH_GROWTH_EFFECT_RADIUS - distance) / WATER_PATCH_GROWTH_EFFECT_RADIUS));
+        
+        // Calculate effect strength based on patch opacity (fresher patches = stronger effect)
+        const opacityFactor = waterPatch.currentOpacity;
+        
+        if ((waterPatch as any).isSaltWater) {
+          // Salt water: negative effect (reduces growth)
+          // Maximum penalty: -50% growth (0.5x multiplier) when very close
+          // Minimum penalty: -10% growth (0.9x multiplier) at edge of radius
+          const saltPenalty = 0.5 + (0.4 * (1.0 - distanceFactor * opacityFactor));
+          bestMultiplier = Math.min(bestMultiplier, saltPenalty);
+          isSaltWater = true;
+        } else {
+          // Fresh water: positive effect (boosts growth)
+          // Maximum bonus: +100% growth (2.0x multiplier) when very close
+          // Minimum bonus: +15% growth (1.15x multiplier) at edge of radius
+          const freshBonus = 1.0 + (1.0 * distanceFactor * opacityFactor); // GROWTH_BONUS_MULTIPLIER = 2.0, so (2.0 - 1.0) = 1.0
+          bestMultiplier = Math.max(bestMultiplier, freshBonus);
+        }
       }
     }
     
-    return false;
+    return { hasWater, isSaltWater, multiplier: bestMultiplier };
   };
   
   // Check nearby light sources
@@ -188,9 +217,33 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return false;
   };
 
+  // Check if seed is within range of a Green (Agrarian) rune stone
+  const isNearGreenRuneStone = (): boolean => {
+    const RUNE_STONE_EFFECT_RADIUS = 2000; // pixels (matching server-side constant)
+    const RUNE_STONE_EFFECT_RADIUS_SQ = RUNE_STONE_EFFECT_RADIUS * RUNE_STONE_EFFECT_RADIUS;
+    
+    for (const runeStone of runeStones.values()) {
+      // Only check Green (Agrarian) rune stones
+      if (runeStone.runeType?.tag !== 'Green') {
+        continue;
+      }
+      
+      const dx = seed.posX - runeStone.posX;
+      const dy = seed.posY - runeStone.posY;
+      const distanceSq = dx * dx + dy * dy;
+      
+      if (distanceSq <= RUNE_STONE_EFFECT_RADIUS_SQ) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const cloudCoverage = calculateCloudCoverage();
-  const nearWater = isNearWater();
+  const waterPatchEffect = getWaterPatchEffect();
   const nearTree = isNearTree();
+  const nearGreenRuneStone = isNearGreenRuneStone();
   const lightEffects = calculateLightEffects();
   const currentWeather = worldState?.currentWeather.tag || 'Clear';
   const currentTimeOfDay = worldState?.timeOfDay.tag || 'Noon';
@@ -330,12 +383,31 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
             </div>
           )}
           
-          {/* Water Proximity */}
-          {nearWater && (
+          {/* Green Rune Stone (Agrarian) Effect */}
+          {nearGreenRuneStone && (
             <div className={styles.conditionRow}>
-              <span className={styles.conditionLabel}>Near Water:</span>
+              <span className={styles.conditionLabel}>Green Rune Stone:</span>
               <span className={`${styles.conditionValue} ${styles.positive}`}>
-                💧 Yes +15%
+                💚 Active +50%
+              </span>
+            </div>
+          )}
+          
+          {/* Water Proximity */}
+          {waterPatchEffect.hasWater && (
+            <div className={styles.conditionRow}>
+              <span className={styles.conditionLabel}>
+                {waterPatchEffect.isSaltWater ? 'Near Salt Water:' : 'Near Water:'}
+              </span>
+              <span className={`${styles.conditionValue} ${
+                waterPatchEffect.isSaltWater ? styles.negative : styles.positive
+              }`}>
+                {waterPatchEffect.isSaltWater ? '🧂 ' : '💧 '}
+                {waterPatchEffect.isSaltWater ? 'Yes ' : 'Yes '}
+                {waterPatchEffect.multiplier < 1.0 
+                  ? `−${Math.round((1.0 - waterPatchEffect.multiplier) * 100)}%`
+                  : `+${Math.round((waterPatchEffect.multiplier - 1.0) * 100)}%`
+                }
               </span>
             </div>
           )}

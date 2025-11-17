@@ -25,11 +25,16 @@ pub const RAIN_COLLECTOR_MAX_HEALTH: f32 = 500.0;
 pub const REED_WATER_BOTTLE_CAPACITY: f32 = 2.0; // 2 liters
 pub const PLASTIC_WATER_JUG_CAPACITY: f32 = 5.0; // 5 liters
 
-// Collection rates per second based on weather type (increased for better gameplay feedback)
-pub const LIGHT_RAIN_COLLECTION_RATE: f32 = 0.3;    // units per second (3x faster)
-pub const MODERATE_RAIN_COLLECTION_RATE: f32 = 0.8; // units per second (2.6x faster)
-pub const HEAVY_RAIN_COLLECTION_RATE: f32 = 1.5;    // units per second (2.5x faster)
-pub const HEAVY_STORM_COLLECTION_RATE: f32 = 2.5;   // units per second (2.5x faster)
+// Collection rates per second based on weather type
+// Balanced for gameplay: Rain collectors fill in 5-10 minutes during heavy rain
+// Light Rain: ~33 minutes to fill (40L / 0.02 = 2000 sec)
+// Moderate Rain: ~13 minutes to fill (40L / 0.05 = 800 sec)
+// Heavy Rain: ~8 minutes to fill (40L / 0.08 = 500 sec)
+// Heavy Storm: ~5.5 minutes to fill (40L / 0.12 = 333 sec)
+pub const LIGHT_RAIN_COLLECTION_RATE: f32 = 0.02;   // units per second
+pub const MODERATE_RAIN_COLLECTION_RATE: f32 = 0.05; // units per second
+pub const HEAVY_RAIN_COLLECTION_RATE: f32 = 0.08;    // units per second
+pub const HEAVY_STORM_COLLECTION_RATE: f32 = 0.12;   // units per second
 
 // --- Container constants ---
 const RAIN_COLLECTOR_NUM_SLOTS: usize = 1; // Single slot for water container
@@ -82,6 +87,7 @@ pub struct RainCollector {
     // --- Collection Tracking ---
     pub total_water_collected: f32, // Lifetime total for statistics
     pub last_collection_time: Option<Timestamp>, // Last time water was collected
+    pub is_salt_water: bool, // True if collected water is salt water
 }
 
 /// Implement ItemContainer trait for RainCollector
@@ -252,6 +258,7 @@ pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x
         last_damaged_by: None,
         total_water_collected: 0.0,
         last_collection_time: None,
+        is_salt_water: false, // Start with fresh water (rain is always fresh)
     };
 
     // --- Insert collector into database ---
@@ -409,15 +416,24 @@ pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(
 
     // --- Calculate how much water to transfer (limited by available water and container capacity) ---
     let water_to_transfer = collector.total_water_collected.min(available_capacity);
-    let new_water_content = current_water + water_to_transfer;
-
-    // --- Fill the container with water ---
-    crate::items::set_water_content(&mut container_item, new_water_content)?;
+    
+    // --- Transfer water preserving salt water status ---
+    // If collector has salt water, it will convert any fresh water in container to salt
+    crate::items::add_water_to_container(&mut container_item, water_to_transfer, collector.is_salt_water)?;
+    
+    // Get the new water content for logging before moving container_item
+    let new_water_content = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    
     items.instance_id().update(container_item);
 
     // --- Reduce collector water by amount transferred ---
     collector.total_water_collected -= water_to_transfer;
     let remaining_collector_water = collector.total_water_collected; // Capture before move
+    
+    // --- Reset salt water status if collector is now empty (fresh rain will be collected) ---
+    if collector.total_water_collected <= 0.0 {
+        collector.is_salt_water = false;
+    }
     
     // --- Capture position before move for sound effect ---
     let collector_pos_x = collector.pos_x;
@@ -430,6 +446,83 @@ pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(
 
     log::info!("Successfully transferred {:.1}L of water to {} (now has {:.1}L/{:.1}L). Collector now has {:.1}L remaining.", 
                water_to_transfer, container_def.name, new_water_content, capacity, remaining_collector_water);
+
+    Ok(())
+}
+
+/// --- Transfer Water from Container to Collector ---
+/// Transfers water FROM the water container slot TO the rain collector reservoir.
+/// This allows emptying containers into the collector to store water for later use.
+#[spacetimedb::reducer]
+pub fn transfer_water_from_container_to_collector(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
+    log::info!("Player {} attempting to transfer water from container to collector {}", ctx.sender, collector_id);
+
+    // --- Validate interaction ---
+    let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
+
+    // --- Check if there's a container in the slot ---
+    let container_instance_id = collector.slot_0_instance_id
+        .ok_or_else(|| "No water container in rain collector.".to_string())?;
+
+    // --- Get the container item ---
+    let items = ctx.db.inventory_item();
+    let mut container_item = items.instance_id().find(&container_instance_id)
+        .ok_or_else(|| "Water container not found.".to_string())?;
+
+    // --- Get container definition ---
+    let item_defs = ctx.db.item_definition();
+    let container_def = item_defs.id().find(&container_item.item_def_id)
+        .ok_or_else(|| "Container definition not found.".to_string())?;
+
+    // --- Get current water content from container ---
+    let container_water_l = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    let container_is_salt = crate::items::is_salt_water(&container_item);
+
+    if container_water_l <= 0.0 {
+        return Err("Water container is empty.".to_string());
+    }
+
+    // --- Calculate how much water can fit in the collector ---
+    let available_capacity = RAIN_COLLECTOR_MAX_WATER - collector.total_water_collected;
+    
+    if available_capacity <= 0.0 {
+        return Err("Rain collector is already full.".to_string());
+    }
+
+    // --- Transfer water (limited by container content and collector capacity) ---
+    let water_to_transfer = container_water_l.min(available_capacity);
+    let new_collector_water = collector.total_water_collected + water_to_transfer;
+    collector.total_water_collected = new_collector_water;
+    
+    // --- Convert collector to salt water if adding salt water, or if it already has salt water ---
+    // Once salt water is added, all water in collector becomes salt
+    if container_is_salt || collector.is_salt_water {
+        collector.is_salt_water = true;
+    }
+
+    // --- Capture values before move ---
+    let collector_pos_x = collector.pos_x;
+    let collector_pos_y = collector.pos_y;
+    
+    // --- Empty the container ---
+    let remaining_container_water = container_water_l - water_to_transfer;
+    if remaining_container_water <= 0.001 {
+        crate::items::clear_water_content(&mut container_item);
+    } else {
+        // Preserve salt water status when emptying partially
+        crate::items::set_water_content_with_salt(&mut container_item, remaining_container_water, container_is_salt)?;
+    }
+    items.instance_id().update(container_item);
+
+    // --- Update the collector ---
+    ctx.db.rain_collector().id().update(collector);
+
+    // --- Emit filling container sound effect ---
+    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender);
+
+    log::info!("Successfully transferred {:.1}L from {} to collector {} (collector now has {:.1}L/{:.1}L, container has {:.1}L remaining)", 
+               water_to_transfer, container_def.name, collector_id, 
+               new_collector_water, RAIN_COLLECTOR_MAX_WATER, remaining_container_water);
 
     Ok(())
 }
@@ -475,6 +568,12 @@ pub fn update_rain_collectors(ctx: &ReducerContext, weather: &crate::world_state
             let water_after = collector.total_water_collected; // Capture final amount before move
             collector.last_collection_time = Some(ctx.timestamp);
             
+            // --- Reset salt water status when collecting fresh rainwater ---
+            // Rain is always fresh water, so if we're adding water and collector was empty, reset to fresh
+            if water_before <= 0.0 {
+                collector.is_salt_water = false;
+            }
+            
             // Update the collector in the database
             ctx.db.rain_collector().id().update(collector);
             updated_count += 1;
@@ -505,8 +604,15 @@ pub fn add_water_to_collector(ctx: &ReducerContext, collector_id: u32, amount: f
     }
 
     // Apply capacity limit
+    let water_before = collector.total_water_collected;
     collector.total_water_collected = (collector.total_water_collected + amount).min(RAIN_COLLECTOR_MAX_WATER);
     collector.last_collection_time = Some(ctx.timestamp);
+    
+    // --- Reset salt water status when collecting fresh rainwater ---
+    // Rain is always fresh water, so if we're adding water and collector was empty, reset to fresh
+    if water_before <= 0.0 {
+        collector.is_salt_water = false;
+    }
     
     // Update the collector in the database
     ctx.db.rain_collector().id().update(collector);

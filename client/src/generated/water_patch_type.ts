@@ -38,6 +38,7 @@ export type WaterPatch = {
   createdBy: __Identity,
   waterAmount: number,
   currentOpacity: number,
+  isSaltWater: boolean,
 };
 let _cached_WaterPatch_type_value: __AlgebraicTypeType | null = null;
 
@@ -62,6 +63,7 @@ export const WaterPatch = {
       { name: "createdBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
       { name: "waterAmount", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "currentOpacity", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "isSaltWater", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_WaterPatch_type_value;
   },

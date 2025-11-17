@@ -453,8 +453,12 @@ import { ToggleStashVisibility } from "./toggle_stash_visibility_reducer.ts";
 export { ToggleStashVisibility };
 import { ToggleTorch } from "./toggle_torch_reducer.ts";
 export { ToggleTorch };
+import { TransferWaterFromContainerToCollector } from "./transfer_water_from_container_to_collector_reducer.ts";
+export { TransferWaterFromContainerToCollector };
 import { TransferWaterFromContainerToPot } from "./transfer_water_from_container_to_pot_reducer.ts";
 export { TransferWaterFromContainerToPot };
+import { TransferWaterFromPotToContainer } from "./transfer_water_from_pot_to_container_reducer.ts";
+export { TransferWaterFromPotToContainer };
 import { UpdateCloudIntensities } from "./update_cloud_intensities_reducer.ts";
 export { UpdateCloudIntensities };
 import { UpdateCloudPositions } from "./update_cloud_positions_reducer.ts";
@@ -2622,9 +2626,17 @@ const REMOTE_MODULE = {
       reducerName: "toggle_torch",
       argsType: ToggleTorch.getTypeScriptAlgebraicType(),
     },
+    transfer_water_from_container_to_collector: {
+      reducerName: "transfer_water_from_container_to_collector",
+      argsType: TransferWaterFromContainerToCollector.getTypeScriptAlgebraicType(),
+    },
     transfer_water_from_container_to_pot: {
       reducerName: "transfer_water_from_container_to_pot",
       argsType: TransferWaterFromContainerToPot.getTypeScriptAlgebraicType(),
+    },
+    transfer_water_from_pot_to_container: {
+      reducerName: "transfer_water_from_pot_to_container",
+      argsType: TransferWaterFromPotToContainer.getTypeScriptAlgebraicType(),
     },
     update_cloud_intensities: {
       reducerName: "update_cloud_intensities",
@@ -2907,7 +2919,9 @@ export type Reducer = never
 | { name: "ToggleLantern", args: ToggleLantern }
 | { name: "ToggleStashVisibility", args: ToggleStashVisibility }
 | { name: "ToggleTorch", args: ToggleTorch }
+| { name: "TransferWaterFromContainerToCollector", args: TransferWaterFromContainerToCollector }
 | { name: "TransferWaterFromContainerToPot", args: TransferWaterFromContainerToPot }
+| { name: "TransferWaterFromPotToContainer", args: TransferWaterFromPotToContainer }
 | { name: "UpdateCloudIntensities", args: UpdateCloudIntensities }
 | { name: "UpdateCloudPositions", args: UpdateCloudPositions }
 | { name: "UpdatePlayerPositionSimple", args: UpdatePlayerPositionSimple }
@@ -6171,6 +6185,22 @@ export class RemoteReducers {
     this.connection.offReducer("toggle_torch", callback);
   }
 
+  transferWaterFromContainerToCollector(collectorId: number) {
+    const __args = { collectorId };
+    let __writer = new __BinaryWriter(1024);
+    TransferWaterFromContainerToCollector.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("transfer_water_from_container_to_collector", __argsBuffer, this.setCallReducerFlags.transferWaterFromContainerToCollectorFlags);
+  }
+
+  onTransferWaterFromContainerToCollector(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.onReducer("transfer_water_from_container_to_collector", callback);
+  }
+
+  removeOnTransferWaterFromContainerToCollector(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.offReducer("transfer_water_from_container_to_collector", callback);
+  }
+
   transferWaterFromContainerToPot(brothPotId: number) {
     const __args = { brothPotId };
     let __writer = new __BinaryWriter(1024);
@@ -6185,6 +6215,22 @@ export class RemoteReducers {
 
   removeOnTransferWaterFromContainerToPot(callback: (ctx: ReducerEventContext, brothPotId: number) => void) {
     this.connection.offReducer("transfer_water_from_container_to_pot", callback);
+  }
+
+  transferWaterFromPotToContainer(brothPotId: number) {
+    const __args = { brothPotId };
+    let __writer = new __BinaryWriter(1024);
+    TransferWaterFromPotToContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("transfer_water_from_pot_to_container", __argsBuffer, this.setCallReducerFlags.transferWaterFromPotToContainerFlags);
+  }
+
+  onTransferWaterFromPotToContainer(callback: (ctx: ReducerEventContext, brothPotId: number) => void) {
+    this.connection.onReducer("transfer_water_from_pot_to_container", callback);
+  }
+
+  removeOnTransferWaterFromPotToContainer(callback: (ctx: ReducerEventContext, brothPotId: number) => void) {
+    this.connection.offReducer("transfer_water_from_pot_to_container", callback);
   }
 
   updateCloudIntensities(scheduleArgs: CloudIntensitySchedule) {
@@ -7391,9 +7437,19 @@ export class SetReducerFlags {
     this.toggleTorchFlags = flags;
   }
 
+  transferWaterFromContainerToCollectorFlags: __CallReducerFlags = 'FullUpdate';
+  transferWaterFromContainerToCollector(flags: __CallReducerFlags) {
+    this.transferWaterFromContainerToCollectorFlags = flags;
+  }
+
   transferWaterFromContainerToPotFlags: __CallReducerFlags = 'FullUpdate';
   transferWaterFromContainerToPot(flags: __CallReducerFlags) {
     this.transferWaterFromContainerToPotFlags = flags;
+  }
+
+  transferWaterFromPotToContainerFlags: __CallReducerFlags = 'FullUpdate';
+  transferWaterFromPotToContainer(flags: __CallReducerFlags) {
+    this.transferWaterFromPotToContainerFlags = flags;
   }
 
   updateCloudIntensitiesFlags: __CallReducerFlags = 'FullUpdate';

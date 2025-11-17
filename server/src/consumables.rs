@@ -15,7 +15,7 @@ use crate::models::ItemLocation; // Added import
 use crate::active_effects::{ActiveConsumableEffect, EffectType, active_consumable_effect as ActiveConsumableEffectTableTrait, cancel_bleed_effects, cancel_health_regen_effects, player_has_cozy_effect, COZY_FOOD_HEALING_MULTIPLIER};
 
 // Import sound system for eating food sound and drinking water sound
-use crate::sound_events::{emit_eating_food_sound, emit_drinking_water_sound};
+use crate::sound_events::{emit_eating_food_sound, emit_drinking_water_sound, emit_throwing_up_sound};
 
 // --- Max Stat Value ---
 pub const MAX_HEALTH_VALUE: f32 = 100.0; // Max value for health
@@ -407,13 +407,22 @@ pub fn consume_filled_water_container(ctx: &ReducerContext, item_instance_id: u6
         return Err("Item is not a water container.".to_string());
     }
 
+    // --- Check if water is salt water ---
+    let is_salt_water = crate::items::is_salt_water(&water_container);
+
     // --- Calculate consumption amount (250mL per sip) ---
     const CONSUMPTION_AMOUNT_LITERS: f32 = 0.25; // 250mL per right-click
     let actual_consumption = water_content.min(CONSUMPTION_AMOUNT_LITERS);
     
     // --- Calculate thirst value ---
-    // Using 15 thirst per liter - scaled for gameplay balance while maintaining realistic proportions
-    let thirst_value = actual_consumption * 15.0;
+    // Salt water dehydrates, fresh water hydrates
+    let thirst_value = if is_salt_water {
+        // Salt water causes dehydration (negative thirst)
+        actual_consumption * -10.0 // Same as drinking sea water directly
+    } else {
+        // Fresh water hydrates
+        actual_consumption * 15.0
+    };
 
     // --- Apply thirst restoration ---
     let old_thirst = player_to_update.thirst;
@@ -427,15 +436,34 @@ pub fn consume_filled_water_container(ctx: &ReducerContext, item_instance_id: u6
     if remaining_water <= 0.001 { // Account for floating point precision
         crate::items::clear_water_content(&mut container_to_update); // Empty the container
     } else {
-        crate::items::set_water_content(&mut container_to_update, remaining_water);
+        // Preserve salt water status when updating remaining water
+        crate::items::set_water_content_with_salt(&mut container_to_update, remaining_water, is_salt_water)?;
     }
     ctx.db.inventory_item().instance_id().update(container_to_update);
 
     // --- Update player ---
     players_table.identity().update(player_to_update.clone());
 
-    // --- Emit drinking water sound ---
-    emit_drinking_water_sound(ctx, player_to_update.position_x, player_to_update.position_y, sender_id);
+    // --- Handle salt water effects ---
+    if is_salt_water {
+        // Salt water - unpleasant throwing up sound
+        crate::sound_events::emit_throwing_up_sound(ctx, player_to_update.position_x, player_to_update.position_y, sender_id);
+        
+        // Apply seawater poisoning effect
+        const SEAWATER_POISONING_DURATION: u32 = 10; // 10 seconds
+        match crate::active_effects::apply_seawater_poisoning_effect(ctx, sender_id, SEAWATER_POISONING_DURATION) {
+            Ok(_) => {
+                log::info!("Applied seawater poisoning effect to player {:?} for {} seconds", 
+                          sender_id, SEAWATER_POISONING_DURATION);
+            }
+            Err(e) => {
+                log::error!("Failed to apply seawater poisoning effect to player {:?}: {}", sender_id, e);
+            }
+        }
+    } else {
+        // Fresh water - normal drinking sound
+        crate::sound_events::emit_drinking_water_sound(ctx, player_to_update.position_x, player_to_update.position_y, sender_id);
+    }
 
     // --- Apply visual drinking effect ---
     const WATER_DRINKING_DURATION: f32 = 2.0; // 2 seconds of shake animation

@@ -137,8 +137,20 @@ export const GameConnectionProvider: React.FC<GameConnectionProviderProps> = ({ 
             return;
         }
         
-        if (connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.CONNECTED) { 
-            console.log("[GameConn LOG] Already connecting or connected - skipping");
+        // Prevent multiple simultaneous connection attempts
+        if (connectionState === ConnectionState.CONNECTING) {
+            console.log("[GameConn LOG] Already connecting - skipping");
+            return;
+        }
+        
+        if (connectionState === ConnectionState.CONNECTED) {
+            console.log("[GameConn LOG] Already connected - skipping");
+            return;
+        }
+        
+        // If we have an existing connection instance, don't create a new one
+        if (connectionInstanceRef.current) {
+            console.log("[GameConn LOG] Connection instance already exists - skipping");
             return;
         }
 
@@ -262,15 +274,22 @@ export const GameConnectionProvider: React.FC<GameConnectionProviderProps> = ({ 
             // Build connection
             const newConnectionInstance = builder.build();
             
+            // Store connection instance immediately so we can clean it up if needed
+            connectionInstanceRef.current = newConnectionInstance;
+            
             // Check if aborted after build
             if (abortController.signal.aborted) {
+                console.log('[GameConn LOG] Connection aborted immediately after build');
                 try {
                     newConnectionInstance?.disconnect();
                 } catch (e) {
                     console.warn('[GameConn] Error disconnecting aborted connection:', e);
                 }
+                connectionInstanceRef.current = null;
                 return;
             }
+            
+            console.log('[GameConn LOG] Connection instance created, waiting for callbacks...');
             
         } catch (err: any) { 
             if (abortController.signal.aborted) return;

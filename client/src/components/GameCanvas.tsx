@@ -2837,6 +2837,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           lanterns={lanterns}
           furnaces={furnaces}
           trees={trees}
+          runeStones={runeStones}
         />
       )}
     </div>

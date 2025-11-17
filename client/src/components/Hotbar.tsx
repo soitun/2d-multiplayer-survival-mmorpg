@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats, BrothPot as SpacetimeDBBrothPot } from '../generated';
 import { Identity, Timestamp } from 'spacetimedb';
-import { isWaterContainer, hasWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
 
 // Import Custom Components
@@ -1217,7 +1217,9 @@ const Hotbar: React.FC<HotbarProps> = ({
                           left: '0px',
                           right: '0px',
                           height: `${waterLevelPercentage * 100}%`,
-                          backgroundColor: 'rgba(0, 150, 255, 0.8)',
+                          backgroundColor: isSaltWater(populatedItem.instance) 
+                            ? 'rgba(135, 206, 250, 0.8)' // Lighter blue for salt water
+                            : 'rgba(0, 150, 255, 0.8)', // Normal blue for fresh water
                           borderRadius: '1px',
                           transition: 'height 0.3s ease-in-out',
                         }}

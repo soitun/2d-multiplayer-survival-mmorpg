@@ -239,16 +239,11 @@ pub fn fill_water_container_from_natural_source(ctx: &ReducerContext, item_insta
     // Validate water drinking (distance, water availability, etc.) - reuse existing validation
     let is_inland_water = validate_water_drinking(ctx, player_id)?;
     
-    // Only allow filling from fresh water sources
-    if !is_inland_water {
-        return Err("Cannot fill water container from salt water. Find a fresh water source (river or lake).".to_string());
-    }
-    
     // Get and validate the water container item
     let items = ctx.db.inventory_item();
     let mut container_item = items.instance_id().find(&item_instance_id)
         .ok_or_else(|| "Water container not found.".to_string())?;
-    
+
     // Verify ownership by checking the item's location
     let owns_item = match &container_item.location {
         crate::models::ItemLocation::Inventory(data) => data.owner_id == player_id,
@@ -287,10 +282,16 @@ pub fn fill_water_container_from_natural_source(ctx: &ReducerContext, item_insta
     
     // Calculate how much water to actually add (limited by container capacity)
     let water_to_add = fill_amount_liters.min(available_capacity);
-    let new_water_content = current_water + water_to_add;
     
-    // Fill the container with water
-    crate::items::set_water_content(&mut container_item, new_water_content)?;
+    // Determine if this is salt water (sea) or fresh water (inland)
+    let is_salt_water = !is_inland_water;
+    
+    // Add water to container, converting existing fresh water to salt if adding salt water
+    crate::items::add_water_to_container(&mut container_item, water_to_add, is_salt_water)?;
+    
+    // Get the new water content for logging before moving container_item
+    let new_water_content = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    
     items.instance_id().update(container_item);
     
     // Emit filling container sound effect at player position for audio feedback

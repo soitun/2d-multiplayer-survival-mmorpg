@@ -1135,13 +1135,50 @@ pub fn get_water_content(item: &InventoryItem) -> Option<f32> {
     None
 }
 
+/// Check if water in container is salt water
+pub fn is_salt_water(item: &InventoryItem) -> bool {
+    if let Some(data_str) = &item.item_data {
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(data_str) {
+            if let Some(is_salt) = json_value.get("is_salt_water") {
+                return is_salt.as_bool().unwrap_or(false);
+            }
+        }
+    }
+    false // Default to fresh water if not specified
+}
+
 /// Set water content for a water container item
+/// If is_salt_water is true, marks the water as salt water
+/// If container already has fresh water, it will be converted to salt water
 pub fn set_water_content(item: &mut InventoryItem, water_liters: f32) -> Result<(), String> {
     let data = serde_json::json!({
         "water_liters": water_liters
     });
     item.item_data = Some(data.to_string());
     Ok(())
+}
+
+/// Set water content with salt water flag
+pub fn set_water_content_with_salt(item: &mut InventoryItem, water_liters: f32, is_salt_water: bool) -> Result<(), String> {
+    let data = serde_json::json!({
+        "water_liters": water_liters,
+        "is_salt_water": is_salt_water
+    });
+    item.item_data = Some(data.to_string());
+    Ok(())
+}
+
+/// Add water to container, preserving salt water status if adding salt water
+/// If adding salt water to container with fresh water, converts all to salt
+pub fn add_water_to_container(item: &mut InventoryItem, water_liters: f32, is_salt_water_param: bool) -> Result<(), String> {
+    let current_water = get_water_content(item).unwrap_or(0.0);
+    let current_is_salt = is_salt_water(item);
+    
+    // If adding salt water, or container already has salt water, mark as salt
+    let final_is_salt = is_salt_water_param || current_is_salt;
+    let new_water = current_water + water_liters;
+    
+    set_water_content_with_salt(item, new_water, final_is_salt)
 }
 
 /// Remove water content from a water container (make it empty)

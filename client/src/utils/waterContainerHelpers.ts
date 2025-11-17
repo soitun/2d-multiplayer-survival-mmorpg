@@ -61,6 +61,23 @@ export function formatWaterContent(item: InventoryItem, itemName: string): strin
 }
 
 /**
+ * Check if water in container is salt water
+ */
+export function isSaltWater(item: InventoryItem): boolean {
+    if (!item.itemData) {
+        return false;
+    }
+
+    try {
+        const data = JSON.parse(item.itemData);
+        return data.is_salt_water === true;
+    } catch (error) {
+        console.error('Failed to parse item data for salt water check:', error);
+        return false;
+    }
+}
+
+/**
  * Calculates the water level percentage (0-1) for visual indicators
  */
 export function getWaterLevelPercentage(item: InventoryItem, itemName: string): number {

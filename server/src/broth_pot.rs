@@ -27,6 +27,8 @@ use crate::environment::calculate_chunk_index;
 use crate::campfire::{campfire as CampfireTableTrait, Campfire};
 use crate::world_state::{WeatherType, get_weather_for_position};
 use crate::sound_events;
+use crate::active_equipment;
+use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
 
 // --- Constants ---
 pub const NUM_INGREDIENT_SLOTS: usize = 3;
@@ -38,14 +40,24 @@ pub const PLAYER_BROTH_POT_INTERACTION_DISTANCE: f32 = 200.0;
 pub const PLAYER_BROTH_POT_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_BROTH_POT_INTERACTION_DISTANCE * PLAYER_BROTH_POT_INTERACTION_DISTANCE;
 
-// --- Rain Collection Constants (similar to rain collectors) ---
+// --- Rain Collection Constants ---
 // Collection rates per second based on weather type (ml per second)
-pub const LIGHT_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 10.0;    // 10ml/sec = 600ml/min
-pub const MODERATE_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 30.0; // 30ml/sec = 1800ml/min
-pub const HEAVY_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 60.0;    // 60ml/sec = 3600ml/min
-pub const HEAVY_STORM_COLLECTION_RATE_ML_PER_SEC: f32 = 100.0;  // 100ml/sec = 6000ml/min
+// Balanced for gameplay: Broth pots fill slower than rain collectors (passive vs active)
+// Should help but not make manual filling redundant
+// Light Rain: ~83 minutes to fill (5000ml / 1.0 = 5000 sec) - very slow, mostly manual
+// Moderate Rain: ~33 minutes to fill (5000ml / 2.5 = 2000 sec)
+// Heavy Rain: ~21 minutes to fill (5000ml / 4.0 = 1250 sec)
+// Heavy Storm: ~14 minutes to fill (5000ml / 6.0 = 833 sec)
+pub const LIGHT_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 1.0;     // 1ml/sec = 60ml/min
+pub const MODERATE_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 2.5;  // 2.5ml/sec = 150ml/min
+pub const HEAVY_RAIN_COLLECTION_RATE_ML_PER_SEC: f32 = 4.0;     // 4ml/sec = 240ml/min
+pub const HEAVY_STORM_COLLECTION_RATE_ML_PER_SEC: f32 = 6.0;    // 6ml/sec = 360ml/min
 
-// Stirring constants
+// Desalination constants
+pub const DESALINATION_RATE_ML_PER_SEC: f32 = 25.0; // 25ml/sec = 1500ml/min = 90L/hour
+// At this rate, a full 5L pot takes ~3.3 minutes to desalinate completely
+
+// Stirring constants   
 pub const STIR_QUALITY_DECAY_RATE_PER_SEC: f32 = 0.05; // 5% per second
 pub const STIR_QUALITY_BOOST_AMOUNT: f32 = 0.3; // 30% boost per stir
 pub const MIN_STIR_QUALITY_FOR_SUCCESS: f32 = 0.3; // Need at least 30% quality
@@ -818,6 +830,13 @@ pub fn quick_move_to_broth_pot_water_container(
     broth_pot.water_container_instance_id = Some(item_instance_id);
     broth_pot.water_container_def_id = Some(item.item_def_id);
 
+    // --- Capture original location for equipment clearing ---
+    let original_location = item.location.clone();
+    let original_equipment_slot_type: Option<crate::models::EquipmentSlotType> = match &original_location {
+        crate::models::ItemLocation::Equipped(ref data) => Some(data.slot_type.clone()),
+        _ => None,
+    };
+
     // --- Update item location to container ---
     item.location = ItemLocation::Container(crate::models::ContainerLocationData {
         container_type: ContainerType::BrothPot,
@@ -825,6 +844,24 @@ pub fn quick_move_to_broth_pot_water_container(
         slot_index: 0, // Water container slot uses index 0
     });
     items.instance_id().update(item);
+
+    // --- Clear original equipment slot if necessary ---
+    if let Some(eq_slot_type) = original_equipment_slot_type {
+        log::info!("[BrothPot QuickMove] Item {} was equipped in slot {:?}, clearing equipment slot.", item_instance_id, eq_slot_type);
+        crate::items::clear_specific_item_from_equipment_slots(ctx, ctx.sender, item_instance_id);
+    }
+
+    // --- Check if the moved item was the active equipped item and clear if so ---
+    let active_equip_table = ctx.db.active_equipment();
+    if let Some(active_equipment_state) = active_equip_table.player_identity().find(ctx.sender) {
+        if active_equipment_state.equipped_item_instance_id == Some(item_instance_id) {
+            log::info!("[BrothPot QuickMove] Item {} was the active equipped item and is now in a container. Clearing active item for player {}.", item_instance_id, ctx.sender);
+            match crate::active_equipment::clear_active_item_reducer(ctx, ctx.sender) {
+                Ok(_) => log::debug!("[BrothPot QuickMove] Successfully cleared active item for {} after item {} moved to container.", ctx.sender, item_instance_id),
+                Err(e) => log::error!("[BrothPot QuickMove] Error clearing active item for {}: {}", ctx.sender, e),
+            }
+        }
+    }
 
     // --- Update broth pot ---
     ctx.db.broth_pot().id().update(broth_pot);
@@ -868,8 +905,9 @@ pub fn transfer_water_from_container_to_pot(
     }
 
     // --- Get current water content from container ---
-    let container_water_ml = crate::items::get_water_content(&container_item)
-        .unwrap_or(0.0) * 1000.0; // Convert liters to ml
+    let container_water_l = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    let container_water_ml = container_water_l * 1000.0; // Convert liters to ml
+    let container_is_salt = crate::items::is_salt_water(&container_item);
 
     if container_water_ml <= 0.0 {
         return Err("Water container is empty.".to_string());
@@ -887,24 +925,25 @@ pub fn transfer_water_from_container_to_pot(
     let new_pot_water_ml = broth_pot.water_level_ml as f32 + water_to_transfer_ml;
     broth_pot.water_level_ml = new_pot_water_ml as u32;
 
+    // --- Convert pot to salt water if adding salt water, or if it already has salt water ---
+    // Once salt water is added, all water in pot becomes salt
+    if container_is_salt || broth_pot.is_seawater {
+        broth_pot.is_seawater = true;
+    }
+
     // --- Capture values before move ---
     let pot_pos_x = broth_pot.pos_x;
     let pot_pos_y = broth_pot.pos_y;
     let max_capacity_ml = broth_pot.max_water_capacity_ml;
     
-    // --- Check if container had seawater (for desalination tracking) ---
-    // Note: We'll need to track this when containers are filled, but for now assume fresh water
-    // TODO: Track seawater when containers are filled from salt water sources
-    let was_seawater = false; // Placeholder - should check container's seawater flag if we add it
-
-    // --- Update seawater status if transferring seawater ---
-    if was_seawater {
-        broth_pot.is_seawater = true;
-    }
-
     // --- Empty the container ---
     let remaining_container_water_l = (container_water_ml - water_to_transfer_ml) / 1000.0;
-    crate::items::set_water_content(&mut container_item, remaining_container_water_l)?;
+    if remaining_container_water_l <= 0.001 {
+        crate::items::clear_water_content(&mut container_item);
+    } else {
+        // Preserve salt water status when emptying partially
+        crate::items::set_water_content_with_salt(&mut container_item, remaining_container_water_l, container_is_salt)?;
+    }
     items.instance_id().update(container_item);
 
     // --- Update the broth pot ---
@@ -919,6 +958,98 @@ pub fn transfer_water_from_container_to_pot(
     log::info!("Successfully transferred {:.1}ml from {} to broth pot {} (now has {:.1}ml/{:.1}ml)", 
                water_to_transfer_ml, container_def.name, broth_pot_id, 
                new_pot_water_ml, max_capacity_ml);
+
+    Ok(())
+}
+
+/// --- Transfer Water from Pot to Container ---
+/// Transfers water FROM the broth pot TO the water container slot.
+/// This allows emptying pot water into containers for storage or removal.
+#[spacetimedb::reducer]
+pub fn transfer_water_from_pot_to_container(
+    ctx: &ReducerContext,
+    broth_pot_id: u32,
+) -> Result<(), String> {
+    log::info!("Player {} attempting to transfer water from pot {} to container", 
+               ctx.sender, broth_pot_id);
+
+    // --- Validate interaction ---
+    let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
+
+    // --- Check if water container slot has an item ---
+    let container_instance_id = broth_pot.water_container_instance_id
+        .ok_or_else(|| "No water container in slot.".to_string())?;
+
+    // --- Check if pot has any water ---
+    if broth_pot.water_level_ml <= 0 {
+        return Err("Broth pot has no water to transfer.".to_string());
+    }
+
+    // --- Get the water container item ---
+    let items = ctx.db.inventory_item();
+    let mut container_item = items.instance_id().find(&container_instance_id)
+        .ok_or_else(|| "Water container not found.".to_string())?;
+
+    // --- Get item definition ---
+    let item_defs = ctx.db.item_definition();
+    let container_def = item_defs.id().find(&container_item.item_def_id)
+        .ok_or_else(|| "Item definition not found.".to_string())?;
+
+    // --- Verify it's a water container ---
+    let allowed_items = ["Reed Water Bottle", "Plastic Water Jug"];
+    if !allowed_items.contains(&container_def.name.as_str()) {
+        return Err(format!("Only water containers can be used. '{}' is not allowed.", container_def.name));
+    }
+
+    // --- Determine container capacity ---
+    let capacity_l = match container_def.name.as_str() {
+        "Reed Water Bottle" => 2.0,
+        "Plastic Water Jug" => 5.0,
+        _ => return Err("Item is not a valid water container.".to_string()),
+    };
+    let capacity_ml = capacity_l * 1000.0;
+
+    // --- Get current water content from container ---
+    let container_water_l = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    let container_water_ml = container_water_l * 1000.0;
+    let available_capacity_ml = capacity_ml - container_water_ml;
+    
+    if available_capacity_ml <= 0.0 {
+        return Err("Water container is already full.".to_string());
+    }
+
+    // --- Transfer water (limited by pot content and container capacity) ---
+    let water_to_transfer_ml = (broth_pot.water_level_ml as f32).min(available_capacity_ml);
+    let water_to_transfer_l = water_to_transfer_ml / 1000.0;
+    let new_pot_water_ml = (broth_pot.water_level_ml as f32) - water_to_transfer_ml;
+    broth_pot.water_level_ml = new_pot_water_ml as u32;
+
+    // --- Capture values before move ---
+    let pot_pos_x = broth_pot.pos_x;
+    let pot_pos_y = broth_pot.pos_y;
+    let max_capacity_ml = broth_pot.max_water_capacity_ml;
+    
+    // --- Fill the container, preserving salt water status ---
+    // If pot has salt water, it will convert any fresh water in container to salt
+    crate::items::add_water_to_container(&mut container_item, water_to_transfer_l, broth_pot.is_seawater)?;
+    
+    // Get the new container water content for logging before moving container_item
+    let new_container_water_l = crate::items::get_water_content(&container_item).unwrap_or(0.0);
+    
+    items.instance_id().update(container_item);
+
+    // --- Update the broth pot ---
+    ctx.db.broth_pot().id().update(broth_pot);
+
+    // --- Emit filling sound effect ---
+    sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender);
+
+    // --- Re-schedule processing if needed ---
+    schedule_next_broth_pot_processing(ctx, broth_pot_id)?;
+
+    log::info!("Successfully transferred {:.1}ml from pot {} to {} (pot now has {:.1}ml/{:.1}ml, container has {:.1}L/{:.1}L)", 
+               water_to_transfer_ml, broth_pot_id, container_def.name,
+               new_pot_water_ml, max_capacity_ml, new_container_water_l, capacity_l);
 
     Ok(())
 }
@@ -970,13 +1101,173 @@ pub fn process_broth_pot_logic_scheduled(
                 // Add water, respecting capacity limit
                 let current_water = broth_pot.water_level_ml as f32;
                 let new_water = (current_water + water_to_add_ml).min(broth_pot.max_water_capacity_ml as f32);
+                
+                // --- Reset seawater status when collecting fresh rainwater ---
+                // Rain is always fresh water, so if we're adding water and pot was empty, reset to fresh
+                if current_water <= 0.0 {
+                    broth_pot.is_seawater = false;
+                }
+                
                 broth_pot.water_level_ml = new_water as u32;
                 
-                log::debug!("[BrothPot] Pot {} collected {:.1}ml during {:?}. Water: {:.1}ml/{:.1}ml", 
+                log::debug!("[BrothPot] Pot {} collected {:.1}ml during {:?}. Water: {:.1}ml/{:.1}ml (fresh: {})", 
                            broth_pot_id, water_to_add_ml, chunk_weather.current_weather, 
-                           broth_pot.water_level_ml, broth_pot.max_water_capacity_ml);
+                           broth_pot.water_level_ml, broth_pot.max_water_capacity_ml, !broth_pot.is_seawater);
             }
         }
+    }
+    
+    // --- Desalination Logic ---
+    // If pot has salt water and is on a burning campfire, desalinate it
+    if broth_pot.is_seawater && broth_pot.water_level_ml > 0 {
+        // Check if campfire is attached and burning
+        let campfire_is_burning = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+            ctx.db.campfire().id().find(&campfire_id)
+                .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
+        } else {
+            false
+        };
+        
+        if campfire_is_burning {
+            broth_pot.is_desalinating = true;
+            
+            // Calculate how much water to desalinate this tick
+            let desalination_rate_ml = DESALINATION_RATE_ML_PER_SEC * elapsed_seconds;
+            let water_to_desalinate_ml = desalination_rate_ml.min(broth_pot.water_level_ml as f32);
+            
+            // Check if there's a container in the water container slot
+            if let Some(container_instance_id) = broth_pot.water_container_instance_id {
+                let items = ctx.db.inventory_item();
+                
+                if let Some(mut container) = items.instance_id().find(&container_instance_id) {
+                    // Get container definition to check capacity
+                    let item_defs = ctx.db.item_definition();
+                    if let Some(container_def) = item_defs.id().find(&container.item_def_id) {
+                        // Verify it's a water container
+                        let allowed_items = ["Reed Water Bottle", "Plastic Water Jug"];
+                        if allowed_items.contains(&container_def.name.as_str()) {
+                            // Determine container capacity
+                            let capacity_l = match container_def.name.as_str() {
+                                "Reed Water Bottle" => 2.0,
+                                "Plastic Water Jug" => 5.0,
+                                _ => 0.0,
+                            };
+                            
+                            // Get current water content in container
+                            let container_water_l = crate::items::get_water_content(&container).unwrap_or(0.0);
+                            let container_water_ml = container_water_l * 1000.0;
+                            let available_capacity_ml = (capacity_l * 1000.0) - container_water_ml;
+                            
+                            if available_capacity_ml > 0.0 {
+                                // Container has space - condense fresh water into container
+                                let fresh_water_to_add_ml = water_to_desalinate_ml.min(available_capacity_ml);
+                                let fresh_water_to_add_l = fresh_water_to_add_ml / 1000.0;
+                                
+                                // Check if container currently has salt water
+                                let container_current_is_salt = crate::items::is_salt_water(&container);
+                                let container_current_water_l = crate::items::get_water_content(&container).unwrap_or(0.0);
+                                
+                                // Add fresh water to container
+                                // If container has salt water, fresh distilled water converts it to fresh
+                                // (emergent gameplay: distillation purifies the water)
+                                if container_current_is_salt {
+                                    // Container has salt water - fresh distilled water converts it to fresh
+                                    // Calculate the ratio: if we're adding more fresh than salt, it becomes fresh
+                                    // Otherwise, it dilutes but stays salt (realistic mixing behavior)
+                                    let total_water_l = container_current_water_l + fresh_water_to_add_l;
+                                    let salt_ratio = container_current_water_l / total_water_l.max(0.001);
+                                    
+                                    // If fresh water is majority (>50%), convert to fresh
+                                    // Otherwise, it dilutes but stays salt (realistic behavior)
+                                    let becomes_fresh = fresh_water_to_add_l > container_current_water_l;
+                                    
+                                    crate::items::set_water_content_with_salt(&mut container, total_water_l, !becomes_fresh)?;
+                                    
+                                    if becomes_fresh {
+                                        log::info!("[BrothPot] Fresh distilled water converted salt water to fresh in container!");
+                                    } else {
+                                        log::debug!("[BrothPot] Fresh water diluted salt water but container still has salt (ratio: {:.1}% fresh)", 
+                                                   (fresh_water_to_add_l / total_water_l.max(0.001)) * 100.0);
+                                    }
+                                } else {
+                                    // Container has fresh water or is empty - just add fresh water
+                                    crate::items::add_water_to_container(&mut container, fresh_water_to_add_l, false)?;
+                                }
+                                
+                                // Reduce pot water by the amount condensed
+                                let new_pot_water_ml = (broth_pot.water_level_ml as f32) - fresh_water_to_add_ml;
+                                broth_pot.water_level_ml = new_pot_water_ml.max(0.0) as u32;
+                                
+                                // Get final container water content for logging before updating
+                                let final_container_water_l = crate::items::get_water_content(&container).unwrap_or(0.0);
+                                
+                                // Update container
+                                items.instance_id().update(container);
+                                
+                                // If pot is now empty, reset salt water status
+                                if broth_pot.water_level_ml <= 0 {
+                                    broth_pot.is_seawater = false;
+                                    broth_pot.is_desalinating = false;
+                                }
+                                
+                                log::info!("[BrothPot] Pot {} desalinated {:.1}ml into container. Pot: {:.1}ml, Container: {:.1}L", 
+                                          broth_pot_id, fresh_water_to_add_ml, broth_pot.water_level_ml, final_container_water_l);
+                            } else {
+                                // Container is full - just evaporate water
+                                let new_pot_water_ml = (broth_pot.water_level_ml as f32) - water_to_desalinate_ml;
+                                broth_pot.water_level_ml = new_pot_water_ml.max(0.0) as u32;
+                                
+                                // If pot is now empty, reset salt water status
+                                if broth_pot.water_level_ml <= 0 {
+                                    broth_pot.is_seawater = false;
+                                    broth_pot.is_desalinating = false;
+                                }
+                                
+                                log::debug!("[BrothPot] Pot {} evaporating {:.1}ml (container full). Pot: {:.1}ml", 
+                                           broth_pot_id, water_to_desalinate_ml, broth_pot.water_level_ml);
+                            }
+                        } else {
+                            // Not a valid water container - just evaporate
+                            let new_pot_water_ml = (broth_pot.water_level_ml as f32) - water_to_desalinate_ml;
+                            broth_pot.water_level_ml = new_pot_water_ml.max(0.0) as u32;
+                            
+                            if broth_pot.water_level_ml <= 0 {
+                                broth_pot.is_seawater = false;
+                                broth_pot.is_desalinating = false;
+                            }
+                        }
+                    }
+                } else {
+                    // Container not found - just evaporate
+                    let new_pot_water_ml = (broth_pot.water_level_ml as f32) - water_to_desalinate_ml;
+                    broth_pot.water_level_ml = new_pot_water_ml.max(0.0) as u32;
+                    
+                    if broth_pot.water_level_ml <= 0 {
+                        broth_pot.is_seawater = false;
+                        broth_pot.is_desalinating = false;
+                    }
+                }
+            } else {
+                // No container - just evaporate water
+                let new_pot_water_ml = (broth_pot.water_level_ml as f32) - water_to_desalinate_ml;
+                broth_pot.water_level_ml = new_pot_water_ml.max(0.0) as u32;
+                
+                // If pot is now empty, reset salt water status
+                if broth_pot.water_level_ml <= 0 {
+                    broth_pot.is_seawater = false;
+                    broth_pot.is_desalinating = false;
+                }
+                
+                log::debug!("[BrothPot] Pot {} evaporating {:.1}ml (no container). Pot: {:.1}ml", 
+                           broth_pot_id, water_to_desalinate_ml, broth_pot.water_level_ml);
+            }
+        } else {
+            // Campfire not burning - stop desalinating
+            broth_pot.is_desalinating = false;
+        }
+    } else {
+        // No salt water or pot is empty - not desalinating
+        broth_pot.is_desalinating = false;
     }
     
     // TODO: Implement cooking logic, stirring decay, etc. (Phase 7)

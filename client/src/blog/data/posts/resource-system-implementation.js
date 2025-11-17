@@ -27,10 +27,6 @@ export default {
     
     <h2>Flora of the Subarctic</h2>
     
-    <div class="image-container text-center mb-4">
-      <img src="/images/icons/food/fireweed_shoots.png" alt="Fireweed Shoots" class="blog-icon mx-auto" />
-    </div>
-    
     <p>We've implemented our first set of harvestable plants, all carefully selected to match our game's setting in the Kamchatka subarctic region:</p>
     
     <ol>
@@ -90,10 +86,6 @@ export default {
     </ul>
     
     <h2>Tools and Processing</h2>
-    
-    <div class="image-container text-center mb-4">
-      <img src="/images/icons/tools/field_cauldron.png" alt="Field Cauldron" class="blog-icon mx-auto" />
-    </div>
     
     <p>Resource gathering is just the beginning. Players will need to process raw materials to create useful items:</p>
     

@@ -45,6 +45,7 @@ export type RainCollector = {
   lastDamagedBy: __Identity | undefined,
   totalWaterCollected: number,
   lastCollectionTime: __Timestamp | undefined,
+  isSaltWater: boolean,
 };
 let _cached_RainCollector_type_value: __AlgebraicTypeType | null = null;
 
@@ -76,6 +77,7 @@ export const RainCollector = {
       { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
       { name: "totalWaterCollected", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "lastCollectionTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "isSaltWater", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_RainCollector_type_value;
   },

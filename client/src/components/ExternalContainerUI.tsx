@@ -12,6 +12,8 @@ import styles from './InventoryUI.module.css'; // Reuse styles for now
 // Import Custom Components
 import ContainerSlots from './ContainerSlots';
 import ContainerButtons from './ContainerButtons';
+import DroppableSlot from './DroppableSlot';
+import DraggableItem from './DraggableItem';
 
 // Import Types
 import { 
@@ -35,7 +37,7 @@ import {
 import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
-import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Import new utilities
@@ -882,6 +884,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 }
                 onItemMouseLeave={onExternalItemMouseLeave}
                 onItemMouseMove={onExternalItemMouseMove}
+                style={container.containerType === 'rain_collector' ? { marginTop: '12px' } : undefined}
             />
 
             {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}
@@ -915,100 +918,171 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             Field Cauldron
                         </h3>
                         
-                        {/* Water Container Slot - single slot for transferring water */}
-                        <div style={{ marginBottom: '12px' }}>
+                        {/* All 4 slots in one row: Water Container + 3 Ingredient slots */}
+                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' }}>
                             <div style={{ 
-                                fontSize: '11px', 
-                                color: '#87CEEB', 
-                                marginBottom: '6px',
-                                textAlign: 'center',
-                                fontStyle: 'italic'
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gap: '4px',
+                                maxWidth: 'fit-content'
                             }}>
-                                💧 Water Container Slot
-                            </div>
-                            <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'center', 
-                                alignItems: 'center',
-                                width: '100%',
-                                textAlign: 'center'
-                            }}>
-                                <ContainerSlots
-                                    containerType="broth_pot"
-                                    items={waterContainerItem ? [waterContainerItem] : [null]}
-                                    createSlotInfo={() => ({
+                                {/* Water Container Slot */}
+                                <DroppableSlot
+                                    slotInfo={{
                                         type: 'broth_pot_water_container',
                                         index: 0,
                                         parentId: attachedBrothPot.id
-                                    })}
-                                    getSlotKey={() => `broth_pot_water_${attachedBrothPot.id}`}
-                                    onItemDragStart={onItemDragStart}
-                                    onItemDrop={handleItemDropWithTracking}
-                                    onContextMenu={waterContainerContextMenuHandler}
-                                    onItemMouseEnter={onExternalItemMouseEnter}
-                                    onItemMouseLeave={onExternalItemMouseLeave}
-                                    onItemMouseMove={onExternalItemMouseMove}
-                                    style={{ 
-                                        display: 'grid',
-                                        gridTemplateColumns: '1fr',
-                                        gap: '4px',
-                                        width: 'fit-content',
-                                        margin: '0 auto',
-                                        justifyItems: 'center'
                                     }}
-                                />
-                            </div>
-                        </div>
+                                    onItemDrop={handleItemDropWithTracking}
+                                    className={styles.slot}
+                                    isDraggingOver={false}
+                                >
+                                    {waterContainerItem && (
+                                        <DraggableItem
+                                            item={waterContainerItem}
+                                            sourceSlot={{
+                                                type: 'broth_pot_water_container',
+                                                index: 0,
+                                                parentId: attachedBrothPot.id
+                                            }}
+                                            onItemDragStart={onItemDragStart}
+                                            onItemDrop={handleItemDropWithTracking}
+                                            onContextMenu={(event) => waterContainerContextMenuHandler(event, waterContainerItem, 0)}
+                                            onMouseEnter={(e) => onExternalItemMouseEnter(waterContainerItem, e)}
+                                            onMouseLeave={onExternalItemMouseLeave}
+                                            onMouseMove={onExternalItemMouseMove}
+                                        />
+                                    )}
+                                    {/* Water level indicator */}
+                                    {waterContainerItem && isWaterContainer(waterContainerItem.definition.name) && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                left: '4px',
+                                                top: '4px',
+                                                bottom: '4px',
+                                                width: '3px',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                borderRadius: '1px',
+                                                zIndex: 4,
+                                                pointerEvents: 'none',
+                                            }}
+                                        >
+                                            {getWaterLevelPercentage(waterContainerItem.instance, waterContainerItem.definition.name) > 0 && (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        bottom: '0px',
+                                                        left: '0px',
+                                                        right: '0px',
+                                                        height: `${getWaterLevelPercentage(waterContainerItem.instance, waterContainerItem.definition.name) * 100}%`,
+                                                        backgroundColor: isSaltWater(waterContainerItem.instance) 
+                                                            ? 'rgba(135, 206, 250, 0.8)' // Lighter blue for salt water
+                                                            : 'rgba(0, 150, 255, 0.8)', // Normal blue for fresh water
+                                                        borderRadius: '1px',
+                                                        transition: 'height 0.3s ease-in-out',
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+                                    {/* Water icon in bottom left */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '4px',
+                                        left: '4px',
+                                        fontSize: '14px',
+                                        zIndex: 5,
+                                        pointerEvents: 'none',
+                                        textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                                    }}>
+                                        💧
+                                    </div>
+                                </DroppableSlot>
 
-                        {/* Transfer Water Button */}
-                        {waterContainerItem && attachedBrothPot.waterLevelMl < 5000 && (
-                            <button
-                                onClick={() => {
-                                    if (!connection?.reducers) return;
-                                    try {
-                                        (connection.reducers as any).transferWaterFromContainerToPot(
-                                            attachedBrothPot.id
-                                        );
-                                    } catch (e: any) {
-                                        console.error("Error transferring water from container to pot:", e);
-                                    }
-                                }}
-                                disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
-                                className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                                style={{ width: '100%', marginBottom: '12px' }}
-                            >
-                                💧 Transfer Water to Pot
-                            </button>
-                        )}
-                        
-                        {/* Broth pot ingredient slots - centered with 3 columns */}
-                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '8px' }}>
-                            <ContainerSlots
-                                containerType="broth_pot"
-                                items={brothPotItems}
-                                createSlotInfo={(index: number) => {
-                                    const config = getContainerConfig('broth_pot');
-                                    return {
-                                        type: config.slotType as any,
+                                {/* Ingredient Slots */}
+                                {Array.from({ length: 3 }).map((_, index) => {
+                                    const itemInSlot = brothPotItems[index] || null;
+                                    const slotInfo = {
+                                        type: getContainerConfig('broth_pot').slotType as any,
                                         index,
                                         parentId: attachedBrothPot.id
                                     };
-                                }}
-                                getSlotKey={(index: number) => `broth_pot_${attachedBrothPot.id}_${index}`}
-                                onItemDragStart={onItemDragStart}
-                                onItemDrop={handleItemDropWithTracking}
-                                onContextMenu={brothPotCallbacks?.contextMenuHandler || (() => {})}
-                                onItemMouseEnter={onExternalItemMouseEnter}
-                                onItemMouseLeave={onExternalItemMouseLeave}
-                                onItemMouseMove={onExternalItemMouseMove}
-                                style={{ 
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '4px',
-                                    maxWidth: 'fit-content'
-                                }}
-                            />
+                                    
+                                    return (
+                                        <DroppableSlot
+                                            key={`broth_pot_${attachedBrothPot.id}_${index}`}
+                                            slotInfo={slotInfo}
+                                            onItemDrop={handleItemDropWithTracking}
+                                            className={styles.slot}
+                                            isDraggingOver={false}
+                                        >
+                                            {itemInSlot && (
+                                                <DraggableItem
+                                                    item={itemInSlot}
+                                                    sourceSlot={slotInfo}
+                                                    onItemDragStart={onItemDragStart}
+                                                    onItemDrop={handleItemDropWithTracking}
+                                                    onContextMenu={(event) => brothPotCallbacks?.contextMenuHandler(event, itemInSlot, index)}
+                                                    onMouseEnter={(e) => onExternalItemMouseEnter(itemInSlot, e)}
+                                                    onMouseLeave={onExternalItemMouseLeave}
+                                                    onMouseMove={onExternalItemMouseMove}
+                                                />
+                                            )}
+                                            {/* Food icon in bottom left */}
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: '4px',
+                                                left: '4px',
+                                                fontSize: '14px',
+                                                zIndex: 5,
+                                                pointerEvents: 'none',
+                                                textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                                            }}>
+                                                🍽️
+                                            </div>
+                                        </DroppableSlot>
+                                    );
+                                })}
+                            </div>
                         </div>
+
+                    {/* Bidirectional water transfer buttons */}
+                    <button
+                        onClick={() => {
+                            if (!connection?.reducers) return;
+                            try {
+                                (connection.reducers as any).transferWaterFromContainerToPot(
+                                    attachedBrothPot.id
+                                );
+                            } catch (e: any) {
+                                console.error("Error transferring water from container to pot:", e);
+                            }
+                        }}
+                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
+                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                    >
+                        ⬇️ 💧 Transfer Water INTO Pot
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            if (!connection?.reducers) return;
+                            try {
+                                (connection.reducers as any).transferWaterFromPotToContainer(
+                                    attachedBrothPot.id
+                                );
+                            } catch (e: any) {
+                                console.error("Error transferring water from pot to container:", e);
+                            }
+                        }}
+                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl <= 0}
+                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                        style={{ width: '100%', marginBottom: '12px', textShadow: 'none' }}
+                    >
+                        ⬆️ 💧 Transfer Water INTO Container
+                    </button>
 
                         {/* Broth pot info and actions */}
                         <div style={{ marginTop: '12px' }}>
@@ -1020,7 +1094,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     marginBottom: '6px',
                                     textAlign: 'center'
                                 }}>
-                                    💧 Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
+                                    {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml {attachedBrothPot.isSeawater && '(Salt)'}
                                 </div>
                                 
                                 {/* Visual water level bar */}
@@ -1036,7 +1110,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                         width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
                                         height: '100%',
                                         background: attachedBrothPot.waterLevelMl > 0 
-                                            ? 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)'
+                                            ? (attachedBrothPot.isSeawater 
+                                                ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
+                                                : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
                                             : 'transparent',
                                         transition: 'width 0.3s ease',
                                         boxShadow: attachedBrothPot.waterLevelMl > 0 
@@ -1108,14 +1184,14 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 {container.containerType === 'rain_collector' && (
                     <>
                         {/* Water level display with visual bar */}
-                        <div style={{ marginBottom: '12px' }}>
+                        <div style={{ marginTop: '12px', marginBottom: '12px' }}>
                             <div style={{ 
                                 fontSize: '12px', 
                                 color: '#87CEEB', 
                                 marginBottom: '6px',
                                 textAlign: 'center'
                             }}>
-                                💧 Collected Water: {(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected.toFixed(1)}L / 40.0L
+                                {((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater ? '🌊' : '💧'} Collected Water: {(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected.toFixed(1)}L / 40.0L {((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater && '(Salt)'}
                             </div>
                             
                             {/* Visual water level bar */}
@@ -1131,7 +1207,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     width: `${((container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected / 40.0) * 100}%`,
                                     height: '100%',
                                     background: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
-                                        ? 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)'
+                                        ? (((container.containerEntity as any) as SpacetimeDBRainCollector & { isSaltWater?: boolean }).isSaltWater
+                                            ? 'linear-gradient(90deg, #87ceeb 0%, #b0e0e6 50%, #e0f6ff 100%)' // Lighter gradient for salt water
+                                            : 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)') // Normal gradient for fresh water
                                         : 'transparent',
                                     transition: 'width 0.3s ease',
                                     boxShadow: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
@@ -1141,84 +1219,35 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             </div>
                         </div>
 
-                        {/* Active collection indicator */}
-                        {(() => {
-                            const rainCollector = container.containerEntity as SpacetimeDBRainCollector;
-                            const collectorChunkIndex = calculateChunkIndex(rainCollector.posX, rainCollector.posY);
-                            const chunkWeatherData = chunkWeather?.get(collectorChunkIndex.toString());
-                            const isRaining = chunkWeatherData?.currentWeather && 
-                                            ['LightRain', 'ModerateRain', 'HeavyRain', 'HeavyStorm'].includes(chunkWeatherData.currentWeather.tag);
-                            const isFull = rainCollector.totalWaterCollected >= 40.0;
-                            
-                            if (isRaining && !isFull) {
-                                const weatherTag = chunkWeatherData?.currentWeather?.tag;
-                                let collectionRate = '0.3';
-                                let weatherEmoji = '🌧️';
-                                
-                                if (weatherTag === 'HeavyStorm') {
-                                    collectionRate = '2.5';
-                                    weatherEmoji = '⛈️';
-                                } else if (weatherTag === 'HeavyRain') {
-                                    collectionRate = '1.5';
-                                    weatherEmoji = '🌧️';
-                                } else if (weatherTag === 'ModerateRain') {
-                                    collectionRate = '0.8';
-                                    weatherEmoji = '🌦️';
-                                } else if (weatherTag === 'LightRain') {
-                                    collectionRate = '0.3';
-                                    weatherEmoji = '🌦️';
-                                }
-                                
-                                return (
-                                    <div style={{ 
-                                        marginBottom: '8px',
-                                        padding: '6px',
-                                        backgroundColor: 'rgba(135, 206, 235, 0.15)',
-                                        borderRadius: '4px',
-                                        border: '1px solid rgba(135, 206, 235, 0.3)',
-                                        textAlign: 'center'
-                                    }}>
-                                        <div style={{ 
-                                            fontSize: '11px', 
-                                            color: '#87CEEB',
-                                            fontStyle: 'italic',
-                                            animation: 'pulse 2s ease-in-out infinite'
-                                        }}>
-                                            {weatherEmoji} Actively Collecting Water (+{collectionRate}L/sec)
-                                        </div>
-                                    </div>
-                                );
-                            } else if (isFull) {
-                                return (
-                                    <div style={{ 
-                                        marginBottom: '8px',
-                                        padding: '6px',
-                                        backgroundColor: 'rgba(255, 215, 0, 0.15)',
-                                        borderRadius: '4px',
-                                        border: '1px solid rgba(255, 215, 0, 0.3)',
-                                        textAlign: 'center'
-                                    }}>
-                                        <div style={{ 
-                                            fontSize: '11px', 
-                                            color: '#FFD700',
-                                            fontStyle: 'italic'
-                                        }}>
-                                            ✓ Collector Full - Empty to continue collecting
-                                        </div>
-                                    </div>
-                                );
-                            }
-                            return null;
-                        })()}
-
+                        {/* Bidirectional water transfer buttons */}
                         <button
                             onClick={handleFillWaterContainer}
                             disabled={!container.items[0] || 
                                      !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected <= 0}
                             className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
                         >
-                            💧 Fill Container from Collector
+                            ⬇️ 💧 Transfer Water INTO Container
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                if (!connection?.reducers || container.containerId === null) return;
+                                const rainCollectorIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                                try {
+                                    (connection.reducers as any).transferWaterFromContainerToCollector(rainCollectorIdNum);
+                                } catch (e: any) {
+                                    console.error("Error transferring water from container to collector:", e);
+                                }
+                            }}
+                            disabled={!container.items[0] || 
+                                     !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
+                                     (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected >= 40.0}
+                            className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none' }}
+                        >
+                            ⬆️ 💧 Transfer Water INTO Reservoir
                         </button>
                         
                         <div style={{ 
@@ -1228,7 +1257,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             textAlign: 'center',
                             fontStyle: 'italic'
                         }}>
-                            Place water containers (bottles/jugs) to fill during rain
+                            Place water containers (bottles/jugs) to fill during rain or store water
                     </div>
                 </>
             )}
