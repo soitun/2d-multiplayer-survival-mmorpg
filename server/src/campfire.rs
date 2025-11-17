@@ -130,6 +130,7 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
      pub slot_4_cooking_progress: Option<CookingProgress>,
      pub last_damage_application_time: Option<Timestamp>, // ADDED: For damage cooldown
      pub is_player_in_hot_zone: bool, // ADDED: True if any player is in the damage radius
+    pub attached_broth_pot_id: Option<u32>, // ADDED: Broth pot placed on this campfire
  }
  
  // ADD NEW Schedule Table for per-campfire processing
@@ -152,6 +153,21 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
 #[spacetimedb::reducer]
 pub fn move_item_to_campfire(ctx: &ReducerContext, campfire_id: u32, target_slot_index: u8, item_instance_id: u64) -> Result<(), String> {
      let (_player, mut campfire) = validate_campfire_interaction(ctx, campfire_id)?;
+     
+     // --- Validate item type - prevent water bottles and cauldrons ---
+     let items = ctx.db.inventory_item();
+     let item = items.instance_id().find(&item_instance_id)
+         .ok_or_else(|| "Item not found.".to_string())?;
+     let item_defs = ctx.db.item_definition();
+     let item_def = item_defs.id().find(&item.item_def_id)
+         .ok_or_else(|| "Item definition not found.".to_string())?;
+     
+     // Prevent water containers and cauldrons from being placed in campfires
+     let blocked_items = ["Reed Water Bottle", "Plastic Water Jug", "Cerametal Field Cauldron Mk. II"];
+     if blocked_items.contains(&item_def.name.as_str()) {
+         return Err(format!("Cannot place '{}' in campfire. Use the broth pot's water container slot for water bottles, or place the cauldron on the campfire.", item_def.name));
+     }
+     
      inventory_management::handle_move_to_container_slot(ctx, &mut campfire, target_slot_index, item_instance_id)?;
      ctx.db.campfire().id().update(campfire.clone()); // Persist campfire slot changes
      schedule_next_campfire_processing(ctx, campfire_id); // Reschedule based on new fuel state
@@ -189,13 +205,28 @@ pub fn move_item_to_campfire(ctx: &ReducerContext, campfire_id: u32, target_slot
      target_slot_index: u8,
  ) -> Result<(), String> {
      let (_player, mut campfire) = validate_campfire_interaction(ctx, target_campfire_id)?;
-     let mut source_item = get_player_item(ctx, source_item_instance_id)?;
+     
+     // --- Validate item type - prevent water bottles and cauldrons ---
+     let items = ctx.db.inventory_item();
+     let source_item = items.instance_id().find(&source_item_instance_id)
+         .ok_or_else(|| "Source item not found.".to_string())?;
+     let item_defs = ctx.db.item_definition();
+     let item_def = item_defs.id().find(&source_item.item_def_id)
+         .ok_or_else(|| "Item definition not found.".to_string())?;
+     
+     // Prevent water containers and cauldrons from being placed in campfires
+     let blocked_items = ["Reed Water Bottle", "Plastic Water Jug", "Cerametal Field Cauldron Mk. II"];
+     if blocked_items.contains(&item_def.name.as_str()) {
+         return Err(format!("Cannot place '{}' in campfire. Use the broth pot's water container slot for water bottles, or place the cauldron on the campfire.", item_def.name));
+     }
+     
+     let mut source_item_mut = get_player_item(ctx, source_item_instance_id)?;
      let new_item_target_location = ItemLocation::Container(crate::models::ContainerLocationData {
          container_type: ContainerType::Campfire,
          container_id: campfire.id as u64,
          slot_index: target_slot_index,
      });
-     let new_item_instance_id = split_stack_helper(ctx, &mut source_item, quantity_to_split, new_item_target_location)?;
+     let new_item_instance_id = split_stack_helper(ctx, &mut source_item_mut, quantity_to_split, new_item_target_location)?;
      
      // Fetch the newly created item and its definition to pass to merge_or_place
      let mut new_item = ctx.db.inventory_item().instance_id().find(new_item_instance_id)
@@ -254,6 +285,21 @@ pub fn move_item_within_campfire(
      item_instance_id: u64,
  ) -> Result<(), String> {
      let (_player, mut campfire) = validate_campfire_interaction(ctx, campfire_id)?;
+     
+     // --- Validate item type - prevent water bottles and cauldrons ---
+     let items = ctx.db.inventory_item();
+     let item = items.instance_id().find(&item_instance_id)
+         .ok_or_else(|| "Item not found.".to_string())?;
+     let item_defs = ctx.db.item_definition();
+     let item_def = item_defs.id().find(&item.item_def_id)
+         .ok_or_else(|| "Item definition not found.".to_string())?;
+     
+     // Prevent water containers and cauldrons from being placed in campfires
+     let blocked_items = ["Reed Water Bottle", "Plastic Water Jug", "Cerametal Field Cauldron Mk. II"];
+     if blocked_items.contains(&item_def.name.as_str()) {
+         return Err(format!("Cannot place '{}' in campfire. Use the broth pot's water container slot for water bottles, or place the cauldron on the campfire.", item_def.name));
+     }
+     
      inventory_management::handle_quick_move_to_container(ctx, &mut campfire, item_instance_id)?;
      ctx.db.campfire().id().update(campfire.clone());
      schedule_next_campfire_processing(ctx, campfire_id);
@@ -613,6 +659,7 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         slot_4_cooking_progress: None,
         last_damage_application_time: None,
         is_player_in_hot_zone: false, // Initialize new field
+        attached_broth_pot_id: None, // Initialize broth pot field
     };
     let inserted_campfire = campfires.try_insert(new_campfire.clone())
         .map_err(|e| format!("Failed to insert campfire entity: {}", e))?;
@@ -1559,14 +1606,24 @@ pub fn get_fuel_burn_rate_multiplier(ctx: &ReducerContext, campfire: &Campfire) 
     }
 }
 
-/// Get the cooking speed multiplier based on whether Reed Bellows is present  
+/// Get the cooking speed multiplier based on Reed Bellows and green rune stone proximity
 /// Reed Bellows makes cooking 20% faster (multiplier = 1.2)
+/// Green rune stone zone doubles cooking speed (multiplier = 2.0)
+/// Multipliers stack multiplicatively (e.g., both = 1.2 * 2.0 = 2.4x)
 pub fn get_cooking_speed_multiplier(ctx: &ReducerContext, campfire: &Campfire) -> f32 {
+    let mut multiplier = 1.0;
+    
+    // Check for Reed Bellows (20% faster = 1.2x)
     if has_reed_bellows(ctx, campfire) {
-        1.2 // Cooking 20% faster with bellows
-    } else {
-        1.0 // Normal cooking speed
+        multiplier *= 1.2;
     }
+    
+    // Check for green rune stone zone (2x faster cooking)
+    if crate::rune_stone::is_position_in_green_rune_zone(ctx, campfire.pos_x, campfire.pos_y) {
+        multiplier *= 2.0;
+    }
+    
+    multiplier
 }
 
 // --- NEW: Check if any items in campfire slots are Metal Ore and prevent cooking them

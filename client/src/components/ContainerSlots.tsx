@@ -74,9 +74,13 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     
     const containerClassName = className || (isGridLayout ? styles.inventoryGrid : styles.multiSlotContainer);
     
+    // Use items.length if it's less than config.slots (for special cases like water container slot)
+    // Otherwise use config.slots to show all slots even if some are empty
+    const numSlotsToRender = items.length < config.slots ? items.length : config.slots;
+    
     return (
         <div className={containerClassName} style={containerStyle}>
-            {Array.from({ length: config.slots }).map((_, index) => {
+            {Array.from({ length: numSlotsToRender }).map((_, index) => {
                 const itemInSlot = items[index] || null;
                 const slotInfo = createSlotInfo(index);
                 const slotKey = getSlotKey(index);

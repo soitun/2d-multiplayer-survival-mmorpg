@@ -9,7 +9,8 @@ import {
     SleepingBag as SpacetimeDBSleepingBag,
     Player as SpacetimeDBPlayer,
     RainCollector as SpacetimeDBRainCollector,
-    HomesteadHearth as SpacetimeDBHomesteadHearth // ADDED: Homestead Hearth
+    HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth
+    BrothPot as SpacetimeDBBrothPot // ADDED: BrothPot
 } from '../../generated';
 
 // Import visual heights from useInteractionFinder.ts
@@ -28,11 +29,17 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth'; // ADDED: homestead_hearth
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
     isEmpty?: boolean;
+    data?: {
+        campfireId?: number;
+        brothPotId?: number;
+        isBrothPotEmpty?: boolean;
+        [key: string]: any;
+    };
 }
 
 interface RenderLabelsParams {
@@ -47,6 +54,7 @@ interface RenderLabelsParams {
     stashes: Map<string, SpacetimeDBStash>;
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
+    brothPots: Map<string, any>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths
     players: Map<string, SpacetimeDBPlayer>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -89,7 +97,10 @@ function drawSOVAOverlayBackground(
     x: number,
     y: number
 ): void {
-    // Measure text to get dimensions
+    // Measure text to get dimensions - ensure font is set
+    if (!ctx.font) {
+        ctx.font = LABEL_FONT; // Fallback if font not set
+    }
     const textMetrics = ctx.measureText(text);
     const textWidth = textMetrics.width;
     const textHeight = 14; // Font size
@@ -112,10 +123,25 @@ function drawSOVAOverlayBackground(
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // Draw background with rounded corners
+    // Draw background with rounded corners - use roundRect if available, otherwise fallback
     ctx.fillStyle = SOVA_BACKGROUND_COLOR;
     ctx.beginPath();
-    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, SOVA_BORDER_RADIUS);
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(bgX, bgY, bgWidth, bgHeight, SOVA_BORDER_RADIUS);
+    } else {
+        // Fallback for browsers without roundRect support
+        const r = SOVA_BORDER_RADIUS;
+        ctx.moveTo(bgX + r, bgY);
+        ctx.lineTo(bgX + bgWidth - r, bgY);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + r);
+        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - r);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - r, bgY + bgHeight);
+        ctx.lineTo(bgX + r, bgY + bgHeight);
+        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - r);
+        ctx.lineTo(bgX, bgY + r);
+        ctx.quadraticCurveTo(bgX, bgY, bgX + r, bgY);
+        ctx.closePath();
+    }
     ctx.fill();
     
     // Reset shadow for border
@@ -130,7 +156,22 @@ function drawSOVAOverlayBackground(
     ctx.strokeStyle = gradient;
     ctx.lineWidth = SOVA_BORDER_WIDTH;
     ctx.beginPath();
-    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, SOVA_BORDER_RADIUS);
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(bgX, bgY, bgWidth, bgHeight, SOVA_BORDER_RADIUS);
+    } else {
+        // Fallback for browsers without roundRect support
+        const r = SOVA_BORDER_RADIUS;
+        ctx.moveTo(bgX + r, bgY);
+        ctx.lineTo(bgX + bgWidth - r, bgY);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + r);
+        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - r);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - r, bgY + bgHeight);
+        ctx.lineTo(bgX + r, bgY + bgHeight);
+        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - r);
+        ctx.lineTo(bgX, bgY + r);
+        ctx.quadraticCurveTo(bgX, bgY, bgX + r, bgY);
+        ctx.closePath();
+    }
     ctx.stroke();
     
     // 3. Draw subtle inner glow
@@ -141,7 +182,22 @@ function drawSOVAOverlayBackground(
     ctx.strokeStyle = `rgba(0, 221, 255, 0.3)`;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(bgX + 2, bgY + 2, bgWidth - 4, bgHeight - 4, SOVA_BORDER_RADIUS - 2);
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(bgX + 2, bgY + 2, bgWidth - 4, bgHeight - 4, SOVA_BORDER_RADIUS - 2);
+    } else {
+        // Fallback for browsers without roundRect support
+        const r = Math.max(0, SOVA_BORDER_RADIUS - 2);
+        ctx.moveTo(bgX + 2 + r, bgY + 2);
+        ctx.lineTo(bgX + bgWidth - 2 - r, bgY + 2);
+        ctx.quadraticCurveTo(bgX + bgWidth - 2, bgY + 2, bgX + bgWidth - 2, bgY + 2 + r);
+        ctx.lineTo(bgX + bgWidth - 2, bgY + bgHeight - 2 - r);
+        ctx.quadraticCurveTo(bgX + bgWidth - 2, bgY + bgHeight - 2, bgX + bgWidth - 2 - r, bgY + bgHeight - 2);
+        ctx.lineTo(bgX + 2 + r, bgY + bgHeight - 2);
+        ctx.quadraticCurveTo(bgX + 2, bgY + bgHeight - 2, bgX + 2, bgY + bgHeight - 2 - r);
+        ctx.lineTo(bgX + 2, bgY + 2 + r);
+        ctx.quadraticCurveTo(bgX + 2, bgY + 2, bgX + 2 + r, bgY + 2);
+        ctx.closePath();
+    }
     ctx.stroke();
     
     // 4. Add subtle scan line effect
@@ -209,6 +265,7 @@ export function renderInteractionLabels({
     sleepingBags,
     rainCollectors,
     homesteadHearths, // ADDED: Homestead Hearths
+    brothPots, // ADDED: Broth pots
     players,
     itemDefinitions,
     closestInteractableTarget,
@@ -347,6 +404,17 @@ export function renderInteractionLabels({
                 textX = hearth.posX;
                 // Moved up by ~20% (15px) to match indicator box position
                 textY = visualCenterY - 65;
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'broth_pot': {
+            const brothPot = brothPots.get(closestInteractableTarget.id.toString());
+            if (brothPot) {
+                const BROTH_POT_HEIGHT = 80;
+                const visualCenterY = brothPot.posY - (BROTH_POT_HEIGHT / 2);
+                textX = brothPot.posX;
+                textY = visualCenterY - 50;
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

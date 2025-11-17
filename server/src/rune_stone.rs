@@ -149,6 +149,32 @@ pub struct RuneStonePlantSpawnSchedule {
 
 // --- Helper Functions ---
 
+/// Check if a position is within range of a green rune stone
+/// Returns true if the position is within 2000px of any green rune stone
+pub fn is_position_in_green_rune_zone(
+    ctx: &spacetimedb::ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+) -> bool {
+    // Check all green rune stones - if position is within range of ANY green rune, return true
+    for rune_stone in ctx.db.rune_stone().iter() {
+        if rune_stone.rune_type != RuneStoneType::Green {
+            continue;
+        }
+        
+        // Check distance
+        let dx = pos_x - rune_stone.pos_x;
+        let dy = pos_y - rune_stone.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= RUNE_STONE_EFFECT_RADIUS_SQUARED {
+            return true;
+        }
+    }
+    
+    false // Not in green rune zone
+}
+
 /// Check if a position is within range of a green rune stone that boosts the given plant type
 /// Get growth multiplier for ALL plants near green rune stones
 /// Simplified: 1.5x growth for ANY plant within 2000px of a green rune stone
@@ -181,6 +207,32 @@ pub fn get_green_rune_growth_multiplier(
     }
     
     1.0 // No bonus
+}
+
+/// Check if a position is within range of a red rune stone
+/// Returns true if the position is within 2000px of any red rune stone
+pub fn is_position_in_red_rune_zone(
+    ctx: &spacetimedb::ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+) -> bool {
+    // Check all red rune stones - if position is within range of ANY red rune, return true
+    for rune_stone in ctx.db.rune_stone().iter() {
+        if rune_stone.rune_type != RuneStoneType::Red {
+            continue;
+        }
+        
+        // Check distance
+        let dx = pos_x - rune_stone.pos_x;
+        let dy = pos_y - rune_stone.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= RUNE_STONE_EFFECT_RADIUS_SQUARED {
+            return true;
+        }
+    }
+    
+    false // Not in red rune zone
 }
 
 /// Get crafting time multiplier for ALL items near red rune stones

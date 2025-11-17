@@ -19,7 +19,7 @@ import {
 import { 
     InventoryItem, 
     ItemDefinition,
-    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth
+    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { InteractionTarget } from '../hooks/useInteractionManager';
@@ -38,6 +38,7 @@ interface UseContainerProps {
     stashes: Map<string, Stash>;
     rainCollectors: Map<string, RainCollector>;
     homesteadHearths: Map<string, HomesteadHearth>;
+    brothPots: Map<string, BrothPot>;
     
     // Current storage box for special case
     currentStorageBox?: WoodenStorageBox | null;
@@ -84,6 +85,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         stashes,
         rainCollectors,
         homesteadHearths,
+        brothPots,
         currentStorageBox,
         connection,
         lastDragCompleteTime
@@ -101,7 +103,8 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             'player_corpse': 'player_corpse',
             'stash': 'stash',
             'rain_collector': 'rain_collector',
-            'homestead_hearth': 'homestead_hearth'
+            'homestead_hearth': 'homestead_hearth',
+            'broth_pot': 'broth_pot'
         };
         
         const containerType = typeMap[interactionTarget.type];
@@ -134,9 +137,10 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             playerCorpses,
             stashes,
             rainCollectors,
-            homesteadHearths
+            homesteadHearths,
+            brothPots
         });
-    }, [containerType, containerId, campfires, furnaces, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, currentStorageBox]);
+    }, [containerType, containerId, campfires, furnaces, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, brothPots, currentStorageBox]);
     
     // Get container configuration
     const config = useMemo(() => {

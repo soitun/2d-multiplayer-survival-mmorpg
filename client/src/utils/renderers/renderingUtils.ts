@@ -26,6 +26,7 @@ import {
     FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
     WallCell as SpacetimeDBWallCell, // ADDED: Building walls
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
+    BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
 } from '../../generated';
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { gameConfig } from '../../config/gameConfig';
@@ -47,6 +48,7 @@ import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderLantern } from './lanternRenderingUtils';
+import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
 import { renderStash } from './stashRenderingUtils';
@@ -905,6 +907,16 @@ export const renderYSortedEntities = ({
                 const outlineColor = getInteractionOutlineColor('open');
                 // Make outline taller (height: 56 -> 72) and extend more downward (Y offset: -48 -> -40)
                 drawInteractionOutline(ctx, lantern.posX, lantern.posY - 40, 48, 72, cycleProgress, outlineColor);
+            }
+        } else if (type === 'broth_pot') {
+            const brothPot = entity as SpacetimeDBBrothPot;
+            const isTheClosestTarget = closestInteractableTarget?.type === 'broth_pot' && closestInteractableTarget?.id === brothPot.id;
+            renderBrothPot(ctx, brothPot, nowMs, cycleProgress);
+            
+            // Draw outline only if this is THE closest interactable target
+            if (isTheClosestTarget) {
+                const outlineColor = getInteractionOutlineColor('open');
+                drawInteractionOutline(ctx, brothPot.posX, brothPot.posY - 40, 80, 80, cycleProgress, outlineColor);
             }
         } else if (type === 'dropped_item') {
             const droppedItem = entity as SpacetimeDBDroppedItem;

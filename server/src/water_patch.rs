@@ -15,6 +15,9 @@ use crate::player as PlayerTableTrait;
 use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
 use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
 use crate::environment::calculate_chunk_index;
+use crate::campfire::{campfire as CampfireTableTrait, campfire_processing_schedule as CampfireProcessingScheduleTableTrait, Campfire, PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED};
+use crate::broth_pot::{broth_pot as BrothPotTableTrait, BrothPot, PLAYER_BROTH_POT_INTERACTION_DISTANCE_SQUARED, schedule_next_broth_pot_processing};
+use crate::sound_events::{stop_campfire_sound, emit_filling_container_sound};
 
 // --- Constants ---
 
@@ -204,12 +207,7 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
     };
     let (water_x, water_y) = calculate_watering_position(player.position_x, player.position_y, facing_angle);
     
-    // Check if there's already a water patch at this location
-    if has_water_patch_at_location(ctx, water_x, water_y) {
-        return Err("There's already water at that location".to_string());
-    }
-    
-    // Consume water from container
+    // Consume water from container first (before checking interactions)
     let current_water = crate::items::get_water_content(&container_item).unwrap_or(0.0);
     let new_water_content = current_water - WATER_CONSUMPTION_PER_USE;
     
@@ -223,30 +221,113 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
     
     ctx.db.inventory_item().instance_id().update(container_item);
     
-    // Create water patch
-    let chunk_index = calculate_chunk_index(water_x, water_y);
-    let duration = TimeDuration::from(Duration::from_secs(WATER_PATCH_DURATION_SECS));
-    let expires_at = ctx.timestamp + duration;
+    // Check for campfires at splash location (priority: extinguish burning campfires)
+    let mut action_taken = false;
+    for mut campfire in ctx.db.campfire().iter() {
+        if campfire.is_destroyed {
+            continue;
+        }
+        
+        let dx = campfire.pos_x - water_x;
+        let dy = campfire.pos_y - water_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED && campfire.is_burning {
+            // Extinguish the campfire
+            campfire.is_burning = false;
+            campfire.current_fuel_def_id = None;
+            campfire.remaining_fuel_burn_time_secs = None;
+            
+            stop_campfire_sound(ctx, campfire.id as u64);
+            ctx.db.campfire().id().update(campfire.clone());
+            ctx.db.campfire_processing_schedule().campfire_id().delete(campfire.id as u64);
+            
+            log::info!("Player {} extinguished campfire {} by splashing water at ({:.1}, {:.1})", 
+                       player_id, campfire.id, water_x, water_y);
+            
+            // Emit extinguishing sound effect
+            crate::sound_events::emit_watering_sound(ctx, water_x, water_y, player_id);
+            
+            action_taken = true;
+            break; // Only extinguish one campfire per splash
+        }
+    }
     
-    let water_patch = WaterPatch {
-        id: 0, // Auto-inc
-        pos_x: water_x,
-        pos_y: water_y,
-        chunk_index,
-        created_at: ctx.timestamp,
-        expires_at,
-        created_by: player_id,
-        water_amount: WATER_CONSUMPTION_PER_USE,
-        current_opacity: 1.0, // Start fully visible
-    };
+    // If no campfire was extinguished, check for broth pots to fill
+    if !action_taken {
+        for mut broth_pot in ctx.db.broth_pot().iter() {
+            if broth_pot.is_destroyed {
+                continue;
+            }
+            
+            let dx = broth_pot.pos_x - water_x;
+            let dy = broth_pot.pos_y - water_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq <= PLAYER_BROTH_POT_INTERACTION_DISTANCE_SQUARED {
+                // Check if pot has room for water
+                let water_to_add_ml = (WATER_CONSUMPTION_PER_USE * 1000.0) as u32; // Convert L to mL
+                let available_capacity = broth_pot.max_water_capacity_ml.saturating_sub(broth_pot.water_level_ml);
+                
+                if available_capacity > 0 {
+                    // Add water to the pot (limited by available capacity)
+                    let water_added_ml = water_to_add_ml.min(available_capacity);
+                    broth_pot.water_level_ml += water_added_ml;
+                    
+                    let pot_pos_x = broth_pot.pos_x;
+                    let pot_pos_y = broth_pot.pos_y;
+                    
+                    ctx.db.broth_pot().id().update(broth_pot.clone());
+                    
+                    // Re-schedule processing if needed
+                    schedule_next_broth_pot_processing(ctx, broth_pot.id)?;
+                    
+                    // Emit filling sound effect
+                    emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, player_id);
+                    
+                    log::info!("Player {} filled broth pot {} with {:.1}ml by splashing water (now has {:.1}ml/{:.1}ml)", 
+                               player_id, broth_pot.id, water_added_ml as f32, 
+                               broth_pot.water_level_ml, broth_pot.max_water_capacity_ml);
+                    
+                    action_taken = true;
+                    break; // Only fill one pot per splash
+                }
+            }
+        }
+    }
     
-    ctx.db.water_patch().insert(water_patch);
-    
-    log::info!("Player {} created water patch at ({:.1}, {:.1}) using {:.1}L of water", 
-               player_id, water_x, water_y, WATER_CONSUMPTION_PER_USE);
-    
-    // Emit watering sound effect
-    crate::sound_events::emit_watering_sound(ctx, water_x, water_y, player_id);
+    // If no campfire or pot interaction, create water patch as normal
+    if !action_taken {
+        // Check if there's already a water patch at this location
+        if has_water_patch_at_location(ctx, water_x, water_y) {
+            return Err("There's already water at that location".to_string());
+        }
+        
+        // Create water patch
+        let chunk_index = calculate_chunk_index(water_x, water_y);
+        let duration = TimeDuration::from(Duration::from_secs(WATER_PATCH_DURATION_SECS));
+        let expires_at = ctx.timestamp + duration;
+        
+        let water_patch = WaterPatch {
+            id: 0, // Auto-inc
+            pos_x: water_x,
+            pos_y: water_y,
+            chunk_index,
+            created_at: ctx.timestamp,
+            expires_at,
+            created_by: player_id,
+            water_amount: WATER_CONSUMPTION_PER_USE,
+            current_opacity: 1.0, // Start fully visible
+        };
+        
+        ctx.db.water_patch().insert(water_patch);
+        
+        log::info!("Player {} created water patch at ({:.1}, {:.1}) using {:.1}L of water", 
+                   player_id, water_x, water_y, WATER_CONSUMPTION_PER_USE);
+        
+        // Emit watering sound effect
+        crate::sound_events::emit_watering_sound(ctx, water_x, water_y, player_id);
+    }
     
     Ok(())
 }

@@ -512,10 +512,12 @@ export const useBuildingManager = (
         console.error('[BuildingManager] placeFoundation failed:', errorMsg);
         console.log('[BuildingManager] Failed placement details:', { cellX, cellY, shape, tier, errorMsg });
         setPlacementError(errorMsg);
-        // Play error_resources sound for resource errors (immediate client-side feedback)
+        // Play appropriate error sound based on error type (immediate client-side feedback)
         // Server-side sound won't play because the transaction rolls back
         if (errorMsg.includes('Not enough')) {
           playImmediateSound('error_resources', 1.0);
+        } else if (errorMsg.includes('rune stone') || errorMsg.includes('monument')) {
+          playImmediateSound('error_foundation_monument', 1.0);
         } else {
           playImmediateSound('construction_placement_error', 1.0);
         }

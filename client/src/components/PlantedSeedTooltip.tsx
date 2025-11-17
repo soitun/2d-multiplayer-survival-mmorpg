@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree } from '../generated';
 import styles from './PlantedSeedTooltip.module.css';
 
 interface PlantedSeedTooltipProps {
@@ -14,6 +14,7 @@ interface PlantedSeedTooltipProps {
   campfires: Map<string, Campfire>;
   lanterns: Map<string, Lantern>;
   furnaces: Map<string, Furnace>;
+  trees: Map<string, Tree>; // Added for mushroom tree cover check
 }
 
 const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({ 
@@ -26,7 +27,8 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   waterPatches,
   campfires,
   lanterns,
-  furnaces
+  furnaces,
+  trees
 }) => {
   if (!visible || !seed) {
     return null;
@@ -157,11 +159,42 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return { nearCampfire, nearLantern, nearFurnace };
   };
   
+  // Check if this is a mushroom plant type
+  const isMushroom = (): boolean => {
+    const plantTypeTag = seed.plantType.tag;
+    return plantTypeTag === 'Chanterelle' ||
+           plantTypeTag === 'Porcini' ||
+           plantTypeTag === 'FlyAgaric' ||
+           plantTypeTag === 'ShaggyInkCap' ||
+           plantTypeTag === 'DeadlyWebcap' ||
+           plantTypeTag === 'DestroyingAngel';
+  };
+
+  // Check if seed is near trees (for mushroom bonus)
+  const isNearTree = (): boolean => {
+    const TREE_COVER_DISTANCE = 150; // pixels (matching server-side constant)
+    const TREE_COVER_DISTANCE_SQ = TREE_COVER_DISTANCE * TREE_COVER_DISTANCE;
+    
+    for (const tree of trees.values()) {
+      const dx = seed.posX - tree.posX;
+      const dy = seed.posY - tree.posY;
+      const distanceSq = dx * dx + dy * dy;
+      
+      if (distanceSq <= TREE_COVER_DISTANCE_SQ) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const cloudCoverage = calculateCloudCoverage();
   const nearWater = isNearWater();
+  const nearTree = isNearTree();
   const lightEffects = calculateLightEffects();
   const currentWeather = worldState?.currentWeather.tag || 'Clear';
   const currentTimeOfDay = worldState?.timeOfDay.tag || 'Noon';
+  const isMushroomPlant = isMushroom();
   
   // Get plant type name (format the tag nicely)
   const plantTypeName = seed.plantType.tag
@@ -240,10 +273,20 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
           {/* Time of Day */}
           <div className={styles.conditionRow}>
             <span className={styles.conditionLabel}>Time of Day:</span>
-            <span className={`${styles.conditionValue} ${currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight' ? styles.negative : styles.neutral}`}>
+            <span className={`${styles.conditionValue} ${
+              isMushroomPlant 
+                ? (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight' ? styles.positive : styles.neutral)
+                : (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight' ? styles.negative : styles.neutral)
+            }`}>
               {currentTimeOfDay}
-              {(currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight') && ' ⛔'}
-              {currentTimeOfDay === 'Noon' && ' ☀️'}
+              {isMushroomPlant ? (
+                (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight') && ' 🌙 +50%'
+              ) : (
+                <>
+                  {(currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight') && ' ⛔'}
+                  {currentTimeOfDay === 'Noon' && ' ☀️'}
+                </>
+              )}
             </span>
           </div>
           
@@ -267,8 +310,22 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
           {cloudCoverage > 0.1 && (
             <div className={styles.conditionRow}>
               <span className={styles.conditionLabel}>Cloud Cover:</span>
-              <span className={`${styles.conditionValue} ${styles.negative}`}>
-                ☁️ {Math.round(cloudCoverage * 100)}% (−{Math.round(cloudCoverage * 60)}%)
+              <span className={`${styles.conditionValue} ${isMushroomPlant ? styles.positive : styles.negative}`}>
+                ☁️ {Math.round(cloudCoverage * 100)}% 
+                {isMushroomPlant 
+                  ? ` (+${Math.round(cloudCoverage * 36)}%)` 
+                  : ` (−${Math.round(cloudCoverage * 60)}%)`
+                }
+              </span>
+            </div>
+          )}
+          
+          {/* Tree Proximity (mushrooms only) */}
+          {isMushroomPlant && nearTree && (
+            <div className={styles.conditionRow}>
+              <span className={styles.conditionLabel}>Near Tree:</span>
+              <span className={`${styles.conditionValue} ${styles.positive}`}>
+                🌳 Yes +50%
               </span>
             </div>
           )}

@@ -410,13 +410,68 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       }
     };
 
+    const handlePlaceHomesteadHearthResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
+      console.log('[PlacementManager] placeHomesteadHearth callback triggered:', { 
+        itemInstanceId, 
+        worldX, 
+        worldY,
+        eventStatus: ctx.event?.status,
+      });
+      
+      // Check for failed status
+      const status = ctx.event?.status;
+      const isFailed = status?.tag === 'Failed' || status === 'Failed' || (status && typeof status === 'object' && 'Failed' in status);
+      
+      if (isFailed) {
+        // Try to get error message from different possible structures
+        let errorMsg = 'Failed to place Matron\'s Chest';
+        if (status?.tag === 'Failed' && status?.value) {
+          errorMsg = status.value;
+        } else if (status?.Failed) {
+          errorMsg = status.Failed;
+        } else if (typeof status === 'string' && status !== 'Committed') {
+          errorMsg = status;
+        } else if (status && typeof status === 'object') {
+          const statusKeys = Object.keys(status);
+          if (statusKeys.length > 0) {
+            errorMsg = String(status[statusKeys[0]] || errorMsg);
+          }
+        }
+        
+        console.error('[PlacementManager] placeHomesteadHearth failed:', errorMsg);
+        
+        // Check if error is related to foundation placement (the main validation error)
+        const errorMsgLower = errorMsg.toLowerCase();
+        const isFoundationPlacementError = 
+          errorMsgLower.includes('must be placed on a foundation') ||
+          errorMsgLower.includes('cannot place matron\'s chest on a wall') ||
+          errorMsgLower.includes('too far away to place matron\'s chest');
+        
+        if (isFoundationPlacementError) {
+          console.log('[PlacementManager] Playing error_chest_placement sound for foundation placement error:', errorMsg);
+          try {
+            playImmediateSound('error_chest_placement', 1.0);
+            console.log('[PlacementManager] playImmediateSound called successfully');
+          } catch (error) {
+            console.error('[PlacementManager] Error calling playImmediateSound:', error);
+          }
+        }
+      }
+    };
+
     console.log('[PlacementManager] Registering plantSeed reducer callback');
     connection.reducers.onPlantSeed(handlePlantSeedResult);
     console.log('[PlacementManager] plantSeed reducer callback registered successfully');
 
+    console.log('[PlacementManager] Registering placeHomesteadHearth reducer callback');
+    connection.reducers.onPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
+    console.log('[PlacementManager] placeHomesteadHearth reducer callback registered successfully');
+
     return () => {
       console.log('[PlacementManager] Removing plantSeed reducer callback');
       connection.reducers.removeOnPlantSeed(handlePlantSeedResult);
+      console.log('[PlacementManager] Removing placeHomesteadHearth reducer callback');
+      connection.reducers.removeOnPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
     };
   }, [connection]);
 
@@ -540,6 +595,38 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           connection.reducers.placeHomesteadHearth(placementInfo.instanceId, worldX, adjustedHearthY);
           // Note: We don't call cancelPlacement here.
           // App.tsx's handleHomesteadHearthInsert callback will call it upon success.
+          break;
+        case 'Cerametal Field Cauldron Mk. II':
+          // Find nearest campfire to snap to
+          let nearestCampfire: any = null;
+          let nearestDistance = Infinity;
+          const CAMPFIRE_SNAP_DISTANCE = 150; // Maximum distance to snap to campfire
+          
+          for (const campfire of connection.db.campfire.iter()) {
+            const dx = worldX - campfire.posX;
+            const dy = worldY - campfire.posY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance && distance < CAMPFIRE_SNAP_DISTANCE) {
+              nearestDistance = distance;
+              nearestCampfire = campfire;
+            }
+          }
+          
+          if (nearestCampfire) {
+            // Check if campfire already has a broth pot
+            if (nearestCampfire.attachedBrothPotId !== null && nearestCampfire.attachedBrothPotId !== undefined) {
+              console.log('[PlacementManager] Campfire already has a broth pot attached');
+              playImmediateSound('error_planting', 1.0);
+              return;
+            }
+            
+            console.log(`[PlacementManager] Placing broth pot on campfire ${nearestCampfire.id}`);
+            connection.reducers.placeBrothPotOnCampfire(placementInfo.instanceId, nearestCampfire.id);
+          } else {
+            console.log('[PlacementManager] No campfire nearby to place broth pot');
+            playImmediateSound('error_planting', 1.0);
+          }
           break;
         default:
           // Check if it's a plantable seed using dynamic detection

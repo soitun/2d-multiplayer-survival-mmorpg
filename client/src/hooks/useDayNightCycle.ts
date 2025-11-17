@@ -3,18 +3,16 @@ import {
     Campfire as SpacetimeDBCampfire,
     Lantern as SpacetimeDBLantern,
     Furnace as SpacetimeDBFurnace,
-    HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
     WorldState as SpacetimeDBWorldState,
     Player as SpacetimeDBPlayer,
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
     RuneStone as SpacetimeDBRuneStone, // ADDED: RuneStone
 } from '../generated';
-import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, HEARTH_LIGHT_RADIUS_BASE, HEARTH_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
+import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
-import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth constants
 
 export interface ColorPoint {
   r: number; g: number; b: number; a: number;
@@ -272,7 +270,6 @@ interface UseDayNightCycleProps {
     campfires: Map<string, SpacetimeDBCampfire>;
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
-    homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
@@ -296,7 +293,6 @@ export function useDayNightCycle({
     campfires,
     lanterns,
     furnaces,
-    homesteadHearths, // ADDED: HomesteadHearths
     runeStones, // ADDED: RuneStones
     players,
     activeEquipments,
@@ -491,31 +487,6 @@ export function useDayNightCycle({
             }
         });
 
-        // Render hearth light cutouts (always on, warm orange glow)
-        homesteadHearths.forEach(hearth => {
-            if (!hearth.isDestroyed) {
-                // Adjust Y position for the light source to be centered on the hearth flame
-                const visualCenterWorldY = hearth.posY - (HEARTH_HEIGHT / 2) - HEARTH_RENDER_Y_OFFSET;
-                
-                const screenX = hearth.posX + cameraOffsetX;
-                const screenY = visualCenterWorldY + cameraOffsetY;
-                
-                // HEARTH CUTOUT - Larger than campfire, warm orange glow (always on)
-                const flicker = (Math.random() - 0.5) * 2 * HEARTH_FLICKER_AMOUNT;
-                const lightRadius = Math.max(0, (HEARTH_LIGHT_RADIUS_BASE * 2.2) + flicker); // 2.2x radius for larger coverage
-                const maskGradient = maskCtx.createRadialGradient(screenX, screenY, lightRadius * 0.08, screenX, screenY, lightRadius);
-                maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
-                maskGradient.addColorStop(0.4, 'rgba(0,0,0,0.75)'); // Strong cutout zone
-                maskGradient.addColorStop(0.7, 'rgba(0,0,0,0.4)'); // Gradual transition
-                maskGradient.addColorStop(0.9, 'rgba(0,0,0,0.15)'); // Gentle fade
-                maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
-                maskCtx.fillStyle = maskGradient;
-                maskCtx.beginPath();
-                maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
-                maskCtx.fill();
-            }
-        });
-
         // Render torch light cutouts
         players.forEach((player, playerId) => {
             if (!player || player.isDead) return;
@@ -668,7 +639,7 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, homesteadHearths, runeStones, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
+    }, [worldState, campfires, lanterns, furnaces, runeStones, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
 
     return { overlayRgba, maskCanvasRef };
 } 

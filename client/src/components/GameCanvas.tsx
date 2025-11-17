@@ -19,6 +19,7 @@ import {
   PlayerCorpse as SpacetimeDBPlayerCorpse,
   Stash as SpacetimeDBStash,
   RainCollector as SpacetimeDBRainCollector,
+  BrothPot as SpacetimeDBBrothPot,
   WaterPatch as SpacetimeDBWaterPatch,
   Cloud as SpacetimeDBCloud,
   ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
@@ -151,6 +152,7 @@ interface GameCanvasProps {
   playerCorpses: Map<string, SpacetimeDBPlayerCorpse>;
   stashes: Map<string, SpacetimeDBStash>;
   rainCollectors: Map<string, SpacetimeDBRainCollector>;
+  brothPots: Map<string, SpacetimeDBBrothPot>;
   waterPatches: Map<string, SpacetimeDBWaterPatch>;
   playerPins: Map<string, SpacetimeDBPlayerPin>;
   inventoryItems: Map<string, SpacetimeDBInventoryItem>;
@@ -228,6 +230,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerCorpses,
   stashes,
   rainCollectors,
+  brothPots,
   waterPatches,
   playerPins,
   inventoryItems,
@@ -438,7 +441,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     campfires,
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
-    homesteadHearths, // ADDED: HomesteadHearths for light cutouts
     runeStones, // ADDED: RuneStones for night light cutouts
     players, // Pass all players
     activeEquipments, // Pass all active equipments
@@ -535,6 +537,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     clouds,
     plantedSeeds,
     rainCollectors,
+    brothPots,
     wildAnimals,
     viperSpittles,
     animalCorpses,
@@ -729,6 +732,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     itemDefinitions,
     playerDrinkingCooldowns,
     rainCollectors,
+    brothPots,
     harvestableResources,
     worldTiles: visibleWorldTiles,
   });
@@ -2045,9 +2049,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       sleepingBags: visibleSleepingBagsMap,
       players: players,
       itemDefinitions,
-      closestInteractableTarget: closestInteractableTarget as any,
+      closestInteractableTarget: unifiedInteractableTarget as any,
       lanterns: visibleLanternsMap,
       rainCollectors: rainCollectors,
+      brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
     });
     renderPlacementPreview({
@@ -2831,6 +2836,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           campfires={campfires}
           lanterns={lanterns}
           furnaces={furnaces}
+          trees={trees}
         />
       )}
     </div>

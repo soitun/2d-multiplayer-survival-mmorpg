@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats } from '../generated';
+import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats, BrothPot as SpacetimeDBBrothPot } from '../generated';
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
@@ -58,6 +58,7 @@ interface HotbarProps {
   interactingWith: { type: string; id: number | bigint } | null;
   campfires: Map<string, SpacetimeDBCampfire>;
   stashes: Map<string, Stash>;
+  brothPots: Map<string, SpacetimeDBBrothPot>;
   startPlacement: (itemInfo: PlacementItemInfo) => void;
   cancelPlacement: () => void;
   activeConsumableEffects: Map<string, ActiveConsumableEffect>;
@@ -121,7 +122,9 @@ const Hotbar: React.FC<HotbarProps> = ({
     onItemDragStart,
     onItemDrop,
     interactingWith,
+    campfires,
     stashes,
+    brothPots,
     startPlacement,
     cancelPlacement,
     activeConsumableEffects,
@@ -913,6 +916,27 @@ const Hotbar: React.FC<HotbarProps> = ({
                       }
                       break;
                   case 'campfire':
+                      // Special handling: If water container and campfire has attached broth pot with empty water slot, use water container slot
+                      const campfireEntity = campfires.get(containerId.toString());
+                      if (campfireEntity?.attachedBrothPotId && isWaterContainer(itemInfo.definition.name)) {
+                          const attachedBrothPot = brothPots.get(campfireEntity.attachedBrothPotId.toString());
+                          // Type assertion until bindings regenerated
+                          const pot = attachedBrothPot as any;
+                          if (attachedBrothPot && !pot?.waterContainerInstanceId) {
+                              // Water container slot is empty, use it
+                              try {
+                                  (connection.reducers as any).quickMoveToBrothPotWaterContainer(
+                                      campfireEntity.attachedBrothPotId,
+                                      itemInstanceId
+                                  );
+                                  return; // Successfully handled
+                              } catch (e: any) {
+                                  console.error(`[Hotbar CtxMenu] Error moving to water container slot:`, e);
+                                  return;
+                              }
+                          }
+                      }
+                      // Default: move to campfire fuel slots
                       connection.reducers.quickMoveToCampfire(containerId, itemInstanceId);
                       break;
                   case 'furnace':
@@ -927,6 +951,9 @@ const Hotbar: React.FC<HotbarProps> = ({
                   case 'rain_collector':
                       // Rain collectors use a different function signature with slot index
                       connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
+                      break;
+                  case 'broth_pot':
+                      connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
                       break;
                   default:
                       console.warn(`[Hotbar CtxMenu] Unknown interaction type: ${interactingWith.type}`);

@@ -47,7 +47,7 @@ export function useChunkBasedRainSounds({
       // If weather changed, use crossfade for smooth transition
       if (weatherChanged && oldWeather && oldWeather !== 'Clear' && currentWeatherType !== 'Clear') {
         // Crossfade: Start new sound first, then stop old sound after 1 second
-        console.log(`[RainSounds] 🔄 Crossfading from ${oldWeather} to ${currentWeatherType}`);
+        // console.log(`[RainSounds] 🔄 Crossfading from ${oldWeather} to ${currentWeatherType}`);
         startRainSoundsForWeather(connection, currentWeatherType);
         
         crossfadeTimeoutRef.current = setTimeout(() => {
@@ -77,7 +77,7 @@ export function useChunkBasedRainSounds({
       }
       
       if (connection && currentWeatherTypeRef.current) {
-        console.log('[RainSounds] Cleanup - stopping all rain sounds');
+        // console.log('[RainSounds] Cleanup - stopping all rain sounds');
         stopRainSoundsForWeather(connection, currentWeatherTypeRef.current);
       }
     };
@@ -95,27 +95,27 @@ function startRainSoundsForWeather(connection: any, weatherType: string) {
       case 'HeavyRain':
       case 'HeavyStorm':
         // Start heavy storm rain sound
-        console.log('[RainSounds] 🌧️ Starting heavy storm rain sound');
+        // console.log('[RainSounds] 🌧️ Starting heavy storm rain sound');
         connection.reducers.startHeavyStormRainSoundReducer?.();
         break;
       
       case 'LightRain':
       case 'ModerateRain':
         // Start normal rain sound
-        console.log('[RainSounds] 🌦️ Starting normal rain sound');
+        // console.log('[RainSounds] 🌦️ Starting normal rain sound');
         connection.reducers.startNormalRainSoundReducer?.();
         break;
       
       case 'Clear':
         // No sound needed for clear weather
-        console.log('[RainSounds] ☀️ Clear weather - no rain sounds');
+        // console.log('[RainSounds] ☀️ Clear weather - no rain sounds');
         break;
       
       default:
-        console.warn(`[RainSounds] Unknown weather type: ${weatherType}`);
+        // console.warn(`[RainSounds] Unknown weather type: ${weatherType}`);
     }
   } catch (error) {
-    console.error('[RainSounds] Error starting rain sound:', error);
+    // console.error('[RainSounds] Error starting rain sound:', error);
   }
 }
 
@@ -130,14 +130,14 @@ function stopRainSoundsForWeather(connection: any, weatherType: string) {
       case 'HeavyRain':
       case 'HeavyStorm':
         // Stop heavy storm rain sound
-        console.log('[RainSounds] 🌧️ Stopping heavy storm rain sound');
+        // console.log('[RainSounds] 🌧️ Stopping heavy storm rain sound');
         connection.reducers.stopHeavyStormRainSoundReducer?.();
         break;
       
       case 'LightRain':
       case 'ModerateRain':
         // Stop normal rain sound
-        console.log('[RainSounds] 🌦️ Stopping normal rain sound');
+        // console.log('[RainSounds] 🌦️ Stopping normal rain sound');
         connection.reducers.stopNormalRainSoundReducer?.();
         break;
       
@@ -152,4 +152,3 @@ function stopRainSoundsForWeather(connection: any, weatherType: string) {
     console.error('[RainSounds] Error stopping rain sound:', error);
   }
 }
-

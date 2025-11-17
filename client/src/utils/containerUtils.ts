@@ -7,17 +7,17 @@
 
 import { 
     InventoryItem, ItemDefinition,
-    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth
+    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
-import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
+import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
 
 // Container type definitions based on actual usage
 export type ContainerType = 
     | 'campfire' | 'furnace' | 'lantern'           // Fuel containers
-    | 'wooden_storage_box' | 'player_corpse' | 'stash' | 'rain_collector' | 'homestead_hearth'; // Storage containers
+    | 'wooden_storage_box' | 'player_corpse' | 'stash' | 'rain_collector' | 'homestead_hearth' | 'broth_pot'; // Storage containers
 
-export type ContainerEntity = Campfire | Furnace | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth;
+export type ContainerEntity = Campfire | Furnace | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
 
 // Container configurations - simple and focused on actual patterns
 export const CONTAINER_CONFIGS = {
@@ -31,7 +31,8 @@ export const CONTAINER_CONFIGS = {
     player_corpse: { slots: 30, slotType: 'player_corpse', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
     stash: { slots: 6, slotType: 'stash', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
     rain_collector: { slots: 1, slotType: 'rain_collector', fieldPrefix: 'slot0InstanceId', hasToggle: false, hasLightExtinguish: false, special: true, gridCols: 1 },
-    homestead_hearth: { slots: 20, slotType: 'homestead_hearth', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false }
+    homestead_hearth: { slots: 20, slotType: 'homestead_hearth', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
+    broth_pot: { slots: 3, slotType: 'broth_pot', fieldPrefix: 'ingredientInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 3, special: false }
 } as const;
 
 /**
@@ -46,7 +47,8 @@ export function getReducerName(containerType: ContainerType, action: string): st
         player_corpse: 'Corpse',
         stash: 'Stash',
         rain_collector: 'RainCollector',
-        homestead_hearth: 'Hearth' // Note: Reducer is quickMoveFromHearth, not quickMoveFromHomesteadHearth
+        homestead_hearth: 'Hearth', // Note: Reducer is quickMoveFromHearth, not quickMoveFromHomesteadHearth
+        broth_pot: 'BrothPot'
     };
     
     const typeName = typeMap[containerType];
@@ -74,7 +76,8 @@ export function getDragDropReducerNames(containerType: ContainerType) {
         player_corpse: 'Corpse',
         stash: 'Stash',
         rain_collector: 'RainCollector',
-        homestead_hearth: 'Hearth' // Note: Reducer is moveItemToHearth, not moveItemToHomesteadHearth
+        homestead_hearth: 'Hearth', // Note: Reducer is moveItemToHearth, not moveItemToHomesteadHearth
+        broth_pot: 'BrothPot'
     };
     
     const typeName = typeMap[containerType];
@@ -115,7 +118,9 @@ export function getContainerTypeFromSlotType(slotType: string): ContainerType | 
         'player_corpse': 'player_corpse',
         'stash': 'stash',
         'rain_collector': 'rain_collector',
-        'homestead_hearth': 'homestead_hearth'
+        'homestead_hearth': 'homestead_hearth',
+        'broth_pot': 'broth_pot',
+        'broth_pot_water_container': 'broth_pot' // Special slot type for water container
     };
     
     return mapping[slotType] || null;
@@ -204,8 +209,13 @@ export function handleContainerToPlayerMove(
     targetSlotIndex: number,
     setDropError: (error: string | null) => void
 ): boolean {
+    console.log(`[ContainerToPlayer] Source slot type: ${sourceInfo.sourceSlot.type}, parentId: ${sourceInfo.sourceSlot.parentId}`);
     const containerType = getContainerTypeFromSlotType(sourceInfo.sourceSlot.type);
-    if (!containerType) return false;
+    console.log(`[ContainerToPlayer] Resolved container type: ${containerType}`);
+    if (!containerType) {
+        console.warn(`[ContainerToPlayer] Could not resolve container type for slot type: ${sourceInfo.sourceSlot.type}`);
+        return false;
+    }
     
     const reducers = getDragDropReducerNames(containerType);
     
@@ -220,11 +230,49 @@ export function handleContainerToPlayerMove(
             return true;
         }
         
-        const reducerName = reducers.moveToPlayer;
-        if (connection.reducers[reducerName]) {
-            connection.reducers[reducerName](sourceEntityId, sourceSlotIndex, targetSlotType, targetSlotIndex);
+        // Special handling for water container slot
+        let reducerName: string;
+        if (sourceInfo.sourceSlot.type === 'broth_pot_water_container') {
+            reducerName = 'moveItemFromBrothPotWaterContainer';
         } else {
-            setDropError(`Move action not available for ${containerType}.`);
+            reducerName = reducers.moveToPlayer;
+        }
+        
+        if (sourceInfo.sourceSlot.type === 'broth_pot_water_container') {
+            // Water container slot reducer: (broth_pot_id, target_slot_type, target_slot_index)
+            // Ensure targetSlotType is a string and targetSlotIndex is a number
+            const targetTypeStr = String(targetSlotType);
+            const targetIndexNum = typeof targetSlotIndex === 'number' ? targetSlotIndex : parseInt(String(targetSlotIndex), 10);
+            
+            // Check if reducer exists
+            if (!connection.reducers[reducerName]) {
+                console.error(`[ContainerToPlayer WaterContainer] Reducer ${reducerName} not found. Available reducers:`, Object.keys(connection.reducers || {}));
+                setDropError(`Move action not available: reducer ${reducerName} not found.`);
+                return true;
+            }
+            
+            console.log(`[ContainerToPlayer WaterContainer] Calling ${reducerName} with:`, {
+                brothPotId: sourceEntityId,
+                targetSlotType: targetTypeStr,
+                targetSlotIndex: targetIndexNum,
+                sourceSlotType: sourceInfo.sourceSlot.type,
+                sourceSlotParentId: sourceInfo.sourceSlot.parentId
+            });
+            
+            try {
+                (connection.reducers as any)[reducerName](sourceEntityId, targetTypeStr, targetIndexNum);
+            } catch (error: any) {
+                console.error(`[ContainerToPlayer WaterContainer] Error calling reducer:`, error);
+                setDropError(`Failed to move item: ${error?.message || error}`);
+                return true;
+            }
+        } else {
+            if (!connection.reducers[reducerName]) {
+                console.error(`[ContainerToPlayer] Reducer ${reducerName} not found. Available reducers:`, Object.keys(connection.reducers || {}));
+                setDropError(`Move action not available for ${containerType}.`);
+                return true;
+            }
+            connection.reducers[reducerName](sourceEntityId, sourceSlotIndex, targetSlotType, targetSlotIndex);
         }
         
         return true;
@@ -273,12 +321,15 @@ export function handlePlayerToContainerMove(
             return true;
         }
         
-        // Use appropriate reducer based on container type
+        // Use appropriate reducer based on container type and slot type
         let reducerName: string;
         if (containerType === 'player_corpse') {
             reducerName = 'moveItemToCorpse';
         } else if (containerType === 'rain_collector') {
             reducerName = 'moveItemToRainCollector';
+        } else if (targetSlot.type === 'broth_pot_water_container') {
+            // Special handling for water container slot
+            reducerName = 'moveItemToBrothPotWaterContainer';
         } else {
             reducerName = reducers.moveFromPlayer;
         }
@@ -286,6 +337,9 @@ export function handlePlayerToContainerMove(
         if (connection.reducers[reducerName]) {
             if (containerType === 'rain_collector') {
                 connection.reducers[reducerName](containerIdNum, itemInstanceId, targetIndexNum);
+            } else if (targetSlot.type === 'broth_pot_water_container') {
+                // Water container slot reducer only takes broth_pot_id and item_instance_id
+                connection.reducers[reducerName](containerIdNum, itemInstanceId);
             } else {
                 connection.reducers[reducerName](containerIdNum, targetIndexNum, itemInstanceId);
             }
@@ -418,7 +472,7 @@ export function createSlotInfo(
 ): DragSourceSlotInfo {
     const config = CONTAINER_CONFIGS[containerType];
     return {
-        type: config.slotType,
+        type: config.slotType as SlotType,
         index,
         parentId: containerId ?? undefined
     };
@@ -536,7 +590,7 @@ export function isFuelContainer(containerType: ContainerType): boolean {
  * Check if container type has storage slots  
  */
 export function isStorageContainer(containerType: ContainerType): boolean {
-    return ['wooden_storage_box', 'player_corpse', 'stash', 'rain_collector', 'homestead_hearth'].includes(containerType);
+    return ['wooden_storage_box', 'player_corpse', 'stash', 'rain_collector', 'homestead_hearth', 'broth_pot'].includes(containerType);
 }
 
 /**
@@ -558,7 +612,8 @@ export function getContainerDisplayName(containerType: ContainerType): string {
         player_corpse: 'Player Corpse',
         stash: 'STASH',
         rain_collector: 'RAIN COLLECTOR',
-        homestead_hearth: "MATRON'S CHEST"
+        homestead_hearth: "MATRON'S CHEST",
+        broth_pot: 'BROTH POT'
     };
     
     return nameMap[containerType];
@@ -579,6 +634,7 @@ export function getContainerEntity(
         stashes?: Map<string, Stash>;
         rainCollectors?: Map<string, RainCollector>;
         homesteadHearths?: Map<string, HomesteadHearth>;
+        brothPots?: Map<string, BrothPot>;
     }
 ): ContainerEntity | null {
     if (containerId === null) return null;
@@ -594,6 +650,7 @@ export function getContainerEntity(
         case 'stash': return containers.stashes?.get(idStr) || null;
         case 'rain_collector': return containers.rainCollectors?.get(idStr) || null;
         case 'homestead_hearth': return containers.homesteadHearths?.get(idStr) || null;
+        case 'broth_pot': return containers.brothPots?.get(idStr) || null;
         default: return null;
     }
 }

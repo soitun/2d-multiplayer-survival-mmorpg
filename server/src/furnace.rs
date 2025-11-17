@@ -1116,14 +1116,24 @@ pub fn get_fuel_burn_rate_multiplier(ctx: &ReducerContext, furnace: &Furnace) ->
     }
 }
 
-/// Get the smelting speed multiplier based on whether Reed Bellows is present  
+/// Get the smelting speed multiplier based on Reed Bellows and red rune stone proximity
 /// Reed Bellows makes smelting 20% faster (multiplier = 1.2)
+/// Red rune stone zone doubles smelting speed (multiplier = 2.0)
+/// Multipliers stack multiplicatively (e.g., both = 1.2 * 2.0 = 2.4x)
 pub fn get_smelting_speed_multiplier(ctx: &ReducerContext, furnace: &Furnace) -> f32 {
+    let mut multiplier = 1.0;
+    
+    // Check for Reed Bellows (20% faster = 1.2x)
     if has_reed_bellows(ctx, furnace) {
-        1.2 // Smelting 20% faster with bellows
-    } else {
-        1.0 // Normal smelting speed
+        multiplier *= 1.2;
     }
+    
+    // Check for red rune stone zone (2x faster smelting)
+    if crate::rune_stone::is_position_in_red_rune_zone(ctx, furnace.pos_x, furnace.pos_y) {
+        multiplier *= 2.0;
+    }
+    
+    multiplier
 }
 
 // Implement CookableAppliance for Furnace (smelting only)

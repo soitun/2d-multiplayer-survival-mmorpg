@@ -4,7 +4,16 @@ import { DbConnection, InventoryItem, Campfire, Lantern } from '../generated';
 import { Identity } from 'spacetimedb';
 
 // Define the shape of the interaction target
-export type InteractionTarget = { type: string; id: number | bigint } | null;
+export type InteractionTarget = { 
+    type: string; 
+    id: number | bigint;
+    data?: {
+        campfireId?: number;
+        brothPotId?: number;
+        isBrothPotEmpty?: boolean;
+        [key: string]: any;
+    };
+} | null;
 
 // Define the return type of the hook
 interface InteractionManager {
@@ -107,6 +116,9 @@ export function useTargetInteractionManager({
             case 'sleeping_bag':
                 console.log(`[InteractionManager] Opening sleeping bag interface for ID: ${target.id}`);
                 break;
+            case 'broth_pot':
+                console.log(`[InteractionManager] Opening broth pot interface for ID: ${target.id}`);
+                break;
             case 'knocked_out_player':
                 // This should be handled by hold action, not tap
                 console.log(`[InteractionManager] Knocked out player requires hold action, not tap`);
@@ -166,6 +178,12 @@ export function useTargetInteractionManager({
             case 'stash':
                 // Toggle visibility
                 connection.reducers.toggleStashVisibility(Number(target.id));
+                break;
+            case 'broth_pot':
+                // Pickup empty broth pot
+                if (target.data?.isEmpty) {
+                    connection.reducers.pickupBrothPot(Number(target.id));
+                }
                 break;
             default:
                 console.warn(`[InteractionManager] Unhandled secondary hold action for target type: ${target.type}`);

@@ -36,4 +36,5 @@ export type Stash = { tag: "Stash" };
 export type Lantern = { tag: "Lantern" };
 export type RainCollector = { tag: "RainCollector" };
 export type HomesteadHearth = { tag: "HomesteadHearth" };
+export type BrothPot = { tag: "BrothPot" };
 

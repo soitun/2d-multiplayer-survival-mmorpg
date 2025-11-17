@@ -5,7 +5,7 @@
  *                                                                            *
  ******************************************************************************/
 
-use spacetimedb::{Identity, ReducerContext, Table, Timestamp};
+use spacetimedb::{Identity, ReducerContext, Table, Timestamp, TimeDuration, ScheduleAt};
 use log;
 use rand::Rng;
 
@@ -16,6 +16,11 @@ pub(crate) const PLAYER_SLEEPING_BAG_COLLISION_DISTANCE_SQUARED: f32 = (super::P
 const SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED: f32 = 64.0 * 64.0; // Same as box/campfire
 pub(crate) const SLEEPING_BAG_SLEEPING_BAG_COLLISION_DISTANCE_SQUARED: f32 = (SLEEPING_BAG_COLLISION_RADIUS * 2.0) * (SLEEPING_BAG_COLLISION_RADIUS * 2.0);
 const PLACEMENT_RANGE_SQ: f32 = 96.0 * 96.0; // Standard placement range
+
+// --- Deterioration Constants ---
+const SLEEPING_BAG_DETERIORATION_CHECK_INTERVAL_SECS: i64 = 3600; // Check every hour
+const SLEEPING_BAG_DETERIORATION_DAMAGE_PER_HOUR: f32 = 250.0 / 24.0; // ~10.42 health per hour (takes 24 hours to fully deteriorate)
+const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius (same as campfire)
 
 // --- Import Dependencies ---
 use crate::environment::calculate_chunk_index;
@@ -35,6 +40,9 @@ use crate::active_equipment;
 use crate::crafting_queue;
 use crate::models::{ItemLocation, EquipmentSlotType}; // Removed PlayerActivity
 use crate::player_stats::{PLAYER_STARTING_HUNGER, PLAYER_STARTING_THIRST};
+use crate::tree::tree as TreeTableTrait;
+use crate::shelter::shelter as ShelterTableTrait;
+use crate::sleeping_bag::sleeping_bag_deterioration_schedule as SleepingBagDeteriorationScheduleTableTrait;
 
 /// --- Sleeping Bag Data Structure ---
 /// Represents a placed sleeping bag in the world.
@@ -66,6 +74,16 @@ pub struct SleepingBag {
 // Temporarily disable the filter due to potential host stack overflow
 // #[client_visibility_filter]
 // const ONLY_OWNED_SLEEPING_BAGS: Filter = Filter::Sql("SELECT * FROM sleeping_bag WHERE placed_by = :sender");
+
+/// --- Deterioration Schedule Table ---
+/// Schedules periodic deterioration checks for sleeping bags
+#[spacetimedb::table(name = sleeping_bag_deterioration_schedule, scheduled(process_sleeping_bag_deterioration))]
+#[derive(Clone)]
+pub struct SleepingBagDeteriorationSchedule {
+    #[primary_key]
+    pub sleeping_bag_id: u64, // Links to SleepingBag.id (u64 required for scheduled tables)
+    pub scheduled_at: ScheduleAt,
+}
 
 /******************************************************************************
  *                                REDUCERS                                    *
@@ -166,11 +184,14 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
         destroyed_at: None,
         last_hit_time: None,
     };
-    sleeping_bags.insert(new_bag);
+    let inserted_bag = sleeping_bags.insert(new_bag);
+    
+    // Schedule deterioration processing for the new sleeping bag
+    schedule_sleeping_bag_deterioration(ctx, inserted_bag.id as u64);
 
     log::info!(
-        "[PlaceSleepingBag] Successfully placed Sleeping Bag at ({:.1}, {:.1}) by {:?}",
-        world_x, world_y, sender_id
+        "[PlaceSleepingBag] Successfully placed Sleeping Bag {} at ({:.1}, {:.1}) by {:?}",
+        inserted_bag.id, world_x, world_y, sender_id
     );
 
     Ok(())
@@ -343,6 +364,78 @@ pub fn interact_with_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(
     Ok(())
 }
 
+/// --- Scheduled Deterioration Processing ---
+/// Processes deterioration for a sleeping bag if it's not protected.
+/// This reducer is called periodically for each sleeping bag.
+#[spacetimedb::reducer]
+pub fn process_sleeping_bag_deterioration(ctx: &ReducerContext, schedule_args: SleepingBagDeteriorationSchedule) -> Result<(), String> {
+    // Security check: only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("process_sleeping_bag_deterioration may only be called by the scheduler.".to_string());
+    }
+
+    let bag_id = schedule_args.sleeping_bag_id as u32; // Convert from u64 to u32 for lookup
+    let sleeping_bags = ctx.db.sleeping_bag();
+    
+    // Find the sleeping bag
+    let mut sleeping_bag = match sleeping_bags.id().find(bag_id) {
+        Some(bag) => bag,
+        None => {
+            // Sleeping bag was destroyed or removed, clean up schedule
+            log::debug!("[SleepingBagDeterioration] Sleeping bag {} not found, removing schedule.", bag_id);
+            ctx.db.sleeping_bag_deterioration_schedule().sleeping_bag_id().delete(schedule_args.sleeping_bag_id);
+            return Ok(());
+        }
+    };
+
+    // Skip if already destroyed
+    if sleeping_bag.is_destroyed {
+        log::debug!("[SleepingBagDeterioration] Sleeping bag {} is destroyed, removing schedule.", bag_id);
+        ctx.db.sleeping_bag_deterioration_schedule().sleeping_bag_id().delete(schedule_args.sleeping_bag_id);
+        return Ok(());
+    }
+
+    // Check if sleeping bag is protected (indoors or under tree)
+    let is_protected = is_sleeping_bag_protected(ctx, &sleeping_bag);
+
+    if !is_protected {
+        // Apply deterioration damage
+        sleeping_bag.health -= SLEEPING_BAG_DETERIORATION_DAMAGE_PER_HOUR;
+        
+        log::debug!(
+            "[SleepingBagDeterioration] Sleeping bag {} took {:.2} damage (health: {:.2}/{:.2})",
+            bag_id, SLEEPING_BAG_DETERIORATION_DAMAGE_PER_HOUR, sleeping_bag.health, sleeping_bag.max_health
+        );
+
+        // Check if destroyed
+        if sleeping_bag.health <= 0.0 {
+            sleeping_bag.health = 0.0;
+            sleeping_bag.is_destroyed = true;
+            sleeping_bag.destroyed_at = Some(ctx.timestamp);
+            log::info!(
+                "[SleepingBagDeterioration] Sleeping bag {} has deteriorated completely and been destroyed.",
+                bag_id
+            );
+            sleeping_bags.id().update(sleeping_bag);
+            // Remove schedule when destroyed
+            ctx.db.sleeping_bag_deterioration_schedule().sleeping_bag_id().delete(schedule_args.sleeping_bag_id);
+            return Ok(());
+        }
+        
+        sleeping_bags.id().update(sleeping_bag);
+    } else {
+        log::debug!(
+            "[SleepingBagDeterioration] Sleeping bag {} is protected, no deterioration.",
+            bag_id
+        );
+    }
+
+    // Reschedule for next check
+    schedule_sleeping_bag_deterioration(ctx, schedule_args.sleeping_bag_id);
+
+    Ok(())
+}
+
 /******************************************************************************
  *                             HELPER FUNCTIONS                               *
  ******************************************************************************/
@@ -373,4 +466,81 @@ fn validate_sleeping_bag_interaction(
         return Err("Too far away".to_string());
     }
     Ok((player, sleeping_bag))
+}
+
+/// --- Check if Sleeping Bag is Protected ---
+/// Returns true if the sleeping bag is protected from deterioration by:
+/// - Being inside a shelter
+/// - Being inside an enclosed building
+/// - Being near a tree (within 100px)
+fn is_sleeping_bag_protected(ctx: &ReducerContext, sleeping_bag: &SleepingBag) -> bool {
+    // Check if inside any shelter
+    for shelter in ctx.db.shelter().iter() {
+        if shelter.is_destroyed {
+            continue;
+        }
+        
+        // Use the same shelter collision detection logic as in shelter.rs
+        let shelter_aabb_center_x = shelter.pos_x;
+        let shelter_aabb_center_y = shelter.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y;
+        let aabb_left = shelter_aabb_center_x - crate::shelter::SHELTER_AABB_HALF_WIDTH;
+        let aabb_right = shelter_aabb_center_x + crate::shelter::SHELTER_AABB_HALF_WIDTH;
+        let aabb_top = shelter_aabb_center_y - crate::shelter::SHELTER_AABB_HALF_HEIGHT;
+        let aabb_bottom = shelter_aabb_center_y + crate::shelter::SHELTER_AABB_HALF_HEIGHT;
+        
+        // Check if sleeping bag position is inside shelter AABB
+        if sleeping_bag.pos_x >= aabb_left && sleeping_bag.pos_x <= aabb_right &&
+           sleeping_bag.pos_y >= aabb_top && sleeping_bag.pos_y <= aabb_bottom {
+            return true;
+        }
+    }
+    
+    // Check if inside an enclosed building
+    if crate::building_enclosure::is_position_inside_building(ctx, sleeping_bag.pos_x, sleeping_bag.pos_y) {
+        return true;
+    }
+    
+    // Check if within 100px of any tree (protected by tree cover)
+    for tree in ctx.db.tree().iter() {
+        // Skip destroyed trees (respawn_at is set when tree is harvested)
+        if tree.respawn_at.is_some() {
+            continue;
+        }
+        
+        // Calculate distance squared between sleeping bag and tree
+        let dx = sleeping_bag.pos_x - tree.pos_x;
+        let dy = sleeping_bag.pos_y - tree.pos_y;
+        let distance_squared = dx * dx + dy * dy;
+        
+        if distance_squared <= TREE_PROTECTION_DISTANCE_SQ {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// --- Schedule Sleeping Bag Deterioration ---
+/// Schedules or re-schedules the deterioration processing for a sleeping bag.
+pub(crate) fn schedule_sleeping_bag_deterioration(ctx: &ReducerContext, bag_id: u64) {
+    let schedules = ctx.db.sleeping_bag_deterioration_schedule();
+    let interval = TimeDuration::from_micros(SLEEPING_BAG_DETERIORATION_CHECK_INTERVAL_SECS * 1_000_000);
+    
+    // Check if schedule already exists
+    if let Some(mut existing_schedule) = schedules.sleeping_bag_id().find(bag_id) {
+        // Update existing schedule
+        existing_schedule.scheduled_at = interval.into();
+        schedules.sleeping_bag_id().update(existing_schedule);
+        log::debug!("[ScheduleSleepingBagDeterioration] Updated deterioration schedule for sleeping bag {}.", bag_id);
+    } else {
+        // Insert new schedule
+        let schedule_entry = SleepingBagDeteriorationSchedule {
+            sleeping_bag_id: bag_id,
+            scheduled_at: interval.into(),
+        };
+        match schedules.try_insert(schedule_entry) {
+            Ok(_) => log::debug!("[ScheduleSleepingBagDeterioration] Scheduled deterioration for sleeping bag {}.", bag_id),
+            Err(e) => log::warn!("[ScheduleSleepingBagDeterioration] Failed to schedule deterioration for sleeping bag {}: {:?}", bag_id, e),
+        }
+    }
 }

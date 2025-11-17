@@ -43,7 +43,8 @@ export type InteractionTargetType =
     | 'sleeping_bag' 
     | 'knocked_out_player' 
     | 'water'
-    | 'rain_collector';
+    | 'rain_collector'
+    | 'broth_pot';
 
 // Interaction behaviors - determines how the interaction works
 export enum InteractionBehavior {
@@ -135,6 +136,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 70,
         actionType: 'open_rain_collector'
+    },
+    
+    // Broth pot - interface for cooking and water management
+    broth_pot: {
+        behavior: InteractionBehavior.INTERFACE,
+        priority: 75,
+        actionType: 'open_broth_pot'
     }
 };
 
@@ -200,6 +208,9 @@ export function hasSpecialConditions(target: InteractableTarget): boolean {
         case 'homestead_hearth':
             // Special hearth conditions for grant building privilege via hold
             return true; // Hearths can grant building privilege via hold
+        case 'broth_pot':
+            // Special broth pot conditions (pickup if empty)
+            return true; // Broth pots can be picked up via hold when empty
         default:
             return false;
     }
@@ -227,6 +238,9 @@ export function getEffectiveInteractionBehavior(target: InteractableTarget): Int
         case 'stash':
             // Stashes always open interface via tap (secondary hold action handles visibility toggle)  
             return InteractionBehavior.INTERFACE;
+        case 'broth_pot':
+            // Broth pots always open interface via tap (secondary hold action handles pickup when empty)
+            return InteractionBehavior.INTERFACE;
         default:
             // Use default behavior from INTERACTION_CONFIGS
             const config = INTERACTION_CONFIGS[target.type];
@@ -249,6 +263,8 @@ export function hasSecondaryHoldAction(target: InteractableTarget): boolean {
             return true; // Always has grant building privilege action via hold
         case 'stash':
             return true; // Always has toggle visibility action
+        case 'broth_pot':
+            return true; // Always has pickup action when empty
         default:
             return false;
     }
@@ -269,6 +285,8 @@ export function getSecondaryHoldDuration(target: InteractableTarget): number {
             return 1000; // 1 second to grant building privilege (significant action)
         case 'stash':
             return 250; // 0.25 seconds to toggle stash visibility (very quick)
+        case 'broth_pot':
+            return 1000; // 1 second to pick up broth pot (significant action)
         default:
             return 1000; // Default 1 second
     }

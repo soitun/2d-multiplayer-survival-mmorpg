@@ -46,6 +46,9 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Wolf Fur Leggings", 1, None, Some(14u16)),
         ("Wolf Fur Gloves", 1, None, Some(15u16)),
         ("Wolf Fur Boots", 1, None, Some(16u16)),
+        ("Cerametal Field Cauldron Mk. II", 1, None, Some(17u16)),
+        ("Reed Rain Collector", 1, None, Some(18u16)),
+        ("Plastic Water Jug", 1, None, Some(19u16)),
        
     ];
 

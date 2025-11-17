@@ -11,6 +11,8 @@ What started as an open source project for a generic 2D survival game is now a f
 
 I've committed to open sourcing the entire project and providing the best documentation possible to help you get up and running, fork the project, create your own games, or even contribute back to Broth & Bullets itself. This repository serves as a comprehensive starter kit and learning resource.
 
+💬 **Want to chat?** Join the discussion on [Discord](https://discord.com/channels/1037340874172014652/1395802030169391221/threads/1409306941888397496)
+
 ## Table of Contents
 
 *   [⚡ Quick Local Setup](#️-quick-local-setup)

@@ -12,6 +12,7 @@ pub enum ContainerType {
     Lantern,
     RainCollector,
     HomesteadHearth,
+    BrothPot,
     // Other container types can be added here
 }
 

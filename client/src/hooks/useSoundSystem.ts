@@ -82,6 +82,8 @@ const SOUND_DEFINITIONS = {
     error_building_privilege: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Building privilege error sound (client-side immediate for instant feedback when trying to upgrade without privilege)
     error_tier_upgrade: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Tier upgrade error sound (client-side immediate for instant feedback when trying to upgrade to same or lower tier)
     error_planting: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Planting error sound (client-side immediate for instant feedback when planting in invalid location)
+    error_chest_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Chest placement error sound (client-side immediate for instant feedback when Matron's Chest placement fails)
+    error_foundation_monument: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation monument error sound (client-side immediate for instant feedback when trying to place foundation in rune stone light area)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -93,6 +95,8 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
     'error_building_privilege',
     'error_tier_upgrade',
     'error_planting',
+    'error_chest_placement',
+    'error_foundation_monument',
 ] as SoundType[]);
 
 // Track active error sounds to prevent multiple from playing simultaneously
@@ -558,6 +562,10 @@ const playLocalSound = async (
                 variationCount = 1; // error_tier_upgrade.mp3
             } else if (soundType === 'error_planting') {
                 variationCount = 1; // error_planting.mp3
+            } else if (soundType === 'error_chest_placement') {
+                variationCount = 1; // error_chest_placement.mp3
+            } else if (soundType === 'error_foundation_monument') {
+                variationCount = 1; // error_foundation_monument.mp3
             } else if (soundType === 'arrow_hit') {
                 variationCount = 1; // arrow_hit.mp3
             } else if (soundType === 'shoot_bow') {
@@ -607,16 +615,30 @@ const playLocalSound = async (
         // Check if this is an error sound (no pitch variation sounds) - prevent multiple from playing at once
         const isErrorSound = NO_PITCH_VARIATION_SOUNDS.has(soundType);
         if (isErrorSound) {
-            // Stop any currently playing error sounds
-            activeErrorSounds.forEach(audio => {
-                try {
-                    audio.pause();
-                    audio.currentTime = 0;  
-                } catch (e) {
-                    // Ignore errors when stopping
+            // If an error sound is already playing, skip this one (don't interrupt)
+            if (activeErrorSounds.size > 0) {
+                // Clean up any ended sounds from the set first
+                const soundsToRemove: HTMLAudioElement[] = [];
+                activeErrorSounds.forEach(audio => {
+                    if (audio.ended || audio.paused) {
+                        soundsToRemove.push(audio);
+                    }
+                });
+                soundsToRemove.forEach(audio => activeErrorSounds.delete(audio));
+                
+                // Check if any are actually still playing (not ended or paused)
+                let hasActiveSound = false;
+                activeErrorSounds.forEach(audio => {
+                    if (!audio.paused && !audio.ended) {
+                        hasActiveSound = true;
+                    }
+                });
+                
+                // If there are still active sounds playing, skip this new one
+                if (hasActiveSound) {
+                    return; // Don't play - another error sound is already playing
                 }
-            });
-            activeErrorSounds.clear();
+            }
         }
         
         // Add random pitch variation (0.9 to 1.1 range for subtle local variation)

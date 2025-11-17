@@ -74,6 +74,7 @@ import {
     AnimalCorpse as SpacetimeDBAnimalCorpse,
     Barrel as SpacetimeDBBarrel, // ADDED Barrel import
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED HomesteadHearth import
+    BrothPot as SpacetimeDBBrothPot, // ADDED BrothPot import
 } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
@@ -147,6 +148,9 @@ interface GameScreenProps {
     
     // Rain collectors
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
+    
+    // Broth pots
+    brothPots: Map<string, SpacetimeDBBrothPot>;
     
     // Water patches
     waterPatches: Map<string, SpacetimeDBWaterPatch>;
@@ -313,6 +317,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         playerDrinkingCooldowns,
         playerDodgeRollStates,
         rainCollectors,
+        brothPots,
         waterPatches,
         isMusicPanelVisible,
         setIsMusicPanelVisible,
@@ -939,6 +944,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 lanterns={lanterns}
                 playerDrinkingCooldowns={playerDrinkingCooldowns}
                 rainCollectors={rainCollectors}
+                brothPots={brothPots}
                 waterPatches={waterPatches}
                 setMusicPanelVisible={setIsMusicPanelVisible}
                 environmentalVolume={props.environmentalVolume}
@@ -977,6 +983,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerCorpses={playerCorpses}
                 stashes={stashes}
                 rainCollectors={rainCollectors}
+                brothPots={brothPots}
                 homesteadHearths={props.homesteadHearths}
                 currentStorageBox={
                     interactingWith?.type === 'wooden_storage_box'
@@ -987,6 +994,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 cancelPlacement={cancelPlacement}
                 placementInfo={placementInfo}
                 connection={connection}
+                chunkWeather={props.chunkWeather}
                 activeEquipments={activeEquipments}
                 activeConsumableEffects={activeConsumableEffects}
                 onCraftingSearchFocusChange={setIsCraftingSearchFocused}
@@ -1125,6 +1133,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 interactingWith={interactingWith}
                 campfires={campfires}
                 stashes={stashes}
+                brothPots={brothPots}
                 startPlacement={startPlacement}
                 cancelPlacement={cancelPlacement}
                 activeConsumableEffects={activeConsumableEffects}

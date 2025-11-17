@@ -67,6 +67,7 @@ import fishingRodIcon from '../assets/items/reed_fishing_rod.png';
 import reedBellowsIcon from '../assets/items/reed_bellows.png';
 import reedWaterBottleIcon from '../assets/items/reed_water_bottle.png';
 import waterJugIcon from '../assets/items/water_jug.png';
+import fieldCauldronIcon from '../assets/items/field_cauldron.png';
 
 // === WEAPONS ===
 // Melee weapons, ranged weapons, skulls
@@ -387,6 +388,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'reed_bellows.png': reedBellowsIcon,
   'reed_water_bottle.png': reedWaterBottleIcon,
   'water_jug.png': waterJugIcon,
+  'field_cauldron.png': fieldCauldronIcon,
 
   // === WEAPONS ===
   'spear.png': spearIcon,

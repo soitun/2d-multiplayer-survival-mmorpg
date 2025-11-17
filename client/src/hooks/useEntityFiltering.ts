@@ -20,6 +20,7 @@ import {
   Cloud as SpacetimeDBCloud,
   PlantedSeed as SpacetimeDBPlantedSeed,
   RainCollector as SpacetimeDBRainCollector,
+  BrothPot as SpacetimeDBBrothPot,
   WildAnimal as SpacetimeDBWildAnimal,
   ViperSpittle as SpacetimeDBViperSpittle,
   AnimalCorpse as SpacetimeDBAnimalCorpse,
@@ -94,6 +95,8 @@ interface EntityFilteringResult {
   visibleClouds: SpacetimeDBCloud[]; // ADDED
   visibleRainCollectors: SpacetimeDBRainCollector[];
   visibleRainCollectorsMap: Map<string, SpacetimeDBRainCollector>;
+  visibleBrothPots: SpacetimeDBBrothPot[];
+  visibleBrothPotsMap: Map<string, SpacetimeDBBrothPot>;
   visibleWildAnimals: SpacetimeDBWildAnimal[]; // ADDED
   visibleWildAnimalsMap: Map<string, SpacetimeDBWildAnimal>; // ADDED
   visibleViperSpittles: SpacetimeDBViperSpittle[]; // ADDED
@@ -132,6 +135,7 @@ export type YSortedEntityType =
   | { type: 'grass'; entity: InterpolatedGrassData }
   | { type: 'planted_seed'; entity: SpacetimeDBPlantedSeed }
   | { type: 'rain_collector'; entity: SpacetimeDBRainCollector }
+  | { type: 'broth_pot'; entity: SpacetimeDBBrothPot }
   | { type: 'wild_animal'; entity: SpacetimeDBWildAnimal }
   | { type: 'viper_spittle'; entity: SpacetimeDBViperSpittle }
   | { type: 'animal_corpse'; entity: SpacetimeDBAnimalCorpse }
@@ -182,6 +186,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'dropped_item':
     case 'harvestable_resource':
     case 'rain_collector':
+    case 'broth_pot':
     case 'animal_corpse':
     case 'player_corpse':
     case 'wild_animal':
@@ -281,6 +286,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'sleeping_bag': return 13; // Render after dropped items, before barrels
     case 'barrel': return 15;
     case 'rain_collector': return 18;
+    case 'broth_pot': return 18; // Same as rain collector (similar placeable container)
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
     case 'projectile': return 19;
     case 'viper_spittle': return 19;
@@ -564,6 +570,7 @@ export function useEntityFiltering(
   clouds: Map<string, SpacetimeDBCloud>, // ADDED clouds argument
   plantedSeeds: Map<string, SpacetimeDBPlantedSeed>,
   rainCollectors: Map<string, SpacetimeDBRainCollector>,
+  brothPots: Map<string, SpacetimeDBBrothPot>,
   wildAnimals: Map<string, SpacetimeDBWildAnimal>, // ADDED wildAnimals argument
   viperSpittles: Map<string, SpacetimeDBViperSpittle>, // ADDED viperSpittles argument
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>, // ADDED animalCorpses argument
@@ -964,6 +971,12 @@ export function useEntityFiltering(
     [rainCollectors, isEntityInView, viewBounds, stableTimestamp]
   );
 
+  const visibleBrothPots = useMemo(() => 
+    brothPots ? Array.from(brothPots.values()).filter(e => !e.isDestroyed && isEntityInView(e, viewBounds, stableTimestamp))
+    : [],
+    [brothPots, isEntityInView, viewBounds, stableTimestamp]
+  );
+
   const visibleWildAnimals = useMemo(() => {
     if (!wildAnimals) return [];
     
@@ -1149,6 +1162,11 @@ export function useEntityFiltering(
     [visibleRainCollectors]
   );
 
+  const visibleBrothPotsMap = useMemo(() => 
+    new Map(visibleBrothPots.map(b => [b.id.toString(), b])), 
+    [visibleBrothPots]
+  );
+
   const visibleWildAnimalsMap = useMemo(() => 
     new Map(visibleWildAnimals.map(w => [w.id.toString(), w])), 
     [visibleWildAnimals]
@@ -1289,6 +1307,7 @@ export function useEntityFiltering(
       grass: visibleGrass.length,
       plantedSeeds: visiblePlantedSeeds.length,
       rainCollectors: visibleRainCollectors.length,
+      brothPots: visibleBrothPots.length,
       wildAnimals: visibleWildAnimals.length,
       viperSpittles: visibleViperSpittles.length,
       animalCorpses: visibleAnimalCorpses.length,
@@ -1395,7 +1414,7 @@ export function useEntityFiltering(
     const allEntities: YSortedEntityType[] = new Array(totalEntities);
     let index = 0;
     
-    // Aggregate all entity types into a single array
+    // Aggregate all entity types into a single arrays 
     visiblePlayers.forEach(e => allEntities[index++] = { type: 'player', entity: e });
     visibleTrees.forEach(e => allEntities[index++] = { type: 'tree', entity: e });
     visibleStones.forEach(e => { if (e.health > 0) allEntities[index++] = { type: 'stone', entity: e }; });
@@ -1411,6 +1430,7 @@ export function useEntityFiltering(
     visibleDroppedItems.forEach(e => allEntities[index++] = { type: 'dropped_item', entity: e });
     visibleHarvestableResources.forEach(e => allEntities[index++] = { type: 'harvestable_resource', entity: e });
     visibleRainCollectors.forEach(e => allEntities[index++] = { type: 'rain_collector', entity: e });
+    visibleBrothPots.forEach(e => allEntities[index++] = { type: 'broth_pot', entity: e });
     visibleProjectiles.forEach(e => allEntities[index++] = { type: 'projectile', entity: e });
     visibleViperSpittles.forEach(e => allEntities[index++] = { type: 'viper_spittle', entity: e });
     visibleAnimalCorpses.forEach(e => allEntities[index++] = { type: 'animal_corpse', entity: e });
@@ -1775,7 +1795,7 @@ export function useEntityFiltering(
       // Simple rule: if it's a north wall and a placeable object, placeable always wins
       const placeableObjectTypes: Array<YSortedEntityType['type']> = [
         'campfire', 'furnace', 'lantern', 'homestead_hearth', 'wooden_storage_box', 
-        'stash', 'barrel', 'rain_collector', 'sleeping_bag'
+        'stash', 'barrel', 'rain_collector', 'sleeping_bag', 'broth_pot'
       ];
       
       if (placeableObjectTypes.includes(a.type) && b.type === 'wall_cell') {
@@ -1791,6 +1811,32 @@ export function useEntityFiltering(
         // For north walls (edge 0), always render placeable above
         if (wall.edge === 0) {
           return -1; // Placeable renders after (above) north wall
+        }
+      }
+      
+      // CRITICAL FIX: Broth pot should ALWAYS render above trees, stones, and campfires
+      // This ensures visual correctness - pots are placed on campfires and should be visible above ground entities
+      if (a.type === 'broth_pot' && (b.type === 'tree' || b.type === 'stone' || b.type === 'campfire')) {
+        return 1; // Pot renders after (above) tree/stone/campfire
+      }
+      if (b.type === 'broth_pot' && (a.type === 'tree' || a.type === 'stone' || a.type === 'campfire')) {
+        return -1; // Pot renders after (above) tree/stone/campfire
+      }
+      
+      // CRITICAL FIX: Broth pot should ALWAYS render above its attached campfire (redundant but explicit)
+      // This ensures visual correctness even though pot has lower Y position for placement
+      if (a.type === 'broth_pot' && b.type === 'campfire') {
+        const brothPot = a.entity as SpacetimeDBBrothPot;
+        const campfire = b.entity as SpacetimeDBCampfire;
+        if (brothPot.attachedToCampfireId === campfire.id) {
+          return 1; // Pot renders after (above) campfire
+        }
+      }
+      if (b.type === 'broth_pot' && a.type === 'campfire') {
+        const brothPot = b.entity as SpacetimeDBBrothPot;
+        const campfire = a.entity as SpacetimeDBCampfire;
+        if (brothPot.attachedToCampfireId === campfire.id) {
+          return -1; // Pot renders after (above) campfire
         }
       }
       
@@ -1838,6 +1884,7 @@ export function useEntityFiltering(
     visibleShelters,
     visiblePlantedSeeds,
     visibleRainCollectors,
+    visibleBrothPots,
     visibleWildAnimals,
     visibleViperSpittles,
     visibleAnimalCorpses,
@@ -1900,6 +1947,8 @@ export function useEntityFiltering(
     visiblePlantedSeedsMap,
     visibleRainCollectors,
     visibleRainCollectorsMap,
+    visibleBrothPots,
+    visibleBrothPotsMap,
     visibleWildAnimals,
     visibleWildAnimalsMap,
     visibleViperSpittles,

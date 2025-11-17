@@ -25,11 +25,11 @@ pub const RAIN_COLLECTOR_MAX_HEALTH: f32 = 500.0;
 pub const REED_WATER_BOTTLE_CAPACITY: f32 = 2.0; // 2 liters
 pub const PLASTIC_WATER_JUG_CAPACITY: f32 = 5.0; // 5 liters
 
-// Collection rates per second based on weather type (realistic for small reed collector)
-pub const LIGHT_RAIN_COLLECTION_RATE: f32 = 0.1;    // units per second
-pub const MODERATE_RAIN_COLLECTION_RATE: f32 = 0.3; // units per second  
-pub const HEAVY_RAIN_COLLECTION_RATE: f32 = 0.6;    // units per second
-pub const HEAVY_STORM_COLLECTION_RATE: f32 = 1.0;   // units per second
+// Collection rates per second based on weather type (increased for better gameplay feedback)
+pub const LIGHT_RAIN_COLLECTION_RATE: f32 = 0.3;    // units per second (3x faster)
+pub const MODERATE_RAIN_COLLECTION_RATE: f32 = 0.8; // units per second (2.6x faster)
+pub const HEAVY_RAIN_COLLECTION_RATE: f32 = 1.5;    // units per second (2.5x faster)
+pub const HEAVY_STORM_COLLECTION_RATE: f32 = 2.5;   // units per second (2.5x faster)
 
 // --- Container constants ---
 const RAIN_COLLECTOR_NUM_SLOTS: usize = 1; // Single slot for water container
@@ -435,8 +435,9 @@ pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(
 }
 
 /// --- Update All Rain Collectors During Rain Events ---
-/// Called by the world state system during rain to update all collectors.
-/// This is the main entry point for rain collection logic.
+/// DEPRECATED: This function is no longer used with the chunk-based weather system.
+/// Rain collectors are now updated per-chunk in world_state::update_rain_collectors_in_chunk()
+/// Kept for backward compatibility with any legacy code.
 pub fn update_rain_collectors(ctx: &ReducerContext, weather: &crate::world_state::WeatherType, elapsed_seconds: f32) -> Result<(), String> {
     // Only collect water during rain
     if *weather == crate::world_state::WeatherType::Clear {

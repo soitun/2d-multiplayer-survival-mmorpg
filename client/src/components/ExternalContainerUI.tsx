@@ -26,6 +26,7 @@ import {
     Tree as SpacetimeDBTree,
     RainCollector as SpacetimeDBRainCollector,
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth import
+    BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot import
     HearthUpkeepQueryResult, // ADDED: For upkeep query results
     WorldState,
     Player,
@@ -35,10 +36,12 @@ import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Import new utilities
 import { useContainer } from '../hooks/useContainer';
-import { ContainerType, isFuelContainer, getContainerConfig } from '../utils/containerUtils';
+import { ContainerType, isFuelContainer, getContainerConfig, extractContainerItems, createContainerCallbacks } from '../utils/containerUtils';
+import { calculateChunkIndex } from '../utils/chunkUtils';
 
 // Helper function to format decay time estimate
 function formatDecayTime(hours: number): string {
@@ -104,6 +107,7 @@ interface ExternalContainerUIProps {
     stashes: Map<string, SpacetimeDBStash>;
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
+    brothPots: Map<string, SpacetimeDBBrothPot>; // ADDED: BrothPots
     shelters?: Map<string, SpacetimeDBShelter>;
     trees?: Map<string, SpacetimeDBTree>;
     currentStorageBox?: SpacetimeDBWoodenStorageBox | null;
@@ -117,6 +121,7 @@ interface ExternalContainerUIProps {
     worldState: WorldState | null;
     players?: Map<string, Player>; // ADDED: Players for building privilege list
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
+    chunkWeather?: Map<string, any>; // ADDED: Chunk-based weather
 }
 
 const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
@@ -131,6 +136,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     stashes,
     rainCollectors,
     homesteadHearths, // ADDED: HomesteadHearths
+    brothPots, // ADDED: BrothPots
     shelters,
     trees,
     currentStorageBox,
@@ -144,6 +150,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     worldState,
     players,
     activeConsumableEffects,
+    chunkWeather,
 }) => {
     // Add ref to track when drag operations complete
     const lastDragCompleteTime = useRef<number>(0);
@@ -167,6 +174,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         stashes,
         rainCollectors,
         homesteadHearths,
+        brothPots,
         currentStorageBox,
         connection,
         lastDragCompleteTime
@@ -307,15 +315,28 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     }, [onExternalItemMouseEnter, container.containerEntity, itemDefinitions]);
 
     // Helper function to check if it's raining heavily enough to prevent campfire lighting
+    // Uses chunk-based weather for the campfire's position
     const isHeavyRaining = useMemo(() => {
-        if (!worldState?.rainIntensity || worldState.rainIntensity <= 0) return false;
-        
-        if (worldState.currentWeather) {
-            return worldState.currentWeather.tag === 'HeavyRain' || worldState.currentWeather.tag === 'HeavyStorm';
+        if (container.containerType !== 'campfire' || !container.containerEntity || !chunkWeather) {
+            return false;
         }
         
-        return worldState.rainIntensity >= 0.8;
-    }, [worldState]);
+        const campfire = container.containerEntity as SpacetimeDBCampfire;
+        const campfireChunkIndex = calculateChunkIndex(campfire.posX, campfire.posY);
+        const chunkWeatherData = chunkWeather.get(campfireChunkIndex.toString());
+        
+        if (!chunkWeatherData || !chunkWeatherData.currentWeather) {
+            // Fallback to global weather if chunk weather not available
+            if (worldState?.currentWeather) {
+            return worldState.currentWeather.tag === 'HeavyRain' || worldState.currentWeather.tag === 'HeavyStorm';
+            }
+            return false;
+        }
+        
+        // Check chunk weather for heavy rain/storm
+        const weatherTag = chunkWeatherData.currentWeather.tag;
+        return weatherTag === 'HeavyRain' || weatherTag === 'HeavyStorm';
+    }, [container.containerType, container.containerEntity, chunkWeather, worldState]);
 
     // Helper function to check if campfire is protected from rain
     const campfireProtection = useMemo(() => {
@@ -392,10 +413,27 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     }, [container.containerType, container.containerEntity, container.isActive, container.items]);
 
     // Helper function to get weather warning message
+    // Uses chunk-based weather for the campfire's position
     const getWeatherWarningMessage = useMemo(() => {
-        if (!worldState?.currentWeather || !isHeavyRaining) return null;
+        if (!isHeavyRaining || container.containerType !== 'campfire' || !container.containerEntity || !chunkWeather) {
+            return null;
+        }
         
-        switch (worldState.currentWeather.tag) {
+        const campfire = container.containerEntity as SpacetimeDBCampfire;
+        const campfireChunkIndex = calculateChunkIndex(campfire.posX, campfire.posY);
+        const chunkWeatherData = chunkWeather.get(campfireChunkIndex.toString());
+        
+        // Get weather tag from chunk weather or fallback to global weather
+        let weatherTag: string | null = null;
+        if (chunkWeatherData?.currentWeather) {
+            weatherTag = chunkWeatherData.currentWeather.tag;
+        } else if (worldState?.currentWeather) {
+            weatherTag = worldState.currentWeather.tag;
+        }
+        
+        if (!weatherTag) return null;
+        
+        switch (weatherTag) {
             case 'HeavyRain':
                 return "Heavy rain - May require shelter 🏠 or tree cover 🌳";
             case 'HeavyStorm':
@@ -403,7 +441,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             default:
                 return "Severe weather - May require shelter 🏠 or tree cover 🌳";
         }
-    }, [worldState, isHeavyRaining]);
+    }, [isHeavyRaining, container.containerType, container.containerEntity, chunkWeather, worldState]);
 
     // Determine if the current player can operate the stash hide/surface button
     const canOperateStashButton = useMemo(() => {
@@ -761,6 +799,68 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     const config = getContainerConfig(container.containerType);
 
+    // Check if campfire has attached broth pot
+    const attachedBrothPot = useMemo(() => {
+        if (container.containerType !== 'campfire') return null;
+        const campfire = container.containerEntity as SpacetimeDBCampfire;
+        if (!campfire.attachedBrothPotId) return null;
+        return brothPots.get(campfire.attachedBrothPotId.toString()) || null;
+    }, [container.containerType, container.containerEntity, brothPots]);
+
+    // Get broth pot items if attached (ingredient slots only)
+    const brothPotItems = useMemo(() => {
+        if (!attachedBrothPot) return null;
+        return extractContainerItems(
+            'broth_pot',
+            attachedBrothPot,
+            inventoryItems,
+            itemDefinitions
+        );
+    }, [attachedBrothPot, inventoryItems, itemDefinitions]);
+
+    // Get water container slot item if attached
+    const waterContainerItem = useMemo(() => {
+        if (!attachedBrothPot) return null;
+        // TypeScript bindings need regeneration - using type assertion for now
+        const pot = attachedBrothPot as any;
+        if (!pot.waterContainerInstanceId) return null;
+        const instanceIdStr = pot.waterContainerInstanceId.toString();
+        const invItem = inventoryItems.get(instanceIdStr);
+        if (!invItem) return null;
+        const def = itemDefinitions.get(invItem.itemDefId.toString());
+        if (!def) return null;
+        return { instance: invItem, definition: def } as PopulatedItem;
+    }, [attachedBrothPot, inventoryItems, itemDefinitions]);
+
+    // Create broth pot callbacks for context menu (for ingredient slots)
+    const brothPotCallbacks = useMemo(() => {
+        if (!attachedBrothPot) return null;
+        return createContainerCallbacks(
+            'broth_pot',
+            attachedBrothPot.id,
+            connection,
+            lastDragCompleteTime
+        );
+    }, [attachedBrothPot, connection, lastDragCompleteTime]);
+
+    // Create special context menu handler for water container slot
+    const waterContainerContextMenuHandler = useCallback((event: React.MouseEvent, itemInfo: PopulatedItem, slotIndex: number) => {
+        event.preventDefault();
+        
+        // Block context menu for 200ms after drag completion  
+        const timeSinceLastDrag = Date.now() - lastDragCompleteTime.current;
+        if (timeSinceLastDrag < 200) return;
+        
+        if (!connection?.reducers || !itemInfo || !attachedBrothPot) return;
+        
+        try {
+            // Water container slot quick move doesn't take slot index
+            (connection.reducers as any).quickMoveFromBrothPotWaterContainer(attachedBrothPot.id);
+        } catch (e: any) {
+            console.error(`[WaterContainer QuickMove]`, e);
+        }
+    }, [attachedBrothPot, connection, lastDragCompleteTime]);
+
     return (
         <div className={styles.externalInventorySection}>
             {/* Dynamic Title */}
@@ -784,17 +884,16 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 onItemMouseMove={onExternalItemMouseMove}
             />
 
-            {/* Generic Container Buttons - handles toggle/light/extinguish */}
+            {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}
+            {container.containerType === 'campfire' && (
             <ContainerButtons
                 containerType={container.containerType}
                 containerEntity={container.containerEntity}
                 items={container.items}
-                onToggle={container.containerType === 'lantern' ? handleLanternToggle : container.toggleHandler}
+                    onToggle={container.toggleHandler}
             >
-                {/* Special case buttons for specific containers */}
-                
                 {/* Campfire weather warning */}
-                {container.containerType === 'campfire' && isHeavyRaining && !container.isActive && (
+                    {isHeavyRaining && !container.isActive && (
                             <div style={{ 
                                 marginTop: '8px', 
                                 color: '#87CEEB', 
@@ -802,12 +901,192 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 textAlign: 'center',
                                 fontStyle: 'italic'
                             }}>
-                                🌧️ {getWeatherWarningMessage}
+                            🌧️ {getWeatherWarningMessage || ''}
                             </div>
-                )}
+                    )}
+                </ContainerButtons>
+            )}
+
+            {/* Broth Pot Section - shown below campfire when attached */}
+            {attachedBrothPot && brothPotItems && (
+                <>
+                    <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.2)', paddingTop: '16px' }}>
+                        <h3 className={styles.sectionTitle} style={{ fontSize: '14px', marginBottom: '12px' }}>
+                            Field Cauldron
+                        </h3>
+                        
+                        {/* Water Container Slot - single slot for transferring water */}
+                        <div style={{ marginBottom: '12px' }}>
+                            <div style={{ 
+                                fontSize: '11px', 
+                                color: '#87CEEB', 
+                                marginBottom: '6px',
+                                textAlign: 'center',
+                                fontStyle: 'italic'
+                            }}>
+                                💧 Water Container Slot
+                            </div>
+                            <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'center', 
+                                alignItems: 'center',
+                                width: '100%',
+                                textAlign: 'center'
+                            }}>
+                                <ContainerSlots
+                                    containerType="broth_pot"
+                                    items={waterContainerItem ? [waterContainerItem] : [null]}
+                                    createSlotInfo={() => ({
+                                        type: 'broth_pot_water_container',
+                                        index: 0,
+                                        parentId: attachedBrothPot.id
+                                    })}
+                                    getSlotKey={() => `broth_pot_water_${attachedBrothPot.id}`}
+                                    onItemDragStart={onItemDragStart}
+                                    onItemDrop={handleItemDropWithTracking}
+                                    onContextMenu={waterContainerContextMenuHandler}
+                                    onItemMouseEnter={onExternalItemMouseEnter}
+                                    onItemMouseLeave={onExternalItemMouseLeave}
+                                    onItemMouseMove={onExternalItemMouseMove}
+                                    style={{ 
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr',
+                                        gap: '4px',
+                                        width: 'fit-content',
+                                        margin: '0 auto',
+                                        justifyItems: 'center'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Transfer Water Button */}
+                        {waterContainerItem && attachedBrothPot.waterLevelMl < 5000 && (
+                            <button
+                                onClick={() => {
+                                    if (!connection?.reducers) return;
+                                    try {
+                                        (connection.reducers as any).transferWaterFromContainerToPot(
+                                            attachedBrothPot.id
+                                        );
+                                    } catch (e: any) {
+                                        console.error("Error transferring water from container to pot:", e);
+                                    }
+                                }}
+                                disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
+                                className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                                style={{ width: '100%', marginBottom: '12px' }}
+                            >
+                                💧 Transfer Water to Pot
+                            </button>
+                        )}
+                        
+                        {/* Broth pot ingredient slots - centered with 3 columns */}
+                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '8px' }}>
+                            <ContainerSlots
+                                containerType="broth_pot"
+                                items={brothPotItems}
+                                createSlotInfo={(index: number) => {
+                                    const config = getContainerConfig('broth_pot');
+                                    return {
+                                        type: config.slotType as any,
+                                        index,
+                                        parentId: attachedBrothPot.id
+                                    };
+                                }}
+                                getSlotKey={(index: number) => `broth_pot_${attachedBrothPot.id}_${index}`}
+                                onItemDragStart={onItemDragStart}
+                                onItemDrop={handleItemDropWithTracking}
+                                onContextMenu={brothPotCallbacks?.contextMenuHandler || (() => {})}
+                                onItemMouseEnter={onExternalItemMouseEnter}
+                                onItemMouseLeave={onExternalItemMouseLeave}
+                                onItemMouseMove={onExternalItemMouseMove}
+                                style={{ 
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                    gap: '4px',
+                                    maxWidth: 'fit-content'
+                                }}
+                            />
+                        </div>
+
+                        {/* Broth pot info and actions */}
+                        <div style={{ marginTop: '12px' }}>
+                            {/* Water level display with visual bar */}
+                            <div style={{ marginBottom: '12px' }}>
+                                <div style={{ 
+                                    fontSize: '12px', 
+                                    color: '#87CEEB', 
+                                    marginBottom: '6px',
+                                    textAlign: 'center'
+                                }}>
+                                    💧 Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
+                                </div>
+                                
+                                {/* Visual water level bar */}
+                                <div style={{
+                                    width: '100%',
+                                    height: '8px',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(135, 206, 235, 0.3)',
+                                }}>
+                                    <div style={{
+                                        width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
+                                        height: '100%',
+                                        background: attachedBrothPot.waterLevelMl > 0 
+                                            ? 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)'
+                                            : 'transparent',
+                                        transition: 'width 0.3s ease',
+                                        boxShadow: attachedBrothPot.waterLevelMl > 0 
+                                            ? '0 0 8px rgba(135, 206, 235, 0.6)' 
+                                            : 'none',
+                                    }} />
+                                </div>
+                            </div>
+
+
+                            {/* Pickup button - always show, water will spill if present */}
+                            <button
+                                onClick={() => {
+                                    if (!connection?.reducers) return;
+                                    
+                                    // Play spill sound immediately if there's water (client-side instant feedback)
+                                    // Note: Server will also emit sound, but this provides instant feedback
+                                    const hadWater = attachedBrothPot.waterLevelMl > 0;
+                                    if (hadWater) {
+                                        playImmediateSound('filling_container', 1.2); // Use filling_container sound for spill
+                                    }
+                                    
+                                    try {
+                                        connection.reducers.pickupBrothPot(attachedBrothPot.id);
+                                    } catch (e: any) {
+                                        console.error("Error picking up broth pot:", e);
+                                    }
+                                }}
+                                className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                                style={{ width: '100%', marginTop: '8px' }}
+                            >
+                                Pick Up Broth Pot
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Generic Container Buttons - handles toggle/light/extinguish (for non-campfire containers) */}
+            {container.containerType !== 'campfire' && (
+                <ContainerButtons
+                    containerType={container.containerType}
+                    containerEntity={container.containerEntity}
+                    items={container.items}
+                    onToggle={container.containerType === 'lantern' ? handleLanternToggle : container.toggleHandler}
+                >
+                    {/* Special case buttons for specific containers */}
 
                 {/* Stash visibility button */}
-                {container.containerType === 'stash' && canOperateStashButton && (
+                {container.containerType === 'stash' && canOperateStashButton && (  
                          <button
                             onClick={handleToggleStashVisibility}
                             className={`${styles.interactionButton} ${
@@ -828,6 +1107,110 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 {/* Rain collector fill button and info */}
                 {container.containerType === 'rain_collector' && (
                     <>
+                        {/* Water level display with visual bar */}
+                        <div style={{ marginBottom: '12px' }}>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#87CEEB', 
+                                marginBottom: '6px',
+                                textAlign: 'center'
+                            }}>
+                                💧 Collected Water: {(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected.toFixed(1)}L / 40.0L
+                            </div>
+                            
+                            {/* Visual water level bar */}
+                            <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(135, 206, 235, 0.3)',
+                            }}>
+                                <div style={{
+                                    width: `${((container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected / 40.0) * 100}%`,
+                                    height: '100%',
+                                    background: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
+                                        ? 'linear-gradient(90deg, #4a9eff 0%, #87ceeb 50%, #b0e0e6 100%)'
+                                        : 'transparent',
+                                    transition: 'width 0.3s ease',
+                                    boxShadow: (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected > 0 
+                                        ? '0 0 8px rgba(135, 206, 235, 0.6)' 
+                                        : 'none',
+                                }} />
+                            </div>
+                        </div>
+
+                        {/* Active collection indicator */}
+                        {(() => {
+                            const rainCollector = container.containerEntity as SpacetimeDBRainCollector;
+                            const collectorChunkIndex = calculateChunkIndex(rainCollector.posX, rainCollector.posY);
+                            const chunkWeatherData = chunkWeather?.get(collectorChunkIndex.toString());
+                            const isRaining = chunkWeatherData?.currentWeather && 
+                                            ['LightRain', 'ModerateRain', 'HeavyRain', 'HeavyStorm'].includes(chunkWeatherData.currentWeather.tag);
+                            const isFull = rainCollector.totalWaterCollected >= 40.0;
+                            
+                            if (isRaining && !isFull) {
+                                const weatherTag = chunkWeatherData?.currentWeather?.tag;
+                                let collectionRate = '0.3';
+                                let weatherEmoji = '🌧️';
+                                
+                                if (weatherTag === 'HeavyStorm') {
+                                    collectionRate = '2.5';
+                                    weatherEmoji = '⛈️';
+                                } else if (weatherTag === 'HeavyRain') {
+                                    collectionRate = '1.5';
+                                    weatherEmoji = '🌧️';
+                                } else if (weatherTag === 'ModerateRain') {
+                                    collectionRate = '0.8';
+                                    weatherEmoji = '🌦️';
+                                } else if (weatherTag === 'LightRain') {
+                                    collectionRate = '0.3';
+                                    weatherEmoji = '🌦️';
+                                }
+                                
+                                return (
+                                    <div style={{ 
+                                        marginBottom: '8px',
+                                        padding: '6px',
+                                        backgroundColor: 'rgba(135, 206, 235, 0.15)',
+                                        borderRadius: '4px',
+                                        border: '1px solid rgba(135, 206, 235, 0.3)',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ 
+                                            fontSize: '11px', 
+                                            color: '#87CEEB',
+                                            fontStyle: 'italic',
+                                            animation: 'pulse 2s ease-in-out infinite'
+                                        }}>
+                                            {weatherEmoji} Actively Collecting Water (+{collectionRate}L/sec)
+                                        </div>
+                                    </div>
+                                );
+                            } else if (isFull) {
+                                return (
+                                    <div style={{ 
+                                        marginBottom: '8px',
+                                        padding: '6px',
+                                        backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                                        borderRadius: '4px',
+                                        border: '1px solid rgba(255, 215, 0, 0.3)',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ 
+                                            fontSize: '11px', 
+                                            color: '#FFD700',
+                                            fontStyle: 'italic'
+                                        }}>
+                                            ✓ Collector Full - Empty to continue collecting
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
+
                         <button
                             onClick={handleFillWaterContainer}
                             disabled={!container.items[0] || 
@@ -835,18 +1218,52 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected <= 0}
                             className={`${styles.interactionButton} ${styles.lightFireButton}`}
                         >
-                            Fill Container ({(container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected.toFixed(1)}L)
+                            💧 Fill Container from Collector
                         </button>
                         
                         <div style={{ 
-                            marginTop: '4px', 
+                            marginTop: '8px', 
                             color: '#87CEEB', 
-                            fontSize: '12px', 
+                            fontSize: '11px', 
                             textAlign: 'center',
                             fontStyle: 'italic'
                         }}>
-                            💧 Place water containers (bottles/jugs) to fill during rain
+                            Place water containers (bottles/jugs) to fill during rain
                     </div>
+                </>
+            )}
+
+                {/* Broth pot pickup button - only show when empty */}
+                {container.containerType === 'broth_pot' && (
+                    <>
+                        {(() => {
+                            const brothPot = container.containerEntity as SpacetimeDBBrothPot;
+                            const isEmpty = brothPot.waterLevelMl === 0 && 
+                                          !brothPot.ingredientInstanceId0 && 
+                                          !brothPot.ingredientInstanceId1 && 
+                                          !brothPot.ingredientInstanceId2;
+                            
+                            if (isEmpty) {
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            if (!connection?.reducers || container.containerId === null) return;
+                                            const brothPotIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                                            try {
+                                                connection.reducers.pickupBrothPot(brothPotIdNum);
+                                            } catch (e: any) {
+                                                console.error("Error picking up broth pot:", e);
+                                            }
+                                        }}
+                                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
+                                        style={{ marginTop: '8px' }}
+                                    >
+                                        Pick Up Broth Pot
+                                    </button>
+                                );
+                            }
+                            return null;
+                        })()}
                 </>
             )}
 
@@ -1023,6 +1440,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                     </>
                 )}
             </ContainerButtons>
+            )}
 
             {/* Special handling for hidden stash - don't show slots */}
             {container.containerType === 'stash' && (container.containerEntity as SpacetimeDBStash).isHidden && (

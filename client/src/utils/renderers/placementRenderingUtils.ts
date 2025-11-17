@@ -879,6 +879,10 @@ export function renderPlacementPreview({
         // Matron's Chest preview dimensions (matches actual rendering: 125px, 30% larger than base 96px)
         drawWidth = HEARTH_WIDTH;  // 125px
         drawHeight = HEARTH_HEIGHT; // 125px
+    } else if (placementInfo.iconAssetName === 'field_cauldron.png') {
+        // Broth pot preview dimensions (similar to rain collector)
+        drawWidth = 80;
+        drawHeight = 80;
     } else if (isSeedPlacement) {
         // Seeds should match the actual planted seed size (48x48)
         drawWidth = 48;  
@@ -887,8 +891,36 @@ export function renderPlacementPreview({
 
     ctx.save();
 
+    // Special handling for broth pot - snap to nearest campfire
+    let snappedX = worldMouseX;
+    let snappedY = worldMouseY;
+    let nearestCampfire: any = null;
+    
+    if (placementInfo.iconAssetName === 'field_cauldron.png' && connection) {
+        let nearestDistance = Infinity;
+        const CAMPFIRE_SNAP_DISTANCE = 150;
+        
+        for (const campfire of connection.db.campfire.iter()) {
+            const dx = worldMouseX - campfire.posX;
+            const dy = worldMouseY - campfire.posY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance && distance < CAMPFIRE_SNAP_DISTANCE) {
+                nearestDistance = distance;
+                nearestCampfire = campfire;
+            }
+        }
+        
+        if (nearestCampfire) {
+            // Snap to campfire position - match server placement exactly
+            // Server places pot at: campfire.pos_y - 20.0
+            snappedX = nearestCampfire.posX;
+            snappedY = nearestCampfire.posY - 60.0; // Match server placement offset
+        }
+    }
+
     // Check for water placement restriction
-    const isOnWater = isWaterPlacementBlocked(connection, placementInfo, worldMouseX, worldMouseY);
+    const isOnWater = isWaterPlacementBlocked(connection, placementInfo, snappedX, snappedY);
     
     // Check for seed proximity restriction
     const isTooCloseToSeeds = isSeedPlacementTooClose(connection, placementInfo, worldMouseX, worldMouseY);
@@ -941,8 +973,17 @@ export function renderPlacementPreview({
     // Check if placement position is on a wall
     const isOnWall = connection ? isPositionOnWall(connection, worldMouseX, worldMouseY) : false;
     
+    // Check if broth pot is being placed without a nearby campfire or on a campfire that already has one
+    const isBrothPotInvalid = placementInfo.iconAssetName === 'field_cauldron.png' && (
+        !nearestCampfire || // No campfire nearby
+        (nearestCampfire && nearestCampfire.attachedBrothPotId !== null && nearestCampfire.attachedBrothPotId !== undefined) // Campfire already has a pot
+    );
+    
     // Apply visual effect - red tint with opacity for any invalid placement
-    const isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || placementError;
+    // For broth pot, only invalid if no campfire or campfire has pot - distance doesn't matter if snapping
+    const isInvalidPlacement = placementInfo.iconAssetName === 'field_cauldron.png' 
+        ? isBrothPotInvalid // Only check campfire validity for broth pot
+        : (isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || placementError);
     
     if (isInvalidPlacement) {
         // Strong red tint for all invalid placements
@@ -954,10 +995,10 @@ export function renderPlacementPreview({
         ctx.globalAlpha = 0.7;
     }
 
-    // Calculate the centered position (perfectly centered on cursor)
-    // Preview is always centered on cursor for all items
-    const adjustedX = worldMouseX - drawWidth / 2;
-    const adjustedY = worldMouseY - drawHeight / 2;
+    // Calculate the centered position (perfectly centered on cursor or snapped position)
+    // Preview is always centered on cursor for all items (except broth pot which snaps to campfire)
+    const adjustedX = snappedX - drawWidth / 2;
+    const adjustedY = snappedY - drawHeight / 2;
 
     // Draw the preview image or fallback
     if (previewImg && previewImg.complete && previewImg.naturalHeight !== 0) {

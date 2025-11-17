@@ -1,7 +1,15 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { MemoryGridNode, MEMORY_GRID_NODES, FACTIONS, isNodeAvailable } from './MemoryGridData';
 import MemoryGridNodeComponent from './MemoryGridNode';
 import './MemoryGrid.css';
+
+// Import faction emblem images for info panel
+import factionBlackWolves from '../assets/ui/faction_black_wolves.png';
+import factionHive from '../assets/ui/faction_hive.png';
+import factionUniversity from '../assets/ui/faction_university.png';
+import factionDataAngels from '../assets/ui/faction_data_angels.png';
+import factionBattalion from '../assets/ui/faction_battalion.png';
+import factionAdmiralty from '../assets/ui/faction_admiralty.png';
 
 interface MemoryGridProps {
   playerShards?: number; // Current player memory shards
@@ -19,14 +27,18 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     MEMORY_GRID_NODES.find(n => n.id === 'center') || null
   );
   const [hoveredNode, setHoveredNode] = useState<MemoryGridNode | null>(null);
-  const [scale, setScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
   const [hasPanned, setHasPanned] = useState(false);
   
+  // Fixed scale - no zoom for better performance
+  const scale = 0.75; // Fixed scale - more zoomed in for better visibility
+  
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Grid dimensions
   const gridWidth = 600;
@@ -43,13 +55,58 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     setSelectedNode(node);
   }, []);
 
-  // Handle node hover
+  // Handle node hover with stable reference and delay for clearing
   const handleNodeHover = useCallback((node: MemoryGridNode | null) => {
-    setHoveredNode(node);
+    // Clear any pending timeout when hovering a new node
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    
+    if (node) {
+      // Immediately set hover when entering a node
+      setHoveredNode(node);
+    } else {
+      // Delay clearing hover to allow mouse to move to panel
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoveredNode(null);
+        hoverTimeoutRef.current = null;
+      }, 150);
+    }
   }, []);
 
-  // Update node statuses based on purchased nodes
-  const getUpdatedNodes = (): MemoryGridNode[] => {
+  // Keep panel visible when mouse enters it
+  const handlePanelMouseEnter = useCallback(() => {
+    // Clear any pending timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Clear hover only when mouse leaves both node and panel
+  const handlePanelMouseLeave = useCallback(() => {
+    // Only clear if not selected
+    if (!selectedNode) {
+      // Small delay to prevent flicker when moving between node and panel
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoveredNode(null);
+        hoverTimeoutRef.current = null;
+      }, 100);
+    }
+  }, [selectedNode]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoize updated nodes - only recalculate when purchasedNodes changes
+  const updatedNodes = useMemo((): MemoryGridNode[] => {
     return MEMORY_GRID_NODES.map(node => {
       if (purchasedNodes.has(node.id)) {
         return { ...node, status: 'purchased' };
@@ -59,12 +116,10 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         return { ...node, status: 'locked' };
       }
     }) as MemoryGridNode[];
-  };
+  }, [purchasedNodes]);
 
-  const updatedNodes = getUpdatedNodes();
-
-  // Generate branch labels for faction specialization paths
-  const generateBranchLabels = (): React.ReactElement[] => {
+  // Memoize branch labels - only recalculate when scale or panOffset changes
+  const branchLabels = useMemo((): React.ReactElement[] => {
     const labels: React.ReactElement[] = [];
     
     // Define branch information for each faction with lore-appropriate class names
@@ -122,7 +177,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           y={upperY}
           textAnchor="middle"
           dy={4}
-          fontSize={24 * scale}
+          fontSize={12}
           fill={factionColor}
           className={`branch-label ${branch.faction}-branch upper-path`}
           style={{ 
@@ -146,7 +201,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           y={lowerY}
           textAnchor="middle"
           dy={4}
-          fontSize={24 * scale}
+          fontSize={12}
           fill={factionColor}
           className={`branch-label ${branch.faction}-branch lower-path`}
           style={{ 
@@ -161,10 +216,10 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     });
     
     return labels;
-  };
+  }, [panOffset.x, panOffset.y]);
 
-  // Generate connection lines between prerequisite nodes (cleaned up and curved)
-  const generateConnections = (): React.ReactElement[] => {
+  // Memoize connections - only recalculate when nodes, scale, panOffset, or purchasedNodes change
+  const connections = useMemo((): React.ReactElement[] => {
     const connections: React.ReactElement[] = [];
     
     // Add concentric circular connections for each tier (main grid only)
@@ -290,15 +345,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     });
     
     return connections;
-  };
-
-  // Handle zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = 1.1;
-    const newScale = e.deltaY > 0 ? scale / zoomFactor : scale * zoomFactor;
-    setScale(Math.max(0.3, Math.min(3, newScale))); // Clamp scale between 0.3 and 3
-  }, [scale]);
+  }, [updatedNodes, panOffset.x, panOffset.y, purchasedNodes, centerX, centerY]);
 
   // Handle pan start
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -306,6 +353,9 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
       setIsPanning(true);
       setHasPanned(false); // Reset pan tracking
       setLastPanPoint({ x: e.clientX, y: e.clientY });
+    } else if (e.button === 1) { // Middle mouse button - reset to center
+      e.preventDefault();
+      setPanOffset({ x: 0, y: 0 });
     }
   }, []);
 
@@ -345,21 +395,9 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
   }, []);
 
-  // Reset view to show whole grid (zoom out)
+  // Reset view to center
   const resetView = () => {
-    setScale(0.4); // Zoom out to see the entire grid including faction branches
     setPanOffset({ x: 0, y: 0 });
-  };
-
-  // Focus on currently selected node
-  const focusSelection = () => {
-    if (selectedNode) {
-      setScale(1.0); // Moderate zoom to see context around the selected node
-      // Calculate pan offset to center the selected node
-      const nodeX = selectedNode.position.x * 1.0;
-      const nodeY = selectedNode.position.y * 1.0;
-      setPanOffset({ x: -nodeX, y: -nodeY });
-    }
   };
 
   // Handle clicking on empty space to clear selection
@@ -430,26 +468,13 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           >
             Reset View
           </button>
-          <button
-            onClick={focusSelection}
-            style={{
-              background: '#7c3aed',
-              color: '#ffffff',
-              border: '1px solid #8b5cf6',
-              borderRadius: '4px',
-              padding: '4px 8px',
-              fontSize: '10px',
-              cursor: 'pointer'
-            }}
-          >
-            Focus Selection
-          </button>
         </div>
       </div>
 
       {/* Node Info Panel */}
       {(selectedNode || hoveredNode) && (
         <div
+          ref={panelRef}
           style={{
             position: 'absolute',
             top: '10px',
@@ -458,11 +483,14 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
             color: '#ffffff',
             padding: '12px',
             borderRadius: '4px',
-            maxWidth: '250px',
+            maxWidth: '350px',
             fontSize: '12px',
             border: '1px solid #7c3aed',
-            zIndex: 10
+            zIndex: 10,
+            pointerEvents: 'auto' // Allow panel to receive mouse events
           }}
+          onMouseEnter={handlePanelMouseEnter}
+          onMouseLeave={handlePanelMouseLeave}
         >
           {(() => {
             const baseNode = selectedNode || hoveredNode;
@@ -473,32 +501,72 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
             
             const faction = displayNode.faction ? FACTIONS[displayNode.faction] : null;
             const canAfford = playerShards >= displayNode.cost;
+            const isUnlockNode = displayNode.id.startsWith('unlock-');
+            
+            // Get faction emblem image
+            const getFactionEmblem = () => {
+              if (!isUnlockNode || !displayNode.faction) return null;
+              switch (displayNode.faction) {
+                case 'black-wolves': return factionBlackWolves;
+                case 'hive': return factionHive;
+                case 'university': return factionUniversity;
+                case 'data-angels': return factionDataAngels;
+                case 'battalion': return factionBattalion;
+                case 'admiralty': return factionAdmiralty;
+                default: return null;
+              }
+            };
+            
+            const factionEmblem = getFactionEmblem();
             
             return (
-              <>
-                <div style={{ 
-                  color: faction ? faction.color : '#7c3aed', 
-                  fontWeight: 'bold', 
-                  marginBottom: '8px',
-                  fontSize: '14px'
-                }}>
-                  {displayNode.name}
-                </div>
-                
-                {faction && (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {/* Faction Logo - Left Side */}
+                {factionEmblem && (
                   <div style={{ 
-                    color: faction.color, 
-                    fontSize: '10px', 
-                    marginBottom: '4px',
-                    fontStyle: 'italic'
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    paddingTop: '4px'
                   }}>
-                    {faction.name} - {faction.description}
+                    <img 
+                      src={factionEmblem} 
+                      alt={faction?.name || 'Faction emblem'}
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        objectFit: 'contain',
+                        filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))'
+                      }}
+                    />
                   </div>
                 )}
                 
-                <div style={{ marginBottom: '8px', lineHeight: '1.4' }}>
-                  {displayNode.description}
-                </div>
+                {/* Content - Right Side */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ 
+                    color: faction ? faction.color : '#7c3aed', 
+                    fontWeight: 'bold', 
+                    marginBottom: '8px',
+                    fontSize: '14px'
+                  }}>
+                    {displayNode.name}
+                  </div>
+                  
+                  {faction && (
+                    <div style={{ 
+                      color: faction.color, 
+                      fontSize: '10px', 
+                      marginBottom: '4px',
+                      fontStyle: 'italic'
+                    }}>
+                      {faction.name} - {faction.description}
+                    </div>
+                  )}
+                  
+                  <div style={{ marginBottom: '8px', lineHeight: '1.4' }}>
+                    {displayNode.description}
+                  </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ 
@@ -566,7 +634,8 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                       padding: '6px',
                       cursor: 'pointer',
                       fontSize: '12px',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
+                      pointerEvents: 'auto' // Re-enable pointer events for button
                     }}
                   >
                     PURCHASE
@@ -587,7 +656,8 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                     Insufficient Memory Shards
                   </div>
                 )}
-              </>
+                </div>
+              </div>
             );
           })()}
         </div>
@@ -599,11 +669,11 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         width={gridWidth}
         height={gridHeight}
         style={{ width: '100%', height: '100%' }}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onClick={handleBackgroundClick}
+        onContextMenu={(e) => e.preventDefault()} // Prevent context menu on middle click
       >
         {/* Grid background pattern */}
         <defs>
@@ -621,7 +691,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         
         {/* Connection lines */}
         <g>
-          {generateConnections()}
+          {connections}
         </g>
         
         {/* Nodes */}
@@ -630,7 +700,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
             <MemoryGridNodeComponent
               key={node.id}
               node={node}
-              scale={scale}
+              scale={0.75}
               playerShards={playerShards}
               isSelected={selectedNode?.id === node.id}
               onNodeClick={handleNodeClick}
@@ -641,7 +711,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         
         {/* Branch Labels */}
         <g transform={`translate(${centerX}, ${centerY})`}>
-          {generateBranchLabels()}
+          {branchLabels}
         </g>
         
         {/* Center crosshair */}
@@ -662,7 +732,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           fontFamily: 'monospace'
         }}
       >
-        Mouse: Pan • Wheel: Zoom • Click: Select/Purchase
+        Mouse: Pan • Middle Click: Reset • Click: Select/Purchase
       </div>
     </div>
   );

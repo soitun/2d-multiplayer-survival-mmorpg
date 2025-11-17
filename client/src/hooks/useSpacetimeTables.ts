@@ -97,6 +97,7 @@ export interface SpacetimeTableStates {
     furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
     lanterns: Map<string, SpacetimeDB.Lantern>;
     homesteadHearths: Map<string, SpacetimeDB.HomesteadHearth>; // ADDED: Homestead Hearth support
+    brothPots: Map<string, SpacetimeDB.BrothPot>; // ADDED: Broth pot support
     harvestableResources: Map<string, SpacetimeDB.HarvestableResource>;
     itemDefinitions: Map<string, SpacetimeDB.ItemDefinition>;
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
@@ -166,6 +167,7 @@ export const useSpacetimeTables = ({
     const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
     const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map()); // ADDED: Homestead Hearth state
+    const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map()); // ADDED: Broth pot state
     const [harvestableResources, setHarvestableResources] = useState<Map<string, SpacetimeDB.HarvestableResource>>(() => new Map());
     const [plantedSeeds, setPlantedSeeds] = useState<Map<string, SpacetimeDB.PlantedSeed>>(() => new Map());
     const [itemDefinitions, setItemDefinitions] = useState<Map<string, SpacetimeDB.ItemDefinition>>(() => new Map());
@@ -265,6 +267,111 @@ export const useSpacetimeTables = ({
 
     // OPTIMIZED: Async function to process pending chunk updates with buffering + hysteresis
     // - BUFFER ZONE: Subscribe to extra chunks around viewport to prevent boundary lag
+    // Helper function to create subscriptions for a chunk (reusable)
+    const subscribeToChunk = (chunkIndex: number): SubscriptionHandle[] => {
+        if (!connection) return [];
+        
+        const newHandlesForChunk: SubscriptionHandle[] = [];
+        try {
+            if (ENABLE_BATCHED_SUBSCRIPTIONS) {
+                const timedBatchedSubscribe = (batchName: string, queries: string[]) => {
+                    const handle = connection.subscriptionBuilder()
+                        .onError((err) => console.error(`${batchName} Batch Sub Error (Chunk ${chunkIndex}):`, err))
+                        .subscribe(queries);
+                    return handle;
+                };
+                
+                const resourceQueries = [
+                    `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`
+                ];
+                newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
+                
+                const environmentalQueries = [];
+                if (ENABLE_CLOUDS) {
+                    environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
+                }
+                if (ENABLE_GRASS) {
+                    if (GRASS_PERFORMANCE_MODE) {
+                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                    } else {
+                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
+                    }
+                }
+                if (ENABLE_WORLD_TILES) {
+                    const worldWidthChunks = gameConfig.worldWidthChunks;
+                    const chunkX = chunkIndex % worldWidthChunks;
+                    const chunkY = Math.floor(chunkIndex / worldWidthChunks);
+                    environmentalQueries.push(`SELECT * FROM world_tile WHERE chunk_x = ${chunkX} AND chunk_y = ${chunkY}`);
+                }
+                if (environmentalQueries.length > 0) {
+                    newHandlesForChunk.push(timedBatchedSubscribe('Environmental', environmentalQueries));
+                }
+            } else {
+                const timedSubscribe = (queryName: string, query: string) => {
+                    return connection.subscriptionBuilder()
+                        .onError((err) => console.error(`${queryName} Sub Error (Chunk ${chunkIndex}):`, err))
+                        .subscribe(query);
+                };
+                
+                newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('HarvestableResource', `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Campfire', `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('BrothPot', `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('WoodenStorageBox', `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
+                
+                if (ENABLE_CLOUDS) {
+                    newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
+                }
+                if (ENABLE_GRASS) {
+                    if (GRASS_PERFORMANCE_MODE) {
+                        newHandlesForChunk.push(timedSubscribe('Grass(Perf)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`));
+                    } else {
+                        newHandlesForChunk.push(timedSubscribe('Grass(Full)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
+                    }
+                }
+                if (ENABLE_WORLD_TILES) {
+                    const worldWidthChunks = gameConfig.worldWidthChunks;
+                    const chunkX = chunkIndex % worldWidthChunks;
+                    const chunkY = Math.floor(chunkIndex / worldWidthChunks);
+                    newHandlesForChunk.push(timedSubscribe('WorldTile', `SELECT * FROM world_tile WHERE chunk_x = ${chunkX} AND chunk_y = ${chunkY}`));
+                }
+            }
+        } catch (error) {
+            console.error(`[CHUNK_ERROR] Failed to create subscriptions for chunk ${chunkIndex}:`, error);
+            // Clean up any partial subscriptions
+            newHandlesForChunk.forEach(safeUnsubscribe);
+            return [];
+        }
+        
+        return newHandlesForChunk;
+    };
+
     // - HYSTERESIS: Delay unsubscription to prevent rapid re-sub/unsub cycles  
     // - RESULT: Smooth movement across chunk boundaries with no lag spikes
     const processPendingChunkUpdate = () => {
@@ -392,138 +499,13 @@ export const useSpacetimeTables = ({
                     if (spatialSubsRef.current.has(chunkIndex)) {
                         return; // Already subscribed
                     }
-                                        const subStartTime = performance.now(); // PERF: Track subscription timing
+                    
+                    const subStartTime = performance.now(); // PERF: Track subscription timing
                     // Only log chunk subscription creation for debugging if needed
                     // console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex}`);
-                    const newHandlesForChunk: SubscriptionHandle[] = [];
-                    try {
-                        // 🚀 PERFORMANCE BREAKTHROUGH: Use batched subscriptions to reduce individual database calls
-                        if (ENABLE_BATCHED_SUBSCRIPTIONS) {
-                            // Helper function to time batched subscriptions
-                            const timedBatchedSubscribe = (batchName: string, queries: string[]) => {
-                                const batchStart = performance.now();
-                                const handle = connection.subscriptionBuilder()
-                                    .onError((err) => console.error(`${batchName} Batch Sub Error (Chunk ${chunkIndex}):`, err))
-                                    .subscribe(queries);
-                                const batchTime = performance.now() - batchStart;
-                                
-                                if (batchTime > 5) { // Log slow batch subscriptions > 5ms
-                                    // console.warn(`[CHUNK_PERF] Slow ${batchName} batch subscription for chunk ${chunkIndex}: ${batchTime.toFixed(2)}ms (${queries.length} queries)`);
-                                }
-                                
-                                return handle;
-                            };
-
-                            // 🎯 BATCH 1: Resource & Structure Tables (Most Common)
-                                                            const resourceQueries = [
-                                    `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone spatial subscription
-                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace spatial subscription
-                                    `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth spatial subscription
-                                    `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
-                                    // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
-                                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}` // ADDED: Wall spatial subscription
-                                ];
-                                // Removed excessive debug logging to improve performance
-                            newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
-
-                            // 🎯 BATCH 3: Environmental (Optional Tables)
-                            const environmentalQueries = [];
-                            
-                            if (ENABLE_CLOUDS) {
-                                environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
-                            }
-
-                            if (ENABLE_GRASS) {
-                                if (GRASS_PERFORMANCE_MODE) {
-                                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
-                                } else {
-                                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
-                                }
-                            }
-
-                            if (ENABLE_WORLD_TILES) {
-                                const worldWidthChunks = gameConfig.worldWidthChunks;
-                                const chunkX = chunkIndex % worldWidthChunks;
-                                const chunkY = Math.floor(chunkIndex / worldWidthChunks);
-                                // Removed excessive chunk debug logging to improve performance
-                                environmentalQueries.push(`SELECT * FROM world_tile WHERE chunk_x = ${chunkX} AND chunk_y = ${chunkY}`);
-                            }
-
-                            // Only create environmental batch if we have queries
-                            if (environmentalQueries.length > 0) {
-                                newHandlesForChunk.push(timedBatchedSubscribe('Environmental', environmentalQueries));
-                            }
-
-                        } else {
-                            // 🐌 LEGACY: Individual subscriptions (kept for debugging/fallback)
-                            const timedSubscribe = (queryName: string, query: string) => {
-                                const singleSubStart = performance.now();
-                                const handle = connection.subscriptionBuilder()
-                                    .onError((err) => console.error(`${queryName} Sub Error (Chunk ${chunkIndex}):`, err))
-                                    .subscribe(query);
-                                const singleSubTime = performance.now() - singleSubStart;
-                                
-                                if (singleSubTime > 2) { // Log slow subscriptions > 2ms
-                                    // console.warn(`[CHUNK_PERF] Slow ${queryName} subscription for chunk ${chunkIndex}: ${singleSubTime.toFixed(2)}ms`);
-                                }
-                                
-                                return handle;
-                            };
-
-                            // Individual subscriptions (original approach)
-                            newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Mushroom', `SELECT * FROM mushroom WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Corn', `SELECT * FROM corn WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Potato', `SELECT * FROM potato WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Pumpkin', `SELECT * FROM pumpkin WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Hemp', `SELECT * FROM hemp WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Reed', `SELECT * FROM reed WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('Campfire', `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('WoodenStorageBox', `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
-                            // REMOVED: WildAnimal - now subscribed globally like players to prevent disappearing
-                            newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
-                            newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
-
-                            if (ENABLE_CLOUDS) {
-                                newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
-                            }
-
-                            if (ENABLE_GRASS) {
-                                if (GRASS_PERFORMANCE_MODE) {
-                                    newHandlesForChunk.push(timedSubscribe('Grass(Perf)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`));
-                                } else {
-                                    newHandlesForChunk.push(timedSubscribe('Grass(Full)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
-                                }
-                            }
-
-                            if (ENABLE_WORLD_TILES) {
-                                const worldWidthChunks = gameConfig.worldWidthChunks;
-                                const chunkX = chunkIndex % worldWidthChunks;
-                                const chunkY = Math.floor(chunkIndex / worldWidthChunks);
-                                // Removed excessive debugging
-                                newHandlesForChunk.push(timedSubscribe('WorldTile', `SELECT * FROM world_tile WHERE chunk_x = ${chunkX} AND chunk_y = ${chunkY}`));
-                            }
-                        }
-
+                    
+                    const newHandlesForChunk = subscribeToChunk(chunkIndex);
+                    if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
                         
                         // PERF: Log subscription timing
@@ -536,10 +518,6 @@ export const useSpacetimeTables = ({
                         } else if (subTime > 5) {
                             // console.log(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions: ${subTime.toFixed(2)}ms (${newHandlesForChunk.length} subs)`);
                         }
-                    } catch (error) {
-                        // Attempt to clean up any partial subscriptions for this chunk if error occurred mid-way
-                        newHandlesForChunk.forEach(safeUnsubscribe);
-                        console.error(`[CHUNK_ERROR] Failed to create subscriptions for chunk ${chunkIndex}:`, error);
                     }
                 });
 
@@ -717,6 +695,16 @@ export const useSpacetimeTables = ({
             };
             const handleHomesteadHearthUpdate = (ctx: any, oldHearth: SpacetimeDB.HomesteadHearth, newHearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => new Map(prev).set(newHearth.id.toString(), newHearth));
             const handleHomesteadHearthDelete = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => { const newMap = new Map(prev); newMap.delete(hearth.id.toString()); return newMap; });
+            
+            // --- Broth Pot Subscriptions --- ADDED: Same pattern as campfire
+            const handleBrothPotInsert = (ctx: any, brothPot: SpacetimeDB.BrothPot) => {
+                setBrothPots(prev => new Map(prev).set(brothPot.id.toString(), brothPot));
+                if (connection.identity && brothPot.placedBy.isEqual(connection.identity)) {
+                   cancelPlacementRef.current();
+               }
+            };
+            const handleBrothPotUpdate = (ctx: any, oldPot: SpacetimeDB.BrothPot, newPot: SpacetimeDB.BrothPot) => setBrothPots(prev => new Map(prev).set(newPot.id.toString(), newPot));
+            const handleBrothPotDelete = (ctx: any, brothPot: SpacetimeDB.BrothPot) => setBrothPots(prev => { const newMap = new Map(prev); newMap.delete(brothPot.id.toString()); return newMap; });
             const handleItemDefInsert = (ctx: any, itemDef: SpacetimeDB.ItemDefinition) => {
                 if (itemDef.name === "Hunting Bow") {
                     // console.log("[DEBUG] Hunting Bow item definition loaded:", itemDef);
@@ -1096,6 +1084,24 @@ export const useSpacetimeTables = ({
 
             // --- WaterPatch Subscriptions ---
             const handleWaterPatchInsert = (ctx: any, waterPatch: SpacetimeDB.WaterPatch) => {
+                // CRITICAL FIX: Ensure we're subscribed to the chunk containing this water patch
+                // Water patches are created via left-click and might be in a chunk we haven't subscribed to yet
+                const patchChunkIndex = waterPatch.chunkIndex;
+                
+                // Check if we're subscribed to this chunk
+                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                    // We received a water patch insert but aren't subscribed to its chunk
+                    // This can happen if the water patch was created just outside the viewport buffer
+                    // Subscribe to this chunk immediately to ensure we receive updates
+                    console.log(`[WATER_PATCH] Received water patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
+                    
+                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
+                    if (newHandlesForChunk.length > 0) {
+                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
+                    }
+                }
+                
+                // Add the water patch to state
                 setWaterPatches(prev => new Map(prev).set(waterPatch.id.toString(), waterPatch));
             };
             const handleWaterPatchUpdate = (ctx: any, oldWaterPatch: SpacetimeDB.WaterPatch, newWaterPatch: SpacetimeDB.WaterPatch) => {
@@ -1261,6 +1267,7 @@ export const useSpacetimeTables = ({
             connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
             connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
             connection.db.homesteadHearth.onInsert(handleHomesteadHearthInsert); connection.db.homesteadHearth.onUpdate(handleHomesteadHearthUpdate); connection.db.homesteadHearth.onDelete(handleHomesteadHearthDelete); // ADDED: Homestead Hearth event registration
+            connection.db.brothPot.onInsert(handleBrothPotInsert); connection.db.brothPot.onUpdate(handleBrothPotUpdate); connection.db.brothPot.onDelete(handleBrothPotDelete); // ADDED: Broth pot event registration
             connection.db.itemDefinition.onInsert(handleItemDefInsert); connection.db.itemDefinition.onUpdate(handleItemDefUpdate); connection.db.itemDefinition.onDelete(handleItemDefDelete);
             connection.db.inventoryItem.onInsert(handleInventoryInsert); connection.db.inventoryItem.onUpdate(handleInventoryUpdate); connection.db.inventoryItem.onDelete(handleInventoryDelete);
             connection.db.worldState.onInsert(handleWorldStateInsert); connection.db.worldState.onUpdate(handleWorldStateUpdate); connection.db.worldState.onDelete(handleWorldStateDelete);
@@ -1613,10 +1620,11 @@ export const useSpacetimeTables = ({
                                  const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
-                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,                                     `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
+                                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
                                     // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
@@ -1719,7 +1727,7 @@ export const useSpacetimeTables = ({
                  currentChunksRef.current = [];
                  setLocalPlayerRegistered(false);
                  // Reset table states
-                 setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); // ADDED: Furnace and Hearth cleanup
+                 setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, and Broth Pot cleanup
                  setHarvestableResources(new Map());
                  setItemDefinitions(new Map()); setRecipes(new Map());
                  setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
@@ -1768,6 +1776,7 @@ export const useSpacetimeTables = ({
         furnaces, // ADDED: Furnace state
         lanterns,
         homesteadHearths, // ADDED: Homestead Hearth state
+        brothPots, // ADDED: Broth pot state
         harvestableResources,
         itemDefinitions,
         inventoryItems,

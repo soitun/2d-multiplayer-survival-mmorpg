@@ -26,6 +26,7 @@ use crate::tree;
 use crate::stone;
 use crate::wooden_storage_box;
 use crate::player_corpse;
+use crate::broth_pot::{broth_pot, broth_pot_processing_schedule};
 // REMOVED: grass module import - grass collision detection removed for performance
 
 // Specific constants needed
@@ -1036,6 +1037,12 @@ pub fn calculate_damage_and_yield(
     target_type: TargetType,
     rng: &mut impl Rng,
 ) -> (f32, u32, String) {
+    // Water containers can swing but deal no damage
+    if item_def.name == "Reed Water Bottle" 
+        || item_def.name == "Plastic Water Jug" {
+        return (0.0, 0, "".to_string());
+    }
+    
     let mut damage = 1.0; // Default damage
     let mut yield_qty = 0;
     let mut resource_name = "".to_string();
@@ -1116,7 +1123,9 @@ pub fn calculate_damage_and_yield(
             "Blueprint",        // For building/placing structures
             "Bone Knife",       // Specialized for corpse harvesting only
             "Bandage",          // Medical tool, not for harvesting
-            "Torch"
+            "Torch",            // Light source, not for harvesting
+            "Reed Water Bottle", // Water container - can swing but no damage/harvest
+            "Plastic Water Jug", // Water container - can swing but no damage/harvest
         ];
         
         if !excluded_tools.contains(&item_def.name.as_str()) {
@@ -1991,6 +2000,67 @@ pub fn damage_campfire(
         // 🔊 Stop campfire sound when destroyed
         if campfire.is_burning {
             crate::sound_events::stop_campfire_sound(ctx, campfire.id as u64);
+        }
+        
+        // 🍲 Drop broth pot if one is attached to this campfire
+        if let Some(broth_pot_id) = campfire.attached_broth_pot_id {
+            if let Some(mut broth_pot) = ctx.db.broth_pot().id().find(broth_pot_id) {
+                log::info!("Campfire {} destroyed - dropping attached broth pot {}", campfire_id, broth_pot_id);
+                
+                // Get broth pot item definition
+                let item_defs = ctx.db.item_definition();
+                if let Some(broth_pot_def) = item_defs.iter().find(|def| def.name == "Cerametal Field Cauldron Mk. II") {
+                    // Drop the cauldron below the campfire (south of it)
+                    let drop_y = campfire.pos_y + crate::dropped_item::DROP_OFFSET;
+                    if let Err(e) = crate::dropped_item::create_dropped_item_entity(
+                        ctx,
+                        broth_pot_def.id,
+                        1,
+                        campfire.pos_x,
+                        drop_y,
+                    ) {
+                        log::error!("Failed to drop broth pot {} when campfire destroyed: {}", broth_pot_id, e);
+                    } else {
+                        log::info!("Dropped broth pot {} as item when campfire {} was destroyed", broth_pot_id, campfire_id);
+                    }
+                } else {
+                    log::error!("Could not find Cerametal Field Cauldron Mk. II item definition");
+                }
+                
+                // Drop water container if present in the broth pot
+                let items = ctx.db.inventory_item();
+                if let Some(water_container_instance_id) = broth_pot.water_container_instance_id {
+                    if let Some(water_container_item) = items.instance_id().find(&water_container_instance_id) {
+                        if let Some(water_container_def) = item_defs.id().find(&water_container_item.item_def_id) {
+                            // Drop water container below campfire with preserved water content
+                            let drop_y = campfire.pos_y + crate::dropped_item::DROP_OFFSET + 20.0; // Slightly further south
+                            if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
+                                ctx,
+                                water_container_item.item_def_id,
+                                water_container_item.quantity,
+                                campfire.pos_x,
+                                drop_y,
+                                water_container_item.item_data.clone(),
+                            ) {
+                                log::error!("Failed to drop water container {} when campfire destroyed: {}", 
+                                           water_container_instance_id, e);
+                            } else {
+                                log::info!("Dropped water container {} ({}) when campfire {} was destroyed", 
+                                          water_container_instance_id, water_container_def.name, campfire_id);
+                            }
+                            
+                            // Delete the inventory item (it's now a dropped item)
+                            items.instance_id().delete(water_container_instance_id);
+                        }
+                    }
+                }
+                
+                // Remove processing schedule for the broth pot
+                ctx.db.broth_pot_processing_schedule().broth_pot_id().delete(broth_pot_id as u64);
+                
+                // Delete the broth pot entity
+                ctx.db.broth_pot().id().delete(broth_pot_id);
+            }
         }
         
         // Scatter items

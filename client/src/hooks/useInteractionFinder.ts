@@ -13,6 +13,7 @@ import {
     SleepingBag as SpacetimeDBSleepingBag,
     Shelter as SpacetimeDBShelter,
     RainCollector as SpacetimeDBRainCollector,
+    BrothPot as SpacetimeDBBrothPot,
     DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
@@ -71,6 +72,7 @@ interface UseInteractionFinderProps {
     playerCorpses: Map<string, SpacetimeDBPlayerCorpse>;
     stashes: Map<string, SpacetimeDBStash>;
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
+    brothPots: Map<string, SpacetimeDBBrothPot>;
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     players: Map<string, SpacetimeDBPlayer>;
     shelters: Map<string, SpacetimeDBShelter>;
@@ -100,6 +102,7 @@ interface UseInteractionFinderResult {
     closestInteractableCorpseId: bigint | null;
     closestInteractableStashId: number | null;
     closestInteractableRainCollectorId: number | null;
+    closestInteractableBrothPotId: number | null;
     closestInteractableSleepingBagId: number | null;
     closestInteractableKnockedOutPlayerId: string | null;
     closestInteractableWaterPosition: { x: number; y: number } | null;
@@ -187,6 +190,7 @@ export function useInteractionFinder({
     playerCorpses,
     stashes,
     rainCollectors,
+    brothPots,
     sleepingBags,
     players,
     shelters,
@@ -210,6 +214,7 @@ export function useInteractionFinder({
     const [closestInteractableCorpseId, setClosestInteractableCorpseId] = useState<bigint | null>(null);
     const [closestInteractableStashId, setClosestInteractableStashId] = useState<number | null>(null);
     const [closestInteractableRainCollectorId, setClosestInteractableRainCollectorId] = useState<number | null>(null);
+    const [closestInteractableBrothPotId, setClosestInteractableBrothPotId] = useState<number | null>(null);
     const [closestInteractableSleepingBagId, setClosestInteractableSleepingBagId] = useState<number | null>(null);
     const [closestInteractableKnockedOutPlayerId, setClosestInteractableKnockedOutPlayerId] = useState<string | null>(null);
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
@@ -227,6 +232,7 @@ export function useInteractionFinder({
         closestInteractableCorpseId: null,
         closestInteractableStashId: null,
         closestInteractableRainCollectorId: null,
+        closestInteractableBrothPotId: null,
         closestInteractableSleepingBagId: null,
         closestInteractableKnockedOutPlayerId: null,
         closestInteractableWaterPosition: null,
@@ -267,6 +273,9 @@ export function useInteractionFinder({
 
         let closestRainCollectorId: number | null = null;
         let closestRainCollectorDistSq = PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
+
+        let closestBrothPotId: number | null = null;
+        let closestBrothPotDistSq = PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED; // Use same distance as rain collectors
 
         let closestSleepingBagId: number | null = null;
         let closestSleepingBagDistSq = PLAYER_SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED;
@@ -553,6 +562,28 @@ export function useInteractionFinder({
                 });
             }
 
+            // Find closest broth pot
+            if (brothPots) {
+                brothPots.forEach((brothPot) => {
+                    if (brothPot.isDestroyed) return;
+                    
+                    const dx = playerX - brothPot.posX;
+                    const dy = playerY - brothPot.posY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < closestBrothPotDistSq) {
+                        // Check shelter access control
+                        if (canPlayerInteractWithObjectInShelter(
+                            playerX, playerY, localPlayer.identity.toHexString(),
+                            brothPot.posX, brothPot.posY, shelters
+                        )) {
+                            closestBrothPotDistSq = distSq;
+                            closestBrothPotId = brothPot.id;
+                        }
+                    }
+                });
+            }
+
             // Find closest knocked out player (excluding local player)
             if (players) {
                 players.forEach((player) => {
@@ -770,8 +801,27 @@ export function useInteractionFinder({
                     distance: Math.sqrt(closestWaterDistSq)
                 });
             }
+            if (closestBrothPotId) {
+                const brothPot = brothPots?.get(String(closestBrothPotId));
+                if (brothPot) {
+                    // Check if broth pot is empty (no ingredients and no water)
+                    const isEmpty = brothPot.waterLevelMl === 0 && 
+                                   !brothPot.ingredientInstanceId0 && 
+                                   !brothPot.ingredientInstanceId1 && 
+                                   !brothPot.ingredientInstanceId2;
+                    candidates.push({
+                        type: 'broth_pot',
+                        id: closestBrothPotId,
+                        position: { x: brothPot.posX, y: brothPot.posY },
+                        distance: Math.sqrt(closestBrothPotDistSq),
+                        data: {
+                            isEmpty: isEmpty
+                        }
+                    });
+                }
+            }
 
-            // Find the single closest target
+            // Find the closest target using priority selection
             if (candidates.length > 0) {
                 closestTarget = selectHighestPriorityTarget(candidates);
             }
@@ -790,6 +840,7 @@ export function useInteractionFinder({
             closestInteractableCorpseId: closestCorpse,
             closestInteractableStashId: closestStashId,
             closestInteractableRainCollectorId: closestRainCollectorId,
+            closestInteractableBrothPotId: closestBrothPotId,
             closestInteractableSleepingBagId: closestSleepingBagId,
             closestInteractableKnockedOutPlayerId: closestKnockedOutPlayerId,
             closestInteractableWaterPosition: closestWaterPosition,
@@ -831,6 +882,9 @@ export function useInteractionFinder({
         }
         if (calculatedResult.closestInteractableRainCollectorId !== closestInteractableRainCollectorId) {
             setClosestInteractableRainCollectorId(calculatedResult.closestInteractableRainCollectorId);
+        }
+        if (calculatedResult.closestInteractableBrothPotId !== closestInteractableBrothPotId) {
+            setClosestInteractableBrothPotId(calculatedResult.closestInteractableBrothPotId);
         }
         if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
@@ -876,6 +930,7 @@ export function useInteractionFinder({
         closestInteractableCorpseId,
         closestInteractableStashId,
         closestInteractableRainCollectorId,
+        closestInteractableBrothPotId,
         closestInteractableSleepingBagId,
         closestInteractableKnockedOutPlayerId,
         closestInteractableWaterPosition,

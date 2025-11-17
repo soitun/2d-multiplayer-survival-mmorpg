@@ -121,6 +121,20 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(900) // 15 minutes - valuable water infrastructure
             .build(),
 
+        // === COOKING EQUIPMENT ===
+
+        // Broth Pot - Advanced cooking vessel that snaps to campfires
+        ItemBuilder::new("Cerametal Field Cauldron Mk. II", "A miraculous cooking vessel that survived the shipwreck intact. This military-grade cauldron combines ceramic heat distribution with a metal alloy frame, designed for field operations. Place over campfires to cook broth, desalinate water, and prepare complex recipes. Requires water and ingredients to operate. The stirring mechanism demands attention during cooking.", ItemCategory::Placeable)
+            .icon("field_cauldron.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Stone".to_string(), quantity: 250 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 120)
+            .respawn_time(1800)
+            .build(),
+
         // === TROPHY DECORATIONS ===
         // Display items for showing hunting achievements
 

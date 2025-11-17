@@ -210,6 +210,7 @@ function AppContent() {
       barrels, // <<< ADD barrels HERE
       seaStacks, // <<< ADD sea stacks HERE
       homesteadHearths, // <<< ADD homesteadHearths HERE
+      brothPots, // <<< ADD brothPots HERE
       foundationCells, // ADDED: Building foundations
       wallCells, // ADDED: Building walls
       playerDodgeRollStates,
@@ -860,6 +861,7 @@ function AppContent() {
                             barrels={barrels}
                             seaStacks={seaStacks}
                             homesteadHearths={homesteadHearths}
+                            brothPots={brothPots}
                             foundationCells={foundationCells}
                             wallCells={wallCells}
                             inventoryItems={inventoryItems}

@@ -29,10 +29,6 @@ export default {
     
     <h2>How Broth & Bullets Revolutionizes Crafting with AI</h2>
     
-    <div class="image-container text-center mb-4">
-      <img src="/images/icons/tools/field_cauldron.png" alt="Field Cauldron Semantic Generation" class="blog-icon mx-auto" />
-    </div>
-    
     <p>The centerpiece of Broth & Bullets' innovation is the Field Cauldron system - a completely new approach to crafting that leverages large language models to generate contextually appropriate recipes in real-time.</p>
     
     <h3>True Semantic Generation</h3>

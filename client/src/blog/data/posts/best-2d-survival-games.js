@@ -84,29 +84,29 @@ export default {
     <h3>1. Broth & Bullets</h3>
     
     <div class="image-container text-center mb-4">
-      <img src="/images/blog/broth-bullets-gameplay.jpg" alt="Broth & Bullets Gameplay" class="blog-image-full mx-auto" />
+      <img src="/images/blog/survival-games-comparison.jpg" alt="Broth & Bullets Gameplay" class="blog-image-full mx-auto" />
     </div>
     
     <p><strong>Release Date:</strong> Early Access (2025)<br>
-    <strong>Platforms:</strong> PC, Mac<br>
-    <strong>Price:</strong> $24.99</p>
+    <strong>Platforms:</strong> Web<br>
+    <strong>Price:</strong> Free</p>
     
     <p>Despite being the newest entry on our list, Broth & Bullets has quickly established itself as the most innovative 2D survival game available. Set in the hostile subarctic Kamchatka peninsula, it combines traditional survival mechanics with AI-driven systems.</p>
     
     <p><strong>Strengths:</strong></p>
     <ul>
-      <li>Semantic recipe generation through the Field Cauldron system</li>
-      <li>Geographically accurate resource distribution creating meaningful exploration</li>
-      <li>Player-driven knowledge economy that creates unique social dynamics</li>
-      <li>Realistic representation of subarctic flora and fauna</li>
-      <li>Temperature-based preparation mechanics that add strategic depth</li>
+      <li>Unique cooking system - experiment with ingredients to discover recipes</li>
+      <li>Real-time multiplayer with persistent world and player interactions</li>
+      <li>Survival mechanics that matter - temperature, hunger, and weather affect gameplay</li>
+      <li>Meaningful crafting progression from primitive tools to advanced equipment</li>
+      <li>Atmospheric Siberian wilderness setting with diverse biomes to explore</li>
     </ul>
     
     <p><strong>Weaknesses:</strong></p>
     <ul>
-      <li>Still in Early Access with some systems under development</li>
-      <li>Higher system requirements than most 2D games due to LLM integration</li>
-      <li>Steeper learning curve for players used to predetermined crafting</li>
+      <li>Still in active development with features being added regularly</li>
+      <li>Learning curve for experimental cooking system (no recipe book)</li>
+      <li>Requires online connection for multiplayer-focused gameplay</li>
     </ul>
     
     <p><strong>Verdict:</strong> Broth & Bullets represents the future of survival crafting with its AI-powered systems creating truly emergent gameplay not found in any other title.</p>
@@ -114,7 +114,7 @@ export default {
     <h3>2. Don't Starve Together</h3>
     
     <div class="image-container text-center mb-4">
-      <img src="/images/blog/dont-starve-together-gameplay.jpg" alt="Don't Starve Together Gameplay" class="blog-image-full mx-auto" />
+      <img src="/images/blog/dont-starve-together-gameplay-screenshot.jpg" alt="Don't Starve Together Gameplay" class="blog-image-full mx-auto" />
     </div>
     
     <p><strong>Release Date:</strong> 2016 (Latest Major Update: 2024)<br>
@@ -144,7 +144,7 @@ export default {
     <h3>3. Terraria</h3>
     
     <div class="image-container text-center mb-4">
-      <img src="/images/blog/terraria-gameplay.jpg" alt="Terraria Gameplay" class="blog-image-full mx-auto" />
+      <img src="/images/blog/terraria-gameplay-screenshot.jpg" alt="Terraria Gameplay" class="blog-image-full mx-auto" />
     </div>
     
     <p><strong>Release Date:</strong> 2011 (Latest Major Update: 2024)<br>
@@ -174,7 +174,7 @@ export default {
     <h3>4. Oxygen Not Included</h3>
     
     <div class="image-container text-center mb-4">
-      <img src="/images/blog/oxygen-not-included-gameplay.jpg" alt="Oxygen Not Included Gameplay" class="blog-image-full mx-auto" />
+      <img src="/images/blog/oxygen-not-included-gameplay-screenshot.jpeg" alt="Oxygen Not Included Gameplay" class="blog-image-full mx-auto" />
     </div>
     
     <p><strong>Release Date:</strong> 2019 (Latest DLC: 2024)<br>
@@ -204,7 +204,7 @@ export default {
     <h3>5. Cataclysm: Dark Days Ahead</h3>
     
     <div class="image-container text-center mb-4">
-      <img src="/images/blog/cataclysm-dda-gameplay.jpg" alt="Cataclysm: Dark Days Ahead Gameplay" class="blog-image-full mx-auto" />
+      <img src="/images/blog/cdda-gameplay-screenshot.jpg" alt="Cataclysm: Dark Days Ahead Gameplay" class="blog-image-full mx-auto" />
     </div>
     
     <p><strong>Release Date:</strong> Ongoing development (Open Source)<br>

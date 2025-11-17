@@ -33,6 +33,7 @@ import {
     Stash as SpacetimeDBStash,
     RainCollector as SpacetimeDBRainCollector,
     HomesteadHearth as SpacetimeDBHomesteadHearth,
+    BrothPot as SpacetimeDBBrothPot,
     WorldState,
     ActiveConsumableEffect,
     // Import the generated types for ItemLocation variants
@@ -87,6 +88,7 @@ interface InventoryUIProps {
     stashes: Map<string, SpacetimeDBStash>; // <<< ADDED stashes prop
     rainCollectors: Map<string, SpacetimeDBRainCollector>; // Add rain collectors prop
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths
+    brothPots: Map<string, SpacetimeDBBrothPot>; // ADDED: Broth Pots
     currentStorageBox?: SpacetimeDBWoodenStorageBox | null; // <<< ADDED Prop Definition
     // NEW: Add Generic Placement Props
     startPlacement: (itemInfo: PlacementItemInfo) => void;
@@ -99,6 +101,7 @@ interface InventoryUIProps {
     worldState: WorldState | null;
     players?: Map<string, Player>; // ADDED: Players for building privilege list
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
+    chunkWeather?: Map<string, any>; // ADDED: Chunk-based weather
 }
 
 // Represents an item instance with its definition for rendering
@@ -145,6 +148,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     stashes,
     rainCollectors,
     homesteadHearths,
+    brothPots,
     currentStorageBox,
     startPlacement,
     cancelPlacement,
@@ -155,6 +159,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     worldState,
     players,
     activeConsumableEffects,
+    chunkWeather,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -546,6 +551,27 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         connection.reducers.quickMoveToStash(containerId, itemInstanceId);
                         break;
                     case 'campfire':
+                        // Special handling: If water container and campfire has attached broth pot with empty water slot, use water container slot
+                        const campfireEntity = campfires.get(containerId.toString());
+                        if (campfireEntity?.attachedBrothPotId && isWaterContainer(itemInfo.definition.name)) {
+                            const attachedBrothPot = brothPots.get(campfireEntity.attachedBrothPotId.toString());
+                            // Type assertion until bindings regenerated
+                            const pot = attachedBrothPot as any;
+                            if (attachedBrothPot && !pot?.waterContainerInstanceId) {
+                                // Water container slot is empty, use it
+                                try {
+                                    (connection.reducers as any).quickMoveToBrothPotWaterContainer(
+                                        campfireEntity.attachedBrothPotId,
+                                        itemInstanceId
+                                    );
+                                    return; // Successfully handled
+                                } catch (e: any) {
+                                    console.error(`[Inv CtxMenu] Error moving to water container slot:`, e);
+                                    return;
+                                }
+                            }
+                        }
+                        // Default: move to campfire fuel slots
                         connection.reducers.quickMoveToCampfire(containerId, itemInstanceId);
                         break;
                     case 'furnace':
@@ -560,6 +586,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                     case 'rain_collector':
                         // Rain collectors use a different function signature with slot index
                         connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
+                        break;
+                    case 'broth_pot':
+                        connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
                         break;
                     default:
                         console.warn(`[Inv CtxMenu] Unknown interaction type: ${currentInteraction.type}`);
@@ -593,7 +622,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 console.error("[Inv CtxMenu Inv->Hotbar]", e); 
             }
         }
-    }, [connection, interactionTarget, stashes, draggedItemInfo]);
+    }, [connection, interactionTarget, stashes, campfires, brothPots, draggedItemInfo]);
 
     // Helper function to format stat numbers
     const formatStatDisplay = (value: number, isPercentage: boolean = false, signed: boolean = true): string => {
@@ -1065,6 +1094,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             stashes={stashes}
                             rainCollectors={rainCollectors}
                             homesteadHearths={homesteadHearths}
+                            brothPots={brothPots}
                             currentStorageBox={currentStorageBox}
                             connection={connection}
                             onItemDragStart={onItemDragStart}
@@ -1076,6 +1106,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             worldState={worldState}
                             players={players}
                             activeConsumableEffects={activeConsumableEffects}
+                            chunkWeather={chunkWeather}
                         />
                     ) : (
                         // Otherwise, show the crafting UI

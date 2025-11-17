@@ -1,10 +1,9 @@
-import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth, Campfire as SpacetimeDBCampfire } from '../../generated';
+import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire } from '../../generated';
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
 import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT } from '../renderers/lanternRenderingUtils';
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT } from '../renderers/furnaceRenderingUtils';
-import { HEARTH_RENDER_Y_OFFSET, HEARTH_HEIGHT } from '../renderers/hearthRenderingUtils';
 
 // --- Campfire Light Constants (defined locally now) ---
 export const CAMPFIRE_LIGHT_RADIUS_BASE = 150;
@@ -27,12 +26,6 @@ export const LANTERN_LIGHT_OUTER_COLOR = 'rgba(240, 180, 120, 0.0)'; // Golden a
 // --- Furnace Light Constants (industrial metal smelting - bright white-hot to orange gradient) ---
 export const FURNACE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 0.5; // Focused lighting, doesn't cast far
 export const FURNACE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.6; // More stable than campfire, industrial
-
-// --- Hearth Light Constants ---
-export const HEARTH_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 1.2; // Larger than campfire (always on)
-export const HEARTH_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.8; // Slightly more stable than campfire
-export const HEARTH_LIGHT_INNER_COLOR = 'rgba(255, 180, 80, 0.35)'; // Same warm orange/yellow as campfire
-export const HEARTH_LIGHT_OUTER_COLOR = 'rgba(255, 100, 0, 0.0)';  // Fade to transparent orange
 export const FURNACE_LIGHT_INNER_COLOR = 'rgba(255, 240, 200, 0.4)'; // Bright white-hot center
 export const FURNACE_LIGHT_OUTER_COLOR = 'rgba(255, 120, 40, 0.0)'; // Bright orange fade
 
@@ -380,91 +373,4 @@ export const renderFurnaceLight = ({
     ctx.fill();
 
 
-};
-
-
-// --- Hearth Light Rendering ---
-interface RenderHearthLightProps {
-    ctx: CanvasRenderingContext2D;
-    hearth: SpacetimeDBHomesteadHearth;
-    cameraOffsetX: number;
-    cameraOffsetY: number;
-}
-
-export const renderHearthLight = ({
-    ctx,
-    hearth,
-    cameraOffsetX,
-    cameraOffsetY,
-}: RenderHearthLightProps) => {
-    // Hearth is always "on" (always burning), so no isBurning check needed
-    if (hearth.isDestroyed) {
-        return; // Destroyed hearths don't emit light
-    }
-
-    const visualCenterX = hearth.posX;
-    const visualCenterY = hearth.posY - (HEARTH_HEIGHT / 2) - HEARTH_RENDER_Y_OFFSET;
-    
-    const lightScreenX = visualCenterX + cameraOffsetX;
-    const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * HEARTH_FLICKER_AMOUNT;
-
-    // Add subtle asymmetry for hearth flame effect (less than campfire, more stable)
-    const hearthAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.5;
-    const hearthAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.3;
-    const steadyHearthX = lightScreenX + hearthAsymmetryX;
-    const steadyHearthY = lightScreenY + hearthAsymmetryY;
-
-    // HEARTH LIGHTING SYSTEM - Larger, warmer, more stable than campfire
-    const HEARTH_SCALE = 1.6; // Larger scale than campfire (1.5)
-
-    // Layer 1: Large ambient glow (hearth fire - warm oranges and reds, larger radius)
-    const ambientRadius = Math.max(0, HEARTH_LIGHT_RADIUS_BASE * 4.0 * HEARTH_SCALE + baseFlicker * 0.25);
-    const ambientGradient = ctx.createRadialGradient(
-        steadyHearthX, steadyHearthY, 0,
-        steadyHearthX, steadyHearthY, ambientRadius
-    );
-    ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.05)'); // Warm hearth orange-red
-    ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.03)'); // Warm ember red
-    ambientGradient.addColorStop(0.7, 'rgba(140, 35, 12, 0.015)'); // Warm wood-burning red
-    ambientGradient.addColorStop(1, 'rgba(100, 20, 8, 0)'); // Warm ember fade
-    
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(steadyHearthX, steadyHearthY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (authentic hearth fire colors, larger than campfire)
-    const mainRadius = Math.max(0, HEARTH_LIGHT_RADIUS_BASE * 2.8 * HEARTH_SCALE + baseFlicker * 0.9);
-    const mainGradient = ctx.createRadialGradient(
-        steadyHearthX, steadyHearthY, 0,
-        steadyHearthX, steadyHearthY, mainRadius
-    );
-    mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.20)'); // Warm hearth orange center
-    mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.17)'); // Warm rich orange
-    mainGradient.addColorStop(0.4, 'rgba(190, 60, 18, 0.12)'); // Warm orange-red
-    mainGradient.addColorStop(0.7, 'rgba(160, 45, 12, 0.06)'); // Warm ember red
-    mainGradient.addColorStop(0.9, 'rgba(120, 30, 8, 0.02)'); // Warm wood burning
-    mainGradient.addColorStop(1, 'rgba(90, 20, 6, 0)'); // Warm rustic fade
-    
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(steadyHearthX, steadyHearthY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (intense hearth flame center, larger than campfire) 
-    const coreRadius = Math.max(0, HEARTH_LIGHT_RADIUS_BASE * 0.7 * HEARTH_SCALE + baseFlicker * 1.3);
-    const coreGradient = ctx.createRadialGradient(
-        steadyHearthX, steadyHearthY, 0,
-        steadyHearthX, steadyHearthY, coreRadius
-    );
-    coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.28)'); // Warm hearth center
-    coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.20)'); // Warm rich orange
-    coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.12)'); // Warm orange-red glow
-    coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)'); // Warm rustic fade
-    
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
 };

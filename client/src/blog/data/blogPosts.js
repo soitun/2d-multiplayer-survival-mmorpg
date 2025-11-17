@@ -4,13 +4,17 @@ import spacetimedbRevolution from './posts/spacetimedb-revolution';
 import proceduralWorldGeneration from './posts/procedural-world-generation';
 import resourceSystemImplementation from './posts/resource-system-implementation';
 import fieldCauldronAIRecipeGeneration from './posts/field-cauldron-ai-recipe-generation';
+import fieldCauldronMechanics from './posts/field-cauldron-mechanics';
 import best2DSurvivalGames from './posts/best-2d-survival-games';
 import babushkaSpriteEvolution from './posts/babushka-sprite-evolution';
 import buildingSystem2DChallenges from './posts/building-system-2d-challenges';
 import armorSystemDesign from './posts/armor-system-design';
+import customBabushkaArtDirection from './posts/custom-babushka-art-direction';
 
 // Export posts as an array, sorted by date (newest first)
 export const blogPosts = [
+  customBabushkaArtDirection, // November 16, 2025 - Custom Art Direction
+  fieldCauldronMechanics, // November 16, 2025
   armorSystemDesign, // November 16, 2025
   buildingSystem2DChallenges, // November 14, 2025
   brothBulletsAlphaLaunch, // January 15, 2025 - Alpha Launch!

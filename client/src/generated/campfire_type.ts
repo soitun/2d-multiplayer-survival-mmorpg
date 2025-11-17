@@ -65,6 +65,7 @@ export type Campfire = {
   slot4CookingProgress: CookingProgress | undefined,
   lastDamageApplicationTime: __Timestamp | undefined,
   isPlayerInHotZone: boolean,
+  attachedBrothPotId: number | undefined,
 };
 let _cached_Campfire_type_value: __AlgebraicTypeType | null = null;
 
@@ -112,6 +113,7 @@ export const Campfire = {
       { name: "slot4CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "lastDamageApplicationTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "isPlayerInHotZone", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "attachedBrothPotId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
     );
     return _cached_Campfire_type_value;
   },

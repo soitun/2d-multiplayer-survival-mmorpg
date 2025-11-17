@@ -9,6 +9,7 @@ use crate::items::inventory_item as InventoryItemTableTrait;
 use crate::items::InventoryItem;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::tree::tree as TreeTableTrait;
+use crate::rain_collector::rain_collector as RainCollectorTableTrait; // ADDED: For rain collector water collection
 use crate::player; // ADDED: Import player module for chunk weather system
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::world_state::thunder_event as ThunderEventTableTrait;
@@ -718,6 +719,83 @@ fn calculate_season(day_of_year: u32) -> Season {
     }
 }
 
+/// Updates ALL rain collectors every tick based on their chunk's weather
+/// This ensures real-time updates like broth pots/campfires
+fn update_all_rain_collectors(
+    ctx: &ReducerContext,
+    elapsed_seconds: f32,
+) -> Result<(), String> {
+    let chunk_weather_table = ctx.db.chunk_weather();
+    let mut updated_count = 0;
+    let mut total_water_added = 0.0;
+    
+    // Update all active rain collectors
+    for mut collector in ctx.db.rain_collector().iter() {
+        if collector.is_destroyed {
+            continue;
+        }
+        
+        // Check capacity limit
+        if collector.total_water_collected >= crate::rain_collector::RAIN_COLLECTOR_MAX_WATER {
+            continue;
+        }
+        
+        // Get weather for this collector's chunk
+        let chunk_index = calculate_chunk_index(collector.pos_x, collector.pos_y);
+        let chunk_weather = chunk_weather_table.chunk_index().find(&chunk_index);
+        
+        // Skip if no weather data or clear weather
+        if chunk_weather.is_none() {
+            continue;
+        }
+        
+        let chunk_weather = chunk_weather.unwrap();
+        if chunk_weather.current_weather == WeatherType::Clear {
+            continue;
+        }
+        
+        // Get collection rate based on weather type
+        let collection_rate = match chunk_weather.current_weather {
+            WeatherType::LightRain => crate::rain_collector::LIGHT_RAIN_COLLECTION_RATE,
+            WeatherType::ModerateRain => crate::rain_collector::MODERATE_RAIN_COLLECTION_RATE,
+            WeatherType::HeavyRain => crate::rain_collector::HEAVY_RAIN_COLLECTION_RATE,
+            WeatherType::HeavyStorm => crate::rain_collector::HEAVY_STORM_COLLECTION_RATE,
+            WeatherType::Clear => continue, // Already handled above
+        };
+        
+        // Calculate water to add this tick
+        let water_to_add = collection_rate * elapsed_seconds;
+        
+        if water_to_add <= 0.0 {
+            continue;
+        }
+        
+        // Add water to collector
+        let water_before = collector.total_water_collected;
+        let collector_id = collector.id; // Capture ID before move
+        collector.total_water_collected = (collector.total_water_collected + water_to_add)
+            .min(crate::rain_collector::RAIN_COLLECTOR_MAX_WATER);
+        let water_after = collector.total_water_collected;
+        collector.last_collection_time = Some(ctx.timestamp);
+        
+        // Update the collector in the database
+        ctx.db.rain_collector().id().update(collector);
+        updated_count += 1;
+        total_water_added += water_after - water_before;
+        
+        log::debug!("Collector {} water: {:.1} -> {:.1} (max: {}) during {:?}", 
+                   collector_id, water_before, water_after, 
+                   crate::rain_collector::RAIN_COLLECTOR_MAX_WATER, chunk_weather.current_weather);
+    }
+    
+    if updated_count > 0 {
+        log::debug!("Added {:.1}L total water to {} rain collectors this tick", 
+                   total_water_added, updated_count);
+    }
+    
+    Ok(())
+}
+
 /// Updates chunk-based weather system - processes weather for all chunks
 /// Only processes a subset of chunks per tick for performance (staggered updates)
 fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, elapsed_seconds: f32) -> Result<(), String> {
@@ -826,6 +904,10 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
             propagate_weather_to_nearby_chunks(ctx, chunk_index, &chunk_weather.current_weather, &mut rng)?;
         }
     }
+    
+    // Update ALL rain collectors every tick (not just in selected chunks)
+    // This ensures real-time updates like broth pots/campfires
+    update_all_rain_collectors(ctx, elapsed_seconds)?;
     
     Ok(())
 }

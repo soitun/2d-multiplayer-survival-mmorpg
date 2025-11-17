@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MemoryGridNode, FACTIONS } from './MemoryGridData';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faWrench, faCrosshairs, faShield, faIndustry, faCar, 
-  faBrain, faBolt, faCircleDot, faDog, faFlask,
-  faGraduationCap, faSkull, faHardHat, faAnchor,
-  faLock
+  faBrain, faBolt, faCircleDot
 } from '@fortawesome/free-solid-svg-icons';
 import './MemoryGridNode.css';
+
+// Import faction emblem images
+import factionBlackWolves from '../assets/ui/faction_black_wolves.png';
+import factionHive from '../assets/ui/faction_hive.png';
+import factionUniversity from '../assets/ui/faction_university.png';
+import factionDataAngels from '../assets/ui/faction_data_angels.png';
+import factionBattalion from '../assets/ui/faction_battalion.png';
+import factionAdmiralty from '../assets/ui/faction_admiralty.png';
 
 interface MemoryGridNodeProps {
   node: MemoryGridNode;
@@ -28,17 +34,15 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Calculate scaled position
-  const scaledX = node.position.x * scale;
-  const scaledY = node.position.y * scale;
+  // Memoize expensive calculations
+  const isUnlockNode = useMemo(() => node.id.startsWith('unlock-'), [node.id]);
+  const baseSize = useMemo(() => node.id === 'center' ? 40 : isUnlockNode ? 50 : 30, [node.id, isUnlockNode]);
+  const nodeSize = useMemo(() => baseSize * scale, [baseSize, scale]);
+  const scaledX = useMemo(() => node.position.x * scale, [node.position.x, scale]);
+  const scaledY = useMemo(() => node.position.y * scale, [node.position.y, scale]);
   
-  // Base node size - make unlock nodes stand out MUCH more
-  const isUnlockNode = node.id.startsWith('unlock-');
-  const baseSize = node.id === 'center' ? 40 : isUnlockNode ? 50 : 30; // Significantly bigger nodes for better visibility
-  const nodeSize = baseSize * scale;
-  
-  // Get visual properties based on node state and faction
-  const getNodeColors = () => {
+  // Memoize node colors calculation
+  const colors = useMemo(() => {
     const faction = node.faction ? FACTIONS[node.faction] : null;
     
     // Special styling for unlock nodes to make them stand out
@@ -88,23 +92,25 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
           glowColor: '#374151'
         };
     }
-  };
+  }, [node.status, node.faction, isUnlockNode]);
 
-  // Get FontAwesome icon for node
-  const getNodeIcon = () => {
-    // Special faction icons for unlock nodes
-    if (isUnlockNode && node.faction) {
-      switch (node.faction) {
-        case 'black-wolves': return faDog; // Dog/Wolf for brutal enforcers
-        case 'hive': return faFlask; // Chemistry flask for bio-industrial
-        case 'university': return faGraduationCap; // Graduation cap for knowledge
-        case 'data-angels': return faSkull; // Skull for cyber stealth
-        case 'battalion': return faHardHat; // Hard hat for conventional military
-        case 'admiralty': return faAnchor; // Anchor for maritime mastery
-        default: return faLock; // Lock symbol fallback
-      }
-    }
+  // Memoize faction emblem image path for unlock nodes
+  const factionEmblem = useMemo(() => {
+    if (!isUnlockNode || !node.faction) return null;
     
+    switch (node.faction) {
+      case 'black-wolves': return factionBlackWolves;
+      case 'hive': return factionHive;
+      case 'university': return factionUniversity;
+      case 'data-angels': return factionDataAngels;
+      case 'battalion': return factionBattalion;
+      case 'admiralty': return factionAdmiralty;
+      default: return null;
+    }
+  }, [isUnlockNode, node.faction]);
+
+  // Memoize icon lookup for regular nodes
+  const nodeIcon = useMemo(() => {
     // Standard category icons for regular nodes
     switch (node.category) {
       case 'tool': return faWrench;
@@ -116,9 +122,8 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
       case 'passive': return faBolt;
       default: return faCircleDot;
     }
-  };
+  }, [node.category]);
 
-  const colors = getNodeColors();
   const isInteractable = node.status === 'available' || node.status === 'purchased';
   const isPurchaseable = node.status === 'available' && playerShards >= node.cost;
   const canAfford = playerShards >= node.cost;
@@ -139,6 +144,7 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
 
   const handleMouseLeave = () => {
     setIsHovered(false);
+    // Clear hover - parent will handle delay to prevent flicker
     if (onNodeHover) {
       onNodeHover(null);
     }
@@ -245,7 +251,7 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
               color: node.status === 'locked' ? '#9ca3af' : '#ffffff'
             }}>
               <FontAwesomeIcon 
-                icon={getNodeIcon()} 
+                icon={nodeIcon} 
                 style={{ fontSize: nodeSize * 0.5 }}
               />
             </div>
@@ -269,35 +275,38 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
         )}
       </g>
       
-      {/* Separate icon rendering for unlock nodes - doesn't inherit opacity */}
-      {isUnlockNode && (
+      {/* Separate icon rendering for unlock nodes - use faction emblem images */}
+      {isUnlockNode && factionEmblem && (
         <g transform={`translate(${scaledX}, ${scaledY})`}>
-          <foreignObject
-            x={-nodeSize * 0.3}
-            y={-nodeSize * 0.3}
-            width={nodeSize * 0.6}
-            height={nodeSize * 0.6}
+          <image
+            x={-nodeSize * 0.4}
+            y={-nodeSize * 0.4}
+            width={nodeSize * 0.8}
+            height={nodeSize * 0.8}
+            href={factionEmblem}
             className="unlock-node-icon"
-          >
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              width: '100%', 
-              height: '100%',
-              color: '#ffffff',
-              filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))'
-            }}>
-              <FontAwesomeIcon 
-                icon={getNodeIcon()} 
-                style={{ fontSize: nodeSize * 0.5 }}
-              />
-            </div>
-          </foreignObject>
+            style={{
+              filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))',
+              pointerEvents: 'none'
+            }}
+          />
         </g>
       )}
     </>
   );
 };
 
-export default MemoryGridNodeComponent; 
+// Memoize component to prevent unnecessary re-renders
+// Return true if props are equal (skip re-render), false if different (re-render)
+export default React.memo(MemoryGridNodeComponent, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.node.id === nextProps.node.id &&
+    prevProps.node.status === nextProps.node.status &&
+    prevProps.scale === nextProps.scale &&
+    prevProps.playerShards === nextProps.playerShards &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.onNodeClick === nextProps.onNodeClick &&
+    prevProps.onNodeHover === nextProps.onNodeHover
+  );
+}); 

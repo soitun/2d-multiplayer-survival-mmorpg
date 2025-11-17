@@ -56,7 +56,7 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
   },
   'data-angels': {
     id: 'data-angels',
-    name: 'Data Angels',
+    name: 'DATA ANGELS',
     description: 'Cyber & Stealth Branch',
     color: '#8b5cf6', // Purple
     philosophy: 'Information warfare in the digital age',
@@ -208,12 +208,12 @@ export const MEMORY_GRID_NODES = [
 
   // FACTION UNLOCK NODES - Entry points to faction branches (Cost: 2,000 shards each)
   // ANY Tier 5 node can unlock ANY faction - true interconnected design!
-  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 2000, tier: 6, faction: 'black-wolves', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(0, 600), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 2000, tier: 6, faction: 'hive', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(Math.PI / 3, 600), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 2000, tier: 6, faction: 'university', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(2 * Math.PI / 3, 600), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-data-angels', name: 'Unlock Data Angels', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 2000, tier: 6, faction: 'data-angels', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(Math.PI, 600), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 2000, tier: 6, faction: 'battalion', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(4 * Math.PI / 3, 600), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 2000, tier: 6, faction: 'admiralty', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(5 * Math.PI / 3, 600), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 2000, tier: 6, faction: 'black-wolves', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(0, 680), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 2000, tier: 6, faction: 'hive', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 2000, tier: 6, faction: 'university', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(2 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 2000, tier: 6, faction: 'data-angels', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(Math.PI, 680), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 2000, tier: 6, faction: 'battalion', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(4 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 2000, tier: 6, faction: 'admiralty', prerequisites: ['plasma-rifle', 'automated-harvester', 'teleporter', 'mobile-shield', 'drone-swarm', 'fortified-bunker'], position: getRadialPosition(5 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
 
   // BLACK WOLVES FACTION BRANCH - Two paths: Assault & Stealth
   ...(() => {
@@ -249,7 +249,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'black-wolves',
         prerequisites: i === 0 ? ['unlock-black-wolves'] : [assaultPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -265,7 +265,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'black-wolves',
         prerequisites: i === 0 ? ['unlock-black-wolves'] : [stealthPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -308,7 +308,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'hive',
         prerequisites: i === 0 ? ['unlock-hive'] : [bioPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -324,7 +324,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'hive',
         prerequisites: i === 0 ? ['unlock-hive'] : [chemPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -367,7 +367,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'university',
         prerequisites: i === 0 ? ['unlock-university'] : [roboticsPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -383,7 +383,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'university',
         prerequisites: i === 0 ? ['unlock-university'] : [researchPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -426,7 +426,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'data-angels',
         prerequisites: i === 0 ? ['unlock-data-angels'] : [hackingPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -442,7 +442,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'data-angels',
         prerequisites: i === 0 ? ['unlock-data-angels'] : [stealthPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -485,7 +485,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'battalion',
         prerequisites: i === 0 ? ['unlock-battalion'] : [heavyWeaponsPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -501,7 +501,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'battalion',
         prerequisites: i === 0 ? ['unlock-battalion'] : [supportPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -544,7 +544,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'admiralty',
         prerequisites: i === 0 ? ['unlock-admiralty'] : [navalPath[i - 1].id],
-        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 80)), // Upper path
+        position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)), // Upper path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });
@@ -560,7 +560,7 @@ export const MEMORY_GRID_NODES = [
         tier: 7 + i,
         faction: 'admiralty',
         prerequisites: i === 0 ? ['unlock-admiralty'] : [weatherPath[i - 1].id],
-        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 80)), // Lower path
+        position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)), // Lower path
         category: getCategoryFromId(node.id),
         status: 'locked' as const
       });

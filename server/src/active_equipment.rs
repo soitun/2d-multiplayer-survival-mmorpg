@@ -605,9 +605,9 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     }
 
     // NEW: Blueprint doesn't swing/attack - it's only for building
-    // Skip all swing logic to prevent distracting sounds while building
+    // Water containers can swing but don't deal damage (visual only)
     if item_def.name == "Blueprint" {
-        log::debug!("[UseEquippedItem] Blueprint equipped - skipping swing (building tool only)");
+        log::debug!("[UseEquippedItem] {} equipped - skipping swing (non-weapon utility item)", item_def.name);
         return Ok(());
     }
     

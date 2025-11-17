@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
+import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -45,6 +45,7 @@ interface PlayerUIProps {
   playerCorpses: Map<string, PlayerCorpse>;
   stashes: Map<string, SpacetimeDBStash>;
   rainCollectors: Map<string, SpacetimeDBRainCollector>;
+  brothPots: Map<string, SpacetimeDBBrothPot>;
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths
   onCraftingSearchFocusChange?: (isFocused: boolean) => void;
   showInventory: boolean;
@@ -52,6 +53,7 @@ interface PlayerUIProps {
   knockedOutStatus: Map<string, KnockedOutStatus>;
   worldState: WorldState | null;
   isGameMenuOpen?: boolean;
+  chunkWeather: Map<string, any>; // ADDED: Chunk-based weather
 }
 
 const PlayerUI: React.FC<PlayerUIProps> = ({
@@ -81,14 +83,16 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     playerCorpses,
     stashes,
     rainCollectors,
+    brothPots,
     homesteadHearths,
     onCraftingSearchFocusChange,
     showInventory,
     onToggleInventory,
     knockedOutStatus,
     worldState,
-    isGameMenuOpen
- }) => {
+    isGameMenuOpen,
+    chunkWeather
+}) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
     // --- NEW STATE FOR NOTIFICATIONS ---
@@ -498,6 +502,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     }, [showInventory]);
 
     // --- Open Inventory when Interaction Starts --- 
+    // CRITICAL: Don't open inventory for combo menu - only open after selection
     useEffect(() => {
         // console.log('[PlayerUI] interactingWith changed:', interactingWith);
         if (interactingWith) {
@@ -980,6 +985,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     playerCorpses={playerCorpses}
                     stashes={stashes}
                     rainCollectors={rainCollectors}
+                    brothPots={brothPots}
                     homesteadHearths={homesteadHearths}
                     startPlacement={startPlacement}
                     cancelPlacement={cancelPlacement}
@@ -991,6 +997,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     worldState={worldState}
                     players={players}
                     activeConsumableEffects={activeConsumableEffects}
+                    chunkWeather={chunkWeather}
                  />
              )}
 
@@ -1006,6 +1013,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 onItemDrop={onItemDrop}
                 draggedItemInfo={draggedItemInfo}
                 interactingWith={interactingWith}
+                brothPots={brothPots}
                 campfires={campfires}
                 stashes={stashes}
                 startPlacement={startPlacement}

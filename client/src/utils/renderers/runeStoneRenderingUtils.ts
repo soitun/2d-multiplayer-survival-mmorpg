@@ -321,41 +321,6 @@ export function renderRuneStoneNightLight(
     ctx.arc(lightScreenX, lightScreenY, ambientRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // LAYER 2: Core bright glow - adds depth and intensity at the center
-    // Creates a more focused "source of power" feeling while maintaining diffuse quality
-    const coreRadius = NIGHT_LIGHT_RADIUS * 0.35;
-    const coreY = lightScreenY - 40; // Move core glow circle up by 40px
-    const coreGradient = ctx.createRadialGradient(
-        lightScreenX,
-        coreY,
-        0,
-        lightScreenX,
-        coreY,
-        coreRadius
-    );
-
-    if (runeType === 'Green') {
-        coreGradient.addColorStop(0, `rgba(60, 200, 70, ${0.30 * finalIntensity})`);
-        coreGradient.addColorStop(0.4, `rgba(50, 170, 60, ${0.24 * finalIntensity})`);
-        coreGradient.addColorStop(0.7, `rgba(40, 140, 50, ${0.16 * finalIntensity})`);
-        coreGradient.addColorStop(1, `rgba(30, 100, 40, ${0.08 * finalIntensity})`);
-    } else if (runeType === 'Red') {
-        coreGradient.addColorStop(0, `rgba(255, 80, 80, ${0.32 * finalIntensity})`);
-        coreGradient.addColorStop(0.4, `rgba(230, 70, 70, ${0.26 * finalIntensity})`);
-        coreGradient.addColorStop(0.7, `rgba(200, 60, 60, ${0.18 * finalIntensity})`);
-        coreGradient.addColorStop(1, `rgba(170, 50, 50, ${0.10 * finalIntensity})`);
-    } else {
-        coreGradient.addColorStop(0, `rgba(80, 180, 255, ${0.31 * finalIntensity})`);
-        coreGradient.addColorStop(0.4, `rgba(70, 160, 240, ${0.25 * finalIntensity})`);
-        coreGradient.addColorStop(0.7, `rgba(60, 140, 220, ${0.17 * finalIntensity})`);
-        coreGradient.addColorStop(1, `rgba(50, 120, 200, ${0.09 * finalIntensity})`);
-    }
-
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, coreY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
-
     ctx.restore();
     
     // Render rising glowing particles (Sea of Stars style)
