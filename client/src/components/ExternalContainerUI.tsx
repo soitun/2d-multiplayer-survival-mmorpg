@@ -918,15 +918,15 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             Field Cauldron
                         </h3>
                         
-                        {/* All 4 slots in one row: Water Container + 3 Ingredient slots */}
+                        {/* All 5 slots in one row: Water Container + 3 Ingredient slots + Output slot */}
                         <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' }}>
                             <div style={{ 
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gridTemplateColumns: 'repeat(5, 1fr)',
                                 gap: '4px',
                                 maxWidth: 'fit-content'
                             }}>
-                                {/* Water Container Slot */}
+                                {/* Water Container Slot - Blue theme */}
                                 <DroppableSlot
                                     slotInfo={{
                                         type: 'broth_pot_water_container',
@@ -936,6 +936,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     onItemDrop={handleItemDropWithTracking}
                                     className={styles.slot}
                                     isDraggingOver={false}
+                                    style={{
+                                        border: '2px solid rgba(0, 150, 255, 0.6)',
+                                        background: 'linear-gradient(135deg, rgba(0, 100, 200, 0.2), rgba(0, 150, 255, 0.15))',
+                                        boxShadow: 'inset 0 0 8px rgba(0, 150, 255, 0.2)'
+                                    }}
                                 >
                                     {waterContainerItem && (
                                         <DraggableItem
@@ -1016,6 +1021,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                             onItemDrop={handleItemDropWithTracking}
                                             className={styles.slot}
                                             isDraggingOver={false}
+                                            style={{
+                                                border: '2px solid rgba(100, 200, 100, 0.5)',
+                                                background: 'linear-gradient(135deg, rgba(50, 150, 50, 0.15), rgba(100, 200, 100, 0.1))',
+                                                boxShadow: 'inset 0 0 8px rgba(100, 200, 100, 0.15)'
+                                            }}
                                         >
                                             {itemInSlot && (
                                                 <DraggableItem
@@ -1029,7 +1039,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                     onMouseMove={onExternalItemMouseMove}
                                                 />
                                             )}
-                                            {/* Food icon in bottom left */}
+                                            {/* Generic ingredient icon in bottom left */}
                                             <div style={{
                                                 position: 'absolute',
                                                 bottom: '4px',
@@ -1039,11 +1049,73 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                 pointerEvents: 'none',
                                                 textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
                                             }}>
-                                                🍽️
+                                                ⚪
                                             </div>
                                         </DroppableSlot>
                                     );
                                 })}
+                                
+                                {/* Output Slot (4th slot) - for brewed result */}
+                                {(() => {
+                                    const outputItem = attachedBrothPot.outputItemInstanceId 
+                                        ? (() => {
+                                            const instanceIdStr = attachedBrothPot.outputItemInstanceId!.toString();
+                                            const invItem = inventoryItems.get(instanceIdStr);
+                                            if (!invItem) return null;
+                                            const def = itemDefinitions.get(invItem.itemDefId.toString());
+                                            if (!def) return null;
+                                            return { instance: invItem, definition: def } as PopulatedItem;
+                                        })()
+                                        : null;
+                                    
+                                    const outputSlotInfo = {
+                                        type: getContainerConfig('broth_pot').slotType as any,
+                                        index: 3, // 4th slot (0-indexed)
+                                        parentId: attachedBrothPot.id
+                                    };
+                                    
+                                    return (
+                                        <DroppableSlot
+                                            key={`broth_pot_${attachedBrothPot.id}_output`}
+                                            slotInfo={outputSlotInfo}
+                                            onItemDrop={handleItemDropWithTracking}
+                                            className={styles.slot}
+                                            isDraggingOver={false}
+                                            style={{
+                                                border: '2px solid rgba(255, 200, 0, 0.7)',
+                                                background: 'linear-gradient(135deg, rgba(200, 150, 0, 0.2), rgba(255, 200, 0, 0.15))',
+                                                boxShadow: 'inset 0 0 8px rgba(255, 200, 0, 0.25)'
+                                            }}
+                                        >
+                                            {outputItem && (
+                                                <DraggableItem
+                                                    item={outputItem}
+                                                    sourceSlot={outputSlotInfo}
+                                                    onItemDragStart={onItemDragStart}
+                                                    onItemDrop={handleItemDropWithTracking}
+                                                    onContextMenu={(event) => brothPotCallbacks?.contextMenuHandler(event, outputItem, 3)}
+                                                    onMouseEnter={(e) => onExternalItemMouseEnter(outputItem, e)}
+                                                    onMouseLeave={onExternalItemMouseLeave}
+                                                    onMouseMove={onExternalItemMouseMove}
+                                                />
+                                            )}
+                                            {/* Soup icon in bottom left for output slot when empty */}
+                                            {!outputItem && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: '4px',
+                                                    left: '4px',
+                                                    fontSize: '14px',
+                                                    zIndex: 5,
+                                                    pointerEvents: 'none',
+                                                    textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                                                }}>
+                                                    🍲
+                                                </div>
+                                            )}
+                                        </DroppableSlot>
+                                    );
+                                })()}
                             </div>
                         </div>
                         
