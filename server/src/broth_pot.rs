@@ -444,38 +444,12 @@ pub fn place_broth_pot_on_campfire(
 pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), String> {
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
     
-    // Check if pot has ingredients or output (water can spill)
-    // CRITICAL: Check if items actually exist, not just if slot IDs are present (ghost references)
-    let items = ctx.db.inventory_item();
-    let has_ingredients = 
-        (broth_pot.ingredient_instance_id_0.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_0.unwrap()).is_some()) ||
-        (broth_pot.ingredient_instance_id_1.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_1.unwrap()).is_some()) ||
-        (broth_pot.ingredient_instance_id_2.is_some() && items.instance_id().find(&broth_pot.ingredient_instance_id_2.unwrap()).is_some());
-    let has_output = broth_pot.output_item_instance_id.is_some() && 
-                     items.instance_id().find(&broth_pot.output_item_instance_id.unwrap()).is_some();
-    
-    if has_ingredients || has_output {
-        log::info!("[BrothPot] Player {} tried to pickup pot {} with contents (ingredients: {}, output: {})", 
-                   ctx.sender, broth_pot_id, has_ingredients, has_output);
-        
-        // Play error sound for instant feedback
-        let _ = sound_events::emit_sound_at_position(
-            ctx,
-            sound_events::SoundType::ErrorCantPickUpCauldron,
-            broth_pot.pos_x,
-            broth_pot.pos_y,
-            1.0, // volume
-            ctx.sender,
-        );
-        return Err("Cannot pickup broth pot - it must be empty of ingredients and output (water will spill).".to_string());
-    }
-    
-    // Capture position and water level before clearing for sound effect
+    // Capture positions before dropping items
     let pot_pos_x = broth_pot.pos_x;
     let pot_pos_y = broth_pot.pos_y;
     let had_water = broth_pot.water_level_ml > 0;
     
-    // Get campfire position for dropping water container below it
+    // Get campfire position for dropping items below it
     let campfire_y = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
         ctx.db.campfire().id().find(campfire_id)
             .map(|cf| cf.pos_y)
@@ -483,6 +457,80 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
     } else {
         pot_pos_y // Fallback to pot position if no campfire attached
     };
+    
+    // Drop all ingredients and output as dropped items (for PvP and convenience)
+    let items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    // Collect all items to drop (ingredients + output)
+    let ingredient_slots = [
+        broth_pot.ingredient_instance_id_0,
+        broth_pot.ingredient_instance_id_1,
+        broth_pot.ingredient_instance_id_2,
+    ];
+    
+    let mut drop_offset = 0.0; // Spread items out horizontally
+    
+    // Drop ingredients
+    for slot_instance_id_opt in ingredient_slots.iter() {
+        if let Some(instance_id) = slot_instance_id_opt {
+            if let Some(ingredient_item) = items.instance_id().find(instance_id) {
+                if let Some(ingredient_def) = item_defs.id().find(&ingredient_item.item_def_id) {
+                    // Drop below campfire, spread horizontally
+                    let drop_x = pot_pos_x + drop_offset;
+                    let drop_y = campfire_y + crate::dropped_item::DROP_OFFSET;
+                    
+                    if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
+                        ctx,
+                        ingredient_item.item_def_id,
+                        ingredient_item.quantity,
+                        drop_x,
+                        drop_y,
+                        ingredient_item.item_data.clone(),
+                    ) {
+                        log::error!("Failed to drop ingredient {} when picking up broth pot {}: {}", 
+                                   instance_id, broth_pot_id, e);
+                    } else {
+                        log::info!("Dropped ingredient {} ({}) when picking up broth pot {}", 
+                                  instance_id, ingredient_def.name, broth_pot_id);
+                    }
+                    
+                    // Delete the inventory item
+                    items.instance_id().delete(*instance_id);
+                    drop_offset += 40.0; // Spread items 40px apart
+                }
+            }
+        }
+    }
+    
+    // Drop output item if present
+    if let Some(output_instance_id) = broth_pot.output_item_instance_id {
+        if let Some(output_item) = items.instance_id().find(&output_instance_id) {
+            if let Some(output_def) = item_defs.id().find(&output_item.item_def_id) {
+                // Drop below campfire, spread horizontally
+                let drop_x = pot_pos_x + drop_offset;
+                let drop_y = campfire_y + crate::dropped_item::DROP_OFFSET;
+                
+                if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
+                    ctx,
+                    output_item.item_def_id,
+                    output_item.quantity,
+                    drop_x,
+                    drop_y,
+                    output_item.item_data.clone(),
+                ) {
+                    log::error!("Failed to drop output {} when picking up broth pot {}: {}", 
+                               output_instance_id, broth_pot_id, e);
+                } else {
+                    log::info!("Dropped output {} ({}) when picking up broth pot {}", 
+                              output_instance_id, output_def.name, broth_pot_id);
+                }
+                
+                // Delete the inventory item
+                items.instance_id().delete(output_instance_id);
+            }
+        }
+    }
     
     // Check if there's a water container in the slot and drop it if present
     let items = ctx.db.inventory_item();

@@ -481,6 +481,11 @@ pub fn emit_error_resources_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, 
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::ErrorResources, pos_x, pos_y, 1.0, 525.0, player_id);
 }
 
+/// Emit error sound when trying to pick up cauldron with contents
+pub fn emit_error_cant_pick_up_cauldron_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::ErrorCantPickUpCauldron, pos_x, pos_y, 1.0, 525.0, player_id);
+}
+
 /// Emit a melee hit sharp sound (for stone hatchet, stone pickaxe hitting players/corpses)
 pub fn emit_melee_hit_sharp_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::MeleeHitSharp, pos_x, pos_y, 1.4, 700.0, player_id);
