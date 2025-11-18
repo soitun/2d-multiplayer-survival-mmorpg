@@ -532,11 +532,11 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     crate::items::seed_food_poisoning_risks(ctx)?;
     crate::items::seed_ranged_weapon_stats(ctx)?;
     crate::crafting::seed_recipes(ctx)?;
-    crate::environment::seed_environment(ctx)?;
+    // NOTE: seed_environment is now called AFTER world generation (see below)
 
     // Initialize the dropped item despawn schedule
     crate::dropped_item::init_dropped_item_schedule(ctx)?;
-    // Initialize the crafting finish check schedule
+    // Initialize the crafting finish check schedules
     crate::crafting_queue::init_crafting_schedule(ctx)?;
     // Re-enable the player stat update schedule for TreeCover effects
     crate::player_stats::init_player_stat_schedule(ctx)?;
@@ -621,6 +621,13 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
                 match crate::world_generation::generate_minimap_data(ctx, 300, 300) {
                     Ok(_) => log::info!("Minimap cache generated successfully"),
                     Err(e) => log::error!("Failed to generate minimap cache: {}", e),
+                }
+                
+                // CRITICAL: Seed environment AFTER world tiles exist
+                log::info!("Seeding environment (trees, stones, plants) now that world tiles exist...");
+                match crate::environment::seed_environment(ctx) {
+                    Ok(_) => log::info!("Environment seeding completed successfully"),
+                    Err(e) => log::error!("Failed to seed environment: {}", e),
                 }
             },
             Err(e) => log::error!("Failed to generate initial world: {}", e),

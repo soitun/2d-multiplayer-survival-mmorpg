@@ -731,6 +731,8 @@ pub fn update_player_position_simple(
         
         if is_on_water {
             // --- Swimming Sound Logic ---
+            // Note: Swimming sounds are NOT affected by silent movement (fox fur boots).
+            // Fox fur boots only silence land walking/sprinting sounds, not swimming sounds.
             // Add movement distance to accumulated swimming total
             walking_state.total_swimming_distance_since_last_sound += movement_distance;
             
@@ -747,7 +749,7 @@ pub fn update_player_position_simple(
             if walking_state.total_swimming_distance_since_last_sound >= distance_threshold && 
                time_since_last_stroke >= time_threshold_ms {
                 
-                // Emit swimming sound
+                // Emit swimming sound (always, regardless of fox fur boots)
                 emit_swimming_sound(ctx, final_x, final_y, sender_id);
                 
                 // Reset accumulated swimming distance and update time

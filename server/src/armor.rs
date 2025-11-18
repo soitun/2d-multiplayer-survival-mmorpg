@@ -260,6 +260,8 @@ pub fn makes_noise_on_sprint(ctx: &ReducerContext, player_id: Identity) -> bool 
 }
 
 /// Checks if player has silent movement (fox fur boots)
+/// Note: This only affects land walking/sprinting sounds, NOT swimming sounds.
+/// Swimming sounds are always emitted regardless of fox fur boots.
 pub fn has_silent_movement(ctx: &ReducerContext, player_id: Identity) -> bool {
     let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
     

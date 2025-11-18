@@ -67,6 +67,11 @@ pub enum PlantType {
     
     // === TECHNOLOGICAL DEBRIS ===
     MemoryShard, // Crashed ship cognitive archive debris
+    
+    // === RESOURCE PILES (Small bonus resources scattered in world) ===
+    WoodPile,       // Small pile of wood - general terrain
+    BeachWoodPile,  // Driftwood pile - beaches only
+    StonePile,      // Small pile of stones - general terrain
 }
 
 // --- Plant Configuration System ---
@@ -859,6 +864,59 @@ lazy_static! {
             max_respawn_time_secs: 2700, // 45 minutes
             spawn_condition: SpawnCondition::Coastal, // Debris washed up on beaches and coastline from the crash
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always findable - not biological
+        });
+        
+        // === RESOURCE PILES (Small bonus resources) ===
+        
+        configs.insert(PlantType::WoodPile, PlantConfig {
+            entity_name: "Wood Pile".to_string(),
+            density_percent: 0.0008, // Scattered throughout world (~200 across map)
+            min_distance_sq: 100.0 * 100.0,
+            min_tree_distance_sq: 60.0 * 60.0, // Can be near trees (fallen branches)
+            min_stone_distance_sq: 80.0 * 80.0,
+            noise_threshold: 0.75,
+            primary_yield: ("Wood".to_string(), 40, 60), // ~50 wood average - small bonus
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 1200, // 20 minutes
+            max_respawn_time_secs: 1800, // 30 minutes
+            spawn_condition: SpawnCondition::Plains, // Open areas, clearings
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::BeachWoodPile, PlantConfig {
+            entity_name: "Beach Wood Pile".to_string(),
+            density_percent: 0.0005, // Less common (~125 across map)
+            min_distance_sq: 110.0 * 110.0,
+            min_tree_distance_sq: 50.0 * 50.0, // Can be near beach trees
+            min_stone_distance_sq: 70.0 * 70.0,
+            noise_threshold: 0.78,
+            primary_yield: ("Wood".to_string(), 20, 30), // ~25 wood average - driftwood gives less
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 1200, // 20 minutes
+            max_respawn_time_secs: 1800, // 30 minutes
+            spawn_condition: SpawnCondition::Coastal, // Beaches only - driftwood
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::StonePile, PlantConfig {
+            entity_name: "Stone Pile".to_string(),
+            density_percent: 0.0007, // Scattered throughout world (~175 across map)
+            min_distance_sq: 110.0 * 110.0,
+            min_tree_distance_sq: 80.0 * 80.0,
+            min_stone_distance_sq: 60.0 * 60.0, // Can be near stone nodes
+            noise_threshold: 0.76,
+            primary_yield: ("Stone".to_string(), 40, 60), // ~50 stone average - small bonus
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 1200, // 20 minutes
+            max_respawn_time_secs: 1800, // 30 minutes
+            spawn_condition: SpawnCondition::Plains, // Open areas
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
         });
         
         configs
