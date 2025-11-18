@@ -59,6 +59,7 @@ const SOUND_DEFINITIONS = {
     stop_bandaging: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.0, maxDistance: 300 }, // Stop bandaging sound
     barrel_hit: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barrel hit sound
     barrel_destroyed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.3, maxDistance: 700 }, // Barrel destroyed sound
+    player_burnt: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Player burn effect applied (client-side immediate feedback)
     // Animal growl sounds - when animals detect and approach players
     growl_wolf: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 800 }, // Wolf growl when starting to chase
     growl_fox: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 650 }, // Fox growl when starting to attack
@@ -86,6 +87,7 @@ const SOUND_DEFINITIONS = {
     error_foundation_monument: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation monument error sound (client-side immediate for instant feedback when trying to place foundation in rune stone light area)
     error_jar_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Jar placement error sound (client-side immediate for instant feedback when trying to place soup back into broth pot output slot)
     error_broth_not_compatible: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Broth not compatible error sound (when trying to place incompatible item in broth pot)
+    error_field_cauldron_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Field cauldron placement error sound (client-side immediate for instant feedback when trying to place cauldron without nearby campfire)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -97,6 +99,7 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
     'error_building_privilege',
     'error_tier_upgrade',
     'error_planting',
+    'error_field_cauldron_placement',
     'error_chest_placement',
     'error_foundation_monument',
     'error_jar_placement',
@@ -323,7 +326,9 @@ const PRELOAD_SOUNDS = [
     'error_building_privilege.mp3',                         // 1 error building privilege variation
     'error_tier_upgrade.mp3',                               // 1 error tier upgrade variation
     'error_planting.mp3',                                    // 1 error planting variation
+    'error_field_cauldron_placement.mp3',                   // 1 error field cauldron placement variation
     'construction_placement_error.mp3',                     // 1 construction placement error variation
+    'player_burnt.mp3',                                      // 1 player burnt variation
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -516,6 +521,8 @@ const playLocalSound = async (
                 variationCount = 1; // plant_seed.mp3
             } else if (soundType === 'item_pickup') {
                 variationCount = 1; // item_pickup.mp3
+            } else if (soundType === 'player_burnt') {
+                variationCount = 1; // player_burnt.mp3 - only one variation
             } else if (soundType === 'drinking_water') {
                 variationCount = 1; // drinking_water.mp3
             } else if (soundType === 'lantern_looping') {
@@ -566,6 +573,8 @@ const playLocalSound = async (
                 variationCount = 1; // error_tier_upgrade.mp3
             } else if (soundType === 'error_planting') {
                 variationCount = 1; // error_planting.mp3
+            } else if (soundType === 'error_field_cauldron_placement') {
+                variationCount = 1; // error_field_cauldron_placement.mp3
             } else if (soundType === 'error_chest_placement') {
                 variationCount = 1; // error_chest_placement.mp3
             } else if (soundType === 'error_foundation_monument') {

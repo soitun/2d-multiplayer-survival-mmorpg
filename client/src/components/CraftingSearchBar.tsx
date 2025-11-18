@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import styles from './InventoryUI.module.css'; // Reuse existing styles if applicable, or create new ones
 import { ItemCategory } from '../generated';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 // Category mappings with pretty names
 const CATEGORY_LABELS: Record<string, string> = {
@@ -281,7 +283,7 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
           onClick={handleFilterClick}
           title="Filter by category"
         >
-          🔽
+          <FontAwesomeIcon icon={faChevronDown} />
         </button>
         {isDropdownOpen && (
           <div 

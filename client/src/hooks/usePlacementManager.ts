@@ -617,7 +617,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
             // Check if campfire already has a broth pot
             if (nearestCampfire.attachedBrothPotId !== null && nearestCampfire.attachedBrothPotId !== undefined) {
               console.log('[PlacementManager] Campfire already has a broth pot attached');
-              playImmediateSound('error_planting', 1.0);
+              playImmediateSound('error_field_cauldron_placement', 1.0);
               return;
             }
             
@@ -625,7 +625,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
             connection.reducers.placeBrothPotOnCampfire(placementInfo.instanceId, nearestCampfire.id);
           } else {
             console.log('[PlacementManager] No campfire nearby to place broth pot');
-            playImmediateSound('error_planting', 1.0);
+            playImmediateSound('error_field_cauldron_placement', 1.0);
           }
           break;
         default:

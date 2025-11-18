@@ -21,6 +21,7 @@ import {
   RainCollector as SpacetimeDBRainCollector,
   BrothPot as SpacetimeDBBrothPot,
   WaterPatch as SpacetimeDBWaterPatch,
+  FirePatch as SpacetimeDBFirePatch,
   Cloud as SpacetimeDBCloud,
   ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
   Grass as SpacetimeDBGrass,
@@ -66,6 +67,7 @@ import { useArrowBreakEffects } from '../hooks/useArrowBreakEffects';
 // Thunder effects removed - system disabled for now
 import { useChunkBasedRainSounds } from '../hooks/useChunkBasedRainSounds';
 import { useFireArrowParticles } from '../hooks/useFireArrowParticles';
+import { useFirePatchParticles } from '../hooks/useFirePatchParticles';
 import { useWorldTileCache } from '../hooks/useWorldTileCache';
 import { useAmbientSounds } from '../hooks/useAmbientSounds';
 import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
@@ -104,6 +106,7 @@ import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly } from '../utils/renderers/seaStackRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
+import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderViperSpittle } from '../utils/renderers/viperSpittleRenderingUtils';
@@ -154,6 +157,7 @@ interface GameCanvasProps {
   rainCollectors: Map<string, SpacetimeDBRainCollector>;
   brothPots: Map<string, SpacetimeDBBrothPot>;
   waterPatches: Map<string, SpacetimeDBWaterPatch>;
+  firePatches: Map<string, SpacetimeDBFirePatch>;
   playerPins: Map<string, SpacetimeDBPlayerPin>;
   inventoryItems: Map<string, SpacetimeDBInventoryItem>;
   itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -232,6 +236,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   rainCollectors,
   brothPots,
   waterPatches,
+  firePatches,
   playerPins,
   inventoryItems,
   itemDefinitions,
@@ -290,6 +295,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const placementActionsRef = useRef(placementActions);
   const prevPlayerHealthRef = useRef<number | undefined>(undefined);
   const [damagingCampfireIds, setDamagingCampfireIds] = useState<Set<string>>(new Set());
+  const burnSoundPlayedRef = useRef<Set<string>>(new Set()); // Track which burn effects we've played sounds for
   
   // Minimap canvas ref for the InterfaceContainer
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -624,6 +630,40 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       try { handle?.unsubscribe?.(); } catch {}
     };
   }, [connection]);
+
+  // Monitor burn effects for local player and play sound when burn is applied/extended
+  useEffect(() => {
+    if (!localPlayerId || !activeConsumableEffects) return;
+
+    // Find burn effects for local player
+    const localPlayerBurnEffects = Array.from(activeConsumableEffects.values()).filter(
+      effect => effect.playerId.toHexString() === localPlayerId && effect.effectType.tag === 'Burn'
+    );
+
+    // Track burn effects by their end time to detect when they're extended (stacked)
+    if (!burnSoundPlayedRef.current) {
+      burnSoundPlayedRef.current = new Set<string>();
+    }
+
+    localPlayerBurnEffects.forEach(effect => {
+      const effectKey = `${effect.effectId}_${effect.endsAt.microsSinceUnixEpoch}`;
+      
+      // Play sound if this is a new effect or if the end time changed (effect was extended)
+      if (!burnSoundPlayedRef.current!.has(effectKey)) {
+        console.log('[BURN_SOUND] Playing burn sound for effect', effect.effectId, 'ending at', effect.endsAt.microsSinceUnixEpoch);
+        playImmediateSound('player_burnt', 1.0);
+        burnSoundPlayedRef.current!.add(effectKey);
+      }
+    });
+
+    // Clean up old effect keys that no longer exist
+    const currentEffectKeys = new Set(localPlayerBurnEffects.map(e => `${e.effectId}_${e.endsAt.microsSinceUnixEpoch}`));
+    burnSoundPlayedRef.current.forEach(oldKey => {
+      if (!currentEffectKeys.has(oldKey)) {
+        burnSoundPlayedRef.current!.delete(oldKey);
+      }
+    });
+  }, [activeConsumableEffects, localPlayerId]);
 
   // Build a lightweight worldTiles map only for the current viewport from compressed chunks
   const visibleWorldTiles = useMemo(() => {
@@ -1182,6 +1222,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleFurnacesMap,
   });
 
+  // Fire patch particle effects - fire and smoke from fire patches on the ground
+  const firePatchParticles = useFirePatchParticles({
+    visibleFirePatchesMap: firePatches,
+    localPlayer: localPlayer ?? null,
+  });
 
   // Resource sparkle particle effects - shows sparkles on harvestable resources (viewport-culled)
   const resourceSparkleParticles = useResourceSparkleParticles({
@@ -1347,6 +1392,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       currentCanvasHeight
     );
     // --- End Water Patches ---
+
+    // --- Render Fire Patches ---
+    // Fire patches show as animated flames created by fire arrows that damage players and structures
+    // Note: Context is already translated by cameraOffset, so we pass the actual camera world position
+    renderFirePatches(
+      ctx,
+      firePatches,
+      -cameraOffsetX, // Camera world X position
+      -cameraOffsetY, // Camera world Y position
+      currentCanvasWidth,
+      currentCanvasHeight,
+      now_ms
+    );
+    // --- End Fire Patches ---
 
     // --- Render Sea Stacks (SERVER-AUTHORITATIVE SYSTEM) ---
     // DISABLED: Sea stacks are now rendered through the Y-sorted entities system for proper depth layering
@@ -2020,6 +2079,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderParticlesToCanvas(ctx, torchParticles);
       renderParticlesToCanvas(ctx, fireArrowParticles);
       renderParticlesToCanvas(ctx, furnaceParticles);
+      renderParticlesToCanvas(ctx, firePatchParticles);
       // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
       // Render cut grass effects

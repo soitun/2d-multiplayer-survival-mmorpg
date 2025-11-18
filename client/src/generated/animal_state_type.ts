@@ -39,7 +39,11 @@ export type AnimalState = AnimalStateVariants.Patrolling |
   AnimalStateVariants.Investigating |
   AnimalStateVariants.Alert |
   AnimalStateVariants.Following |
-  AnimalStateVariants.Protecting;
+  AnimalStateVariants.Protecting |
+  AnimalStateVariants.SeekingFood |
+  AnimalStateVariants.Eating |
+  AnimalStateVariants.SeekingWater |
+  AnimalStateVariants.Drinking;
 
 let _cached_AnimalState_type_value: __AlgebraicTypeType | null = null;
 
@@ -61,6 +65,10 @@ export const AnimalState = {
   Alert: { tag: "Alert" } as const,
   Following: { tag: "Following" } as const,
   Protecting: { tag: "Protecting" } as const,
+  SeekingFood: { tag: "SeekingFood" } as const,
+  Eating: { tag: "Eating" } as const,
+  SeekingWater: { tag: "SeekingWater" } as const,
+  Drinking: { tag: "Drinking" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_AnimalState_type_value) return _cached_AnimalState_type_value;
@@ -76,6 +84,10 @@ export const AnimalState = {
       { name: "Alert", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Following", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Protecting", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeekingFood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Eating", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeekingWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Drinking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_AnimalState_type_value;
   },

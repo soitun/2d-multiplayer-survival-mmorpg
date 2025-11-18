@@ -10,7 +10,7 @@
  *  - Passing down necessary state and action callbacks to the active screen (`LoginScreen` or `GameScreen`).
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Components
@@ -68,6 +68,38 @@ import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/pl
 // Import the cut grass effect system
 import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects/cutGrassEffect';
 import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteringUtils';
+
+// Simple error boundary to surface the real error causing the white screen
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any }> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { error: null };
+    }
+
+    static getDerivedStateFromError(error: any) {
+        return { error };
+    }
+
+    componentDidCatch(error: any, info: any) {
+        // This should reveal the actual runtime error in the console
+        // instead of the generic React "An error occurred in <AppContent>" message.
+        // eslint-disable-next-line no-console
+        console.error('[AppErrorBoundary] Caught error in AppContent:', error, info);
+    }
+
+    render() {
+        if (this.state.error) {
+            return (
+                <div style={{ padding: '16px', color: '#ff5555', background: '#1b1b1b', fontFamily: 'monospace' }}>
+                    <h2>Game client crashed</h2>
+                    <p>{String(this.state.error)}</p>
+                    <p>Check the browser console for full stack trace from [AppErrorBoundary].</p>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function AppContent() {
     // --- Global Auth Error Handler ---
@@ -190,6 +222,7 @@ function AppContent() {
       stashes, // <<< ADD stashes destructuring
       rainCollectors, // <<< ADD rainCollectors destructuring
       waterPatches, // <<< ADD waterPatches destructuring
+      firePatches, // <<< ADD firePatches destructuring
       activeConsumableEffects, // <<< ADD activeConsumableEffects destructuring
       grass, // <<< ADD grass destructuring
       knockedOutStatus, // <<< ADD knockedOutStatus destructuring
@@ -853,7 +886,6 @@ function AppContent() {
                             stashes={stashes}
                             shelters={shelters}
                             plantedSeeds={plantedSeeds}
-                             
                             minimapCache={minimapCache}
                             wildAnimals={wildAnimals}
                             viperSpittles={viperSpittles}
@@ -915,6 +947,7 @@ function AppContent() {
                             playerDrinkingCooldowns={playerDrinkingCooldowns}
                             rainCollectors={rainCollectors}
                             waterPatches={waterPatches}
+                            firePatches={firePatches}
                             isMusicPanelVisible={isMusicPanelVisible}
                             setIsMusicPanelVisible={setIsMusicPanelVisible}
                             playerDodgeRollStates={playerDodgeRollStates}
@@ -937,7 +970,7 @@ function App() {
                 <DebugProvider>
                     <Router>
                         <Routes>
-                            <Route path="/" element={<AppContent />} />
+                            <Route path="/" element={<AppErrorBoundary><AppContent /></AppErrorBoundary>} />
                             <Route path="/blog" element={<BlogPage />} />
                             <Route path="/blog/:slug" element={<BlogPostPage />} />
                             <Route path="/privacy" element={<PrivacyPage />} />

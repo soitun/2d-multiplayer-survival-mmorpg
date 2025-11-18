@@ -8,7 +8,7 @@ import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the consta
 export const IDLE_FRAME_INDEX = 1; // Second frame is idle
 const PLAYER_SHAKE_DURATION_MS = 200; // How long the shake lasts
 const PLAYER_SHAKE_AMOUNT_PX = 3;   // Max pixels to offset
-const PLAYER_HIT_FLASH_DURATION_MS = 100; // Duration of the white flash on hit
+const PLAYER_HIT_FLASH_DURATION_MS = 150; // Duration of the white flash on hit (reduced from 200ms)
 const PLAYER_WALKING_SPRITE_SWITCH_INTERVAL_MS = 400; // Switch sprite every 400ms while walking
 
 // OPTIMIZATION: Prioritize performance during sprinting

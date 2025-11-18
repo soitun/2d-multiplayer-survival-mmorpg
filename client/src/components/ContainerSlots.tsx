@@ -35,6 +35,9 @@ interface ContainerSlotsProps {
     // Optional styling
     className?: string;
     style?: React.CSSProperties;
+    
+    // Optional disabled slots (for campfire with broth pot)
+    disabledSlots?: Set<number>;
 }
 
 const ContainerSlots: React.FC<ContainerSlotsProps> = ({
@@ -49,7 +52,8 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     onItemMouseLeave,
     onItemMouseMove,
     className,
-    style
+    style,
+    disabledSlots
 }) => {
     const config = getContainerConfig(containerType);
     
@@ -84,6 +88,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                 const itemInSlot = items[index] || null;
                 const slotInfo = createSlotInfo(index);
                 const slotKey = getSlotKey(index);
+                const isDisabled = disabledSlots?.has(index) || false;
                 
                 if (!slotInfo) return null;
                 
@@ -94,17 +99,23 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                         onItemDrop={onItemDrop}
                         className={styles.slot}
                         isDraggingOver={false} // Could be enhanced with actual drag state
+                        style={isDisabled ? {
+                            opacity: 0.3,
+                            pointerEvents: 'none',
+                            filter: 'grayscale(100%)',
+                            cursor: 'not-allowed'
+                        } : undefined}
                     >
                         {itemInSlot && (
                             <DraggableItem
                                 item={itemInSlot}
                                 sourceSlot={slotInfo}
-                                onItemDragStart={onItemDragStart}
-                                onItemDrop={onItemDrop}
-                                onContextMenu={(event) => onContextMenu(event, itemInSlot, index)}
-                                onMouseEnter={(e) => onItemMouseEnter(itemInSlot, e)}
-                                onMouseLeave={onItemMouseLeave}
-                                onMouseMove={onItemMouseMove}
+                                onItemDragStart={isDisabled ? () => {} : onItemDragStart}
+                                onItemDrop={isDisabled ? () => {} : onItemDrop}
+                                onContextMenu={isDisabled ? () => {} : (event) => onContextMenu(event, itemInSlot, index)}
+                                onMouseEnter={isDisabled ? () => {} : (e) => onItemMouseEnter(itemInSlot, e)}
+                                onMouseLeave={isDisabled ? () => {} : onItemMouseLeave}
+                                onMouseMove={isDisabled ? () => {} : onItemMouseMove}
                             />
                         )}
                         

@@ -108,6 +108,7 @@ export interface SpacetimeTableStates {
     stashes: Map<string, SpacetimeDB.Stash>;
     rainCollectors: Map<string, SpacetimeDB.RainCollector>;
     waterPatches: Map<string, SpacetimeDB.WaterPatch>;
+    firePatches: Map<string, SpacetimeDB.FirePatch>;
     recipes: Map<string, SpacetimeDB.Recipe>;
     craftingQueueItems: Map<string, SpacetimeDB.CraftingQueueItem>;
     messages: Map<string, SpacetimeDB.Message>;
@@ -187,6 +188,7 @@ export const useSpacetimeTables = ({
     const [stashes, setStashes] = useState<Map<string, SpacetimeDB.Stash>>(() => new Map());
     const [rainCollectors, setRainCollectors] = useState<Map<string, SpacetimeDB.RainCollector>>(() => new Map());
     const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
+    const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
     const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // DISABLED: Always empty for performance
@@ -295,6 +297,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
@@ -340,6 +343,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('FirePatch', `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
@@ -1114,6 +1118,41 @@ export const useSpacetimeTables = ({
                 setWaterPatches(prev => { const newMap = new Map(prev); newMap.delete(waterPatch.id.toString()); return newMap; });
             };
 
+            // --- FirePatch Subscriptions ---
+            const handleFirePatchInsert = (ctx: any, firePatch: SpacetimeDB.FirePatch) => {
+                // CRITICAL FIX: Ensure we're subscribed to the chunk containing this fire patch
+                // Fire patches are created via fire arrows and might be in a chunk we haven't subscribed to yet
+                const patchChunkIndex = firePatch.chunkIndex;
+                
+                console.log(`[FIRE_PATCH] Insert callback: fire patch ${firePatch.id} at chunk ${patchChunkIndex}, pos (${firePatch.posX.toFixed(1)}, ${firePatch.posY.toFixed(1)})`);
+                
+                // Check if we're subscribed to this chunk
+                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                    // We received a fire patch insert but aren't subscribed to its chunk
+                    // This can happen if the fire patch was created just outside the viewport buffer
+                    // Subscribe to this chunk immediately to ensure we receive updates
+                    console.log(`[FIRE_PATCH] Received fire patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
+                    
+                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
+                    if (newHandlesForChunk.length > 0) {
+                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
+                    }
+                }
+                
+                // Add the fire patch to state
+                setFirePatches(prev => {
+                    const newMap = new Map(prev).set(firePatch.id.toString(), firePatch);
+                    console.log(`[FIRE_PATCH] State updated, total fire patches: ${newMap.size}`);
+                    return newMap;
+                });
+            };
+            const handleFirePatchUpdate = (ctx: any, oldFirePatch: SpacetimeDB.FirePatch, newFirePatch: SpacetimeDB.FirePatch) => {
+                setFirePatches(prev => new Map(prev).set(newFirePatch.id.toString(), newFirePatch));
+            };
+            const handleFirePatchDelete = (ctx: any, firePatch: SpacetimeDB.FirePatch) => {
+                setFirePatches(prev => { const newMap = new Map(prev); newMap.delete(firePatch.id.toString()); return newMap; });
+            };
+
             // Wild Animal handlers
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 // CRITICAL FIX: Always update animal on INSERT, even if already in cache
@@ -1375,6 +1414,29 @@ export const useSpacetimeTables = ({
             connection.db.waterPatch.onInsert(handleWaterPatchInsert);
             connection.db.waterPatch.onUpdate(handleWaterPatchUpdate);
             connection.db.waterPatch.onDelete(handleWaterPatchDelete);
+
+            // Register FirePatch callbacks - ADDED
+            connection.db.firePatch.onInsert(handleFirePatchInsert);
+            connection.db.firePatch.onUpdate(handleFirePatchUpdate);
+            connection.db.firePatch.onDelete(handleFirePatchDelete);
+            
+            // CRITICAL FIX: Populate fire patches from existing cache after registering callbacks
+            // This handles fire patches that arrived before callbacks were registered
+            console.log('[FIRE_PATCH] Checking for existing fire patches in cache...');
+            const existingFirePatches = Array.from(connection.db.firePatch.iter());
+            if (existingFirePatches.length > 0) {
+                console.log(`[FIRE_PATCH] Found ${existingFirePatches.length} existing fire patches in cache, adding to state`);
+                setFirePatches(prev => {
+                    const newMap = new Map(prev);
+                    existingFirePatches.forEach(fp => {
+                        newMap.set(fp.id.toString(), fp);
+                        console.log(`[FIRE_PATCH] Added cached fire patch ${fp.id} at (${fp.posX.toFixed(1)}, ${fp.posY.toFixed(1)})`);
+                    });
+                    return newMap;
+                });
+            } else {
+                console.log('[FIRE_PATCH] No existing fire patches found in cache');
+            }
 
             // Register WildAnimal callbacks - ADDED
             connection.db.wildAnimal.onInsert(handleWildAnimalInsert);
@@ -1742,9 +1804,10 @@ export const useSpacetimeTables = ({
                  setSleepingBags(new Map());
                  setPlayerCorpses(new Map());
                  setStashes(new Map());
-                 setRainCollectors(new Map());
-                 setWaterPatches(new Map());
-                 setActiveConsumableEffects(new Map());
+                setRainCollectors(new Map());
+                setWaterPatches(new Map());
+                setFirePatches(new Map());
+                setActiveConsumableEffects(new Map());
                  setClouds(new Map());
                  setGrass(new Map()); // Always keep grass empty for performance
                  setKnockedOutStatus(new Map());
@@ -1799,6 +1862,7 @@ export const useSpacetimeTables = ({
         stashes,
         rainCollectors,
         waterPatches,
+        firePatches,
         activeConsumableEffects,
         clouds,
         grass,

@@ -51,6 +51,8 @@ import { CleanupExpiredAnimalCorpses } from "./cleanup_expired_animal_corpses_re
 export { CleanupExpiredAnimalCorpses };
 import { CleanupExpiredDodgeRolls } from "./cleanup_expired_dodge_rolls_reducer.ts";
 export { CleanupExpiredDodgeRolls };
+import { CleanupExpiredFirePatches } from "./cleanup_expired_fire_patches_reducer.ts";
+export { CleanupExpiredFirePatches };
 import { CleanupExpiredWaterPatches } from "./cleanup_expired_water_patches_reducer.ts";
 export { CleanupExpiredWaterPatches };
 import { CleanupOldSoundEvents } from "./cleanup_old_sound_events_reducer.ts";
@@ -271,6 +273,8 @@ import { ProcessCampfireLogicScheduled } from "./process_campfire_logic_schedule
 export { ProcessCampfireLogicScheduled };
 import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
+import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
+export { ProcessFirePatchDamage };
 import { ProcessFurnaceLogicScheduled } from "./process_furnace_logic_scheduled_reducer.ts";
 export { ProcessFurnaceLogicScheduled };
 import { ProcessGlobalTick } from "./process_global_tick_reducer.ts";
@@ -551,6 +555,12 @@ import { DroppedItemTableHandle } from "./dropped_item_table.ts";
 export { DroppedItemTableHandle };
 import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_schedule_table.ts";
 export { DroppedItemDespawnScheduleTableHandle };
+import { FirePatchTableHandle } from "./fire_patch_table.ts";
+export { FirePatchTableHandle };
+import { FirePatchCleanupScheduleTableHandle } from "./fire_patch_cleanup_schedule_table.ts";
+export { FirePatchCleanupScheduleTableHandle };
+import { FirePatchDamageScheduleTableHandle } from "./fire_patch_damage_schedule_table.ts";
+export { FirePatchDamageScheduleTableHandle };
 import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
@@ -771,6 +781,12 @@ import { EquipmentSlotType } from "./equipment_slot_type_type.ts";
 export { EquipmentSlotType };
 import { EquippedLocationData } from "./equipped_location_data_type.ts";
 export { EquippedLocationData };
+import { FirePatch } from "./fire_patch_type.ts";
+export { FirePatch };
+import { FirePatchCleanupSchedule } from "./fire_patch_cleanup_schedule_type.ts";
+export { FirePatchCleanupSchedule };
+import { FirePatchDamageSchedule } from "./fire_patch_damage_schedule_type.ts";
+export { FirePatchDamageSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
@@ -1177,6 +1193,33 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (DroppedItemDespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fire_patch: {
+      tableName: "fire_patch" as const,
+      rowType: FirePatch.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FirePatch.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fire_patch_cleanup_schedule: {
+      tableName: "fire_patch_cleanup_schedule" as const,
+      rowType: FirePatchCleanupSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FirePatchCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fire_patch_damage_schedule: {
+      tableName: "fire_patch_damage_schedule" as const,
+      rowType: FirePatchDamageSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FirePatchDamageSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     fishing_session: {
@@ -1842,6 +1885,10 @@ const REMOTE_MODULE = {
       reducerName: "cleanup_expired_dodge_rolls",
       argsType: CleanupExpiredDodgeRolls.getTypeScriptAlgebraicType(),
     },
+    cleanup_expired_fire_patches: {
+      reducerName: "cleanup_expired_fire_patches",
+      argsType: CleanupExpiredFirePatches.getTypeScriptAlgebraicType(),
+    },
     cleanup_expired_water_patches: {
       reducerName: "cleanup_expired_water_patches",
       argsType: CleanupExpiredWaterPatches.getTypeScriptAlgebraicType(),
@@ -2281,6 +2328,10 @@ const REMOTE_MODULE = {
     process_corpse_despawn: {
       reducerName: "process_corpse_despawn",
       argsType: ProcessCorpseDespawn.getTypeScriptAlgebraicType(),
+    },
+    process_fire_patch_damage: {
+      reducerName: "process_fire_patch_damage",
+      argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
     },
     process_furnace_logic_scheduled: {
       reducerName: "process_furnace_logic_scheduled",
@@ -2778,6 +2829,7 @@ export type Reducer = never
 | { name: "CheckResourceRespawns", args: CheckResourceRespawns }
 | { name: "CleanupExpiredAnimalCorpses", args: CleanupExpiredAnimalCorpses }
 | { name: "CleanupExpiredDodgeRolls", args: CleanupExpiredDodgeRolls }
+| { name: "CleanupExpiredFirePatches", args: CleanupExpiredFirePatches }
 | { name: "CleanupExpiredWaterPatches", args: CleanupExpiredWaterPatches }
 | { name: "CleanupOldSoundEvents", args: CleanupOldSoundEvents }
 | { name: "CleanupOldThunderEvents", args: CleanupOldThunderEvents }
@@ -2888,6 +2940,7 @@ export type Reducer = never
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
+| { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
 | { name: "ProcessGrassRespawn", args: ProcessGrassRespawn }
@@ -3149,6 +3202,22 @@ export class RemoteReducers {
 
   removeOnCleanupExpiredDodgeRolls(callback: (ctx: ReducerEventContext, args: DodgeRollCleanupSchedule) => void) {
     this.connection.offReducer("cleanup_expired_dodge_rolls", callback);
+  }
+
+  cleanupExpiredFirePatches(args: FirePatchCleanupSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    CleanupExpiredFirePatches.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("cleanup_expired_fire_patches", __argsBuffer, this.setCallReducerFlags.cleanupExpiredFirePatchesFlags);
+  }
+
+  onCleanupExpiredFirePatches(callback: (ctx: ReducerEventContext, args: FirePatchCleanupSchedule) => void) {
+    this.connection.onReducer("cleanup_expired_fire_patches", callback);
+  }
+
+  removeOnCleanupExpiredFirePatches(callback: (ctx: ReducerEventContext, args: FirePatchCleanupSchedule) => void) {
+    this.connection.offReducer("cleanup_expired_fire_patches", callback);
   }
 
   cleanupExpiredWaterPatches(args: WaterPatchCleanupSchedule) {
@@ -4853,6 +4922,22 @@ export class RemoteReducers {
 
   removeOnProcessCorpseDespawn(callback: (ctx: ReducerEventContext, args: PlayerCorpseDespawnSchedule) => void) {
     this.connection.offReducer("process_corpse_despawn", callback);
+  }
+
+  processFirePatchDamage(args: FirePatchDamageSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessFirePatchDamage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_fire_patch_damage", __argsBuffer, this.setCallReducerFlags.processFirePatchDamageFlags);
+  }
+
+  onProcessFirePatchDamage(callback: (ctx: ReducerEventContext, args: FirePatchDamageSchedule) => void) {
+    this.connection.onReducer("process_fire_patch_damage", callback);
+  }
+
+  removeOnProcessFirePatchDamage(callback: (ctx: ReducerEventContext, args: FirePatchDamageSchedule) => void) {
+    this.connection.offReducer("process_fire_patch_damage", callback);
   }
 
   processFurnaceLogicScheduled(scheduleArgs: FurnaceProcessingSchedule) {
@@ -6672,6 +6757,11 @@ export class SetReducerFlags {
     this.cleanupExpiredDodgeRollsFlags = flags;
   }
 
+  cleanupExpiredFirePatchesFlags: __CallReducerFlags = 'FullUpdate';
+  cleanupExpiredFirePatches(flags: __CallReducerFlags) {
+    this.cleanupExpiredFirePatchesFlags = flags;
+  }
+
   cleanupExpiredWaterPatchesFlags: __CallReducerFlags = 'FullUpdate';
   cleanupExpiredWaterPatches(flags: __CallReducerFlags) {
     this.cleanupExpiredWaterPatchesFlags = flags;
@@ -7210,6 +7300,11 @@ export class SetReducerFlags {
   processCorpseDespawnFlags: __CallReducerFlags = 'FullUpdate';
   processCorpseDespawn(flags: __CallReducerFlags) {
     this.processCorpseDespawnFlags = flags;
+  }
+
+  processFirePatchDamageFlags: __CallReducerFlags = 'FullUpdate';
+  processFirePatchDamage(flags: __CallReducerFlags) {
+    this.processFirePatchDamageFlags = flags;
   }
 
   processFurnaceLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
@@ -7910,6 +8005,21 @@ export class RemoteTables {
   get droppedItemDespawnSchedule(): DroppedItemDespawnScheduleTableHandle<'dropped_item_despawn_schedule'> {
     // clientCache is a private property
     return new DroppedItemDespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroppedItemDespawnSchedule>(REMOTE_MODULE.tables.dropped_item_despawn_schedule));
+  }
+
+  get firePatch(): FirePatchTableHandle<'fire_patch'> {
+    // clientCache is a private property
+    return new FirePatchTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FirePatch>(REMOTE_MODULE.tables.fire_patch));
+  }
+
+  get firePatchCleanupSchedule(): FirePatchCleanupScheduleTableHandle<'fire_patch_cleanup_schedule'> {
+    // clientCache is a private property
+    return new FirePatchCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FirePatchCleanupSchedule>(REMOTE_MODULE.tables.fire_patch_cleanup_schedule));
+  }
+
+  get firePatchDamageSchedule(): FirePatchDamageScheduleTableHandle<'fire_patch_damage_schedule'> {
+    // clientCache is a private property
+    return new FirePatchDamageScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FirePatchDamageSchedule>(REMOTE_MODULE.tables.fire_patch_damage_schedule));
   }
 
   get fishingSession(): FishingSessionTableHandle<'fishing_session'> {

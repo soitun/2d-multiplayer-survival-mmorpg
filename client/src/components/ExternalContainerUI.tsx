@@ -896,6 +896,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 onItemMouseLeave={onExternalItemMouseLeave}
                 onItemMouseMove={onExternalItemMouseMove}
                 style={container.containerType === 'rain_collector' ? { marginTop: '12px' } : undefined}
+                disabledSlots={
+                    container.containerType === 'campfire' && attachedBrothPot 
+                        ? new Set([0, 1, 2, 3, 4]) // Disable all 5 campfire fuel slots when broth pot is attached
+                        : undefined
+                }
             />
 
             {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}
@@ -1256,6 +1261,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         )}
 
                     {/* Bidirectional water transfer buttons */}
+                    {/* OUT = Orange/Amber (emptying) */}
                     <button
                         onClick={() => {
                             if (!connection?.reducers) return;
@@ -1268,12 +1274,25 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             }
                         }}
                         disabled={!waterContainerItem || attachedBrothPot.waterLevelMl <= 0}
-                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                        style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        className={styles.interactionButton}
+                        style={{ 
+                            width: '100%', 
+                            marginBottom: '8px', 
+                            textShadow: 'none', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            gap: '8px',
+                            background: 'linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 100, 0, 0.2))',
+                            border: '2px solid rgba(255, 140, 0, 0.6)',
+                            color: '#ffaa44',
+                            boxShadow: '0 0 8px rgba(255, 140, 0, 0.3)',
+                        }}
                     >
                         <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Field Cauldron
                     </button>
 
+                    {/* IN = Blue/Cyan (filling) */}
                     <button
                         onClick={() => {
                             if (!connection?.reducers) return;
@@ -1286,8 +1305,20 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             }
                         }}
                         disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
-                        className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                        style={{ width: '100%', marginBottom: '12px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        className={styles.interactionButton}
+                        style={{ 
+                            width: '100%', 
+                            marginBottom: '12px', 
+                            textShadow: 'none', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            gap: '8px',
+                            background: 'linear-gradient(135deg, rgba(0, 150, 255, 0.3), rgba(0, 100, 200, 0.2))',
+                            border: '2px solid rgba(0, 150, 255, 0.6)',
+                            color: '#66ccff',
+                            boxShadow: '0 0 8px rgba(0, 150, 255, 0.3)',
+                        }}
                     >
                         <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Field Cauldron
                     </button>
@@ -1400,17 +1431,31 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         </div>
 
                         {/* Bidirectional water transfer buttons */}
+                        {/* OUT = Orange/Amber (emptying) */}
                         <button
                             onClick={handleFillWaterContainer}
                             disabled={!container.items[0] || 
                                      !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected <= 0}
-                            className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            className={styles.interactionButton}
+                            style={{ 
+                                width: '100%', 
+                                marginBottom: '8px', 
+                                textShadow: 'none', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '8px',
+                                background: 'linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 100, 0, 0.2))',
+                                border: '2px solid rgba(255, 140, 0, 0.6)',
+                                color: '#ffaa44',
+                                boxShadow: '0 0 8px rgba(255, 140, 0, 0.3)',
+                            }}
                         >
                             <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Rain Collector
                         </button>
 
+                        {/* IN = Blue/Cyan (filling) */}
                         <button
                             onClick={() => {
                                 if (!connection?.reducers || container.containerId === null) return;
@@ -1424,8 +1469,20 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             disabled={!container.items[0] || 
                                      !['Reed Water Bottle', 'Plastic Water Jug'].includes(container.items[0]?.definition.name || '') || 
                                      (container.containerEntity as SpacetimeDBRainCollector).totalWaterCollected >= 40.0}
-                            className={`${styles.interactionButton} ${styles.lightFireButton}`}
-                            style={{ width: '100%', marginBottom: '8px', textShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            className={styles.interactionButton}
+                            style={{ 
+                                width: '100%', 
+                                marginBottom: '8px', 
+                                textShadow: 'none', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '8px',
+                                background: 'linear-gradient(135deg, rgba(0, 150, 255, 0.3), rgba(0, 100, 200, 0.2))',
+                                border: '2px solid rgba(0, 150, 255, 0.6)',
+                                color: '#66ccff',
+                                boxShadow: '0 0 8px rgba(0, 150, 255, 0.3)',
+                            }}
                         >
                             <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Rain Collector
                         </button>
