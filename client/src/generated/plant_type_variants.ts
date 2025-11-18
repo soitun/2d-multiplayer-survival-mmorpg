@@ -71,4 +71,7 @@ export type Datura = { tag: "Datura" };
 export type Wolfsbane = { tag: "Wolfsbane" };
 export type Sunflowers = { tag: "Sunflowers" };
 export type MemoryShard = { tag: "MemoryShard" };
+export type WoodPile = { tag: "WoodPile" };
+export type BeachWoodPile = { tag: "BeachWoodPile" };
+export type StonePile = { tag: "StonePile" };
 

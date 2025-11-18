@@ -60,6 +60,11 @@ import sunflowersImageSource from '../../assets/doodads/sunflower.png';
 // Technological debris
 import memoryShardImageSource from '../../assets/doodads/memory_shard.png';
 
+// Resource piles (small bonus resources)
+import woodPileImageSource from '../../assets/doodads/pile_wood.png';
+import beachWoodPileImageSource from '../../assets/doodads/pile_beach_wood.png';
+import stonePileImageSource from '../../assets/doodads/pile_stone.png';
+
 // Resource type to image source mapping (BOTANICALLY ACCURATE FOR ALEUTIAN ISLANDS)
 export const RESOURCE_IMAGE_SOURCES: Record<HarvestableResourceType, string> = {
   // === BASIC CROPS (Cold-hardy varieties) ===
@@ -121,7 +126,12 @@ export const RESOURCE_IMAGE_SOURCES: Record<HarvestableResourceType, string> = {
   Sunflowers: sunflowersImageSource,
 
   // === TECHNOLOGICAL DEBRIS ===
-  MemoryShard: memoryShardImageSource
+  MemoryShard: memoryShardImageSource,
+  
+  // === RESOURCE PILES (Small bonus resources) ===
+  WoodPile: woodPileImageSource,
+  BeachWoodPile: beachWoodPileImageSource,
+  StonePile: stonePileImageSource
 };
 
 // Helper function to get image source for a resource type

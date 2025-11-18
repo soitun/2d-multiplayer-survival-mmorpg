@@ -76,6 +76,22 @@ RESOURCE_CONFIGS.MemoryShard = {
   targetWidth: 64
 };
 
+// Resource piles - slightly larger for visibility
+RESOURCE_CONFIGS.WoodPile = {
+  ...RESOURCE_CONFIGS.WoodPile,
+  targetWidth: 80
+};
+
+RESOURCE_CONFIGS.BeachWoodPile = {
+  ...RESOURCE_CONFIGS.BeachWoodPile,
+  targetWidth: 75
+};
+
+RESOURCE_CONFIGS.StonePile = {
+  ...RESOURCE_CONFIGS.StonePile,
+  targetWidth: 80
+};
+
 
 // Helper function to get configuration for a resource
 export function getResourceConfig(resourceType: ResourceType): ResourceConfig {
