@@ -56,11 +56,44 @@ export const RESOURCE_CONFIGS: Record<ResourceType, ResourceConfig> = Object.key
 }, {} as Record<ResourceType, ResourceConfig>);
 
 // Override specific resource configurations
-// RESOURCE_CONFIGS.BeachLymeGrass = {
-//   ...RESOURCE_CONFIGS.BeachLymeGrass,
-//   targetWidth: 120 // Double the default size (60 -> 120)
-// };
 
+// === PLAINS PLANTS - Increased visibility ===
+RESOURCE_CONFIGS.BorealNettle = {
+  ...RESOURCE_CONFIGS.BorealNettle,
+  targetWidth: 100 // Larger for visibility in open plains
+};
+
+RESOURCE_CONFIGS.Flax = {
+  ...RESOURCE_CONFIGS.Flax,
+  targetWidth: 95 // Larger for visibility in open plains
+};
+
+RESOURCE_CONFIGS.Chicory = {
+  ...RESOURCE_CONFIGS.Chicory,
+  targetWidth: 85 // Larger for visibility
+};
+
+RESOURCE_CONFIGS.Yarrow = {
+  ...RESOURCE_CONFIGS.Yarrow,
+  targetWidth: 85 // Larger for visibility
+};
+
+RESOURCE_CONFIGS.Chamomile = {
+  ...RESOURCE_CONFIGS.Chamomile,
+  targetWidth: 85 // Larger for visibility
+};
+
+RESOURCE_CONFIGS.Mugwort = {
+  ...RESOURCE_CONFIGS.Mugwort,
+  targetWidth: 90 // Larger for visibility
+};
+
+RESOURCE_CONFIGS.Sunflowers = {
+  ...RESOURCE_CONFIGS.Sunflowers,
+  targetWidth: 110 // Tall landmark plant
+};
+
+// === OTHER RESOURCES ===
 RESOURCE_CONFIGS.ShaggyInkCap = {
   ...RESOURCE_CONFIGS.ShaggyInkCap,
   targetWidth: 48

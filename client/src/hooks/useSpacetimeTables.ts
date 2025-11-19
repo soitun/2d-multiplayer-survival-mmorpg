@@ -237,6 +237,10 @@ export const useSpacetimeTables = ({
     
     // --- NEW: Refs for state that shouldn't trigger re-renders on every update ---
     const playerDodgeRollStatesRef = useRef<Map<string, SpacetimeDB.PlayerDodgeRollState>>(new Map());
+    // OPTIMIZATION: Track players in a Ref to avoid re-renders on position updates
+    const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
+    const lastPlayerUpdateRef = useRef<number>(0); // For throttling React updates
+
     
     // Throttle spatial subscription updates to prevent frame drops
     const lastSpatialUpdateRef = useRef<number>(0);
@@ -556,9 +560,11 @@ export const useSpacetimeTables = ({
              
             // --- Player Subscriptions ---
             const handlePlayerInsert = (ctx: any, player: SpacetimeDB.Player) => {
-                 // console.log('[useSpacetimeTables] handlePlayerInsert CALLED for:', player.username, player.identity.toHexString()); // Use identity
-                 // Use identity.toHexString() as the key
-                 setPlayers(prev => new Map(prev).set(player.identity.toHexString(), player)); 
+                 // Update Ref immediately
+                 playersRef.current.set(player.identity.toHexString(), player);
+                 
+                 // Always trigger render for insertions
+                 setPlayers(new Map(playersRef.current));
 
                  // Determine local player registration status within the callback
                  const localPlayerIdHex = connection?.identity?.toHexString();
@@ -570,16 +576,13 @@ export const useSpacetimeTables = ({
             const handlePlayerUpdate = (ctx: any, oldPlayer: SpacetimeDB.Player, newPlayer: SpacetimeDB.Player) => {
                 const playerHexId = newPlayer.identity.toHexString();
                 
-                // Log newPlayer's lastHitTime when a respawn might be happening
-                // if (oldPlayer.isDead && !newPlayer.isDead) {
-                //     console.log(`[useSpacetimeTables] handlePlayerUpdate: Respawn detected for ${playerHexId}. newPlayer.lastHitTime (raw object):`, newPlayer.lastHitTime);
-                //     console.log(`  newPlayer.lastHitTime converted to micros: ${newPlayer.lastHitTime ? newPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__ : 'null'}`);
-                // }
+                // 1. Always update the Source of Truth (Ref) immediately
+                playersRef.current.set(playerHexId, newPlayer);
 
+                // 2. Check for significant changes that require a React re-render
                 const EPSILON = 0.01;
                 const posChanged = Math.abs(oldPlayer.positionX - newPlayer.positionX) > EPSILON || Math.abs(oldPlayer.positionY - newPlayer.positionY) > EPSILON;
                 
-                // Explicitly check if lastHitTime has changed by comparing microsecond values
                 const oldLastHitTimeMicros = oldPlayer.lastHitTime ? BigInt(oldPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const newLastHitTimeMicros = newPlayer.lastHitTime ? BigInt(newPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const lastHitTimeChanged = oldLastHitTimeMicros !== newLastHitTimeMicros;
@@ -589,22 +592,28 @@ export const useSpacetimeTables = ({
                 const onlineStatusChanged = oldPlayer.isOnline !== newPlayer.isOnline;
                 const usernameChanged = oldPlayer.username !== newPlayer.username;
 
-                if (posChanged || statsChanged || stateChanged || onlineStatusChanged || usernameChanged || lastHitTimeChanged) { 
-
-                    setPlayers(prev => {
-                        const newMap = new Map(prev);
-                        newMap.set(playerHexId, newPlayer); // Use playerHexId here
-                        // Optional: Log details of what's being set
-                        // if (oldPlayer.isDead && !newPlayer.isDead) {
-                        //     console.log(`[useSpacetimeTables] setPlayers (for respawn of ${playerHexId}): Updating map with lastHitTime: ${newPlayer.lastHitTime ? newPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__ : 'null'}`);
-                        // }
-                        return newMap;
-                    });
+                // OPTIMIZATION: Throttle React updates for position changes
+                // If ONLY position changed, we might skip the setPlayers call to save FPS
+                // But we must update periodically to ensure map/UI eventually syncs
+                const now = performance.now();
+                const timeSinceLastUpdate = now - lastPlayerUpdateRef.current;
+                const shouldThrottle = posChanged && !statsChanged && !stateChanged && !onlineStatusChanged && !usernameChanged && !lastHitTimeChanged;
+                
+                // Trigger render if:
+                // 1. Non-positional data changed (stats, state, etc.)
+                // 2. OR enough time passed (e.g. 33ms = ~30fps cap for pure movement updates)
+                if (!shouldThrottle || timeSinceLastUpdate > 33) { 
+                    setPlayers(new Map(playersRef.current));
+                    lastPlayerUpdateRef.current = now;
                 }
             };
             const handlePlayerDelete = (ctx: any, deletedPlayer: SpacetimeDB.Player) => {
-                // console.log('[useSpacetimeTables] Player Deleted:', deletedPlayer.username, deletedPlayer.identity.toHexString());
-                setPlayers(prev => { const newMap = new Map(prev); newMap.delete(deletedPlayer.identity.toHexString()); return newMap; });
+                // Update Ref
+                playersRef.current.delete(deletedPlayer.identity.toHexString());
+                
+                // Always render on delete
+                setPlayers(new Map(playersRef.current));
+                
                 if (connection && connection.identity && deletedPlayer.identity.isEqual(connection.identity)) {
                     if (localPlayerRegistered) {
                        // console.warn('[useSpacetimeTables] Local player deleted from server.');

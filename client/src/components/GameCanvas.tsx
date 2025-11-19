@@ -665,22 +665,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
   }, [activeConsumableEffects, localPlayerId]);
 
-  // Build a lightweight worldTiles map only for the current viewport from compressed chunks
+  // Optimized: Memoize the integer tile coordinates for the viewport
+  // This prevents visibleWorldTiles from recalculating on every sub-pixel camera movement
+  const tileSize = 48; // matches server TILE_SIZE_PX
+  const viewTileX = Math.floor((-cameraOffsetX) / tileSize);
+  const viewTileY = Math.floor((-cameraOffsetY) / tileSize);
+  // Add a buffer of 2 tiles to ensure smooth rendering at edges
+  const bufferedViewTileX = viewTileX - 2;
+  const bufferedViewTileY = viewTileY - 2;
+  
+  // Only recalculate when the set of visible TILES changes, not pixel offsets
   const visibleWorldTiles = useMemo(() => {
     const map = new Map<string, any>();
-    const tileSize = 48; // matches server TILE_SIZE_PX
     const chunkSize = chunkSizeRef.current;
 
-    const viewMinX = Math.floor((-cameraOffsetX) / tileSize);
-    const viewMinY = Math.floor((-cameraOffsetY) / tileSize);
-    const viewMaxX = Math.ceil((-cameraOffsetX + canvasSize.width) / tileSize);
-    const viewMaxY = Math.ceil((-cameraOffsetY + canvasSize.height) / tileSize);
+    // Calculate dimensions in tiles
+    const tilesHorz = Math.ceil(canvasSize.width / tileSize) + 4; // +4 for buffer (2 left, 2 right)
+    const tilesVert = Math.ceil(canvasSize.height / tileSize) + 4; // +4 for buffer (2 top, 2 bottom)
 
-    // Small buffer to avoid popping at edges
-    const minTileX = Math.max(0, viewMinX - 2);
-    const minTileY = Math.max(0, viewMinY - 2);
-    const maxTileX = viewMaxX + 2;
-    const maxTileY = viewMaxY + 2;
+    const minTileX = Math.max(0, bufferedViewTileX);
+    const minTileY = Math.max(0, bufferedViewTileY);
+    const maxTileX = bufferedViewTileX + tilesHorz;
+    const maxTileY = bufferedViewTileY + tilesVert;
 
     const typeFromU8 = (v: number): string => {
       switch (v) {
@@ -719,7 +725,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
     return map;
-  }, [cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, chunkCacheVersion]);
+  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion]);
 
   // Feed the renderer with only the visible tiles
   useEffect(() => {
@@ -1284,20 +1290,44 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   // Used to trigger cloud fetching and updating -- keep this logic at the top level
+  // THROTTLED: Only send updates to server periodically or when moving significant distance
+  const lastViewportUpdateRef = useRef<number>(0);
+  const lastViewportPosRef = useRef<{x: number, y: number} | null>(null);
+  
   useEffect(() => {
     if (connection) {
-      // Update viewport in the database so server knows what's visible to this client
-      // This informs the server about the client's view bounds for cloud generation
-      const viewportMinX = camera.x - currentCanvasWidth / 2;
-      const viewportMinY = camera.y - currentCanvasHeight / 2;
-      const viewportMaxX = camera.x + currentCanvasWidth / 2;
-      const viewportMaxY = camera.y + currentCanvasHeight / 2;
+      const now = Date.now();
+      const timeDiff = now - lastViewportUpdateRef.current;
+      
+      // Check distance moved since last update
+      let distSq = 0;
+      if (lastViewportPosRef.current) {
+        const dx = camera.x - lastViewportPosRef.current.x;
+        const dy = camera.y - lastViewportPosRef.current.y;
+        distSq = dx*dx + dy*dy;
+      } else {
+        distSq = Infinity; // Always update first time
+      }
 
-      // Call reducer to update the server-side viewport
-      try {
-        connection.reducers.updateViewport(viewportMinX, viewportMinY, viewportMaxX, viewportMaxY);
-      } catch (error) {
-        console.error('[GameCanvas] Failed to update viewport on server:', error);
+      // Update if > 500ms passed OR moved > 200px (approx 4 tiles)
+      // This drastically reduces websocket traffic during smooth panning
+      if (timeDiff > 500 || distSq > 40000) {
+        lastViewportUpdateRef.current = now;
+        lastViewportPosRef.current = { x: camera.x, y: camera.y };
+
+        // Update viewport in the database so server knows what's visible to this client
+        // This informs the server about the client's view bounds for cloud generation
+        const viewportMinX = camera.x - currentCanvasWidth / 2;
+        const viewportMinY = camera.y - currentCanvasHeight / 2;
+        const viewportMaxX = camera.x + currentCanvasWidth / 2;
+        const viewportMaxY = camera.y + currentCanvasHeight / 2;
+
+        // Call reducer to update the server-side viewport
+        try {
+          connection.reducers.updateViewport(viewportMinX, viewportMinY, viewportMaxX, viewportMaxY);
+        } catch (error) {
+          console.error('[GameCanvas] Failed to update viewport on server:', error);
+        }
       }
     }
   }, [connection, camera.x, camera.y, currentCanvasWidth, currentCanvasHeight]);

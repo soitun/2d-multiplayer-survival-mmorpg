@@ -957,46 +957,40 @@ fn generate_tile_variant(noise: &Perlin, x: i32, y: i32, tile_type: &TileType) -
 
 #[spacetimedb::reducer]
 pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_height: u32) -> Result<(), String> {
-    log::info!("Generating minimap data ({}x{}) from stored world tiles", minimap_width, minimap_height);
+    log::info!("Generating minimap data ({}x{}) from stored world tiles via streaming", minimap_width, minimap_height);
     
-    // PRE-LOAD ALL TILES INTO HASHMAP FOR INSTANT LOOKUPS (99% faster!)
-    let mut tile_map: HashMap<(i32, i32), TileType> = HashMap::new();
+    // OPTIMIZED: Streaming generation (O(N) time, O(1) memory overhead)
+    // Instead of loading 360,000 tiles into a HashMap (huge allocation),
+    // we initialize the minimap buffer and iterate the tiles once,
+    // projecting each tile directly onto the minimap pixels.
     
+    // Initialize minimap data with Sea color (0)
+    let mut minimap_data = vec![0u8; (minimap_width * minimap_height) as usize];
+    
+    // Calculate scaling factors
+    let scale_x = minimap_width as f64 / WORLD_WIDTH_TILES as f64;
+    let scale_y = minimap_height as f64 / WORLD_HEIGHT_TILES as f64;
+    
+    // Stream all tiles and project onto minimap
     for tile in ctx.db.world_tile().iter() {
-        tile_map.insert((tile.world_x, tile.world_y), tile.tile_type.clone());
-    }
-    
-    // Calculate sampling ratios based on actual world size in tiles
-    let world_width_tiles = WORLD_WIDTH_TILES as f64;
-    let world_height_tiles = WORLD_HEIGHT_TILES as f64;
-    let sample_step_x = world_width_tiles / minimap_width as f64;
-    let sample_step_y = world_height_tiles / minimap_height as f64;
-    
-    // Generate minimap data by sampling the actual stored world tiles
-    let mut minimap_data = Vec::new();
-    
-    for y in 0..minimap_height {
-        for x in 0..minimap_width {
-            // Calculate which world tile to sample for this minimap pixel
-            let world_tile_x = (x as f64 * sample_step_x) as i32;
-            let world_tile_y = (y as f64 * sample_step_y) as i32;
-            
-            // INSTANT O(1) LOOKUP instead of filter + manual search!
-            let found_tile_type = tile_map.get(&(world_tile_x, world_tile_y))
-                .cloned()
-                .unwrap_or(TileType::Sea); // Default to sea if no tile found
-            
-            // Convert tile type to color value (0-255)
-            let color_value = match found_tile_type {
-                TileType::Sea => 0,        // Dark blue water (matches client [19, 69, 139])
-                TileType::Beach => 64,     // Muted sandy beach (matches client [194, 154, 108])
-                TileType::Sand => 96,      // Darker sand (matches client [180, 142, 101])
-                TileType::Grass => 128,    // Muted forest green (matches client [76, 110, 72])
-                TileType::Dirt => 192,     // Dark brown dirt (matches client [101, 67, 33])
-                TileType::DirtRoad => 224, // Very dark brown roads (matches client [71, 47, 24])
+        // Calculate target pixel on minimap
+        let pixel_x = (tile.world_x as f64 * scale_x) as usize;
+        let pixel_y = (tile.world_y as f64 * scale_y) as usize;
+        
+        // Bounds check
+        if pixel_x < minimap_width as usize && pixel_y < minimap_height as usize {
+            // Determine color value
+            let color_value = match tile.tile_type {
+                TileType::Sea => 0,        // Dark blue water
+                TileType::Beach => 64,     // Muted sandy beach
+                TileType::Sand => 96,      // Darker sand
+                TileType::Grass => 128,    // Muted forest green
+                TileType::Dirt => 192,     // Dark brown dirt
+                TileType::DirtRoad => 224, // Very dark brown roads
             };
             
-            minimap_data.push(color_value);
+            // Write directly to buffer (overwriting if multiple tiles map to same pixel is fine/expected)
+            minimap_data[pixel_y * minimap_width as usize + pixel_x] = color_value;
         }
     }
     
@@ -1014,7 +1008,7 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
         generated_at: ctx.timestamp,
     });
     
-    log::info!("Minimap data generated successfully from {} stored world tiles", tile_map.len());
+    log::info!("Minimap data generated successfully via streaming");
     Ok(())
 }
 

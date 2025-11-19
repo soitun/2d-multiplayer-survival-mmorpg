@@ -143,11 +143,11 @@ lazy_static! {
         
         configs.insert(PlantType::BorealNettle, PlantConfig {
             entity_name: "Boreal Nettle".to_string(),
-            density_percent: 0.0015, // INCREASED 23x: was 0.000083125 (~21 plants) → now ~375 plants (PRIMARY FIBER SOURCE)
-            min_distance_sq: 35.0 * 35.0,
+            density_percent: 0.0020, // INCREASED further for plains visibility: ~500 plants (PRIMARY FIBER SOURCE)
+            min_distance_sq: 30.0 * 30.0, // Reduced spacing for better coverage
             min_tree_distance_sq: 20.0 * 20.0,
             min_stone_distance_sq: 20.0 * 20.0,
-            noise_threshold: 0.68,
+            noise_threshold: 0.60, // LOWERED for easier spawning in plains
             primary_yield: ("Plant Fiber".to_string(), 40, 50),
             secondary_yield: Some(("Nettle Leaves".to_string(), 1, 3, 0.80)),
             seed_type: "Nettle Seeds".to_string(),
@@ -334,11 +334,11 @@ lazy_static! {
         // === HERBS & MEDICINAL PLANTS ===
         configs.insert(PlantType::Chicory, PlantConfig {
             entity_name: "Chicory".to_string(),
-            density_percent: 0.0002, // REDUCED 5x: was 0.0010 (250 plants) → now ~50 plants (MEDICINAL - less clutter)
-            min_distance_sq: 25.0 * 25.0,
+            density_percent: 0.0004, // INCREASED for plains visibility: ~100 plants (visible medicinal herb)
+            min_distance_sq: 22.0 * 22.0, // Reduced spacing
             min_tree_distance_sq: 15.0 * 15.0,
             min_stone_distance_sq: 20.0 * 20.0,
-            noise_threshold: 0.62,
+            noise_threshold: 0.58, // LOWERED for easier spawning
             primary_yield: ("Chicory".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Chicory Seeds".to_string(),
@@ -351,11 +351,11 @@ lazy_static! {
         
         configs.insert(PlantType::Yarrow, PlantConfig {
             entity_name: "Yarrow".to_string(),
-            density_percent: 0.0003, // REDUCED 7x: was 0.002 (500 plants) → now ~75 plants (MEDICINAL - less clutter)
-            min_distance_sq: 20.0 * 20.0,
+            density_percent: 0.0006, // INCREASED for plains visibility: ~150 plants (visible medicinal herb)
+            min_distance_sq: 18.0 * 18.0, // Reduced spacing
             min_tree_distance_sq: 15.0 * 15.0,
             min_stone_distance_sq: 18.0 * 18.0,
-            noise_threshold: 0.60,
+            noise_threshold: 0.56, // LOWERED for easier spawning
             primary_yield: ("Yarrow".to_string(), 1, 3),
             secondary_yield: None,
             seed_type: "Yarrow Seeds".to_string(),
@@ -368,11 +368,11 @@ lazy_static! {
         
         configs.insert(PlantType::Chamomile, PlantConfig {
             entity_name: "Chamomile".to_string(),
-            density_percent: 0.0002, // REDUCED 7.5x: was 0.0015 (375 plants) → now ~50 plants (MEDICINAL - less clutter)
-            min_distance_sq: 22.0 * 22.0,
+            density_percent: 0.0005, // INCREASED for plains visibility: ~125 plants (visible medicinal herb)
+            min_distance_sq: 20.0 * 20.0, // Reduced spacing
             min_tree_distance_sq: 18.0 * 18.0,
             min_stone_distance_sq: 20.0 * 20.0,
-            noise_threshold: 0.63,
+            noise_threshold: 0.58, // LOWERED for easier spawning
             primary_yield: ("Chamomile".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Chamomile Seeds".to_string(),
@@ -419,11 +419,11 @@ lazy_static! {
         
         configs.insert(PlantType::Mugwort, PlantConfig {
             entity_name: "Mugwort".to_string(),
-            density_percent: 0.0002, // REDUCED 7.5x: was 0.0015 (375 plants) → now ~50 plants (MEDICINAL - less clutter)
-            min_distance_sq: 25.0 * 25.0,
+            density_percent: 0.0005, // INCREASED for plains visibility: ~125 plants (visible medicinal herb)
+            min_distance_sq: 22.0 * 22.0, // Reduced spacing
             min_tree_distance_sq: 18.0 * 18.0,
             min_stone_distance_sq: 22.0 * 22.0,
-            noise_threshold: 0.61,
+            noise_threshold: 0.57, // LOWERED for easier spawning
             primary_yield: ("Mugwort".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Mugwort Seeds".to_string(),
@@ -436,11 +436,11 @@ lazy_static! {
         
         configs.insert(PlantType::Flax, PlantConfig {
             entity_name: "Flax Plant".to_string(),
-            density_percent: 0.001, // INCREASED 16x: was 0.0000625 (~16 plants) → now ~250 plants (DEDICATED FIBER CROP)
-            min_distance_sq: 35.0 * 35.0,
+            density_percent: 0.0015, // INCREASED further for plains visibility: ~375 plants (DEDICATED FIBER CROP)
+            min_distance_sq: 32.0 * 32.0, // Reduced spacing
             min_tree_distance_sq: 25.0 * 25.0,
             min_stone_distance_sq: 30.0 * 30.0,
-            noise_threshold: 0.68,
+            noise_threshold: 0.62, // LOWERED for easier spawning in plains
             primary_yield: ("Plant Fiber".to_string(), 25, 30), // Balanced between Nettle (40-50) and Beach Lyme (15)
             secondary_yield: None,
             seed_type: "Flax Seeds".to_string(),
@@ -815,11 +815,11 @@ lazy_static! {
         // === OTHER ===
         configs.insert(PlantType::Sunflowers, PlantConfig {
             entity_name: "Sunflowers".to_string(),
-            density_percent: 0.0004,
-            min_distance_sq: 40.0 * 40.0,
+            density_percent: 0.0008, // DOUBLED for plains visibility: ~200 plants (tall, visible landmark)
+            min_distance_sq: 35.0 * 35.0, // Reduced spacing
             min_tree_distance_sq: 30.0 * 30.0,
             min_stone_distance_sq: 25.0 * 25.0,
-            noise_threshold: 0.69,
+            noise_threshold: 0.63, // LOWERED for easier spawning
             primary_yield: ("Sunflower".to_string(), 1, 2),
             secondary_yield: None, // Seeds come from seed drop system
             seed_type: "Sunflower Seeds".to_string(),

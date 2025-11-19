@@ -77,6 +77,12 @@ pub const WORLD_HEIGHT_CHUNKS: u32 = (WORLD_HEIGHT_TILES + CHUNK_SIZE_TILES - 1)
 // Size of a chunk in pixels
 pub const CHUNK_SIZE_PX: f32 = CHUNK_SIZE_TILES as f32 * TILE_SIZE_PX as f32;
 
+// --- Tree Clustering Constants ---
+// Create dense forest clusters for more interesting terrain
+const DENSE_FOREST_NOISE_FREQUENCY: f64 = 0.003; // Large-scale forest regions
+const DENSE_FOREST_THRESHOLD: f64 = 0.6; // Areas above this are dense forests
+const DENSE_FOREST_MULTIPLIER: f32 = 3.0; // 3x tree density in dense forests
+
 // --- Helper function to calculate chunk index ---
 pub fn calculate_chunk_index(pos_x: f32, pos_y: f32) -> u32 {
     // Convert position to tile coordinates
@@ -751,12 +757,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
 
-    // Check if core environment is already seeded (exclude wild_animals since they can dynamically respawn, exclude grass since it's temporarily disabled)
-    if trees.iter().count() > 0 || stones.iter().count() > 0 || harvestable_resources.iter().count() > 0 || clouds.iter().count() > 0 {
-        log::info!(
-            "Environment already seeded (Trees: {}, Stones: {}, Harvestable Resources: {}, Clouds: {}, Sea Stacks: {}, Wild Animals: {}, Grass: {} - grass seeding temporarily disabled). Skipping.",
-            trees.iter().count(), stones.iter().count(), harvestable_resources.iter().count(), clouds.iter().count(), sea_stacks.iter().count(), wild_animals.iter().count(), grasses.iter().count()
-        );
+    // Check if core environment is already seeded (efficient O(1) check instead of O(N) count)
+    if trees.iter().next().is_some() || stones.iter().next().is_some() || harvestable_resources.iter().next().is_some() || clouds.iter().next().is_some() {
+        log::info!("Environment already seeded. Skipping.");
         return Ok(());
     }
 
@@ -878,8 +881,12 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     // let mut spawned_grass_count = 0;
     // let mut grass_attempts = 0;
 
-    // --- Seed Trees --- Use helper function --- 
-    log::info!("Seeding Trees...");
+    // --- Seed Trees --- Use helper function with dense forest clustering ---
+    log::info!("Seeding Trees with dense forest clusters...");
+    
+    // Create a separate noise generator for dense forest regions
+    let dense_forest_noise = Fbm::<Perlin>::new(ctx.rng().gen());
+    
     while spawned_tree_count < target_tree_count && tree_attempts < max_tree_attempts {
         tree_attempts += 1;
 
@@ -889,6 +896,33 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         // Generate random resource amount *before* calling attempt_single_spawn
         let tree_resource_amount = rng.gen_range(crate::tree::TREE_MIN_RESOURCES..=crate::tree::TREE_MAX_RESOURCES);
 
+        // Generate candidate position first to check for dense forest
+        let candidate_tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let candidate_tile_y = rng.gen_range(min_tile_y..max_tile_y);
+        let candidate_pos_x = (candidate_tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let candidate_pos_y = (candidate_tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        
+        // Check if this position is in a dense forest region
+        let dense_forest_value = dense_forest_noise.get([
+            candidate_pos_x as f64 * DENSE_FOREST_NOISE_FREQUENCY,
+            candidate_pos_y as f64 * DENSE_FOREST_NOISE_FREQUENCY
+        ]);
+        let is_dense_forest = dense_forest_value > DENSE_FOREST_THRESHOLD;
+        
+        // Adjust spawn threshold for dense forests (lower threshold = easier to spawn)
+        let adjusted_threshold = if is_dense_forest {
+            crate::tree::TREE_SPAWN_NOISE_THRESHOLD * 0.3 // Much easier to spawn in dense forests
+        } else {
+            crate::tree::TREE_SPAWN_NOISE_THRESHOLD
+        };
+        
+        // Adjust minimum distance for dense forests (allow closer packing)
+        let adjusted_min_distance_sq = if is_dense_forest {
+            crate::tree::MIN_TREE_DISTANCE_SQ * 0.4 // Trees can be 60% closer in dense forests
+        } else {
+            crate::tree::MIN_TREE_DISTANCE_SQ
+        };
+        
         match attempt_single_spawn(
             &mut rng,
             &mut occupied_tiles,
@@ -898,8 +932,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             min_tile_x, max_tile_x, min_tile_y, max_tile_y,
             &fbm,
             crate::tree::TREE_SPAWN_NOISE_FREQUENCY,
-            crate::tree::TREE_SPAWN_NOISE_THRESHOLD,
-            crate::tree::MIN_TREE_DISTANCE_SQ,
+            adjusted_threshold, // Use adjusted threshold
+            adjusted_min_distance_sq, // Use adjusted distance
             0.0,
             0.0,
             |pos_x, pos_y, (tree_type_roll, resource_amount): (f64, u32)| { // Closure now accepts both values
@@ -2081,4 +2115,4 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
 /// - 0.5 = Half all plant spawns (scarce resources, harder survival)
 /// - 0.1 = Very sparse world (10% of normal plants, extreme scarcity)
 /// - 3.0 = Very abundant world (300% of normal plants, easy resources)
-pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.5;
+pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.28;
