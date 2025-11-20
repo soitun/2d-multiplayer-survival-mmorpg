@@ -1,16 +1,13 @@
 [build]
 builder = "nixpacks"
 
-# This tells Railway to use api-proxy as the root
-[build.watchPatterns]
-include = ["api-proxy/**"]
-
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 
+[environments.production]
 [environments.production.build]
 buildCommand = "npm install"
 startCommand = "npm start"
