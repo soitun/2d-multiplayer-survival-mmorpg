@@ -265,60 +265,18 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
     // --- Clear Crafting Queue & Refund ---
     crafting_queue::clear_player_crafting_queue(ctx, sender_id);
 
-    // --- Grant Starting Combat Ladle ---
-    log::info!("Granting starting Combat Ladle to respawned player: {}", player.username);
-    if let Some(combat_ladle_def) = item_defs.iter().find(|def| def.name == "Combat Ladle") {
-        let combat_ladle_location = ItemLocation::Hotbar(crate::models::HotbarLocationData { owner_id: sender_id, slot_index: 0 }); // Put combat ladle in first hotbar slot
-        match inventory.try_insert(crate::items::InventoryItem {
-            instance_id: 0, // Auto-incremented
-            item_def_id: combat_ladle_def.id,
-            quantity: 1,
-            location: combat_ladle_location,
-            item_data: None, // Initialize as empty
-        }) {
-            Ok(_) => log::info!("Granted 1 Combat Ladle (slot 0) to player {}", player.username),
-            Err(e) => log::error!("Failed to grant starting Combat Ladle to player {}: {}", player.username, e),
+    // --- Grant Starting Items (using centralized function) ---
+    log::info!("Granting starting items to respawned player: {}", player.username);
+    match crate::starting_items::grant_starting_items(ctx, sender_id, &player.username) {
+        Ok(_) => {
+            log::info!("Successfully granted starting items to respawned player: {}", player.username);
         }
-    } else {
-        log::error!("Could not find item definition for starting Combat Ladle!");
-    }
-
-    // --- Grant Starting Torch ---
-    match item_defs.iter().find(|def| def.name == "Torch") {
-        Some(torch_def) => {
-            log::info!("Granting starting Torch to respawned player: {}", player.username);
-            // Attempt to place in hotbar slot 1, or first available inventory slot otherwise
-            let torch_location = ItemLocation::Hotbar(crate::models::HotbarLocationData { owner_id: sender_id, slot_index: 1 });
-            match inventory.try_insert(crate::items::InventoryItem {
-                instance_id: 0, // Auto-incremented
-                item_def_id: torch_def.id,
-                quantity: 1,
-                location: torch_location, // Attempt hotbar slot 1
-                item_data: None, // Initialize as empty
-            }) {
-                Ok(_) => log::info!("Granted 1 Torch (slot 1) to player {}", player.username),
-                Err(_e) => {
-                     log::warn!("Hotbar slot 1 occupied, granting Torch to general inventory for player {}.", player.username);
-                     // Fallback to general inventory add if hotbar slot is taken or try_insert fails for other reasons
-                     match add_item_to_player_inventory(ctx, sender_id, torch_def.id, 1) {
-                        Ok(Some(new_torch_instance_id)) => {
-                            log::info!("Granted 1 Torch (ID: {}) to player {} (inventory fallback).", new_torch_instance_id, player.username);
-                        }
-                        Ok(None) => {
-                            log::error!("Failed to grant starting Torch to player {} (no slot found - inventory fallback).", player.username);
-                        }
-                        Err(e_inv) => {
-                            log::error!("Error granting Torch to player {} (inventory fallback): {}", player.username, e_inv);
-                        }
-                    }
-                }
-            }
-        }
-        None => {
-            log::error!("Item definition for 'Torch' not found. Cannot grant starting torch.");
+        Err(e) => {
+            log::error!("Error granting starting items to respawned player {}: {}", player.username, e);
+            // Continue with respawn even if item granting fails
         }
     }
-    // --- End Grant Starting Torch ---
+    // --- End Grant Starting Items ---
 
     // 4. Respawn Player at Bag Location (Reset stats)
     player.is_dead = false;

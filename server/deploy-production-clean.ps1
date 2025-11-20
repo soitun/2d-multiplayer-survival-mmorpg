@@ -1,11 +1,8 @@
 # Fast production database deployment script - CLEAN VERSION
 # Deletes database first for completely fresh start
 
-Write-Host "[DELETE] Deleting production database first..." -ForegroundColor Red
-spacetime delete --server maincloud broth-bullets
-
-Write-Host "[BUILD] Building and deploying to fresh production database..." -ForegroundColor Yellow
-spacetime publish --server maincloud --project-path . broth-bullets
+Write-Host "[BUILD] Building and deploying to fresh production database (clearing all data)..." -ForegroundColor Yellow
+spacetime publish --server maincloud --project-path . -c broth-bullets
 
 Write-Host "[GEN] Regenerating client bindings..." -ForegroundColor Yellow
 spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .

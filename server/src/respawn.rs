@@ -64,46 +64,18 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     crafting_queue::clear_player_crafting_queue(ctx, sender_id);
     // --- END Clear Crafting Queue ---
 
-    // --- Look up Combat Ladle Item Definition ID ---
-    let combat_ladle_item_def_id = item_defs.iter()
-        .find(|def| def.name == "Combat Ladle")
-        .map(|def| def.id)
-        .ok_or_else(|| "Item definition for 'Combat Ladle' not found.".to_string())?;
-    // --- End Look up ---
-
-    // --- Grant Starting Combat Ladle ---
-    log::info!("Granting starting Combat Ladle to respawned player: {}", player.username);
-    let opt_instance_id = items::add_item_to_player_inventory(ctx, sender_id, combat_ladle_item_def_id, 1)?;
-    match opt_instance_id {
-        Some(new_combat_ladle_instance_id) => {
-            let _ = log::info!("Granted 1 Combat Ladle (ID: {}) to player {}.", new_combat_ladle_instance_id, player.username);
+    // --- Grant Starting Items (using centralized function) ---
+    log::info!("Granting starting items to respawned player: {}", player.username);
+    match crate::starting_items::grant_starting_items(ctx, sender_id, &player.username) {
+        Ok(_) => {
+            log::info!("Successfully granted starting items to respawned player: {}", player.username);
         }
-        None => {
-            let _ = log::error!("Failed to grant starting Combat Ladle to player {} (no slot found).", player.username);
-            // Optionally, we could return an Err here if not getting a combat ladle is critical
-            // return Err("Could not grant starting Combat Ladle: Inventory full or other issue.".to_string());
+        Err(e) => {
+            log::error!("Error granting starting items to respawned player {}: {}", player.username, e);
+            // Continue with respawn even if item granting fails
         }
     }
-    // --- End Grant Starting Combat Ladle ---
-
-    // --- Grant Starting Torch ---
-    match item_defs.iter().find(|def| def.name == "Torch") {
-        Some(torch_def) => {
-            log::info!("Granting starting Torch to respawned player: {}", player.username);
-            match items::add_item_to_player_inventory(ctx, sender_id, torch_def.id, 1)? {
-                Some(new_torch_instance_id) => {
-                    log::info!("Granted 1 Torch (ID: {}) to player {}.", new_torch_instance_id, player.username);
-                }
-                None => {
-                    log::error!("Failed to grant starting Torch to player {} (no slot found).", player.username);
-                }
-            }
-        }
-        None => {
-            log::error!("Item definition for 'Torch' not found. Cannot grant starting torch.");
-        }
-    }
-    // --- End Grant Starting Torch ---
+    // --- End Grant Starting Items ---
 
     // --- Find Valid Coastal Beach Spawn Position (Same as register_player + south half constraint) ---
     
