@@ -1,6 +1,5 @@
 [build]
 builder = "nixpacks"
-watchPatterns = ["auth-server-openauth/**"]
 
 [deploy]
 restartPolicyType = "on_failure"
