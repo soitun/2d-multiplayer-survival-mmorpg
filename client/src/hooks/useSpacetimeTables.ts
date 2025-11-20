@@ -109,6 +109,7 @@ export interface SpacetimeTableStates {
     rainCollectors: Map<string, SpacetimeDB.RainCollector>;
     waterPatches: Map<string, SpacetimeDB.WaterPatch>;
     firePatches: Map<string, SpacetimeDB.FirePatch>;
+    hotSprings: Map<string, any>; // HotSpring - placeholder (hot springs are tile-based, not entities)
     recipes: Map<string, SpacetimeDB.Recipe>;
     craftingQueueItems: Map<string, SpacetimeDB.CraftingQueueItem>;
     messages: Map<string, SpacetimeDB.Message>;
@@ -189,6 +190,7 @@ export const useSpacetimeTables = ({
     const [rainCollectors, setRainCollectors] = useState<Map<string, SpacetimeDB.RainCollector>>(() => new Map());
     const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
     const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
+    const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
     const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // DISABLED: Always empty for performance
@@ -1800,6 +1802,7 @@ export const useSpacetimeTables = ({
                 setRainCollectors(new Map());
                 setWaterPatches(new Map());
                 setFirePatches(new Map());
+                setHotSprings(new Map());
                 setActiveConsumableEffects(new Map());
                  setClouds(new Map());
                  setGrass(new Map()); // Always keep grass empty for performance
@@ -1856,6 +1859,7 @@ export const useSpacetimeTables = ({
         rainCollectors,
         waterPatches,
         firePatches,
+        hotSprings,
         activeConsumableEffects,
         clouds,
         grass,
