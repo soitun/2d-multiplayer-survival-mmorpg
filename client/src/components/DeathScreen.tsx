@@ -96,7 +96,11 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   // });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: MINIMAP_DIMENSIONS.width, height: MINIMAP_DIMENSIONS.height });
+  // Keep full canvas dimensions for proper coordinate mapping, scale with CSS
+  const [canvasSize, setCanvasSize] = useState({ 
+    width: MINIMAP_DIMENSIONS.width, 
+    height: MINIMAP_DIMENSIONS.height 
+  });
   const [hoveredBagId, setHoveredBagId] = useState<number | null>(null);
   
   // Add state to track if respawn is in progress
@@ -393,31 +397,56 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       <div style={styles.overlay}>
         <div style={styles.container}>
       
-        
-        {/* Death Cause Information */}
-        {localPlayerDeathMarker && (
-          <div style={styles.deathInfo}>
-            {localPlayerDeathMarker.killedBy ? (
+        {/* Combined Username and Death Cause */}
+        {localPlayerIdentity && localPlayerDeathMarker && (() => {
+          const player = players.get(localPlayerIdentity);
+          const username = player?.username || 'Player';
+          
+          let deathMessage = '';
+          if (localPlayerDeathMarker.killedBy) {
+            try {
+              const killerId = localPlayerDeathMarker.killedBy?.toHexString();
+              const killer = players.get(killerId || '');
+              const killerName = killer?.username || 'Unknown Player';
+              deathMessage = `was killed by ${killerName}`;
+            } catch (error) {
+              console.error('[DeathScreen] Error getting killer info:', error);
+              deathMessage = 'was killed by Unknown Player';
+            }
+          } else {
+            // Convert death cause to lowercase sentence format
+            const cause = localPlayerDeathMarker.deathCause || 'Environment';
+            if (cause === 'Cinder Fox') {
+              deathMessage = '🦊 was mauled by a Cinder Fox';
+            } else if (cause === 'Tundra Wolf') {
+              deathMessage = '🐺 was killed by a Tundra Wolf';
+            } else if (cause === 'Cable Viper') {
+              deathMessage = '🐍 was struck down by a Cable Viper';
+            } else if (cause === 'Suicide') {
+              deathMessage = '⚰️ took their own life';
+            } else if (cause === 'Starvation') {
+              deathMessage = '🍖 starved to death';
+            } else if (cause === 'Dehydration') {
+              deathMessage = '💧 died of thirst';
+            } else if (cause === 'Exposure') {
+              deathMessage = '🥶 died from exposure';
+            } else if (cause === 'Bleeding') {
+              deathMessage = '🩸 bled to death';
+            } else if (cause === 'Knocked Out') {
+              deathMessage = '💥 died while unconscious';
+            } else {
+              deathMessage = `💀 died from ${cause}`;
+            }
+          }
+          
+          return (
+            <div style={styles.deathInfo}>
               <p style={styles.deathMessage}>
-                Killed by {(() => {
-                  try {
-                    const killerId = localPlayerDeathMarker.killedBy?.toHexString();
-                    if (!killerId) return 'Unknown Player';
-                    const killer = players.get(killerId);
-                    return killer?.username || 'Unknown Player';
-                  } catch (error) {
-                    console.error('[DeathScreen] Error getting killer info:', error);
-                    return 'Unknown Player';
-                  }
-                })()}
+                <span style={styles.usernameInline}>{username}</span> {deathMessage}
               </p>
-            ) : (
-              <p style={styles.deathMessage}>
-                {getDeathCauseMessage(localPlayerDeathMarker.deathCause || 'Environment')}
-              </p>
-            )}
-          </div>
-        )}
+            </div>
+          );
+        })()}
         
         {/* Minimap Canvas */} 
         <canvas
@@ -488,7 +517,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   container: {
     textAlign: 'center',
-    padding: '40px',
+    padding: '20px', // Reduced from 40px
     backgroundColor: 'rgba(30, 41, 59, 0.9)', // Dark slate with high opacity
     borderRadius: '8px',
     border: '2px solid #00d4ff', // Bright cyan border
@@ -510,8 +539,8 @@ const styles: { [key: string]: React.CSSProperties } = {
       textShadow: '1px 1px 2px #000000',
   },
   buttonEnabled: {
-    padding: '15px 30px',
-    fontSize: '1.1em',
+    padding: '10px 20px', // Reduced from 15px 30px
+    fontSize: '1em', // Reduced from 1.1em
     fontFamily: '"Courier New", monospace',
     background: 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%)', // Cyan to purple gradient
     color: '#ffffff',
@@ -525,8 +554,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 0 15px rgba(0, 212, 255, 0.4)',
   },
    buttonDisabled: {
-    padding: '15px 30px',
-    fontSize: '1.1em',
+    padding: '10px 20px', // Reduced from 15px 30px
+    fontSize: '1em', // Reduced from 1.1em
     fontFamily: '"Courier New", monospace',
     backgroundColor: 'rgba(71, 85, 105, 0.5)', // Dark slate
     color: '#64748b', // Muted slate
@@ -538,8 +567,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
   },
   buttonLoading: {
-    padding: '15px 30px',
-    fontSize: '1.1em',
+    padding: '10px 20px', // Reduced from 15px 30px
+    fontSize: '1em', // Reduced from 1.1em
     fontFamily: '"Courier New", monospace',
     background: 'linear-gradient(135deg, #475569 0%, #64748b 100%)', // Muted gradient
     color: '#cbd5e1', // Light slate
@@ -560,8 +589,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexWrap: 'wrap',
   },
   buttonYellow: {
-    padding: '15px 30px',
-    fontSize: '1.1em',
+    padding: '10px 20px', // Reduced from 15px 30px
+    fontSize: '1em', // Reduced from 1.1em
     fontFamily: '"Courier New", monospace',
     background: 'linear-gradient(135deg, #ffeb3b 0%, #ff9800 100%)', // Yellow to orange gradient
     color: '#000000', // Black text for better contrast on yellow
@@ -579,34 +608,42 @@ const styles: { [key: string]: React.CSSProperties } = {
   minimapCanvas: {
       border: '2px solid #00d4ff', // Cyan border to match theme
       borderRadius: '4px',
-      marginBottom: '25px', // More space before the button
+      marginBottom: '15px', // Reduced from 25px
       cursor: 'pointer', // Indicate it's clickable
       boxShadow: '0 0 15px rgba(0, 212, 255, 0.3)', // Subtle cyan glow
       backdropFilter: 'blur(5px)',
       display: 'block', // Ensure block display for margin centering
       marginLeft: 'auto', // Center horizontally
       marginRight: 'auto', // Center horizontally
+      width: '70%', // Scale down with CSS to maintain proper coordinates
+      height: 'auto', // Maintain aspect ratio
   },
   noBagsText: {
-    marginTop: '20px',
-    fontSize: '0.9em',
+    marginTop: '10px', // Reduced from 20px
+    fontSize: '0.85em', // Reduced from 0.9em
     color: '#94a3b8', // Slate gray
     textShadow: '1px 1px 2px #000000',
     fontStyle: 'italic',
   },
   deathInfo: {
-    marginBottom: '25px',
-    padding: '15px',
+    marginBottom: '15px',
+    padding: '12px 15px',
     backgroundColor: 'rgba(239, 68, 68, 0.1)', // Subtle red background
     borderRadius: '6px',
     border: '1px solid #ef4444',
   },
   deathMessage: {
     fontSize: '1.2em',
-    marginBottom: '10px',
+    margin: '0', // Remove all margins for tight flow
     color: '#fecaca', // Light red
     textShadow: '1px 1px 2px #000000',
+    lineHeight: '1.4',
+  },
+  usernameInline: {
+    color: '#00d4ff', // Cyan color to match theme
+    textShadow: '0 0 10px #00d4ff, 2px 2px 4px #000000',
     fontWeight: 'bold',
+    letterSpacing: '1px',
   },
 };
 
