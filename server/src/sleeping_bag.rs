@@ -296,6 +296,14 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
     player.is_knocked_out = false; // Reset knocked out state
     player.knocked_out_at = None; // Clear knocked out timestamp
     player.direction = "down".to_string(); // Reset direction
+    
+    // CRITICAL FIX: Reset client movement sequence to force position sync
+    // This prevents client-side prediction from overriding the respawn position
+    player.client_movement_sequence = 0;
+    
+    // Also reset water status since we're spawning at sleeping bag (land)
+    player.is_on_water = false;
+    
     // Update timestamps
     player.last_update = ctx.timestamp;
     player.last_stat_update = ctx.timestamp;

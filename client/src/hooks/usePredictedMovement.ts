@@ -141,9 +141,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     if (!localPlayer || !clientPositionRef.current || !serverPositionRef.current) return;
 
     const hasRespawned = wasDeadRef.current && !localPlayer.isDead;
-    if (hasRespawned) {
+    const receivedSequence = localPlayer.clientMovementSequence ?? 0n;
+    
+    // CRITICAL FIX: Detect sequence reset (respawn) - server resets to 0 when player respawns
+    const sequenceReset = receivedSequence === 0n && lastAckedSequenceRef.current > 0n;
+    
+    if (hasRespawned || sequenceReset) {
       // Player has respawned. The server is now authoritative. Reset client state.
-      console.log('[usePredictedMovement] Player respawn detected. Resetting client position.');
+      console.log('[usePredictedMovement] Player respawn detected (hasRespawned:', hasRespawned, 'sequenceReset:', sequenceReset, '). Resetting client position to server position:', localPlayer.positionX, localPlayer.positionY);
       const newServerPos = { x: localPlayer.positionX, y: localPlayer.positionY };
 
       clientPositionRef.current = { ...newServerPos };
@@ -157,8 +162,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
 
       forceUpdate({}); // Force a re-render for components that use position
     } else {
-      const receivedSequence = localPlayer.clientMovementSequence ?? 0n;
-    
       if (receivedSequence > lastAckedSequenceRef.current) {
         lastAckedSequenceRef.current = receivedSequence;
         const newServerPos = { x: localPlayer.positionX, y: localPlayer.positionY };

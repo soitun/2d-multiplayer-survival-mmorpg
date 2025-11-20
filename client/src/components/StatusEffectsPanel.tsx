@@ -121,16 +121,16 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
       position: 'fixed',
       bottom: '140px', // Position above status bars
       right: '15px',
-      fontFamily: 'Courier New, Consolas, Monaco, monospace',
+      fontFamily: '"Courier New", monospace',
       fontSize: '11px',
       color: '#ffffff',
-      textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
-      backgroundColor: 'rgba(69, 100, 139, 0.9)', // Matte blue background instead of red
-      padding: '8px 12px',
+      textShadow: '1px 1px 2px #000000',
+      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(20, 20, 40, 0.85) 100%)',
+      padding: '10px 14px',
       borderRadius: '6px',
-      border: '2px solid rgba(50, 120, 180, 0.8)', // Blue border instead of red
-      backdropFilter: 'blur(3px)',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+      border: '2px solid #00d4ff',
+      backdropFilter: 'blur(5px)',
+      boxShadow: '0 0 20px rgba(0, 212, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
       zIndex: 55, // Above status bars (50) but below other UI
     }}>
       <div style={{ 
@@ -160,16 +160,16 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
                 top: '50%',
                 transform: 'translateY(-50%)',
                 marginRight: '12px',
-                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
+                background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 20, 40, 0.95) 100%)',
                 border: `2px solid ${getEffectColor(effect.type)}`,
                 borderRadius: '8px',
                 padding: '12px 16px',
                 minWidth: '200px',
                 maxWidth: '300px',
-                boxShadow: `0 0 25px ${getEffectColor(effect.type)}40, inset 0 0 15px ${getEffectColor(effect.type)}20`,
+                boxShadow: `0 0 25px ${getEffectColor(effect.type)}60, inset 0 1px 0 rgba(255, 255, 255, 0.1)`,
                 backdropFilter: 'blur(10px)',
                 zIndex: 100,
-                fontFamily: 'Courier New, Consolas, Monaco, monospace',
+                fontFamily: '"Courier New", monospace',
                 animation: 'tooltipFadeIn 0.2s ease-out',
                 textAlign: 'left'
               }}>
@@ -220,9 +220,10 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    fontSize: '10px',
-                    color: '#00ddff',
-                    textShadow: '0 0 4px rgba(0, 221, 255, 0.6)'
+                    fontSize: '11px',
+                    color: '#00d4ff',
+                    textShadow: '0 0 8px rgba(0, 212, 255, 0.6), 1px 1px 2px #000000',
+                    letterSpacing: '0.5px'
                   }}>
                     <span>⏱</span>
                     <span>
@@ -262,15 +263,15 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '24px',
-              height: '24px',
+              width: '28px',
+              height: '28px',
               fontSize: '16px',
               border: `2px solid ${getEffectColor(effect.type)}`,
               borderRadius: '6px',
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
-              boxShadow: getEffectGlow(effect.type),
+              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(20, 20, 40, 0.6) 100%)',
+              boxShadow: `${getEffectGlow(effect.type)}, inset 0 1px 0 rgba(255, 255, 255, 0.1)`,
               transition: 'all 0.2s ease',
-              transform: hoveredEffect === effect.id ? 'scale(1.1)' : 'scale(1)'
+              transform: hoveredEffect === effect.id ? 'scale(1.15)' : 'scale(1)'
             }}>
               {effect.emoji}
             </div>
@@ -278,11 +279,12 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
             {/* Duration Text */}
             {effect.duration !== undefined && effect.duration > 0 && (
               <span style={{ 
-                fontSize: '10px',
-                color: '#ffffff',
+                fontSize: '11px',
+                color: '#00d4ff',
                 fontWeight: 'bold',
-                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
-                minWidth: '25px'
+                textShadow: '0 0 8px rgba(0, 212, 255, 0.6), 1px 1px 2px #000000',
+                minWidth: '30px',
+                letterSpacing: '0.5px'
               }}>
                 {effect.id === 'wet' 
                   ? (() => {
