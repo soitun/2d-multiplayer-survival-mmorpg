@@ -40,19 +40,33 @@ const allowedOrigins = [
   process.env.CLIENT_URL || 'https://broth-and-bullets-client-production.up.railway.app'
 ].filter(Boolean); // Remove any undefined values
 
+console.log('🔒 CORS Configuration:');
+console.log('   Allowed origins:', allowedOrigins);
+console.log('   CLIENT_URL env var:', process.env.CLIENT_URL);
+console.log('   NODE_ENV:', process.env.NODE_ENV);
+
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
+    console.log(`[CORS] Request from origin: ${origin}`);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('[CORS] ✅ Allowing request with no origin');
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
+      console.log(`[CORS] ✅ Origin allowed: ${origin}`);
       callback(null, true);
     } else {
       // In production, be more strict; in dev, allow all
       if (process.env.NODE_ENV === 'production') {
+        console.error(`[CORS] ❌ Origin blocked: ${origin}`);
+        console.error(`[CORS] Allowed origins are: ${allowedOrigins.join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       } else {
+        console.log(`[CORS] ✅ Development mode - allowing origin: ${origin}`);
         callback(null, true); // Allow in development
       }
     }
