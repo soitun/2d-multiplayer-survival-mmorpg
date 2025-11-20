@@ -39,34 +39,25 @@ export const renderProjectile = ({
   const serverStartTimeMicros = Number(projectile.startTime.microsSinceUnixEpoch);
   const serverStartTimeMs = serverStartTimeMicros / 1000;
   
-  // Check if this is a NEW projectile by comparing server timestamps
-  const lastKnownServerTime = lastKnownServerProjectileTimes.get(projectileId) || 0;
+  // Check if this is a NEW projectile by checking if we've tracked it before
+  let clientStartTime = clientProjectileStartTimes.get(projectileId);
   let elapsedTimeSeconds = 0;
   
-  if (serverStartTimeMs !== lastKnownServerTime) {
-    // NEW projectile detected! Always start immediately for smooth gameplay
-    console.log(`🏹 NEW projectile ${projectileId.substring(0, 8)}: immediate render`);
+  if (!clientStartTime) {
+    // NEW projectile detected! Initialize tracking
+    console.log(`🏹 NEW projectile ${projectileId.substring(0, 8)}: initializing at current time`);
+    clientStartTime = currentTimeMs;
+    clientProjectileStartTimes.set(projectileId, clientStartTime);
     lastKnownServerProjectileTimes.set(projectileId, serverStartTimeMs);
-    clientProjectileStartTimes.set(projectileId, currentTimeMs); // Use current client time
-    elapsedTimeSeconds = 0; // Always start at 0 for immediate rendering
+    elapsedTimeSeconds = 0; // Start at 0 for immediate rendering
   } else {
-    // Use client-tracked time for smooth position calculation
-    const clientStartTime = clientProjectileStartTimes.get(projectileId);
-    if (clientStartTime) {
-      const elapsedClientMs = currentTimeMs - clientStartTime;
-      elapsedTimeSeconds = elapsedClientMs / 1000;
-    } else {
-      // Fallback: Use current time as start time for missing client tracking
-      console.log(`🏹 FALLBACK: Starting projectile ${projectileId.substring(0, 8)} immediately`);
-      clientProjectileStartTimes.set(projectileId, currentTimeMs);
-      elapsedTimeSeconds = 0; // Start immediately
-    }
+    // Existing projectile - calculate elapsed time from client start
+    const elapsedClientMs = currentTimeMs - clientStartTime;
+    elapsedTimeSeconds = elapsedClientMs / 1000;
   }
   
-  // Always render projectiles (removed negative time check for immediate visibility)
-  // This ensures projectiles appear immediately regardless of server/client time sync
+  // Safety check: Don't allow negative elapsed time
   if (elapsedTimeSeconds < 0) {
-    // Force to 0 for immediate visibility in production with network latency
     elapsedTimeSeconds = 0;
   }
   
