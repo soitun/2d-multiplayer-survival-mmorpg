@@ -336,6 +336,11 @@ pub fn spawn_memory_shards_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneShardSpawnSchedule,
 ) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("spawn_memory_shards_at_night may only be called by the scheduler.".to_string());
+    }
+
     use spacetimedb::TimeDuration;
     use std::time::Duration;
     use rand::Rng;
@@ -493,6 +498,11 @@ pub fn spawn_items_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneItemSpawnSchedule,
 ) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("spawn_items_at_night may only be called by the scheduler.".to_string());
+    }
+
     use spacetimedb::TimeDuration;
     use std::time::Duration;
     use rand::Rng;
@@ -656,6 +666,11 @@ pub fn spawn_seeds_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneSeedSpawnSchedule,
 ) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("spawn_seeds_at_night may only be called by the scheduler.".to_string());
+    }
+
     use spacetimedb::TimeDuration;
     use std::time::Duration;
     use rand::Rng;

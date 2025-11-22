@@ -302,6 +302,11 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
 /// Scheduled reducer to check for and grant finished crafting items.
 #[spacetimedb::reducer]
 pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("Reducer check_finished_crafting may not be invoked by clients, only via scheduling.".to_string());
+    }
+
     let now = ctx.timestamp;
     let queue_table = ctx.db.crafting_queue_item();
     let player_table = ctx.db.player();

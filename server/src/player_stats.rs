@@ -173,6 +173,11 @@ pub fn init_player_stat_schedule(ctx: &ReducerContext) -> Result<(), String> {
 // --- Reducer to Process ALL Player Stat Updates (Scheduled) ---
 #[spacetimedb::reducer]
 pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("process_player_stats may only be called by the scheduler.".to_string());
+    }
+
     log::trace!("Processing player stats via schedule...");
     let current_time = ctx.timestamp;
     let players = ctx.db.player();

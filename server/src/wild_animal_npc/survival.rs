@@ -30,6 +30,10 @@ pub fn process_survival_needs(
     animal: &mut WildAnimal,
     current_time: Timestamp,
 ) -> Result<(), String> {
+    // ⚠️ DISABLED: Hunger/thirst system temporarily disabled to reduce server lag
+    // Animals will no longer seek food/water or decay their survival meters
+    return Ok(());
+    
     // Don't process survival for tamed animals (they're fed by their owners)
     if animal.tamed_by.is_some() {
         return Ok(());

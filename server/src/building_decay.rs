@@ -280,6 +280,11 @@ fn apply_wall_decay(
 /// Scheduled reducer to process building decay
 #[spacetimedb::reducer]
 pub fn process_building_decay(ctx: &ReducerContext, _schedule: BuildingDecaySchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("process_building_decay may only be called by the scheduler.".to_string());
+    }
+
     let current_time = ctx.timestamp;
     let foundations = ctx.db.foundation_cell();
     let walls = ctx.db.wall_cell();

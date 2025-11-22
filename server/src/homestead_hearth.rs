@@ -672,6 +672,11 @@ pub fn init_building_privilege_check_schedule(ctx: &ReducerContext) -> Result<()
 /// but privilege removal has been disabled to prevent players from being locked out.
 #[spacetimedb::reducer]
 pub fn check_building_privilege_distance(ctx: &ReducerContext, _schedule: BuildingPrivilegeCheckSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("check_building_privilege_distance may only be called by the scheduler.".to_string());
+    }
+
     // Building privilege is now persistent - once granted, it stays forever.
     // The privilege check in building reducers verifies both:
     // 1. Player has building privilege (persistent flag)
@@ -738,6 +743,11 @@ pub fn init_hearth_upkeep_schedule(ctx: &ReducerContext) -> Result<(), String> {
 /// Scheduled reducer to process upkeep for all hearths
 #[spacetimedb::reducer]
 pub fn process_hearth_upkeep(ctx: &ReducerContext, _schedule: HearthUpkeepSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("process_hearth_upkeep may only be called by the scheduler.".to_string());
+    }
+
     let current_time = ctx.timestamp;
     let hearths = ctx.db.homestead_hearth();
     

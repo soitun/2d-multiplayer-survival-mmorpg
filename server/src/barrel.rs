@@ -343,6 +343,11 @@ pub fn damage_barrel(
 /// Scheduled reducer to respawn destroyed barrels
 #[spacetimedb::reducer]
 pub fn respawn_destroyed_barrels(ctx: &ReducerContext, _schedule: BarrelRespawnSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("respawn_destroyed_barrels may only be called by the scheduler.".to_string());
+    }
+
     let current_time = ctx.timestamp;
     let barrels = ctx.db.barrel();
     let mut respawned_count = 0;

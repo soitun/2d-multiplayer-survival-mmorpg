@@ -133,6 +133,11 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
 // Add the reducer macro back
 #[spacetimedb::reducer]
 pub fn despawn_expired_items(ctx: &ReducerContext, _schedule: DroppedItemDespawnSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to call this
+    if ctx.sender != ctx.identity() {
+        return Err("despawn_expired_items may only be called by the scheduler.".to_string());
+    }
+
     let current_time = ctx.timestamp;
     let dropped_items_table = ctx.db.dropped_item();
     let item_defs_table = ctx.db.item_definition(); // <<< ADDED: Need ItemDefinition table
