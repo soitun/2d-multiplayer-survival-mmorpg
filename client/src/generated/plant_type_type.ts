@@ -38,6 +38,7 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.Carrot |
   PlantTypeVariants.Beets |
   PlantTypeVariants.Horseradish |
+  PlantTypeVariants.Corn |
   PlantTypeVariants.Chicory |
   PlantTypeVariants.Yarrow |
   PlantTypeVariants.Chamomile |
@@ -95,6 +96,7 @@ export const PlantType = {
   Carrot: { tag: "Carrot" } as const,
   Beets: { tag: "Beets" } as const,
   Horseradish: { tag: "Horseradish" } as const,
+  Corn: { tag: "Corn" } as const,
   Chicory: { tag: "Chicory" } as const,
   Yarrow: { tag: "Yarrow" } as const,
   Chamomile: { tag: "Chamomile" } as const,
@@ -146,6 +148,7 @@ export const PlantType = {
       { name: "Carrot", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Beets", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Horseradish", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Corn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Chicory", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Yarrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Chamomile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

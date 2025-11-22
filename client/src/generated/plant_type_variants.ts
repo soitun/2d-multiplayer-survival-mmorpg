@@ -36,6 +36,7 @@ export type BeachLymeGrass = { tag: "BeachLymeGrass" };
 export type Carrot = { tag: "Carrot" };
 export type Beets = { tag: "Beets" };
 export type Horseradish = { tag: "Horseradish" };
+export type Corn = { tag: "Corn" };
 export type Chicory = { tag: "Chicory" };
 export type Yarrow = { tag: "Yarrow" };
 export type Chamomile = { tag: "Chamomile" };
