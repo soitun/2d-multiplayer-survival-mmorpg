@@ -72,12 +72,6 @@ export type WildAnimal = {
   heartEffectUntil: __Timestamp | undefined,
   cryingEffectUntil: __Timestamp | undefined,
   lastFoodCheck: __Timestamp | undefined,
-  hunger: number,
-  thirst: number,
-  targetResourceId: bigint | undefined,
-  targetWaterX: number | undefined,
-  targetWaterY: number | undefined,
-  survivalActionStartTime: __Timestamp | undefined,
 };
 let _cached_WildAnimal_type_value: __AlgebraicTypeType | null = null;
 
@@ -126,12 +120,6 @@ export const WildAnimal = {
       { name: "heartEffectUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "cryingEffectUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastFoodCheck", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "hunger", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "thirst", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "targetResourceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "targetWaterX", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "targetWaterY", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "survivalActionStartTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_WildAnimal_type_value;
   },

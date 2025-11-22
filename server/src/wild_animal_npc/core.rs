@@ -34,7 +34,6 @@ use crate::animal_collision::{
 use crate::player as PlayerTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 use crate::wild_animal_npc::wild_animal_ai_schedule as WildAnimalAiScheduleTableTrait;
-use crate::wild_animal_npc::survival::process_survival_needs;
 use crate::death_marker::death_marker as DeathMarkerTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
@@ -42,7 +41,6 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::dropped_item::dropped_item as DroppedItemTableTrait; // Add dropped item table trait
 use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For foundation fear
-use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait; // ADDED: For animal feeding
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -124,10 +122,6 @@ pub enum AnimalState {
     Alert,
     Following,     // NEW: Following tamed player
     Protecting,    // NEW: Attacking enemies of tamed player
-    SeekingFood,   // NEW: Looking for harvestable resources to eat
-    Eating,        // NEW: Consuming a harvestable resource
-    SeekingWater,  // NEW: Looking for water to drink
-    Drinking,      // NEW: Drinking at a water source
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -153,20 +147,6 @@ pub struct AnimalStats {
     pub flee_trigger_health_percent: f32,
     pub hide_duration_ms: u64,
 }
-
-// --- Animal Survival Constants ---
-pub const ANIMAL_MAX_HUNGER: f32 = 100.0;
-pub const ANIMAL_MAX_THIRST: f32 = 100.0;
-pub const ANIMAL_HUNGER_DECAY_PER_SECOND: f32 = 0.05; // Decays twice as slow as players (players ~0.1/s)
-pub const ANIMAL_THIRST_DECAY_PER_SECOND: f32 = 0.08; // Decays twice as slow as players (players ~0.16/s)
-pub const ANIMAL_HUNGER_SEEK_THRESHOLD: f32 = 40.0; // Start seeking food at 40% hunger
-pub const ANIMAL_THIRST_SEEK_THRESHOLD: f32 = 40.0; // Start seeking water at 40% thirst
-pub const ANIMAL_RESOURCE_DETECTION_RADIUS: f32 = 300.0; // How far animals can detect food/water
-pub const ANIMAL_RESOURCE_DETECTION_RADIUS_SQUARED: f32 = 90000.0; // 300.0 * 300.0 (pre-calculated for performance)
-pub const ANIMAL_DRINKING_DURATION_MS: i64 = 5000; // Stay at water for 5 seconds
-pub const ANIMAL_EATING_DURATION_MS: i64 = 3000; // Stay at food for 3 seconds
-pub const ANIMAL_THIRST_RESTORE_AMOUNT: f32 = 80.0; // Restore 80% thirst when drinking
-pub const ANIMAL_HUNGER_RESTORE_AMOUNT: f32 = 60.0; // Restore 60% hunger when eating
 
 // --- Main Animal Entity Table ---
 #[spacetimedb::table(name = wild_animal, public)]
@@ -213,14 +193,6 @@ pub struct WildAnimal {
     pub heart_effect_until: Option<Timestamp>, // When to stop showing heart effect
     pub crying_effect_until: Option<Timestamp>, // When to stop showing crying effect (hit by owner)
     pub last_food_check: Option<Timestamp>, // Last time we checked for nearby food
-    
-    // Survival system fields
-    pub hunger: f32, // 0.0 to 100.0 (100 = full, 0 = starving)
-    pub thirst: f32, // 0.0 to 100.0 (100 = full, 0 = dehydrated)
-    pub target_resource_id: Option<u64>, // ID of harvestable resource being targeted for eating
-    pub target_water_x: Option<f32>, // Position of water source being targeted for drinking
-    pub target_water_y: Option<f32>,
-    pub survival_action_start_time: Option<Timestamp>, // When eating/drinking started
 }
 
 // --- AI Processing Schedule Table ---
@@ -557,9 +529,6 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             // Process taming behavior (food detection and consumption)
             process_taming_behavior(ctx, &mut animal, current_time)?;
             
-            // Process survival needs (hunger and thirst)
-            process_survival_needs(ctx, &mut animal, current_time)?;
-            
             // Check for and execute attacks
             if animal.state == AnimalState::Chasing {
                 if let Some(target_id) = animal.target_player_id {
@@ -848,28 +817,6 @@ fn execute_animal_movement(
         AnimalState::Protecting => {
             // Tamed animal protecting their owner from threats
             handle_tamed_protecting(ctx, animal, stats, current_time, dt, rng);
-        },
-        
-        AnimalState::SeekingFood => {
-            // Move toward target harvestable resource
-            if let Some(target_id) = animal.target_resource_id {
-                if let Some(resource) = ctx.db.harvestable_resource().id().find(&target_id) {
-                    if resource.respawn_at.is_none() { // Only move to available resources
-                        move_towards_target(ctx, animal, resource.pos_x, resource.pos_y, stats.movement_speed, dt);
-                    }
-                }
-            }
-        },
-        
-        AnimalState::SeekingWater => {
-            // Move toward target water source
-            if let (Some(target_x), Some(target_y)) = (animal.target_water_x, animal.target_water_y) {
-                move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
-            }
-        },
-        
-        AnimalState::Eating | AnimalState::Drinking => {
-            // Stay still while eating/drinking (no movement)
         },
         
         _ => {} // Other states don't move
@@ -1261,14 +1208,6 @@ pub fn spawn_wild_animal(
         heart_effect_until: None,
         crying_effect_until: None,
         last_food_check: None,
-        
-        // Survival system fields - start with full hunger and thirst
-        hunger: ANIMAL_MAX_HUNGER,
-        thirst: ANIMAL_MAX_THIRST,
-        target_resource_id: None,
-        target_water_x: None,
-        target_water_y: None,
-        survival_action_start_time: None,
     };
     
     ctx.db.wild_animal().insert(animal);

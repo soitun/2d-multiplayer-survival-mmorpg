@@ -38,8 +38,4 @@ export type Investigating = { tag: "Investigating" };
 export type Alert = { tag: "Alert" };
 export type Following = { tag: "Following" };
 export type Protecting = { tag: "Protecting" };
-export type SeekingFood = { tag: "SeekingFood" };
-export type Eating = { tag: "Eating" };
-export type SeekingWater = { tag: "SeekingWater" };
-export type Drinking = { tag: "Drinking" };
 

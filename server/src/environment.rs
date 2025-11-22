@@ -1484,14 +1484,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 heart_effect_until: None,
                 crying_effect_until: None,
                 last_food_check: None,
-                
-                // Survival system fields
-                hunger: crate::wild_animal_npc::ANIMAL_MAX_HUNGER,
-                thirst: crate::wild_animal_npc::ANIMAL_MAX_THIRST,
-                target_resource_id: None,
-                target_water_x: None,
-                target_water_y: None,
-                survival_action_start_time: None,
             };
 
             match ctx.db.wild_animal().try_insert(new_animal) {

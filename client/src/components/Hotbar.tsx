@@ -156,6 +156,21 @@ const Hotbar: React.FC<HotbarProps> = ({
   const prevActiveEffectsRef = useRef<Set<string>>(new Set());
   const hoveredSlotRef = useRef<number | null>(null); // Track which slot is currently hovered for tooltip
   const lastTooltipItemRef = useRef<{ instanceId: bigint; waterContentMl: number | undefined; quantity: number; isSaltWater: boolean | undefined } | null>(null); // Track last tooltip values for change detection
+  const selectedSlotRef = useRef<number>(selectedSlot); // Immediate tracking for rapid clicks
+  const lastActivationRef = useRef<{ slot: number; timestamp: number } | null>(null); // Debounce rapid activations
+  const lastKeyPressRef = useRef<{ key: string; timestamp: number } | null>(null); // Debounce keyboard events
+  
+  // Refs for stable access in activateHotbarSlot (prevent recreation)
+  const connectionRef = useRef(connection);
+  const playerIdentityRef = useRef(playerIdentity);
+  const localPlayerRef = useRef(localPlayer);
+  const placementInfoRef = useRef(placementInfo);
+  
+  // Update refs when values change
+  useEffect(() => { connectionRef.current = connection; }, [connection]);
+  useEffect(() => { playerIdentityRef.current = playerIdentity; }, [playerIdentity]);
+  useEffect(() => { localPlayerRef.current = localPlayer; }, [localPlayer]);
+  useEffect(() => { placementInfoRef.current = placementInfo; }, [placementInfo]);
 
   // Cleanup refs on unmount
   useEffect(() => {
@@ -624,12 +639,32 @@ const Hotbar: React.FC<HotbarProps> = ({
   }, [selectedSlot, isVisualCooldownActive, cooldownSlot, findItemForSlot]); // Added cooldownSlot and findItemForSlot to dependencies
 
   const activateHotbarSlot = useCallback((slotIndex: number, isMouseWheelScroll: boolean = false, currentSelectedSlot?: number) => {
+    // Debounce: Prevent duplicate rapid calls for the same slot
+    const now = Date.now();
+    if (lastActivationRef.current && 
+        lastActivationRef.current.slot === slotIndex && 
+        now - lastActivationRef.current.timestamp < 100) { // 100ms debounce
+      return; // Ignore duplicate rapid activation
+    }
+    lastActivationRef.current = { slot: slotIndex, timestamp: now };
+    
     const itemInSlot = findItemForSlot(slotIndex);
     
     // Helper to update selection state locally
+    // Note: Positive selection is handled optimistically by the caller (handleSlotClick/handleKeyDown)
+    // We only need to handle Deselection (-1) here to avoid race conditions.
     const updateSelection = (newSlot: number) => {
-        setSelectedSlot(newSlot);
+        if (newSlot === -1) {
+            setSelectedSlot(newSlot);
+            selectedSlotRef.current = newSlot; // Update ref immediately
+        }
     };
+
+    // Use refs for stable values
+    const connection = connectionRef.current;
+    const playerIdentity = playerIdentityRef.current;
+    const localPlayer = localPlayerRef.current;
+    const placementInfo = placementInfoRef.current;
 
     if (!connection?.reducers) {
       if (!itemInSlot && playerIdentity) {
@@ -673,7 +708,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     console.log(`[Hotbar] Activating slot ${slotIndex}: "${itemInSlot.definition.name}" (Category: ${categoryTag}, Equippable: ${isEquippable})`);
 
     // Use the passed currentSelectedSlot (from before state update) to reliably detect double-click
-    const previousSelectedSlot = currentSelectedSlot !== undefined ? currentSelectedSlot : selectedSlot;
+    // Always prefer the passed value over state to avoid stale closures
+    const previousSelectedSlot = currentSelectedSlot !== undefined ? currentSelectedSlot : selectedSlotRef.current;
     const isDoubleClick = previousSelectedSlot === slotIndex && !isMouseWheelScroll;
     
     // Handle Consumable category items (food, drinks, etc.)
@@ -709,18 +745,13 @@ const Hotbar: React.FC<HotbarProps> = ({
         placementInfo.itemName === itemInSlot.definition.name && 
         previousSelectedSlot === slotIndex;
 
-      if (isAlreadyPlacingThisItem && isSeed && !isMouseWheelScroll) {
-        // Keep placement active
-        updateSelection(slotIndex);
-        return;
-      } else if (previousSelectedSlot === slotIndex && !isMouseWheelScroll && !isSeed && isAlreadyPlacingThisItem) {
-        // Second click on non-seed placeable - cancel
-        cancelPlacement();
-        updateSelection(-1);
+      if (isAlreadyPlacingThisItem) {
+        // Already placing this item - just keep it selected, don't toggle off
+        // This prevents the "flicker" where selection alternates between -1 and slotIndex
         return;
       }
       
-      // Start placement
+      // Start placement (first time selecting this placeable)
       const placementInfoData: PlacementItemInfo = {
         itemDefId: BigInt(itemInSlot.definition.id),
         itemName: itemInSlot.definition.name,
@@ -728,7 +759,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         instanceId: BigInt(itemInSlot.instance.instanceId)
       };
       startPlacement(placementInfoData);
-      updateSelection(slotIndex);
+      // Note: Selection is already set optimistically by the handler, no need to call updateSelection here
       
       try { 
         if (playerIdentity) connection.reducers.clearActiveItemReducer(playerIdentity); 
@@ -740,16 +771,14 @@ const Hotbar: React.FC<HotbarProps> = ({
     else if (categoryTag === 'RangedWeapon' || categoryTag === 'Tool' || categoryTag === 'Weapon' || isEquippable) {
       cancelPlacement();
       
-      // Robust Toggle Check: Check if this specific item instance is currently equipped on server
-      const isEquippedOnServer = activeEquipment?.equippedItemInstanceId === instanceId;
-      
-      // Fallback to local state if server state isn't available or matching (e.g. lag)
-      // This ensures toggle works even if server hasn't confirmed equip yet
+      // Toggle Logic: Rely on LOCAL selection state for the toggle decision.
+      // This prevents "Ghost Equip" bugs where a desynced server state (Server=Equipped, Local=None)
+      // would prevent the user from selecting the item (because it would mistakenly trigger unequip).
       const isLocallySelected = previousSelectedSlot === slotIndex;
-      const shouldUnequip = (isEquippedOnServer || isLocallySelected) && !isMouseWheelScroll;
+      const shouldUnequip = isLocallySelected && !isMouseWheelScroll;
       
       if (shouldUnequip) {
-        // Unequip
+        // Unequip / Deselect
         try {
           if (playerIdentity) {
             connection.reducers.clearActiveItemReducer(playerIdentity);
@@ -759,7 +788,7 @@ const Hotbar: React.FC<HotbarProps> = ({
           console.error("Error clearActiveItemReducer on second click:", err);
         }
       } else {
-        // Equip
+        // Equip / Select
         try { 
           connection.reducers.setActiveItemReducer(instanceId); 
           updateSelection(slotIndex);
@@ -778,9 +807,12 @@ const Hotbar: React.FC<HotbarProps> = ({
       }
       updateSelection(-1);
     }
-  }, [findItemForSlot, connection, playerIdentity, cancelPlacement, startPlacement, triggerClientCooldownAnimation, isVisualCooldownActive, cooldownSlot, localPlayer, selectedSlot, placementInfo, activeEquipment]);
+  }, [findItemForSlot, cancelPlacement, startPlacement, triggerClientCooldownAnimation, isVisualCooldownActive, cooldownSlot, activeEquipment]); // Removed frequently changing values - now using refs
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+  // Stable ref for the keyboard handler to prevent event listener churn
+  const handleKeyDownRef = useRef<((event: KeyboardEvent) => void) | null>(null);
+  
+  handleKeyDownRef.current = (event: KeyboardEvent) => {
     const inventoryPanel = document.querySelector('.inventoryPanel');
     if (inventoryPanel) return;
 
@@ -793,28 +825,52 @@ const Hotbar: React.FC<HotbarProps> = ({
     }
 
     if (keyNum !== -1 && keyNum >= 1 && keyNum <= numSlots) {
+      // Debounce keyboard events - prevent duplicate rapid key events
+      const now = Date.now();
+      const keyCode = event.code;
       const newSlotIndex = keyNum - 1;
-      const currentSlot = selectedSlot; // Capture current value before state update
-      const itemInSlot = findItemForSlot(newSlotIndex);
-      console.log(`[Hotbar] Keyboard ${keyNum} pressed: newSlotIndex=${newSlotIndex}, currentSlot=${currentSlot}, item=${itemInSlot?.definition.name}, category=${itemInSlot?.definition.category.tag}, isEquippable=${itemInSlot?.definition.isEquippable}`);
       
-      // Delegate all state updates to activateHotbarSlot to prevent flickering/race conditions
+      // Allow switching to DIFFERENT slots immediately, only debounce SAME slot
+      if (lastKeyPressRef.current && 
+          lastKeyPressRef.current.key === keyCode && 
+          selectedSlotRef.current === newSlotIndex && // Only debounce if SAME slot
+          now - lastKeyPressRef.current.timestamp < 150) { // 150ms debounce for keyboard
+        event.preventDefault();
+        return; // Ignore duplicate rapid key press
+      }
+      lastKeyPressRef.current = { key: keyCode, timestamp: now };
+      
+      event.preventDefault(); // Prevent default browser behavior
+      
+      const currentSlot = selectedSlotRef.current; // Use ref for immediate value
+      
+      // Optimistic update for instant feedback - client authoritative
+      setSelectedSlot(newSlotIndex);
+      selectedSlotRef.current = newSlotIndex; // Update ref immediately for rapid clicks
       activateHotbarSlot(newSlotIndex, false, currentSlot);
     }
-  }, [numSlots, activateHotbarSlot, selectedSlot, findItemForSlot]); // Updated dependencies
+  };
 
+  // Stable event listener that never gets removed/re-added
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+    const stableHandler = (event: KeyboardEvent) => {
+      handleKeyDownRef.current?.(event);
     };
-  }, [handleKeyDown]);
+    
+    window.addEventListener('keydown', stableHandler);
+    return () => {
+      window.removeEventListener('keydown', stableHandler);
+    };
+  }, []); // Empty deps - listener never changes
 
   const handleSlotClick = (index: number) => {
       // console.log('[Hotbar] Slot clicked:', index);
-      const currentSlot = selectedSlot; // Capture current value before state update
+      const currentSlot = selectedSlotRef.current; // Use ref for immediate value
       
-      // Delegate all state updates to activateHotbarSlot to prevent flickering/race conditions
+      // Optimistic update for instant feedback - client authoritative
+      setSelectedSlot(index);
+      selectedSlotRef.current = index; // Update ref immediately for rapid clicks
+      
       activateHotbarSlot(index, false, currentSlot); // Pass the current slot
   };
 
@@ -1102,13 +1158,11 @@ const Hotbar: React.FC<HotbarProps> = ({
   }, []);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('wheel', handleWheel, { passive: false }); // Add wheel listener, not passive
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [handleKeyDown, handleWheel]); // Add handleWheel to dependencies
+  }, [handleWheel]); // Removed handleKeyDown - now using stable ref pattern above
 
   // Calculate overlay position for server-triggered effects
   const getSlotPosition = (slotIndex: number) => {
