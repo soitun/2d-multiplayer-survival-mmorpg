@@ -250,7 +250,7 @@ pub fn seed_world_state(ctx: &ReducerContext) -> Result<(), String> {
         let cleanup_interval = TimeDuration::from_micros(5_000_000); // 5 seconds
         let cleanup_schedule = ThunderEventCleanupSchedule {
             schedule_id: 0,
-            scheduled_at: cleanup_interval.into(), // Periodic cleanup
+            scheduled_at: ScheduleAt::Interval(cleanup_interval), // Periodic cleanup
         };
         match ctx.db.thunder_event_cleanup_schedule().try_insert(cleanup_schedule) {
             Ok(_) => log::info!("⚡ Thunder event cleanup system initialized"),
@@ -1293,12 +1293,13 @@ fn start_seasonal_plant_transition(ctx: &ReducerContext, new_season: &Season) ->
         for batch in 0..TRANSITION_DURATION_MINUTES {
             let delay_seconds = (batch as u64) * SPAWN_INTERVAL_SECONDS;
             let progress = (batch as f32) / (TRANSITION_DURATION_MINUTES as f32);
+            let scheduled_time = ctx.timestamp + spacetimedb::TimeDuration::from_micros((delay_seconds * 1_000_000) as i64);
             
             crate::try_insert_schedule!(
                 ctx.db.seasonal_plant_management_schedule(),
                 SeasonalPlantManagementSchedule {
                     schedule_id: 0,
-                    scheduled_at: spacetimedb::TimeDuration::from_micros((delay_seconds * 1_000_000) as i64).into(),
+                    scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt::Time(scheduled_time),
                     transition_season: new_season.clone(),
                     transition_progress: progress,
                     spawn_batch_size: batch_size,

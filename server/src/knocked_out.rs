@@ -1,4 +1,4 @@
-use spacetimedb::{Identity, Timestamp, ReducerContext, Table, log};
+use spacetimedb::{Identity, Timestamp, ReducerContext, Table, log, ScheduleAt};
 use rand::Rng; // For random recovery/death chances
 
 // Import table traits needed
@@ -199,7 +199,7 @@ pub fn process_knocked_out_recovery(ctx: &ReducerContext, args: KnockedOutRecove
         let new_schedule_for_next_check = KnockedOutRecoverySchedule {
             schedule_id: 0, // Let SpacetimeDB auto-increment for the new entry
             player_id,
-            scheduled_at: next_check_time.into(),
+            scheduled_at: ScheduleAt::Time(next_check_time),
             check_count: next_check_count,
         };
 
@@ -229,7 +229,7 @@ pub fn schedule_knocked_out_recovery(ctx: &ReducerContext, player_id: Identity) 
     let schedule_entry = KnockedOutRecoverySchedule {
         schedule_id: 0, // Auto-incremented by SpacetimeDB
         player_id,
-        scheduled_at: first_check_time.into(),
+        scheduled_at: ScheduleAt::Time(first_check_time),
         check_count: 1,
     };
 

@@ -1,4 +1,4 @@
-use spacetimedb::{SpacetimeType, Identity, Timestamp, table, reducer, ReducerContext, Table, log, TimeDuration};
+use spacetimedb::{SpacetimeType, Identity, Timestamp, table, reducer, ReducerContext, Table, log, TimeDuration, ScheduleAt};
 use rand::Rng;
 use std::time::Duration;
 use crate::environment;
@@ -146,7 +146,7 @@ pub fn debug_update_cloud_intensity(ctx: &ReducerContext) -> Result<(), String> 
     log::info!("Debug: Manually triggering cloud intensity update");
     update_cloud_intensities(ctx, CloudIntensitySchedule {
         schedule_id: 0,
-        scheduled_at: ctx.timestamp.into(),
+        scheduled_at: ScheduleAt::Time(ctx.timestamp.into()),
     })?;
     Ok(())
 }
@@ -289,7 +289,7 @@ pub fn init_cloud_intensity_system(ctx: &ReducerContext) -> Result<(), String> {
         ctx.db.cloud_intensity_schedule(),
         CloudIntensitySchedule {
             schedule_id: 0,
-            scheduled_at: update_interval.into(),
+            scheduled_at: ScheduleAt::Interval(update_interval),
         },
         "Cloud intensity"
     );

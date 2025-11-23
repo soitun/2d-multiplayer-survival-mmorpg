@@ -348,7 +348,7 @@ pub fn init_sound_cleanup_system(ctx: &ReducerContext) -> Result<(), String> {
     
     let cleanup_schedule = SoundEventCleanupSchedule {
         schedule_id: 0,
-        scheduled_at: cleanup_interval.into(), // Periodic cleanup
+        scheduled_at: ScheduleAt::Interval(cleanup_interval), // Periodic cleanup
     };
 
     match ctx.db.sound_event_cleanup_schedule().try_insert(cleanup_schedule) {

@@ -92,7 +92,7 @@ pub fn schedule_effect_processing(ctx: &ReducerContext) -> Result<(), String> {
             ProcessEffectsSchedule {
                 job_id: 0,
                 job_name: "process_consumable_effects".to_string(),
-                scheduled_at: TimeDuration::from_micros(1_000_000).into(),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from_micros(1_000_000)),
             },
             "Active consumable effect processing"
         );

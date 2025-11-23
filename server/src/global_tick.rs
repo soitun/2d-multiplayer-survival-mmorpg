@@ -35,7 +35,7 @@ pub fn init_global_tick_schedule(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             GlobalTickSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Global tick"
         );

@@ -9,7 +9,7 @@
  *                                                                            *
  ******************************************************************************/
 
- use spacetimedb::{ReducerContext, Identity, Timestamp, Table, TimeDuration};
+ use spacetimedb::{ReducerContext, Identity, Timestamp, Table, TimeDuration, ScheduleAt};
  use std::f32::consts::PI;
  use rand::Rng;
  use log;
@@ -577,7 +577,7 @@ pub fn init_viper_spittle_system(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             ViperSpittleUpdateSchedule {
                 id: 0,
-                scheduled_at: update_interval.into(),
+                scheduled_at: ScheduleAt::Interval(update_interval),
             },
             "Viper spittle projectile"
         );

@@ -413,7 +413,7 @@ pub fn init_plant_growth_system(ctx: &ReducerContext) -> Result<(), String> {
             ctx.db.planted_seed_growth_schedule(),
             PlantedSeedGrowthSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Interval(check_interval),
             },
             "Plant growth"
         );

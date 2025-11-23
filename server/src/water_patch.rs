@@ -72,7 +72,7 @@ pub fn init_water_patch_system(ctx: &ReducerContext) -> Result<(), String> {
             ctx.db.water_patch_cleanup_schedule(),
             WaterPatchCleanupSchedule {
                 id: 0,
-                scheduled_at: cleanup_interval.into(),
+                scheduled_at: ScheduleAt::Interval(cleanup_interval),
             },
             "Water patch cleanup"
         );

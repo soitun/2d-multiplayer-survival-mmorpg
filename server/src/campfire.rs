@@ -1048,13 +1048,13 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
              let interval = TimeDuration::from_micros((CAMPFIRE_PROCESS_INTERVAL_SECS * 1_000_000) as i64);
              let schedule_entry = CampfireProcessingSchedule {
                  campfire_id: campfire_id as u64,
-                 scheduled_at: interval.into(),
+                 scheduled_at: ScheduleAt::Interval(interval),
              };
              // Try to insert; if it already exists (e.g. PK conflict), update it.
              if schedules.campfire_id().find(campfire_id as u64).is_some() {
                  // Schedule exists, update it
                  let mut existing_schedule = schedules.campfire_id().find(campfire_id as u64).unwrap();
-                 existing_schedule.scheduled_at = interval.into();
+                 existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
                  schedules.campfire_id().update(existing_schedule);
                  log::debug!("[ScheduleCampfire] Updated existing periodic processing schedule for burning campfire {}.", campfire_id);
              } else {
@@ -1067,7 +1067,7 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
                          log::warn!("[ScheduleCampfire] Failed to insert new schedule for campfire {} despite not finding one: {}. Attempting update as fallback.", campfire_id, e);
                          // Attempt to update the existing schedule if PK is the issue (assuming PK is campfire_id)
                          if let Some(mut existing_schedule_fallback) = schedules.campfire_id().find(campfire_id as u64) {
-                             existing_schedule_fallback.scheduled_at = interval.into();
+                             existing_schedule_fallback.scheduled_at = ScheduleAt::Interval(interval);
                              schedules.campfire_id().update(existing_schedule_fallback);
                              log::debug!("[ScheduleCampfire] Fallback update of existing schedule for burning campfire {}.", campfire_id);
                          } else {

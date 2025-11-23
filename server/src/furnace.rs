@@ -811,7 +811,7 @@ pub fn schedule_next_furnace_processing(ctx: &ReducerContext, furnace_id: u32) -
         let interval = TimeDuration::from_micros((FURNACE_PROCESS_INTERVAL_SECS * 1_000_000) as i64);
         let schedule = FurnaceProcessingSchedule {
             furnace_id: furnace_id as u64,
-            scheduled_at: interval.into(), // PERIODIC - same as campfire
+            scheduled_at: ScheduleAt::Interval(interval), // PERIODIC - same as campfire
         };
         match ctx.db.furnace_processing_schedule().try_insert(schedule) {
             Ok(_) => log::debug!("Scheduled periodic processing for furnace {}", furnace_id),

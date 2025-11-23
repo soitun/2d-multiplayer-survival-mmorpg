@@ -1,4 +1,4 @@
-use spacetimedb::{Identity, ReducerContext, Table, Timestamp};
+use spacetimedb::{Identity, ReducerContext, Table, Timestamp, TimeDuration};
 use spacetimedb::spacetimedb_lib::ScheduleAt;
 use spacetimedb::table;
 use log;
@@ -160,7 +160,7 @@ pub fn init_player_stat_schedule(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             PlayerStatSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Player stat"
         );

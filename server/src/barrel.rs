@@ -11,7 +11,7 @@
 //! - Automatic respawning after destruction
 //! - Collision detection similar to storage boxes
 
-use spacetimedb::{ReducerContext, SpacetimeType, Table, Timestamp, Identity};
+use spacetimedb::{ReducerContext, SpacetimeType, Table, Timestamp, Identity, TimeDuration};
 use log;
 use rand::Rng;
 use std::time::Duration;
@@ -400,7 +400,7 @@ pub(crate) fn init_barrel_system(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             BarrelRespawnSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(check_interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(check_interval)),
             },
             "Barrel respawn"
         );

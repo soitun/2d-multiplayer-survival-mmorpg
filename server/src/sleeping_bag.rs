@@ -500,14 +500,14 @@ pub(crate) fn schedule_sleeping_bag_deterioration(ctx: &ReducerContext, bag_id: 
     // Check if schedule already exists
     if let Some(mut existing_schedule) = schedules.sleeping_bag_id().find(bag_id) {
         // Update existing schedule
-        existing_schedule.scheduled_at = interval.into();
+        existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
         schedules.sleeping_bag_id().update(existing_schedule);
         log::debug!("[ScheduleSleepingBagDeterioration] Updated deterioration schedule for sleeping bag {}.", bag_id);
     } else {
         // Insert new schedule
         let schedule_entry = SleepingBagDeteriorationSchedule {
             sleeping_bag_id: bag_id,
-            scheduled_at: interval.into(),
+            scheduled_at: ScheduleAt::Interval(interval),
         };
         match schedules.try_insert(schedule_entry) {
             Ok(_) => log::debug!("[ScheduleSleepingBagDeterioration] Scheduled deterioration for sleeping bag {}.", bag_id),

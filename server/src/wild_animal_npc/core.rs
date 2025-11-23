@@ -467,7 +467,7 @@ pub fn init_wild_animal_ai_schedule(ctx: &ReducerContext) -> Result<(), String> 
             schedule_table,
             WildAnimalAiSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Wild animal AI"
         );

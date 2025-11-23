@@ -657,7 +657,7 @@ pub fn init_building_privilege_check_schedule(ctx: &ReducerContext) -> Result<()
             schedule_table,
             BuildingPrivilegeCheckSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Building privilege check"
         );
@@ -732,7 +732,7 @@ pub fn init_hearth_upkeep_schedule(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             HearthUpkeepSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Hearth upkeep"
         );

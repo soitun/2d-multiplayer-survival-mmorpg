@@ -708,7 +708,7 @@ pub fn init_crafting_schedule(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             CraftingFinishSchedule {
                 id: 0,
-                scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt::Interval(interval.into()),
+                scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt::Interval(spacetimedb::TimeDuration::from(interval)),
             },
             "Crafting finish check"
         );

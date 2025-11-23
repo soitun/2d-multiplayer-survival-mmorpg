@@ -1695,7 +1695,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             ctx.db.cloud_update_schedule(),
             CloudUpdateSchedule {
                 schedule_id: 0,
-                scheduled_at: spacetimedb::TimeDuration::from_micros((update_interval_seconds * 1_000_000.0) as i64).into(),
+                scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt::Interval(spacetimedb::TimeDuration::from_micros((update_interval_seconds * 1_000_000.0) as i64)),
                 delta_time_seconds: update_interval_seconds,
             },
             "Cloud update"

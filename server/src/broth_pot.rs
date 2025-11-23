@@ -1895,12 +1895,12 @@ pub fn schedule_next_broth_pot_processing(ctx: &ReducerContext, broth_pot_id: u3
         let interval = TimeDuration::from_micros((BROTH_POT_PROCESS_INTERVAL_SECS * 1_000_000) as i64);
         let schedule_entry = BrothPotProcessingSchedule {
             broth_pot_id: broth_pot_id as u64,
-            scheduled_at: interval.into(),
+            scheduled_at: ScheduleAt::Interval(interval),
         };
 
         if schedules.broth_pot_id().find(broth_pot_id as u64).is_some() {
             let mut existing_schedule = schedules.broth_pot_id().find(broth_pot_id as u64).unwrap();
-            existing_schedule.scheduled_at = interval.into();
+            existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
             schedules.broth_pot_id().update(existing_schedule);
         } else {
             match schedules.try_insert(schedule_entry) {

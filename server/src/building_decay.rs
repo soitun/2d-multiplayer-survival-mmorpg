@@ -99,7 +99,7 @@ pub fn init_building_decay_schedule(ctx: &ReducerContext) -> Result<(), String> 
             schedule_table,
             BuildingDecaySchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Building decay"
         );

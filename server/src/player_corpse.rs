@@ -842,7 +842,7 @@ pub fn create_player_corpse(ctx: &ReducerContext, dead_player_id: Identity, deat
         corpse_schedules,
         PlayerCorpseDespawnSchedule {
             corpse_id: new_corpse_id as u64,
-            scheduled_at: despawn_time.into(),
+            scheduled_at: ScheduleAt::Time(despawn_time),
         },
         "Player corpse despawn"
     );

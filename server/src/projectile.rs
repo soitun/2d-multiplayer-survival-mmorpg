@@ -132,7 +132,7 @@ pub fn init_projectile_system(ctx: &ReducerContext) -> Result<(), String> {
             schedule_table,
             ProjectileUpdateSchedule {
                 id: 0,
-                scheduled_at: update_interval.into(),
+                scheduled_at: ScheduleAt::Interval(update_interval),
             },
             "Projectile collision detection"
         );

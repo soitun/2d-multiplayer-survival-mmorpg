@@ -8,7 +8,7 @@
  *                                                                            *
  ******************************************************************************/
 
-use spacetimedb::{SpacetimeType, Timestamp, Table};
+use spacetimedb::{SpacetimeType, Timestamp, Table, ScheduleAt};
 use crate::{PLAYER_RADIUS};
 use crate::world_state::{Season, world_state as WorldStateTableTrait};
 use crate::items::item_definition as ItemDefinitionTableTrait;
@@ -344,11 +344,12 @@ pub fn spawn_memory_shards_at_night(
     if !is_night_period {
         // Not night time, reschedule for later
         let check_interval = TimeDuration::from(Duration::from_secs(BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         crate::try_insert_schedule!(
             ctx.db.rune_stone_shard_spawn_schedule(),
             RuneStoneShardSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone shard spawn (reschedule)"
         );
@@ -469,11 +470,12 @@ pub fn spawn_memory_shards_at_night(
     
     // Reschedule for next check
     let check_interval = TimeDuration::from(Duration::from_secs(BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS));
+    let scheduled_time = ctx.timestamp + check_interval;
     crate::try_insert_schedule!(
         ctx.db.rune_stone_shard_spawn_schedule(),
         RuneStoneShardSpawnSchedule {
             id: 0,
-            scheduled_at: check_interval.into(),
+            scheduled_at: ScheduleAt::Time(scheduled_time),
         },
         "Rune stone shard spawn (reschedule)"
     );
@@ -513,11 +515,12 @@ pub fn spawn_items_at_night(
     
     if !is_night_period {
         let check_interval = TimeDuration::from(Duration::from_secs(RED_RUNE_ITEM_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         crate::try_insert_schedule!(
             ctx.db.rune_stone_item_spawn_schedule(),
             RuneStoneItemSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone item spawn (reschedule)"
         );
@@ -645,11 +648,12 @@ pub fn spawn_items_at_night(
     
     // Reschedule
     let check_interval = TimeDuration::from(Duration::from_secs(RED_RUNE_ITEM_SPAWN_INTERVAL_SECS));
+    let scheduled_time = ctx.timestamp + check_interval;
     crate::try_insert_schedule!(
         ctx.db.rune_stone_item_spawn_schedule(),
         RuneStoneItemSpawnSchedule {
             id: 0,
-            scheduled_at: check_interval.into(),
+            scheduled_at: ScheduleAt::Time(scheduled_time),
         },
         "Rune stone item spawn (reschedule)"
     );
@@ -690,11 +694,12 @@ pub fn spawn_seeds_at_night(
     
     if !is_night_period {
         let check_interval = TimeDuration::from(Duration::from_secs(GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         crate::try_insert_schedule!(
             ctx.db.rune_stone_seed_spawn_schedule(),
             RuneStoneSeedSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone seed spawn (reschedule)"
         );
@@ -847,11 +852,12 @@ pub fn spawn_seeds_at_night(
     
     // Reschedule
     let check_interval = TimeDuration::from(Duration::from_secs(GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS));
+    let scheduled_time = ctx.timestamp + check_interval;
     crate::try_insert_schedule!(
         ctx.db.rune_stone_seed_spawn_schedule(),
         RuneStoneSeedSpawnSchedule {
             id: 0,
-            scheduled_at: check_interval.into(),
+            scheduled_at: ScheduleAt::Time(scheduled_time),
         },
         "Rune stone seed spawn (reschedule)"
     );
@@ -867,12 +873,13 @@ pub fn init_rune_stone_shard_spawning(ctx: &spacetimedb::ReducerContext) -> Resu
     // Only start if no existing schedule
     if ctx.db.rune_stone_shard_spawn_schedule().count() == 0 {
         let check_interval = TimeDuration::from(Duration::from_secs(BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         
         crate::try_insert_schedule!(
             ctx.db.rune_stone_shard_spawn_schedule(),
             RuneStoneShardSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone shard spawning"
         );
@@ -888,12 +895,13 @@ pub fn init_rune_stone_item_spawning(ctx: &spacetimedb::ReducerContext) -> Resul
     
     if ctx.db.rune_stone_item_spawn_schedule().count() == 0 {
         let check_interval = TimeDuration::from(Duration::from_secs(RED_RUNE_ITEM_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         
         crate::try_insert_schedule!(
             ctx.db.rune_stone_item_spawn_schedule(),
             RuneStoneItemSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone item spawning"
         );
@@ -909,12 +917,13 @@ pub fn init_rune_stone_seed_spawning(ctx: &spacetimedb::ReducerContext) -> Resul
     
     if ctx.db.rune_stone_seed_spawn_schedule().count() == 0 {
         let check_interval = TimeDuration::from(Duration::from_secs(GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS));
+        let scheduled_time = ctx.timestamp + check_interval;
         
         crate::try_insert_schedule!(
             ctx.db.rune_stone_seed_spawn_schedule(),
             RuneStoneSeedSpawnSchedule {
                 id: 0,
-                scheduled_at: check_interval.into(),
+                scheduled_at: ScheduleAt::Time(scheduled_time),
             },
             "Rune stone seed spawning"
         );

@@ -1,4 +1,4 @@
-use spacetimedb::{Identity, Timestamp, ReducerContext, Table};
+use spacetimedb::{Identity, Timestamp, ReducerContext, Table, ScheduleAt};
 use log;
 use rand::Rng;
 
@@ -741,7 +741,7 @@ pub fn init_dodge_roll_cleanup_system(ctx: &ReducerContext) -> Result<(), String
         ctx.db.dodge_roll_cleanup_schedule(),
         DodgeRollCleanupSchedule {
             id: 0,
-            scheduled_at: spacetimedb::TimeDuration::from_micros(cleanup_interval_micros).into(),
+            scheduled_at: ScheduleAt::Interval(spacetimedb::TimeDuration::from_micros(cleanup_interval_micros)),
         },
         "Dodge roll cleanup"
     );

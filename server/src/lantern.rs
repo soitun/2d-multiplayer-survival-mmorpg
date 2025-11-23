@@ -579,7 +579,7 @@ pub fn schedule_next_lantern_processing(ctx: &ReducerContext, lantern_id: u32) -
     // Schedule next processing
     let next_schedule = LanternProcessingSchedule {
         lantern_id: lantern_id as u64,
-        scheduled_at: TimeDuration::from_micros(LANTERN_PROCESS_INTERVAL_SECS as i64 * 1_000_000).into(),
+        scheduled_at: ScheduleAt::Interval(TimeDuration::from_micros(LANTERN_PROCESS_INTERVAL_SECS as i64 * 1_000_000)),
     };
 
     existing_schedules.try_insert(next_schedule)

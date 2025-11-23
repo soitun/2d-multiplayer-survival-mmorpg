@@ -11,7 +11,7 @@
 //! - **Automatic dropping**: When inventory is full, items are dropped near the player
 //! - Public API for other modules to give items with fallback dropping
 
-use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table, Timestamp};
+use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table, Timestamp, TimeDuration};
 use log;
 // Use the specific import path from Blackholio
 use spacetimedb::spacetimedb_lib::ScheduleAt;
@@ -319,7 +319,7 @@ pub(crate) fn init_dropped_item_schedule(ctx: &ReducerContext) -> Result<(), Str
             schedule_table,
             DroppedItemDespawnSchedule {
                 id: 0,
-                scheduled_at: ScheduleAt::Interval(interval.into()),
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
             },
             "Dropped item despawn"
         );

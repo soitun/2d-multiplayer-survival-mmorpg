@@ -80,7 +80,7 @@ pub fn init_fire_patch_system(ctx: &ReducerContext) -> Result<(), String> {
         ctx.db.fire_patch_cleanup_schedule(),
         FirePatchCleanupSchedule {
             id: 0,
-            scheduled_at: cleanup_interval.into(),
+            scheduled_at: ScheduleAt::Interval(cleanup_interval),
         },
         "Fire patch cleanup"
     );
@@ -92,7 +92,7 @@ pub fn init_fire_patch_system(ctx: &ReducerContext) -> Result<(), String> {
         ctx.db.fire_patch_damage_schedule(),
         FirePatchDamageSchedule {
             id: 0,
-            scheduled_at: damage_interval.into(),
+            scheduled_at: ScheduleAt::Interval(damage_interval),
         },
         "Fire patch damage"
     );
