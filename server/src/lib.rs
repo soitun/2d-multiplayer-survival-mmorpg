@@ -981,12 +981,15 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
          return Err(format!("CRITICAL ERROR: No coastal beach tiles found after random sampling! Cannot spawn player."));
     }
     
-    // Step 2: Find a valid spawn point from coastal beach tiles (with relaxed collision detection)
+    // Step 2: Find a valid spawn point from coastal beach tiles (OPTIMIZED with spatial queries)
     let mut spawn_x: f32;
     let mut spawn_y: f32;
     let max_spawn_attempts = 50; // Increased attempts significantly
     let mut spawn_attempt = 0;
     let mut last_collision_reason = String::new();
+    
+    // OPTIMIZATION: Define search radius once (used for all spatial queries)
+    const SPAWN_SEARCH_RADIUS: f32 = 200.0; // Check entities within 200px radius
     
     // Try to find a valid spawn on a random coastal beach tile
     loop {
@@ -1001,80 +1004,87 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         log::debug!("Attempt {}: Testing spawn at coastal beach tile ({}, {}) -> world pos ({:.1}, {:.1})", 
                    spawn_attempt + 1, selected_tile.world_x, selected_tile.world_y, spawn_x, spawn_y);
         
-        // Step 3: Check for collisions at this beach tile position (RELAXED collision detection)
+        // Step 3: Check for collisions at this beach tile position (OPTIMIZED spatial queries)
         let mut collision = false;
         last_collision_reason.clear();
         
-        // Check collision with other players (more lenient spacing)
-        for other_player in players.iter() {
-            if other_player.is_dead { continue; }
-            let dx = spawn_x - other_player.position_x;
-            let dy = spawn_y - other_player.position_y;
-            let distance_sq = dx * dx + dy * dy;
-            let min_distance_sq = PLAYER_RADIUS * PLAYER_RADIUS * 2.0; // Reduced spacing requirement
-            if distance_sq < min_distance_sq {
-                collision = true;
-                last_collision_reason = format!("Player collision (distance: {:.1})", distance_sq.sqrt());
-                break;
-            }
-        }
+        // OPTIMIZATION: Use spatial grid for ALL collision checks (players, trees, stones, etc.)
+        // This avoids scanning entire tables and only checks nearby entities
+        let spatial_grid = crate::spatial_grid::get_cached_spatial_grid(&ctx.db, ctx.timestamp);
+        let nearby_entities = spatial_grid.get_entities_in_range(spawn_x, spawn_y);
         
-        // Check collision with trees (more lenient)
-        if !collision {
-            for tree in trees.iter() {
-                if tree.health == 0 { continue; }
-                let dx = spawn_x - tree.pos_x;
-                let dy = spawn_y - (tree.pos_y - crate::tree::TREE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::tree::PLAYER_TREE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Tree collision at ({:.1}, {:.1})", tree.pos_x, tree.pos_y);
-                    break;
-                }
+        for entity in nearby_entities {
+            match entity {
+                crate::spatial_grid::EntityType::Player(other_player_id) => {
+                    // Check collision with other players (more lenient spacing)
+                    if other_player_id == sender_id { continue; } // Skip self
+                    if let Some(other_player) = players.identity().find(&other_player_id) {
+                        if other_player.is_dead { continue; }
+                        let dx = spawn_x - other_player.position_x;
+                        let dy = spawn_y - other_player.position_y;
+                        let distance_sq = dx * dx + dy * dy;
+                        let min_distance_sq = PLAYER_RADIUS * PLAYER_RADIUS * 2.0; // Reduced spacing requirement
+                        if distance_sq < min_distance_sq {
+                            collision = true;
+                            last_collision_reason = format!("Player collision (distance: {:.1})", distance_sq.sqrt());
+                            break;
+                        }
+                    }
+                },
+                crate::spatial_grid::EntityType::Tree(tree_id) => {
+                    if let Some(tree) = trees.id().find(&tree_id) {
+                        if tree.health == 0 { continue; }
+                        let dx = spawn_x - tree.pos_x;
+                        let dy = spawn_y - (tree.pos_y - crate::tree::TREE_COLLISION_Y_OFFSET);
+                        let distance_sq = dx * dx + dy * dy;
+                        if distance_sq < (crate::tree::PLAYER_TREE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                            collision = true;
+                            last_collision_reason = format!("Tree collision at ({:.1}, {:.1})", tree.pos_x, tree.pos_y);
+                            break;
+                        }
+                    }
+                },
+                crate::spatial_grid::EntityType::Stone(stone_id) => {
+                    if let Some(stone) = stones.id().find(&stone_id) {
+                        if stone.health == 0 { continue; }
+                        let dx = spawn_x - stone.pos_x;
+                        let dy = spawn_y - (stone.pos_y - crate::stone::STONE_COLLISION_Y_OFFSET);
+                        let distance_sq = dx * dx + dy * dy;
+                        if distance_sq < (crate::stone::PLAYER_STONE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                            collision = true;
+                            last_collision_reason = format!("Stone collision at ({:.1}, {:.1})", stone.pos_x, stone.pos_y);
+                            break;
+                        }
+                    }
+                },
+                crate::spatial_grid::EntityType::Campfire(campfire_id) => {
+                    if let Some(campfire) = campfires.id().find(&campfire_id) {
+                        let dx = spawn_x - campfire.pos_x;
+                        let dy = spawn_y - (campfire.pos_y - CAMPFIRE_COLLISION_Y_OFFSET);
+                        let distance_sq = dx * dx + dy * dy;
+                        if distance_sq < (PLAYER_CAMPFIRE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                            collision = true;
+                            last_collision_reason = format!("Campfire collision at ({:.1}, {:.1})", campfire.pos_x, campfire.pos_y);
+                            break;
+                        }
+                    }
+                },
+                crate::spatial_grid::EntityType::WoodenStorageBox(box_id) => {
+                    if let Some(box_instance) = wooden_storage_boxes.id().find(&box_id) {
+                        let dx = spawn_x - box_instance.pos_x;
+                        let dy = spawn_y - (box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET);
+                        let distance_sq = dx * dx + dy * dy;
+                        if distance_sq < (crate::wooden_storage_box::PLAYER_BOX_COLLISION_DISTANCE_SQUARED * 0.8) {
+                            collision = true;
+                            last_collision_reason = format!("Storage box collision at ({:.1}, {:.1})", box_instance.pos_x, box_instance.pos_y);
+                            break;
+                        }
+                    }
+                },
+                _ => {} // Ignore other entity types for spawn collision
             }
-        }
-        
-        // Check collision with stones (more lenient)
-        if !collision {
-            for stone in stones.iter() {
-                if stone.health == 0 { continue; }
-                let dx = spawn_x - stone.pos_x;
-                let dy = spawn_y - (stone.pos_y - crate::stone::STONE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::stone::PLAYER_STONE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Stone collision at ({:.1}, {:.1})", stone.pos_x, stone.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // Check collision with campfires (more lenient)
-        if !collision {
-            for campfire in campfires.iter() {
-                let dx = spawn_x - campfire.pos_x;
-                let dy = spawn_y - (campfire.pos_y - CAMPFIRE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (PLAYER_CAMPFIRE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Campfire collision at ({:.1}, {:.1})", campfire.pos_x, campfire.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // Check collision with wooden storage boxes (more lenient)
-        if !collision {
-            for box_instance in wooden_storage_boxes.iter() {
-                let dx = spawn_x - box_instance.pos_x;
-                let dy = spawn_y - (box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::wooden_storage_box::PLAYER_BOX_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Storage box collision at ({:.1}, {:.1})", box_instance.pos_x, box_instance.pos_y);
-                    break;
-                }
-            }
+            
+            if collision { break; }
         }
         
         // If no collision found, we have a valid spawn point!
