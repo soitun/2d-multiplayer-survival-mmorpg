@@ -268,13 +268,40 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                     )}
 
                     {/* Weather Control */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* Left Arrow */}
                         <button
                             onClick={(e) => {
-                                cycleWeather('forward');
+                                cycleWeather('backward');
                                 e.currentTarget.blur();
                             }}
                             onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            ←
+                        </button>
+                        
+                        {/* Weather Display Button (non-clickable) */}
+                        <div
                             style={{
                                 background: weatherColors.bg,
                                 color: weatherColors.color,
@@ -282,96 +309,85 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                 padding: '8px 12px',
                                 borderRadius: '4px',
                                 fontSize: '10px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
+                                cursor: 'default',
                                 textShadow: '0 0 5px currentColor',
                                 boxShadow: '0 0 10px rgba(255, 255, 255, 0.2)',
                                 fontFamily: 'inherit',
-                                letterSpacing: '0.5px'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.3)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.2)';
+                                letterSpacing: '0.5px',
+                                flex: 1,
+                                textAlign: 'center'
                             }}
                         >
                             ☁️ {getWeatherLabel()}
-                        </button>
-                        
-                        {/* Weather Navigation Arrows */}
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                            <button
-                                onClick={(e) => {
-                                    cycleWeather('backward');
-                                    e.currentTarget.blur();
-                                }}
-                                onFocus={(e) => e.currentTarget.blur()}
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
-                                    color: '#aaaaaa',
-                                    border: '1px solid rgba(170, 170, 170, 0.3)',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '10px',
-                                    cursor: 'pointer',
-                                    minWidth: '32px',
-                                    transition: 'all 0.2s ease',
-                                    fontFamily: 'inherit'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
-                                    e.currentTarget.style.color = '#ffffff';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
-                                    e.currentTarget.style.color = '#aaaaaa';
-                                }}
-                            >
-                                ←
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    cycleWeather('forward');
-                                    e.currentTarget.blur();
-                                }}
-                                onFocus={(e) => e.currentTarget.blur()}
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
-                                    color: '#aaaaaa',
-                                    border: '1px solid rgba(170, 170, 170, 0.3)',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '10px',
-                                    cursor: 'pointer',
-                                    minWidth: '32px',
-                                    transition: 'all 0.2s ease',
-                                    fontFamily: 'inherit'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
-                                    e.currentTarget.style.color = '#ffffff';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
-                                    e.currentTarget.style.color = '#aaaaaa';
-                                }}
-                            >
-                                →
-                            </button>
                         </div>
-                    </div>
-
-                    {/* Time Control */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        
+                        {/* Right Arrow */}
                         <button
                             onClick={(e) => {
-                                cycleTime('forward');
+                                cycleWeather('forward');
                                 e.currentTarget.blur();
                             }}
                             onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            →
+                        </button>
+                    </div>
+
+                    {/* Time Control */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* Left Arrow */}
+                        <button
+                            onClick={(e) => {
+                                cycleTime('backward');
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            ←
+                        </button>
+                        
+                        {/* Time Display Button (non-clickable) */}
+                        <div
                             style={{
                                 background: timeColors.bg,
                                 color: timeColors.color,
@@ -379,86 +395,48 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                 padding: '8px 12px',
                                 borderRadius: '4px',
                                 fontSize: '10px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
+                                cursor: 'default',
                                 textShadow: '0 0 5px currentColor',
                                 boxShadow: '0 0 10px rgba(255, 255, 255, 0.2)',
                                 fontFamily: 'inherit',
-                                letterSpacing: '0.5px'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.3)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.2)';
+                                letterSpacing: '0.5px',
+                                flex: 1,
+                                textAlign: 'center'
                             }}
                         >
                             🕐 {worldState?.timeOfDay?.tag || 'UNKNOWN'}
-                        </button>
-                        
-                        {/* Time Navigation Arrows */}
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                            <button
-                                onClick={(e) => {
-                                    cycleTime('backward');
-                                    e.currentTarget.blur();
-                                }}
-                                onFocus={(e) => e.currentTarget.blur()}
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
-                                    color: '#aaaaaa',
-                                    border: '1px solid rgba(170, 170, 170, 0.3)',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '10px',
-                                    cursor: 'pointer',
-                                    minWidth: '32px',
-                                    transition: 'all 0.2s ease',
-                                    fontFamily: 'inherit'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
-                                    e.currentTarget.style.color = '#ffffff';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
-                                    e.currentTarget.style.color = '#aaaaaa';
-                                }}
-                            >
-                                ←
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    cycleTime('forward');
-                                    e.currentTarget.blur();
-                                }}
-                                onFocus={(e) => e.currentTarget.blur()}
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
-                                    color: '#aaaaaa',
-                                    border: '1px solid rgba(170, 170, 170, 0.3)',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '10px',
-                                    cursor: 'pointer',
-                                    minWidth: '32px',
-                                    transition: 'all 0.2s ease',
-                                    fontFamily: 'inherit'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
-                                    e.currentTarget.style.color = '#ffffff';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
-                                    e.currentTarget.style.color = '#aaaaaa';
-                                }}
-                            >
-                                →
-                            </button>
                         </div>
+                        
+                        {/* Right Arrow */}
+                        <button
+                            onClick={(e) => {
+                                cycleTime('forward');
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            →
+                        </button>
                     </div>
                 </>
             )}

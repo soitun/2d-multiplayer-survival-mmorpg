@@ -15,6 +15,10 @@ import { gameConfig } from '../config/gameConfig';
 // 🚀 PERFORMANCE OPTIMIZATION: CHUNK SUBSCRIPTION SYSTEM - FINAL OPTIMIZED VERSION
 // ===================================================================================================
 // 
+// 🧪 CHUNK SIZE TESTING: See CHUNK_SIZE_TESTING.md for guide on testing different chunk sizes
+// Performance metrics are logged every 10 seconds when ENABLE_CHUNK_PERFORMANCE_LOGGING = true
+// ===================================================================================================
+// 
 // PROBLEM: Individual table subscriptions were causing massive lag spikes:
 // - Before: 12+ individual subscriptions per chunk
 // - With buffer=3: 49 chunks × 12 subs = 588 database calls
@@ -266,6 +270,29 @@ export const useSpacetimeTables = ({
         lastResetTime: performance.now()
     });
 
+    // 🧪 CHUNK SIZE PERFORMANCE TESTING: Track metrics for different chunk sizes
+    const chunkPerformanceMetricsRef = useRef<{
+        totalChunkCrossings: number;
+        totalSubscriptionTime: number;
+        totalSubscriptionsCreated: number;
+        chunkCrossingTimes: number[];
+        subscriptionCreationTimes: number[];
+        chunksVisibleHistory: number[];
+        lastMetricsLog: number;
+    }>({
+        totalChunkCrossings: 0,
+        totalSubscriptionTime: 0,
+        totalSubscriptionsCreated: 0,
+        chunkCrossingTimes: [],
+        subscriptionCreationTimes: [],
+        chunksVisibleHistory: [],
+        lastMetricsLog: performance.now()
+    });
+
+    // Enable/disable performance logging (set to true to enable detailed metrics)
+    const ENABLE_CHUNK_PERFORMANCE_LOGGING = true;
+    const CHUNK_METRICS_LOG_INTERVAL_MS = 10000; // Log metrics every 10 seconds
+
     // Helper function for safely unsubscribing
     const safeUnsubscribe = (sub: SubscriptionHandle) => {
         if (sub) {
@@ -283,6 +310,7 @@ export const useSpacetimeTables = ({
     const subscribeToChunk = (chunkIndex: number): SubscriptionHandle[] => {
         if (!connection) return [];
         
+        const subscriptionStartTime = ENABLE_CHUNK_PERFORMANCE_LOGGING ? performance.now() : 0;
         const newHandlesForChunk: SubscriptionHandle[] = [];
         try {
             if (ENABLE_BATCHED_SUBSCRIPTIONS) {
@@ -373,6 +401,20 @@ export const useSpacetimeTables = ({
             return [];
         }
         
+        // 🧪 PERFORMANCE TRACKING: Log subscription creation time
+        if (ENABLE_CHUNK_PERFORMANCE_LOGGING && subscriptionStartTime > 0) {
+            const subscriptionTime = performance.now() - subscriptionStartTime;
+            const metrics = chunkPerformanceMetricsRef.current;
+            metrics.totalSubscriptionTime += subscriptionTime;
+            metrics.totalSubscriptionsCreated += newHandlesForChunk.length;
+            metrics.subscriptionCreationTimes.push(subscriptionTime);
+            
+            // Keep only last 100 measurements to avoid memory bloat
+            if (metrics.subscriptionCreationTimes.length > 100) {
+                metrics.subscriptionCreationTimes.shift();
+            }
+        }
+        
         return newHandlesForChunk;
     };
 
@@ -418,6 +460,57 @@ export const useSpacetimeTables = ({
         // Calculate differences only if new chunks are needed
         const addedChunks = [...newChunkIndicesSet].filter(idx => !currentChunkIndicesSet.has(idx));
         const removedChunks = [...currentChunkIndicesSet].filter(idx => !newChunkIndicesSet.has(idx));
+
+        // 🧪 PERFORMANCE TRACKING: Track chunk crossings
+        if (ENABLE_CHUNK_PERFORMANCE_LOGGING && (addedChunks.length > 0 || removedChunks.length > 0)) {
+            const metrics = chunkPerformanceMetricsRef.current;
+            const crossingStartTime = performance.now();
+            metrics.totalChunkCrossings++;
+            metrics.chunksVisibleHistory.push(newChunkIndicesSet.size);
+            
+            // Keep only last 100 measurements
+            if (metrics.chunksVisibleHistory.length > 100) {
+                metrics.chunksVisibleHistory.shift();
+            }
+            
+            // Log periodic summary
+            const timeSinceLastLog = now - metrics.lastMetricsLog;
+            if (timeSinceLastLog >= CHUNK_METRICS_LOG_INTERVAL_MS) {
+                const avgSubscriptionTime = metrics.subscriptionCreationTimes.length > 0
+                    ? metrics.subscriptionCreationTimes.reduce((a, b) => a + b, 0) / metrics.subscriptionCreationTimes.length
+                    : 0;
+                const avgChunksVisible = metrics.chunksVisibleHistory.length > 0
+                    ? metrics.chunksVisibleHistory.reduce((a, b) => a + b, 0) / metrics.chunksVisibleHistory.length
+                    : 0;
+                const maxSubscriptionTime = metrics.subscriptionCreationTimes.length > 0
+                    ? Math.max(...metrics.subscriptionCreationTimes)
+                    : 0;
+                
+                console.log(`[CHUNK_PERF] 📊 Performance Metrics (${(timeSinceLastLog / 1000).toFixed(1)}s):`, {
+                    chunkSize: `${gameConfig.chunkSizeTiles}×${gameConfig.chunkSizeTiles} tiles (${gameConfig.chunkSizePx}px)`,
+                    totalCrossings: metrics.totalChunkCrossings,
+                    totalSubscriptions: metrics.totalSubscriptionsCreated,
+                    avgChunksVisible: avgChunksVisible.toFixed(1),
+                    avgSubscriptionTime: `${avgSubscriptionTime.toFixed(2)}ms`,
+                    maxSubscriptionTime: `${maxSubscriptionTime.toFixed(2)}ms`,
+                    totalSubscriptionTime: `${metrics.totalSubscriptionTime.toFixed(2)}ms`,
+                    crossingsPerSecond: (metrics.totalChunkCrossings / (timeSinceLastLog / 1000)).toFixed(2)
+                });
+                
+                // Reset metrics for next interval
+                metrics.totalChunkCrossings = 0;
+                metrics.totalSubscriptionTime = 0;
+                metrics.totalSubscriptionsCreated = 0;
+                metrics.lastMetricsLog = now;
+            }
+            
+            // Track this crossing time
+            const crossingTime = performance.now() - crossingStartTime;
+            metrics.chunkCrossingTimes.push(crossingTime);
+            if (metrics.chunkCrossingTimes.length > 100) {
+                metrics.chunkCrossingTimes.shift();
+            }
+        }
 
         // Only proceed if there are actual changes
         if (addedChunks.length > 0 || removedChunks.length > 0) {

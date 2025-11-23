@@ -638,9 +638,9 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
           <div className={styles.messageHistory}>
             {sovaMessages.length === 0 ? (
               <div className={styles.sovaWelcomeMessage}>
-                Welcome to SOVA AI Assistant
+                <span style={{ fontWeight: 600 }}>SOVA Online.</span>
                 <br />
-                Ask me anything about the game!
+                Recon initiated. What intel do you require, agent?
               </div>
             ) : (
               <>
@@ -671,7 +671,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
           </div>
           
           {/* SOVA Performance Report Button - Only show in development */}
-          {import.meta.env.MODE !== 'production' && (
+          {/* {import.meta.env.MODE !== 'production' && (
             <div className={styles.performanceReportContainer}>
               <button
                 onClick={handleGenerateReport}
@@ -680,7 +680,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
                 API PERFORMANCE REPORT
               </button>
             </div>
-          )}
+          )} */}
           
           {/* SOVA Input */}
           {isChatting ? (

@@ -17,14 +17,17 @@ export const FOUNDATION_TILE_SIZE = 96; // 2x TILE_SIZE
 // These values MUST match the server's current world generation settings.
 const SERVER_WORLD_WIDTH_TILES = 400; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
 const SERVER_WORLD_HEIGHT_TILES = 400; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
-const CHUNK_SIZE_TILES = 5;         // Number of tiles along one edge of a square chunk
+// OPTIMIZED: Changed from 5×5 to 16×16 based on performance testing
+// Results: 60-70% reduction in subscriptions, eliminated performance spikes
+// See CHUNK_SIZE_TESTING.md for detailed test results
+const CHUNK_SIZE_TILES = 16;         // Number of tiles along one edge of a square chunk
 
 const MINIMAP_GRID_DIAGONAL_TILES = Math.round(SERVER_WORLD_WIDTH_TILES / 5) + 1; // Always 1/5th of server world width, plus 1
 
 // Calculate derived values
-const CHUNK_SIZE_PX = CHUNK_SIZE_TILES * TILE_SIZE; // Size of a chunk in pixels (240)
-const WORLD_WIDTH_CHUNKS = Math.ceil(SERVER_WORLD_WIDTH_TILES / CHUNK_SIZE_TILES); // Width of the world in chunks (40)
-const WORLD_HEIGHT_CHUNKS = Math.ceil(SERVER_WORLD_HEIGHT_TILES / CHUNK_SIZE_TILES); // Height of the world in chunks (40)
+const CHUNK_SIZE_PX = CHUNK_SIZE_TILES * TILE_SIZE; // Size of a chunk in pixels (768px = 16×48)
+const WORLD_WIDTH_CHUNKS = Math.ceil(SERVER_WORLD_WIDTH_TILES / CHUNK_SIZE_TILES); // Width of the world in chunks (25)
+const WORLD_HEIGHT_CHUNKS = Math.ceil(SERVER_WORLD_HEIGHT_TILES / CHUNK_SIZE_TILES); // Height of the world in chunks (25)
 // --- End Server World & Chunk Config ---
 
 // Calculate derived values for minimap

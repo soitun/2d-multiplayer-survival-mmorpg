@@ -2275,8 +2275,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Render Chunk Boundaries (Debug) ---
     if (showChunkBoundaries && worldState) {
       // Chunk size in pixels (from server: CHUNK_SIZE_TILES * TILE_SIZE_PX)
-      // Based on server/src/environment.rs: CHUNK_SIZE_TILES = 5, TILE_SIZE_PX = 64
-      const CHUNK_SIZE_PX = 5 * 64; // 320 pixels per chunk
+      // Based on server/src/environment.rs: CHUNK_SIZE_TILES = 5, TILE_SIZE_PX = 48
+      // So CHUNK_SIZE_PX = 5 * 48 = 240 pixels per chunk
+      const CHUNK_SIZE_PX = gameConfig.chunkSizePx; // 240 pixels per chunk (5 tiles * 48px)
       
       ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)'; // Orange with transparency
       ctx.lineWidth = 2;
