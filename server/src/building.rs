@@ -1793,6 +1793,95 @@ pub fn damage_wall(
 
 // --- Projectile and Melee Collision Detection ---
 
+/// Checks if a moving entity (circle) collides with any walls along a path
+/// Returns Some((wall_id, collision_x, collision_y)) if collision occurs
+/// This performs a continuous collision detection (sweep) to prevent tunneling
+pub fn check_entity_path_collision(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+    radius: f32,
+) -> Option<(u64, f32, f32)> {
+    const WALL_COLLISION_THICKNESS: f32 = 6.0;
+    
+    let walls = ctx.db.wall_cell();
+    
+    // Calculate bounding box of the movement
+    let min_x = start_x.min(end_x) - radius;
+    let max_x = start_x.max(end_x) + radius;
+    let min_y = start_y.min(end_y) - radius;
+    let max_y = start_y.max(end_y) + radius;
+    
+    // Determine grid cells to check (include padding for radius)
+    let start_tile_x = ((min_x - FOUNDATION_TILE_SIZE_PX as f32) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let end_tile_x = ((max_x + FOUNDATION_TILE_SIZE_PX as f32) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32;
+    let start_tile_y = ((min_y - FOUNDATION_TILE_SIZE_PX as f32) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let end_tile_y = ((max_y + FOUNDATION_TILE_SIZE_PX as f32) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32;
+    
+    let mut closest_collision: Option<(u64, f32, f32, f32)> = None; // (id, x, y, dist_sq)
+    
+    for tile_x in start_tile_x..=end_tile_x {
+        for tile_y in start_tile_y..=end_tile_y {
+            // Find walls on this tile
+            for wall in walls.idx_cell_coords().filter((tile_x, tile_y)) {
+                if wall.is_destroyed {
+                    continue;
+                }
+                
+                // Calculate wall edge collision bounds
+                let tile_left = tile_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let tile_top = tile_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let tile_right = tile_left + FOUNDATION_TILE_SIZE_PX as f32;
+                let tile_bottom = tile_top + FOUNDATION_TILE_SIZE_PX as f32;
+                
+                // Determine wall bounds based on edge
+                let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match wall.edge {
+                    0 => (tile_left, tile_right, tile_top - WALL_COLLISION_THICKNESS/2.0, tile_top + WALL_COLLISION_THICKNESS/2.0), // N
+                    1 => (tile_right - WALL_COLLISION_THICKNESS/2.0, tile_right + WALL_COLLISION_THICKNESS/2.0, tile_top, tile_bottom), // E
+                    2 => (tile_left, tile_right, tile_bottom - WALL_COLLISION_THICKNESS/2.0, tile_bottom + WALL_COLLISION_THICKNESS/2.0), // S
+                    3 => (tile_left - WALL_COLLISION_THICKNESS/2.0, tile_left + WALL_COLLISION_THICKNESS/2.0, tile_top, tile_bottom), // W
+                    _ => continue,
+                };
+                
+                // Expand wall AABB by entity radius for "circle cast"
+                // This effectively checks if the center of the entity path intersects the expanded wall
+                let expanded_min_x = wall_min_x - radius;
+                let expanded_max_x = wall_max_x + radius;
+                let expanded_min_y = wall_min_y - radius;
+                let expanded_max_y = wall_max_y + radius;
+                
+                if line_intersects_aabb(start_x, start_y, end_x, end_y, expanded_min_x, expanded_max_x, expanded_min_y, expanded_max_y) {
+                    // Calculate intersection point (closest point on the wall AABB to the start)
+                    // This is a simplification - for true circle cast we'd solve quadratic, 
+                    // but checking expanded AABB intersection is standard for 2D top-down
+                    
+                    // Clamp start/end to the expanded box to find rough collision point
+                    let collision_x = end_x.max(expanded_min_x).min(expanded_max_x);
+                    let collision_y = end_y.max(expanded_min_y).min(expanded_max_y);
+                    
+                    let dist_sq = (collision_x - start_x).powi(2) + (collision_y - start_y).powi(2);
+                    
+                    // Keep only the closest collision
+                    match closest_collision {
+                        Some((_, _, _, best_dist)) => {
+                            if dist_sq < best_dist {
+                                closest_collision = Some((wall.id, collision_x, collision_y, dist_sq));
+                            }
+                        }
+                        None => {
+                            closest_collision = Some((wall.id, collision_x, collision_y, dist_sq));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    closest_collision.map(|(id, x, y, _)| (id, x, y))
+}
+
 /// Checks if a line segment intersects with a wall edge
 /// Returns Some((wall_id, collision_x, collision_y)) if collision occurs
 pub fn check_projectile_wall_collision(

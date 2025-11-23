@@ -468,6 +468,11 @@ pub fn is_player_on_water_compressed(ctx: &ReducerContext, player_x: f32, player
     }
     
     // Fallback to original method if compressed data not available
+    // Log a warning (once per few seconds/calls ideally, but simple log for now)
+    // Only log if we are actually in bounds, to avoid spam for out-of-bounds checks
+    if player_x >= 0.0 && player_y >= 0.0 && player_x < WORLD_WIDTH_PX && player_y < WORLD_HEIGHT_PX {
+        log::warn!("PERFORMANCE WARNING: Compressed chunk data missing for player at ({}, {}). Fallback to slow WorldTile lookup.", player_x, player_y);
+    }
     is_player_on_water(ctx, player_x, player_y)
 }
 

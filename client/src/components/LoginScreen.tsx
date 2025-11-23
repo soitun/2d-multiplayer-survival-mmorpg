@@ -23,6 +23,8 @@ import loginBackground from '../assets/login_background2.png';
 import logo from '../assets/logo.png';
 import ShipwreckCarousel from './ShipwreckCarousel';
 import GameplayFeaturesCarousel from './GameplayFeaturesCarousel';
+// @ts-ignore - importing JavaScript module
+import { blogPosts } from '../blog/data/blogPosts';
 // Remove Supabase imports
 // import { signInWithEmail, signUpWithEmail, signInWithGoogle, signOut } from '../services/supabase'; 
 
@@ -80,6 +82,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     // }, [isAuthenticated, loggedInPlayer, storedUsername, isSpacetimeReady, isSpacetimeConnected, connectionError]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
+    const [showStickyNav, setShowStickyNav] = useState<boolean>(false);
     const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
     const [logoLoaded, setLogoLoaded] = useState<boolean>(false);
 
@@ -124,11 +127,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
         return () => window.removeEventListener('resize', checkIsMobile);
     }, []);
 
-    // Check scroll position for back to top button
+    // Check scroll position for back to top button and sticky nav
     useEffect(() => {
         const handleScroll = () => {
             const scrollTop = window.scrollY || document.documentElement.scrollTop;
             setShowBackToTop(scrollTop > 300); // Show after scrolling 300px
+            setShowStickyNav(scrollTop > window.innerHeight * 0.8); // Show after scrolling past 80% of viewport height
         };
         
         window.addEventListener('scroll', handleScroll);
@@ -180,7 +184,25 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
         }
     }, [isAuthenticated, loggedInPlayer]);
 
+    // Smooth scroll function with offset for sticky nav
+    const smoothScrollTo = (elementSelector: string) => {
+        const element = document.querySelector(elementSelector);
+        if (element) {
+            const yOffset = -100; // Offset to account for sticky nav (70px) + extra padding (30px)
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset + yOffset;
 
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    // Scroll to top function
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     // Validation: only needed for new players entering a username
     const validateNewUsername = (): boolean => {
@@ -315,7 +337,127 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                     0% { transform: rotate(0deg); }
                     100% { transform: rotate(360deg); }
                 }
+                @keyframes slideDown {
+                    from {
+                        transform: translateY(-100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+                }
             `}</style>
+
+            {/* Sticky Navigation Bar */}
+            {showStickyNav && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '70px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    borderBottom: '2px solid rgba(255, 140, 0, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 clamp(20px, 5vw, 60px)',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+                    animation: 'slideDown 0.3s ease-out',
+                }}>
+                    {/* Logo */}
+                    <img
+                        src={logo}
+                        alt="Broth & Bullets"
+                        onClick={scrollToTop}
+                        style={{
+                            height: '50px',
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    />
+
+                    {/* Navigation Links */}
+                    <nav style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: isMobile ? '15px' : '30px',
+                        fontSize: isMobile ? '12px' : '14px',
+                    }}>
+                        {[
+                            { label: 'ABOUT', selector: '[data-about-section]' },
+                            { label: 'LOADOUT', selector: '[data-tools-section]' },
+                            { label: 'FEATURES', selector: '[data-features-section]' },
+                            { label: 'NEWS', selector: '[data-blog-section]' },
+                            { label: 'FAQ', selector: '[data-faq-section]' },
+                        ].map((item) => (
+                            <button
+                                key={item.label}
+                                onClick={() => smoothScrollTo(item.selector)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    fontSize: 'inherit',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    padding: '8px 12px',
+                                    transition: 'all 0.2s ease',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = '#ff8c00';
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+
+                        {/* PLAY Button */}
+                        <button
+                            onClick={scrollToTop}
+                            style={{
+                                backgroundColor: '#ff8c00',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: isMobile ? '8px 16px' : '10px 24px',
+                                fontSize: isMobile ? '13px' : '15px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ff9d1a';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ff8c00';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
+                            }}
+                        >
+                            PLAY
+                        </button>
+                    </nav>
+                </div>
+            )}
+
         <div style={{
             minHeight: '100vh', // Ensure page is tall enough to scroll
             width: '100%', // Match the background image width exactly
@@ -1044,6 +1186,186 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
                                 {/* Gameplay Features Carousel */}
                                 <GameplayFeaturesCarousel />
+                            </div>
+
+                            {/* Blog Section */}
+                            <div data-blog-section style={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                                backdropFilter: 'blur(12px)',
+                                borderRadius: '16px',
+                                padding: 'clamp(30px, 6vw, 60px) clamp(20px, 5vw, 40px)',
+                                margin: '0 auto 60px auto',
+                                maxWidth: '800px',
+                                width: '100%',
+                                border: '2px solid rgba(255, 255, 255, 0.3)',
+                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                                boxSizing: 'border-box',
+                                overflowX: 'hidden',
+                            }}>
+                                <div style={{
+                                    fontSize: '14px',
+                                    color: '#ff8c00',
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '4px',
+                                    marginBottom: '30px',
+                                    textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                    textAlign: 'center',
+                                }}>
+                                    LATEST NEWS
+                                </div>
+
+                                <h2 style={{
+                                    fontSize: 'clamp(36px, 5vw, 56px)',
+                                    marginBottom: '60px',
+                                    color: 'white',
+                                    textAlign: 'center',
+                                    textShadow: '2px 2px 6px rgba(0,0,0,0.9)',
+                                    lineHeight: '1.1',
+                                    fontWeight: 'bold',
+                                    letterSpacing: '-1px',
+                                }}>
+                                    FROM THE<br />
+                                    DEVELOPER'S DESK
+                                </h2>
+
+                                {/* Blog Posts Grid */}
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                    gap: '24px',
+                                    marginBottom: '40px',
+                                }}>
+                                    {blogPosts.slice(0, 2).map((post: any) => {
+                                            const formattedDate = new Date(post.date).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            });
+
+                                            return (
+                                                <div
+                                                    key={post.slug}
+                                                    onClick={() => window.location.href = `/blog/${post.slug}`}
+                                                    style={{
+                                                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                        borderRadius: '12px',
+                                                        padding: '24px',
+                                                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.3s ease',
+                                                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-4px)';
+                                                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.5)';
+                                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 140, 0, 0.2)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+                                                    }}
+                                                >
+                                                    {post.coverImage && (
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: '180px',
+                                                            borderRadius: '8px',
+                                                            overflow: 'hidden',
+                                                            marginBottom: '16px',
+                                                        }}>
+                                                            <img
+                                                                src={post.coverImage}
+                                                                alt={post.title}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    height: '100%',
+                                                                    objectFit: 'cover',
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: '#ff8c00',
+                                                        marginBottom: '8px',
+                                                        fontWeight: '600',
+                                                    }}>
+                                                        {formattedDate}
+                                                    </div>
+
+                                                    <h3 style={{
+                                                        fontSize: '20px',
+                                                        fontWeight: 'bold',
+                                                        color: 'white',
+                                                        marginBottom: '12px',
+                                                        lineHeight: '1.3',
+                                                        textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                                    }}>
+                                                        {post.title}
+                                                    </h3>
+
+                                                    <p style={{
+                                                        fontSize: '14px',
+                                                        color: 'rgba(255, 255, 255, 0.7)',
+                                                        lineHeight: '1.6',
+                                                        marginBottom: '16px',
+                                                    }}>
+                                                        {post.subtitle}
+                                                    </p>
+
+                                                    <div style={{
+                                                        fontSize: '14px',
+                                                        color: '#ff8c00',
+                                                        fontWeight: '600',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                    }}>
+                                                        Read More
+                                                        <span style={{ fontSize: '16px' }}>→</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                    })}
+                                </div>
+
+                                {/* Read More Button */}
+                                <div style={{
+                                    textAlign: 'center',
+                                }}>
+                                    <button
+                                        onClick={() => window.location.href = '/blog'}
+                                        style={{
+                                            backgroundColor: '#ff8c00',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            padding: '16px 40px',
+                                            fontSize: '16px',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            boxShadow: '0 4px 16px rgba(255, 140, 0, 0.3)',
+                                            transition: 'all 0.3s ease',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#ff9d1a';
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 140, 0, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#ff8c00';
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 140, 0, 0.3)';
+                                        }}
+                                    >
+                                        View All Blog Posts
+                                    </button>
+                                </div>
                             </div>
 
                             {/* FAQ Section */}
