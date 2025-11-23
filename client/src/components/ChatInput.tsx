@@ -1,4 +1,4 @@
-import React, { useEffect, forwardRef } from 'react';
+import React, { useEffect, forwardRef, useState, useRef } from 'react';
 import styles from './Chat.module.css';
 
 interface ChatInputProps {
@@ -7,6 +7,7 @@ interface ChatInputProps {
   onSendMessage: () => void;
   onCloseChat: () => void; // Callback to close the chat input
   isActive: boolean; // To focus when activated
+  onlinePlayerNames?: string[]; // List of online player names for autocomplete
 }
 
 const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
@@ -15,7 +16,12 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
   onSendMessage,
   onCloseChat,
   isActive,
+  onlinePlayerNames = [],
 }, ref) => {
+  const [autocompleteIndex, setAutocompleteIndex] = useState<number>(-1);
+  const [autocompleteMatches, setAutocompleteMatches] = useState<string[]>([]);
+  const autocompleteAttemptedRef = useRef<boolean>(false);
+
   // Focus the input when it becomes active, and ensure it's properly unfocused when inactive
   useEffect(() => {
     if (isActive && ref && 'current' in ref && ref.current) {
@@ -69,9 +75,67 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
       if (ref && 'current' in ref && ref.current) {
         ref.current.blur();
       }
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      handleTabAutocomplete();
     }
     // No need to handle other keys - let them type normally
   };
+
+  // Tab autocomplete for player names in whisper commands
+  const handleTabAutocomplete = () => {
+    const trimmed = inputValue.trim();
+    
+    // Check if we're in a whisper command
+    const whisperMatch = trimmed.match(/^\/w(?:hisper)?\s+(\S*)$/i);
+    if (!whisperMatch) {
+      // Reset autocomplete state if not in whisper mode
+      setAutocompleteIndex(-1);
+      setAutocompleteMatches([]);
+      autocompleteAttemptedRef.current = false;
+      return;
+    }
+    
+    const partialName = whisperMatch[1].toLowerCase();
+    
+    // If this is the first tab press, find all matches
+    if (!autocompleteAttemptedRef.current || autocompleteMatches.length === 0) {
+      const matches = onlinePlayerNames.filter(name => 
+        name.toLowerCase().startsWith(partialName)
+      );
+      
+      if (matches.length === 0) {
+        // No matches found
+        return;
+      }
+      
+      setAutocompleteMatches(matches);
+      setAutocompleteIndex(0);
+      autocompleteAttemptedRef.current = true;
+      
+      // Apply first match
+      const command = trimmed.startsWith('/whisper') ? '/whisper' : '/w';
+      onInputChange(`${command} ${matches[0]} `);
+    } else {
+      // Cycle through matches on subsequent tab presses
+      const nextIndex = (autocompleteIndex + 1) % autocompleteMatches.length;
+      setAutocompleteIndex(nextIndex);
+      
+      const command = trimmed.startsWith('/whisper') ? '/whisper' : '/w';
+      onInputChange(`${command} ${autocompleteMatches[nextIndex]} `);
+    }
+  };
+
+  // Reset autocomplete when input changes (user types)
+  useEffect(() => {
+    // Only reset if the input doesn't match our autocomplete pattern
+    const whisperMatch = inputValue.trim().match(/^\/w(?:hisper)?\s+(\S*)$/i);
+    if (!whisperMatch) {
+      autocompleteAttemptedRef.current = false;
+      setAutocompleteMatches([]);
+      setAutocompleteIndex(-1);
+    }
+  }, [inputValue]);
 
   // Handle the blur event
   const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {

@@ -353,13 +353,55 @@ const tipSectionDefinitions = {
         ]
     },
 
+    chatCommands: {
+        title: '💬 Chat & Communication',
+        tips: [
+            'Press Enter to open the chat input and start typing a message.',
+            'Press Enter again to send your message, or Escape to cancel.',
+            'All messages are visible to everyone in the global chat by default.',
+            
+            // /who command
+            'Type /who to see a list of all currently online players.',
+            '/who displays the total player count and their usernames.',
+            
+            // /w (whisper) command
+            'Type /w <playername> <message> to send a private whisper to another player.',
+            'Example: /w Alice Hey, want to team up?',
+            'Whispers appear in hot pink text - only you and the recipient can see them.',
+            'You can use /whisper instead of /w if you prefer the full command.',
+            'Player names are case-insensitive - /w alice works the same as /w Alice.',
+            'Use Tab to autocomplete player names while typing whisper commands.',
+            'Press Tab multiple times to cycle through matching player names.',
+            'Partial names work too - /w ali will match "Alice" if unique.',
+            
+            // /r (reply) command
+            'Type /r <message> to quickly reply to the last person who whispered you.',
+            'Example: /r Thanks for the help!',
+            '/r automatically sends your message to the last person who whispered you.',
+            'You can use /reply instead of /r if you prefer the full command.',
+            'If no one has whispered you yet, /r will show an error message.',
+            
+            // Other commands
+            'Type /players to see how many players are currently online.',
+            'Type /kill or /respawn to respawn at your sleeping bag (useful if stuck).',
+            
+            // Tips
+            'Whispers are perfect for coordinating with allies without alerting enemies.',
+            'Use /who to scout for potential allies or threats in your area.',
+            'The chat history shows timestamps for all messages.',
+            'System messages appear in gold text, whispers in pink, regular chat in white.',
+        ]
+    },
+
     multiplayer: {
         title: '👥 Multiplayer Tips',
         tips: [
             'Cooperation with other players can help you survive longer.',
-            'Use the chat system to communicate.',
-            'Be careful who you trust - not all all players are friendly.',
+            'Use the chat system to communicate with everyone or whisper privately.',
+            'Be careful who you trust - not all players are friendly.',
             'Consider building in groups for better defense and resource sharing.',
+            'Coordinate with allies using whispers to avoid revealing your plans.',
+            'Scout the player list with /who before venturing into dangerous areas.',
         ]
     }
 };
@@ -378,6 +420,7 @@ const tipSectionOrder = [
     'fishing',
     'buildingCrafting',
     'combat',
+    'chatCommands',
     'multiplayer'
 ];
 

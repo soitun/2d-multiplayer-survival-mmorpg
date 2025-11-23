@@ -34,6 +34,17 @@ pub struct Message {
     pub sent: Timestamp, // Timestamp for sorting
 }
 
+/// Tracks the last player who whispered to each player, enabling /r (reply) command
+#[spacetimedb::table(name = last_whisper_from, public)]
+#[derive(Clone, Debug)]
+pub struct LastWhisperFrom {
+    #[primary_key]
+    pub player_id: Identity,
+    pub last_whisper_from_player_id: Identity,
+    pub last_whisper_from_username: String,
+    pub last_whisper_timestamp: Timestamp,
+}
+
 // --- Reducers ---
 
 /// Sends a chat message that will be visible to all players
@@ -166,6 +177,170 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                 ctx.db.message().insert(system_message);
                 log::info!("System message sent: Players Online: {}", online_players_count);
                 return Ok(()); // Command processed, don't send original message to chat
+            }
+            "/who" => {
+                log::info!("[Command] Player {:?} used /who command.", sender_id);
+                
+                // Get all online players
+                let online_players: Vec<String> = ctx.db.player()
+                    .iter()
+                    .filter(|p| p.is_online && !p.is_dead)
+                    .map(|p| p.username.clone())
+                    .collect();
+                
+                let count = online_players.len();
+                let player_list = if count > 0 {
+                    online_players.join(", ")
+                } else {
+                    "None".to_string()
+                };
+                
+                let system_message_text = format!("Players Online ({}): {}", count, player_list);
+                let system_message = Message {
+                    id: 0,
+                    sender: ctx.identity(), // Module identity as sender
+                    text: system_message_text,
+                    sent: current_time,
+                };
+                ctx.db.message().insert(system_message);
+                log::info!("System message sent: Players Online ({})", count);
+                return Ok(());
+            }
+            "/w" | "/whisper" => {
+                if parts.len() < 3 {
+                    return Err("Usage: /w <playername> <message>".to_string());
+                }
+                
+                let target_name = parts[1];
+                let message_text = parts[2..].join(" ");
+                
+                if message_text.is_empty() {
+                    return Err("Whisper message cannot be empty.".to_string());
+                }
+                
+                if message_text.len() > 200 {
+                    return Err("Whisper message too long (max 200 characters).".to_string());
+                }
+                
+                // Find target player (case-insensitive, partial match)
+                let target_player = ctx.db.player()
+                    .iter()
+                    .filter(|p| p.is_online && !p.is_dead)
+                    .find(|p| p.username.to_lowercase().starts_with(&target_name.to_lowercase()));
+                
+                match target_player {
+                    Some(target) => {
+                        // Get sender username
+                        let sender_username = ctx.db.player()
+                            .identity()
+                            .find(&sender_id)
+                            .map(|p| p.username.clone())
+                            .unwrap_or_else(|| format!("{:?}", sender_id));
+                        
+                        // Send whisper to target (just their name, pink styling handled client-side)
+                        let whisper = PrivateMessage {
+                            id: 0,
+                            recipient_identity: target.identity,
+                            sender_display_name: sender_username.clone(),
+                            text: message_text.clone(),
+                            sent: current_time,
+                        };
+                        ctx.db.private_message().insert(whisper);
+                        
+                        // Update target's LastWhisperFrom for /r command
+                        let last_whisper_record = LastWhisperFrom {
+                            player_id: target.identity,
+                            last_whisper_from_player_id: sender_id,
+                            last_whisper_from_username: sender_username.clone(),
+                            last_whisper_timestamp: current_time,
+                        };
+                        
+                        let lwf_table = ctx.db.last_whisper_from();
+                        if lwf_table.player_id().find(&target.identity).is_some() {
+                            lwf_table.player_id().update(last_whisper_record);
+                        } else {
+                            lwf_table.insert(last_whisper_record);
+                        }
+                        
+                        log::info!("Whisper from {:?} ({}) to {:?} ({}): {}", 
+                            sender_id, sender_username, target.identity, target.username, message_text);
+                        return Ok(());
+                    }
+                    None => {
+                        return Err(format!("Player '{}' not found or offline.", target_name));
+                    }
+                }
+            }
+            "/r" | "/reply" => {
+                if parts.len() < 2 {
+                    return Err("Usage: /r <message>".to_string());
+                }
+                
+                let message_text = parts[1..].join(" ");
+                
+                if message_text.is_empty() {
+                    return Err("Reply message cannot be empty.".to_string());
+                }
+                
+                if message_text.len() > 200 {
+                    return Err("Reply message too long (max 200 characters).".to_string());
+                }
+                
+                // Find last whisper sender
+                let lwf_table = ctx.db.last_whisper_from();
+                match lwf_table.player_id().find(&sender_id) {
+                    Some(last_whisper) => {
+                        // Check if target is still online
+                        let target_player = ctx.db.player()
+                            .identity()
+                            .find(&last_whisper.last_whisper_from_player_id);
+                        
+                        match target_player {
+                            Some(target) if target.is_online && !target.is_dead => {
+                                // Get sender username
+                                let sender_username = ctx.db.player()
+                                    .identity()
+                                    .find(&sender_id)
+                                    .map(|p| p.username.clone())
+                                    .unwrap_or_else(|| format!("{:?}", sender_id));
+                                
+                                // Send whisper
+                                let whisper = PrivateMessage {
+                                    id: 0,
+                                    recipient_identity: target.identity,
+                                    sender_display_name: sender_username.clone(),
+                                    text: message_text.clone(),
+                                    sent: current_time,
+                                };
+                                ctx.db.private_message().insert(whisper);
+                                
+                                // Update their LastWhisperFrom
+                                let new_lwf = LastWhisperFrom {
+                                    player_id: target.identity,
+                                    last_whisper_from_player_id: sender_id,
+                                    last_whisper_from_username: sender_username.clone(),
+                                    last_whisper_timestamp: current_time,
+                                };
+                                
+                                if lwf_table.player_id().find(&target.identity).is_some() {
+                                    lwf_table.player_id().update(new_lwf);
+                                } else {
+                                    lwf_table.insert(new_lwf);
+                                }
+                                
+                                log::info!("Reply from {:?} ({}) to {:?} ({}): {}", 
+                                    sender_id, sender_username, target.identity, target.username, message_text);
+                                return Ok(());
+                            }
+                            _ => {
+                                return Err(format!("Player '{}' is no longer online.", last_whisper.last_whisper_from_username));
+                            }
+                        }
+                    }
+                    None => {
+                        return Err("No one has whispered you yet. Use /w <player> <message> first.".to_string());
+                    }
+                }
             }
             _ => {
                 return Err(format!("Unknown command: {}", command));

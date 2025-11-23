@@ -284,13 +284,44 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     // Focus will be handled by the useEffect in ChatInput
   }, [setIsChatting]);
 
+  // Get list of online player names for autocomplete
+  const onlinePlayerNames = React.useMemo(() => {
+    return Array.from(players.values())
+      .filter(p => p.isOnline && !p.isDead)
+      .map(p => p.username)
+      .sort();
+  }, [players]);
+
   // Message sending handler
   const handleSendMessage = useCallback(() => {
     if (!connection?.reducers || !inputValue.trim()) return;
 
+    const trimmedInput = inputValue.trim();
+    
+    // Client-side validation for commands
+    if (trimmedInput.startsWith('/')) {
+      const parts = trimmedInput.split(/\s+/);
+      const command = parts[0].toLowerCase();
+      
+      // Validate /w command has enough arguments
+      if ((command === '/w' || command === '/whisper') && parts.length < 3) {
+        console.error('[Chat] Usage: /w <playername> <message>');
+        // Still send to server to get proper error message
+      }
+      
+      // Validate /r command has message
+      if ((command === '/r' || command === '/reply') && parts.length < 2) {
+        console.error('[Chat] Usage: /r <message>');
+        // Still send to server to get proper error message
+      }
+      
+      // Log command usage for debugging
+      console.log(`[Chat] Command used: ${command}`);
+    }
+
     try {
       // Send message to server
-      connection.reducers.sendMessage(inputValue.trim());
+      connection.reducers.sendMessage(trimmedInput);
       
       // Clear input value
       setInputValue('');
@@ -301,7 +332,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       // No need for explicit blur handling here anymore
       // The ChatInput component now handles this through its blur event
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("[Chat] Error sending message:", error);
     }
   }, [connection, inputValue, setIsChatting]);
 
@@ -508,6 +539,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
               onSendMessage={handleSendMessage}
               onCloseChat={handleCloseChat}
               isActive={isChatting}
+              onlinePlayerNames={onlinePlayerNames}
             />
           ) : (
             <div 

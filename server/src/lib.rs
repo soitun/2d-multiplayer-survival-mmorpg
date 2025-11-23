@@ -217,7 +217,7 @@ pub struct PrivateMessage {
 }
 
 // Re-export chat types and reducers for use in other modules
-pub use chat::Message;
+pub use chat::{Message, LastWhisperFrom};
 
 // Re-export player movement reducer for client bindings
 pub use player_movement::update_player_position_simple;

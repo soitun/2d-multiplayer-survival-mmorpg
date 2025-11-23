@@ -68,7 +68,9 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
         let messageText = msg.text;
         let messageStyle: React.CSSProperties = {};
         const systemMessageColor = '#FFD700'; // Gold color for system messages
+        const whisperColor = '#FF69B4'; // Hot pink for whispers
         let isSystemMsg = false;
+        let isWhisper = false;
 
         if (msg.isPrivate) {
           const privateMsg = msg as SpacetimeDBPrivateMessage;
@@ -76,7 +78,9 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
             senderName = 'SYSTEM';
             isSystemMsg = true;
           } else {
+            // It's a whisper from another player
             senderName = privateMsg.senderDisplayName;
+            isWhisper = true;
           }
         } else {
           const publicMsg = msg as SpacetimeDBMessage;
@@ -90,6 +94,14 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
 
         if (isSystemMsg) {
             messageStyle = { color: systemMessageColor, fontStyle: 'italic' };
+        } else if (isWhisper) {
+            messageStyle = { 
+              color: whisperColor, 
+              fontStyle: 'italic',
+              backgroundColor: 'rgba(255, 105, 180, 0.1)',
+              borderLeft: '3px solid ' + whisperColor,
+              paddingLeft: '8px'
+            };
         }
 
         // Use msg.id if it exists on both types and is unique, otherwise use index or generate key
@@ -98,15 +110,31 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
         // Convert microseconds to Date for timestamp display
         const timestamp = new Date(Number(msg.sent?.microsSinceUnixEpoch ?? 0n) / 1000);
 
+        // Build CSS classes
+        const messageClasses = [styles.message];
+        if (isWhisper) {
+          messageClasses.push(styles.whisperMessage);
+        }
+        
+        const senderNameClasses = [styles.senderName];
+        if (isWhisper) {
+          senderNameClasses.push(styles.whisperSenderName);
+        }
+        
+        const messageTextClasses = [styles.messageText];
+        if (isWhisper) {
+          messageTextClasses.push(styles.whisperMessageText);
+        }
+
         return (
-          <div key={key} className={styles.message} style={messageStyle}>
+          <div key={key} className={messageClasses.join(' ')} style={messageStyle}>
             <div className={styles.messageHeader}>
-              <span className={styles.senderName}>{senderName}:</span>
+              <span className={senderNameClasses.join(' ')}>{senderName}:</span>
               <span className={styles.timestamp}>
                 {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </div>
-            <span className={styles.messageText}>{messageText}</span>
+            <span className={messageTextClasses.join(' ')}>{messageText}</span>
           </div>
         );
       })}
