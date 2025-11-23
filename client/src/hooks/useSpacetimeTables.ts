@@ -213,6 +213,10 @@ export const useSpacetimeTables = ({
     const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
+    
+    // OPTIMIZATION: Ref for batched weather updates
+    const chunkWeatherRef = useRef<Map<string, any>>(new Map());
+    const chunkWeatherUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -1291,14 +1295,26 @@ export const useSpacetimeTables = ({
             };
 
             // --- Chunk Weather handlers - NON-SPATIAL (subscribe to all chunks) ---
+            // OPTIMIZED: Batch updates to prevent UI lag from 14k+ chunks
+            const scheduleChunkWeatherUpdate = () => {
+                if (chunkWeatherUpdateTimeoutRef.current) return;
+                chunkWeatherUpdateTimeoutRef.current = setTimeout(() => {
+                    setChunkWeather(new Map(chunkWeatherRef.current));
+                    chunkWeatherUpdateTimeoutRef.current = null;
+                }, 250); // Throttle to 4fps - weather changes slowly, no need for 60fps react updates
+            };
+
             const handleChunkWeatherInsert = (ctx: any, weather: any) => {
-                setChunkWeather(prev => new Map(prev).set(weather.chunkIndex.toString(), weather));
+                chunkWeatherRef.current.set(weather.chunkIndex.toString(), weather);
+                scheduleChunkWeatherUpdate();
             };
             const handleChunkWeatherUpdate = (ctx: any, oldWeather: any, newWeather: any) => {
-                setChunkWeather(prev => new Map(prev).set(newWeather.chunkIndex.toString(), newWeather));
+                chunkWeatherRef.current.set(newWeather.chunkIndex.toString(), newWeather);
+                scheduleChunkWeatherUpdate();
             };
             const handleChunkWeatherDelete = (ctx: any, weather: any) => {
-                setChunkWeather(prev => { const newMap = new Map(prev); newMap.delete(weather.chunkIndex.toString()); return newMap; });
+                chunkWeatherRef.current.delete(weather.chunkIndex.toString());
+                scheduleChunkWeatherUpdate();
             };
 
             // --- Register Callbacks ---

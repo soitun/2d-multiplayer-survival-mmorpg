@@ -397,10 +397,24 @@ export function useMinimapInteraction({
         
         // If clicking on minimap but not on X button, handle normal minimap interactions
         if (checkMouseOverMinimap(event)) {
-            // Prevent attack/action when clicking on minimap
-            event.preventDefault();
-            event.stopPropagation();
+            // Check if the click target is a checkbox, label, or input element
+            const target = event.target as HTMLElement;
+            const isInteractiveControl = target.tagName === 'INPUT' || 
+                                        target.tagName === 'LABEL' || 
+                                        target.closest('label') !== null;
             
+            // Don't prevent default for interactive controls (checkboxes, labels)
+            if (!isInteractiveControl) {
+                // Prevent attack/action when clicking on minimap
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            // Skip minimap interactions if clicking on interactive controls
+            if (isInteractiveControl) {
+                return;
+            }
+
             // Middle mouse button reset
             if (event.button === 1) {
                 console.log('[Minimap] Middle click - resetting zoom');

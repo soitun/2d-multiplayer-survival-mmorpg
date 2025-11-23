@@ -186,6 +186,7 @@ interface GameCanvasProps {
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
   showAutotileDebug: boolean;
+  showChunkBoundaries: boolean;
   minimapCache: any; // Add this for minimapCache
   isGameMenuOpen: boolean; // Add this prop
   onAutoActionStatesChange?: (isAutoAttacking: boolean) => void;
@@ -212,6 +213,8 @@ interface GameCanvasProps {
   treeShadowsEnabled?: boolean;
   // Chunk-based weather data
   chunkWeather: Map<string, any>;
+  // Weather overlay toggle
+  showWeatherOverlay?: boolean;
 }
 
 /**
@@ -266,6 +269,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   deathMarkers,
   shelters,
   showAutotileDebug,
+  showChunkBoundaries,
   minimapCache,
   isGameMenuOpen,
   onAutoActionStatesChange,
@@ -288,6 +292,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
   chunkWeather, // Chunk-based weather data
+  showWeatherOverlay, // Weather overlay toggle (managed internally if not provided)
 }) => {
   // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
 
@@ -303,6 +308,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   
   // Minimap canvas ref for the InterfaceContainer
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Weather overlay state (managed here, passed to InterfaceContainer)
+  const [internalShowWeatherOverlay, setInternalShowWeatherOverlay] = useState<boolean>(() => {
+    const saved = localStorage.getItem('minimap_show_weather_overlay');
+    return saved !== null ? saved === 'true' : false;
+  });
+
+  // Use prop if provided, otherwise use internal state
+  const effectiveShowWeatherOverlay = showWeatherOverlay !== undefined ? showWeatherOverlay : internalShowWeatherOverlay;
 
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
@@ -2258,6 +2272,61 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Render Clouds on Canvas ---
 
+    // --- Render Chunk Boundaries (Debug) ---
+    if (showChunkBoundaries && worldState) {
+      // Chunk size in pixels (from server: CHUNK_SIZE_TILES * TILE_SIZE_PX)
+      // Based on server/src/environment.rs: CHUNK_SIZE_TILES = 5, TILE_SIZE_PX = 64
+      const CHUNK_SIZE_PX = 5 * 64; // 320 pixels per chunk
+      
+      ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)'; // Orange with transparency
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 5]); // Dashed line pattern
+      
+      // Calculate visible chunk range based on camera position
+      const cameraWorldX = -cameraOffsetX;
+      const cameraWorldY = -cameraOffsetY;
+      const startChunkX = Math.floor((cameraWorldX - CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
+      const endChunkX = Math.ceil((cameraWorldX + currentCanvasWidth + CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
+      const startChunkY = Math.floor((cameraWorldY - CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
+      const endChunkY = Math.ceil((cameraWorldY + currentCanvasHeight + CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
+      
+      // Draw vertical lines
+      for (let chunkX = startChunkX; chunkX <= endChunkX; chunkX++) {
+        const worldX = chunkX * CHUNK_SIZE_PX;
+        ctx.beginPath();
+        ctx.moveTo(worldX, startChunkY * CHUNK_SIZE_PX);
+        ctx.lineTo(worldX, endChunkY * CHUNK_SIZE_PX);
+        ctx.stroke();
+      }
+      
+      // Draw horizontal lines
+      for (let chunkY = startChunkY; chunkY <= endChunkY; chunkY++) {
+        const worldY = chunkY * CHUNK_SIZE_PX;
+        ctx.beginPath();
+        ctx.moveTo(startChunkX * CHUNK_SIZE_PX, worldY);
+        ctx.lineTo(endChunkX * CHUNK_SIZE_PX, worldY);
+        ctx.stroke();
+      }
+      
+      // Draw chunk coordinates at intersections (only for visible chunks)
+      ctx.font = '12px monospace';
+      ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.setLineDash([]); // Reset dash pattern
+      
+      for (let chunkX = startChunkX; chunkX < endChunkX; chunkX++) {
+        for (let chunkY = startChunkY; chunkY < endChunkY; chunkY++) {
+          const worldX = chunkX * CHUNK_SIZE_PX + 5; // Offset from corner
+          const worldY = chunkY * CHUNK_SIZE_PX + 5;
+          ctx.fillText(`(${chunkX}, ${chunkY})`, worldX, worldY);
+        }
+      }
+      
+      ctx.setLineDash([]); // Reset dash pattern for other rendering
+    }
+    // --- End Render Chunk Boundaries ---
+
     ctx.restore(); // This is the restore from translate(cameraOffsetX, cameraOffsetY)
 
     // --- Render Rain Before Color Overlay ---
@@ -2742,6 +2811,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const savedGridPref = localStorage.getItem('minimap_show_grid_coordinates');
     const showGridCoordinates = savedGridPref !== null ? savedGridPref === 'true' : true;
 
+    // Convert chunkWeather Map<string, any> to Map<number, ChunkWeather> for minimap
+    const chunkWeatherForMinimap = new Map<number, any>();
+    if (chunkWeather) {
+      chunkWeather.forEach((weather, chunkIndexStr) => {
+        const chunkIndex = parseInt(chunkIndexStr, 10);
+        if (!isNaN(chunkIndex)) {
+          chunkWeatherForMinimap.set(chunkIndex, weather);
+        }
+      });
+    }
+
     drawMinimapOntoCanvas({
       ctx,
       players: validPlayers,
@@ -2770,6 +2850,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       torchOnImage: torchOnImg,
       // Add grid coordinates visibility preference
       showGridCoordinates,
+      // Add weather overlay props
+      showWeatherOverlay: effectiveShowWeatherOverlay,
+      chunkWeatherData: chunkWeatherForMinimap,
     });
   }, [
     isMinimapOpen,
@@ -2795,6 +2878,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     pinMarkerImg,
     campfireWarmthImg,
     torchOnImg,
+    // Add weather overlay dependencies
+    effectiveShowWeatherOverlay,
+    chunkWeather,
   ]);
 
   // Game loop for processing actions
@@ -2884,7 +2970,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
               zIndex: 1000,
             }}
             onClose={() => setIsMinimapOpen(false)}
-
+            showWeatherOverlay={effectiveShowWeatherOverlay}
+            onToggleWeatherOverlay={(checked) => {
+              setInternalShowWeatherOverlay(checked);
+              localStorage.setItem('minimap_show_weather_overlay', checked.toString());
+            }}
           >
             <canvas
               ref={minimapCanvasRef}

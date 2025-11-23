@@ -67,9 +67,9 @@ const MIN_TIME_BETWEEN_RAIN_CYCLES: f32 = 1200.0; // 20 minutes minimum between 
 // - Longer propagation distance = weather fronts can spread further (more realistic)
 // - Distance decay = nearby chunks more likely to share weather, distant chunks less likely
 // - Lower base propagation = weather doesn't spread too uniformly, preserving regional differences
-const CHUNKS_PER_UPDATE: usize = 50; // Increased from 20 - process more chunks per tick for faster variation
-const WEATHER_PROPAGATION_DISTANCE: u32 = 2; // Increased from 1 - weather can spread to chunks 2 away (more realistic fronts)
-const WEATHER_PROPAGATION_DECAY: f32 = 0.5; // Each distance step reduces propagation chance by 50% (distance 1 = 100%, distance 2 = 50%)
+const CHUNKS_PER_UPDATE: usize = 100; // Increased from 50 - process more chunks per tick for smoother transitions
+const WEATHER_PROPAGATION_DISTANCE: u32 = 3; // Increased from 2 - weather spreads to chunks 3 away (smoother gradients)
+const WEATHER_PROPAGATION_DECAY: f32 = 0.6; // Each distance step reduces propagation chance by 40% (distance 1 = 100%, distance 2 = 60%, distance 3 = 36%)
 
 #[derive(Clone, Debug, PartialEq, spacetimedb::SpacetimeType)]
 pub enum WeatherType {
@@ -355,14 +355,14 @@ fn propagate_weather_to_nearby_chunks(
     mut rng: &mut impl Rng,
 ) -> Result<(), String> {
     // Base propagation probability based on weather intensity
-    // BALANCED: Clear weather now propagates to push back against rain fronts
-    // Lower rain propagation = more regional variation = more clear areas
+    // BALANCED: Storms grow fast, Clear erodes slowly = natural cycles
+    // Storm fronts can build up large areas before gradually dissipating
     let base_propagation_chance = match source_weather {
-        WeatherType::Clear => 0.15,         // 15% - clear weather actively pushes back rain (NEW!)
-        WeatherType::LightRain => 0.03,     // 3% - reduced from 5%, spreads very slowly
-        WeatherType::ModerateRain => 0.06,  // 6% - reduced from 10%, moderate spread
-        WeatherType::HeavyRain => 0.10,     // 10% - reduced from 18%, less aggressive
-        WeatherType::HeavyStorm => 0.18,    // 18% - reduced from 30%, storms still spread but slower
+        WeatherType::Clear => 0.05,         // 5% - SLOW erosion (was 25%, way too fast!)
+        WeatherType::LightRain => 0.12,     // 12% - moderate spread
+        WeatherType::ModerateRain => 0.18,  // 18% - good spread
+        WeatherType::HeavyRain => 0.25,     // 25% - aggressive spread
+        WeatherType::HeavyStorm => 0.35,    // 35% - VERY aggressive spread (storms dominate when active)
     };
     
     if base_propagation_chance == 0.0 {
@@ -383,46 +383,65 @@ fn propagate_weather_to_nearby_chunks(
             
             // Determine if propagation should occur based on weather strength
             let should_propagate = match (&nearby_weather.current_weather, source_weather) {
-                // Clear weather can clear out light rain (pushes back weak fronts)
-                (WeatherType::LightRain, WeatherType::Clear) => true,
+                // Clear weather acts as an "eraser", degrading any rain type
+                (WeatherType::LightRain | WeatherType::ModerateRain | WeatherType::HeavyRain | WeatherType::HeavyStorm, WeatherType::Clear) => true,
+                
                 // Any weather can spread to clear chunks
                 (WeatherType::Clear, _) => true,
-                // Stronger weather can overwrite weaker weather
+                
+                // Stronger weather can overwrite weaker weather (intensification)
                 (WeatherType::LightRain, WeatherType::ModerateRain | WeatherType::HeavyRain | WeatherType::HeavyStorm) => true,
                 (WeatherType::ModerateRain, WeatherType::HeavyRain | WeatherType::HeavyStorm) => true,
                 (WeatherType::HeavyRain, WeatherType::HeavyStorm) => true,
-                _ => false, // Don't overwrite equal or stronger weather
+                
+                _ => false, // Don't overwrite equal or stronger weather (unless it's Clear eroding rain)
             };
             
             if should_propagate {
-                // Propagate weather (with appropriate transitions)
+                // Propagate weather (with distance-based transitions for smoother gradients)
                 let propagated_weather = match source_weather {
-                    WeatherType::Clear => WeatherType::Clear, // Clear weather clears nearby chunks
+                    WeatherType::Clear => {
+                        // Erosion Mechanic: Clear weather gradually weakens rain instead of instantly removing it
+                        match nearby_weather.current_weather {
+                            WeatherType::HeavyStorm => WeatherType::HeavyRain,
+                            WeatherType::HeavyRain => WeatherType::ModerateRain,
+                            WeatherType::ModerateRain => WeatherType::LightRain,
+                            _ => WeatherType::Clear, // LightRain becomes Clear
+                        }
+                    },
                     WeatherType::HeavyStorm => {
-                        // 70% chance to stay HeavyStorm, 30% to become HeavyRain (reduced from 80%)
-                        if rng.gen::<f32>() < 0.70 {
+                        // Distance-based degradation: closer chunks more likely to stay intense
+                        let stay_chance = 0.85 - (distance as f32 * 0.15); // 85% at dist 1, 70% at dist 2, 55% at dist 3
+                        if rng.gen::<f32>() < stay_chance {
                             WeatherType::HeavyStorm
                         } else {
                             WeatherType::HeavyRain
                         }
                     }
                     WeatherType::HeavyRain => {
-                        // 60% chance to stay HeavyRain, 40% to become ModerateRain (reduced from 70%)
-                        if rng.gen::<f32>() < 0.60 {
+                        let stay_chance = 0.75 - (distance as f32 * 0.15); // 75% at dist 1, 60% at dist 2, 45% at dist 3
+                        if rng.gen::<f32>() < stay_chance {
                             WeatherType::HeavyRain
                         } else {
                             WeatherType::ModerateRain
                         }
                     }
                     WeatherType::ModerateRain => {
-                        // 50% chance to stay ModerateRain, 50% to become LightRain (reduced from 60%)
-                        if rng.gen::<f32>() < 0.50 {
+                        let stay_chance = 0.65 - (distance as f32 * 0.15); // 65% at dist 1, 50% at dist 2, 35% at dist 3
+                        if rng.gen::<f32>() < stay_chance {
                             WeatherType::ModerateRain
                         } else {
                             WeatherType::LightRain
                         }
                     }
-                    WeatherType::LightRain => WeatherType::LightRain, // LightRain propagates as-is
+                    WeatherType::LightRain => {
+                        // Light rain can degrade to clear at distance 3
+                        if distance >= 3 && rng.gen::<f32>() < 0.3 {
+                            WeatherType::Clear
+                        } else {
+                            WeatherType::LightRain
+                        }
+                    }
                 };
                 
                 nearby_weather.current_weather = propagated_weather.clone();

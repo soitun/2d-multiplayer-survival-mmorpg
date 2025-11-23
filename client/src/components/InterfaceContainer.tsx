@@ -12,6 +12,8 @@ interface InterfaceContainerProps {
   canvasHeight: number;
   style?: React.CSSProperties;
   onClose: () => void;
+  showWeatherOverlay?: boolean;
+  onToggleWeatherOverlay?: (checked: boolean) => void;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -20,6 +22,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   canvasHeight,
   style,
   onClose,
+  showWeatherOverlay: externalShowWeatherOverlay,
+  onToggleWeatherOverlay: externalToggleWeatherOverlay,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid'>('minimap');
@@ -36,6 +40,24 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     setShowGridCoordinates(checked);
     localStorage.setItem('minimap_show_grid_coordinates', checked.toString());
   }, []);
+  
+  // Weather overlay visibility preference (use external if provided, otherwise manage internally)
+  const [internalShowWeatherOverlay, setInternalShowWeatherOverlay] = useState<boolean>(() => {
+    const saved = localStorage.getItem('minimap_show_weather_overlay');
+    return saved !== null ? saved === 'true' : false; // Default to false (hidden by default)
+  });
+  
+  const showWeatherOverlay = externalShowWeatherOverlay !== undefined ? externalShowWeatherOverlay : internalShowWeatherOverlay;
+  
+  // Save weather overlay preference to localStorage when it changes
+  const handleToggleWeatherOverlay = useCallback((checked: boolean) => {
+    if (externalToggleWeatherOverlay) {
+      externalToggleWeatherOverlay(checked);
+    } else {
+      setInternalShowWeatherOverlay(checked);
+      localStorage.setItem('minimap_show_weather_overlay', checked.toString());
+    }
+  }, [externalToggleWeatherOverlay]);
   
   // Get SpacetimeDB connection
   const connection = useGameConnection();
@@ -446,17 +468,24 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         return (
           <div style={{ ...contentContainerStyle, position: 'relative' }}>
             {children}
-            {/* Grid Coordinates Toggle Checkbox */}
-            <label
-              style={{
+            {/* Toggle Controls Container */}
+            <div style={{
                 position: 'absolute',
                 top: '8px',
                 right: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              zIndex: 1002,
+              pointerEvents: 'auto', // Ensure controls receive mouse events
+            }}>
+              {/* Grid Coordinates Toggle Checkbox */}
+              <label
+                style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                zIndex: 1002,
                 fontSize: '11px',
                 fontFamily: '"Courier New", monospace',
                 color: '#00d4ff',
@@ -491,6 +520,49 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
                 Show Grid
               </span>
             </label>
+              
+              {/* Weather Overlay Toggle Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontFamily: '"Courier New", monospace',
+                  color: '#4682B4',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(70, 130, 180, 0.3)',
+                  userSelect: 'none',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                  e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                  e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.3)';
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showWeatherOverlay}
+                  onChange={(e) => handleToggleWeatherOverlay(e.target.checked)}
+                  style={{
+                    cursor: 'pointer',
+                    width: '14px',
+                    height: '14px',
+                    accentColor: '#4682B4',
+                  }}
+                />
+                <span style={{ textShadow: '0 0 4px rgba(70, 130, 180, 0.8)' }}>
+                  Weather
+                </span>
+              </label>
+            </div>
             {/* Show loading overlay on top of minimap content */}
             {isMinimapLoading && <LoadingOverlay />}
           </div>

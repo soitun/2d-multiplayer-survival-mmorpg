@@ -5,6 +5,8 @@ interface DebugContextType {
     toggleAutotileDebug: () => void;
     showMusicDebug: boolean;
     toggleMusicDebug: () => void;
+    showChunkBoundaries: boolean;
+    toggleChunkBoundaries: () => void;
 }
 
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
@@ -24,6 +26,7 @@ interface DebugProviderProps {
 export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
     const [showAutotileDebug, setShowAutotileDebug] = useState(false);
     const [showMusicDebug, setShowMusicDebug] = useState(false);
+    const [showChunkBoundaries, setShowChunkBoundaries] = useState(false);
 
     const toggleAutotileDebug = () => {
         setShowAutotileDebug(prev => !prev);
@@ -35,11 +38,18 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         console.log('[DebugContext] Music debug overlay:', !showMusicDebug ? 'enabled' : 'disabled');
     };
 
+    const toggleChunkBoundaries = () => {
+        setShowChunkBoundaries(prev => !prev);
+        console.log('[DebugContext] Chunk boundaries:', !showChunkBoundaries ? 'enabled' : 'disabled');
+    };
+
     const value = {
         showAutotileDebug,
         toggleAutotileDebug,
         showMusicDebug,
         toggleMusicDebug,
+        showChunkBoundaries,
+        toggleChunkBoundaries,
     };
 
     return (

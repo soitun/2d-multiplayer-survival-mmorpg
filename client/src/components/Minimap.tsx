@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -209,6 +209,9 @@ interface MinimapProps {
   torchOnImage?: HTMLImageElement | null; // Torch image for torch-lit players
   // Tab functionality now handled by React components
   showGridCoordinates?: boolean; // Whether to show grid coordinate labels (A1, B2, etc.)
+  // Weather overlay props
+  showWeatherOverlay?: boolean; // Whether to show the weather overlay
+  chunkWeatherData?: Map<number, ChunkWeather>; // Map of chunk indices to weather data
 }
 
 // Bright, clear terrain colors for easy readability
@@ -432,6 +435,100 @@ function applyScanLines(
   ctx.restore();
 }
 
+// Get weather color and opacity based on weather type and intensity
+function getWeatherOverlayColor(weatherTag: string, rainIntensity: number): { color: string; opacity: number } {
+  switch (weatherTag) {
+    case 'Clear':
+      return { color: '#87CEEB', opacity: 0 }; // Sky blue, fully transparent
+    case 'LightRain':
+      return { color: '#4682B4', opacity: 0.4 + rainIntensity * 0.2 }; // Steel blue, MORE VISIBLE
+    case 'ModerateRain':
+      return { color: '#4169E1', opacity: 0.5 + rainIntensity * 0.25 }; // Royal blue, MORE VISIBLE
+    case 'HeavyRain':
+      return { color: '#0000CD', opacity: 0.6 + rainIntensity * 0.3 }; // Medium blue, MORE VISIBLE
+    case 'HeavyStorm':
+      return { color: '#00008B', opacity: 0.7 + rainIntensity * 0.3 }; // Dark blue, VERY VISIBLE
+    default:
+      return { color: '#87CEEB', opacity: 0 };
+  }
+}
+
+// Render weather overlay for all chunks
+function renderWeatherOverlay(
+  ctx: CanvasRenderingContext2D,
+  chunkWeatherData: Map<number, ChunkWeather>,
+  worldRectScreenX: number,
+  worldRectScreenY: number,
+  worldPixelWidth: number,
+  worldPixelHeight: number,
+  currentScale: number
+) {
+  if (!chunkWeatherData || chunkWeatherData.size === 0) return;
+
+  ctx.save();
+  
+  // Calculate chunk size in world pixels using gameConfig
+  // Using the correct config values fixes misalignment issues
+  const WORLD_WIDTH_CHUNKS = gameConfig.worldWidthChunks; 
+  const chunkWidthWorld = worldPixelWidth / WORLD_WIDTH_CHUNKS;
+  // Assuming square chunks for height ratio as well or proportional
+  const chunkHeightWorld = worldPixelHeight / gameConfig.worldHeightChunks;
+
+  // Optimization: Group chunks by color/opacity to batch draw calls
+  // Key: "color|opacity", Value: Array of rects
+  const batches = new Map<string, { x: number, y: number, w: number, h: number }[]>();
+
+  // 1. Collect visible chunks into batches
+  chunkWeatherData.forEach((weather, chunkIndex) => {
+    const weatherTag = weather.currentWeather?.tag || 'Clear';
+    
+    // Skip clear weather (opacity 0)
+    if (weatherTag === 'Clear') return;
+
+    const { color, opacity } = getWeatherOverlayColor(weatherTag, weather.rainIntensity);
+
+    if (opacity <= 0) return;
+
+    // Calculate chunk position
+    const chunkX = chunkIndex % WORLD_WIDTH_CHUNKS;
+    const chunkY = Math.floor(chunkIndex / WORLD_WIDTH_CHUNKS);
+
+    const chunkWorldX = chunkX * chunkWidthWorld;
+    const chunkWorldY = chunkY * chunkHeightWorld;
+
+    // Convert to screen coordinates
+    const screenX = worldRectScreenX + chunkWorldX * currentScale;
+    const screenY = worldRectScreenY + chunkWorldY * currentScale;
+    const screenWidth = chunkWidthWorld * currentScale;
+    const screenHeight = chunkHeightWorld * currentScale;
+
+    // Add to batch
+    const batchKey = `${color}|${opacity}`;
+    if (!batches.has(batchKey)) {
+      batches.set(batchKey, []);
+    }
+    batches.get(batchKey)!.push({ x: screenX, y: screenY, w: screenWidth, h: screenHeight });
+  });
+
+  // 2. Render batches
+  batches.forEach((rects, key) => {
+    const [color, opacityStr] = key.split('|');
+    const opacity = parseFloat(opacityStr);
+
+    ctx.fillStyle = color;
+    ctx.globalAlpha = opacity;
+    
+    ctx.beginPath();
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      ctx.rect(r.x, r.y, r.w, r.h);
+    }
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
 /**
  * Draws the minimap overlay onto the provided canvas context.
  */
@@ -471,6 +568,9 @@ export function drawMinimapOntoCanvas({
   torchOnImage = null, // Default to null
   // Destructure grid coordinates visibility prop
   showGridCoordinates = true, // Default to true (show by default)
+  // Destructure weather overlay props
+  showWeatherOverlay = false, // Default to false (hidden by default)
+  chunkWeatherData, // Weather data map
 }: MinimapProps) {
   const minimapWidth = MINIMAP_WIDTH;
   const minimapHeight = MINIMAP_HEIGHT;
@@ -627,6 +727,19 @@ export function drawMinimapOntoCanvas({
     
     // Apply scan line overlay for cyberpunk effect
     applyScanLines(ctx, worldRectScreenX, worldRectScreenY, worldRectScreenWidth, worldRectScreenHeight);
+    
+    // Draw weather overlay if enabled
+    if (showWeatherOverlay && chunkWeatherData) {
+      renderWeatherOverlay(
+        ctx,
+        chunkWeatherData,
+        worldRectScreenX,
+        worldRectScreenY,
+        worldPixelWidth,
+        worldPixelHeight,
+        currentScale
+      );
+    }
   } else {
     // Debug: Show what we actually have
     // console.log(`[Minimap] No cached minimap data available. minimapCache:`, minimapCache);
