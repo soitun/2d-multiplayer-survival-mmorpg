@@ -34,6 +34,7 @@ export type InteractionTargetType =
     | 'harvestable_resource'  // Unified for all plants (mushroom, corn, potato, pumpkin, hemp, reed)
     | 'campfire' 
     | 'furnace'  // ADDED: Furnace support (same behavior as campfire)
+    | 'fumarole'  // ADDED: Fumarole support (volcanic heat source with broth pot)
     | 'lantern'
     | 'homestead_hearth'  // ADDED: HomesteadHearth support
     | 'dropped_item' 
@@ -85,6 +86,11 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 80,
         actionType: 'open_furnace'
+    },
+    fumarole: {
+        behavior: InteractionBehavior.INTERFACE,
+        priority: 80,
+        actionType: 'open_fumarole'
     },
     lantern: {
         behavior: InteractionBehavior.INTERFACE,

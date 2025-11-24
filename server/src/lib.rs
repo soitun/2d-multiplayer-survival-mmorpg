@@ -127,6 +127,8 @@ mod sea_stack; // <<< ADDED: Sea stack decorative entities
 mod memory_grid; // <<< ADDED: Memory Grid tech tree system
 mod building; // <<< ADDED: Building system (foundations, walls, doors)
 mod building_enclosure; // <<< ADDED: Building enclosure detection (rain protection, "inside" logic)
+mod fumarole; // <<< ADDED: Fumarole module for quarry geothermal vents
+mod basalt_column; // <<< ADDED: Basalt column module for quarry decorative obstacles
 mod homestead_hearth; // <<< ADDED: Homestead Hearth for building privilege system
 mod building_decay; // <<< ADDED: Building decay system
 mod rune_stone; // <<< ADDED: Rune stone system
@@ -280,7 +282,7 @@ pub use player_corpse::{
 
 // Re-export broth pot reducers for client bindings
 pub use broth_pot::{
-    place_broth_pot_on_campfire, pickup_broth_pot,
+    place_broth_pot_on_campfire, place_broth_pot_on_fumarole, pickup_broth_pot,
     interact_with_broth_pot,
     move_item_to_broth_pot, move_item_from_broth_pot, move_item_within_broth_pot,
     split_stack_into_broth_pot, split_stack_from_broth_pot, split_stack_within_broth_pot,
@@ -1246,6 +1248,7 @@ pub enum TileType {
     Beach,
     Sand,
     HotSpringWater, // NEW: Distinct type for hot spring water pools
+    Quarry, // NEW: Quarry tiles (visually identical to Dirt, but marks quarry areas)
 }
 
 impl TileType {
@@ -1372,6 +1375,7 @@ impl TileType {
             TileType::Beach => 4,
             TileType::Sand => 5,
             TileType::HotSpringWater => 6,
+            TileType::Quarry => 7,
         }
     }
     
@@ -1385,6 +1389,7 @@ impl TileType {
             4 => Some(TileType::Beach),
             5 => Some(TileType::Sand),
             6 => Some(TileType::HotSpringWater),
+            7 => Some(TileType::Quarry),
             _ => None,
         }
     }

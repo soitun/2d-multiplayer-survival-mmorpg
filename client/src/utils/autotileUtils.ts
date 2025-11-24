@@ -227,6 +227,7 @@ const DEBUG_OVERRIDES: { [bitmask: number]: number } = {
     121: 47,
     14: 47,
     212: 47,
+    31: 47,
     // Add your test overrides here!
 };
 
@@ -495,12 +496,21 @@ export function calculateAutotileBitmask(
         const neighborKey = `${neighborX}_${neighborY}`;
         const neighborTile = worldTiles.get(neighborKey);
         
-        // CRITICAL: Only count neighbors that:
-        // 1. Actually exist in the worldTiles map
-        // 2. Match the secondary type (the type we're transitioning TO)
-        // Missing neighbors or neighbors of other types are NOT counted
-        if (neighborTile && neighborTile.tileType.tag === secondaryType) {
-            bitmask |= NEIGHBOR_BITS[index];
+        if (neighborTile) {
+            let neighborType = neighborTile.tileType.tag;
+            
+            // Map Quarry to Dirt for autotiling comparisons (they're visually identical)
+            if (neighborType === 'Quarry') {
+                neighborType = 'Dirt';
+            }
+            
+            // CRITICAL: Only count neighbors that:
+            // 1. Actually exist in the worldTiles map
+            // 2. Match the secondary type (the type we're transitioning TO)
+            // Missing neighbors or neighbors of other types are NOT counted
+            if (neighborType === secondaryType) {
+                bitmask |= NEIGHBOR_BITS[index];
+            }
         }
         // If neighborTile is undefined/null, it's not counted (bitmask stays 0 for that position)
     });
@@ -587,6 +597,9 @@ export function getAutotilesForTile(
         tileType = actualTileType;
     }
     
+    // Map Quarry tiles to Dirt for autotiling (they're visually identical and should use Dirt's autotile configs)
+    const autotileTileType = tileType === 'Quarry' ? 'Dirt' : tileType;
+    
     // Use tile's coordinates if available
     if ('worldX' in centerTile && 'worldY' in centerTile) {
         const tileWorldX = (centerTile as any).worldX;
@@ -602,8 +615,8 @@ export function getAutotilesForTile(
     
     // Check each autotile configuration
     for (const [configKey, config] of Object.entries(AUTOTILE_CONFIGS)) {
-        // Only check configs where this tile is the primary type
-        if (tileType === config.primaryType) {
+        // Only check configs where this tile is the primary type (using mapped type for Quarry)
+        if (autotileTileType === config.primaryType) {
             // SPECIAL CASE 1: Do NOT generate DirtRoad -> Grass transitions on DirtRoad tiles.
             // We only want the Grass tiles to transition into DirtRoad (Grass_DirtRoad),
             // not the other way around, so inner road tiles stay as pure DirtRoad.
@@ -632,8 +645,15 @@ export function getAutotilesForTile(
                     const neighborY = y + offset.y;
                     const neighborKey = `${neighborX}_${neighborY}`;
                     const neighborTile = worldTiles.get(neighborKey);
-                    if (neighborTile && neighborTile.tileType.tag === config.secondaryType) {
-                        actualSecondaryNeighborCount++;
+                    if (neighborTile) {
+                        let neighborType = neighborTile.tileType.tag;
+                        // Map Quarry to Dirt for autotiling comparisons
+                        if (neighborType === 'Quarry') {
+                            neighborType = 'Dirt';
+                        }
+                        if (neighborType === config.secondaryType) {
+                            actualSecondaryNeighborCount++;
+                        }
                     }
                 });
                 

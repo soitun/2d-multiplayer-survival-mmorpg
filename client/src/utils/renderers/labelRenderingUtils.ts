@@ -29,7 +29,7 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -47,6 +47,7 @@ interface RenderLabelsParams {
     harvestableResources: Map<string, any>; // Unified harvestable resources
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, any>; // ADDED: furnaces parameter
+    fumaroles: Map<string, any>; // ADDED: fumaroles parameter
     lanterns: Map<string, any>; // Add lanterns parameter
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -257,6 +258,7 @@ export function renderInteractionLabels({
     ctx,
     campfires,
     furnaces, // ADDED: furnaces parameter
+    fumaroles, // ADDED: fumaroles parameter
     lanterns,
     droppedItems,
     woodenStorageBoxes,
@@ -404,6 +406,28 @@ export function renderInteractionLabels({
                 textX = hearth.posX;
                 // Moved up by ~20% (15px) to match indicator box position
                 textY = visualCenterY - 65;
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'fumarole': {
+            const fumarole = fumaroles.get(closestInteractableTarget.id.toString());
+            if (fumarole) {
+                const FUMAROLE_HEIGHT = 96; // Fumaroles are 96x96 sprites
+                // Fumarole outline is drawn at posY - 48, so label should be just above that
+                // Position label at top of the outline box
+                textX = fumarole.posX;
+                textY = fumarole.posY - 32 - 15; // Top of sprite (48px) + small clearance (15px)
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'broth_pot': {
+            const brothPot = brothPots.get(closestInteractableTarget.id.toString());
+            if (brothPot) {
+                textX = brothPot.posX;
+                // Position label above the broth pot
+                textY = brothPot.posY - 60;
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

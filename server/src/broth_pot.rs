@@ -25,6 +25,7 @@ use crate::inventory_management::{self, ItemContainer, ContainerItemClearer};
 use crate::player_inventory::{find_first_empty_player_slot};
 use crate::environment::calculate_chunk_index;
 use crate::campfire::{campfire as CampfireTableTrait, Campfire};
+use crate::fumarole::{fumarole as FumaroleTableTrait, Fumarole};
 use crate::world_state::{WeatherType, get_weather_for_position};
 use crate::sound_events;
 use crate::active_equipment;
@@ -72,6 +73,7 @@ pub struct BrothPot {
     pub placed_by: Identity,
     pub placed_at: Timestamp,
     pub attached_to_campfire_id: Option<u32>, // Which campfire it's on
+    pub attached_to_fumarole_id: Option<u64>, // Which fumarole it's on (always-on heat source)
     
     // Water System
     pub water_level_ml: u32, // Current water (0-5000ml)
@@ -376,6 +378,7 @@ pub fn place_broth_pot_on_campfire(
         placed_by: sender_id,
         placed_at: current_time,
         attached_to_campfire_id: Some(campfire_id),
+        attached_to_fumarole_id: None, // Not on a fumarole
         
         // Water system - starts empty
         water_level_ml: 0,
@@ -438,8 +441,171 @@ pub fn place_broth_pot_on_campfire(
     Ok(())
 }
 
+/// --- Place Broth Pot on Fumarole ---
+/// Places a broth pot on a fumarole (always-on heat source, no fuel required)
+#[spacetimedb::reducer]
+pub fn place_broth_pot_on_fumarole(
+    ctx: &ReducerContext,
+    item_instance_id: u64,
+    fumarole_id: u64
+) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    let players = ctx.db.player();
+    let fumaroles = ctx.db.fumarole();
+    let broth_pots = ctx.db.broth_pot();
+
+    log::info!(
+        "[PlaceBrothPot] Player {:?} attempting to place item {} on fumarole {}",
+        sender_id, item_instance_id, fumarole_id
+    );
+
+    // --- 1. Validate Player ---
+    let player = players.identity().find(sender_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+
+    if player.is_dead {
+        return Err("Cannot place broth pot while dead.".to_string());
+    }
+    if player.is_knocked_out {
+        return Err("Cannot place broth pot while knocked out.".to_string());
+    }
+
+    // --- 2. Validate Fumarole ---
+    let fumarole = fumaroles.id().find(&fumarole_id)
+        .ok_or_else(|| format!("Fumarole {} not found", fumarole_id))?;
+
+    // Check distance to fumarole
+    let dx = player.position_x - fumarole.pos_x;
+    let dy = player.position_y - fumarole.pos_y;
+    let dist_sq = dx * dx + dy * dy;
+    if dist_sq > PLAYER_BROTH_POT_INTERACTION_DISTANCE_SQUARED {
+        return Err("Too far away from fumarole to place broth pot.".to_string());
+    }
+
+    // Check if fumarole already has a broth pot
+    let existing_pot_on_fumarole = broth_pots.iter()
+        .any(|pot| pot.attached_to_fumarole_id == Some(fumarole_id) && !pot.is_destroyed);
+    
+    if existing_pot_on_fumarole {
+        return Err("This fumarole already has a broth pot attached.".to_string());
+    }
+
+    // --- 3. Validate Item ---
+    let broth_pot_def_id = item_defs.iter()
+        .find(|def| def.name == "Cerametal Field Cauldron Mk. II")
+        .map(|def| def.id)
+        .ok_or_else(|| "Item definition for 'Cerametal Field Cauldron Mk. II' not found.".to_string())?;
+
+    let item_to_consume = inventory_items.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item instance {} not found.", item_instance_id))?;
+
+    // Validate ownership and location
+    match item_to_consume.location {
+        ItemLocation::Inventory(data) => {
+            if data.owner_id != sender_id {
+                return Err(format!("Item instance {} not owned by player {:?}.", item_instance_id, sender_id));
+            }
+        }
+        ItemLocation::Hotbar(data) => {
+            if data.owner_id != sender_id {
+                return Err(format!("Item instance {} not owned by player {:?}.", item_instance_id, sender_id));
+            }
+        }
+        _ => {
+            return Err(format!("Item instance {} must be in inventory or hotbar to be placed.", item_instance_id));
+        }
+    }
+
+    if item_to_consume.item_def_id != broth_pot_def_id {
+        return Err(format!("Item instance {} is not a Cerametal Field Cauldron Mk. II.", item_instance_id));
+    }
+
+    // --- 4. Consume the Item ---
+    log::info!(
+        "[PlaceBrothPot] Consuming item instance {} from player {:?}",
+        item_instance_id, sender_id
+    );
+    inventory_items.instance_id().delete(item_instance_id);
+
+    // --- 5. Create Broth Pot Entity ---
+    let current_time = ctx.timestamp;
+    let chunk_idx = calculate_chunk_index(fumarole.pos_x, fumarole.pos_y);
+
+    // Snap to fumarole position (with slight Y offset for visual stacking)
+    let pot_pos_x = fumarole.pos_x;
+    let pot_pos_y = fumarole.pos_y - 10.0; // Small offset above fumarole center
+
+    let new_broth_pot = BrothPot {
+        id: 0, // Auto-incremented
+        pos_x: pot_pos_x,
+        pos_y: pot_pos_y,
+        chunk_index: chunk_idx,
+        placed_by: sender_id,
+        placed_at: current_time,
+        attached_to_campfire_id: None, // Not on a campfire
+        attached_to_fumarole_id: Some(fumarole_id), // On a fumarole (always-on heat)
+        
+        // Water system - starts empty
+        water_level_ml: 0,
+        max_water_capacity_ml: MAX_WATER_CAPACITY_ML,
+        is_seawater: false,
+        is_desalinating: false,
+        
+        // Ingredient slots - all empty
+        ingredient_instance_id_0: None,
+        ingredient_def_id_0: None,
+        ingredient_instance_id_1: None,
+        ingredient_def_id_1: None,
+        ingredient_instance_id_2: None,
+        ingredient_def_id_2: None,
+        
+        // Water container slot - empty
+        water_container_instance_id: None,
+        water_container_def_id: None,
+        
+        // Cooking state - not cooking
+        is_cooking: false,
+        current_recipe_name: None,
+        cooking_progress_secs: 0.0,
+        required_cooking_time_secs: 0.0,
+        
+        // Stirring - perfect quality at start
+        stir_quality: 1.0,
+        last_stirred_at: None,
+        
+        // Output - empty
+        output_item_instance_id: None,
+        output_item_def_id: None,
+        is_spoiled: false,
+        
+        // Health
+        health: BROTH_POT_INITIAL_HEALTH,
+        max_health: BROTH_POT_MAX_HEALTH,
+        is_destroyed: false,
+        destroyed_at: None,
+        last_hit_time: None,
+        last_damaged_by: None,
+    };
+
+    let inserted_pot = broth_pots.try_insert(new_broth_pot)
+        .map_err(|e| format!("Failed to insert broth pot entity: {}", e))?;
+    let new_pot_id = inserted_pot.id;
+
+    log::info!(
+        "Player {} placed broth pot {} on fumarole {} at ({:.1}, {:.1}) [ALWAYS-ON HEAT]",
+        player.username, new_pot_id, fumarole_id, pot_pos_x, pot_pos_y
+    );
+
+    // Schedule processing for rain collection
+    schedule_next_broth_pot_processing(ctx, new_pot_id)?;
+
+    Ok(())
+}
+
 /// --- Pickup Broth Pot ---
-/// Picks up a broth pot from a campfire. Water will spill out if present.
+/// Picks up a broth pot from a campfire or fumarole. Water will spill out if present.
 #[spacetimedb::reducer]
 pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), String> {
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -449,13 +615,17 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
     let pot_pos_y = broth_pot.pos_y;
     let had_water = broth_pot.water_level_ml > 0;
     
-    // Get campfire position for dropping items below it
-    let campfire_y = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+    // Get heat source position for dropping items below it
+    let heat_source_y = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
         ctx.db.campfire().id().find(campfire_id)
             .map(|cf| cf.pos_y)
             .unwrap_or(pot_pos_y) // Fallback to pot position if campfire not found
+    } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
+        ctx.db.fumarole().id().find(&fumarole_id)
+            .map(|fm| fm.pos_y)
+            .unwrap_or(pot_pos_y) // Fallback to pot position if fumarole not found
     } else {
-        pot_pos_y // Fallback to pot position if no campfire attached
+        pot_pos_y // Fallback to pot position if no heat source attached
     };
     
     // Drop all ingredients and output as dropped items (for PvP and convenience)
@@ -476,9 +646,9 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
         if let Some(instance_id) = slot_instance_id_opt {
             if let Some(ingredient_item) = items.instance_id().find(instance_id) {
                 if let Some(ingredient_def) = item_defs.id().find(&ingredient_item.item_def_id) {
-                    // Drop below campfire, spread horizontally
+                    // Drop below heat source, spread horizontally
                     let drop_x = pot_pos_x + drop_offset;
-                    let drop_y = campfire_y + crate::dropped_item::DROP_OFFSET;
+                    let drop_y = heat_source_y + crate::dropped_item::DROP_OFFSET;
                     
                     if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
                         ctx,
@@ -507,9 +677,9 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
     if let Some(output_instance_id) = broth_pot.output_item_instance_id {
         if let Some(output_item) = items.instance_id().find(&output_instance_id) {
             if let Some(output_def) = item_defs.id().find(&output_item.item_def_id) {
-                // Drop below campfire, spread horizontally
+                // Drop below heat source, spread horizontally
                 let drop_x = pot_pos_x + drop_offset;
-                let drop_y = campfire_y + crate::dropped_item::DROP_OFFSET;
+                let drop_y = heat_source_y + crate::dropped_item::DROP_OFFSET;
                 
                 if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
                     ctx,
@@ -541,15 +711,15 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
             let water_container_def = item_defs.id().find(&water_container_item.item_def_id)
                 .ok_or_else(|| "Water container item definition not found.".to_string())?;
             
-            // Drop the water container below the campfire (south of it)
-            // Pot is 60px above campfire, so drop container at campfire Y + offset to be below campfire
+            // Drop the water container below the heat source (south of it)
+            // Pot is 60px above heat source, so drop container at heat source Y + offset to be below it
             // Use create_dropped_item_entity_with_data to preserve water content
             if let Err(e) = crate::dropped_item::create_dropped_item_entity_with_data(
                 ctx,
                 water_container_item.item_def_id,
                 water_container_item.quantity,
                 pot_pos_x,
-                campfire_y + crate::dropped_item::DROP_OFFSET, // Drop below campfire (south)
+                heat_source_y + crate::dropped_item::DROP_OFFSET, // Drop below heat source (south)
                 water_container_item.item_data.clone(), // Preserve water content data
             ) {
                 log::error!("Failed to drop water container {} when picking up broth pot {}: {}", 
@@ -1650,16 +1820,20 @@ pub fn process_broth_pot_logic_scheduled(
     
     // FIRST: Check if currently cooking and handle state changes
     if broth_pot.is_cooking {
-        // Check if campfire is still burning and water is still available
-        let campfire_is_burning = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+        // Check if heat source is available (campfire burning OR fumarole present)
+        let has_heat = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+            // Campfire heat source - must be burning
             ctx.db.campfire().id().find(&campfire_id)
                 .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
+        } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
+            // Fumarole heat source - always on (just check it exists)
+            ctx.db.fumarole().id().find(&fumarole_id).is_some()
         } else {
             false
         };
         
-        // CRITICAL: Stop brewing immediately if campfire stops or water runs out
-        if !campfire_is_burning || broth_pot.water_level_ml < 1000 {
+        // CRITICAL: Stop brewing immediately if heat stops or water runs out
+        if !has_heat || broth_pot.water_level_ml < 1000 {
             broth_pot.is_cooking = false;
             broth_pot.cooking_progress_secs = 0.0;
             broth_pot.required_cooking_time_secs = 0.0;
@@ -1830,17 +2004,21 @@ pub fn process_broth_pot_logic_scheduled(
         log::debug!("[BrothPot] Pot {} checking if can start brewing (water: {}ml, seawater: {})", 
                    broth_pot_id, broth_pot.water_level_ml, broth_pot.is_seawater);
         
-        // Check if campfire is burning
-        let campfire_is_burning = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+        // Check if heat source is available (campfire burning OR fumarole present)
+        let has_heat = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+            // Campfire heat source - must be burning
             ctx.db.campfire().id().find(&campfire_id)
                 .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
+        } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
+            // Fumarole heat source - always on (just check it exists)
+            ctx.db.fumarole().id().find(&fumarole_id).is_some()
         } else {
             false
         };
         
-        log::debug!("[BrothPot] Pot {} campfire burning: {}", broth_pot_id, campfire_is_burning);
+        log::debug!("[BrothPot] Pot {} has heat: {}", broth_pot_id, has_heat);
         
-        if campfire_is_burning {
+        if has_heat {
             // Try to match a recipe
             if let Some(recipe_match) = recipes::match_recipe(ctx, &broth_pot) {
                 recipes::start_brewing_recipe(ctx, &mut broth_pot, &recipe_match, broth_pot_id)?;

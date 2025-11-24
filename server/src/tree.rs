@@ -11,7 +11,7 @@ pub(crate) const TREE_COLLISION_Y_OFFSET: f32 = 60.0; // Increased from 40.0 to 
 pub(crate) const PLAYER_TREE_COLLISION_DISTANCE_SQUARED: f32 = (PLAYER_RADIUS + TREE_TRUNK_RADIUS) * (PLAYER_RADIUS + TREE_TRUNK_RADIUS);
 
 // Tree Spawning Parameters
-pub(crate) const TREE_DENSITY_PERCENT: f32 = 0.01; // 1% of map tiles (halved from 2%)
+pub(crate) const TREE_DENSITY_PERCENT: f32 = 0.002; // 1% of map tiles (halved from 2%)
 pub(crate) const TREE_SPAWN_NOISE_FREQUENCY: f64 = 8.0;
 pub(crate) const TREE_SPAWN_NOISE_THRESHOLD: f64 = 0.7;
 pub(crate) const TREE_SPAWN_WORLD_MARGIN_TILES: u32 = 3;
@@ -24,7 +24,7 @@ pub(crate) const TREE_INITIAL_HEALTH: u32 = 2000;
 pub(crate) const TREE_MIN_RESOURCES: u32 = 300; // Minimum wood per tree
 pub(crate) const TREE_MAX_RESOURCES: u32 = 1000; // Maximum wood per tree
 
-// NEW Respawn Time Constants for Trees (adjusted to match Rust survival game)
+// NEW Respawn Time Constants for Trees
 pub(crate) const MIN_TREE_RESPAWN_TIME_SECS: u64 = 600;  // 10 minutes
 pub(crate) const MAX_TREE_RESPAWN_TIME_SECS: u64 = 1200; // 20 minutes
 

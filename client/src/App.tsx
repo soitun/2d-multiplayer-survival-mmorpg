@@ -61,6 +61,7 @@ const VIEWPORT_UPDATE_DEBOUNCE_MS = 750; // Increased debounce time (was 250ms) 
 import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from './utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from './utils/renderers/campfireRenderingUtils';
 import { PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED, FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from './utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace interaction constants
+import { PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole interaction constants
 import { PLAYER_STASH_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/stashRenderingUtils';
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/playerCorpseRenderingUtils';
 // Add other relevant interaction distances if new interactable container types are added
@@ -246,6 +247,8 @@ function AppContent() {
       viperSpittles, // <<< ADD viperSpittles HERE
       animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
       barrels, // <<< ADD barrels HERE
+      fumaroles, // <<< ADD fumaroles HERE
+      basaltColumns, // <<< ADD basaltColumns HERE
       seaStacks, // <<< ADD sea stacks HERE
       homesteadHearths, // <<< ADD homesteadHearths HERE
       brothPots, // <<< ADD brothPots HERE
@@ -262,10 +265,11 @@ function AppContent() {
     // --- Movement Hooks ---
     const isUIFocused = isChatting || isCraftingSearchFocused;
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
+    const isDead = localPlayer?.isDead ?? false;
     
     // Simplified movement input - no complex processing
     const { inputState, isAutoWalking } = useMovementInput({ 
-        isUIFocused,
+        isUIFocused: isUIFocused || isDead, // Disable input when dead
         localPlayer,
         onToggleAutoAttack: toggleAutoAttack, // Keep auto-attack functionality
         // 🎣 FISHING INPUT FIX: Pass fishing state to disable input during fishing
@@ -297,7 +301,8 @@ function AppContent() {
             seaStacks, // Add sea stacks to collision system
             wallCells, // Add wall cells for collision detection
             foundationCells, // Add foundation cells for collision detection (especially triangle hypotenuses)
-            homesteadHearths // Add homestead hearths for collision detection
+            homesteadHearths, // Add homestead hearths for collision detection
+            basaltColumns // Add basalt columns for collision detection
         }
     });
 
@@ -607,6 +612,14 @@ function AppContent() {
                         interactionDistanceSquared = PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
                     }
                     break;
+                case 'fumarole': // ADDED: Fumarole interaction distance handling (volcanic heat source)
+                    const fumarole = fumaroles.get(interactingWith.id.toString());
+                    if (fumarole) {
+                        // Fumaroles are ground-level entities, use their position directly
+                        entityPosition = { x: fumarole.posX, y: fumarole.posY };
+                        interactionDistanceSquared = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
+                    }
+                    break;
                 case 'stash':
                     const stash = stashes.get(interactingWith.id.toString());
                     if (stash) {
@@ -649,6 +662,7 @@ function AppContent() {
         woodenStorageBoxes, 
         campfires, 
         furnaces, // ADDED: Furnaces dependency
+        fumaroles, // ADDED: Fumaroles dependency
         stashes, 
         playerCorpses,
         handleSetInteractingWith
@@ -896,6 +910,8 @@ function AppContent() {
                             viperSpittles={viperSpittles}
                             animalCorpses={animalCorpses}
                             barrels={barrels}
+                            fumaroles={fumaroles}
+                            basaltColumns={basaltColumns}
                             seaStacks={seaStacks}
                             homesteadHearths={homesteadHearths}
                             brothPots={brothPots}

@@ -21,6 +21,8 @@ use crate::furnace::{Furnace, FURNACE_COLLISION_RADIUS, FURNACE_COLLISION_Y_OFFS
 use crate::furnace::furnace as FurnaceTableTrait;
 use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_RADIUS, HEARTH_COLLISION_Y_OFFSET};
 use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
+use crate::basalt_column::{BasaltColumn, BASALT_COLUMN_RADIUS, BASALT_COLUMN_COLLISION_Y_OFFSET};
+use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::building::wall_cell as WallCellTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
 use crate::building::FOUNDATION_TILE_SIZE_PX;
@@ -53,6 +55,7 @@ pub enum CollisionType {
     Player,
     Tree,
     Stone,
+    BasaltColumn,
     WoodenBox,
     RainCollector,
     PlayerCorpse,
@@ -275,7 +278,7 @@ pub fn check_environmental_collision_with_grid<DB>(
 where
     DB: TreeTableTrait + StoneTableTrait + WoodenStorageBoxTableTrait 
         + RainCollectorTableTrait + PlayerCorpseTableTrait + FurnaceTableTrait
-        + HomesteadHearthTableTrait,
+        + HomesteadHearthTableTrait + BasaltColumnTableTrait,
 {
     let nearby_entities = grid.get_entities_in_range(proposed_x, proposed_y);
     
@@ -307,6 +310,23 @@ where
                     let dy = proposed_y - stone_collision_y;
                     let distance_sq = dx * dx + dy * dy;
                     let min_distance = ANIMAL_COLLISION_RADIUS + crate::stone::STONE_RADIUS;
+                    let min_distance_sq = min_distance * min_distance;
+                    
+                    if distance_sq < min_distance_sq && distance_sq > 0.1 {
+                        let distance = distance_sq.sqrt();
+                        let pushback_x = (dx / distance) * COLLISION_PUSHBACK_FORCE;
+                        let pushback_y = (dy / distance) * COLLISION_PUSHBACK_FORCE;
+                        return Some((pushback_x, pushback_y));
+                    }
+                }
+            },
+            spatial_grid::EntityType::BasaltColumn(basalt_id) => {
+                if let Some(basalt) = db.basalt_column().id().find(basalt_id) {
+                    let basalt_collision_y = basalt.pos_y - BASALT_COLUMN_COLLISION_Y_OFFSET;
+                    let dx = proposed_x - basalt.pos_x;
+                    let dy = proposed_y - basalt_collision_y;
+                    let distance_sq = dx * dx + dy * dy;
+                    let min_distance = ANIMAL_COLLISION_RADIUS + BASALT_COLUMN_RADIUS;
                     let min_distance_sq = min_distance * min_distance;
                     
                     if distance_sq < min_distance_sq && distance_sq > 0.1 {

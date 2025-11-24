@@ -28,12 +28,7 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Grass = { tag: "Grass" };
-export type Dirt = { tag: "Dirt" };
-export type DirtRoad = { tag: "DirtRoad" };
-export type Sea = { tag: "Sea" };
-export type Beach = { tag: "Beach" };
-export type Sand = { tag: "Sand" };
-export type HotSpringWater = { tag: "HotSpringWater" };
-export type Quarry = { tag: "Quarry" };
+export type Type1 = { tag: "Type1" };
+export type Type2 = { tag: "Type2" };
+export type Type3 = { tag: "Type3" };
 

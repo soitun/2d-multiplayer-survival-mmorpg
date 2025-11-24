@@ -13,9 +13,27 @@ use rand::rngs::StdRng;
 use std::collections::HashMap;
 
 // --- Hot Spring Constants (moved from hot_spring.rs) ---
-/// Base density for 400x400 map (160k tiles²) = 4 hot springs (increased for better visibility)
+/// Base density for 600x600 map (360k tiles²) = 4 hot springs (increased for better visibility)
 const HOT_SPRING_BASE_COUNT: u32 = 4;
-const HOT_SPRING_BASE_AREA_TILES: f32 = 160000.0; // 400x400 tiles
+// Use actual world size from lib.rs for base area calculation
+const HOT_SPRING_BASE_AREA_TILES: f32 = (crate::WORLD_WIDTH_TILES * crate::WORLD_HEIGHT_TILES) as f32; // 600x600 = 360k tiles
+
+// --- Quarry Constants ---
+/// Base density for 600x600 map (360k tiles²) = 2 large quarries (north)
+const QUARRY_LARGE_BASE_COUNT: u32 = 2; // 2 large quarries for 600x600 map
+/// Base density for 600x600 map = 4 small quarries (south)
+const QUARRY_SMALL_BASE_COUNT: u32 = 4; // 4 small quarries on south side for 600x600 map
+// Use actual world size from lib.rs for base area calculation
+const QUARRY_BASE_AREA_TILES: f32 = (crate::WORLD_WIDTH_TILES * crate::WORLD_HEIGHT_TILES) as f32; // 600x600 = 360k tiles
+// Large quarries (north/central)
+const QUARRY_LARGE_MIN_RADIUS_TILES: i32 = 18;
+const QUARRY_LARGE_MAX_RADIUS_TILES: i32 = 25;
+// Small quarries (south - for PvP/warmth)
+const QUARRY_SMALL_MIN_RADIUS_TILES: i32 = 9;  // Half size
+const QUARRY_SMALL_MAX_RADIUS_TILES: i32 = 12; // Half size
+const MIN_QUARRY_DISTANCE: f32 = 120.0; // Minimum distance between large quarries
+const MIN_SMALL_QUARRY_DISTANCE: f32 = 60.0; // Minimum distance between small quarries
+const MIN_QUARRY_TO_HOT_SPRING_DISTANCE: f32 = 80.0; // Keep quarries away from hot springs
 
 #[spacetimedb::reducer]
 pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<(), String> {
@@ -85,6 +103,9 @@ struct WorldFeatures {
     dirt_paths: Vec<Vec<bool>>,
     hot_spring_water: Vec<Vec<bool>>, // Hot spring water (inner pool)
     hot_spring_beach: Vec<Vec<bool>>, // Hot spring beach (shore)
+    quarry_dirt: Vec<Vec<bool>>, // Quarry dirt areas (circular cleared zones)
+    quarry_roads: Vec<Vec<bool>>, // Quarry access roads (dirt roads leading in)
+    quarry_centers: Vec<(f32, f32, i32)>, // Quarry center positions (x, y, radius) for entity spawning
     width: usize,
     height: usize,
 }
@@ -130,6 +151,10 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Pass river and lake data to ensure hot springs don't spawn near ANY water
     let (hot_spring_water, hot_spring_beach) = generate_hot_springs(config, noise, &shore_distance, &river_network, &lake_map, width, height);
     
+    // Generate quarry locations (dirt areas with enhanced stone spawning)
+    // Pass hot spring data to ensure quarries don't spawn near hot springs
+    let (quarry_dirt, quarry_roads, quarry_centers) = generate_quarries(config, noise, &shore_distance, &river_network, &lake_map, &hot_spring_water, &road_network, width, height);
+    
     WorldFeatures {
         heightmap,
         shore_distance,
@@ -139,6 +164,9 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         dirt_paths,
         hot_spring_water,
         hot_spring_beach,
+        quarry_dirt,
+        quarry_roads,
+        quarry_centers,
         width,
         height,
     }
@@ -1075,6 +1103,299 @@ fn generate_hot_springs(
     (hot_spring_water, hot_spring_beach)
 }
 
+fn generate_quarries(
+    config: &WorldGenConfig,
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    hot_spring_water: &[Vec<bool>],
+    road_network: &[Vec<bool>],
+    width: usize,
+    height: usize
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<(f32, f32, i32)>) {
+    let mut quarry_dirt = vec![vec![false; width]; height];
+    let mut quarry_roads = vec![vec![false; width]; height];
+    
+    log::info!("🏔️ GENERATING QUARRIES (large northern + small southern PvP spots)...");
+    log::info!("🏔️ Map size: {}x{} tiles = {}x{}px (1 tile = 48px)", width, height, width * 48, height * 48);
+    
+    // Calculate how many quarries to generate based on map size
+    // Uses smooth mathematical scaling that works for all map sizes
+    let map_area_tiles = (width * height) as f32;
+    let scale_factor = (map_area_tiles / QUARRY_BASE_AREA_TILES).sqrt();
+    
+    // Smooth scaling formula: count = base * scale_factor^0.85
+    // The exponent 0.85 creates a sublinear curve that:
+    // - Scales down gracefully for small maps (doesn't go to 0 too quickly)
+    // - Gives exactly the base count at 600x600 (scale_factor = 1.0)
+    // - Scales up proportionally for large maps
+    // Examples:
+    // - 300x300 (scale=0.5): 2^0.85 * 0.5^0.85 = 1.1 large, 2.2 small
+    // - 450x450 (scale=0.75): 2^0.85 * 0.75^0.85 = 1.5 large, 3.1 small
+    // - 600x600 (scale=1.0): 2^0.85 * 1.0^0.85 = 2.0 large, 4.0 small ✓
+    // - 800x800 (scale=1.33): 2^0.85 * 1.33^0.85 = 2.5 large, 5.0 small
+    let target_large_quarry_count = ((QUARRY_LARGE_BASE_COUNT as f32) * scale_factor.powf(0.85))
+        .round()
+        .max(0.0) as usize;
+    
+    let target_small_quarry_count = ((QUARRY_SMALL_BASE_COUNT as f32) * scale_factor.powf(0.85))
+        .round()
+        .max(1.0) as usize; // Always at least 1 small quarry
+    
+    log::info!("🏔️ Target large quarries (north): {} | Target small quarries (south): {} (scale factor: {:.2}x)", 
+               target_large_quarry_count, target_small_quarry_count, scale_factor);
+    
+    // Collect candidate positions separately for north and south regions
+    let min_distance_from_edge = 25;
+    let min_inland_distance = 30.0; // Stay well inland
+    let map_height_half = height / 2;
+    
+    let mut candidate_positions_north = Vec::new();
+    let mut candidate_positions_south = Vec::new();
+    
+    for y in min_distance_from_edge..(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be inland
+            if shore_dist < min_inland_distance {
+                continue;
+            }
+            
+            // Check if NOT adjacent to any water tiles (rivers, lakes, ocean, hot springs)
+            let is_adjacent_to_water = check_adjacent_water_with_features(
+                shore_distance,
+                river_network,
+                lake_map,
+                x,
+                y,
+                width,
+                height
+            );
+            
+            if is_adjacent_to_water {
+                continue;
+            }
+            
+            // Check if NOT near hot springs
+            if hot_spring_water[y][x] {
+                continue;
+            }
+            
+            // Check if NOT in central compound (avoid roads for large quarries only)
+            // Small quarries can be near roads for accessibility
+            let is_on_road = road_network[y][x];
+            
+            // Separate north and south candidates
+            if y < map_height_half {
+                // North half - large quarries, avoid roads
+                if !is_on_road {
+                    candidate_positions_north.push((x, y));
+                }
+            } else {
+                // South half - small quarries, can be near roads
+                candidate_positions_south.push((x, y));
+            }
+        }
+    }
+    
+    log::info!("🏔️ Found {} candidate positions for LARGE quarries (north)", candidate_positions_north.len());
+    log::info!("🏔️ Found {} candidate positions for SMALL quarries (south)", candidate_positions_south.len());
+    
+    if candidate_positions_north.is_empty() && candidate_positions_south.is_empty() {
+        log::error!("⚠️⚠️⚠️ NO VALID POSITIONS FOUND FOR QUARRIES! ⚠️⚠️⚠️");
+        return (quarry_dirt, quarry_roads, Vec::new());
+    }
+    
+    // Select quarry positions with good spacing using proper RNG
+    let mut quarry_centers = Vec::new();
+    let mut rng = StdRng::seed_from_u64(config.seed);
+    
+    // PHASE 1: Place LARGE quarries in NORTH half
+    log::info!("🏔️ PHASE 1: Placing {} LARGE quarries in NORTH half...", target_large_quarry_count);
+    if !candidate_positions_north.is_empty() {
+        for attempt in 0..(target_large_quarry_count * 20) {
+            if quarry_centers.iter().filter(|(_, _, _, is_large)| *is_large).count() >= target_large_quarry_count {
+                break;
+            }
+            
+            // Pick a random candidate from north
+            let idx = rng.gen_range(0..candidate_positions_north.len());
+            let (x, y) = candidate_positions_north[idx];
+            
+            // Check distance from existing quarries
+            let mut too_close = false;
+            for (qx, qy, _, _) in &quarry_centers {
+                let dx = x as f32 - qx;
+                let dy = y as f32 - qy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist < MIN_QUARRY_DISTANCE {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            if !too_close {
+                // Vary radius slightly
+                let radius_tiles = rng.gen_range(QUARRY_LARGE_MIN_RADIUS_TILES..=QUARRY_LARGE_MAX_RADIUS_TILES);
+                
+                quarry_centers.push((x as f32, y as f32, radius_tiles, true)); // true = large quarry
+                let world_x_px = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let world_y_px = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                log::info!("🏔️✨ PLACED LARGE QUARRY #{} at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) with radius {} tiles ✨",
+                           quarry_centers.iter().filter(|(_, _, _, is_large)| *is_large).count(), x, y, world_x_px, world_y_px, radius_tiles);
+            }
+        }
+    }
+    
+    // PHASE 2: Place SMALL quarries in SOUTH half
+    log::info!("🏔️ PHASE 2: Placing {} SMALL quarries in SOUTH half (PvP/warmth spots)...", target_small_quarry_count);
+    if !candidate_positions_south.is_empty() {
+        for attempt in 0..(target_small_quarry_count * 20) {
+            if quarry_centers.iter().filter(|(_, _, _, is_large)| !*is_large).count() >= target_small_quarry_count {
+                break;
+            }
+            
+            // Pick a random candidate from south
+            let idx = rng.gen_range(0..candidate_positions_south.len());
+            let (x, y) = candidate_positions_south[idx];
+            
+            // Check distance from existing quarries (smaller minimum distance for small quarries)
+            let mut too_close = false;
+            for (qx, qy, _, other_is_large) in &quarry_centers {
+                let dx = x as f32 - qx;
+                let dy = y as f32 - qy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                // Use smaller distance for small-to-small, larger for small-to-large
+                let min_dist = if *other_is_large { MIN_QUARRY_DISTANCE } else { MIN_SMALL_QUARRY_DISTANCE };
+                if dist < min_dist {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            if !too_close {
+                // Vary radius slightly for small quarries
+                let radius_tiles = rng.gen_range(QUARRY_SMALL_MIN_RADIUS_TILES..=QUARRY_SMALL_MAX_RADIUS_TILES);
+                
+                quarry_centers.push((x as f32, y as f32, radius_tiles, false)); // false = small quarry
+                let world_x_px = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let world_y_px = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                log::info!("🏔️✨ PLACED SMALL QUARRY #{} at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) with radius {} tiles ✨",
+                           quarry_centers.iter().filter(|(_, _, _, is_large)| !*is_large).count(), x, y, world_x_px, world_y_px, radius_tiles);
+            }
+        }
+    }
+    
+    let large_count = quarry_centers.iter().filter(|(_, _, _, is_large)| *is_large).count();
+    let small_count = quarry_centers.iter().filter(|(_, _, _, is_large)| !*is_large).count();
+    log::info!("🏔️ Quarry placement complete: {} large (north) + {} small (south) = {} total",
+               large_count, small_count, quarry_centers.len());
+    
+    // Log all quarry centers for easy navigation
+    log::info!("🏔️ ========== QUARRY LOCATIONS ==========");
+    for (idx, (center_x, center_y, radius_tiles, is_large)) in quarry_centers.iter().enumerate() {
+        let world_x_px = (*center_x + 0.5) * crate::TILE_SIZE_PX as f32;
+        let world_y_px = (*center_y + 0.5) * crate::TILE_SIZE_PX as f32;
+        let quarry_type = if *is_large { "LARGE" } else { "SMALL" };
+        log::info!("🏔️ QUARRY #{} ({}): World Position ({:.0}, {:.0}) | Radius: {} tiles", 
+                   idx + 1, quarry_type, world_x_px, world_y_px, radius_tiles);
+    }
+    log::info!("🏔️ =======================================");
+    
+    // Convert quarry_centers to the format expected by environment.rs (without is_large flag)
+    let quarry_centers_for_entities: Vec<(f32, f32, i32)> = quarry_centers.iter()
+        .map(|(x, y, r, _)| (*x, *y, *r))
+        .collect();
+    
+    // Mark the quarry areas in the map (dirt layers)
+    for (center_x, center_y, radius_tiles, _) in &quarry_centers {
+        let center_x = *center_x as i32;
+        let center_y = *center_y as i32;
+        
+        // Create circular dirt area
+        for dy in -*radius_tiles..=*radius_tiles {
+            for dx in -*radius_tiles..=*radius_tiles {
+                let tile_x = center_x + dx;
+                let tile_y = center_y + dy;
+                
+                // Check bounds
+                if tile_x < 0 || tile_y < 0 || tile_x >= width as i32 || tile_y >= height as i32 {
+                    continue;
+                }
+                
+                // Calculate distance from center
+                let dist = ((dx * dx + dy * dy) as f32).sqrt();
+                let dist_normalized = dist / *radius_tiles as f32;
+                
+                // Add organic noise
+                let noise_val = noise.get([tile_x as f64 * 0.3, tile_y as f64 * 0.3]) as f32;
+                let noise_offset = noise_val * 0.15;
+                
+                // Create dirt area (slightly irregular edge)
+                if dist_normalized < 1.0 + noise_offset {
+                    quarry_dirt[tile_y as usize][tile_x as usize] = true;
+                }
+            }
+        }
+        
+        // Create dirt road leading to nearest main road
+        create_quarry_access_road(&mut quarry_roads, road_network, center_x, center_y, *radius_tiles, width, height, noise);
+    }
+    
+    log::info!("Generated {} quarries with dirt areas and access roads", quarry_centers_for_entities.len());
+    (quarry_dirt, quarry_roads, quarry_centers_for_entities)
+}
+
+fn create_quarry_access_road(
+    quarry_roads: &mut Vec<Vec<bool>>,
+    road_network: &[Vec<bool>],
+    quarry_x: i32,
+    quarry_y: i32,
+    quarry_radius: i32,
+    width: usize,
+    height: usize,
+    noise: &Perlin
+) {
+    // Find nearest main road tile
+    let mut nearest_road_pos: Option<(i32, i32)> = None;
+    let mut nearest_dist_sq = f32::MAX;
+    let search_radius = 100; // Search within 100 tiles
+    
+    for dy in -search_radius..=search_radius {
+        for dx in -search_radius..=search_radius {
+            let check_x = quarry_x + dx;
+            let check_y = quarry_y + dy;
+            
+            if check_x < 0 || check_y < 0 || check_x >= width as i32 || check_y >= height as i32 {
+                continue;
+            }
+            
+            if road_network[check_y as usize][check_x as usize] {
+                let dist_sq = (dx * dx + dy * dy) as f32;
+                if dist_sq < nearest_dist_sq {
+                    nearest_dist_sq = dist_sq;
+                    nearest_road_pos = Some((check_x, check_y));
+                }
+            }
+        }
+    }
+    
+    // If we found a road, create a path to it
+    if let Some((road_x, road_y)) = nearest_road_pos {
+        // Start from edge of quarry (not center)
+        let dx = road_x - quarry_x;
+        let dy = road_y - quarry_y;
+        let angle = (dy as f32).atan2(dx as f32);
+        let start_x = quarry_x + (angle.cos() * quarry_radius as f32) as i32;
+        let start_y = quarry_y + (angle.sin() * quarry_radius as f32) as i32;
+        
+        // Draw road from quarry edge to main road
+        draw_road_segment_between_points(quarry_roads, start_x, start_y, road_x, road_y, width, height);
+    }
+}
+
 fn generate_chunk(
     ctx: &ReducerContext, 
     config: &WorldGenConfig, 
@@ -1172,6 +1493,16 @@ fn determine_realistic_tile_type(
     // Roads can cross deep water (rivers/lakes) but NOT beaches
     // Check roads AFTER beaches so beaches take priority
     if features.road_network[y][x] {
+        return TileType::DirtRoad;
+    }
+    
+    // Quarry dirt areas - use dedicated Quarry tile type (visually identical to Dirt)
+    if features.quarry_dirt[y][x] {
+        return TileType::Quarry;
+    }
+    
+    // Quarry access roads - use regular DirtRoad tile type
+    if features.quarry_roads[y][x] {
         return TileType::DirtRoad;
     }
     
@@ -1313,6 +1644,7 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
                 TileType::Dirt => 192,     // Dark brown dirt
                 TileType::DirtRoad => 224, // Very dark brown roads
                 TileType::HotSpringWater => 255, // BRIGHT WHITE/CYAN - highly visible hot springs!
+                TileType::Quarry => 192,   // Same as Dirt (visually identical)
             };
             
             // Write directly to buffer (overwriting if multiple tiles map to same pixel is fine/expected)

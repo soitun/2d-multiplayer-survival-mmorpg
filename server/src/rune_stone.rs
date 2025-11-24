@@ -33,9 +33,11 @@ pub(crate) const RUNE_STONE_SPAWN_WORLD_MARGIN_TILES: u32 = 5; // Keep away from
 pub(crate) const MAX_RUNE_STONE_SEEDING_ATTEMPTS_FACTOR: u32 = 10; // More attempts for rare spawns
 pub(crate) const MIN_RUNE_STONE_DISTANCE_PX: f32 = 1200.0; // Very far apart - rare and special monuments
 pub(crate) const MIN_RUNE_STONE_DISTANCE_SQ: f32 = MIN_RUNE_STONE_DISTANCE_PX * MIN_RUNE_STONE_DISTANCE_PX;
-pub(crate) const MIN_RUNE_STONE_TREE_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance from trees (100px)
+pub(crate) const MIN_RUNE_STONE_TREE_DISTANCE_SQ: f32 = 300.0 * 300.0; // Minimum distance from trees (300px = ~6 tiles)
 pub(crate) const MIN_RUNE_STONE_STONE_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance from stones (100px)
-pub(crate) const MIN_RUNE_STONE_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance from barrels (80px)
+pub(crate) const MIN_RUNE_STONE_BARREL_DISTANCE_SQ: f32 = 300.0 * 300.0; // Minimum distance from barrels (300px = ~6 tiles)
+pub(crate) const MIN_RUNE_STONE_HOT_SPRING_DISTANCE_SQ: f32 = 800.0 * 800.0; // Minimum distance from hot springs (800px = ~16 tiles)
+pub(crate) const MIN_RUNE_STONE_QUARRY_DISTANCE_SQ: f32 = 800.0 * 800.0; // Minimum distance from quarries (800px = ~16 tiles)
 
 // Effect Radius (in pixels) - MASSIVE economic zones for PvP hotspots
 pub(crate) const RUNE_STONE_EFFECT_RADIUS: f32 = 2000.0; // Huge AoE radius - true economic centers

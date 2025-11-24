@@ -27,6 +27,8 @@ import {
   Barrel as SpacetimeDBBarrel, // ADDED Barrel type
   FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   WallCell as SpacetimeDBWallCell, // ADDED: Building walls
+  Fumarole as SpacetimeDBFumarole, // ADDED: Fumaroles (geothermal vents)
+  BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt columns (decorative obstacles)
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
 } from '../generated';
 import {
@@ -105,6 +107,10 @@ interface EntityFilteringResult {
   visibleAnimalCorpsesMap: Map<string, SpacetimeDBAnimalCorpse>; // ADDED
   visibleBarrels: SpacetimeDBBarrel[]; // ADDED
   visibleBarrelsMap: Map<string, SpacetimeDBBarrel>; // ADDED
+  visibleFumaroles: SpacetimeDBFumarole[]; // ADDED
+  visibleFumerolesMap: Map<string, SpacetimeDBFumarole>; // ADDED
+  visibleBasaltColumns: SpacetimeDBBasaltColumn[]; // ADDED
+  visibleBasaltColumnsMap: Map<string, SpacetimeDBBasaltColumn>; // ADDED
   visibleSeaStacks: any[]; // ADDED
   visibleSeaStacksMap: Map<string, any>; // ADDED
   visibleFoundationCells: SpacetimeDBFoundationCell[]; // ADDED: Building foundations
@@ -144,7 +150,9 @@ export type YSortedEntityType =
   | { type: 'sleeping_bag'; entity: SpacetimeDBSleepingBag } // ADDED: Sleeping bags
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
   | { type: 'wall_cell'; entity: SpacetimeDBWallCell } // ADDED: Building walls
-  | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } }; // ADDED: Fog of war overlay (renders above placeables, below walls)
+  | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } } // ADDED: Fog of war overlay (renders above placeables, below walls)
+  | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
+  | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn }; // ADDED: Basalt columns (decorative obstacles in quarries)
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
@@ -192,6 +200,8 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'wild_animal':
     case 'barrel':
     case 'sleeping_bag':
+    case 'fumarole': // ADDED: Fumaroles sort by Y position (ground-level vents)
+    case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
       // CRITICAL FIX: Use actual Y position for proper depth sorting relative to players
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
@@ -285,6 +295,8 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'harvestable_resource': return 12;
     case 'sleeping_bag': return 13; // Render after dropped items, before barrels
     case 'barrel': return 15;
+    case 'fumarole': return 14; // ADDED: Fumaroles render slightly before barrels (ground vents)
+    case 'basalt_column': return 16; // ADDED: Basalt columns render after barrels (tall obstacles)
     case 'rain_collector': return 18;
     case 'broth_pot': return 18; // Same as rain collector (similar placeable container)
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
@@ -575,6 +587,8 @@ export function useEntityFiltering(
   viperSpittles: Map<string, SpacetimeDBViperSpittle>, // ADDED viperSpittles argument
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>, // ADDED animalCorpses argument
   barrels: Map<string, SpacetimeDBBarrel>, // ADDED barrels argument
+  fumaroles: Map<string, SpacetimeDBFumarole>, // ADDED fumaroles argument
+  basaltColumns: Map<string, SpacetimeDBBasaltColumn>, // ADDED basalt columns argument
   seaStacks: Map<string, any>, // ADDED sea stacks argument
   foundationCells: Map<string, SpacetimeDBFoundationCell>, // ADDED: Building foundations
   wallCells: Map<string, SpacetimeDBWallCell>, // ADDED: Building walls
@@ -745,6 +759,20 @@ export function useEntityFiltering(
       y = entity.posY;
       width = 400; // Sea stacks are large - use the same as BASE_WIDTH in rendering
       height = 600; // Sea stacks are tall - generous height for Y-sorting visibility
+    } else if ((entity as any).id !== undefined && (entity as any).posX !== undefined && (entity as any).posY !== undefined && (entity as any).chunkIndex !== undefined) {
+      // Handle fumaroles and basalt columns - they have id, posX, posY, and chunkIndex
+      x = (entity as any).posX;
+      y = (entity as any).posY;
+      // Check if it's a basalt column (has columnType field) or fumarole
+      if ((entity as any).columnType !== undefined) {
+        // Basalt column - tall obstacle (2.5x bigger for cover)
+        width = 200; // BASALT_COLUMN_WIDTH
+        height = 300; // BASALT_COLUMN_HEIGHT
+      } else {
+        // Fumarole - ground vent
+        width = 96; // FUMAROLE_WIDTH
+        height = 96; // FUMAROLE_HEIGHT
+      }
     } else {
       return false; // Unknown entity type
     }
@@ -1062,6 +1090,25 @@ export function useEntityFiltering(
     [barrels, isEntityInView, viewBounds, stableTimestamp]
   );
 
+  const visibleFumaroles = useMemo(() => {
+    // console.log('🔥 [FUMAROLE FILTER] Running filter. fumaroles:', fumaroles ? `Map with ${fumaroles.size} entries` : 'null/undefined');
+    const visible = fumaroles ? Array.from(fumaroles.values()).filter(e => 
+      isEntityInView(e, viewBounds, stableTimestamp) // Fumaroles don't respawn
+    ) : [];
+    // console.log('🔥 [FUMAROLE FILTER] Total fumaroles:', fumaroles?.size || 0, 'Visible:', visible.length);
+    return visible;
+  }, [fumaroles, isEntityInView, viewBounds, stableTimestamp]);
+
+  const visibleBasaltColumns = useMemo(() => {
+    const visible = basaltColumns ? Array.from(basaltColumns.values()).filter(e => 
+      isEntityInView(e, viewBounds, stableTimestamp) // Basalt columns don't respawn
+    ) : [];
+    if (basaltColumns && basaltColumns.size > 0) {
+      // console.log('🗿 [BASALT FILTER] Total basalt columns:', basaltColumns.size, 'Visible:', visible.length);
+    }
+    return visible;
+  }, [basaltColumns, isEntityInView, viewBounds, stableTimestamp]);
+
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
     : [],
@@ -1280,6 +1327,16 @@ export function useEntityFiltering(
     [visibleBarrels]
   );
 
+  const visibleFumerolesMap = useMemo(() =>
+    new Map(visibleFumaroles.map(f => [f.id.toString(), f])),
+    [visibleFumaroles]
+  );
+
+  const visibleBasaltColumnsMap = useMemo(() =>
+    new Map(visibleBasaltColumns.map(b => [b.id.toString(), b])),
+    [visibleBasaltColumns]
+  );
+
   // ADDED: Map for visible sea stacks
   const visibleSeaStacksMap = useMemo(() =>
     new Map(visibleSeaStacks.map(s => [s.id.toString(), s])),
@@ -1347,6 +1404,8 @@ export function useEntityFiltering(
       viperSpittles: visibleViperSpittles.length,
       animalCorpses: visibleAnimalCorpses.length,
       barrels: visibleBarrels.length,
+      fumaroles: visibleFumaroles.length,
+      basaltColumns: visibleBasaltColumns.length,
       seaStacks: visibleSeaStacks.length,
       foundationCells: visibleFoundationCells.length,
       harvestableResources: visibleHarvestableResources.length,
@@ -1472,6 +1531,8 @@ export function useEntityFiltering(
     visiblePlayerCorpses.forEach(e => allEntities[index++] = { type: 'player_corpse', entity: e });
     visibleWildAnimals.forEach(e => allEntities[index++] = { type: 'wild_animal', entity: e });
     visibleBarrels.forEach(e => allEntities[index++] = { type: 'barrel', entity: e });
+    visibleFumaroles.forEach(e => allEntities[index++] = { type: 'fumarole', entity: e }); // ADDED: Fumaroles
+    visibleBasaltColumns.forEach(e => allEntities[index++] = { type: 'basalt_column', entity: e }); // ADDED: Basalt columns
     visibleSleepingBags.forEach(e => allEntities[index++] = { type: 'sleeping_bag', entity: e }); // ADDED: Sleeping bags
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
@@ -1924,6 +1985,8 @@ export function useEntityFiltering(
     visibleViperSpittles,
     visibleAnimalCorpses,
     visibleBarrels,
+    visibleFumaroles,
+    visibleBasaltColumns,
     visibleSeaStacks,
     visibleHarvestableResources,
     visibleFoundationCells, // ADDED: Foundations dependency
@@ -1992,6 +2055,10 @@ export function useEntityFiltering(
     visibleAnimalCorpsesMap,
     visibleBarrels,
     visibleBarrelsMap,
+    visibleFumaroles,
+    visibleFumerolesMap,
+    visibleBasaltColumns,
+    visibleBasaltColumnsMap,
     visibleSeaStacks, 
     visibleSeaStacksMap,
     visibleFoundationCells,

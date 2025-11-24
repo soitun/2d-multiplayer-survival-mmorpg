@@ -36,7 +36,8 @@ export type TileType = TileTypeVariants.Grass |
   TileTypeVariants.Sea |
   TileTypeVariants.Beach |
   TileTypeVariants.Sand |
-  TileTypeVariants.HotSpringWater;
+  TileTypeVariants.HotSpringWater |
+  TileTypeVariants.Quarry;
 
 let _cached_TileType_type_value: __AlgebraicTypeType | null = null;
 
@@ -55,6 +56,7 @@ export const TileType = {
   Beach: { tag: "Beach" } as const,
   Sand: { tag: "Sand" } as const,
   HotSpringWater: { tag: "HotSpringWater" } as const,
+  Quarry: { tag: "Quarry" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TileType_type_value) return _cached_TileType_type_value;
@@ -67,6 +69,7 @@ export const TileType = {
       { name: "Beach", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Sand", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HotSpringWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Quarry", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TileType_type_value;
   },

@@ -25,6 +25,7 @@ import {
     ActiveEquipment,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
+    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
     Lantern as SpacetimeDBLantern,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
     Recipe,
@@ -82,6 +83,7 @@ interface InventoryUIProps {
     interactionTarget: { type: string; id: number | bigint } | null;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>;
+    fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
     lanterns: Map<string, SpacetimeDBLantern>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>; // <<< ADDED Prop Definition
     playerCorpses: Map<string, PlayerCorpse>; // <<< ADD prop definition for corpses
@@ -142,6 +144,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     interactionTarget,
     campfires,
     furnaces,
+    fumaroles,
     lanterns,
     woodenStorageBoxes,
     playerCorpses,
@@ -1088,6 +1091,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             itemDefinitions={itemDefinitions}
                             campfires={campfires}
                             furnaces={furnaces}
+                            fumaroles={fumaroles}
                             lanterns={lanterns}
                             woodenStorageBoxes={woodenStorageBoxes}
                             playerCorpses={playerCorpses}

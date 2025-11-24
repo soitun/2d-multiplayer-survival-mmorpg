@@ -47,7 +47,7 @@ import { gameConfig } from '../config/gameConfig';
 // SPATIAL SUBSCRIPTION CONTROL FLAGS
 const DISABLE_ALL_SPATIAL_SUBSCRIPTIONS = false; // 🚨 EMERGENCY: Master switch - disable ALL spatial subscriptions to isolate performance issue
 const ENABLE_CLOUDS = true; // Controls cloud spatial subscriptions
-const ENABLE_GRASS = false; // 🚫 DISABLED: Grass subscriptions cause massive lag spikes
+const ENABLE_GRASS = true; // 🚫 DISABLED: Grass subscriptions cause massive lag spikes
 const ENABLE_WORLD_TILES = false; // Controls world tile spatial subscriptions (OLD SYSTEM - DEPRECATED)
 // V2 system removed - was causing massive performance issues
 
@@ -143,6 +143,8 @@ export interface SpacetimeTableStates {
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
     barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
     seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
+    fumaroles: Map<string, SpacetimeDB.Fumarole>; // ADDED fumaroles
+    basaltColumns: Map<string, SpacetimeDB.BasaltColumn>; // ADDED basalt columns
     foundationCells: Map<string, SpacetimeDB.FoundationCell>; // ADDED: Building foundations
     wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
     chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
@@ -214,6 +216,8 @@ export const useSpacetimeTables = ({
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
     const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
+    const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map()); // ADDED fumaroles
+    const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map()); // ADDED basalt columns
     const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
@@ -341,6 +345,8 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                 ];
                 newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
                 
@@ -381,6 +387,8 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
                 
                 if (ENABLE_CLOUDS) {
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
@@ -1387,6 +1395,42 @@ export const useSpacetimeTables = ({
                 setWallCells(prev => { const newMap = new Map(prev); newMap.delete(wall.id.toString()); return newMap; });
             };
 
+            // Fumarole handlers - SPATIAL
+            const handleFumaroleInsert = (ctx: any, fumarole: SpacetimeDB.Fumarole) => {
+                // console.log('🔥 [FUMAROLE INSERT] Fumarole', fumarole.id, 'at', fumarole.posX, fumarole.posY, 'chunk', fumarole.chunkIndex);
+                setFumaroles(prev => new Map(prev).set(fumarole.id.toString(), fumarole));
+            };
+            const handleFumaroleUpdate = (ctx: any, oldFumarole: SpacetimeDB.Fumarole, newFumarole: SpacetimeDB.Fumarole) => {
+                // Only update for visually significant changes
+                const visuallySignificant = 
+                    Math.abs(oldFumarole.posX - newFumarole.posX) > 0.1 ||
+                    Math.abs(oldFumarole.posY - newFumarole.posY) > 0.1 ||
+                    oldFumarole.attachedBrothPotId !== newFumarole.attachedBrothPotId;
+                
+                if (visuallySignificant) {
+                    setFumaroles(prev => new Map(prev).set(newFumarole.id.toString(), newFumarole));
+                }
+            };
+            const handleFumaroleDelete = (ctx: any, fumarole: SpacetimeDB.Fumarole) => setFumaroles(prev => { const newMap = new Map(prev); newMap.delete(fumarole.id.toString()); return newMap; });
+
+            // Basalt Column handlers - SPATIAL
+            const handleBasaltColumnInsert = (ctx: any, basaltColumn: SpacetimeDB.BasaltColumn) => {
+                // console.log('🗿 [BASALT INSERT] Basalt column', basaltColumn.id, 'at', basaltColumn.posX, basaltColumn.posY, 'chunk', basaltColumn.chunkIndex, 'type', basaltColumn.columnType);
+                setBasaltColumns(prev => new Map(prev).set(basaltColumn.id.toString(), basaltColumn));
+            };
+            const handleBasaltColumnUpdate = (ctx: any, oldBasaltColumn: SpacetimeDB.BasaltColumn, newBasaltColumn: SpacetimeDB.BasaltColumn) => {
+                // Only update for visually significant changes
+                const visuallySignificant = 
+                    Math.abs(oldBasaltColumn.posX - newBasaltColumn.posX) > 0.1 ||
+                    Math.abs(oldBasaltColumn.posY - newBasaltColumn.posY) > 0.1 ||
+                    oldBasaltColumn.columnType !== newBasaltColumn.columnType;
+                
+                if (visuallySignificant) {
+                    setBasaltColumns(prev => new Map(prev).set(newBasaltColumn.id.toString(), newBasaltColumn));
+                }
+            };
+            const handleBasaltColumnDelete = (ctx: any, basaltColumn: SpacetimeDB.BasaltColumn) => setBasaltColumns(prev => { const newMap = new Map(prev); newMap.delete(basaltColumn.id.toString()); return newMap; });
+
             // --- Chunk Weather handlers - NON-SPATIAL (subscribe to all chunks) ---
             // OPTIMIZED: Batch updates to prevent UI lag from 14k+ chunks
             const scheduleChunkWeatherUpdate = () => {
@@ -1582,6 +1626,16 @@ export const useSpacetimeTables = ({
             connection.db.wallCell.onInsert(handleWallCellInsert);
             connection.db.wallCell.onUpdate(handleWallCellUpdate);
             connection.db.wallCell.onDelete(handleWallCellDelete);
+
+            // Register Fumarole callbacks - SPATIAL
+            connection.db.fumarole.onInsert(handleFumaroleInsert);
+            connection.db.fumarole.onUpdate(handleFumaroleUpdate);
+            connection.db.fumarole.onDelete(handleFumaroleDelete);
+
+            // Register BasaltColumn callbacks - SPATIAL
+            connection.db.basaltColumn.onInsert(handleBasaltColumnInsert);
+            connection.db.basaltColumn.onUpdate(handleBasaltColumnUpdate);
+            connection.db.basaltColumn.onDelete(handleBasaltColumnDelete);
 
             // Register ChunkWeather callbacks - NON-SPATIAL
             connection.db.chunkWeather.onInsert(handleChunkWeatherInsert);
@@ -1807,6 +1861,8 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
                                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Wall initial spatial subscription
+                                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`, // ADDED: Fumarole initial spatial subscription
+                                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`, // ADDED: Basalt column initial spatial subscription
                                 ];
                                 // Removed excessive initial chunk debug logging
                                 newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
@@ -1934,6 +1990,8 @@ export const useSpacetimeTables = ({
                  setAnimalCorpses(new Map());
                  setSeaStacks(new Map());
                  setChunkWeather(new Map());
+                 setFumaroles(new Map());
+                 setBasaltColumns(new Map());
              }
         };
 
@@ -1994,5 +2052,7 @@ export const useSpacetimeTables = ({
         wallCells, // ADDED: Building walls
         runeStones, // ADDED: Rune stones
         chunkWeather, // ADDED: Chunk-based weather
+        fumaroles, // ADDED fumaroles
+        basaltColumns, // ADDED basalt columns
     };
 }; 

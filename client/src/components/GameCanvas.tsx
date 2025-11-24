@@ -38,6 +38,8 @@ import {
   ViperSpittle as SpacetimeDBViperSpittle,
   AnimalCorpse as SpacetimeDBAnimalCorpse,
   Barrel as SpacetimeDBBarrel,
+  Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole type
+  BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column type
   HarvestableResource as SpacetimeDBHarvestableResource,
   FoundationCell, // ADDED: Foundation cell type
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth type
@@ -114,6 +116,8 @@ import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wi
 import { renderViperSpittle } from '../utils/renderers/viperSpittleRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
 import { renderEquippedItem } from '../utils/renderers/equippedItemRenderingUtils';
+import { renderFumarole, preloadFumaroleImages } from '../utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole rendering
+import { renderBasaltColumn, preloadBasaltColumnImages } from '../utils/renderers/basaltColumnRenderingUtils'; // ADDED: Basalt column rendering
 
 // --- Other Components & Utils ---
 import DeathScreen from './DeathScreen.tsx';
@@ -197,6 +201,8 @@ interface GameCanvasProps {
     viperSpittles: Map<string, SpacetimeDBViperSpittle>;
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>; // Add viper spittles
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
+  fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
+  basaltColumns: Map<string, SpacetimeDBBasaltColumn>; // ADDED: Basalt columns
   seaStacks: Map<string, any>; // Add sea stacks
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
   foundationCells: Map<string, any>; // ADDED: Building foundations
@@ -280,6 +286,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   viperSpittles,
   animalCorpses,
   barrels,
+  fumaroles, // ADDED: Fumaroles destructuring
+  basaltColumns, // ADDED: Basalt columns destructuring
   seaStacks,
   homesteadHearths, // ADDED: HomesteadHearths destructuring
   foundationCells, // ADDED: Building foundations
@@ -464,6 +472,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
     runeStones, // ADDED: RuneStones for night light cutouts
+    firePatches, // ADDED: Fire patches for night light cutouts
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -528,6 +537,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleAnimalCorpsesMap,
     visibleBarrels,
     visibleBarrelsMap,
+    visibleFumaroles, // ADDED: Fumaroles
+    visibleFumerolesMap, // ADDED: Fumaroles map
+    visibleBasaltColumns, // ADDED: Basalt columns
+    visibleBasaltColumnsMap, // ADDED: Basalt columns map
     visibleSeaStacks,
     visibleSeaStacksMap,
     visibleHomesteadHearths,
@@ -564,6 +577,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     viperSpittles,
     animalCorpses,
     barrels,
+    fumaroles, // ADDED: Fumaroles
+    basaltColumns, // ADDED: Basalt columns
     seaStacks,
     foundationCells, // ADDED: Building foundations
     wallCells, // ADDED: Building walls
@@ -719,6 +734,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         case 4: return 'Beach';
         case 5: return 'Sand';
         case 6: return 'HotSpringWater'; // Hot spring water pools
+        case 7: return 'Quarry'; // Quarry tiles (visually identical to Dirt)
         default: return 'Grass';
       }
     };
@@ -787,6 +803,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer,
     campfires,
     furnaces, // ADDED: Furnaces to useInteractionFinder
+    fumaroles, // ADDED: Fumaroles to useInteractionFinder (volcanic heat source)
     lanterns,
     homesteadHearths, // ADDED: HomesteadHearths to useInteractionFinder
     droppedItems,
@@ -2228,6 +2245,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       harvestableResources: visibleHarvestableResourcesMap,
       campfires: visibleCampfiresMap,
       furnaces: visibleFurnacesMap, // ADDED: furnaces parameter
+      fumaroles: fumaroles, // ADDED: fumaroles parameter
       droppedItems: visibleDroppedItemsMap,
       woodenStorageBoxes: visibleBoxesMap,
       playerCorpses: visiblePlayerCorpsesMap,
@@ -2421,7 +2439,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End Health/Frost Overlays ---
 
     // Interaction indicators - Draw only for visible entities that are interactable
-    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
+    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
       // or if the entity is not in view, do nothing.
       if (!isInView || !holdInteractionProgress) {
@@ -2466,6 +2484,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Furnace interaction indicators (for hold actions like toggle burning)
     visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
       drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, 96, true); // 96px height for standard furnace size
+    });
+
+    // Fumarole interaction indicators (volcanic heat sources - always on, no hold action needed)
+    visibleFumerolesMap.forEach((fumarole: SpacetimeDBFumarole) => {
+      // Fumaroles don't need hold indicators since they're always on
+      // The interaction is just to open the broth pot UI if one is attached
+      // The indicator will only show if there's a broth pot attached (handled by interaction finder)
     });
 
     // Lantern interaction indicators

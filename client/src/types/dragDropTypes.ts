@@ -7,6 +7,7 @@ export type SlotType =
     | 'equipment' 
     | 'campfire_fuel'
     | 'furnace_fuel'
+    | 'fumarole' // Fumaroles have no slots (always-on heat source)
     | 'lantern_fuel'
     | 'wooden_storage_box'
     | 'player_corpse'

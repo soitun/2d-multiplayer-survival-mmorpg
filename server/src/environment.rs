@@ -51,6 +51,8 @@ use crate::world_state::world_state as WorldStateTableTrait;
 use crate::sea_stack::sea_stack as SeaStackTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
+use crate::fumarole::fumarole as FumaroleTableTrait;
+use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 
 // Import utils helpers and macro
 use crate::utils::{calculate_tile_bounds, attempt_single_spawn};
@@ -100,6 +102,9 @@ pub fn calculate_chunk_index(pos_x: f32, pos_y: f32) -> u32 {
     // Calculate 1D chunk index (row-major ordering)
     chunk_y * WORLD_WIDTH_CHUNKS + chunk_x
 }
+
+// --- Helper function to detect quarry clusters from tiles ---
+// Removed detect_quarry_clusters function - using simple probability-based spawning instead
 
 // --- Seasonal Wild Plant Respawn System ---
 
@@ -209,6 +214,34 @@ pub fn is_position_on_beach_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     // Check if the position is on a beach tile
     for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
         return tile.tile_type == crate::TileType::Beach;
+    }
+    
+    false
+}
+
+/// Checks if position is on or near a monument (hot spring or quarry)
+/// Used to prevent foundations from being built on monuments
+pub fn is_position_on_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    // Check if on hot spring
+    if is_position_in_hot_spring_area(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
+    // Check if on quarry
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check bounds
+    if tile_x < 0 || tile_y < 0 || 
+       tile_x >= WORLD_WIDTH_TILES as i32 || tile_y >= WORLD_HEIGHT_TILES as i32 {
+        return false;
+    }
+    
+    // Check if this tile is a quarry tile
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        if tile_type == crate::TileType::Quarry {
+            return true;
+        }
     }
     
     false
@@ -1095,6 +1128,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_stone_count, target_stone_count, stone_attempts
     );
 
+
     // --- Seed Sea Stacks --- Use helper function ---
     log::info!("Seeding Sea Stacks...");
     while spawned_sea_stack_count < target_sea_stack_count && sea_stack_attempts < max_sea_stack_attempts {
@@ -1164,6 +1198,203 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     
     // Set counters to 0 since we're not spawning entities anymore
     let spawned_hot_spring_count = 0;
+
+    // --- Seed Quarry Entities (Fumaroles, Basalt Columns, Stones) ---
+    log::info!("🏔️ Seeding Quarry Entities on Quarry Tiles...");
+    
+    let mut total_spawned_fumarole_count = 0;
+    let mut total_spawned_basalt_column_count = 0;
+    let mut total_spawned_quarry_stone_count = 0;
+    
+    // Collect all quarry tiles
+    let quarry_tiles: Vec<(i32, i32)> = ctx.db.world_tile()
+        .iter()
+        .filter(|tile| tile.tile_type == crate::TileType::Quarry)
+        .map(|tile| (tile.world_x, tile.world_y))
+        .collect();
+    
+    log::info!("🏔️ Found {} quarry tiles", quarry_tiles.len());
+    
+    // Shuffle quarry tiles for random spawning
+    let mut shuffled_tiles = quarry_tiles.clone();
+    use rand::seq::SliceRandom;
+    shuffled_tiles.shuffle(&mut rng);
+    
+    // Track spawned basalt column positions for collision checking
+    let mut spawned_basalt_positions: Vec<(f32, f32)> = Vec::new();
+    
+    // Spawn entities on a proportion of quarry tiles
+    // Target for 600x600 map (2 large + 4 small quarries):
+    // - Large quarries (2): 5-6 stones each = 10-12 total
+    // - Small quarries (4): 1-2 stones each = 4-8 total  
+    // - Large quarries (2): ~3 fumaroles each = ~6 total (REDUCED for performance)
+    // - Small quarries (4): 1-2 fumaroles each = 4-8 total (unchanged)
+    // - Basalt columns: REDUCED by 50% for performance (large quarries only)
+    
+    let fumarole_spawn_chance = 0.006;  // 0.6% - REDUCED 2x from 1.2% (large quarries get ~3, small still get 1-2)
+    let basalt_spawn_chance = 0.04;     // 4% - REDUCED by 50% from 8% (half as many columns)
+    let stone_spawn_chance = 0.015;     // 1.5% - unchanged (stones are important for gameplay)
+    
+    // Minimum distances for collision checking
+    // Basalt columns are visually large (200x300px), so they need more space
+    const MIN_FUMAROLE_TREE_DIST_SQ: f32 = 80.0 * 80.0;
+    const MIN_FUMAROLE_STONE_DIST_SQ: f32 = 80.0 * 80.0;
+    const MIN_BASALT_TREE_DIST_SQ: f32 = 150.0 * 150.0;  // Increased from 100 to 150
+    const MIN_BASALT_STONE_DIST_SQ: f32 = 150.0 * 150.0; // Increased from 100 to 150
+    const MIN_BASALT_BASALT_DIST_SQ: f32 = 120.0 * 120.0; // Basalt columns need space between each other
+    const MIN_QUARRY_STONE_TREE_DIST_SQ: f32 = 60.0 * 60.0;
+    const MIN_QUARRY_STONE_STONE_DIST_SQ: f32 = 80.0 * 80.0;
+    const MIN_QUARRY_STONE_BASALT_DIST_SQ: f32 = 150.0 * 150.0; // Stones need to avoid basalt columns!
+    
+    for (tile_x, tile_y) in &shuffled_tiles {
+        let world_x_px = (*tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+        let world_y_px = (*tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+        
+        // Spawn fumarole with low probability (check collision with trees/stones)
+        if rng.gen::<f32>() < fumarole_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from trees
+            for (tx, ty) in &spawned_tree_positions {
+                let dx = world_x_px - tx;
+                let dy = world_y_px - ty;
+                if (dx * dx + dy * dy) < MIN_FUMAROLE_TREE_DIST_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from stones
+            if !too_close {
+                for (sx, sy) in &spawned_stone_positions {
+                    let dx = world_x_px - sx;
+                    let dy = world_y_px - sy;
+                    if (dx * dx + dy * dy) < MIN_FUMAROLE_STONE_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                let fumarole = crate::fumarole::Fumarole::new(world_x_px, world_y_px, chunk_idx);
+                if let Ok(_) = ctx.db.fumarole().try_insert(fumarole) {
+                    total_spawned_fumarole_count += 1;
+                }
+            }
+        }
+        
+        // Spawn basalt column with moderate probability (check collision with trees/stones)
+        if rng.gen::<f32>() < basalt_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from trees
+            for (tx, ty) in &spawned_tree_positions {
+                let dx = world_x_px - tx;
+                let dy = world_y_px - ty;
+                if (dx * dx + dy * dy) < MIN_BASALT_TREE_DIST_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from stones
+            if !too_close {
+                for (sx, sy) in &spawned_stone_positions {
+                    let dx = world_x_px - sx;
+                    let dy = world_y_px - sy;
+                    if (dx * dx + dy * dy) < MIN_BASALT_STONE_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from other basalt columns
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < MIN_BASALT_BASALT_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                let column_type = crate::basalt_column::BasaltColumnType::random(&mut rng);
+                let basalt = crate::basalt_column::BasaltColumn::new(world_x_px, world_y_px, chunk_idx, column_type);
+                if let Ok(_) = ctx.db.basalt_column().try_insert(basalt) {
+                    total_spawned_basalt_column_count += 1;
+                    spawned_basalt_positions.push((world_x_px, world_y_px)); // Track position
+                }
+            }
+        }
+        
+        // Spawn stone with moderate probability (check collision with trees/other stones)
+        if rng.gen::<f32>() < stone_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from trees
+            for (tx, ty) in &spawned_tree_positions {
+                let dx = world_x_px - tx;
+                let dy = world_y_px - ty;
+                if (dx * dx + dy * dy) < MIN_QUARRY_STONE_TREE_DIST_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from other stones
+            if !too_close {
+                for (sx, sy) in &spawned_stone_positions {
+                    let dx = world_x_px - sx;
+                    let dy = world_y_px - sy;
+                    if (dx * dx + dy * dy) < MIN_QUARRY_STONE_STONE_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from basalt columns (CRITICAL: stones must avoid large basalt columns!)
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < MIN_QUARRY_STONE_BASALT_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                let stone_resource_amount = rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES);
+                let stone = crate::stone::Stone {
+                    id: 0,
+                    pos_x: world_x_px,
+                    pos_y: world_y_px,
+                    health: crate::stone::STONE_INITIAL_HEALTH,
+                    resource_remaining: stone_resource_amount,
+                    chunk_index: chunk_idx,
+                    last_hit_time: None,
+                    respawn_at: None,
+                };
+                if let Ok(_) = ctx.db.stone().try_insert(stone) {
+                    total_spawned_quarry_stone_count += 1;
+                    spawned_stone_positions.push((world_x_px, world_y_px));
+                }
+            }
+        }
+    }
+    
+    log::info!("🏔️ Finished seeding quarry entities: {} stones, {} fumaroles, {} basalt columns", 
+               total_spawned_quarry_stone_count, total_spawned_fumarole_count, total_spawned_basalt_column_count);
 
     // --- Seed Harvestable Resources (Unified System) ---
     log::info!("Seeding Harvestable Resources using unified system...");
@@ -2000,6 +2231,50 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         continue;
                     }
                     
+                    // Check minimum distance from hot springs (monuments) - 800px radius
+                    // Iterate through all hot spring tiles and check distance
+                    let mut too_close_to_hot_spring = false;
+                    for tile in ctx.db.world_tile().iter() {
+                        if tile.tile_type == crate::TileType::HotSpringWater {
+                            let hot_spring_center_x = (tile.world_x as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
+                            let hot_spring_center_y = (tile.world_y as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
+                            let dx = pos_x - hot_spring_center_x;
+                            let dy = pos_y - hot_spring_center_y;
+                            let dist_sq = dx * dx + dy * dy;
+                            
+                            if dist_sq < crate::rune_stone::MIN_RUNE_STONE_HOT_SPRING_DISTANCE_SQ {
+                                too_close_to_hot_spring = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if too_close_to_hot_spring {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from quarries (monuments) - 800px radius
+                    // Iterate through all quarry tiles and check distance
+                    let mut too_close_to_quarry = false;
+                    for tile in ctx.db.world_tile().iter() {
+                        if tile.tile_type == crate::TileType::Quarry {
+                            let quarry_center_x = (tile.world_x as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
+                            let quarry_center_y = (tile.world_y as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
+                            let dx = pos_x - quarry_center_x;
+                            let dy = pos_y - quarry_center_y;
+                            let dist_sq = dx * dx + dy * dy;
+                            
+                            if dist_sq < crate::rune_stone::MIN_RUNE_STONE_QUARRY_DISTANCE_SQ {
+                                too_close_to_quarry = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if too_close_to_quarry {
+                        continue;
+                    }
+                    
                     // Final validation: double-check we're not on water (safety measure)
                     if is_position_on_water(ctx, pos_x, pos_y) || is_position_on_inland_water(ctx, pos_x, pos_y) {
                         continue; // Skip this position if somehow it's on water
@@ -2176,6 +2451,8 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
+// NOTE: detect_quarry_centers function removed - we now use TileType::Quarry for direct filtering!
+
 /// Global multiplier for all plant densities (1.0 = normal, 2.0 = double density, 0.5 = half density)
 /// ADJUST THIS VALUE TO GLOBALLY SCALE ALL PLANT SPAWNS WITHOUT EDITING INDIVIDUAL DENSITIES
 /// 
@@ -2184,4 +2461,4 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
 /// - 0.5 = Half all plant spawns (scarce resources, harder survival)
 /// - 0.1 = Very sparse world (10% of normal plants, extreme scarcity)
 /// - 3.0 = Very abundant world (300% of normal plants, easy resources)
-pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.28;
+pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.10;

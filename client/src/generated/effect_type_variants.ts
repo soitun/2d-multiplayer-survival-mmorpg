@@ -46,4 +46,5 @@ export type ProductionRune = { tag: "ProductionRune" };
 export type AgrarianRune = { tag: "AgrarianRune" };
 export type MemoryRune = { tag: "MemoryRune" };
 export type HotSpring = { tag: "HotSpring" };
+export type Fumarole = { tag: "Fumarole" };
 

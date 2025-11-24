@@ -41,6 +41,8 @@ use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 // Import homestead hearth table trait
 use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
+// Import basalt column table trait
+use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 
 // Cell size should be larger than the largest collision radius to ensure
 // we only need to check adjacent cells. We use 8x the player radius for better performance with larger worlds.
@@ -78,6 +80,7 @@ pub enum EntityType {
     WildAnimal(u64), // ADDED WildAnimal entity type
     HomesteadHearth(u32), // ADDED HomesteadHearth entity type
     RuneStone(u64), // ADDED RuneStone entity type
+    BasaltColumn(u64), // ADDED BasaltColumn entity type (decorative obstacle with collision)
     // EXCLUDED: Grass - removed for performance to fix rubber-banding issues
 }
 
@@ -128,7 +131,8 @@ impl SpatialGrid {
                             + FurnaceTableTrait
                             + WildAnimalTableTrait
                             + HomesteadHearthTableTrait
-                            + RuneStoneTableTrait>
+                            + RuneStoneTableTrait
+                            + BasaltColumnTableTrait>
                            (db: &DB, current_time: spacetimedb::Timestamp) -> Self {
         let mut grid = Self::new();
         grid.populate_from_world(db, current_time);
@@ -214,7 +218,8 @@ impl SpatialGrid {
                             + FurnaceTableTrait
                             + WildAnimalTableTrait
                             + HomesteadHearthTableTrait
-                            + RuneStoneTableTrait> // ADDED RuneStoneTableTrait to bounds
+                            + RuneStoneTableTrait
+                            + BasaltColumnTableTrait> // ADDED BasaltColumnTableTrait to bounds
                                  (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -334,6 +339,11 @@ impl SpatialGrid {
         for rune_stone in db.rune_stone().iter() {
             self.add_entity(EntityType::RuneStone(rune_stone.id), rune_stone.pos_x, rune_stone.pos_y);
         }
+        
+        // Add basalt columns (decorative obstacles with collision)
+        for basalt in db.basalt_column().iter() {
+            self.add_entity(EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y);
+        }
     }
     
     // PERFORMANCE OPTIMIZED: Faster population method for high-density areas
@@ -346,7 +356,8 @@ impl SpatialGrid {
                                             + FurnaceTableTrait
                                             + WildAnimalTableTrait
                                             + HomesteadHearthTableTrait
-                                            + RuneStoneTableTrait>
+                                            + RuneStoneTableTrait
+                                            + BasaltColumnTableTrait>
                                            (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -454,6 +465,11 @@ impl SpatialGrid {
             entities_to_add.push((EntityType::RuneStone(rune_stone.id), rune_stone.pos_x, rune_stone.pos_y));
         }
         
+        // Add basalt columns (decorative obstacles with collision)
+        for basalt in db.basalt_column().iter() {
+            entities_to_add.push((EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y));
+        }
+        
         // Batch add all simple entities
         for (entity_type, x, y) in entities_to_add {
             self.add_entity(entity_type, x, y);
@@ -510,7 +526,8 @@ pub fn get_cached_spatial_grid<DB: PlayerTableTrait + TreeTableTrait + StoneTabl
                                  + FurnaceTableTrait
                                  + WildAnimalTableTrait
                                  + HomesteadHearthTableTrait
-                                 + RuneStoneTableTrait>
+                                 + RuneStoneTableTrait
+                                 + BasaltColumnTableTrait>
                               (db: &DB, current_time: spacetimedb::Timestamp) -> &'static SpatialGrid {
     unsafe {
         // Check if we need to refresh the cache

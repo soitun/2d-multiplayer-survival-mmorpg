@@ -40,6 +40,10 @@ export const TILE_ASSETS: Record<string, TileAssetConfig> = {
         // Could add dirt variants here later
         // variants: ['../../assets/tiles/dirt_variant1.png']
     },
+    'Quarry': { 
+        baseTexture: dirtTile, // Use same texture as Dirt (visually identical)
+        // Quarry tiles mark quarry areas but render the same as dirt
+    },
     'DirtRoad': { 
         baseTexture: dirtRoadTile,
     },

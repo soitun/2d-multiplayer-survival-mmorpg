@@ -364,8 +364,15 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         }
         // <<< END HOT SPRING HEALING EFFECT MANAGEMENT >>>
 
-        // <<< HOT SPRING COLD IMMUNITY >>>
-        // Players in hot springs are immune to ALL cold effects (rain, wet, night, etc.)
+        // <<< ADD FUMAROLE WARMTH PROTECTION EFFECT MANAGEMENT >>>
+        // Update fumarole warmth protection status based on player position
+        if let Err(e) = crate::active_effects::update_player_fumarole_status(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update fumarole status for player {:?}: {}", player_id, e);
+        }
+        // <<< END FUMAROLE WARMTH PROTECTION EFFECT MANAGEMENT >>>
+
+        // <<< HOT SPRING COLD IMMUNITY & WARMTH RECOVERY >>>
+        // Players in hot springs are immune to ALL cold effects AND gain warmth rapidly
         let is_in_hot_spring = crate::active_effects::player_has_hot_spring_effect(ctx, player_id);
         if is_in_hot_spring {
             // Neutralize ALL negative warmth changes - hot springs provide complete cold immunity
@@ -374,8 +381,31 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                     player_id, total_warmth_change_per_sec);
                 total_warmth_change_per_sec = 0.0; // No warmth loss in hot springs!
             }
+            // Add rapid warmth recovery (8.0 warmth/sec - same as fumaroles)
+            const HOT_SPRING_WARMTH_PER_SECOND: f32 = 8.0;
+            total_warmth_change_per_sec += HOT_SPRING_WARMTH_PER_SECOND;
+            log::info!("Player {:?} gaining {:.2} warmth/sec from hot spring (total warmth change: {:.2})", 
+                player_id, HOT_SPRING_WARMTH_PER_SECOND, total_warmth_change_per_sec);
         }
-        // <<< END HOT SPRING COLD IMMUNITY >>>
+        // <<< END HOT SPRING COLD IMMUNITY & WARMTH RECOVERY >>>
+
+        // <<< FUMAROLE WARMTH PROTECTION & RECOVERY >>>
+        // Players near fumaroles are protected from ALL warmth decay AND gain warmth rapidly
+        let is_near_fumarole = crate::active_effects::player_has_fumarole_effect(ctx, player_id);
+        if is_near_fumarole {
+            // Neutralize ALL negative warmth changes - fumaroles provide complete warmth protection
+            if total_warmth_change_per_sec < 0.0 {
+                log::info!("Player {:?} near fumarole - negating {:.2} warmth drain (WARMTH PROTECTED)", 
+                    player_id, total_warmth_change_per_sec);
+                total_warmth_change_per_sec = 0.0; // No warmth loss near fumaroles!
+            }
+            // Add rapid warmth recovery (8.0 warmth/sec - 60% faster than campfires, similar feel to hot springs)
+            const FUMAROLE_WARMTH_PER_SECOND: f32 = 8.0;
+            total_warmth_change_per_sec += FUMAROLE_WARMTH_PER_SECOND;
+            log::info!("Player {:?} gaining {:.2} warmth/sec from fumarole (total warmth change: {:.2})", 
+                player_id, FUMAROLE_WARMTH_PER_SECOND, total_warmth_change_per_sec);
+        }
+        // <<< END FUMAROLE WARMTH PROTECTION & RECOVERY >>>
 
         // <<< WET EFFECT MANAGEMENT MOVED TO EFFECT PROCESSING SYSTEM >>>
         // Wet effects are now handled in active_effects.rs every 2 seconds

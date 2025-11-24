@@ -39,6 +39,7 @@ use crate::wild_animal_npc::animal_corpse::{AnimalCorpse, ANIMAL_CORPSE_COLLISIO
 // Import natural obstacle modules for collision detection
 use crate::tree::{Tree, tree as TreeTableTrait};
 use crate::stone::{Stone, stone as StoneTableTrait};
+use crate::basalt_column::{BasaltColumn, basalt_column as BasaltColumnTableTrait};
 
 // Import wild animal module for collision detection
 use crate::wild_animal_npc::{wild_animal as WildAnimalTableTrait};
@@ -1061,6 +1062,40 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
                 
                 // Stones block projectiles but don't take damage - projectile becomes dropped item
+                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                projectiles_to_delete.push(projectile.id);
+                hit_natural_obstacle_this_tick = true;
+                break;
+            }
+        }
+        
+        if hit_natural_obstacle_this_tick {
+            continue;
+        }
+        
+        // Check basalt column collisions (permanent rock obstacles in quarries)
+        for basalt in ctx.db.basalt_column().iter() {
+            // Basalt columns are permanent obstacles (no health/respawn check needed)
+            
+            // Basalt columns have a generous collision radius for projectiles
+            const PROJECTILE_BASALT_HIT_RADIUS: f32 = 35.0; // Match BASALT_COLUMN_RADIUS
+            const PROJECTILE_BASALT_Y_OFFSET: f32 = 40.0; // Match BASALT_COLUMN_COLLISION_Y_OFFSET
+            
+            let basalt_hit_y = basalt.pos_y - PROJECTILE_BASALT_Y_OFFSET;
+            
+            // Use line segment collision detection for basalt columns
+            if line_intersects_circle(prev_x, prev_y, current_x, current_y, basalt.pos_x, basalt_hit_y, PROJECTILE_BASALT_HIT_RADIUS) {
+                log::info!(
+                    "[ProjectileUpdate] Projectile {} from owner {:?} hit BasaltColumn {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                    projectile.id, projectile.owner_id, basalt.id, prev_x, prev_y, current_x, current_y
+                );
+                
+                // Create fire patch if this is a fire arrow (100% chance)
+                if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                    create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                }
+                
+                // Basalt columns block projectiles but don't take damage - projectile becomes dropped item
                 missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 projectiles_to_delete.push(projectile.id);
                 hit_natural_obstacle_this_tick = true;

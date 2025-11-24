@@ -19,7 +19,7 @@ import {
 import { 
     InventoryItem, 
     ItemDefinition,
-    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
+    Campfire, Furnace, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { InteractionTarget } from '../hooks/useInteractionManager';
@@ -32,6 +32,7 @@ interface UseContainerProps {
     // Container data maps
     campfires: Map<string, Campfire>;
     furnaces: Map<string, Furnace>;
+    fumaroles: Map<string, Fumarole>;
     lanterns: Map<string, Lantern>;
     woodenStorageBoxes: Map<string, WoodenStorageBox>;
     playerCorpses: Map<string, PlayerCorpse>;
@@ -79,6 +80,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         itemDefinitions,
         campfires,
         furnaces,
+        fumaroles,
         lanterns,
         woodenStorageBoxes,
         playerCorpses,
@@ -98,6 +100,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         const typeMap: Record<string, ContainerType> = {
             'campfire': 'campfire',
             'furnace': 'furnace',
+            'fumarole': 'fumarole',
             'lantern': 'lantern',
             'wooden_storage_box': 'wooden_storage_box',
             'player_corpse': 'player_corpse',
@@ -129,9 +132,17 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             return currentStorageBox;
         }
         
-        return getContainerEntity(containerType, containerId, {
+        if (containerType === 'fumarole') {
+            console.log('[useContainer] Fumarole lookup - containerId:', containerId, 'type:', typeof containerId);
+            console.log('[useContainer] Fumaroles map size:', fumaroles?.size);
+            console.log('[useContainer] Fumaroles map keys:', Array.from(fumaroles?.keys() || []));
+            console.log('[useContainer] Looking for key:', containerId?.toString());
+        }
+        
+        const entity = getContainerEntity(containerType, containerId, {
             campfires,
             furnaces,
+            fumaroles,
             lanterns,
             woodenStorageBoxes,
             playerCorpses,
@@ -140,7 +151,11 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             homesteadHearths,
             brothPots
         });
-    }, [containerType, containerId, campfires, furnaces, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, brothPots, currentStorageBox]);
+        
+        console.log('[useContainer] containerType:', containerType, 'containerId:', containerId, 'entity:', entity);
+        
+        return entity;
+    }, [containerType, containerId, campfires, furnaces, fumaroles, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, brothPots, currentStorageBox]);
     
     // Get container configuration
     const config = useMemo(() => {

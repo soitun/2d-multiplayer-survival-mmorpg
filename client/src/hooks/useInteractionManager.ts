@@ -119,6 +119,9 @@ export function useTargetInteractionManager({
             case 'broth_pot':
                 console.log(`[InteractionManager] Opening broth pot interface for ID: ${target.id}`);
                 break;
+            case 'fumarole':
+                console.log(`[InteractionManager] Opening fumarole interface for ID: ${target.id}`);
+                break;
             case 'knocked_out_player':
                 // This should be handled by hold action, not tap
                 console.log(`[InteractionManager] Knocked out player requires hold action, not tap`);

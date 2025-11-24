@@ -104,6 +104,7 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
                     case 4: return 'Beach';
                     case 5: return 'Sand';
                     case 6: return 'HotSpringWater'; // Hot spring water pools
+                    case 7: return 'Quarry'; // Quarry tiles
                     default: return 'Grass';
                 }
             }
@@ -434,6 +435,46 @@ function isFoundationPlacementValid(
     const distSq = dx * dx + dy * dy;
     if (distSq > BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED) {
         return false;
+    }
+
+    // Check if position is near monuments (rune stones, hot springs, quarries) - 800px radius
+    const MONUMENT_RESTRICTION_RADIUS = 800.0;
+    const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;
+    const TILE_SIZE = 48;
+    
+    // Check rune stones
+    for (const runeStone of connection.db.runeStone.iter()) {
+        const dx = worldX - runeStone.posX;
+        const dy = worldY - runeStone.posY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+            return false; // Too close to rune stone
+        }
+    }
+    
+    // Check hot springs and quarries using tile type lookup
+    // We need to check a radius around the foundation position for monument tiles
+    const checkRadiusTiles = Math.ceil(MONUMENT_RESTRICTION_RADIUS / TILE_SIZE); // ~17 tiles
+    const foundationTileX = Math.floor(worldX / TILE_SIZE);
+    const foundationTileY = Math.floor(worldY / TILE_SIZE);
+    
+    for (let dy = -checkRadiusTiles; dy <= checkRadiusTiles; dy++) {
+        for (let dx = -checkRadiusTiles; dx <= checkRadiusTiles; dx++) {
+            const checkTileX = foundationTileX + dx;
+            const checkTileY = foundationTileY + dy;
+            
+            const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
+            if (tileType === 'HotSpringWater' || tileType === 'Quarry') {
+                const tileCenterX = (checkTileX * TILE_SIZE) + (TILE_SIZE / 2);
+                const tileCenterY = (checkTileY * TILE_SIZE) + (TILE_SIZE / 2);
+                const dx = worldX - tileCenterX;
+                const dy = worldY - tileCenterY;
+                const distSq = dx * dx + dy * dy;
+                if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+                    return false; // Too close to hot spring or quarry
+                }
+            }
+        }
     }
 
     // Check if position is already occupied (but allow complementary triangles)
@@ -893,33 +934,56 @@ export function renderPlacementPreview({
 
     ctx.save();
 
-    // Special handling for broth pot - snap to nearest campfire
+    // Special handling for broth pot - snap to nearest heat source (campfire or fumarole)
     let snappedX = worldMouseX;
     let snappedY = worldMouseY;
-    let nearestCampfire: any = null;
+    let nearestHeatSource: any = null;
+    let heatSourceType: 'campfire' | 'fumarole' | null = null;
     
     if (placementInfo.iconAssetName === 'field_cauldron.png' && connection) {
         let nearestDistance = Infinity;
-        const CAMPFIRE_SNAP_DISTANCE = 150;
+        const HEAT_SOURCE_SNAP_DISTANCE = 200; // Increased for easier placement
         
+        // Check campfires
         for (const campfire of connection.db.campfire.iter()) {
             const dx = worldMouseX - campfire.posX;
             const dy = worldMouseY - campfire.posY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < nearestDistance && distance < CAMPFIRE_SNAP_DISTANCE) {
+            if (distance < nearestDistance && distance < HEAT_SOURCE_SNAP_DISTANCE) {
                 nearestDistance = distance;
-                nearestCampfire = campfire;
+                nearestHeatSource = campfire;
+                heatSourceType = 'campfire';
             }
         }
         
-        if (nearestCampfire) {
-            // Snap to campfire position - match server placement exactly
-            // Server places pot at: campfire.pos_y - 20.0
-            snappedX = nearestCampfire.posX;
-            snappedY = nearestCampfire.posY - 60.0; // Match server placement offset
+        // Check fumaroles (always-on heat sources)
+        for (const fumarole of connection.db.fumarole.iter()) {
+            const dx = worldMouseX - fumarole.posX;
+            const dy = worldMouseY - fumarole.posY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance && distance < HEAT_SOURCE_SNAP_DISTANCE) {
+                nearestDistance = distance;
+                nearestHeatSource = fumarole;
+                heatSourceType = 'fumarole';
+            }
+        }
+        
+        if (nearestHeatSource) {
+            // Snap to heat source position - match server placement exactly
+            // Server places pot at: campfire.pos_y - 60.0, fumarole.pos_y - 20.0
+            snappedX = nearestHeatSource.posX;
+            if (heatSourceType === 'fumarole') {
+                snappedY = nearestHeatSource.posY - 10.0; // Fumaroles: small offset above center
+            } else {
+                snappedY = nearestHeatSource.posY - 60.0; // Campfires: larger offset
+            }
         }
     }
+    
+    // For backward compatibility, keep nearestCampfire reference
+    const nearestCampfire = heatSourceType === 'campfire' ? nearestHeatSource : null;
 
     // Check for water placement restriction
     const isOnWater = isWaterPlacementBlocked(connection, placementInfo, snappedX, snappedY);
@@ -975,11 +1039,25 @@ export function renderPlacementPreview({
     // Check if placement position is on a wall
     const isOnWall = connection ? isPositionOnWall(connection, worldMouseX, worldMouseY) : false;
     
-    // Check if broth pot is being placed without a nearby campfire or on a campfire that already has one
-    const isBrothPotInvalid = placementInfo.iconAssetName === 'field_cauldron.png' && (
-        !nearestCampfire || // No campfire nearby
-        (nearestCampfire && nearestCampfire.attachedBrothPotId !== null && nearestCampfire.attachedBrothPotId !== undefined) // Campfire already has a pot
-    );
+    // Check if broth pot is being placed without a nearby heat source or on one that already has a pot
+    const isBrothPotInvalid = placementInfo.iconAssetName === 'field_cauldron.png' && (() => {
+        if (!nearestHeatSource || !heatSourceType) {
+            return true; // No heat source nearby
+        }
+        
+        if (heatSourceType === 'campfire') {
+            // Check if campfire already has a broth pot
+            return nearestHeatSource.attachedBrothPotId !== null && nearestHeatSource.attachedBrothPotId !== undefined;
+        } else if (heatSourceType === 'fumarole') {
+            // Check if fumarole already has a broth pot
+            const existingPotOnFumarole = Array.from(connection!.db.brothPot.iter()).find(
+                pot => pot.attachedToFumaroleId === nearestHeatSource.id && !pot.isDestroyed
+            );
+            return !!existingPotOnFumarole;
+        }
+        
+        return false;
+    })();
     
     // Apply visual effect - red tint with opacity for any invalid placement
     // For broth pot, only invalid if no campfire or campfire has pot - distance doesn't matter if snapping

@@ -597,34 +597,66 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // App.tsx's handleHomesteadHearthInsert callback will call it upon success.
           break;
         case 'Cerametal Field Cauldron Mk. II':
-          // Find nearest campfire to snap to
-          let nearestCampfire: any = null;
+          // Find nearest heat source (campfire or fumarole) to snap to
+          let nearestHeatSource: any = null;
           let nearestDistance = Infinity;
-          const CAMPFIRE_SNAP_DISTANCE = 150; // Maximum distance to snap to campfire
+          let heatSourceType: 'campfire' | 'fumarole' | null = null;
+          const HEAT_SOURCE_SNAP_DISTANCE = 200; // Maximum distance to snap to heat source (increased for easier placement)
           
+          // Check campfires
           for (const campfire of connection.db.campfire.iter()) {
             const dx = worldX - campfire.posX;
             const dy = worldY - campfire.posY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < nearestDistance && distance < CAMPFIRE_SNAP_DISTANCE) {
+            if (distance < nearestDistance && distance < HEAT_SOURCE_SNAP_DISTANCE) {
               nearestDistance = distance;
-              nearestCampfire = campfire;
+              nearestHeatSource = campfire;
+              heatSourceType = 'campfire';
             }
           }
           
-          if (nearestCampfire) {
-            // Check if campfire already has a broth pot
-            if (nearestCampfire.attachedBrothPotId !== null && nearestCampfire.attachedBrothPotId !== undefined) {
-              console.log('[PlacementManager] Campfire already has a broth pot attached');
-              playImmediateSound('error_field_cauldron_placement', 1.0);
-              return;
-            }
+          // Check fumaroles (always-on heat sources)
+          for (const fumarole of connection.db.fumarole.iter()) {
+            const dx = worldX - fumarole.posX;
+            const dy = worldY - fumarole.posY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            console.log(`[PlacementManager] Placing broth pot on campfire ${nearestCampfire.id}`);
-            connection.reducers.placeBrothPotOnCampfire(placementInfo.instanceId, nearestCampfire.id);
+            if (distance < nearestDistance && distance < HEAT_SOURCE_SNAP_DISTANCE) {
+              nearestDistance = distance;
+              nearestHeatSource = fumarole;
+              heatSourceType = 'fumarole';
+            }
+          }
+          
+          if (nearestHeatSource && heatSourceType) {
+            if (heatSourceType === 'campfire') {
+              // Check if campfire already has a broth pot
+              if (nearestHeatSource.attachedBrothPotId !== null && nearestHeatSource.attachedBrothPotId !== undefined) {
+                console.log('[PlacementManager] Campfire already has a broth pot attached');
+                playImmediateSound('error_field_cauldron_placement', 1.0);
+                return;
+              }
+              
+              console.log(`[PlacementManager] Placing broth pot on campfire ${nearestHeatSource.id}`);
+              connection.reducers.placeBrothPotOnCampfire(placementInfo.instanceId, nearestHeatSource.id);
+            } else if (heatSourceType === 'fumarole') {
+              // Check if fumarole already has a broth pot
+              const existingPotOnFumarole = Array.from(connection.db.brothPot.iter()).find(
+                pot => pot.attachedToFumaroleId === nearestHeatSource.id && !pot.isDestroyed
+              );
+              
+              if (existingPotOnFumarole) {
+                console.log('[PlacementManager] Fumarole already has a broth pot attached');
+                playImmediateSound('error_field_cauldron_placement', 1.0);
+                return;
+              }
+              
+              console.log(`[PlacementManager] Placing broth pot on fumarole ${nearestHeatSource.id} [ALWAYS-ON HEAT]`);
+              connection.reducers.placeBrothPotOnFumarole(placementInfo.instanceId, nearestHeatSource.id);
+            }
           } else {
-            console.log('[PlacementManager] No campfire nearby to place broth pot');
+            console.log('[PlacementManager] No heat source (campfire or fumarole) nearby to place broth pot');
             playImmediateSound('error_field_cauldron_placement', 1.0);
           }
           break;

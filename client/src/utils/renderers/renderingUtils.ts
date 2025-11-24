@@ -27,6 +27,8 @@ import {
     WallCell as SpacetimeDBWallCell, // ADDED: Building walls
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
     BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
+    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
+    BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
 } from '../../generated';
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { gameConfig } from '../../config/gameConfig';
@@ -67,6 +69,10 @@ import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse } from './playerCorpseRenderingUtils';
 // Import barrel renderer
 import { renderBarrel } from './barrelRenderingUtils';
+// Import fumarole renderer
+import { renderFumarole } from './fumaroleRenderingUtils';
+// Import basalt column renderer
+import { renderBasaltColumn } from './basaltColumnRenderingUtils';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
 // Import hearth renderer
@@ -1083,6 +1089,22 @@ export const renderYSortedEntities = ({
                 // Moved up by ~20% (15px) to match indicator box and E label position
                 drawInteractionOutline(ctx, hearth.posX, hearth.posY - 63, 96, 96, cycleProgress, outlineColor);
             }
+        } else if (type === 'fumarole') {
+            const fumarole = entity as SpacetimeDBFumarole;
+            const isTheClosestTarget = closestInteractableTarget?.type === 'fumarole' && closestInteractableTarget?.id === fumarole.id;
+            // console.log('🔥 [RENDER] Rendering fumarole', fumarole.id, 'at', fumarole.posX, fumarole.posY);
+            renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+            
+            // Draw outline only if this is THE closest interactable target
+            if (isTheClosestTarget) {
+                const outlineColor = getInteractionOutlineColor('open');
+                // Fumaroles are ground-level, center the outline lower on the fumarole
+                drawInteractionOutline(ctx, fumarole.posX, fumarole.posY - 0, 96, 96, cycleProgress, outlineColor);
+            }
+        } else if (type === 'basalt_column') {
+            const basaltColumn = entity as SpacetimeDBBasaltColumn;
+            // console.log('🗿 [RENDER] Rendering basalt column', basaltColumn.id, 'at', basaltColumn.posX, basaltColumn.posY);
+            renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress);
         } else if (type === 'foundation_cell') {
             const foundation = entity as SpacetimeDBFoundationCell;
             // Foundations use cell coordinates directly - renderFoundation handles conversion

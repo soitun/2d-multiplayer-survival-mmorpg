@@ -7,7 +7,7 @@
 
 import { 
     InventoryItem, ItemDefinition,
-    Campfire, Furnace, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
+    Campfire, Furnace, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
@@ -15,16 +15,17 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Container type definitions based on actual usage
 export type ContainerType = 
-    | 'campfire' | 'furnace' | 'lantern'           // Fuel containers
+    | 'campfire' | 'furnace' | 'fumarole' | 'lantern'           // Fuel containers (fumarole is always-on heat source)
     | 'wooden_storage_box' | 'player_corpse' | 'stash' | 'rain_collector' | 'homestead_hearth' | 'broth_pot'; // Storage containers
 
-export type ContainerEntity = Campfire | Furnace | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
+export type ContainerEntity = Campfire | Furnace | Fumarole | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
 
 // Container configurations - simple and focused on actual patterns
 export const CONTAINER_CONFIGS = {
     // Fuel containers
     campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    fumarole: { slots: 0, slotType: 'fumarole', fieldPrefix: '', hasToggle: false, hasLightExtinguish: false, special: true, gridCols: 1 }, // Fumaroles have no slots (always-on heat source)
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     
     // Storage containers
@@ -42,7 +43,8 @@ export const CONTAINER_CONFIGS = {
 export function getReducerName(containerType: ContainerType, action: string): string {
     const typeMap = {
         campfire: 'Campfire',
-        furnace: 'Furnace', 
+        furnace: 'Furnace',
+        fumarole: 'Fumarole', // Fumaroles don't have reducers (always-on heat source)
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
@@ -71,7 +73,8 @@ export function getReducerName(containerType: ContainerType, action: string): st
 export function getDragDropReducerNames(containerType: ContainerType) {
     const typeMap = {
         campfire: 'Campfire',
-        furnace: 'Furnace', 
+        furnace: 'Furnace',
+        fumarole: 'Fumarole', // Fumaroles don't have drag-drop reducers (no slots)
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
@@ -630,7 +633,8 @@ export function getContainerConfig(containerType: ContainerType) {
 export function getContainerDisplayName(containerType: ContainerType): string {
     const nameMap = {
         campfire: 'CAMPFIRE',
-        furnace: 'FURNACE', 
+        furnace: 'FURNACE',
+        fumarole: 'FUMAROLE', // Volcanic heat source
         lantern: 'LANTERN',
         wooden_storage_box: 'WOODEN STORAGE BOX',
         player_corpse: 'Player Corpse',
@@ -652,6 +656,7 @@ export function getContainerEntity(
     containers: {
         campfires?: Map<string, Campfire>;
         furnaces?: Map<string, Furnace>;
+        fumaroles?: Map<string, Fumarole>;
         lanterns?: Map<string, Lantern>;
         woodenStorageBoxes?: Map<string, WoodenStorageBox>;
         playerCorpses?: Map<string, PlayerCorpse>;
@@ -668,6 +673,7 @@ export function getContainerEntity(
     switch (containerType) {
         case 'campfire': return containers.campfires?.get(idStr) || null;
         case 'furnace': return containers.furnaces?.get(idStr) || null;
+        case 'fumarole': return containers.fumaroles?.get(idStr) || null;
         case 'lantern': return containers.lanterns?.get(idStr) || null;
         case 'wooden_storage_box': return containers.woodenStorageBoxes?.get(idStr) || null;
         case 'player_corpse': return containers.playerCorpses?.get(idStr) || null;

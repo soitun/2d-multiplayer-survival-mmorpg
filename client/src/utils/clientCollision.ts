@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth } from '../generated';
+import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
 // Add at top after imports:
@@ -334,6 +334,27 @@ function getCollisionCandidates(
     }
   }
   
+  // Filter basalt columns (decorative obstacles in quarries)
+  if (entities.basaltColumns && entities.basaltColumns.size > 0) {
+    const nearbyBasaltColumns = filterEntitiesByDistance(
+      entities.basaltColumns,
+      playerX,
+      playerY,
+      COLLISION_PERF.STONE_CULL_DISTANCE_SQ, // Use same distance as stones
+      COLLISION_PERF.MAX_STONES_TO_CHECK
+    );
+    
+    for (const basaltColumn of nearbyBasaltColumns) {
+      shapes.push({
+        id: basaltColumn.id.toString(),
+        type: `basalt_column-${basaltColumn.id.toString()}`,
+        x: basaltColumn.posX + COLLISION_OFFSETS.BASALT_COLUMN.x,
+        y: basaltColumn.posY + COLLISION_OFFSETS.BASALT_COLUMN.y,
+        radius: COLLISION_RADII.BASALT_COLUMN
+      });
+    }
+  }
+  
   // Filter sea stacks
   const nearbySeaStacks = filterEntitiesByDistance(
     entities.seaStacks,
@@ -631,6 +652,7 @@ const COLLISION_RADII = {
   BARREL: 25, // Smaller barrel collision radius for better accuracy
   SEA_STACK: 60, // Base radius for sea stacks - reduced significantly for smoother collision like trees
   HOMESTEAD_HEARTH: 55, // Homestead hearth collision radius (matches server-side HEARTH_COLLISION_RADIUS)
+  BASALT_COLUMN: 35, // Basalt column collision radius (matches server-side BASALT_COLUMN_RADIUS)
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -645,6 +667,7 @@ const COLLISION_OFFSETS = {
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
   SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
+  BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset (matches server-side BASALT_COLUMN_COLLISION_Y_OFFSET)
 } as const;
 
 // Shelter AABB dimensions (must match server-side constants in shelter.rs)
@@ -684,6 +707,7 @@ export interface GameEntities {
   wallCells: Map<string, WallCell>; // Add wall cells for collision
   foundationCells: Map<string, FoundationCell>; // Add foundation cells for collision
   homesteadHearths: Map<string, HomesteadHearth>; // Add homestead hearths for collision
+  basaltColumns: Map<string, BasaltColumn>; // Add basalt columns for collision
 }
 
 interface CollisionShape {

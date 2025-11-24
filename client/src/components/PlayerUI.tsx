@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, Furnace as SpacetimeDBFurnace, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
+import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -32,6 +32,7 @@ interface PlayerUIProps {
   activeConsumableEffects: Map<string, ActiveConsumableEffect>;
   campfires: Map<string, SpacetimeDBCampfire>;
   furnaces: Map<string, SpacetimeDBFurnace>;
+  fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
   lanterns: Map<string, SpacetimeDBLantern>;
   onSetInteractingWith: (target: InteractionTarget) => void;
   interactingWith: InteractionTarget;
@@ -70,6 +71,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     activeConsumableEffects,
     campfires,
     furnaces,
+    fumaroles,
     lanterns,
     onSetInteractingWith,
     interactingWith,
@@ -845,6 +847,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent while in hot spring
                         };
                         break;
+                    case 'Fumarole':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'fumarole',
+                            name: 'Fumarole Warmth',
+                            emoji: '🌋',
+                            type: 'positive' as const,
+                            description: 'Protected by volcanic heat.',
+                            // No duration - permanent while near fumarole
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)
@@ -1002,6 +1015,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     interactionTarget={interactingWith}
                     campfires={campfires}
                     furnaces={furnaces}
+                    fumaroles={fumaroles}
                     lanterns={lanterns}
                     woodenStorageBoxes={woodenStorageBoxes}
                     playerCorpses={playerCorpses}

@@ -3,6 +3,7 @@ import {
     Player as SpacetimeDBPlayer,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
+    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import (volcanic heat source)
     Lantern as SpacetimeDBLantern,
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth import
     DroppedItem as SpacetimeDBDroppedItem,
@@ -31,6 +32,11 @@ import {
     FURNACE_HEIGHT,
     FURNACE_RENDER_Y_OFFSET
 } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace rendering constants
+import {
+    PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED,
+    FUMAROLE_WIDTH,
+    FUMAROLE_HEIGHT
+} from '../utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole interaction constants
 import {
     PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED,
     LANTERN_HEIGHT,
@@ -65,6 +71,7 @@ interface UseInteractionFinderProps {
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnace support
+    fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumarole support (volcanic heat source)
     lanterns: Map<string, SpacetimeDBLantern>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths support
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
@@ -76,7 +83,6 @@ interface UseInteractionFinderProps {
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     players: Map<string, SpacetimeDBPlayer>;
     shelters: Map<string, SpacetimeDBShelter>;
-
     inventoryItems: Map<string, SpacetimeDBInventoryItem>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
     connection: DbConnection | null; // NEW: Connection for water tile access
@@ -183,6 +189,7 @@ export function useInteractionFinder({
     localPlayer,
     campfires,
     furnaces, // ADDED: Furnace prop destructuring
+    fumaroles, // ADDED: Fumarole prop destructuring (volcanic heat source)
     lanterns,
     homesteadHearths, // ADDED: HomesteadHearths prop destructuring
     droppedItems,
@@ -378,6 +385,22 @@ export function useInteractionFinder({
                             closestFurnaceDistSq = distSq;
                             closestFurnaceId = furnace.id;
                         }
+                    }
+                });
+            }
+
+            // Find closest fumarole - ADDED: Volcanic heat source (always-on, opens broth pot UI if present)
+            let closestFumaroleId: bigint | null = null;
+            let closestFumaroleDistSq = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
+            if (fumaroles) {
+                fumaroles.forEach((fumarole) => {
+                    // Fumaroles are ground-level entities, use their position directly
+                    const dx = playerX - fumarole.posX;
+                    const dy = playerY - fumarole.posY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < closestFumaroleDistSq) {
+                        closestFumaroleDistSq = distSq;
+                        closestFumaroleId = fumarole.id;
                     }
                 });
             }
@@ -693,6 +716,17 @@ export function useInteractionFinder({
                     distance: Math.sqrt(closestFurnaceDistSq)
                 });
             }
+            if (closestFumaroleId) { // ADDED: Fumarole candidate (volcanic heat source)
+                const fumarole = fumaroles?.get(String(closestFumaroleId));
+                if (fumarole) {
+                    candidates.push({
+                        type: 'fumarole',
+                        id: closestFumaroleId,
+                        position: { x: fumarole.posX, y: fumarole.posY },
+                        distance: Math.sqrt(closestFumaroleDistSq)
+                    });
+                }
+            }
             if (closestLanternId) {
                 const lantern = lanterns?.get(String(closestLanternId));
                 let isEmpty = true;
@@ -880,7 +914,7 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableWaterPosition !== closestInteractableWaterPosition) {
             setClosestInteractableWaterPosition(calculatedResult.closestInteractableWaterPosition);
         }
-    }, [localPlayer, harvestableResources, campfires, furnaces, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns]);
+    }, [localPlayer, harvestableResources, campfires, furnaces, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns]);
 
     useEffect(() => {
         // Use requestAnimationFrame for frame-synced updates (every ~16ms at 60fps)

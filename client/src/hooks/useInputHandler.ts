@@ -994,6 +994,16 @@ export const useInputHandler = ({
                                         onSetInteractingWith({ type: 'homestead_hearth', id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
+                                    case 'fumarole':
+                                        // console.log('[E-Tap ACTION] Opening fumarole interface:', currentTarget.id);
+                                        onSetInteractingWith({ type: 'fumarole', id: currentTarget.id });
+                                        tapActionTaken = true;
+                                        break;
+                                    case 'broth_pot':
+                                        // console.log('[E-Tap ACTION] Opening broth pot interface:', currentTarget.id);
+                                        onSetInteractingWith({ type: 'broth_pot', id: currentTarget.id });
+                                        tapActionTaken = true;
+                                        break;
                                 }
                             }
                         } else {

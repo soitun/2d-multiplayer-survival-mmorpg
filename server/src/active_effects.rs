@@ -61,6 +61,7 @@ pub enum EffectType {
     AgrarianRune, // Near a green agrarian rune stone (2x plant growth)
     MemoryRune, // Near a blue memory rune stone (spawns memory shards at night)
     HotSpring, // Healing effect from standing in a hot spring
+    Fumarole, // Warmth protection from standing near a fumarole (nullifies warmth decay)
 }
 
 // Table defining food poisoning risks for different food items
@@ -119,9 +120,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             continue;
         }
 
-    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, and hot spring - they are managed by other systems, not the effect tick system
+    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, and fumarole - they are managed by other systems, not the effect tick system
     // Wet effects are now processed normally like other effects
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole {
         continue;
     }
 
@@ -164,7 +165,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -392,6 +393,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         EffectType::HotSpring => {
                             // HotSpring provides continuous healing while standing in the hot spring
                             // The healing is handled by player_stats.rs checking position
+                            // This effect doesn't consume amount_applied_so_far
+                            amount_this_tick = 0.0;
+                        }
+                        EffectType::Fumarole => {
+                            // Fumarole provides warmth protection (nullifies warmth decay)
+                            // The warmth protection is handled by player_stats.rs checking position
                             // This effect doesn't consume amount_applied_so_far
                             amount_this_tick = 0.0;
                         }
@@ -1859,5 +1866,111 @@ fn remove_hot_spring_effect(ctx: &ReducerContext, player_id: Identity) {
     for effect_id in effects_to_remove {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed hot spring effect {} from player {:?}", effect_id, player_id);
+    }
+}
+
+// Fumarole Effect Management
+// ===========================
+
+/// Fumarole warmth protection radius (in pixels)
+/// Players within this radius of a fumarole are protected from warmth decay
+pub const FUMAROLE_WARMTH_PROTECTION_RADIUS: f32 = 200.0; // 200px = ~4 tiles radius
+const FUMAROLE_WARMTH_PROTECTION_RADIUS_SQ: f32 = FUMAROLE_WARMTH_PROTECTION_RADIUS * FUMAROLE_WARMTH_PROTECTION_RADIUS;
+
+/// Checks if a player is currently near a fumarole (entity-based detection)
+pub fn is_player_near_fumarole(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
+    use crate::fumarole::fumarole as FumaroleTableTrait;
+    
+    // Check all fumaroles to see if player is within protection radius
+    for fumarole in ctx.db.fumarole().iter() {
+        let dx = player_x - fumarole.pos_x;
+        let dy = player_y - fumarole.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= FUMAROLE_WARMTH_PROTECTION_RADIUS_SQ {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Updates fumarole warmth protection effect for a player based on their position
+/// Fumaroles provide complete warmth decay protection (nullifies warmth loss)
+pub fn update_player_fumarole_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    let is_near_fumarole = is_player_near_fumarole(ctx, player_x, player_y);
+    let has_fumarole_effect = player_has_fumarole_effect(ctx, player_id);
+    
+    log::debug!("Fumarole status check for player {:?}: near_fumarole={}, has_fumarole_effect={}", 
+        player_id, is_near_fumarole, has_fumarole_effect);
+    
+    if is_near_fumarole {
+        // Apply fumarole effect if not present (provides warmth protection)
+        if !has_fumarole_effect {
+            log::info!("Applying fumarole warmth protection effect to player {:?}", player_id);
+            apply_fumarole_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove fumarole effect when player leaves radius
+        if has_fumarole_effect {
+            log::info!("Removing fumarole warmth protection effect from player {:?}", player_id);
+            remove_fumarole_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the fumarole effect active
+pub fn player_has_fumarole_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Fumarole)
+}
+
+/// Applies fumarole warmth protection effect to a player
+fn apply_fumarole_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let fumarole_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future, // Effectively permanent
+        total_amount: None, // No accumulation for fumarole effect
+        amount_applied_so_far: None,
+        effect_type: EffectType::Fumarole,
+        tick_interval_micros: 1_000_000, // 1 second ticks
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(fumarole_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied fumarole warmth protection effect {} to player {:?}", inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply fumarole effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply fumarole effect".to_string())
+        }
+    }
+}
+
+/// Removes fumarole effect from a player
+fn remove_fumarole_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::Fumarole {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed fumarole warmth protection effect {} from player {:?}", effect_id, player_id);
     }
 }

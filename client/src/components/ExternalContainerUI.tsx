@@ -22,6 +22,7 @@ import {
     ItemDefinition, InventoryItem, DbConnection, 
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
+    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
     Lantern as SpacetimeDBLantern, 
     WoodenStorageBox as SpacetimeDBWoodenStorageBox, 
     PlayerCorpse, 
@@ -105,6 +106,7 @@ interface ExternalContainerUIProps {
     itemDefinitions: Map<string, ItemDefinition>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>;
+    fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
     lanterns: Map<string, SpacetimeDBLantern>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
     playerCorpses: Map<string, PlayerCorpse>;
@@ -134,6 +136,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     itemDefinitions,
     campfires,
     furnaces,
+    fumaroles, // ADDED: Fumaroles
     lanterns,
     woodenStorageBoxes,
     playerCorpses,
@@ -172,6 +175,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         itemDefinitions,
         campfires,
         furnaces,
+        fumaroles,
         lanterns,
         woodenStorageBoxes,
         playerCorpses,
@@ -812,12 +816,40 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     const config = getContainerConfig(container.containerType);
 
-    // Check if campfire has attached broth pot
+    // Check if heat source (campfire or fumarole) has attached broth pot
     const attachedBrothPot = useMemo(() => {
-        if (container.containerType !== 'campfire') return null;
-        const campfire = container.containerEntity as SpacetimeDBCampfire;
-        if (!campfire.attachedBrothPotId) return null;
-        return brothPots.get(campfire.attachedBrothPotId.toString()) || null;
+        if (container.containerType === 'campfire') {
+            const campfire = container.containerEntity as SpacetimeDBCampfire;
+            if (!campfire.attachedBrothPotId) return null;
+            return brothPots.get(campfire.attachedBrothPotId.toString()) || null;
+        } else if (container.containerType === 'fumarole') {
+            // For fumaroles, find the broth pot by checking attachedToFumaroleId
+            const fumarole = container.containerEntity as any; // Fumarole type
+            if (!fumarole || !fumarole.id) {
+                console.log('[Fumarole BrothPot] No fumarole or fumarole.id');
+                return null;
+            }
+            
+            console.log('[Fumarole BrothPot] Looking for broth pot attached to fumarole ID:', fumarole.id, 'Type:', typeof fumarole.id);
+            console.log('[Fumarole BrothPot] Total broth pots:', brothPots.size);
+            
+            // Find broth pot attached to this fumarole
+            for (const pot of brothPots.values()) {
+                const potData = pot as any;
+                console.log('[Fumarole BrothPot] Checking pot:', potData.id, 'attachedToFumaroleId:', potData.attachedToFumaroleId, 'Type:', typeof potData.attachedToFumaroleId, 'isDestroyed:', potData.isDestroyed);
+                
+                // Compare as strings to handle bigint vs number mismatch
+                const potFumaroleId = potData.attachedToFumaroleId ? potData.attachedToFumaroleId.toString() : null;
+                const currentFumaroleId = fumarole.id.toString();
+                
+                if (potFumaroleId === currentFumaroleId && !potData.isDestroyed) {
+                    console.log('[Fumarole BrothPot] Found attached broth pot:', potData.id);
+                    return pot;
+                }
+            }
+            console.log('[Fumarole BrothPot] No attached broth pot found');
+        }
+        return null;
     }, [container.containerType, container.containerEntity, brothPots]);
 
     // Get broth pot items if attached (ingredient slots only)
@@ -930,9 +962,23 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             {attachedBrothPot && brothPotItems && (
                 <>
                     <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.2)', paddingTop: '16px' }}>
-                        <h3 className={styles.sectionTitle} style={{ fontSize: '14px', marginBottom: '12px' }}>
+                        <h3 className={styles.sectionTitle} style={{ fontSize: '14px', marginBottom: '8px' }}>
                             Field Cauldron
                         </h3>
+                        
+                        {/* Heat Source Indicator */}
+                        <div style={{
+                            fontSize: '11px',
+                            color: container.containerType === 'fumarole' ? '#ff6b35' : '#ffa500',
+                            textAlign: 'center',
+                            marginBottom: '12px',
+                            fontStyle: 'italic',
+                            opacity: 0.9
+                        }}>
+                            {container.containerType === 'fumarole' 
+                                ? '🌋 Always-On Volcanic Heat (No Fuel Required)' 
+                                : '🔥 Campfire Heat (Requires Fuel)'}
+                        </div>
                         
                         {/* All 5 slots in one row: Water Container + 3 Ingredient slots + Arrow + Output slot */}
                         <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px', alignItems: 'center', gap: '8px' }}>

@@ -239,6 +239,8 @@ import { PickupStorageBox } from "./pickup_storage_box_reducer.ts";
 export { PickupStorageBox };
 import { PlaceBrothPotOnCampfire } from "./place_broth_pot_on_campfire_reducer.ts";
 export { PlaceBrothPotOnCampfire };
+import { PlaceBrothPotOnFumarole } from "./place_broth_pot_on_fumarole_reducer.ts";
+export { PlaceBrothPotOnFumarole };
 import { PlaceCampfire } from "./place_campfire_reducer.ts";
 export { PlaceCampfire };
 import { PlaceFoundation } from "./place_foundation_reducer.ts";
@@ -519,6 +521,8 @@ import { BarrelTableHandle } from "./barrel_table.ts";
 export { BarrelTableHandle };
 import { BarrelRespawnScheduleTableHandle } from "./barrel_respawn_schedule_table.ts";
 export { BarrelRespawnScheduleTableHandle };
+import { BasaltColumnTableHandle } from "./basalt_column_table.ts";
+export { BasaltColumnTableHandle };
 import { BrothPotTableHandle } from "./broth_pot_table.ts";
 export { BrothPotTableHandle };
 import { BrothPotProcessingScheduleTableHandle } from "./broth_pot_processing_schedule_table.ts";
@@ -567,6 +571,8 @@ import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
 import { FoundationCellTableHandle } from "./foundation_cell_table.ts";
 export { FoundationCellTableHandle };
+import { FumaroleTableHandle } from "./fumarole_table.ts";
+export { FumaroleTableHandle };
 import { FurnaceTableHandle } from "./furnace_table.ts";
 export { FurnaceTableHandle };
 import { FurnaceProcessingScheduleTableHandle } from "./furnace_processing_schedule_table.ts";
@@ -725,6 +731,10 @@ import { Barrel } from "./barrel_type.ts";
 export { Barrel };
 import { BarrelRespawnSchedule } from "./barrel_respawn_schedule_type.ts";
 export { BarrelRespawnSchedule };
+import { BasaltColumn } from "./basalt_column_type.ts";
+export { BasaltColumn };
+import { BasaltColumnType } from "./basalt_column_type_type.ts";
+export { BasaltColumnType };
 import { BrothPot } from "./broth_pot_type.ts";
 export { BrothPot };
 import { BrothPotProcessingSchedule } from "./broth_pot_processing_schedule_type.ts";
@@ -795,6 +805,8 @@ import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
 import { FoundationCell } from "./foundation_cell_type.ts";
 export { FoundationCell };
+import { Fumarole } from "./fumarole_type.ts";
+export { Fumarole };
 import { Furnace } from "./furnace_type.ts";
 export { Furnace };
 import { FurnaceProcessingSchedule } from "./furnace_processing_schedule_type.ts";
@@ -1037,6 +1049,15 @@ const REMOTE_MODULE = {
         colType: (BarrelRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    basalt_column: {
+      tableName: "basalt_column" as const,
+      rowType: BasaltColumn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (BasaltColumn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     broth_pot: {
       tableName: "broth_pot" as const,
       rowType: BrothPot.getTypeScriptAlgebraicType(),
@@ -1251,6 +1272,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (FoundationCell.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fumarole: {
+      tableName: "fumarole" as const,
+      rowType: Fumarole.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Fumarole.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     furnace: {
@@ -2274,6 +2304,10 @@ const REMOTE_MODULE = {
       reducerName: "place_broth_pot_on_campfire",
       argsType: PlaceBrothPotOnCampfire.getTypeScriptAlgebraicType(),
     },
+    place_broth_pot_on_fumarole: {
+      reducerName: "place_broth_pot_on_fumarole",
+      argsType: PlaceBrothPotOnFumarole.getTypeScriptAlgebraicType(),
+    },
     place_campfire: {
       reducerName: "place_campfire",
       argsType: PlaceCampfire.getTypeScriptAlgebraicType(),
@@ -2936,6 +2970,7 @@ export type Reducer = never
 | { name: "PickupLantern", args: PickupLantern }
 | { name: "PickupStorageBox", args: PickupStorageBox }
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
+| { name: "PlaceBrothPotOnFumarole", args: PlaceBrothPotOnFumarole }
 | { name: "PlaceCampfire", args: PlaceCampfire }
 | { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
@@ -4663,6 +4698,22 @@ export class RemoteReducers {
 
   removeOnPlaceBrothPotOnCampfire(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, campfireId: number) => void) {
     this.connection.offReducer("place_broth_pot_on_campfire", callback);
+  }
+
+  placeBrothPotOnFumarole(itemInstanceId: bigint, fumaroleId: bigint) {
+    const __args = { itemInstanceId, fumaroleId };
+    let __writer = new __BinaryWriter(1024);
+    PlaceBrothPotOnFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_broth_pot_on_fumarole", __argsBuffer, this.setCallReducerFlags.placeBrothPotOnFumaroleFlags);
+  }
+
+  onPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: bigint) => void) {
+    this.connection.onReducer("place_broth_pot_on_fumarole", callback);
+  }
+
+  removeOnPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: bigint) => void) {
+    this.connection.offReducer("place_broth_pot_on_fumarole", callback);
   }
 
   placeCampfire(itemInstanceId: bigint, worldX: number, worldY: number) {
@@ -7230,6 +7281,11 @@ export class SetReducerFlags {
     this.placeBrothPotOnCampfireFlags = flags;
   }
 
+  placeBrothPotOnFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  placeBrothPotOnFumarole(flags: __CallReducerFlags) {
+    this.placeBrothPotOnFumaroleFlags = flags;
+  }
+
   placeCampfireFlags: __CallReducerFlags = 'FullUpdate';
   placeCampfire(flags: __CallReducerFlags) {
     this.placeCampfireFlags = flags;
@@ -7930,6 +7986,11 @@ export class RemoteTables {
     return new BarrelRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BarrelRespawnSchedule>(REMOTE_MODULE.tables.barrel_respawn_schedule));
   }
 
+  get basaltColumn(): BasaltColumnTableHandle<'basalt_column'> {
+    // clientCache is a private property
+    return new BasaltColumnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BasaltColumn>(REMOTE_MODULE.tables.basalt_column));
+  }
+
   get brothPot(): BrothPotTableHandle<'broth_pot'> {
     // clientCache is a private property
     return new BrothPotTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BrothPot>(REMOTE_MODULE.tables.broth_pot));
@@ -8048,6 +8109,11 @@ export class RemoteTables {
   get foundationCell(): FoundationCellTableHandle<'foundation_cell'> {
     // clientCache is a private property
     return new FoundationCellTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoundationCell>(REMOTE_MODULE.tables.foundation_cell));
+  }
+
+  get fumarole(): FumaroleTableHandle<'fumarole'> {
+    // clientCache is a private property
+    return new FumaroleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Fumarole>(REMOTE_MODULE.tables.fumarole));
   }
 
   get furnace(): FurnaceTableHandle<'furnace'> {

@@ -8,11 +8,13 @@ import {
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
     RuneStone as SpacetimeDBRuneStone, // ADDED: RuneStone
+    FirePatch as SpacetimeDBFirePatch, // ADDED: FirePatch
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
+import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 
 export interface ColorPoint {
   r: number; g: number; b: number; a: number;
@@ -271,6 +273,7 @@ interface UseDayNightCycleProps {
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
+    firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -294,6 +297,7 @@ export function useDayNightCycle({
     lanterns,
     furnaces,
     runeStones, // ADDED: RuneStones
+    firePatches, // ADDED: Fire patches
     players,
     activeEquipments,
     itemDefinitions,
@@ -537,6 +541,29 @@ export function useDayNightCycle({
             }
         });
 
+        // Render fire patch light cutouts (smaller than campfires, same size as the patch)
+        firePatches.forEach(firePatch => {
+            // Fire patches are always burning (no isBurning check needed)
+            // Skip if intensity is too low
+            if (firePatch.currentIntensity < 0.1) return;
+            
+            const screenX = firePatch.posX + cameraOffsetX;
+            const screenY = firePatch.posY + cameraOffsetY;
+            
+            // Fire patch cutout - smaller than campfire, matches the visual radius
+            // Use the same radius as the visual fire patch (FIRE_PATCH_VISUAL_RADIUS = 40)
+            const lightRadius = FIRE_PATCH_VISUAL_RADIUS * 1.5; // Slightly larger cutout for better visibility
+            const maskGradient = maskCtx.createRadialGradient(screenX, screenY, lightRadius * 0.08, screenX, screenY, lightRadius);
+            maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+            maskGradient.addColorStop(0.4, 'rgba(0,0,0,0.7)'); // Natural transition zone
+            maskGradient.addColorStop(0.8, 'rgba(0,0,0,0.3)'); // Gentle fade
+            maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+            maskCtx.fillStyle = maskGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+        });
+
         // Render rune stone light cutouts with colored atmospheric glows (only at night: twilight evening to twilight morning)
         // Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
         if (typeof currentCycleProgress === 'number') {
@@ -639,7 +666,7 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, runeStones, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
+    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
 
     return { overlayRgba, maskCanvasRef };
 } 

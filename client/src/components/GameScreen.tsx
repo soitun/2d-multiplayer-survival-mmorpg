@@ -129,6 +129,8 @@ interface GameScreenProps {
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED homesteadHearths
     foundationCells: Map<string, any>; // ADDED: Building foundations
     wallCells: Map<string, any>; // ADDED: Building walls
+    fumaroles: Map<string, any>; // ADDED fumaroles
+    basaltColumns: Map<string, any>; // ADDED basalt columns
     inventoryItems: Map<string, SpacetimeDBInventoryItem>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
     worldState: SpacetimeDBWorldState | null;
@@ -733,6 +735,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 homesteadHearths={props.homesteadHearths}
                 foundationCells={props.foundationCells}
                 wallCells={props.wallCells}
+                fumaroles={props.fumaroles}
+                basaltColumns={props.basaltColumns}
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}
                 worldState={worldState}
@@ -804,6 +808,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onSetInteractingWith={handleSetInteractingWith}
                 campfires={campfires}
                 furnaces={furnaces}
+                fumaroles={props.fumaroles}
                 lanterns={lanterns}
                 woodenStorageBoxes={woodenStorageBoxes}
                 playerCorpses={playerCorpses}
@@ -886,36 +891,36 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isWaterTile={(worldX: number, worldY: number) => {
                     if (!connection) return false;
 
-                    // Debug database once
-                    if (!(window as any).dbDebugged) {
-                        (window as any).dbDebugged = true;
-                        console.log('[WATER DEBUG] Database tables:', Object.keys(connection.db));
-                        console.log('[WATER DEBUG] WorldTile exists:', !!connection.db.worldTile);
-
-                        if (connection.db.worldTile) {
-                            const allTiles = Array.from(connection.db.worldTile.iter());
-                            console.log('[WATER DEBUG] Total tiles in DB:', allTiles.length);
-                            if (allTiles.length > 0) {
-                                console.log('[WATER DEBUG] Sample tiles:', allTiles.slice(0, 3));
-                            }
-                        }
-
-
-                    }
-
-                    // Use the exact same algorithm as placementRenderingUtils.ts
-                    const tileX = Math.floor(worldX / 48); // TILE_SIZE is 48, not 32!
+                    // Convert world position to tile coordinates
+                    const tileX = Math.floor(worldX / 48); // TILE_SIZE is 48
                     const tileY = Math.floor(worldY / 48);
 
-                    // Check all world tiles to find the one at this position
-                    for (const tile of connection.db.worldTile.iter()) {
-                        if (tile.worldX === tileX && tile.worldY === tileY) {
-                            // Found the tile at this position, check if it's water
-                            return tile.tileType.tag === 'Sea';
+                    // Use compressed chunk data (same as GameCanvas)
+                    const chunkSize = 16; // Standard chunk size
+                    const chunkX = Math.floor(tileX / chunkSize);
+                    const chunkY = Math.floor(tileY / chunkSize);
+
+                    // Find the chunk containing this tile
+                    for (const chunk of connection.db.worldChunkData.iter()) {
+                        if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
+                            // Calculate local tile position within chunk
+                            const localX = tileX % chunkSize;
+                            const localY = tileY % chunkSize;
+                            const localTileX = localX < 0 ? localX + chunkSize : localX;
+                            const localTileY = localY < 0 ? localY + chunkSize : localY;
+                            const tileIndex = localTileY * chunkSize + localTileX;
+
+                            // Check if index is valid
+                            if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
+                                const tileTypeU8 = chunk.tileTypes[tileIndex];
+                                // Check if it's water: Sea (3) or HotSpringWater (6)
+                                return tileTypeU8 === 3 || tileTypeU8 === 6;
+                            }
+                            break;
                         }
                     }
 
-                    // No tile found at this position, assume it's not water
+                    // No chunk found or invalid index, assume not water
                     return false;
                 }}
             />
