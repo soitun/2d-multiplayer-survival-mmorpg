@@ -35,6 +35,7 @@ export type TargetType = TargetTypeVariants.Tree |
   TargetTypeVariants.Player |
   TargetTypeVariants.Campfire |
   TargetTypeVariants.Furnace |
+  TargetTypeVariants.Fumarole |
   TargetTypeVariants.Lantern |
   TargetTypeVariants.WoodenStorageBox |
   TargetTypeVariants.Stash |
@@ -65,6 +66,7 @@ export const TargetType = {
   Player: { tag: "Player" } as const,
   Campfire: { tag: "Campfire" } as const,
   Furnace: { tag: "Furnace" } as const,
+  Fumarole: { tag: "Fumarole" } as const,
   Lantern: { tag: "Lantern" } as const,
   WoodenStorageBox: { tag: "WoodenStorageBox" } as const,
   Stash: { tag: "Stash" } as const,
@@ -89,6 +91,7 @@ export const TargetType = {
       { name: "Player", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Campfire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Furnace", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Lantern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WoodenStorageBox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

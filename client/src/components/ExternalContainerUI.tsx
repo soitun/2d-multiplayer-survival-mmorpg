@@ -929,8 +929,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 onItemMouseMove={onExternalItemMouseMove}
                 style={container.containerType === 'rain_collector' ? { marginTop: '12px' } : undefined}
                 disabledSlots={
-                    container.containerType === 'campfire' && attachedBrothPot 
+                    (container.containerType === 'campfire' && attachedBrothPot) 
                         ? new Set([0, 1, 2, 3, 4]) // Disable all 5 campfire fuel slots when broth pot is attached
+                        : (container.containerType === 'fumarole' && attachedBrothPot)
+                        ? new Set([0, 1, 2, 3, 4, 5]) // Disable all 6 fumarole slots when broth pot is attached
                         : undefined
                 }
             />

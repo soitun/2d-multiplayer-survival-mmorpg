@@ -26,6 +26,7 @@ use crate::models::{ItemLocation, EquipmentSlotType, TargetType}; // <<< UPDATED
 use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use crate::campfire::CampfireClearer; 
+use crate::fumarole::FumaroleClearer;
 use crate::wooden_storage_box::WoodenStorageBoxClearer;
 use crate::player_corpse::PlayerCorpseClearer;
 use crate::stash::StashClearer; // Added StashClearer import
@@ -634,6 +635,12 @@ pub(crate) fn clear_item_from_any_container(ctx: &ReducerContext, item_instance_
     // Attempt to clear from Campfire fuel slots
     if CampfireClearer::clear_item(ctx, item_instance_id) {
         log::debug!("[ItemsClear] Item {} cleared from a campfire.", item_instance_id);
+        return; // Item found and handled
+    }
+
+    // Attempt to clear from Fumarole slots
+    if FumaroleClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a fumarole.", item_instance_id);
         return; // Item found and handled
     }
 

@@ -30,6 +30,7 @@ import {
 
 export type Campfire = { tag: "Campfire" };
 export type Furnace = { tag: "Furnace" };
+export type Fumarole = { tag: "Fumarole" };
 export type WoodenStorageBox = { tag: "WoodenStorageBox" };
 export type PlayerCorpse = { tag: "PlayerCorpse" };
 export type Stash = { tag: "Stash" };

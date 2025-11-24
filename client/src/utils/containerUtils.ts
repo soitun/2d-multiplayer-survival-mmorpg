@@ -25,7 +25,7 @@ export const CONTAINER_CONFIGS = {
     // Fuel containers
     campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
-    fumarole: { slots: 0, slotType: 'fumarole', fieldPrefix: '', hasToggle: false, hasLightExtinguish: false, special: true, gridCols: 1 }, // Fumaroles have no slots (always-on heat source)
+    fumarole: { slots: 6, slotType: 'fumarole', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, special: false, gridCols: 2 }, // Fumaroles: 6 slots for incineration (3x2 grid)
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     
     // Storage containers
@@ -44,7 +44,7 @@ export function getReducerName(containerType: ContainerType, action: string): st
     const typeMap = {
         campfire: 'Campfire',
         furnace: 'Furnace',
-        fumarole: 'Fumarole', // Fumaroles don't have reducers (always-on heat source)
+        fumarole: 'Fumarole',
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
@@ -74,7 +74,7 @@ export function getDragDropReducerNames(containerType: ContainerType) {
     const typeMap = {
         campfire: 'Campfire',
         furnace: 'Furnace',
-        fumarole: 'Fumarole', // Fumaroles don't have drag-drop reducers (no slots)
+        fumarole: 'Fumarole',
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
@@ -87,7 +87,7 @@ export function getDragDropReducerNames(containerType: ContainerType) {
     const typeName = typeMap[containerType];
     
     // Determine if this is a fuel container (different naming pattern)
-    const isFuelContainer = ['campfire', 'furnace', 'lantern'].includes(containerType);
+    const isFuelContainer = ['campfire', 'furnace', 'fumarole', 'lantern'].includes(containerType);
     
     return {
         // World drop reducers (consistent across all containers)

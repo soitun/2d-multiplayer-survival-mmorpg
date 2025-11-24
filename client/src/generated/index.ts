@@ -93,6 +93,8 @@ import { DropItemFromCampfireSlotToWorld } from "./drop_item_from_campfire_slot_
 export { DropItemFromCampfireSlotToWorld };
 import { DropItemFromCorpseSlotToWorld } from "./drop_item_from_corpse_slot_to_world_reducer.ts";
 export { DropItemFromCorpseSlotToWorld };
+import { DropItemFromFumaroleSlotToWorld } from "./drop_item_from_fumarole_slot_to_world_reducer.ts";
+export { DropItemFromFumaroleSlotToWorld };
 import { DropItemFromFurnaceSlotToWorld } from "./drop_item_from_furnace_slot_to_world_reducer.ts";
 export { DropItemFromFurnaceSlotToWorld };
 import { DropItemFromHearthSlotToWorld } from "./drop_item_from_hearth_slot_to_world_reducer.ts";
@@ -143,6 +145,8 @@ import { InteractWithBrothPot } from "./interact_with_broth_pot_reducer.ts";
 export { InteractWithBrothPot };
 import { InteractWithCampfire } from "./interact_with_campfire_reducer.ts";
 export { InteractWithCampfire };
+import { InteractWithFumarole } from "./interact_with_fumarole_reducer.ts";
+export { InteractWithFumarole };
 import { InteractWithFurnace } from "./interact_with_furnace_reducer.ts";
 export { InteractWithFurnace };
 import { InteractWithHarvestableResource } from "./interact_with_harvestable_resource_reducer.ts";
@@ -175,6 +179,8 @@ import { MoveItemFromCampfireToPlayerSlot } from "./move_item_from_campfire_to_p
 export { MoveItemFromCampfireToPlayerSlot };
 import { MoveItemFromCorpse } from "./move_item_from_corpse_reducer.ts";
 export { MoveItemFromCorpse };
+import { MoveItemFromFumaroleToPlayerSlot } from "./move_item_from_fumarole_to_player_slot_reducer.ts";
+export { MoveItemFromFumaroleToPlayerSlot };
 import { MoveItemFromFurnaceToPlayerSlot } from "./move_item_from_furnace_to_player_slot_reducer.ts";
 export { MoveItemFromFurnaceToPlayerSlot };
 import { MoveItemFromHearth } from "./move_item_from_hearth_reducer.ts";
@@ -195,6 +201,8 @@ import { MoveItemToCampfire } from "./move_item_to_campfire_reducer.ts";
 export { MoveItemToCampfire };
 import { MoveItemToCorpse } from "./move_item_to_corpse_reducer.ts";
 export { MoveItemToCorpse };
+import { MoveItemToFumarole } from "./move_item_to_fumarole_reducer.ts";
+export { MoveItemToFumarole };
 import { MoveItemToFurnace } from "./move_item_to_furnace_reducer.ts";
 export { MoveItemToFurnace };
 import { MoveItemToHearth } from "./move_item_to_hearth_reducer.ts";
@@ -217,6 +225,8 @@ import { MoveItemWithinCampfire } from "./move_item_within_campfire_reducer.ts";
 export { MoveItemWithinCampfire };
 import { MoveItemWithinCorpse } from "./move_item_within_corpse_reducer.ts";
 export { MoveItemWithinCorpse };
+import { MoveItemWithinFumarole } from "./move_item_within_fumarole_reducer.ts";
+export { MoveItemWithinFumarole };
 import { MoveItemWithinFurnace } from "./move_item_within_furnace_reducer.ts";
 export { MoveItemWithinFurnace };
 import { MoveItemWithinHearth } from "./move_item_within_hearth_reducer.ts";
@@ -277,6 +287,8 @@ import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
+import { ProcessFumaroleLogicScheduled } from "./process_fumarole_logic_scheduled_reducer.ts";
+export { ProcessFumaroleLogicScheduled };
 import { ProcessFurnaceLogicScheduled } from "./process_furnace_logic_scheduled_reducer.ts";
 export { ProcessFurnaceLogicScheduled };
 import { ProcessGlobalTick } from "./process_global_tick_reducer.ts";
@@ -311,6 +323,8 @@ import { QuickMoveFromCampfire } from "./quick_move_from_campfire_reducer.ts";
 export { QuickMoveFromCampfire };
 import { QuickMoveFromCorpse } from "./quick_move_from_corpse_reducer.ts";
 export { QuickMoveFromCorpse };
+import { QuickMoveFromFumarole } from "./quick_move_from_fumarole_reducer.ts";
+export { QuickMoveFromFumarole };
 import { QuickMoveFromFurnace } from "./quick_move_from_furnace_reducer.ts";
 export { QuickMoveFromFurnace };
 import { QuickMoveFromHearth } from "./quick_move_from_hearth_reducer.ts";
@@ -331,6 +345,8 @@ import { QuickMoveToCampfire } from "./quick_move_to_campfire_reducer.ts";
 export { QuickMoveToCampfire };
 import { QuickMoveToCorpse } from "./quick_move_to_corpse_reducer.ts";
 export { QuickMoveToCorpse };
+import { QuickMoveToFumarole } from "./quick_move_to_fumarole_reducer.ts";
+export { QuickMoveToFumarole };
 import { QuickMoveToFurnace } from "./quick_move_to_furnace_reducer.ts";
 export { QuickMoveToFurnace };
 import { QuickMoveToHearth } from "./quick_move_to_hearth_reducer.ts";
@@ -355,6 +371,8 @@ import { ScheduleNextBrothPotProcessing } from "./schedule_next_broth_pot_proces
 export { ScheduleNextBrothPotProcessing };
 import { ScheduleNextCampfireProcessing } from "./schedule_next_campfire_processing_reducer.ts";
 export { ScheduleNextCampfireProcessing };
+import { ScheduleNextFumaroleProcessing } from "./schedule_next_fumarole_processing_reducer.ts";
+export { ScheduleNextFumaroleProcessing };
 import { SeedEnvironment } from "./seed_environment_reducer.ts";
 export { SeedEnvironment };
 import { SeedFoodPoisoningRisks } from "./seed_food_poisoning_risks_reducer.ts";
@@ -389,6 +407,8 @@ import { SplitAndDropItemFromCampfireSlotToWorld } from "./split_and_drop_item_f
 export { SplitAndDropItemFromCampfireSlotToWorld };
 import { SplitAndDropItemFromCorpseSlotToWorld } from "./split_and_drop_item_from_corpse_slot_to_world_reducer.ts";
 export { SplitAndDropItemFromCorpseSlotToWorld };
+import { SplitAndDropItemFromFumaroleSlotToWorld } from "./split_and_drop_item_from_fumarole_slot_to_world_reducer.ts";
+export { SplitAndDropItemFromFumaroleSlotToWorld };
 import { SplitAndDropItemFromFurnaceSlotToWorld } from "./split_and_drop_item_from_furnace_slot_to_world_reducer.ts";
 export { SplitAndDropItemFromFurnaceSlotToWorld };
 import { SplitAndDropItemFromHearthSlotToWorld } from "./split_and_drop_item_from_hearth_slot_to_world_reducer.ts";
@@ -399,6 +419,8 @@ import { SplitAndDropItemFromStashSlotToWorld } from "./split_and_drop_item_from
 export { SplitAndDropItemFromStashSlotToWorld };
 import { SplitAndMoveFromCampfire } from "./split_and_move_from_campfire_reducer.ts";
 export { SplitAndMoveFromCampfire };
+import { SplitAndMoveFromFumarole } from "./split_and_move_from_fumarole_reducer.ts";
+export { SplitAndMoveFromFumarole };
 import { SplitAndMoveFromFurnace } from "./split_and_move_from_furnace_reducer.ts";
 export { SplitAndMoveFromFurnace };
 import { SplitStack } from "./split_stack_reducer.ts";
@@ -411,6 +433,8 @@ import { SplitStackFromCampfire } from "./split_stack_from_campfire_reducer.ts";
 export { SplitStackFromCampfire };
 import { SplitStackFromCorpse } from "./split_stack_from_corpse_reducer.ts";
 export { SplitStackFromCorpse };
+import { SplitStackFromFumarole } from "./split_stack_from_fumarole_reducer.ts";
+export { SplitStackFromFumarole };
 import { SplitStackFromFurnace } from "./split_stack_from_furnace_reducer.ts";
 export { SplitStackFromFurnace };
 import { SplitStackFromHearth } from "./split_stack_from_hearth_reducer.ts";
@@ -427,6 +451,8 @@ import { SplitStackIntoCampfire } from "./split_stack_into_campfire_reducer.ts";
 export { SplitStackIntoCampfire };
 import { SplitStackIntoCorpse } from "./split_stack_into_corpse_reducer.ts";
 export { SplitStackIntoCorpse };
+import { SplitStackIntoFumarole } from "./split_stack_into_fumarole_reducer.ts";
+export { SplitStackIntoFumarole };
 import { SplitStackIntoFurnace } from "./split_stack_into_furnace_reducer.ts";
 export { SplitStackIntoFurnace };
 import { SplitStackIntoHearth } from "./split_stack_into_hearth_reducer.ts";
@@ -443,6 +469,8 @@ import { SplitStackWithinCampfire } from "./split_stack_within_campfire_reducer.
 export { SplitStackWithinCampfire };
 import { SplitStackWithinCorpse } from "./split_stack_within_corpse_reducer.ts";
 export { SplitStackWithinCorpse };
+import { SplitStackWithinFumarole } from "./split_stack_within_fumarole_reducer.ts";
+export { SplitStackWithinFumarole };
 import { SplitStackWithinFurnace } from "./split_stack_within_furnace_reducer.ts";
 export { SplitStackWithinFurnace };
 import { SplitStackWithinHearth } from "./split_stack_within_hearth_reducer.ts";
@@ -573,6 +601,8 @@ import { FoundationCellTableHandle } from "./foundation_cell_table.ts";
 export { FoundationCellTableHandle };
 import { FumaroleTableHandle } from "./fumarole_table.ts";
 export { FumaroleTableHandle };
+import { FumaroleProcessingScheduleTableHandle } from "./fumarole_processing_schedule_table.ts";
+export { FumaroleProcessingScheduleTableHandle };
 import { FurnaceTableHandle } from "./furnace_table.ts";
 export { FurnaceTableHandle };
 import { FurnaceProcessingScheduleTableHandle } from "./furnace_processing_schedule_table.ts";
@@ -807,6 +837,8 @@ import { FoundationCell } from "./foundation_cell_type.ts";
 export { FoundationCell };
 import { Fumarole } from "./fumarole_type.ts";
 export { Fumarole };
+import { FumaroleProcessingSchedule } from "./fumarole_processing_schedule_type.ts";
+export { FumaroleProcessingSchedule };
 import { Furnace } from "./furnace_type.ts";
 export { Furnace };
 import { FurnaceProcessingSchedule } from "./furnace_processing_schedule_type.ts";
@@ -1281,6 +1313,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Fumarole.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fumarole_processing_schedule: {
+      tableName: "fumarole_processing_schedule" as const,
+      rowType: FumaroleProcessingSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "fumaroleId",
+      primaryKeyInfo: {
+        colName: "fumaroleId",
+        colType: (FumaroleProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     furnace: {
@@ -2012,6 +2053,10 @@ const REMOTE_MODULE = {
       reducerName: "drop_item_from_corpse_slot_to_world",
       argsType: DropItemFromCorpseSlotToWorld.getTypeScriptAlgebraicType(),
     },
+    drop_item_from_fumarole_slot_to_world: {
+      reducerName: "drop_item_from_fumarole_slot_to_world",
+      argsType: DropItemFromFumaroleSlotToWorld.getTypeScriptAlgebraicType(),
+    },
     drop_item_from_furnace_slot_to_world: {
       reducerName: "drop_item_from_furnace_slot_to_world",
       argsType: DropItemFromFurnaceSlotToWorld.getTypeScriptAlgebraicType(),
@@ -2112,6 +2157,10 @@ const REMOTE_MODULE = {
       reducerName: "interact_with_campfire",
       argsType: InteractWithCampfire.getTypeScriptAlgebraicType(),
     },
+    interact_with_fumarole: {
+      reducerName: "interact_with_fumarole",
+      argsType: InteractWithFumarole.getTypeScriptAlgebraicType(),
+    },
     interact_with_furnace: {
       reducerName: "interact_with_furnace",
       argsType: InteractWithFurnace.getTypeScriptAlgebraicType(),
@@ -2176,6 +2225,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_from_corpse",
       argsType: MoveItemFromCorpse.getTypeScriptAlgebraicType(),
     },
+    move_item_from_fumarole_to_player_slot: {
+      reducerName: "move_item_from_fumarole_to_player_slot",
+      argsType: MoveItemFromFumaroleToPlayerSlot.getTypeScriptAlgebraicType(),
+    },
     move_item_from_furnace_to_player_slot: {
       reducerName: "move_item_from_furnace_to_player_slot",
       argsType: MoveItemFromFurnaceToPlayerSlot.getTypeScriptAlgebraicType(),
@@ -2215,6 +2268,10 @@ const REMOTE_MODULE = {
     move_item_to_corpse: {
       reducerName: "move_item_to_corpse",
       argsType: MoveItemToCorpse.getTypeScriptAlgebraicType(),
+    },
+    move_item_to_fumarole: {
+      reducerName: "move_item_to_fumarole",
+      argsType: MoveItemToFumarole.getTypeScriptAlgebraicType(),
     },
     move_item_to_furnace: {
       reducerName: "move_item_to_furnace",
@@ -2259,6 +2316,10 @@ const REMOTE_MODULE = {
     move_item_within_corpse: {
       reducerName: "move_item_within_corpse",
       argsType: MoveItemWithinCorpse.getTypeScriptAlgebraicType(),
+    },
+    move_item_within_fumarole: {
+      reducerName: "move_item_within_fumarole",
+      argsType: MoveItemWithinFumarole.getTypeScriptAlgebraicType(),
     },
     move_item_within_furnace: {
       reducerName: "move_item_within_furnace",
@@ -2380,6 +2441,10 @@ const REMOTE_MODULE = {
       reducerName: "process_fire_patch_damage",
       argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
     },
+    process_fumarole_logic_scheduled: {
+      reducerName: "process_fumarole_logic_scheduled",
+      argsType: ProcessFumaroleLogicScheduled.getTypeScriptAlgebraicType(),
+    },
     process_furnace_logic_scheduled: {
       reducerName: "process_furnace_logic_scheduled",
       argsType: ProcessFurnaceLogicScheduled.getTypeScriptAlgebraicType(),
@@ -2448,6 +2513,10 @@ const REMOTE_MODULE = {
       reducerName: "quick_move_from_corpse",
       argsType: QuickMoveFromCorpse.getTypeScriptAlgebraicType(),
     },
+    quick_move_from_fumarole: {
+      reducerName: "quick_move_from_fumarole",
+      argsType: QuickMoveFromFumarole.getTypeScriptAlgebraicType(),
+    },
     quick_move_from_furnace: {
       reducerName: "quick_move_from_furnace",
       argsType: QuickMoveFromFurnace.getTypeScriptAlgebraicType(),
@@ -2487,6 +2556,10 @@ const REMOTE_MODULE = {
     quick_move_to_corpse: {
       reducerName: "quick_move_to_corpse",
       argsType: QuickMoveToCorpse.getTypeScriptAlgebraicType(),
+    },
+    quick_move_to_fumarole: {
+      reducerName: "quick_move_to_fumarole",
+      argsType: QuickMoveToFumarole.getTypeScriptAlgebraicType(),
     },
     quick_move_to_furnace: {
       reducerName: "quick_move_to_furnace",
@@ -2535,6 +2608,10 @@ const REMOTE_MODULE = {
     schedule_next_campfire_processing: {
       reducerName: "schedule_next_campfire_processing",
       argsType: ScheduleNextCampfireProcessing.getTypeScriptAlgebraicType(),
+    },
+    schedule_next_fumarole_processing: {
+      reducerName: "schedule_next_fumarole_processing",
+      argsType: ScheduleNextFumaroleProcessing.getTypeScriptAlgebraicType(),
     },
     seed_environment: {
       reducerName: "seed_environment",
@@ -2604,6 +2681,10 @@ const REMOTE_MODULE = {
       reducerName: "split_and_drop_item_from_corpse_slot_to_world",
       argsType: SplitAndDropItemFromCorpseSlotToWorld.getTypeScriptAlgebraicType(),
     },
+    split_and_drop_item_from_fumarole_slot_to_world: {
+      reducerName: "split_and_drop_item_from_fumarole_slot_to_world",
+      argsType: SplitAndDropItemFromFumaroleSlotToWorld.getTypeScriptAlgebraicType(),
+    },
     split_and_drop_item_from_furnace_slot_to_world: {
       reducerName: "split_and_drop_item_from_furnace_slot_to_world",
       argsType: SplitAndDropItemFromFurnaceSlotToWorld.getTypeScriptAlgebraicType(),
@@ -2623,6 +2704,10 @@ const REMOTE_MODULE = {
     split_and_move_from_campfire: {
       reducerName: "split_and_move_from_campfire",
       argsType: SplitAndMoveFromCampfire.getTypeScriptAlgebraicType(),
+    },
+    split_and_move_from_fumarole: {
+      reducerName: "split_and_move_from_fumarole",
+      argsType: SplitAndMoveFromFumarole.getTypeScriptAlgebraicType(),
     },
     split_and_move_from_furnace: {
       reducerName: "split_and_move_from_furnace",
@@ -2647,6 +2732,10 @@ const REMOTE_MODULE = {
     split_stack_from_corpse: {
       reducerName: "split_stack_from_corpse",
       argsType: SplitStackFromCorpse.getTypeScriptAlgebraicType(),
+    },
+    split_stack_from_fumarole: {
+      reducerName: "split_stack_from_fumarole",
+      argsType: SplitStackFromFumarole.getTypeScriptAlgebraicType(),
     },
     split_stack_from_furnace: {
       reducerName: "split_stack_from_furnace",
@@ -2680,6 +2769,10 @@ const REMOTE_MODULE = {
       reducerName: "split_stack_into_corpse",
       argsType: SplitStackIntoCorpse.getTypeScriptAlgebraicType(),
     },
+    split_stack_into_fumarole: {
+      reducerName: "split_stack_into_fumarole",
+      argsType: SplitStackIntoFumarole.getTypeScriptAlgebraicType(),
+    },
     split_stack_into_furnace: {
       reducerName: "split_stack_into_furnace",
       argsType: SplitStackIntoFurnace.getTypeScriptAlgebraicType(),
@@ -2711,6 +2804,10 @@ const REMOTE_MODULE = {
     split_stack_within_corpse: {
       reducerName: "split_stack_within_corpse",
       argsType: SplitStackWithinCorpse.getTypeScriptAlgebraicType(),
+    },
+    split_stack_within_fumarole: {
+      reducerName: "split_stack_within_fumarole",
+      argsType: SplitStackWithinFumarole.getTypeScriptAlgebraicType(),
     },
     split_stack_within_furnace: {
       reducerName: "split_stack_within_furnace",
@@ -2897,6 +2994,7 @@ export type Reducer = never
 | { name: "DropItemFromBoxSlotToWorld", args: DropItemFromBoxSlotToWorld }
 | { name: "DropItemFromCampfireSlotToWorld", args: DropItemFromCampfireSlotToWorld }
 | { name: "DropItemFromCorpseSlotToWorld", args: DropItemFromCorpseSlotToWorld }
+| { name: "DropItemFromFumaroleSlotToWorld", args: DropItemFromFumaroleSlotToWorld }
 | { name: "DropItemFromFurnaceSlotToWorld", args: DropItemFromFurnaceSlotToWorld }
 | { name: "DropItemFromHearthSlotToWorld", args: DropItemFromHearthSlotToWorld }
 | { name: "DropItemFromLanternSlotToWorld", args: DropItemFromLanternSlotToWorld }
@@ -2922,6 +3020,7 @@ export type Reducer = never
 | { name: "InitializePlayerMemoryGrid", args: InitializePlayerMemoryGrid }
 | { name: "InteractWithBrothPot", args: InteractWithBrothPot }
 | { name: "InteractWithCampfire", args: InteractWithCampfire }
+| { name: "InteractWithFumarole", args: InteractWithFumarole }
 | { name: "InteractWithFurnace", args: InteractWithFurnace }
 | { name: "InteractWithHarvestableResource", args: InteractWithHarvestableResource }
 | { name: "InteractWithLantern", args: InteractWithLantern }
@@ -2938,6 +3037,7 @@ export type Reducer = never
 | { name: "MoveItemFromBrothPotWaterContainer", args: MoveItemFromBrothPotWaterContainer }
 | { name: "MoveItemFromCampfireToPlayerSlot", args: MoveItemFromCampfireToPlayerSlot }
 | { name: "MoveItemFromCorpse", args: MoveItemFromCorpse }
+| { name: "MoveItemFromFumaroleToPlayerSlot", args: MoveItemFromFumaroleToPlayerSlot }
 | { name: "MoveItemFromFurnaceToPlayerSlot", args: MoveItemFromFurnaceToPlayerSlot }
 | { name: "MoveItemFromHearth", args: MoveItemFromHearth }
 | { name: "MoveItemFromLanternToPlayerSlot", args: MoveItemFromLanternToPlayerSlot }
@@ -2948,6 +3048,7 @@ export type Reducer = never
 | { name: "MoveItemToBrothPotWaterContainer", args: MoveItemToBrothPotWaterContainer }
 | { name: "MoveItemToCampfire", args: MoveItemToCampfire }
 | { name: "MoveItemToCorpse", args: MoveItemToCorpse }
+| { name: "MoveItemToFumarole", args: MoveItemToFumarole }
 | { name: "MoveItemToFurnace", args: MoveItemToFurnace }
 | { name: "MoveItemToHearth", args: MoveItemToHearth }
 | { name: "MoveItemToHotbar", args: MoveItemToHotbar }
@@ -2959,6 +3060,7 @@ export type Reducer = never
 | { name: "MoveItemWithinBrothPot", args: MoveItemWithinBrothPot }
 | { name: "MoveItemWithinCampfire", args: MoveItemWithinCampfire }
 | { name: "MoveItemWithinCorpse", args: MoveItemWithinCorpse }
+| { name: "MoveItemWithinFumarole", args: MoveItemWithinFumarole }
 | { name: "MoveItemWithinFurnace", args: MoveItemWithinFurnace }
 | { name: "MoveItemWithinHearth", args: MoveItemWithinHearth }
 | { name: "MoveItemWithinLantern", args: MoveItemWithinLantern }
@@ -2989,6 +3091,7 @@ export type Reducer = never
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
+| { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
 | { name: "ProcessGrassRespawn", args: ProcessGrassRespawn }
@@ -3006,6 +3109,7 @@ export type Reducer = never
 | { name: "QuickMoveFromBrothPotWaterContainer", args: QuickMoveFromBrothPotWaterContainer }
 | { name: "QuickMoveFromCampfire", args: QuickMoveFromCampfire }
 | { name: "QuickMoveFromCorpse", args: QuickMoveFromCorpse }
+| { name: "QuickMoveFromFumarole", args: QuickMoveFromFumarole }
 | { name: "QuickMoveFromFurnace", args: QuickMoveFromFurnace }
 | { name: "QuickMoveFromHearth", args: QuickMoveFromHearth }
 | { name: "QuickMoveFromLantern", args: QuickMoveFromLantern }
@@ -3016,6 +3120,7 @@ export type Reducer = never
 | { name: "QuickMoveToBrothPotWaterContainer", args: QuickMoveToBrothPotWaterContainer }
 | { name: "QuickMoveToCampfire", args: QuickMoveToCampfire }
 | { name: "QuickMoveToCorpse", args: QuickMoveToCorpse }
+| { name: "QuickMoveToFumarole", args: QuickMoveToFumarole }
 | { name: "QuickMoveToFurnace", args: QuickMoveToFurnace }
 | { name: "QuickMoveToHearth", args: QuickMoveToHearth }
 | { name: "QuickMoveToLantern", args: QuickMoveToLantern }
@@ -3028,6 +3133,7 @@ export type Reducer = never
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
 | { name: "ScheduleNextBrothPotProcessing", args: ScheduleNextBrothPotProcessing }
 | { name: "ScheduleNextCampfireProcessing", args: ScheduleNextCampfireProcessing }
+| { name: "ScheduleNextFumaroleProcessing", args: ScheduleNextFumaroleProcessing }
 | { name: "SeedEnvironment", args: SeedEnvironment }
 | { name: "SeedFoodPoisoningRisks", args: SeedFoodPoisoningRisks }
 | { name: "SeedItems", args: SeedItems }
@@ -3045,17 +3151,20 @@ export type Reducer = never
 | { name: "SplitAndDropItemFromBoxSlotToWorld", args: SplitAndDropItemFromBoxSlotToWorld }
 | { name: "SplitAndDropItemFromCampfireSlotToWorld", args: SplitAndDropItemFromCampfireSlotToWorld }
 | { name: "SplitAndDropItemFromCorpseSlotToWorld", args: SplitAndDropItemFromCorpseSlotToWorld }
+| { name: "SplitAndDropItemFromFumaroleSlotToWorld", args: SplitAndDropItemFromFumaroleSlotToWorld }
 | { name: "SplitAndDropItemFromFurnaceSlotToWorld", args: SplitAndDropItemFromFurnaceSlotToWorld }
 | { name: "SplitAndDropItemFromHearthSlotToWorld", args: SplitAndDropItemFromHearthSlotToWorld }
 | { name: "SplitAndDropItemFromLanternSlotToWorld", args: SplitAndDropItemFromLanternSlotToWorld }
 | { name: "SplitAndDropItemFromStashSlotToWorld", args: SplitAndDropItemFromStashSlotToWorld }
 | { name: "SplitAndMoveFromCampfire", args: SplitAndMoveFromCampfire }
+| { name: "SplitAndMoveFromFumarole", args: SplitAndMoveFromFumarole }
 | { name: "SplitAndMoveFromFurnace", args: SplitAndMoveFromFurnace }
 | { name: "SplitStack", args: SplitStack }
 | { name: "SplitStackFromBox", args: SplitStackFromBox }
 | { name: "SplitStackFromBrothPot", args: SplitStackFromBrothPot }
 | { name: "SplitStackFromCampfire", args: SplitStackFromCampfire }
 | { name: "SplitStackFromCorpse", args: SplitStackFromCorpse }
+| { name: "SplitStackFromFumarole", args: SplitStackFromFumarole }
 | { name: "SplitStackFromFurnace", args: SplitStackFromFurnace }
 | { name: "SplitStackFromHearth", args: SplitStackFromHearth }
 | { name: "SplitStackFromLantern", args: SplitStackFromLantern }
@@ -3064,6 +3173,7 @@ export type Reducer = never
 | { name: "SplitStackIntoBrothPot", args: SplitStackIntoBrothPot }
 | { name: "SplitStackIntoCampfire", args: SplitStackIntoCampfire }
 | { name: "SplitStackIntoCorpse", args: SplitStackIntoCorpse }
+| { name: "SplitStackIntoFumarole", args: SplitStackIntoFumarole }
 | { name: "SplitStackIntoFurnace", args: SplitStackIntoFurnace }
 | { name: "SplitStackIntoHearth", args: SplitStackIntoHearth }
 | { name: "SplitStackIntoLantern", args: SplitStackIntoLantern }
@@ -3072,6 +3182,7 @@ export type Reducer = never
 | { name: "SplitStackWithinBrothPot", args: SplitStackWithinBrothPot }
 | { name: "SplitStackWithinCampfire", args: SplitStackWithinCampfire }
 | { name: "SplitStackWithinCorpse", args: SplitStackWithinCorpse }
+| { name: "SplitStackWithinFumarole", args: SplitStackWithinFumarole }
 | { name: "SplitStackWithinFurnace", args: SplitStackWithinFurnace }
 | { name: "SplitStackWithinHearth", args: SplitStackWithinHearth }
 | { name: "SplitStackWithinLantern", args: SplitStackWithinLantern }
@@ -3580,6 +3691,22 @@ export class RemoteReducers {
     this.connection.offReducer("drop_item_from_corpse_slot_to_world", callback);
   }
 
+  dropItemFromFumaroleSlotToWorld(fumaroleId: bigint, slotIndex: number) {
+    const __args = { fumaroleId, slotIndex };
+    let __writer = new __BinaryWriter(1024);
+    DropItemFromFumaroleSlotToWorld.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("drop_item_from_fumarole_slot_to_world", __argsBuffer, this.setCallReducerFlags.dropItemFromFumaroleSlotToWorldFlags);
+  }
+
+  onDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number) => void) {
+    this.connection.onReducer("drop_item_from_fumarole_slot_to_world", callback);
+  }
+
+  removeOnDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number) => void) {
+    this.connection.offReducer("drop_item_from_fumarole_slot_to_world", callback);
+  }
+
   dropItemFromFurnaceSlotToWorld(furnaceId: number, slotIndex: number) {
     const __args = { furnaceId, slotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -3944,6 +4071,22 @@ export class RemoteReducers {
     this.connection.offReducer("interact_with_campfire", callback);
   }
 
+  interactWithFumarole(fumaroleId: bigint) {
+    const __args = { fumaroleId };
+    let __writer = new __BinaryWriter(1024);
+    InteractWithFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("interact_with_fumarole", __argsBuffer, this.setCallReducerFlags.interactWithFumaroleFlags);
+  }
+
+  onInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+    this.connection.onReducer("interact_with_fumarole", callback);
+  }
+
+  removeOnInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+    this.connection.offReducer("interact_with_fumarole", callback);
+  }
+
   interactWithFurnace(furnaceId: number) {
     const __args = { furnaceId };
     let __writer = new __BinaryWriter(1024);
@@ -4188,6 +4331,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_from_corpse", callback);
   }
 
+  moveItemFromFumaroleToPlayerSlot(fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { fumaroleId, sourceSlotIndex, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemFromFumaroleToPlayerSlot.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_from_fumarole_to_player_slot", __argsBuffer, this.setCallReducerFlags.moveItemFromFumaroleToPlayerSlotFlags);
+  }
+
+  onMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_from_fumarole_to_player_slot", callback);
+  }
+
+  removeOnMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_from_fumarole_to_player_slot", callback);
+  }
+
   moveItemFromFurnaceToPlayerSlot(furnaceId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { furnaceId, sourceSlotIndex, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -4346,6 +4505,22 @@ export class RemoteReducers {
 
   removeOnMoveItemToCorpse(callback: (ctx: ReducerEventContext, corpseId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("move_item_to_corpse", callback);
+  }
+
+  moveItemToFumarole(fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { fumaroleId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_fumarole", __argsBuffer, this.setCallReducerFlags.moveItemToFumaroleFlags);
+  }
+
+  onMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_fumarole", callback);
+  }
+
+  removeOnMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_fumarole", callback);
   }
 
   moveItemToFurnace(furnaceId: number, targetSlotIndex: number, itemInstanceId: bigint) {
@@ -4522,6 +4697,22 @@ export class RemoteReducers {
 
   removeOnMoveItemWithinCorpse(callback: (ctx: ReducerEventContext, corpseId: number, sourceSlotIndex: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("move_item_within_corpse", callback);
+  }
+
+  moveItemWithinFumarole(fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) {
+    const __args = { fumaroleId, sourceSlotIndex, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemWithinFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_within_fumarole", __argsBuffer, this.setCallReducerFlags.moveItemWithinFumaroleFlags);
+  }
+
+  onMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_within_fumarole", callback);
+  }
+
+  removeOnMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_within_fumarole", callback);
   }
 
   moveItemWithinFurnace(furnaceId: number, sourceSlotIndex: number, targetSlotIndex: number) {
@@ -5004,6 +5195,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_fire_patch_damage", callback);
   }
 
+  processFumaroleLogicScheduled(scheduleArgs: FumaroleProcessingSchedule) {
+    const __args = { scheduleArgs };
+    let __writer = new __BinaryWriter(1024);
+    ProcessFumaroleLogicScheduled.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_fumarole_logic_scheduled", __argsBuffer, this.setCallReducerFlags.processFumaroleLogicScheduledFlags);
+  }
+
+  onProcessFumaroleLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: FumaroleProcessingSchedule) => void) {
+    this.connection.onReducer("process_fumarole_logic_scheduled", callback);
+  }
+
+  removeOnProcessFumaroleLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: FumaroleProcessingSchedule) => void) {
+    this.connection.offReducer("process_fumarole_logic_scheduled", callback);
+  }
+
   processFurnaceLogicScheduled(scheduleArgs: FurnaceProcessingSchedule) {
     const __args = { scheduleArgs };
     let __writer = new __BinaryWriter(1024);
@@ -5276,6 +5483,22 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_from_corpse", callback);
   }
 
+  quickMoveFromFumarole(fumaroleId: bigint, sourceSlotIndex: number) {
+    const __args = { fumaroleId, sourceSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveFromFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_from_fumarole", __argsBuffer, this.setCallReducerFlags.quickMoveFromFumaroleFlags);
+  }
+
+  onQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number) => void) {
+    this.connection.onReducer("quick_move_from_fumarole", callback);
+  }
+
+  removeOnQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number) => void) {
+    this.connection.offReducer("quick_move_from_fumarole", callback);
+  }
+
   quickMoveFromFurnace(furnaceId: number, sourceSlotIndex: number) {
     const __args = { furnaceId, sourceSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -5434,6 +5657,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveToCorpse(callback: (ctx: ReducerEventContext, corpseId: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("quick_move_to_corpse", callback);
+  }
+
+  quickMoveToFumarole(fumaroleId: bigint, itemInstanceId: bigint) {
+    const __args = { fumaroleId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_fumarole", __argsBuffer, this.setCallReducerFlags.quickMoveToFumaroleFlags);
+  }
+
+  onQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_fumarole", callback);
+  }
+
+  removeOnQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_fumarole", callback);
   }
 
   quickMoveToFurnace(furnaceId: number, itemInstanceId: bigint) {
@@ -5618,6 +5857,22 @@ export class RemoteReducers {
 
   removeOnScheduleNextCampfireProcessing(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
     this.connection.offReducer("schedule_next_campfire_processing", callback);
+  }
+
+  scheduleNextFumaroleProcessing(fumaroleId: bigint) {
+    const __args = { fumaroleId };
+    let __writer = new __BinaryWriter(1024);
+    ScheduleNextFumaroleProcessing.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("schedule_next_fumarole_processing", __argsBuffer, this.setCallReducerFlags.scheduleNextFumaroleProcessingFlags);
+  }
+
+  onScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+    this.connection.onReducer("schedule_next_fumarole_processing", callback);
+  }
+
+  removeOnScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+    this.connection.offReducer("schedule_next_fumarole_processing", callback);
   }
 
   seedEnvironment() {
@@ -5868,6 +6123,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_and_drop_item_from_corpse_slot_to_world", callback);
   }
 
+  splitAndDropItemFromFumaroleSlotToWorld(fumaroleId: bigint, slotIndex: number, quantityToSplit: number) {
+    const __args = { fumaroleId, slotIndex, quantityToSplit };
+    let __writer = new __BinaryWriter(1024);
+    SplitAndDropItemFromFumaroleSlotToWorld.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_and_drop_item_from_fumarole_slot_to_world", __argsBuffer, this.setCallReducerFlags.splitAndDropItemFromFumaroleSlotToWorldFlags);
+  }
+
+  onSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number, quantityToSplit: number) => void) {
+    this.connection.onReducer("split_and_drop_item_from_fumarole_slot_to_world", callback);
+  }
+
+  removeOnSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number, quantityToSplit: number) => void) {
+    this.connection.offReducer("split_and_drop_item_from_fumarole_slot_to_world", callback);
+  }
+
   splitAndDropItemFromFurnaceSlotToWorld(furnaceId: number, slotIndex: number, quantityToSplit: number) {
     const __args = { furnaceId, slotIndex, quantityToSplit };
     let __writer = new __BinaryWriter(1024);
@@ -5946,6 +6217,22 @@ export class RemoteReducers {
 
   removeOnSplitAndMoveFromCampfire(callback: (ctx: ReducerEventContext, sourceCampfireId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_and_move_from_campfire", callback);
+  }
+
+  splitAndMoveFromFumarole(sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { sourceFumaroleId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitAndMoveFromFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_and_move_from_fumarole", __argsBuffer, this.setCallReducerFlags.splitAndMoveFromFumaroleFlags);
+  }
+
+  onSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_and_move_from_fumarole", callback);
+  }
+
+  removeOnSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_and_move_from_fumarole", callback);
   }
 
   splitAndMoveFromFurnace(sourceFurnaceId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
@@ -6042,6 +6329,22 @@ export class RemoteReducers {
 
   removeOnSplitStackFromCorpse(callback: (ctx: ReducerEventContext, corpseId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_from_corpse", callback);
+  }
+
+  splitStackFromFumarole(sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { sourceFumaroleId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackFromFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_from_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackFromFumaroleFlags);
+  }
+
+  onSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_from_fumarole", callback);
+  }
+
+  removeOnSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_from_fumarole", callback);
   }
 
   splitStackFromFurnace(sourceFurnaceId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
@@ -6172,6 +6475,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_into_corpse", callback);
   }
 
+  splitStackIntoFumarole(sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) {
+    const __args = { sourceItemInstanceId, quantityToSplit, targetFumaroleId, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackIntoFumaroleFlags);
+  }
+
+  onSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_into_fumarole", callback);
+  }
+
+  removeOnSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_into_fumarole", callback);
+  }
+
   splitStackIntoFurnace(sourceItemInstanceId: bigint, quantityToSplit: number, targetFurnaceId: number, targetSlotIndex: number) {
     const __args = { sourceItemInstanceId, quantityToSplit, targetFurnaceId, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -6298,6 +6617,22 @@ export class RemoteReducers {
 
   removeOnSplitStackWithinCorpse(callback: (ctx: ReducerEventContext, corpseId: number, sourceSlotIndex: number, targetSlotIndex: number, quantityToSplit: number) => void) {
     this.connection.offReducer("split_stack_within_corpse", callback);
+  }
+
+  splitStackWithinFumarole(fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
+    const __args = { fumaroleId, sourceSlotIndex, quantityToSplit, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackWithinFumarole.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_within_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackWithinFumaroleFlags);
+  }
+
+  onSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_within_fumarole", callback);
+  }
+
+  removeOnSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_within_fumarole", callback);
   }
 
   splitStackWithinFurnace(furnaceId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
@@ -6926,6 +7261,11 @@ export class SetReducerFlags {
     this.dropItemFromCorpseSlotToWorldFlags = flags;
   }
 
+  dropItemFromFumaroleSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
+  dropItemFromFumaroleSlotToWorld(flags: __CallReducerFlags) {
+    this.dropItemFromFumaroleSlotToWorldFlags = flags;
+  }
+
   dropItemFromFurnaceSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
   dropItemFromFurnaceSlotToWorld(flags: __CallReducerFlags) {
     this.dropItemFromFurnaceSlotToWorldFlags = flags;
@@ -7041,6 +7381,11 @@ export class SetReducerFlags {
     this.interactWithCampfireFlags = flags;
   }
 
+  interactWithFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  interactWithFumarole(flags: __CallReducerFlags) {
+    this.interactWithFumaroleFlags = flags;
+  }
+
   interactWithFurnaceFlags: __CallReducerFlags = 'FullUpdate';
   interactWithFurnace(flags: __CallReducerFlags) {
     this.interactWithFurnaceFlags = flags;
@@ -7121,6 +7466,11 @@ export class SetReducerFlags {
     this.moveItemFromCorpseFlags = flags;
   }
 
+  moveItemFromFumaroleToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemFromFumaroleToPlayerSlot(flags: __CallReducerFlags) {
+    this.moveItemFromFumaroleToPlayerSlotFlags = flags;
+  }
+
   moveItemFromFurnaceToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
   moveItemFromFurnaceToPlayerSlot(flags: __CallReducerFlags) {
     this.moveItemFromFurnaceToPlayerSlotFlags = flags;
@@ -7169,6 +7519,11 @@ export class SetReducerFlags {
   moveItemToCorpseFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToCorpse(flags: __CallReducerFlags) {
     this.moveItemToCorpseFlags = flags;
+  }
+
+  moveItemToFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToFumarole(flags: __CallReducerFlags) {
+    this.moveItemToFumaroleFlags = flags;
   }
 
   moveItemToFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -7224,6 +7579,11 @@ export class SetReducerFlags {
   moveItemWithinCorpseFlags: __CallReducerFlags = 'FullUpdate';
   moveItemWithinCorpse(flags: __CallReducerFlags) {
     this.moveItemWithinCorpseFlags = flags;
+  }
+
+  moveItemWithinFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemWithinFumarole(flags: __CallReducerFlags) {
+    this.moveItemWithinFumaroleFlags = flags;
   }
 
   moveItemWithinFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -7376,6 +7736,11 @@ export class SetReducerFlags {
     this.processFirePatchDamageFlags = flags;
   }
 
+  processFumaroleLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
+  processFumaroleLogicScheduled(flags: __CallReducerFlags) {
+    this.processFumaroleLogicScheduledFlags = flags;
+  }
+
   processFurnaceLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processFurnaceLogicScheduled(flags: __CallReducerFlags) {
     this.processFurnaceLogicScheduledFlags = flags;
@@ -7461,6 +7826,11 @@ export class SetReducerFlags {
     this.quickMoveFromCorpseFlags = flags;
   }
 
+  quickMoveFromFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveFromFumarole(flags: __CallReducerFlags) {
+    this.quickMoveFromFumaroleFlags = flags;
+  }
+
   quickMoveFromFurnaceFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveFromFurnace(flags: __CallReducerFlags) {
     this.quickMoveFromFurnaceFlags = flags;
@@ -7509,6 +7879,11 @@ export class SetReducerFlags {
   quickMoveToCorpseFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToCorpse(flags: __CallReducerFlags) {
     this.quickMoveToCorpseFlags = flags;
+  }
+
+  quickMoveToFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToFumarole(flags: __CallReducerFlags) {
+    this.quickMoveToFumaroleFlags = flags;
   }
 
   quickMoveToFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -7569,6 +7944,11 @@ export class SetReducerFlags {
   scheduleNextCampfireProcessingFlags: __CallReducerFlags = 'FullUpdate';
   scheduleNextCampfireProcessing(flags: __CallReducerFlags) {
     this.scheduleNextCampfireProcessingFlags = flags;
+  }
+
+  scheduleNextFumaroleProcessingFlags: __CallReducerFlags = 'FullUpdate';
+  scheduleNextFumaroleProcessing(flags: __CallReducerFlags) {
+    this.scheduleNextFumaroleProcessingFlags = flags;
   }
 
   seedEnvironmentFlags: __CallReducerFlags = 'FullUpdate';
@@ -7656,6 +8036,11 @@ export class SetReducerFlags {
     this.splitAndDropItemFromCorpseSlotToWorldFlags = flags;
   }
 
+  splitAndDropItemFromFumaroleSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
+  splitAndDropItemFromFumaroleSlotToWorld(flags: __CallReducerFlags) {
+    this.splitAndDropItemFromFumaroleSlotToWorldFlags = flags;
+  }
+
   splitAndDropItemFromFurnaceSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
   splitAndDropItemFromFurnaceSlotToWorld(flags: __CallReducerFlags) {
     this.splitAndDropItemFromFurnaceSlotToWorldFlags = flags;
@@ -7679,6 +8064,11 @@ export class SetReducerFlags {
   splitAndMoveFromCampfireFlags: __CallReducerFlags = 'FullUpdate';
   splitAndMoveFromCampfire(flags: __CallReducerFlags) {
     this.splitAndMoveFromCampfireFlags = flags;
+  }
+
+  splitAndMoveFromFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  splitAndMoveFromFumarole(flags: __CallReducerFlags) {
+    this.splitAndMoveFromFumaroleFlags = flags;
   }
 
   splitAndMoveFromFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -7709,6 +8099,11 @@ export class SetReducerFlags {
   splitStackFromCorpseFlags: __CallReducerFlags = 'FullUpdate';
   splitStackFromCorpse(flags: __CallReducerFlags) {
     this.splitStackFromCorpseFlags = flags;
+  }
+
+  splitStackFromFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackFromFumarole(flags: __CallReducerFlags) {
+    this.splitStackFromFumaroleFlags = flags;
   }
 
   splitStackFromFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -7751,6 +8146,11 @@ export class SetReducerFlags {
     this.splitStackIntoCorpseFlags = flags;
   }
 
+  splitStackIntoFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoFumarole(flags: __CallReducerFlags) {
+    this.splitStackIntoFumaroleFlags = flags;
+  }
+
   splitStackIntoFurnaceFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoFurnace(flags: __CallReducerFlags) {
     this.splitStackIntoFurnaceFlags = flags;
@@ -7789,6 +8189,11 @@ export class SetReducerFlags {
   splitStackWithinCorpseFlags: __CallReducerFlags = 'FullUpdate';
   splitStackWithinCorpse(flags: __CallReducerFlags) {
     this.splitStackWithinCorpseFlags = flags;
+  }
+
+  splitStackWithinFumaroleFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackWithinFumarole(flags: __CallReducerFlags) {
+    this.splitStackWithinFumaroleFlags = flags;
   }
 
   splitStackWithinFurnaceFlags: __CallReducerFlags = 'FullUpdate';
@@ -8114,6 +8519,11 @@ export class RemoteTables {
   get fumarole(): FumaroleTableHandle<'fumarole'> {
     // clientCache is a private property
     return new FumaroleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Fumarole>(REMOTE_MODULE.tables.fumarole));
+  }
+
+  get fumaroleProcessingSchedule(): FumaroleProcessingScheduleTableHandle<'fumarole_processing_schedule'> {
+    // clientCache is a private property
+    return new FumaroleProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FumaroleProcessingSchedule>(REMOTE_MODULE.tables.fumarole_processing_schedule));
   }
 
   get furnace(): FurnaceTableHandle<'furnace'> {

@@ -32,6 +32,7 @@ import * as ContainerTypeVariants from './container_type_variants'
 // The tagged union or sum type for the algebraic type `ContainerType`.
 export type ContainerType = ContainerTypeVariants.Campfire |
   ContainerTypeVariants.Furnace |
+  ContainerTypeVariants.Fumarole |
   ContainerTypeVariants.WoodenStorageBox |
   ContainerTypeVariants.PlayerCorpse |
   ContainerTypeVariants.Stash |
@@ -52,6 +53,7 @@ export const ContainerType = {
   // ```
   Campfire: { tag: "Campfire" } as const,
   Furnace: { tag: "Furnace" } as const,
+  Fumarole: { tag: "Fumarole" } as const,
   WoodenStorageBox: { tag: "WoodenStorageBox" } as const,
   PlayerCorpse: { tag: "PlayerCorpse" } as const,
   Stash: { tag: "Stash" } as const,
@@ -66,6 +68,7 @@ export const ContainerType = {
     _cached_ContainerType_type_value.value.variants.push(
       { name: "Campfire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Furnace", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WoodenStorageBox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PlayerCorpse", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

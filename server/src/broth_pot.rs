@@ -1878,10 +1878,22 @@ pub fn process_broth_pot_logic_scheduled(
     // SECOND: Update brewing progress if still cooking after checks above
     if broth_pot.is_cooking {
         // Continue brewing - update progress
-        broth_pot.cooking_progress_secs += elapsed_seconds;
+        // Apply 3x cooking speed multiplier when on a fumarole (PvP hotspot reward)
+        let cooking_speed_multiplier = if broth_pot.attached_to_fumarole_id.is_some() {
+            3.0 // Fumaroles cook 3x faster
+        } else {
+            1.0 // Normal speed on campfires
+        };
+        broth_pot.cooking_progress_secs += elapsed_seconds * cooking_speed_multiplier;
         
         // Check if brewing is complete
         if broth_pot.cooking_progress_secs >= broth_pot.required_cooking_time_secs {
+            // Log completion with speed boost info
+            if cooking_speed_multiplier > 1.0 {
+                log::info!("[BrothPot] Recipe completed on fumarole {} with {}x speed boost!", 
+                          broth_pot.attached_to_fumarole_id.unwrap_or(0), cooking_speed_multiplier);
+            }
+            
             // Complete brewing - use recipe system to determine output
             let items = ctx.db.inventory_item();
             let item_defs = ctx.db.item_definition();

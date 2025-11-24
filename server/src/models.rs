@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 pub enum ContainerType {
     Campfire,
     Furnace,
+    Fumarole,
     WoodenStorageBox,
     PlayerCorpse,
     Stash,
@@ -99,6 +100,7 @@ pub enum TargetType {
     Player,
     Campfire,
     Furnace,
+    Fumarole,
     Lantern,
     WoodenStorageBox,
     Stash,

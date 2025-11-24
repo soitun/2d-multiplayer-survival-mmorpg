@@ -244,6 +244,16 @@ pub use furnace::{
     interact_with_furnace, toggle_furnace_burning, process_furnace_logic_scheduled
 };
 
+// Re-export fumarole reducers for client bindings
+pub use fumarole::{
+    move_item_to_fumarole, quick_move_from_fumarole,
+    split_stack_into_fumarole, move_item_within_fumarole, split_stack_within_fumarole,
+    quick_move_to_fumarole, move_item_from_fumarole_to_player_slot,
+    split_stack_from_fumarole, split_and_move_from_fumarole,
+    drop_item_from_fumarole_slot_to_world, split_and_drop_item_from_fumarole_slot_to_world,
+    interact_with_fumarole
+};
+
 // Re-export lantern reducers for client bindings
 pub use lantern::{
     place_lantern, move_item_to_lantern, quick_move_from_lantern,
