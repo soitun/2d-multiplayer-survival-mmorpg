@@ -660,6 +660,84 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
             playImmediateSound('error_field_cauldron_placement', 1.0);
           }
           break;
+        case 'Wood Door':
+        case 'Metal Door': {
+          // Door placement requires finding the nearest foundation edge (N/S only)
+          const FOUNDATION_TILE_SIZE = 96;
+          let nearestFoundation: any = null;
+          let nearestDistance = Infinity;
+          
+          // Find closest foundation cell
+          for (const foundation of connection.db.foundationCell.iter()) {
+            if (foundation.isDestroyed) continue;
+            
+            // Calculate foundation center position
+            const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            
+            const dx = worldX - foundationCenterX;
+            const dy = worldY - foundationCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Only consider foundations within interaction range
+            if (distance < nearestDistance && distance < FOUNDATION_TILE_SIZE * 1.5) {
+              nearestDistance = distance;
+              nearestFoundation = foundation;
+            }
+          }
+          
+          if (!nearestFoundation) {
+            console.log('[PlacementManager] No foundation nearby for door placement');
+            playImmediateSound('error_chest_placement', 1.0);
+            return;
+          }
+          
+          // Determine which edge (North=0, South=2) based on cursor Y position relative to foundation
+          const foundationCenterY = nearestFoundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+          const edge = worldY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
+          
+          // Check for existing wall or door on this edge
+          let hasWallOnEdge = false;
+          let hasDoorOnEdge = false;
+          
+          for (const wall of connection.db.wallCell.iter()) {
+            if (wall.cellX === nearestFoundation.cellX && 
+                wall.cellY === nearestFoundation.cellY && 
+                wall.edge === edge && 
+                !wall.isDestroyed) {
+              hasWallOnEdge = true;
+              break;
+            }
+          }
+          
+          for (const door of connection.db.door.iter()) {
+            if (door.cellX === nearestFoundation.cellX && 
+                door.cellY === nearestFoundation.cellY && 
+                door.edge === edge) {
+              hasDoorOnEdge = true;
+              break;
+            }
+          }
+          
+          if (hasWallOnEdge || hasDoorOnEdge) {
+            console.log(`[PlacementManager] Edge ${edge === 0 ? 'North' : 'South'} already has wall or door`);
+            playImmediateSound('error_chest_placement', 1.0);
+            return;
+          }
+          
+          // Determine door type (0 = Wood, 1 = Metal)
+          const doorType = placementInfo.itemName === 'Wood Door' ? 0 : 1;
+          
+          console.log(`[PlacementManager] Placing ${placementInfo.itemName} on foundation (${nearestFoundation.cellX}, ${nearestFoundation.cellY}) edge ${edge === 0 ? 'North' : 'South'}`);
+          connection.reducers.placeDoor(
+            BigInt(nearestFoundation.cellX),
+            BigInt(nearestFoundation.cellY),
+            worldX,
+            worldY,
+            doorType
+          );
+          break;
+        }
         default:
           // Check if it's a plantable seed using dynamic detection
           if (isSeedItemValid(placementInfo.itemName)) {

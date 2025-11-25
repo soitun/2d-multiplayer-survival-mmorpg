@@ -32,10 +32,10 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         // ("Camp Fire", 1, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
-        // ("Fire Arrow", 50, None, Some(0u16)),
-        // ("Stone", 5000, None, Some(1u16)),
-        // ("Metal Fragments", 5000, None, Some(2u16)),
-        // ("Sleeping Bag", 1, None, Some(3u16)),
+        // ("Blueprint", 1, None, Some(0u16)),
+        // ("Repair Hammer", 1, None, Some(1u16)),
+        // ("Wood", 5000, None, Some(2u16)),
+        // ("Wood Door", 4, None, Some(3u16)),
         // ("Matron's Chest", 1, None, Some(4u16)),
         // ("Bone Knife", 1, None, Some(5u16)),
         // ("Hunting Bow", 1, None, Some(6u16)),

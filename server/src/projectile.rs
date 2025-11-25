@@ -323,6 +323,12 @@ pub fn fire_projectile(ctx: &ReducerContext, target_world_x: f32, target_world_y
         }
     }
     
+    // --- Check if projectile path would immediately hit a closed door very close to player ---
+    if crate::door::check_door_projectile_collision(ctx, player.position_x, player.position_y, target_world_x, target_world_y) {
+        // Check distance to door - can't just use the target position, need to estimate
+        return Err("Cannot fire projectile - closed door blocking path".to_string());
+    }
+    
     // --- Check if projectile path would immediately hit a shelter wall very close to player ---
     if let Some((shelter_id, collision_x, collision_y)) = shelter::check_projectile_shelter_collision(
         ctx,
@@ -812,6 +818,24 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 create_fire_patch_if_fire_arrow(ctx, &ammo_def, current_x, current_y, projectile.owner_id);
             }
             
+            missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+            projectiles_to_delete.push(projectile.id);
+            continue;
+        }
+        
+        // Check for door collision (closed doors block projectiles)
+        if crate::door::check_door_projectile_collision(ctx, prev_x, prev_y, current_x, current_y) {
+            log::info!(
+                "[ProjectileUpdate] Projectile {} from owner {:?} hit a closed Door at ({:.1}, {:.1})",
+                projectile.id, projectile.owner_id, current_x, current_y
+            );
+            
+            // Create fire patch if this is a fire arrow (100% chance)
+            if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+            }
+            
+            // Projectile hit door - stop it and create dropped item
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
             projectiles_to_delete.push(projectile.id);
             continue;

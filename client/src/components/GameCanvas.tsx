@@ -207,6 +207,7 @@ interface GameCanvasProps {
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
   foundationCells: Map<string, any>; // ADDED: Building foundations
   wallCells: Map<string, any>; // ADDED: Building walls
+  doors: Map<string, any>; // ADDED: Building doors
   setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
   // Add ambient sound volume control
   environmentalVolume?: number; // 0-1 scale for ambient/environmental sounds
@@ -292,6 +293,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   homesteadHearths, // ADDED: HomesteadHearths destructuring
   foundationCells, // ADDED: Building foundations
   wallCells, // ADDED: Building walls
+  doors, // ADDED: Building doors
   setMusicPanelVisible,
   environmentalVolume,
   movementDirection,
@@ -545,6 +547,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleSeaStacksMap,
     visibleHomesteadHearths,
     visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
+    visibleDoors, // ADDED: Building doors
+    visibleDoorsMap, // ADDED: Building doors map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
   } = useEntityFiltering(
@@ -582,6 +586,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     seaStacks,
     foundationCells, // ADDED: Building foundations
     wallCells, // ADDED: Building walls
+    doors, // ADDED: Building doors
     localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
@@ -797,6 +802,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableCorpseId,
     closestInteractableStashId,
     closestInteractableSleepingBagId,
+    closestInteractableDoorId, // ADDED: Door support
     closestInteractableKnockedOutPlayerId,
     closestInteractableWaterPosition,
   } = useInteractionFinder({
@@ -819,6 +825,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     playerDrinkingCooldowns,
     rainCollectors,
     brothPots,
+    doors, // ADDED: Doors to useInteractionFinder
     harvestableResources,
     worldTiles: visibleWorldTiles,
   });
@@ -1149,6 +1156,44 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         doodadImagesRef.current.set('reed_rain_collector.png', img);
       };
       img.onerror = () => console.error('Failed to load reed_rain_collector.png');
+      img.src = module.default;
+    });
+
+    // Load door images (south-facing)
+    import('../assets/doodads/wood_door.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('wood_door.png', img);
+      };
+      img.onerror = () => console.error('Failed to load wood_door.png');
+      img.src = module.default;
+    });
+
+    import('../assets/doodads/metal_door.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('metal_door.png', img);
+      };
+      img.onerror = () => console.error('Failed to load metal_door.png');
+      img.src = module.default;
+    });
+
+    // Load door images (north-facing)
+    import('../assets/doodads/wood_door_north.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('wood_door_north.png', img);
+      };
+      img.onerror = () => console.error('Failed to load wood_door_north.png');
+      img.src = module.default;
+    });
+
+    import('../assets/doodads/metal_door_north.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('metal_door_north.png', img);
+      };
+      img.onerror = () => console.error('Failed to load metal_door_north.png');
       img.src = module.default;
     });
 
@@ -1763,6 +1808,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         closestInteractableSleepingBagId,
         closestInteractableHarvestableResourceId,
         closestInteractableDroppedItemId,
+        closestInteractableDoorId, // ADDED: Door support
         closestInteractableTarget,
         shelterClippingData,
         localFacingDirection, // ADD: Pass local facing direction for instant client-authoritative direction changes
@@ -2148,6 +2194,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           closestInteractableSleepingBagId,
           closestInteractableHarvestableResourceId,
           closestInteractableDroppedItemId,
+          closestInteractableDoorId, // ADDED: Door support
           closestInteractableTarget,
           shelterClippingData,
           localFacingDirection, // ADD: Pass local facing direction for instant client-authoritative direction changes
@@ -2258,6 +2305,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       rainCollectors: rainCollectors,
       brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
+      doors: visibleDoorsMap, // ADDED: Doors
     });
     renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,

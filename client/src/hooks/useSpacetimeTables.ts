@@ -147,6 +147,7 @@ export interface SpacetimeTableStates {
     basaltColumns: Map<string, SpacetimeDB.BasaltColumn>; // ADDED basalt columns
     foundationCells: Map<string, SpacetimeDB.FoundationCell>; // ADDED: Building foundations
     wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
+    doors: Map<string, SpacetimeDB.Door>; // ADDED: Building doors
     chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
 }   
 
@@ -220,6 +221,7 @@ export const useSpacetimeTables = ({
     const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map()); // ADDED basalt columns
     const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
+    const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
     
     // OPTIMIZATION: Ref for batched weather updates
@@ -345,6 +347,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                 ];
@@ -387,6 +390,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
                 
@@ -1395,6 +1399,32 @@ export const useSpacetimeTables = ({
                 setWallCells(prev => { const newMap = new Map(prev); newMap.delete(wall.id.toString()); return newMap; });
             };
 
+            // Door handlers - SPATIAL
+            const handleDoorInsert = (ctx: any, door: SpacetimeDB.Door) => {
+                console.log(`[Door Insert] Door inserted: id=${door.id.toString()}, cellX=${door.cellX}, cellY=${door.cellY}, edge=${door.edge}, isOpen=${door.isOpen}`);
+                setDoors(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(door.id.toString(), door);
+                    return newMap;
+                });
+            };
+            const handleDoorUpdate = (ctx: any, oldDoor: SpacetimeDB.Door, newDoor: SpacetimeDB.Door) => {
+                // Update on any visually significant change
+                const visuallySignificant = 
+                    oldDoor.posX !== newDoor.posX ||
+                    oldDoor.posY !== newDoor.posY ||
+                    oldDoor.isOpen !== newDoor.isOpen ||
+                    oldDoor.health !== newDoor.health ||
+                    oldDoor.isDestroyed !== newDoor.isDestroyed;
+                
+                if (visuallySignificant) {
+                    setDoors(prev => new Map(prev).set(newDoor.id.toString(), newDoor));
+                }
+            };
+            const handleDoorDelete = (ctx: any, door: SpacetimeDB.Door) => {
+                setDoors(prev => { const newMap = new Map(prev); newMap.delete(door.id.toString()); return newMap; });
+            };
+
             // Fumarole handlers - SPATIAL
             const handleFumaroleInsert = (ctx: any, fumarole: SpacetimeDB.Fumarole) => {
                 // console.log('🔥 [FUMAROLE INSERT] Fumarole', fumarole.id, 'at', fumarole.posX, fumarole.posY, 'chunk', fumarole.chunkIndex);
@@ -1640,6 +1670,11 @@ export const useSpacetimeTables = ({
             connection.db.wallCell.onUpdate(handleWallCellUpdate);
             connection.db.wallCell.onDelete(handleWallCellDelete);
 
+            // Register Door callbacks - SPATIAL
+            connection.db.door.onInsert(handleDoorInsert);
+            connection.db.door.onUpdate(handleDoorUpdate);
+            connection.db.door.onDelete(handleDoorDelete);
+
             // Register Fumarole callbacks - SPATIAL
             connection.db.fumarole.onInsert(handleFumaroleInsert);
             connection.db.fumarole.onUpdate(handleFumaroleUpdate);
@@ -1874,6 +1909,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
                                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Wall initial spatial subscription
+                                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`, // ADDED: Door initial spatial subscription
                                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`, // ADDED: Fumarole initial spatial subscription
                                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`, // ADDED: Basalt column initial spatial subscription
                                 ];
@@ -2063,6 +2099,7 @@ export const useSpacetimeTables = ({
         seaStacks, // ADDED sea stacks
         foundationCells, // ADDED: Building foundations
         wallCells, // ADDED: Building walls
+        doors, // ADDED: Building doors
         runeStones, // ADDED: Rune stones
         chunkWeather, // ADDED: Chunk-based weather
         fumaroles, // ADDED fumaroles

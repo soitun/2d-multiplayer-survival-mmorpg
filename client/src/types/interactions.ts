@@ -45,7 +45,8 @@ export type InteractionTargetType =
     | 'knocked_out_player' 
     | 'water'
     | 'rain_collector'
-    | 'broth_pot';
+    | 'broth_pot'
+    | 'door';  // ADDED: Building doors
 
 // Interaction behaviors - determines how the interaction works
 export enum InteractionBehavior {
@@ -149,6 +150,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 75,
         actionType: 'open_broth_pot'
+    },
+    
+    // Door - tap to open/close, hold to pickup (owner only)
+    door: {
+        behavior: InteractionBehavior.TAP,
+        priority: 85,
+        actionType: 'interact_door'
     }
 };
 
@@ -217,6 +225,9 @@ export function hasSpecialConditions(target: InteractableTarget): boolean {
         case 'broth_pot':
             // Special broth pot conditions (pickup if empty)
             return true; // Broth pots can be picked up via hold when empty
+        case 'door':
+            // Doors can be picked up via hold (owner only)
+            return true;
         default:
             return false;
     }
@@ -247,6 +258,9 @@ export function getEffectiveInteractionBehavior(target: InteractableTarget): Int
         case 'broth_pot':
             // Broth pots always open interface via tap (secondary hold action handles pickup when empty)
             return InteractionBehavior.INTERFACE;
+        case 'door':
+            // Doors use tap to toggle open/close (secondary hold action handles pickup)
+            return InteractionBehavior.TAP;
         default:
             // Use default behavior from INTERACTION_CONFIGS
             const config = INTERACTION_CONFIGS[target.type];
@@ -271,6 +285,8 @@ export function hasSecondaryHoldAction(target: InteractableTarget): boolean {
             return true; // Always has toggle visibility action
         case 'broth_pot':
             return true; // Always has pickup action when empty
+        case 'door':
+            return true; // Always has pickup action via hold (owner only)
         default:
             return false;
     }
@@ -293,6 +309,8 @@ export function getSecondaryHoldDuration(target: InteractableTarget): number {
             return 250; // 0.25 seconds to toggle stash visibility (very quick)
         case 'broth_pot':
             return 1000; // 1 second to pick up broth pot (significant action)
+        case 'door':
+            return 1000; // 1 second to pick up door (significant action)
         default:
             return 1000; // Default 1 second
     }

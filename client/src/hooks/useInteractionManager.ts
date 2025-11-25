@@ -130,6 +130,10 @@ export function useTargetInteractionManager({
                 // This should be handled by hold action, not tap
                 console.log(`[InteractionManager] Water drinking requires hold action, not tap`);
                 break;
+            case 'door':
+                // Toggle door open/close state
+                connection.reducers.interactDoor(BigInt(target.id as bigint));
+                break;
             default:
                 console.warn(`[InteractionManager] Unhandled tap action for target type: ${target.type}`);
         }
@@ -187,6 +191,10 @@ export function useTargetInteractionManager({
                 if (target.data?.isEmpty) {
                     connection.reducers.pickupBrothPot(Number(target.id));
                 }
+                break;
+            case 'door':
+                // Pickup door (owner only - server validates)
+                connection.reducers.pickupDoor(BigInt(target.id as bigint));
                 break;
             default:
                 console.warn(`[InteractionManager] Unhandled secondary hold action for target type: ${target.type}`);

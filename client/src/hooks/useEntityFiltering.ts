@@ -27,6 +27,7 @@ import {
   Barrel as SpacetimeDBBarrel, // ADDED Barrel type
   FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   WallCell as SpacetimeDBWallCell, // ADDED: Building walls
+  Door as SpacetimeDBDoor, // ADDED: Building doors
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumaroles (geothermal vents)
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt columns (decorative obstacles)
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
@@ -117,6 +118,8 @@ interface EntityFilteringResult {
   visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>; // ADDED: Building foundations map
   visibleWallCells: SpacetimeDBWallCell[]; // ADDED: Building walls
   visibleWallCellsMap: Map<string, SpacetimeDBWallCell>; // ADDED: Building walls map
+  visibleDoors: SpacetimeDBDoor[]; // ADDED: Building doors
+  visibleDoorsMap: Map<string, SpacetimeDBDoor>; // ADDED: Building doors map
   buildingClusters: Map<string, BuildingCluster>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId: string | null; // ADDED: Which building cluster the player is in
 }
@@ -150,6 +153,7 @@ export type YSortedEntityType =
   | { type: 'sleeping_bag'; entity: SpacetimeDBSleepingBag } // ADDED: Sleeping bags
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
   | { type: 'wall_cell'; entity: SpacetimeDBWallCell } // ADDED: Building walls
+  | { type: 'door'; entity: SpacetimeDBDoor } // ADDED: Building doors
   | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } } // ADDED: Fog of war overlay (renders above placeables, below walls)
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
   | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn }; // ADDED: Basalt columns (decorative obstacles in quarries)
@@ -222,6 +226,11 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Use center Y of the building for natural sorting
       const centerY = (fogEntity.bounds.minY + fogEntity.bounds.maxY) / 2;
       return centerY;
+    }
+    case 'door': {
+      // Doors render at their edge position - use posY directly
+      const door = entity as SpacetimeDBDoor;
+      return door.posY;
     }
     case 'wall_cell': {
       const wall = entity as SpacetimeDBWallCell;
@@ -316,6 +325,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
         return 23; // Higher priority than north walls (22) to render on top
       }
     }
+    case 'door': return 22; // Doors render at same level as walls
     case 'shelter': return 25;
     default: return 0;
   }
@@ -592,6 +602,7 @@ export function useEntityFiltering(
   seaStacks: Map<string, any>, // ADDED sea stacks argument
   foundationCells: Map<string, SpacetimeDBFoundationCell>, // ADDED: Building foundations
   wallCells: Map<string, SpacetimeDBWallCell>, // ADDED: Building walls
+  doors: Map<string, SpacetimeDBDoor>, // ADDED: Building doors
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any> // ADDED: World chunk data for tile type lookups
@@ -1184,6 +1195,25 @@ export function useEntityFiltering(
     });
   }, [wallCells, wallMapSize, viewBounds, stableTimestamp]);
 
+  // Extract door map size BEFORE useMemo to ensure React detects changes
+  const doorMapSize = doors?.size || 0;
+
+  // ADDED: Filter visible doors
+  const visibleDoors = useMemo(() => {
+    if (!doors || typeof doors.values !== 'function') return [];
+    
+    const padding = 50; // Extra padding to catch doors on edges
+    
+    return Array.from(doors.values()).filter(door => {
+      // Doors use world position directly (posX, posY)
+      const worldX = door.posX;
+      const worldY = door.posY;
+      
+      return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+             worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding;
+    });
+  }, [doors, doorMapSize, viewBounds, stableTimestamp]);
+
   // Extract foundation map size BEFORE building clusters computation to ensure React detects changes
   const foundationMapSize = foundationCells?.size || 0;
 
@@ -1353,6 +1383,12 @@ export function useEntityFiltering(
   const visibleWallCellsMap = useMemo(() =>
     new Map(visibleWallCells.map(w => [w.id.toString(), w])),
     [visibleWallCells]
+  );
+
+  // ADDED: Map for visible doors
+  const visibleDoorsMap = useMemo(() =>
+    new Map(visibleDoors.map(d => [d.id.toString(), d])),
+    [visibleDoors]
   );
 
   // ===== CACHED Y-SORTING WITH DIRTY FLAG SYSTEM =====
@@ -1616,6 +1652,7 @@ export function useEntityFiltering(
     }
     
     visibleWallCells.forEach(e => allEntities[index++] = { type: 'wall_cell', entity: e }); // ADDED: Walls
+    visibleDoors.forEach(e => allEntities[index++] = { type: 'door', entity: e }); // ADDED: Doors
 
     // Trim array to actual size in case some entities were filtered out (e.g., stones with 0 health)
     allEntities.length = index;
@@ -1991,6 +2028,7 @@ export function useEntityFiltering(
     visibleHarvestableResources,
     visibleFoundationCells, // ADDED: Foundations dependency
     visibleWallCells, // ADDED: Walls dependency
+    visibleDoors, // ADDED: Doors dependency
     foundationCells, // CRITICAL: Depend on raw map to detect when data loads
     foundationMapSize, // CRITICAL: Depend on map size to detect when subscription data arrives
     wallCells, // CRITICAL: Depend on raw map to detect when data loads
@@ -2065,6 +2103,8 @@ export function useEntityFiltering(
     visibleFoundationCellsMap,
     visibleWallCells,
     visibleWallCellsMap,
+    visibleDoors, // ADDED: Building doors
+    visibleDoorsMap, // ADDED: Building doors map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
   };

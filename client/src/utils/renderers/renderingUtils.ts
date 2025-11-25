@@ -25,6 +25,7 @@ import {
     AnimalCorpse as SpacetimeDBAnimalCorpse,
     FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
     WallCell as SpacetimeDBWallCell, // ADDED: Building walls
+    Door as SpacetimeDBDoor, // ADDED: Building doors
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
     BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
@@ -53,6 +54,7 @@ import { renderLantern } from './lanternRenderingUtils';
 import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
+import { renderDoor } from './doorRenderingUtils'; // ADDED: Door renderer import
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
 // Import shelter renderer
@@ -401,6 +403,7 @@ interface RenderYSortedEntitiesProps {
     closestInteractableSleepingBagId?: number | null;
     closestInteractableHarvestableResourceId?: bigint | null;
     closestInteractableDroppedItemId?: bigint | null;
+    closestInteractableDoorId?: bigint | null; // ADDED: Door interaction
     // New unified single target system (replaces individual resource IDs)
     closestInteractableTarget?: { type: string; id: bigint | number | string; position: { x: number; y: number }; distance: number; isEmpty?: boolean; } | null;
     // NEW: Shelter clipping data for shadow rendering
@@ -468,6 +471,7 @@ export const renderYSortedEntities = ({
     closestInteractableSleepingBagId,
     closestInteractableHarvestableResourceId,
     closestInteractableDroppedItemId,
+    closestInteractableDoorId, // ADDED: Door interaction
     // Unified target system (replaces individual resource IDs)
     closestInteractableTarget,
     shelterClippingData,
@@ -517,8 +521,8 @@ export const renderYSortedEntities = ({
     
     // First Pass: Render all non-fog, non-wall entities (players, trees, placeables, etc.)
     ySortedEntities.forEach(({ type, entity }) => {
-        // Skip fog overlays and walls - they render in later passes
-        if (type === 'fog_overlay' || type === 'wall_cell') {
+        // Skip fog overlays, walls, and doors - they render in later passes
+        if (type === 'fog_overlay' || type === 'wall_cell' || type === 'door') {
           return;
         }
         
@@ -1266,6 +1270,43 @@ export const renderYSortedEntities = ({
                 cycleProgress: cycleProgress,
                 localPlayerPosition: localPlayerPosition,
                 playerInsideCluster: playerInsideThisCluster,
+            });
+        }
+    });
+
+    // PASS 7: Render doors (after south walls, so they appear ON TOP)
+    ySortedEntities.forEach(({ type, entity }) => {
+        if (type === 'door') {
+            const door = entity as SpacetimeDBDoor;
+            
+            // Get door sprite images based on type and edge (North vs South)
+            const doorType = door.doorType;
+            const isNorthEdge = door.edge === 0; // 0 = North, 2 = South
+            
+            // Select correct image based on door type and edge
+            let woodDoorImage: HTMLImageElement | null = null;
+            let metalDoorImage: HTMLImageElement | null = null;
+            
+            if (doorType === 0) {
+                // Wood door
+                const imageKey = isNorthEdge ? 'wood_door_north.png' : 'wood_door.png';
+                woodDoorImage = doodadImagesRef?.current?.get(imageKey) || null;
+            } else {
+                // Metal door
+                const imageKey = isNorthEdge ? 'metal_door_north.png' : 'metal_door.png';
+                metalDoorImage = doodadImagesRef?.current?.get(imageKey) || null;
+            }
+            
+            // Check if this door is highlighted (closest interactable)
+            const isHighlighted = closestInteractableDoorId !== null && closestInteractableDoorId !== undefined &&
+                door.id.toString() === closestInteractableDoorId.toString();
+            
+            renderDoor({
+                ctx,
+                door,
+                woodDoorImage,
+                metalDoorImage,
+                isHighlighted,
             });
         }
     });

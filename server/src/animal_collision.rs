@@ -143,6 +143,15 @@ pub fn resolve_animal_collision(
                    animal_id, pushback_x, pushback_y);
     }
     
+    // Check door collisions - closed doors block animal movement
+    if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+        final_x = current_x + pushback_x;
+        final_y = current_y + pushback_y;
+        collision_detected = true;
+        log::debug!("[AnimalCollision] Animal {} pushed back by door: ({:.1}, {:.1})", 
+                   animal_id, pushback_x, pushback_y);
+    }
+    
     // Check foundation triangle hypotenuse collisions
     if let Some((pushback_x, pushback_y)) = check_foundation_collision(&ctx.db, final_x, final_y) {
         final_x = current_x + pushback_x;

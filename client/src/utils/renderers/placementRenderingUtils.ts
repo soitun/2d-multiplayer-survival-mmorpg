@@ -872,12 +872,45 @@ export function renderPlacementPreview({
         return; // Nothing to render
     }
 
+    // Check if this is a seed placement
+    // Dynamic seed detection using plant utils - no more hardcoding!
+    const isSeedPlacement = isSeedItemValid(placementInfo.itemName);
+    
+    // Check if this is a door placement
+    const isDoorPlacement = placementInfo.iconAssetName === 'wood_door.png' || placementInfo.iconAssetName === 'metal_door.png';
+    
+    // Calculate door edge early if it's a door placement (needed for image selection)
+    let doorEdgeForPreview: number = 2; // Default to South
+    if (isDoorPlacement && connection) {
+        const FOUNDATION_TILE_SIZE = 96;
+        let nearestDistance = Infinity;
+        let nearestFoundation: any = null;
+        
+        // Find closest foundation cell
+        for (const foundation of connection.db.foundationCell.iter()) {
+            if (foundation.isDestroyed) continue;
+            
+            const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            
+            const dx = worldMouseX - foundationCenterX;
+            const dy = worldMouseY - foundationCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance && distance < FOUNDATION_TILE_SIZE * 1.5) {
+                nearestDistance = distance;
+                nearestFoundation = foundation;
+            }
+        }
+        
+        if (nearestFoundation) {
+            const foundationCenterY = nearestFoundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            doorEdgeForPreview = worldMouseY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
+        }
+    }
+    
     // Determine which image to use for the preview
     let previewImg: HTMLImageElement | undefined;
-    
-    // Check if this is a seed placement
-          // Dynamic seed detection using plant utils - no more hardcoding!
-      const isSeedPlacement = isSeedItemValid(placementInfo.itemName);
     
     if (isSeedPlacement) {
         // For seeds, use the planted_seed.png from doodads folder
@@ -885,6 +918,16 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'shelter.png' && shelterImageRef?.current) {
         // For shelters, use the shelter image from doodads folder
         previewImg = shelterImageRef.current;
+    } else if (isDoorPlacement) {
+        // For doors, use the doodads images (not item icons)
+        // Determine which door sprite to use based on edge and type
+        const isNorthEdge = doorEdgeForPreview === 0;
+        
+        if (placementInfo.iconAssetName === 'wood_door.png') {
+            previewImg = doodadImagesRef.current?.get(isNorthEdge ? 'wood_door_north.png' : 'wood_door.png');
+        } else if (placementInfo.iconAssetName === 'metal_door.png') {
+            previewImg = doodadImagesRef.current?.get(isNorthEdge ? 'metal_door_north.png' : 'metal_door.png');
+        }
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
@@ -926,6 +969,10 @@ export function renderPlacementPreview({
         // Broth pot preview dimensions (similar to rain collector)
         drawWidth = 80;
         drawHeight = 80;
+    } else if (placementInfo.iconAssetName === 'wood_door.png' || placementInfo.iconAssetName === 'metal_door.png') {
+        // Door preview dimensions (matches FOUNDATION_TILE_SIZE)
+        drawWidth = 96;
+        drawHeight = 96;
     } else if (isSeedPlacement) {
         // Seeds should match the actual planted seed size (48x48)
         drawWidth = 48;  
@@ -984,6 +1031,46 @@ export function renderPlacementPreview({
     
     // For backward compatibility, keep nearestCampfire reference
     const nearestCampfire = heatSourceType === 'campfire' ? nearestHeatSource : null;
+
+    // Special handling for door placement - snap to nearest foundation edge (N/S only)
+    let nearestDoorFoundation: any = null;
+    let doorEdge: number = 0; // 0 = North, 2 = South
+    
+    if (isDoorPlacement && connection) {
+        const FOUNDATION_TILE_SIZE = 96;
+        let nearestDistance = Infinity;
+        
+        // Find closest foundation cell
+        for (const foundation of connection.db.foundationCell.iter()) {
+            if (foundation.isDestroyed) continue;
+            
+            // Calculate foundation center position
+            const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            
+            const dx = worldMouseX - foundationCenterX;
+            const dy = worldMouseY - foundationCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Only consider foundations within interaction range
+            if (distance < nearestDistance && distance < FOUNDATION_TILE_SIZE * 1.5) {
+                nearestDistance = distance;
+                nearestDoorFoundation = foundation;
+            }
+        }
+        
+        if (nearestDoorFoundation) {
+            // Determine which edge based on cursor Y relative to foundation center
+            const foundationCenterY = nearestDoorFoundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            doorEdge = worldMouseY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
+            
+            // Snap to edge position
+            snappedX = nearestDoorFoundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            snappedY = doorEdge === 0 
+                ? nearestDoorFoundation.cellY * FOUNDATION_TILE_SIZE // North edge
+                : (nearestDoorFoundation.cellY + 1) * FOUNDATION_TILE_SIZE; // South edge
+        }
+    }
 
     // Check for water placement restriction
     const isOnWater = isWaterPlacementBlocked(connection, placementInfo, snappedX, snappedY);
@@ -1059,11 +1146,45 @@ export function renderPlacementPreview({
         return false;
     })();
     
+    // Check if door placement is invalid (no foundation, or edge already has wall/door)
+    const isDoorInvalid = isDoorPlacement && (() => {
+        if (!nearestDoorFoundation || !connection) {
+            return true; // No foundation nearby
+        }
+        
+        // Check for existing wall on this edge
+        for (const wall of connection.db.wallCell.iter()) {
+            if (wall.cellX === nearestDoorFoundation.cellX && 
+                wall.cellY === nearestDoorFoundation.cellY && 
+                wall.edge === doorEdge && 
+                !wall.isDestroyed) {
+                return true; // Wall exists on this edge
+            }
+        }
+        
+        // Check for existing door on this edge
+        for (const door of connection.db.door.iter()) {
+            if (door.cellX === nearestDoorFoundation.cellX && 
+                door.cellY === nearestDoorFoundation.cellY && 
+                door.edge === doorEdge) {
+                return true; // Door exists on this edge
+            }
+        }
+        
+        return false; // Valid placement
+    })();
+    
     // Apply visual effect - red tint with opacity for any invalid placement
     // For broth pot, only invalid if no campfire or campfire has pot - distance doesn't matter if snapping
-    const isInvalidPlacement = placementInfo.iconAssetName === 'field_cauldron.png' 
-        ? isBrothPotInvalid // Only check campfire validity for broth pot
-        : (isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || placementError);
+    // For door, only invalid if no foundation or edge has existing wall/door
+    let isInvalidPlacement: boolean;
+    if (placementInfo.iconAssetName === 'field_cauldron.png') {
+        isInvalidPlacement = isBrothPotInvalid; // Only check campfire validity for broth pot
+    } else if (isDoorPlacement) {
+        isInvalidPlacement = isDoorInvalid; // Only check foundation edge validity for doors
+    } else {
+        isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || !!placementError;
+    }
     
     if (isInvalidPlacement) {
         // Strong red tint for all invalid placements
@@ -1078,7 +1199,10 @@ export function renderPlacementPreview({
     // Calculate the centered position (perfectly centered on cursor or snapped position)
     // Preview is always centered on cursor for all items (except broth pot which snaps to campfire)
     const adjustedX = snappedX - drawWidth / 2;
-    const adjustedY = snappedY - drawHeight / 2;
+    // Apply 44px vertical offset for doors (matches door rendering offset)
+    const adjustedY = isDoorPlacement 
+        ? snappedY - drawHeight / 2 - 44
+        : snappedY - drawHeight / 2;
 
     // Draw the preview image or fallback
     if (previewImg && previewImg.complete && previewImg.naturalHeight !== 0) {

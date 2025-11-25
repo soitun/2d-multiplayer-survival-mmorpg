@@ -402,6 +402,12 @@ export const useInputHandler = ({
                             connection.reducers.grantBuildingPrivilegeFromHearth(Number(holdTarget.targetId));
                             actionTaken = true;
                             break;
+                        case 'door':
+                            // Pickup door (owner only - server validates)
+                            console.log('[E-Hold ACTION] Attempting to pickup door:', holdTarget.targetId);
+                            connection.reducers.pickupDoor(holdTarget.targetId as bigint);
+                            actionTaken = true;
+                            break;
                         default:
                             console.log('[E-Hold FAILED] Unknown target type:', holdTarget.targetType);
                     }
@@ -942,6 +948,12 @@ export const useInputHandler = ({
                                     case 'dropped_item':
                                         // console.log('[E-Tap ACTION] Picking up dropped item:', currentTarget.id);
                                         connectionRef.current.reducers.pickupDroppedItem(currentTarget.id as bigint);
+                                        tapActionTaken = true;
+                                        break;
+                                    case 'door':
+                                        // Toggle door open/close state
+                                        console.log('[E-Tap ACTION] Interacting with door:', currentTarget.id);
+                                        connectionRef.current.reducers.interactDoor(currentTarget.id as bigint);
                                         tapActionTaken = true;
                                         break;
                                 }

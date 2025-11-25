@@ -718,6 +718,15 @@ pub fn calculate_slide_collision_with_grid(
         }
     }
     
+    // Check door collisions - closed doors block movement
+    if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, final_x, final_y, current_player_radius) {
+        final_x = current_player_pos_x + pushback_x;
+        final_y = current_player_pos_y + pushback_y;
+        final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+        final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+        log::debug!("[SlideCollision] Player {:?} pushed back by door: ({:.1}, {:.1})", sender_id, pushback_x, pushback_y);
+    }
+    
     (final_x, final_y)
 }
 
@@ -1099,6 +1108,13 @@ pub fn resolve_push_out_collision_with_grid(
                 },
                 _ => {} // Campfire, etc. - no push-out resolution
              }
+        }
+
+        // Check door collisions - closed doors block movement (not in spatial grid)
+        if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, resolved_x, resolved_y, current_player_radius) {
+            resolved_x += pushback_x;
+            resolved_y += pushback_y;
+            overlap_found_in_iter = true;
         }
 
         resolved_x = resolved_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);

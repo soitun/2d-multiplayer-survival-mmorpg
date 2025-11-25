@@ -127,6 +127,7 @@ mod sea_stack; // <<< ADDED: Sea stack decorative entities
 mod memory_grid; // <<< ADDED: Memory Grid tech tree system
 mod building; // <<< ADDED: Building system (foundations, walls, doors)
 mod building_enclosure; // <<< ADDED: Building enclosure detection (rain protection, "inside" logic)
+mod door; // <<< ADDED: Door system for building entrances
 mod fumarole; // <<< ADDED: Fumarole module for quarry geothermal vents
 mod basalt_column; // <<< ADDED: Basalt column module for quarry decorative obstacles
 mod homestead_hearth; // <<< ADDED: Homestead Hearth for building privilege system
@@ -183,6 +184,9 @@ pub use memory_grid::{purchase_memory_grid_node, initialize_player_memory_grid};
 
 // ADD: Re-export building reducers
 pub use building::place_foundation;
+
+// ADD: Re-export door reducers
+pub use door::{place_door, interact_door, pickup_door};
 
 // ADD: Re-export homestead hearth reducers for client bindings
 pub use homestead_hearth::{

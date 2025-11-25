@@ -10,7 +10,8 @@ import {
     Player as SpacetimeDBPlayer,
     RainCollector as SpacetimeDBRainCollector,
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth
-    BrothPot as SpacetimeDBBrothPot // ADDED: BrothPot
+    BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
+    Door as SpacetimeDBDoor // ADDED: Door
 } from '../../generated';
 
 // Import visual heights from useInteractionFinder.ts
@@ -29,7 +30,7 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -57,6 +58,7 @@ interface RenderLabelsParams {
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
     brothPots: Map<string, any>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths
+    doors: Map<string, SpacetimeDBDoor>; // ADDED: Doors
     players: Map<string, SpacetimeDBPlayer>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
     // Single unified target - replaces individual harvestable resource IDs
@@ -268,6 +270,7 @@ export function renderInteractionLabels({
     rainCollectors,
     homesteadHearths, // ADDED: Homestead Hearths
     brothPots, // ADDED: Broth pots
+    doors, // ADDED: Doors
     players,
     itemDefinitions,
     closestInteractableTarget,
@@ -428,6 +431,16 @@ export function renderInteractionLabels({
                 textX = brothPot.posX;
                 // Position label above the broth pot
                 textY = brothPot.posY - 60;
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'door': {
+            const door = doors.get(closestInteractableTarget.id.toString());
+            if (door) {
+                textX = door.posX;
+                // Position label above the door (doors are placed on foundation edges)
+                textY = door.posY - 50;
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

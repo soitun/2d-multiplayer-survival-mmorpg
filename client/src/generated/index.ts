@@ -143,6 +143,8 @@ import { InitViperSpittleSystem } from "./init_viper_spittle_system_reducer.ts";
 export { InitViperSpittleSystem };
 import { InitializePlayerMemoryGrid } from "./initialize_player_memory_grid_reducer.ts";
 export { InitializePlayerMemoryGrid };
+import { InteractDoor } from "./interact_door_reducer.ts";
+export { InteractDoor };
 import { InteractWithBrothPot } from "./interact_with_broth_pot_reducer.ts";
 export { InteractWithBrothPot };
 import { InteractWithCampfire } from "./interact_with_campfire_reducer.ts";
@@ -243,6 +245,8 @@ import { MoveToFirstAvailableInventorySlot } from "./move_to_first_available_inv
 export { MoveToFirstAvailableInventorySlot };
 import { PickupBrothPot } from "./pickup_broth_pot_reducer.ts";
 export { PickupBrothPot };
+import { PickupDoor } from "./pickup_door_reducer.ts";
+export { PickupDoor };
 import { PickupDroppedItem } from "./pickup_dropped_item_reducer.ts";
 export { PickupDroppedItem };
 import { PickupLantern } from "./pickup_lantern_reducer.ts";
@@ -255,6 +259,8 @@ import { PlaceBrothPotOnFumarole } from "./place_broth_pot_on_fumarole_reducer.t
 export { PlaceBrothPotOnFumarole };
 import { PlaceCampfire } from "./place_campfire_reducer.ts";
 export { PlaceCampfire };
+import { PlaceDoor } from "./place_door_reducer.ts";
+export { PlaceDoor };
 import { PlaceFoundation } from "./place_foundation_reducer.ts";
 export { PlaceFoundation };
 import { PlaceFurnace } from "./place_furnace_reducer.ts";
@@ -585,6 +591,8 @@ import { DeathMarkerTableHandle } from "./death_marker_table.ts";
 export { DeathMarkerTableHandle };
 import { DodgeRollCleanupScheduleTableHandle } from "./dodge_roll_cleanup_schedule_table.ts";
 export { DodgeRollCleanupScheduleTableHandle };
+import { DoorTableHandle } from "./door_table.ts";
+export { DoorTableHandle };
 import { DroppedItemTableHandle } from "./dropped_item_table.ts";
 export { DroppedItemTableHandle };
 import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_schedule_table.ts";
@@ -815,6 +823,8 @@ import { DeathMarker } from "./death_marker_type.ts";
 export { DeathMarker };
 import { DodgeRollCleanupSchedule } from "./dodge_roll_cleanup_schedule_type.ts";
 export { DodgeRollCleanupSchedule };
+import { Door } from "./door_type.ts";
+export { Door };
 import { DroppedItem } from "./dropped_item_type.ts";
 export { DroppedItem };
 import { DroppedItemDespawnSchedule } from "./dropped_item_despawn_schedule_type.ts";
@@ -1238,6 +1248,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (DodgeRollCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    door: {
+      tableName: "door" as const,
+      rowType: Door.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Door.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     dropped_item: {
@@ -2168,6 +2187,10 @@ const REMOTE_MODULE = {
       reducerName: "initialize_player_memory_grid",
       argsType: InitializePlayerMemoryGrid.getTypeScriptAlgebraicType(),
     },
+    interact_door: {
+      reducerName: "interact_door",
+      argsType: InteractDoor.getTypeScriptAlgebraicType(),
+    },
     interact_with_broth_pot: {
       reducerName: "interact_with_broth_pot",
       argsType: InteractWithBrothPot.getTypeScriptAlgebraicType(),
@@ -2368,6 +2391,10 @@ const REMOTE_MODULE = {
       reducerName: "pickup_broth_pot",
       argsType: PickupBrothPot.getTypeScriptAlgebraicType(),
     },
+    pickup_door: {
+      reducerName: "pickup_door",
+      argsType: PickupDoor.getTypeScriptAlgebraicType(),
+    },
     pickup_dropped_item: {
       reducerName: "pickup_dropped_item",
       argsType: PickupDroppedItem.getTypeScriptAlgebraicType(),
@@ -2391,6 +2418,10 @@ const REMOTE_MODULE = {
     place_campfire: {
       reducerName: "place_campfire",
       argsType: PlaceCampfire.getTypeScriptAlgebraicType(),
+    },
+    place_door: {
+      reducerName: "place_door",
+      argsType: PlaceDoor.getTypeScriptAlgebraicType(),
     },
     place_foundation: {
       reducerName: "place_foundation",
@@ -3038,6 +3069,7 @@ export type Reducer = never
 | { name: "InitProjectileSystem", args: InitProjectileSystem }
 | { name: "InitViperSpittleSystem", args: InitViperSpittleSystem }
 | { name: "InitializePlayerMemoryGrid", args: InitializePlayerMemoryGrid }
+| { name: "InteractDoor", args: InteractDoor }
 | { name: "InteractWithBrothPot", args: InteractWithBrothPot }
 | { name: "InteractWithCampfire", args: InteractWithCampfire }
 | { name: "InteractWithFumarole", args: InteractWithFumarole }
@@ -3088,12 +3120,14 @@ export type Reducer = never
 | { name: "MoveToFirstAvailableHotbarSlot", args: MoveToFirstAvailableHotbarSlot }
 | { name: "MoveToFirstAvailableInventorySlot", args: MoveToFirstAvailableInventorySlot }
 | { name: "PickupBrothPot", args: PickupBrothPot }
+| { name: "PickupDoor", args: PickupDoor }
 | { name: "PickupDroppedItem", args: PickupDroppedItem }
 | { name: "PickupLantern", args: PickupLantern }
 | { name: "PickupStorageBox", args: PickupStorageBox }
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
 | { name: "PlaceBrothPotOnFumarole", args: PlaceBrothPotOnFumarole }
 | { name: "PlaceCampfire", args: PlaceCampfire }
+| { name: "PlaceDoor", args: PlaceDoor }
 | { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
 | { name: "PlaceHomesteadHearth", args: PlaceHomesteadHearth }
@@ -4075,6 +4109,22 @@ export class RemoteReducers {
     this.connection.offReducer("initialize_player_memory_grid", callback);
   }
 
+  interactDoor(doorId: bigint) {
+    const __args = { doorId };
+    let __writer = new __BinaryWriter(1024);
+    InteractDoor.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("interact_door", __argsBuffer, this.setCallReducerFlags.interactDoorFlags);
+  }
+
+  onInteractDoor(callback: (ctx: ReducerEventContext, doorId: bigint) => void) {
+    this.connection.onReducer("interact_door", callback);
+  }
+
+  removeOnInteractDoor(callback: (ctx: ReducerEventContext, doorId: bigint) => void) {
+    this.connection.offReducer("interact_door", callback);
+  }
+
   interactWithBrothPot(brothPotId: number) {
     const __args = { brothPotId };
     let __writer = new __BinaryWriter(1024);
@@ -4863,6 +4913,22 @@ export class RemoteReducers {
     this.connection.offReducer("pickup_broth_pot", callback);
   }
 
+  pickupDoor(doorId: bigint) {
+    const __args = { doorId };
+    let __writer = new __BinaryWriter(1024);
+    PickupDoor.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pickup_door", __argsBuffer, this.setCallReducerFlags.pickupDoorFlags);
+  }
+
+  onPickupDoor(callback: (ctx: ReducerEventContext, doorId: bigint) => void) {
+    this.connection.onReducer("pickup_door", callback);
+  }
+
+  removeOnPickupDoor(callback: (ctx: ReducerEventContext, doorId: bigint) => void) {
+    this.connection.offReducer("pickup_door", callback);
+  }
+
   pickupDroppedItem(droppedItemId: bigint) {
     const __args = { droppedItemId };
     let __writer = new __BinaryWriter(1024);
@@ -4957,6 +5023,22 @@ export class RemoteReducers {
 
   removeOnPlaceCampfire(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
     this.connection.offReducer("place_campfire", callback);
+  }
+
+  placeDoor(cellX: bigint, cellY: bigint, worldX: number, worldY: number, doorType: number) {
+    const __args = { cellX, cellY, worldX, worldY, doorType };
+    let __writer = new __BinaryWriter(1024);
+    PlaceDoor.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_door", __argsBuffer, this.setCallReducerFlags.placeDoorFlags);
+  }
+
+  onPlaceDoor(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, worldX: number, worldY: number, doorType: number) => void) {
+    this.connection.onReducer("place_door", callback);
+  }
+
+  removeOnPlaceDoor(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, worldX: number, worldY: number, doorType: number) => void) {
+    this.connection.offReducer("place_door", callback);
   }
 
   placeFoundation(cellX: bigint, cellY: bigint, shape: number, tier: number) {
@@ -7412,6 +7494,11 @@ export class SetReducerFlags {
     this.initializePlayerMemoryGridFlags = flags;
   }
 
+  interactDoorFlags: __CallReducerFlags = 'FullUpdate';
+  interactDoor(flags: __CallReducerFlags) {
+    this.interactDoorFlags = flags;
+  }
+
   interactWithBrothPotFlags: __CallReducerFlags = 'FullUpdate';
   interactWithBrothPot(flags: __CallReducerFlags) {
     this.interactWithBrothPotFlags = flags;
@@ -7662,6 +7749,11 @@ export class SetReducerFlags {
     this.pickupBrothPotFlags = flags;
   }
 
+  pickupDoorFlags: __CallReducerFlags = 'FullUpdate';
+  pickupDoor(flags: __CallReducerFlags) {
+    this.pickupDoorFlags = flags;
+  }
+
   pickupDroppedItemFlags: __CallReducerFlags = 'FullUpdate';
   pickupDroppedItem(flags: __CallReducerFlags) {
     this.pickupDroppedItemFlags = flags;
@@ -7690,6 +7782,11 @@ export class SetReducerFlags {
   placeCampfireFlags: __CallReducerFlags = 'FullUpdate';
   placeCampfire(flags: __CallReducerFlags) {
     this.placeCampfireFlags = flags;
+  }
+
+  placeDoorFlags: __CallReducerFlags = 'FullUpdate';
+  placeDoor(flags: __CallReducerFlags) {
+    this.placeDoorFlags = flags;
   }
 
   placeFoundationFlags: __CallReducerFlags = 'FullUpdate';
@@ -8515,6 +8612,11 @@ export class RemoteTables {
   get dodgeRollCleanupSchedule(): DodgeRollCleanupScheduleTableHandle<'dodge_roll_cleanup_schedule'> {
     // clientCache is a private property
     return new DodgeRollCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DodgeRollCleanupSchedule>(REMOTE_MODULE.tables.dodge_roll_cleanup_schedule));
+  }
+
+  get door(): DoorTableHandle<'door'> {
+    // clientCache is a private property
+    return new DoorTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Door>(REMOTE_MODULE.tables.door));
   }
 
   get droppedItem(): DroppedItemTableHandle<'dropped_item'> {

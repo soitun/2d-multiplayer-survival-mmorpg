@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn } from '../generated';
+import { Player, Tree, Stone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
 // Add at top after imports:
@@ -634,6 +634,69 @@ function getCollisionCandidates(
     }
   }
   
+  // Filter doors - closed doors block movement (similar to walls)
+  const DOOR_COLLISION_THICKNESS = 6; // Same as walls (matches server-side DOOR_COLLISION_THICKNESS)
+  
+  if (entities.doors && entities.doors.size > 0) {
+    // Check doors within reasonable distance
+    for (const door of entities.doors.values()) {
+      // Skip destroyed or open doors - only closed doors have collision
+      if (door.isDestroyed || door.isOpen) continue;
+      
+      // Calculate foundation cell bounds (doors use cell_x, cell_y like walls)
+      const tileLeft = door.cellX * FOUNDATION_TILE_SIZE;
+      const tileTop = door.cellY * FOUNDATION_TILE_SIZE;
+      const tileRight = tileLeft + FOUNDATION_TILE_SIZE;
+      const tileBottom = tileTop + FOUNDATION_TILE_SIZE;
+      
+      // Check distance to player (use tile center for distance check)
+      const tileCenterX = tileLeft + FOUNDATION_TILE_SIZE / 2;
+      const tileCenterY = tileTop + FOUNDATION_TILE_SIZE / 2;
+      const dx = tileCenterX - playerX;
+      const dy = tileCenterY - playerY;
+      const distanceSq = dx * dx + dy * dy;
+      const maxDistanceSq = 150 * 150; // Check doors within 150px
+      
+      if (distanceSq > maxDistanceSq) continue;
+      
+      // Create thin AABB collision shape based on door edge (matches server-side logic)
+      // Edge 0 = North (top), Edge 2 = South (bottom)
+      let doorMinX: number, doorMaxX: number, doorMinY: number, doorMaxY: number;
+      
+      switch (door.edge) {
+        case 0: // North edge - horizontal line at top of foundation
+          doorMinX = tileLeft;
+          doorMaxX = tileRight;
+          doorMinY = tileTop - DOOR_COLLISION_THICKNESS / 2;
+          doorMaxY = tileTop + DOOR_COLLISION_THICKNESS / 2;
+          break;
+        case 2: // South edge - horizontal line at bottom of foundation
+          doorMinX = tileLeft;
+          doorMaxX = tileRight;
+          doorMinY = tileBottom - DOOR_COLLISION_THICKNESS / 2;
+          doorMaxY = tileBottom + DOOR_COLLISION_THICKNESS / 2;
+          break;
+        default:
+          continue; // Skip invalid edges (doors only on North/South)
+      }
+      
+      // Convert AABB bounds to center + width/height format for collision shape
+      const doorX = (doorMinX + doorMaxX) / 2;
+      const doorY = (doorMinY + doorMaxY) / 2;
+      const doorWidth = doorMaxX - doorMinX;
+      const doorHeight = doorMaxY - doorMinY;
+      
+      shapes.push({
+        id: `door-${door.id.toString()}`,
+        type: `door-${door.id.toString()}`,
+        x: doorX,
+        y: doorY,
+        width: doorWidth,
+        height: doorHeight
+      });
+    }
+  }
+  
   // Foundations do NOT have collision - players can walk through them freely
   // Only walls (placed on foundation edges) have collision
   
@@ -708,6 +771,7 @@ export interface GameEntities {
   foundationCells: Map<string, FoundationCell>; // Add foundation cells for collision
   homesteadHearths: Map<string, HomesteadHearth>; // Add homestead hearths for collision
   basaltColumns: Map<string, BasaltColumn>; // Add basalt columns for collision
+  doors: Map<string, Door>; // Add doors for collision
 }
 
 interface CollisionShape {

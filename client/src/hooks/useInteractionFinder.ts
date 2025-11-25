@@ -15,6 +15,7 @@ import {
     Shelter as SpacetimeDBShelter,
     RainCollector as SpacetimeDBRainCollector,
     BrothPot as SpacetimeDBBrothPot,
+    Door as SpacetimeDBDoor, // ADDED: Door import
     DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
@@ -80,6 +81,7 @@ interface UseInteractionFinderProps {
     stashes: Map<string, SpacetimeDBStash>;
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
     brothPots: Map<string, SpacetimeDBBrothPot>;
+    doors: Map<string, SpacetimeDBDoor>; // ADDED: Door support
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     players: Map<string, SpacetimeDBPlayer>;
     shelters: Map<string, SpacetimeDBShelter>;
@@ -112,6 +114,7 @@ interface UseInteractionFinderResult {
     closestInteractableSleepingBagId: number | null;
     closestInteractableKnockedOutPlayerId: string | null;
     closestInteractableWaterPosition: { x: number; y: number } | null;
+    closestInteractableDoorId: bigint | null; // ADDED: Door support
 }
 
 // Constants for box slots (should match server if possible, or keep fixed)
@@ -198,6 +201,7 @@ export function useInteractionFinder({
     stashes,
     rainCollectors,
     brothPots,
+    doors, // ADDED: Door support
     sleepingBags,
     players,
     shelters,
@@ -222,6 +226,7 @@ export function useInteractionFinder({
     const [closestInteractableStashId, setClosestInteractableStashId] = useState<number | null>(null);
     const [closestInteractableRainCollectorId, setClosestInteractableRainCollectorId] = useState<number | null>(null);
     const [closestInteractableBrothPotId, setClosestInteractableBrothPotId] = useState<number | null>(null);
+    const [closestInteractableDoorId, setClosestInteractableDoorId] = useState<bigint | null>(null); // ADDED: Door state
     const [closestInteractableSleepingBagId, setClosestInteractableSleepingBagId] = useState<number | null>(null);
     const [closestInteractableKnockedOutPlayerId, setClosestInteractableKnockedOutPlayerId] = useState<string | null>(null);
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
@@ -243,6 +248,7 @@ export function useInteractionFinder({
         closestInteractableSleepingBagId: null,
         closestInteractableKnockedOutPlayerId: null,
         closestInteractableWaterPosition: null,
+        closestInteractableDoorId: null, // ADDED: Door support
     });
 
     const updateInteractionResult = useCallback(() => {
@@ -283,6 +289,9 @@ export function useInteractionFinder({
 
         let closestBrothPotId: number | null = null;
         let closestBrothPotDistSq = PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED; // Use same distance as rain collectors
+
+        let closestDoorId: bigint | null = null;
+        let closestDoorDistSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED; // ADDED: Door interaction uses box distance
 
         let closestSleepingBagId: number | null = null;
         let closestSleepingBagDistSq = PLAYER_SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED;
@@ -400,7 +409,7 @@ export function useInteractionFinder({
                     const distSq = dx * dx + dy * dy;
                     if (distSq < closestFumaroleDistSq) {
                         closestFumaroleDistSq = distSq;
-                        closestFumaroleId = fumarole.id;
+                        closestFumaroleId = BigInt(fumarole.id);
                     }
                 });
             }
@@ -602,6 +611,26 @@ export function useInteractionFinder({
                         )) {
                             closestBrothPotDistSq = distSq;
                             closestBrothPotId = brothPot.id;
+                        }
+                    }
+                });
+            }
+
+            // Find closest door
+            if (doors) {
+                doors.forEach((door) => {
+                    const dx = playerX - door.posX;
+                    const dy = playerY - door.posY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < closestDoorDistSq) {
+                        // Check shelter access control
+                        if (canPlayerInteractWithObjectInShelter(
+                            playerX, playerY, localPlayer.identity.toHexString(),
+                            door.posX, door.posY, shelters
+                        )) {
+                            closestDoorDistSq = distSq;
+                            closestDoorId = door.id;
                         }
                     }
                 });
@@ -838,6 +867,17 @@ export function useInteractionFinder({
                     distance: Math.sqrt(closestWaterDistSq)
                 });
             }
+            if (closestDoorId) {
+                const door = doors?.get(String(closestDoorId));
+                if (door) {
+                    candidates.push({
+                        type: 'door',
+                        id: closestDoorId,
+                        position: { x: door.posX, y: door.posY },
+                        distance: Math.sqrt(closestDoorDistSq)
+                    });
+                }
+            }
             // Broth pot removed from candidates - it now works through campfire interaction
 
             // Find the closest target using priority selection
@@ -863,6 +903,7 @@ export function useInteractionFinder({
             closestInteractableSleepingBagId: closestSleepingBagId,
             closestInteractableKnockedOutPlayerId: closestKnockedOutPlayerId,
             closestInteractableWaterPosition: closestWaterPosition,
+            closestInteractableDoorId: closestDoorId, // ADDED: Door support
         };
 
         resultRef.current = calculatedResult;
@@ -904,6 +945,9 @@ export function useInteractionFinder({
         }
         if (calculatedResult.closestInteractableBrothPotId !== closestInteractableBrothPotId) {
             setClosestInteractableBrothPotId(calculatedResult.closestInteractableBrothPotId);
+        }
+        if (calculatedResult.closestInteractableDoorId !== closestInteractableDoorId) {
+            setClosestInteractableDoorId(calculatedResult.closestInteractableDoorId);
         }
         if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
@@ -950,6 +994,7 @@ export function useInteractionFinder({
         closestInteractableStashId,
         closestInteractableRainCollectorId,
         closestInteractableBrothPotId,
+        closestInteractableDoorId, // ADDED: Door support
         closestInteractableSleepingBagId,
         closestInteractableKnockedOutPlayerId,
         closestInteractableWaterPosition,

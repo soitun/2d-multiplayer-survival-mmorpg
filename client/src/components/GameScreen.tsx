@@ -129,6 +129,7 @@ interface GameScreenProps {
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED homesteadHearths
     foundationCells: Map<string, any>; // ADDED: Building foundations
     wallCells: Map<string, any>; // ADDED: Building walls
+    doors: Map<string, any>; // ADDED: Building doors
     fumaroles: Map<string, any>; // ADDED fumaroles
     basaltColumns: Map<string, any>; // ADDED basalt columns
     inventoryItems: Map<string, SpacetimeDBInventoryItem>;
@@ -735,6 +736,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 homesteadHearths={props.homesteadHearths}
                 foundationCells={props.foundationCells}
                 wallCells={props.wallCells}
+                doors={props.doors}
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
                 inventoryItems={inventoryItems}

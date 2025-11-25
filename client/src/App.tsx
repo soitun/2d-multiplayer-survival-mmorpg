@@ -254,6 +254,7 @@ function AppContent() {
       brothPots, // <<< ADD brothPots HERE
       foundationCells, // ADDED: Building foundations
       wallCells, // ADDED: Building walls
+      doors, // ADDED: Building doors
       playerDodgeRollStates,
       chunkWeather, // ADDED: Chunk-based weather
     } = useSpacetimeTables({ 
@@ -302,7 +303,8 @@ function AppContent() {
             wallCells, // Add wall cells for collision detection
             foundationCells, // Add foundation cells for collision detection (especially triangle hypotenuses)
             homesteadHearths, // Add homestead hearths for collision detection
-            basaltColumns // Add basalt columns for collision detection
+            basaltColumns, // Add basalt columns for collision detection
+            doors // Add doors for collision detection (closed doors only)
         }
     });
 
@@ -917,6 +919,7 @@ function AppContent() {
                             brothPots={brothPots}
                             foundationCells={foundationCells}
                             wallCells={wallCells}
+                            doors={doors}
                             inventoryItems={inventoryItems}
                             itemDefinitions={itemDefinitions}
                             worldState={worldState}
