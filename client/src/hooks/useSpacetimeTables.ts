@@ -1401,11 +1401,24 @@ export const useSpacetimeTables = ({
                 setFumaroles(prev => new Map(prev).set(fumarole.id.toString(), fumarole));
             };
             const handleFumaroleUpdate = (ctx: any, oldFumarole: SpacetimeDB.Fumarole, newFumarole: SpacetimeDB.Fumarole) => {
-                // Only update for visually significant changes
+                // Check for any significant changes (position, broth pot, OR slot contents)
                 const visuallySignificant = 
                     Math.abs(oldFumarole.posX - newFumarole.posX) > 0.1 ||
                     Math.abs(oldFumarole.posY - newFumarole.posY) > 0.1 ||
-                    oldFumarole.attachedBrothPotId !== newFumarole.attachedBrothPotId;
+                    oldFumarole.attachedBrothPotId !== newFumarole.attachedBrothPotId ||
+                    // Check all 6 slots for changes
+                    oldFumarole.slotInstanceId0 !== newFumarole.slotInstanceId0 ||
+                    oldFumarole.slotDefId0 !== newFumarole.slotDefId0 ||
+                    oldFumarole.slotInstanceId1 !== newFumarole.slotInstanceId1 ||
+                    oldFumarole.slotDefId1 !== newFumarole.slotDefId1 ||
+                    oldFumarole.slotInstanceId2 !== newFumarole.slotInstanceId2 ||
+                    oldFumarole.slotDefId2 !== newFumarole.slotDefId2 ||
+                    oldFumarole.slotInstanceId3 !== newFumarole.slotInstanceId3 ||
+                    oldFumarole.slotDefId3 !== newFumarole.slotDefId3 ||
+                    oldFumarole.slotInstanceId4 !== newFumarole.slotInstanceId4 ||
+                    oldFumarole.slotDefId4 !== newFumarole.slotDefId4 ||
+                    oldFumarole.slotInstanceId5 !== newFumarole.slotInstanceId5 ||
+                    oldFumarole.slotDefId5 !== newFumarole.slotDefId5;
                 
                 if (visuallySignificant) {
                     setFumaroles(prev => new Map(prev).set(newFumarole.id.toString(), newFumarole));

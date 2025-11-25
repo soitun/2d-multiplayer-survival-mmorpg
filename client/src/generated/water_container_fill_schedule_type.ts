@@ -28,41 +28,40 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type MoveItemWithinFumarole = {
-  fumaroleId: number,
-  sourceSlotIndex: number,
-  targetSlotIndex: number,
+export type WaterContainerFillSchedule = {
+  scheduleId: bigint,
+  scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
 };
-let _cached_MoveItemWithinFumarole_type_value: __AlgebraicTypeType | null = null;
+let _cached_WaterContainerFillSchedule_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const MoveItemWithinFumarole = {
+export const WaterContainerFillSchedule = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MoveItemWithinFumarole_type_value) return _cached_MoveItemWithinFumarole_type_value;
-    _cached_MoveItemWithinFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_MoveItemWithinFumarole_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
-      { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+    if (_cached_WaterContainerFillSchedule_type_value) return _cached_WaterContainerFillSchedule_type_value;
+    _cached_WaterContainerFillSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_WaterContainerFillSchedule_type_value.value.elements.push(
+      { name: "scheduleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
     );
-    return _cached_MoveItemWithinFumarole_type_value;
+    return _cached_WaterContainerFillSchedule_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: MoveItemWithinFumarole): void {
-    __AlgebraicTypeValue.serializeValue(writer, MoveItemWithinFumarole.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: WaterContainerFillSchedule): void {
+    __AlgebraicTypeValue.serializeValue(writer, WaterContainerFillSchedule.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): MoveItemWithinFumarole {
-    return __AlgebraicTypeValue.deserializeValue(reader, MoveItemWithinFumarole.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): WaterContainerFillSchedule {
+    return __AlgebraicTypeValue.deserializeValue(reader, WaterContainerFillSchedule.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default MoveItemWithinFumarole;
+export default WaterContainerFillSchedule;
+
 

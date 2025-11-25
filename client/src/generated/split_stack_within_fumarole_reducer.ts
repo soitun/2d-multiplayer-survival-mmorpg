@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type SplitStackWithinFumarole = {
-  fumaroleId: bigint,
+  fumaroleId: number,
   sourceSlotIndex: number,
   quantityToSplit: number,
   targetSlotIndex: number,
@@ -48,7 +48,7 @@ export const SplitStackWithinFumarole = {
     if (_cached_SplitStackWithinFumarole_type_value) return _cached_SplitStackWithinFumarole_type_value;
     _cached_SplitStackWithinFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_SplitStackWithinFumarole_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "quantityToSplit", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },

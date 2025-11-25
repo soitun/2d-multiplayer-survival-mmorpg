@@ -27,26 +27,26 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { Fumarole } from "./fumarole_type";
+import { WaterContainerFillSchedule } from "./water_container_fill_schedule_type";
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
- * Table handle for the table `fumarole`.
+ * Table handle for the table `water_container_fill_schedule`.
  *
- * Obtain a handle from the [`fumarole`] property on [`RemoteTables`],
- * like `ctx.db.fumarole`.
+ * Obtain a handle from the [`waterContainerFillSchedule`] property on [`RemoteTables`],
+ * like `ctx.db.waterContainerFillSchedule`.
  *
  * Users are encouraged not to explicitly reference this type,
  * but to directly chain method calls,
- * like `ctx.db.fumarole.on_insert(...)`.
+ * like `ctx.db.waterContainerFillSchedule.on_insert(...)`.
  */
-export class FumaroleTableHandle<TableName extends string> implements __TableHandle<TableName> {
+export class WaterContainerFillScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
   // phantom type to track the table name
   readonly tableName!: TableName;
-  tableCache: __TableCache<Fumarole>;
+  tableCache: __TableCache<WaterContainerFillSchedule>;
 
-  constructor(tableCache: __TableCache<Fumarole>) {
+  constructor(tableCache: __TableCache<WaterContainerFillSchedule>) {
     this.tableCache = tableCache;
   }
 
@@ -54,53 +54,53 @@ export class FumaroleTableHandle<TableName extends string> implements __TableHan
     return this.tableCache.count();
   }
 
-  iter(): Iterable<Fumarole> {
+  iter(): Iterable<WaterContainerFillSchedule> {
     return this.tableCache.iter();
   }
   /**
-   * Access to the `id` unique index on the table `fumarole`,
+   * Access to the `scheduleId` unique index on the table `water_container_fill_schedule`,
    * which allows point queries on the field of the same name
-   * via the [`FumaroleIdUnique.find`] method.
+   * via the [`WaterContainerFillScheduleScheduleIdUnique.find`] method.
    *
    * Users are encouraged not to explicitly reference this type,
    * but to directly chain method calls,
-   * like `ctx.db.fumarole.id().find(...)`.
+   * like `ctx.db.waterContainerFillSchedule.scheduleId().find(...)`.
    *
-   * Get a handle on the `id` unique index on the table `fumarole`.
+   * Get a handle on the `scheduleId` unique index on the table `water_container_fill_schedule`.
    */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
+  scheduleId = {
+    // Find the subscribed row whose `scheduleId` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: number): Fumarole | undefined => {
+    find: (col_val: bigint): WaterContainerFillSchedule | undefined => {
       for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
+        if (__deepEqual(row.scheduleId, col_val)) {
           return row;
         }
       }
     },
   };
 
-  onInsert = (cb: (ctx: EventContext, row: Fumarole) => void) => {
+  onInsert = (cb: (ctx: EventContext, row: WaterContainerFillSchedule) => void) => {
     return this.tableCache.onInsert(cb);
   }
 
-  removeOnInsert = (cb: (ctx: EventContext, row: Fumarole) => void) => {
+  removeOnInsert = (cb: (ctx: EventContext, row: WaterContainerFillSchedule) => void) => {
     return this.tableCache.removeOnInsert(cb);
   }
 
-  onDelete = (cb: (ctx: EventContext, row: Fumarole) => void) => {
+  onDelete = (cb: (ctx: EventContext, row: WaterContainerFillSchedule) => void) => {
     return this.tableCache.onDelete(cb);
   }
 
-  removeOnDelete = (cb: (ctx: EventContext, row: Fumarole) => void) => {
+  removeOnDelete = (cb: (ctx: EventContext, row: WaterContainerFillSchedule) => void) => {
     return this.tableCache.removeOnDelete(cb);
   }
 
   // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Fumarole, newRow: Fumarole) => void) => {
+  onUpdate = (cb: (ctx: EventContext, oldRow: WaterContainerFillSchedule, newRow: WaterContainerFillSchedule) => void) => {
     return this.tableCache.onUpdate(cb);
   }
 
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Fumarole, newRow: Fumarole) => void) => {
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: WaterContainerFillSchedule, newRow: WaterContainerFillSchedule) => void) => {
     return this.tableCache.removeOnUpdate(cb);
   }}

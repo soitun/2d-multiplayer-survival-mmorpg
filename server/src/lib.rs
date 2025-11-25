@@ -651,6 +651,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize dodge roll cleanup system
     crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;
+    
+    // ADD: Initialize water container fill system for rain collection
+    crate::active_equipment::init_water_container_fill_schedule(ctx)?;
 
     // ADD: Generate world automatically on first startup
     let existing_tiles_count = ctx.db.world_tile().iter().count();

@@ -25,11 +25,11 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
     let starting_inv_items = [
         // Hotbar (Slots 0-5)
         ("Combat Ladle", 1, Some(0u8), None),
-        ("Torch", 10, Some(1u8), None),
+        ("Torch", 1, Some(1u8), None),
         ("Cerametal Field Cauldron Mk. II", 1, Some(2u8), None),
         ("Reed Water Bottle", 1, Some(3u8), None),
-        ("Reed Fishing Rod", 1, Some(4u8), None),
-        ("Camp Fire", 1, Some(5u8), None),
+        // ("Camp Fire", 1, Some(4u8), None),
+        // ("Camp Fire", 1, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
         // ("Fire Arrow", 50, None, Some(0u16)),

@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type ScheduleNextFumaroleProcessing = {
-  fumaroleId: bigint,
+  fumaroleId: number,
 };
 let _cached_ScheduleNextFumaroleProcessing_type_value: __AlgebraicTypeType | null = null;
 
@@ -45,7 +45,7 @@ export const ScheduleNextFumaroleProcessing = {
     if (_cached_ScheduleNextFumaroleProcessing_type_value) return _cached_ScheduleNextFumaroleProcessing_type_value;
     _cached_ScheduleNextFumaroleProcessing_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_ScheduleNextFumaroleProcessing_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
     );
     return _cached_ScheduleNextFumaroleProcessing_type_value;
   },

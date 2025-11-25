@@ -31,7 +31,7 @@ import {
 export type SplitStackIntoFumarole = {
   sourceItemInstanceId: bigint,
   quantityToSplit: number,
-  targetFumaroleId: bigint,
+  targetFumaroleId: number,
   targetSlotIndex: number,
 };
 let _cached_SplitStackIntoFumarole_type_value: __AlgebraicTypeType | null = null;
@@ -50,7 +50,7 @@ export const SplitStackIntoFumarole = {
     _cached_SplitStackIntoFumarole_type_value.value.elements.push(
       { name: "sourceItemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "quantityToSplit", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "targetFumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "targetFumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
     );
     return _cached_SplitStackIntoFumarole_type_value;

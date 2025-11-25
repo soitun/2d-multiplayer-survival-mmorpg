@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type Fumarole = {
-  id: bigint,
+  id: number,
   posX: number,
   posY: number,
   chunkIndex: number,
@@ -46,6 +46,7 @@ export type Fumarole = {
   slotInstanceId5: bigint | undefined,
   slotDefId5: bigint | undefined,
   attachedBrothPotId: number | undefined,
+  consumptionTickCounter: bigint,
 };
 let _cached_Fumarole_type_value: __AlgebraicTypeType | null = null;
 
@@ -61,7 +62,7 @@ export const Fumarole = {
     if (_cached_Fumarole_type_value) return _cached_Fumarole_type_value;
     _cached_Fumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_Fumarole_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
@@ -78,6 +79,7 @@ export const Fumarole = {
       { name: "slotInstanceId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "slotDefId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "attachedBrothPotId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "consumptionTickCounter", algebraicType: __AlgebraicTypeValue.U64 },
     );
     return _cached_Fumarole_type_value;
   },

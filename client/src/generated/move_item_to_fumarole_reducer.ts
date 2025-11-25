@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type MoveItemToFumarole = {
-  fumaroleId: bigint,
+  fumaroleId: number,
   targetSlotIndex: number,
   itemInstanceId: bigint,
 };
@@ -47,7 +47,7 @@ export const MoveItemToFumarole = {
     if (_cached_MoveItemToFumarole_type_value) return _cached_MoveItemToFumarole_type_value;
     _cached_MoveItemToFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_MoveItemToFumarole_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
     );

@@ -911,6 +911,47 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             {/* Dynamic Title */}
             <h3 className={styles.sectionTitle}>{container.containerTitle}</h3>
 
+            {/* Fumarole Incineration Indicator - pulsing animation */}
+            {container.containerType === 'fumarole' && container.items.some(item => item !== null && item.definition.name !== 'Charcoal') && (
+                <div style={{
+                    marginTop: '8px',
+                    marginBottom: '12px',
+                    padding: '8px 12px',
+                    backgroundColor: 'rgba(255, 107, 53, 0.15)',
+                    border: '1px solid rgba(255, 140, 70, 0.5)',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    animation: 'fumarolePulse 2s ease-in-out infinite',
+                    boxShadow: '0 0 12px rgba(255, 107, 53, 0.4)',
+                }}>
+                    <style>{`
+                        @keyframes fumarolePulse {
+                            0%, 100% {
+                                opacity: 1;
+                                box-shadow: 0 0 12px rgba(255, 107, 53, 0.4);
+                            }
+                            50% {
+                                opacity: 0.7;
+                                box-shadow: 0 0 20px rgba(255, 140, 70, 0.7);
+                            }
+                        }
+                    `}</style>
+                    <div style={{
+                        fontSize: '13px',
+                        color: '#ff8c46',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                    }}>
+                        <span style={{ fontSize: '16px' }}>🔥</span>
+                        <span>Incinerating for Charcoal</span>
+                        <span style={{ fontSize: '16px' }}>🔥</span>
+                    </div>
+                </div>
+            )}
+
             {/* Generic Container Slots - handles all slot rendering */}
             <ContainerSlots
                 containerType={container.containerType}

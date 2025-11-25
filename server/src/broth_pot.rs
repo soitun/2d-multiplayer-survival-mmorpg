@@ -73,7 +73,7 @@ pub struct BrothPot {
     pub placed_by: Identity,
     pub placed_at: Timestamp,
     pub attached_to_campfire_id: Option<u32>, // Which campfire it's on
-    pub attached_to_fumarole_id: Option<u64>, // Which fumarole it's on (always-on heat source)
+    pub attached_to_fumarole_id: Option<u32>, // Which fumarole it's on (always-on heat source)
     
     // Water System
     pub water_level_ml: u32, // Current water (0-5000ml)
@@ -447,7 +447,7 @@ pub fn place_broth_pot_on_campfire(
 pub fn place_broth_pot_on_fumarole(
     ctx: &ReducerContext,
     item_instance_id: u64,
-    fumarole_id: u64
+    fumarole_id: u32
 ) -> Result<(), String> {
     let sender_id = ctx.sender;
     let inventory_items = ctx.db.inventory_item();
@@ -473,7 +473,7 @@ pub fn place_broth_pot_on_fumarole(
     }
 
     // --- 2. Validate Fumarole ---
-    let fumarole = fumaroles.id().find(&fumarole_id)
+    let fumarole = fumaroles.id().find(fumarole_id)
         .ok_or_else(|| format!("Fumarole {} not found", fumarole_id))?;
 
     // Check distance to fumarole
@@ -621,7 +621,7 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
             .map(|cf| cf.pos_y)
             .unwrap_or(pot_pos_y) // Fallback to pot position if campfire not found
     } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
-        ctx.db.fumarole().id().find(&fumarole_id)
+        ctx.db.fumarole().id().find(fumarole_id)
             .map(|fm| fm.pos_y)
             .unwrap_or(pot_pos_y) // Fallback to pot position if fumarole not found
     } else {
@@ -1667,7 +1667,7 @@ pub fn process_broth_pot_logic_scheduled(
     if broth_pot.is_seawater && broth_pot.water_level_ml > 0 {
         // Check if campfire is attached and burning
         let campfire_is_burning = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
-            ctx.db.campfire().id().find(&campfire_id)
+            ctx.db.campfire().id().find(campfire_id)
                 .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
         } else {
             false
@@ -1823,11 +1823,11 @@ pub fn process_broth_pot_logic_scheduled(
         // Check if heat source is available (campfire burning OR fumarole present)
         let has_heat = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
             // Campfire heat source - must be burning
-            ctx.db.campfire().id().find(&campfire_id)
+            ctx.db.campfire().id().find(campfire_id)
                 .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
         } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
             // Fumarole heat source - always on (just check it exists)
-            ctx.db.fumarole().id().find(&fumarole_id).is_some()
+            ctx.db.fumarole().id().find(fumarole_id).is_some()
         } else {
             false
         };
@@ -2019,11 +2019,11 @@ pub fn process_broth_pot_logic_scheduled(
         // Check if heat source is available (campfire burning OR fumarole present)
         let has_heat = if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
             // Campfire heat source - must be burning
-            ctx.db.campfire().id().find(&campfire_id)
+            ctx.db.campfire().id().find(campfire_id)
                 .map_or(false, |cf| cf.is_burning && !cf.is_destroyed)
         } else if let Some(fumarole_id) = broth_pot.attached_to_fumarole_id {
             // Fumarole heat source - always on (just check it exists)
-            ctx.db.fumarole().id().find(&fumarole_id).is_some()
+            ctx.db.fumarole().id().find(fumarole_id).is_some()
         } else {
             false
         };

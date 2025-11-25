@@ -936,12 +936,15 @@ const Hotbar: React.FC<HotbarProps> = ({
                       // Rain collectors use a different function signature with slot index
                       connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
                       break;
-                  case 'broth_pot':
-                      connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
-                      break;
-                  default:
-                      console.warn(`[Hotbar CtxMenu] Unknown interaction type: ${interactingWith.type}`);
-                      break;
+                 case 'broth_pot':
+                     connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
+                     break;
+                 case 'fumarole':
+                     connection.reducers.quickMoveToFumarole(containerId, itemInstanceId);
+                     break;
+                 default:
+                     console.warn(`[Hotbar CtxMenu] Unknown interaction type: ${interactingWith.type}`);
+                     break;
               }
               return; // Successfully handled container interaction
           } catch (error: any) {

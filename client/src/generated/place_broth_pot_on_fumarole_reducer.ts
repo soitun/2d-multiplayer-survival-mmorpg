@@ -30,7 +30,7 @@ import {
 
 export type PlaceBrothPotOnFumarole = {
   itemInstanceId: bigint,
-  fumaroleId: bigint,
+  fumaroleId: number,
 };
 let _cached_PlaceBrothPotOnFumarole_type_value: __AlgebraicTypeType | null = null;
 
@@ -47,7 +47,7 @@ export const PlaceBrothPotOnFumarole = {
     _cached_PlaceBrothPotOnFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_PlaceBrothPotOnFumarole_type_value.value.elements.push(
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
     );
     return _cached_PlaceBrothPotOnFumarole_type_value;
   },

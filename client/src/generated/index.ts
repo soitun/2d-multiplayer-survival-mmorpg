@@ -113,6 +113,8 @@ import { EquipArmorFromInventory } from "./equip_armor_from_inventory_reducer.ts
 export { EquipArmorFromInventory };
 import { ExtinguishLantern } from "./extinguish_lantern_reducer.ts";
 export { ExtinguishLantern };
+import { FillEquippedWaterContainers } from "./fill_equipped_water_containers_reducer.ts";
+export { FillEquippedWaterContainers };
 import { FillWaterContainer } from "./fill_water_container_reducer.ts";
 export { FillWaterContainer };
 import { FillWaterContainerFromNaturalSource } from "./fill_water_container_from_natural_source_reducer.ts";
@@ -721,6 +723,8 @@ import { ViperSpittleUpdateScheduleTableHandle } from "./viper_spittle_update_sc
 export { ViperSpittleUpdateScheduleTableHandle };
 import { WallCellTableHandle } from "./wall_cell_table.ts";
 export { WallCellTableHandle };
+import { WaterContainerFillScheduleTableHandle } from "./water_container_fill_schedule_table.ts";
+export { WaterContainerFillScheduleTableHandle };
 import { WaterPatchTableHandle } from "./water_patch_table.ts";
 export { WaterPatchTableHandle };
 import { WaterPatchCleanupScheduleTableHandle } from "./water_patch_cleanup_schedule_table.ts";
@@ -995,6 +999,8 @@ import { ViperSpittleUpdateSchedule } from "./viper_spittle_update_schedule_type
 export { ViperSpittleUpdateSchedule };
 import { WallCell } from "./wall_cell_type.ts";
 export { WallCell };
+import { WaterContainerFillSchedule } from "./water_container_fill_schedule_type.ts";
+export { WaterContainerFillSchedule };
 import { WaterPatch } from "./water_patch_type.ts";
 export { WaterPatch };
 import { WaterPatchCleanupSchedule } from "./water_patch_cleanup_schedule_type.ts";
@@ -1855,6 +1861,15 @@ const REMOTE_MODULE = {
         colType: (WallCell.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    water_container_fill_schedule: {
+      tableName: "water_container_fill_schedule" as const,
+      rowType: WaterContainerFillSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (WaterContainerFillSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     water_patch: {
       tableName: "water_patch" as const,
       rowType: WaterPatch.getTypeScriptAlgebraicType(),
@@ -2092,6 +2107,10 @@ const REMOTE_MODULE = {
     extinguish_lantern: {
       reducerName: "extinguish_lantern",
       argsType: ExtinguishLantern.getTypeScriptAlgebraicType(),
+    },
+    fill_equipped_water_containers: {
+      reducerName: "fill_equipped_water_containers",
+      argsType: FillEquippedWaterContainers.getTypeScriptAlgebraicType(),
     },
     fill_water_container: {
       reducerName: "fill_water_container",
@@ -3004,6 +3023,7 @@ export type Reducer = never
 | { name: "EquipArmorFromDrag", args: EquipArmorFromDrag }
 | { name: "EquipArmorFromInventory", args: EquipArmorFromInventory }
 | { name: "ExtinguishLantern", args: ExtinguishLantern }
+| { name: "FillEquippedWaterContainers", args: FillEquippedWaterContainers }
 | { name: "FillWaterContainer", args: FillWaterContainer }
 | { name: "FillWaterContainerFromNaturalSource", args: FillWaterContainerFromNaturalSource }
 | { name: "FinishFishing", args: FinishFishing }
@@ -3691,7 +3711,7 @@ export class RemoteReducers {
     this.connection.offReducer("drop_item_from_corpse_slot_to_world", callback);
   }
 
-  dropItemFromFumaroleSlotToWorld(fumaroleId: bigint, slotIndex: number) {
+  dropItemFromFumaroleSlotToWorld(fumaroleId: number, slotIndex: number) {
     const __args = { fumaroleId, slotIndex };
     let __writer = new __BinaryWriter(1024);
     DropItemFromFumaroleSlotToWorld.serialize(__writer, __args);
@@ -3699,11 +3719,11 @@ export class RemoteReducers {
     this.connection.callReducer("drop_item_from_fumarole_slot_to_world", __argsBuffer, this.setCallReducerFlags.dropItemFromFumaroleSlotToWorldFlags);
   }
 
-  onDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number) => void) {
+  onDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: number, slotIndex: number) => void) {
     this.connection.onReducer("drop_item_from_fumarole_slot_to_world", callback);
   }
 
-  removeOnDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number) => void) {
+  removeOnDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: number, slotIndex: number) => void) {
     this.connection.offReducer("drop_item_from_fumarole_slot_to_world", callback);
   }
 
@@ -3849,6 +3869,22 @@ export class RemoteReducers {
 
   removeOnExtinguishLantern(callback: (ctx: ReducerEventContext, lanternId: number) => void) {
     this.connection.offReducer("extinguish_lantern", callback);
+  }
+
+  fillEquippedWaterContainers(args: WaterContainerFillSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    FillEquippedWaterContainers.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("fill_equipped_water_containers", __argsBuffer, this.setCallReducerFlags.fillEquippedWaterContainersFlags);
+  }
+
+  onFillEquippedWaterContainers(callback: (ctx: ReducerEventContext, args: WaterContainerFillSchedule) => void) {
+    this.connection.onReducer("fill_equipped_water_containers", callback);
+  }
+
+  removeOnFillEquippedWaterContainers(callback: (ctx: ReducerEventContext, args: WaterContainerFillSchedule) => void) {
+    this.connection.offReducer("fill_equipped_water_containers", callback);
   }
 
   fillWaterContainer(collectorId: number) {
@@ -4071,7 +4107,7 @@ export class RemoteReducers {
     this.connection.offReducer("interact_with_campfire", callback);
   }
 
-  interactWithFumarole(fumaroleId: bigint) {
+  interactWithFumarole(fumaroleId: number) {
     const __args = { fumaroleId };
     let __writer = new __BinaryWriter(1024);
     InteractWithFumarole.serialize(__writer, __args);
@@ -4079,11 +4115,11 @@ export class RemoteReducers {
     this.connection.callReducer("interact_with_fumarole", __argsBuffer, this.setCallReducerFlags.interactWithFumaroleFlags);
   }
 
-  onInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+  onInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
     this.connection.onReducer("interact_with_fumarole", callback);
   }
 
-  removeOnInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+  removeOnInteractWithFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
     this.connection.offReducer("interact_with_fumarole", callback);
   }
 
@@ -4331,7 +4367,7 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_from_corpse", callback);
   }
 
-  moveItemFromFumaroleToPlayerSlot(fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
+  moveItemFromFumaroleToPlayerSlot(fumaroleId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { fumaroleId, sourceSlotIndex, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     MoveItemFromFumaroleToPlayerSlot.serialize(__writer, __args);
@@ -4339,11 +4375,11 @@ export class RemoteReducers {
     this.connection.callReducer("move_item_from_fumarole_to_player_slot", __argsBuffer, this.setCallReducerFlags.moveItemFromFumaroleToPlayerSlotFlags);
   }
 
-  onMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  onMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.onReducer("move_item_from_fumarole_to_player_slot", callback);
   }
 
-  removeOnMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  removeOnMoveItemFromFumaroleToPlayerSlot(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("move_item_from_fumarole_to_player_slot", callback);
   }
 
@@ -4507,7 +4543,7 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_corpse", callback);
   }
 
-  moveItemToFumarole(fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) {
+  moveItemToFumarole(fumaroleId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { fumaroleId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
     MoveItemToFumarole.serialize(__writer, __args);
@@ -4515,11 +4551,11 @@ export class RemoteReducers {
     this.connection.callReducer("move_item_to_fumarole", __argsBuffer, this.setCallReducerFlags.moveItemToFumaroleFlags);
   }
 
-  onMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+  onMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
     this.connection.onReducer("move_item_to_fumarole", callback);
   }
 
-  removeOnMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+  removeOnMoveItemToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("move_item_to_fumarole", callback);
   }
 
@@ -4699,7 +4735,7 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_within_corpse", callback);
   }
 
-  moveItemWithinFumarole(fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) {
+  moveItemWithinFumarole(fumaroleId: number, sourceSlotIndex: number, targetSlotIndex: number) {
     const __args = { fumaroleId, sourceSlotIndex, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     MoveItemWithinFumarole.serialize(__writer, __args);
@@ -4707,11 +4743,11 @@ export class RemoteReducers {
     this.connection.callReducer("move_item_within_fumarole", __argsBuffer, this.setCallReducerFlags.moveItemWithinFumaroleFlags);
   }
 
-  onMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+  onMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, targetSlotIndex: number) => void) {
     this.connection.onReducer("move_item_within_fumarole", callback);
   }
 
-  removeOnMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+  removeOnMoveItemWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("move_item_within_fumarole", callback);
   }
 
@@ -4891,7 +4927,7 @@ export class RemoteReducers {
     this.connection.offReducer("place_broth_pot_on_campfire", callback);
   }
 
-  placeBrothPotOnFumarole(itemInstanceId: bigint, fumaroleId: bigint) {
+  placeBrothPotOnFumarole(itemInstanceId: bigint, fumaroleId: number) {
     const __args = { itemInstanceId, fumaroleId };
     let __writer = new __BinaryWriter(1024);
     PlaceBrothPotOnFumarole.serialize(__writer, __args);
@@ -4899,11 +4935,11 @@ export class RemoteReducers {
     this.connection.callReducer("place_broth_pot_on_fumarole", __argsBuffer, this.setCallReducerFlags.placeBrothPotOnFumaroleFlags);
   }
 
-  onPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: bigint) => void) {
+  onPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: number) => void) {
     this.connection.onReducer("place_broth_pot_on_fumarole", callback);
   }
 
-  removeOnPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: bigint) => void) {
+  removeOnPlaceBrothPotOnFumarole(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, fumaroleId: number) => void) {
     this.connection.offReducer("place_broth_pot_on_fumarole", callback);
   }
 
@@ -5483,7 +5519,7 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_from_corpse", callback);
   }
 
-  quickMoveFromFumarole(fumaroleId: bigint, sourceSlotIndex: number) {
+  quickMoveFromFumarole(fumaroleId: number, sourceSlotIndex: number) {
     const __args = { fumaroleId, sourceSlotIndex };
     let __writer = new __BinaryWriter(1024);
     QuickMoveFromFumarole.serialize(__writer, __args);
@@ -5491,11 +5527,11 @@ export class RemoteReducers {
     this.connection.callReducer("quick_move_from_fumarole", __argsBuffer, this.setCallReducerFlags.quickMoveFromFumaroleFlags);
   }
 
-  onQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number) => void) {
+  onQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number) => void) {
     this.connection.onReducer("quick_move_from_fumarole", callback);
   }
 
-  removeOnQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number) => void) {
+  removeOnQuickMoveFromFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number) => void) {
     this.connection.offReducer("quick_move_from_fumarole", callback);
   }
 
@@ -5659,7 +5695,7 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_to_corpse", callback);
   }
 
-  quickMoveToFumarole(fumaroleId: bigint, itemInstanceId: bigint) {
+  quickMoveToFumarole(fumaroleId: number, itemInstanceId: bigint) {
     const __args = { fumaroleId, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
     QuickMoveToFumarole.serialize(__writer, __args);
@@ -5667,11 +5703,11 @@ export class RemoteReducers {
     this.connection.callReducer("quick_move_to_fumarole", __argsBuffer, this.setCallReducerFlags.quickMoveToFumaroleFlags);
   }
 
-  onQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, itemInstanceId: bigint) => void) {
+  onQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, itemInstanceId: bigint) => void) {
     this.connection.onReducer("quick_move_to_fumarole", callback);
   }
 
-  removeOnQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, itemInstanceId: bigint) => void) {
+  removeOnQuickMoveToFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("quick_move_to_fumarole", callback);
   }
 
@@ -5859,7 +5895,7 @@ export class RemoteReducers {
     this.connection.offReducer("schedule_next_campfire_processing", callback);
   }
 
-  scheduleNextFumaroleProcessing(fumaroleId: bigint) {
+  scheduleNextFumaroleProcessing(fumaroleId: number) {
     const __args = { fumaroleId };
     let __writer = new __BinaryWriter(1024);
     ScheduleNextFumaroleProcessing.serialize(__writer, __args);
@@ -5867,11 +5903,11 @@ export class RemoteReducers {
     this.connection.callReducer("schedule_next_fumarole_processing", __argsBuffer, this.setCallReducerFlags.scheduleNextFumaroleProcessingFlags);
   }
 
-  onScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+  onScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
     this.connection.onReducer("schedule_next_fumarole_processing", callback);
   }
 
-  removeOnScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: bigint) => void) {
+  removeOnScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
     this.connection.offReducer("schedule_next_fumarole_processing", callback);
   }
 
@@ -6123,7 +6159,7 @@ export class RemoteReducers {
     this.connection.offReducer("split_and_drop_item_from_corpse_slot_to_world", callback);
   }
 
-  splitAndDropItemFromFumaroleSlotToWorld(fumaroleId: bigint, slotIndex: number, quantityToSplit: number) {
+  splitAndDropItemFromFumaroleSlotToWorld(fumaroleId: number, slotIndex: number, quantityToSplit: number) {
     const __args = { fumaroleId, slotIndex, quantityToSplit };
     let __writer = new __BinaryWriter(1024);
     SplitAndDropItemFromFumaroleSlotToWorld.serialize(__writer, __args);
@@ -6131,11 +6167,11 @@ export class RemoteReducers {
     this.connection.callReducer("split_and_drop_item_from_fumarole_slot_to_world", __argsBuffer, this.setCallReducerFlags.splitAndDropItemFromFumaroleSlotToWorldFlags);
   }
 
-  onSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number, quantityToSplit: number) => void) {
+  onSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: number, slotIndex: number, quantityToSplit: number) => void) {
     this.connection.onReducer("split_and_drop_item_from_fumarole_slot_to_world", callback);
   }
 
-  removeOnSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: bigint, slotIndex: number, quantityToSplit: number) => void) {
+  removeOnSplitAndDropItemFromFumaroleSlotToWorld(callback: (ctx: ReducerEventContext, fumaroleId: number, slotIndex: number, quantityToSplit: number) => void) {
     this.connection.offReducer("split_and_drop_item_from_fumarole_slot_to_world", callback);
   }
 
@@ -6219,7 +6255,7 @@ export class RemoteReducers {
     this.connection.offReducer("split_and_move_from_campfire", callback);
   }
 
-  splitAndMoveFromFumarole(sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+  splitAndMoveFromFumarole(sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { sourceFumaroleId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     SplitAndMoveFromFumarole.serialize(__writer, __args);
@@ -6227,11 +6263,11 @@ export class RemoteReducers {
     this.connection.callReducer("split_and_move_from_fumarole", __argsBuffer, this.setCallReducerFlags.splitAndMoveFromFumaroleFlags);
   }
 
-  onSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  onSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.onReducer("split_and_move_from_fumarole", callback);
   }
 
-  removeOnSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  removeOnSplitAndMoveFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_and_move_from_fumarole", callback);
   }
 
@@ -6331,7 +6367,7 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_from_corpse", callback);
   }
 
-  splitStackFromFumarole(sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+  splitStackFromFumarole(sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { sourceFumaroleId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     SplitStackFromFumarole.serialize(__writer, __args);
@@ -6339,11 +6375,11 @@ export class RemoteReducers {
     this.connection.callReducer("split_stack_from_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackFromFumaroleFlags);
   }
 
-  onSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  onSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.onReducer("split_stack_from_fumarole", callback);
   }
 
-  removeOnSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+  removeOnSplitStackFromFumarole(callback: (ctx: ReducerEventContext, sourceFumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_from_fumarole", callback);
   }
 
@@ -6475,7 +6511,7 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_into_corpse", callback);
   }
 
-  splitStackIntoFumarole(sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) {
+  splitStackIntoFumarole(sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: number, targetSlotIndex: number) {
     const __args = { sourceItemInstanceId, quantityToSplit, targetFumaroleId, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     SplitStackIntoFumarole.serialize(__writer, __args);
@@ -6483,11 +6519,11 @@ export class RemoteReducers {
     this.connection.callReducer("split_stack_into_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackIntoFumaroleFlags);
   }
 
-  onSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) => void) {
+  onSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: number, targetSlotIndex: number) => void) {
     this.connection.onReducer("split_stack_into_fumarole", callback);
   }
 
-  removeOnSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: bigint, targetSlotIndex: number) => void) {
+  removeOnSplitStackIntoFumarole(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_into_fumarole", callback);
   }
 
@@ -6619,7 +6655,7 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_within_corpse", callback);
   }
 
-  splitStackWithinFumarole(fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
+  splitStackWithinFumarole(fumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
     const __args = { fumaroleId, sourceSlotIndex, quantityToSplit, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
     SplitStackWithinFumarole.serialize(__writer, __args);
@@ -6627,11 +6663,11 @@ export class RemoteReducers {
     this.connection.callReducer("split_stack_within_fumarole", __argsBuffer, this.setCallReducerFlags.splitStackWithinFumaroleFlags);
   }
 
-  onSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+  onSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
     this.connection.onReducer("split_stack_within_fumarole", callback);
   }
 
-  removeOnSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: bigint, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+  removeOnSplitStackWithinFumarole(callback: (ctx: ReducerEventContext, fumaroleId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_within_fumarole", callback);
   }
 
@@ -7309,6 +7345,11 @@ export class SetReducerFlags {
   extinguishLanternFlags: __CallReducerFlags = 'FullUpdate';
   extinguishLantern(flags: __CallReducerFlags) {
     this.extinguishLanternFlags = flags;
+  }
+
+  fillEquippedWaterContainersFlags: __CallReducerFlags = 'FullUpdate';
+  fillEquippedWaterContainers(flags: __CallReducerFlags) {
+    this.fillEquippedWaterContainersFlags = flags;
   }
 
   fillWaterContainerFlags: __CallReducerFlags = 'FullUpdate';
@@ -8819,6 +8860,11 @@ export class RemoteTables {
   get wallCell(): WallCellTableHandle<'wall_cell'> {
     // clientCache is a private property
     return new WallCellTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WallCell>(REMOTE_MODULE.tables.wall_cell));
+  }
+
+  get waterContainerFillSchedule(): WaterContainerFillScheduleTableHandle<'water_container_fill_schedule'> {
+    // clientCache is a private property
+    return new WaterContainerFillScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WaterContainerFillSchedule>(REMOTE_MODULE.tables.water_container_fill_schedule));
   }
 
   get waterPatch(): WaterPatchTableHandle<'water_patch'> {

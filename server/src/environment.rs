@@ -1279,8 +1279,10 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 let fumarole = crate::fumarole::Fumarole::new(world_x_px, world_y_px, chunk_idx);
-                if let Ok(_) = ctx.db.fumarole().try_insert(fumarole) {
+                if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
                     total_spawned_fumarole_count += 1;
+                    // Schedule processing for burn damage (runs even when empty)
+                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                 }
             }
         }

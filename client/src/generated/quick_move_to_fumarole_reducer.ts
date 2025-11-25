@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type QuickMoveToFumarole = {
-  fumaroleId: bigint,
+  fumaroleId: number,
   itemInstanceId: bigint,
 };
 let _cached_QuickMoveToFumarole_type_value: __AlgebraicTypeType | null = null;
@@ -46,7 +46,7 @@ export const QuickMoveToFumarole = {
     if (_cached_QuickMoveToFumarole_type_value) return _cached_QuickMoveToFumarole_type_value;
     _cached_QuickMoveToFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_QuickMoveToFumarole_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
     );
     return _cached_QuickMoveToFumarole_type_value;

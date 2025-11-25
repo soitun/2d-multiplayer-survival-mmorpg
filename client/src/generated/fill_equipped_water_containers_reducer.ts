@@ -28,41 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type MoveItemWithinFumarole = {
-  fumaroleId: number,
-  sourceSlotIndex: number,
-  targetSlotIndex: number,
+import { WaterContainerFillSchedule } from "./water_container_fill_schedule_type";
+// Mark import as potentially unused
+declare type __keep_WaterContainerFillSchedule = WaterContainerFillSchedule;
+
+export type FillEquippedWaterContainers = {
+  args: WaterContainerFillSchedule,
 };
-let _cached_MoveItemWithinFumarole_type_value: __AlgebraicTypeType | null = null;
+let _cached_FillEquippedWaterContainers_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const MoveItemWithinFumarole = {
+export const FillEquippedWaterContainers = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MoveItemWithinFumarole_type_value) return _cached_MoveItemWithinFumarole_type_value;
-    _cached_MoveItemWithinFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_MoveItemWithinFumarole_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
-      { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+    if (_cached_FillEquippedWaterContainers_type_value) return _cached_FillEquippedWaterContainers_type_value;
+    _cached_FillEquippedWaterContainers_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_FillEquippedWaterContainers_type_value.value.elements.push(
+      { name: "args", algebraicType: WaterContainerFillSchedule.getTypeScriptAlgebraicType() },
     );
-    return _cached_MoveItemWithinFumarole_type_value;
+    return _cached_FillEquippedWaterContainers_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: MoveItemWithinFumarole): void {
-    __AlgebraicTypeValue.serializeValue(writer, MoveItemWithinFumarole.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: FillEquippedWaterContainers): void {
+    __AlgebraicTypeValue.serializeValue(writer, FillEquippedWaterContainers.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): MoveItemWithinFumarole {
-    return __AlgebraicTypeValue.deserializeValue(reader, MoveItemWithinFumarole.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): FillEquippedWaterContainers {
+    return __AlgebraicTypeValue.deserializeValue(reader, FillEquippedWaterContainers.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default MoveItemWithinFumarole;
+export default FillEquippedWaterContainers;
 

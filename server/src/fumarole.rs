@@ -50,7 +50,8 @@ pub(crate) const MIN_FUMAROLE_DISTANCE_SQ: f32 = MIN_FUMAROLE_DISTANCE_PX * MIN_
 
 // Container constants
 pub const NUM_FUMAROLE_SLOTS: usize = 6; // 6 slots for items to incinerate
-const FUMAROLE_PROCESS_INTERVAL_SECS: u64 = 2; // Process every 2 seconds (fast incineration)
+const FUMAROLE_PROCESS_INTERVAL_SECS: u64 = 1; // Process every 1 second (for burn damage)
+const FUMAROLE_ITEM_CONSUMPTION_TICKS: u64 = 5; // Consume 1 item every 5 ticks (5 seconds, like Rust recycler)
 const CHARCOAL_PRODUCTION_AMOUNT: u32 = 3; // Produce 3 charcoal per item (rewarding for PvP hotspot)
 
 /// --- Fumarole Data Structure ---
@@ -62,7 +63,7 @@ const CHARCOAL_PRODUCTION_AMOUNT: u32 = 3; // Produce 3 charcoal per item (rewar
 pub struct Fumarole {
     #[primary_key]
     #[auto_inc]
-    pub id: u64,
+    pub id: u32,
     pub pos_x: f32,
     pub pos_y: f32,
     #[index(btree)]
@@ -83,6 +84,7 @@ pub struct Fumarole {
     pub slot_def_id_5: Option<u64>,
     
     pub attached_broth_pot_id: Option<u32>, // Broth pot placed on this fumarole
+    pub consumption_tick_counter: u64, // Tracks ticks for item consumption (every 5 ticks = 1 item consumed)
 }
 
 impl Fumarole {
@@ -106,6 +108,7 @@ impl Fumarole {
             slot_instance_id_5: None,
             slot_def_id_5: None,
             attached_broth_pot_id: None,
+            consumption_tick_counter: 0,
         }
     }
 }
@@ -125,7 +128,7 @@ pub struct FumaroleProcessingSchedule {
 
 /// --- Add Item to Fumarole ---
 #[spacetimedb::reducer]
-pub fn move_item_to_fumarole(ctx: &ReducerContext, fumarole_id: u64, target_slot_index: u8, item_instance_id: u64) -> Result<(), String> {
+pub fn move_item_to_fumarole(ctx: &ReducerContext, fumarole_id: u32, target_slot_index: u8, item_instance_id: u64) -> Result<(), String> {
     let (_player, mut fumarole) = validate_fumarole_interaction(ctx, fumarole_id)?;
     
     // --- SECURITY: Prevent interaction with fumarole slots when broth pot is attached ---
@@ -141,7 +144,7 @@ pub fn move_item_to_fumarole(ctx: &ReducerContext, fumarole_id: u64, target_slot
 
 /// --- Remove Item from Fumarole ---
 #[spacetimedb::reducer]
-pub fn quick_move_from_fumarole(ctx: &ReducerContext, fumarole_id: u64, source_slot_index: u8) -> Result<(), String> {
+pub fn quick_move_from_fumarole(ctx: &ReducerContext, fumarole_id: u32, source_slot_index: u8) -> Result<(), String> {
     let (_player, mut fumarole) = validate_fumarole_interaction(ctx, fumarole_id)?;
     
     // --- SECURITY: Prevent interaction when broth pot is attached ---
@@ -161,7 +164,7 @@ pub fn split_stack_into_fumarole(
     ctx: &ReducerContext,
     source_item_instance_id: u64,
     quantity_to_split: u32,
-    target_fumarole_id: u64,
+    target_fumarole_id: u32,
     target_slot_index: u8,
 ) -> Result<(), String> {
     let (_player, mut fumarole) = validate_fumarole_interaction(ctx, target_fumarole_id)?;
@@ -173,7 +176,7 @@ pub fn split_stack_into_fumarole(
     let mut source_item_mut = get_player_item(ctx, source_item_instance_id)?;
     let new_item_target_location = ItemLocation::Container(ContainerLocationData {
         container_type: ContainerType::Fumarole,
-        container_id: fumarole.id,
+        container_id: fumarole.id as u64,
         slot_index: target_slot_index,
     });
     let new_item_instance_id = crate::items::split_stack_helper(ctx, &mut source_item_mut, quantity_to_split, new_item_target_location)?;
@@ -195,7 +198,7 @@ pub fn split_stack_into_fumarole(
 #[spacetimedb::reducer]
 pub fn move_item_within_fumarole(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     source_slot_index: u8,
     target_slot_index: u8,
 ) -> Result<(), String> {
@@ -215,7 +218,7 @@ pub fn move_item_within_fumarole(
 #[spacetimedb::reducer]
 pub fn split_stack_within_fumarole(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     source_slot_index: u8,
     quantity_to_split: u32,
     target_slot_index: u8,
@@ -236,7 +239,7 @@ pub fn split_stack_within_fumarole(
 #[spacetimedb::reducer]
 pub fn quick_move_to_fumarole(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     item_instance_id: u64,
 ) -> Result<(), String> {
     let (_player, mut fumarole) = validate_fumarole_interaction(ctx, fumarole_id)?;
@@ -255,7 +258,7 @@ pub fn quick_move_to_fumarole(
 #[spacetimedb::reducer]
 pub fn move_item_from_fumarole_to_player_slot(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     source_slot_index: u8,
     target_slot_type: String,
     target_slot_index: u32,
@@ -276,7 +279,7 @@ pub fn move_item_from_fumarole_to_player_slot(
 #[spacetimedb::reducer]
 pub fn split_stack_from_fumarole(
     ctx: &ReducerContext,
-    source_fumarole_id: u64,
+    source_fumarole_id: u32,
     source_slot_index: u8,
     quantity_to_split: u32,
     target_slot_type: String,
@@ -303,7 +306,7 @@ pub fn split_stack_from_fumarole(
 #[spacetimedb::reducer]
 pub fn split_and_move_from_fumarole(
     ctx: &ReducerContext,
-    source_fumarole_id: u64,
+    source_fumarole_id: u32,
     source_slot_index: u8,
     quantity_to_split: u32,
     target_slot_type: String,    // "inventory", "hotbar", or "fumarole_slot"
@@ -391,7 +394,7 @@ pub fn split_and_move_from_fumarole(
 #[spacetimedb::reducer]
 pub fn drop_item_from_fumarole_slot_to_world(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     slot_index: u8,
 ) -> Result<(), String> {
     let (player, mut fumarole) = validate_fumarole_interaction(ctx, fumarole_id)?;
@@ -409,7 +412,7 @@ pub fn drop_item_from_fumarole_slot_to_world(
 #[spacetimedb::reducer]
 pub fn split_and_drop_item_from_fumarole_slot_to_world(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
     slot_index: u8,
     quantity_to_split: u32,
 ) -> Result<(), String> {
@@ -430,7 +433,7 @@ pub fn split_and_drop_item_from_fumarole_slot_to_world(
 
 /// --- Fumarole Interaction Check ---
 #[spacetimedb::reducer]
-pub fn interact_with_fumarole(ctx: &ReducerContext, fumarole_id: u64) -> Result<(), String> {
+pub fn interact_with_fumarole(ctx: &ReducerContext, fumarole_id: u32) -> Result<(), String> {
     let (_player, _fumarole) = validate_fumarole_interaction(ctx, fumarole_id)?;
     Ok(())
 }
@@ -447,7 +450,8 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
         return Err("Unauthorized scheduler invocation".to_string());
     }
 
-    let fumarole_id = schedule_args.fumarole_id;
+    let schedule_fumarole_id = schedule_args.fumarole_id; // u64 from schedule table
+    let fumarole_id = schedule_fumarole_id as u32; // Convert to u32 for table lookup
     let mut fumaroles_table = ctx.db.fumarole();
     let mut inventory_items_table = ctx.db.inventory_item();
 
@@ -455,87 +459,178 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
         Some(f) => f,
         None => {
             log::warn!("[ProcessFumaroleScheduled] Fumarole {} not found. Removing schedule.", fumarole_id);
-            ctx.db.fumarole_processing_schedule().fumarole_id().delete(fumarole_id);
+            ctx.db.fumarole_processing_schedule().fumarole_id().delete(schedule_fumarole_id);
             return Ok(());
         }
     };
 
     let mut made_changes = false;
+    
+    // Get charcoal definition once for comparison
+    let charcoal_def = get_item_def_by_name(ctx, "Charcoal");
+    let charcoal_def_id = charcoal_def.as_ref().map(|d| d.id);
 
-    // Process each slot - incinerate items and produce charcoal
-    for slot_idx in 0..NUM_FUMAROLE_SLOTS as u8 {
-        if let Some(instance_id) = fumarole.get_slot_instance_id(slot_idx) {
-            if let Some(mut item) = inventory_items_table.instance_id().find(instance_id) {
-                // Consume 1 unit from the item
-                item.quantity = item.quantity.saturating_sub(1);
-                
-                if item.quantity > 0 {
-                    inventory_items_table.instance_id().update(item);
-                } else {
-                    // Item fully consumed - remove from slot
-                    inventory_items_table.instance_id().delete(instance_id);
-                    fumarole.set_slot(slot_idx, None, None);
-                    made_changes = true;
+    log::info!("[ProcessFumarole] START processing fumarole {} at time {:?}", fumarole_id, ctx.timestamp);
+
+    // --- FUMAROLE BURN DAMAGE LOGIC ---
+    // Apply burn damage to players standing on the fumarole (same as campfire)
+    const FUMAROLE_DAMAGE_RADIUS_SQUARED: f32 = 1600.0; // Same as campfire
+    const FUMAROLE_DAMAGE_PER_TICK: f32 = 5.0; // Same as campfire
+    const FUMAROLE_DAMAGE_EFFECT_DURATION_SECONDS: u64 = 3; // Same as campfire
+    const FUMAROLE_BURN_TICK_INTERVAL_SECONDS: f32 = 2.0; // Same as campfire
+    const VISUAL_CENTER_Y_OFFSET: f32 = 42.0; // Same as campfire
+    
+    for player_entity in ctx.db.player().iter() {
+        if player_entity.is_dead { continue; } // Skip dead players
+        
+        let dx = player_entity.position_x - fumarole.pos_x;
+        let dy = player_entity.position_y - (fumarole.pos_y - VISUAL_CENTER_Y_OFFSET);
+        let dist_sq = dx * dx + dy * dy;
+
+        if dist_sq < FUMAROLE_DAMAGE_RADIUS_SQUARED {
+            // Apply burn effect using the centralized function from active_effects.rs
+            match crate::active_effects::apply_burn_effect(
+                ctx, 
+                player_entity.identity, 
+                FUMAROLE_DAMAGE_PER_TICK, 
+                FUMAROLE_DAMAGE_EFFECT_DURATION_SECONDS as f32, 
+                FUMAROLE_BURN_TICK_INTERVAL_SECONDS,
+                0 // 0 for environmental/fumarole source
+            ) {
+                Ok(_) => {
+                    log::debug!("[ProcessFumarole {}] Applied burn effect to player {:?}", fumarole_id, player_entity.identity);
                 }
-                
-                // Produce charcoal
-                if let Some(charcoal_def) = get_item_def_by_name(ctx, "Charcoal") {
-                    if try_add_charcoal_to_fumarole_or_drop(ctx, &mut fumarole, &charcoal_def, CHARCOAL_PRODUCTION_AMOUNT).unwrap_or(false) {
-                        made_changes = true;
+                Err(e) => {
+                    log::error!("[ProcessFumarole {}] Failed to apply burn effect to player {:?}: {}", fumarole_id, player_entity.identity, e);
+                }
+            }
+        }
+    }
+    // --- END FUMAROLE BURN DAMAGE LOGIC ---
+
+    // Increment consumption tick counter
+    fumarole.consumption_tick_counter += 1;
+    made_changes = true;
+    
+    // Only consume items every FUMAROLE_ITEM_CONSUMPTION_TICKS (5 seconds, like Rust recycler)
+    let should_consume_items = fumarole.consumption_tick_counter >= FUMAROLE_ITEM_CONSUMPTION_TICKS;
+    
+    if should_consume_items {
+        fumarole.consumption_tick_counter = 0; // Reset counter
+        log::info!("[ProcessFumarole] Consumption tick reached - processing items");
+    }
+
+    // Process each slot - incinerate items and produce charcoal (only on consumption ticks)
+    if should_consume_items {
+        for slot_idx in 0..NUM_FUMAROLE_SLOTS as u8 {
+            if let Some(instance_id) = fumarole.get_slot_instance_id(slot_idx) {
+                log::info!("[ProcessFumarole] Slot {} has item instance {}", slot_idx, instance_id);
+                if let Some(mut item) = inventory_items_table.instance_id().find(instance_id) {
+                    // Skip charcoal - don't incinerate the output!
+                    if charcoal_def_id == Some(item.item_def_id) {
+                        log::info!("[ProcessFumarole] Slot {} contains CHARCOAL (qty: {}), skipping", slot_idx, item.quantity);
+                        continue;
+                    }
+                    
+                    log::info!("[ProcessFumarole] Slot {} incinerating item def {} (qty: {} -> {})", slot_idx, item.item_def_id, item.quantity, item.quantity.saturating_sub(1));
+                    
+                    // Consume 1 unit from the item
+                    item.quantity = item.quantity.saturating_sub(1);
+                    made_changes = true;
+                    let remaining_qty = item.quantity; // Capture before move
+                    
+                    if remaining_qty > 0 {
+                        inventory_items_table.instance_id().update(item);
+                        log::info!("[ProcessFumarole] Item updated, remaining qty: {}", remaining_qty);
+                    } else {
+                        // Item fully consumed - remove from slot
+                        inventory_items_table.instance_id().delete(instance_id);
+                        fumarole.set_slot(slot_idx, None, None);
+                        log::info!("[ProcessFumarole] Item FULLY CONSUMED, slot {} cleared", slot_idx);
+                    }
+                    
+                    // Produce charcoal for each item incinerated
+                    if let Some(ref charcoal) = charcoal_def {
+                        log::info!("[ProcessFumarole] Producing {} charcoal...", CHARCOAL_PRODUCTION_AMOUNT);
+                        match try_add_charcoal_to_fumarole_or_drop(ctx, &mut fumarole, charcoal, CHARCOAL_PRODUCTION_AMOUNT) {
+                            Ok(charcoal_modified_fumarole) => {
+                                if charcoal_modified_fumarole {
+                                    made_changes = true; // Charcoal was added to slots
+                                    log::info!("[ProcessFumarole] Charcoal added to fumarole slots");
+                                } else {
+                                    log::info!("[ProcessFumarole] Charcoal stacked or dropped");
+                                }
+                            }
+                            Err(e) => {
+                                log::warn!("[ProcessFumarole] Failed to produce charcoal: {}", e);
+                            }
+                        }
+                    } else {
+                        log::warn!("[ProcessFumarole] Charcoal definition not found!");
                     }
                 }
             }
         }
     }
 
+    log::info!("[ProcessFumarole] END processing fumarole {}, made_changes: {}", fumarole_id, made_changes);
+
+    // Always update the fumarole to persist slot changes
     if made_changes {
         fumaroles_table.id().update(fumarole);
     }
 
+    // Call schedule_next to determine if we should continue or stop
     schedule_next_fumarole_processing(ctx, fumarole_id)?;
+    
     Ok(())
 }
 
 /// Schedules or re-schedules the processing logic for a fumarole
 #[spacetimedb::reducer]
-pub fn schedule_next_fumarole_processing(ctx: &ReducerContext, fumarole_id: u64) -> Result<(), String> {
+pub fn schedule_next_fumarole_processing(ctx: &ReducerContext, fumarole_id: u32) -> Result<(), String> {
     let mut schedules = ctx.db.fumarole_processing_schedule();
     let fumarole_opt = ctx.db.fumarole().id().find(fumarole_id);
+    let schedule_id = fumarole_id as u64; // Schedule table requires u64
 
     if fumarole_opt.is_none() {
-        schedules.fumarole_id().delete(fumarole_id);
+        log::info!("[ScheduleFumarole] Fumarole {} not found, removing schedule", fumarole_id);
+        schedules.fumarole_id().delete(schedule_id);
         return Ok(());
     }
 
     let fumarole = fumarole_opt.unwrap();
     let has_items = check_if_fumarole_has_items(ctx, &fumarole);
+    
+    log::info!("[ScheduleFumarole] Fumarole {} has_items_to_incinerate: {}", fumarole_id, has_items);
 
-    if has_items {
-        let interval = TimeDuration::from_micros((FUMAROLE_PROCESS_INTERVAL_SECS * 1_000_000) as i64);
-        let schedule_entry = FumaroleProcessingSchedule {
-            fumarole_id,
-            scheduled_at: ScheduleAt::Interval(interval),
-        };
-        
-        if schedules.fumarole_id().find(fumarole_id).is_some() {
-            let mut existing_schedule = schedules.fumarole_id().find(fumarole_id).unwrap();
-            existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
-            schedules.fumarole_id().update(existing_schedule);
-        } else {
-            match schedules.try_insert(schedule_entry) {
-                Ok(_) => {},
-                Err(e) => {
-                    if let Some(mut existing_schedule) = schedules.fumarole_id().find(fumarole_id) {
-                        existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
-                        schedules.fumarole_id().update(existing_schedule);
-                    } else {
-                        return Err(format!("Failed to insert or update schedule for fumarole {}: {}", fumarole_id, e));
-                    }
+    // Always keep the schedule running (for burn damage even when empty)
+    let interval = TimeDuration::from_micros((FUMAROLE_PROCESS_INTERVAL_SECS * 1_000_000) as i64);
+    let schedule_entry = FumaroleProcessingSchedule {
+        fumarole_id: schedule_id,
+        scheduled_at: ScheduleAt::Interval(interval),
+    };
+    
+    if schedules.fumarole_id().find(schedule_id).is_some() {
+        let mut existing_schedule = schedules.fumarole_id().find(schedule_id).unwrap();
+        existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
+        schedules.fumarole_id().update(existing_schedule);
+        log::info!("[ScheduleFumarole] Updated existing schedule for fumarole {}", fumarole_id);
+    } else {
+        match schedules.try_insert(schedule_entry) {
+            Ok(_) => {
+                log::info!("[ScheduleFumarole] Created new schedule for fumarole {}", fumarole_id);
+            },
+            Err(e) => {
+                if let Some(mut existing_schedule) = schedules.fumarole_id().find(schedule_id) {
+                    existing_schedule.scheduled_at = ScheduleAt::Interval(interval);
+                    schedules.fumarole_id().update(existing_schedule);
+                    log::info!("[ScheduleFumarole] Fallback update for fumarole {}", fumarole_id);
+                } else {
+                    return Err(format!("Failed to insert or update schedule for fumarole {}: {}", fumarole_id, e));
                 }
             }
         }
-    } else {
-        schedules.fumarole_id().delete(fumarole_id);
     }
 
     Ok(())
@@ -594,7 +689,7 @@ impl ItemContainer for Fumarole {
     }
 
     fn get_container_id(&self) -> u64 {
-        self.id
+        self.id as u64 // Cast u32 to u64 for trait
     }
 }
 
@@ -636,7 +731,7 @@ impl ContainerItemClearer for FumaroleClearer {
 
 fn validate_fumarole_interaction(
     ctx: &ReducerContext,
-    fumarole_id: u64,
+    fumarole_id: u32,
 ) -> Result<(Player, Fumarole), String> {
     let sender_id = ctx.sender;
     let players = ctx.db.player();
@@ -659,13 +754,35 @@ fn validate_fumarole_interaction(
 }
 
 fn check_if_fumarole_has_items(ctx: &ReducerContext, fumarole: &Fumarole) -> bool {
+    // Get charcoal def ID to exclude from check - we only want to process non-charcoal items
+    let charcoal_def_id = get_item_def_by_name(ctx, "Charcoal").map(|d| d.id);
+    
     for i in 0..NUM_FUMAROLE_SLOTS {
         if let Some(instance_id) = fumarole.get_slot_instance_id(i as u8) {
             if let Some(item_instance) = ctx.db.inventory_item().instance_id().find(instance_id) {
+                // Skip charcoal - we only care about items that need to be incinerated
+                if charcoal_def_id == Some(item_instance.item_def_id) {
+                    continue;
+                }
                 if item_instance.quantity > 0 {
                     return true;
                 }
             }
+        }
+    }
+    false
+}
+
+/// Check if fumarole has items to incinerate based on slot def IDs (doesn't need DB lookup)
+fn check_if_fumarole_has_items_direct(fumarole: &Fumarole, charcoal_def_id: Option<u64>) -> bool {
+    for i in 0..NUM_FUMAROLE_SLOTS {
+        if let Some(def_id) = fumarole.get_slot_def_id(i as u8) {
+            // Skip charcoal - we only care about items that need to be incinerated
+            if charcoal_def_id == Some(def_id) {
+                continue;
+            }
+            // Has a non-charcoal item
+            return true;
         }
     }
     false
@@ -708,7 +825,7 @@ fn try_add_charcoal_to_fumarole_or_drop(
         if fumarole.get_slot_instance_id(i).is_none() {
             let new_charcoal_location = ItemLocation::Container(ContainerLocationData {
                 container_type: ContainerType::Fumarole,
-                container_id: fumarole.id,
+                container_id: fumarole.id as u64,
                 slot_index: i,
             });
             let new_charcoal_item = InventoryItem {
@@ -736,4 +853,5 @@ fn try_add_charcoal_to_fumarole_or_drop(
     
     Ok(charcoal_added_to_slots)
 }
+
 

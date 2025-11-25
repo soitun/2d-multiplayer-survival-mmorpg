@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type SplitAndMoveFromFumarole = {
-  sourceFumaroleId: bigint,
+  sourceFumaroleId: number,
   sourceSlotIndex: number,
   quantityToSplit: number,
   targetSlotType: string,
@@ -49,7 +49,7 @@ export const SplitAndMoveFromFumarole = {
     if (_cached_SplitAndMoveFromFumarole_type_value) return _cached_SplitAndMoveFromFumarole_type_value;
     _cached_SplitAndMoveFromFumarole_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_SplitAndMoveFromFumarole_type_value.value.elements.push(
-      { name: "sourceFumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "sourceFumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "quantityToSplit", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "targetSlotType", algebraicType: __AlgebraicTypeValue.String },

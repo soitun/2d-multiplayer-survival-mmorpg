@@ -1030,6 +1030,13 @@ pub fn player_has_tree_cover_effect(ctx: &ReducerContext, player_id: Identity) -
         .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::TreeCover)
 }
 
+// Bleeding Effect Management
+// ==========================
+
+/// Maximum duration (in seconds) that bleeding can be stacked to
+/// This prevents unlimited bleeding stacking from rapid attacks
+pub const MAX_BLEED_DURATION_SECONDS: f32 = 30.0; // 30 seconds max
+
 // Exhausted Effect Management
 // ===========================
 
@@ -1357,7 +1364,8 @@ pub fn apply_venom_effect(
     }
 }
 
-/// Applies a bleeding effect to a player (damage over time from wolf attacks)
+/// Applies a bleeding effect to a player (damage over time from attacks)
+/// Stacks duration and damage into a single effect, up to MAX_BLEED_DURATION_SECONDS
 pub fn apply_bleeding_effect(
     ctx: &ReducerContext,
     player_id: Identity,
@@ -1367,28 +1375,50 @@ pub fn apply_bleeding_effect(
 ) -> Result<(), String> {
     let current_time = ctx.timestamp;
     
-    // Check if player already has a bleeding effect - if so, stack it
-    let existing_bleed_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Bleed)
-        .collect();
+    // Check if player already has a bleeding effect
+    let existing_bleed_effect = ctx.db.active_consumable_effect().iter()
+        .find(|e| e.player_id == player_id && e.effect_type == EffectType::Bleed);
 
-    if !existing_bleed_effects.is_empty() {
-        // Stack bleeding effect by extending duration and adding damage
-        for existing_effect in existing_bleed_effects {
-            let mut updated_effect = existing_effect.clone();
-            let duration_to_add = TimeDuration::from_micros((duration_seconds * 1_000_000.0) as i64);
-            updated_effect.ends_at = updated_effect.ends_at + duration_to_add;
-            let new_total_damage = updated_effect.total_amount.unwrap_or(0.0) + total_damage;
-            updated_effect.total_amount = Some(new_total_damage);
-            
-            ctx.db.active_consumable_effect().effect_id().update(updated_effect);
-            log::info!("Stacked bleeding effect {} for player {:?}: added {:.1}s duration, total damage now {:.1}", 
-                existing_effect.effect_id, player_id, duration_seconds, new_total_damage);
-            return Ok(());
-        }
+    if let Some(existing_effect) = existing_bleed_effect {
+        // Stack onto existing effect
+        let mut updated_effect = existing_effect.clone();
+        
+        // Calculate remaining duration from existing effect
+        let remaining_duration_micros = existing_effect.ends_at.to_micros_since_unix_epoch()
+            .saturating_sub(current_time.to_micros_since_unix_epoch());
+        let remaining_duration_seconds = (remaining_duration_micros as f32) / 1_000_000.0;
+        
+        // Add new duration to remaining, but cap at MAX_BLEED_DURATION_SECONDS
+        let new_total_duration = (remaining_duration_seconds + duration_seconds).min(MAX_BLEED_DURATION_SECONDS);
+        let duration_micros = (new_total_duration * 1_000_000.0) as i64;
+        
+        // Calculate new total damage (existing remaining + new)
+        let remaining_damage = existing_effect.total_amount.unwrap_or(0.0) 
+            - existing_effect.amount_applied_so_far.unwrap_or(0.0);
+        let new_total_damage = remaining_damage + total_damage;
+        
+        // Update the effect
+        updated_effect.ends_at = current_time + TimeDuration::from_micros(duration_micros);
+        updated_effect.total_amount = Some(new_total_damage);
+        // Keep amount_applied_so_far as is - it tracks what's already been applied
+        
+        ctx.db.active_consumable_effect().effect_id().update(updated_effect);
+        
+        let was_capped = (remaining_duration_seconds + duration_seconds) > MAX_BLEED_DURATION_SECONDS;
+        log::info!(
+            "Stacked bleeding effect {} for player {:?}: added {:.1}s (total now {:.1}s{}), total damage now {:.1}", 
+            existing_effect.effect_id, 
+            player_id, 
+            duration_seconds,
+            new_total_duration,
+            if was_capped { " - CAPPED" } else { "" },
+            new_total_damage
+        );
+        
+        return Ok(());
     }
     
-    // Create new bleeding effect
+    // No existing effect - create new bleeding effect
     let duration_micros = (duration_seconds * 1_000_000.0) as i64;
     let tick_interval_micros = (tick_interval_seconds * 1_000_000.0) as u64;
     
@@ -1409,7 +1439,7 @@ pub fn apply_bleeding_effect(
 
     match ctx.db.active_consumable_effect().try_insert(bleed_effect) {
         Ok(inserted_effect) => {
-            log::info!("Applied bleeding effect {} to player {:?}: {:.1} damage over {:.1}s (every {:.1}s)", 
+            log::info!("Applied new bleeding effect {} to player {:?}: {:.1} damage over {:.1}s (every {:.1}s)", 
                 inserted_effect.effect_id, player_id, total_damage, duration_seconds, tick_interval_seconds);
             Ok(())
         }

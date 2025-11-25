@@ -509,7 +509,7 @@ fn apply_projectile_bleed_effect(
     ctx: &ReducerContext,
     target_player_id: Identity,
     ammo_item_def: &crate::items::ItemDefinition, // Pass the ammo definition
-    current_time: Timestamp,
+    _current_time: Timestamp,
 ) -> Result<(), String> {
     // Fire arrows should NOT cause bleed effects - they only cause burn effects
     if ammo_item_def.name == "Fire Arrow" {
@@ -537,24 +537,17 @@ fn apply_projectile_bleed_effect(
         let total_ticks = (bleed_duration_seconds / bleed_tick_interval_seconds).ceil();
         let total_bleed_damage = bleed_damage_per_tick * total_ticks;
 
-        let new_effect = active_effects::ActiveConsumableEffect {
-            effect_id: 0, // auto_inc
-            player_id: target_player_id, // The player receiving the bleed
-            target_player_id: Some(target_player_id), // Bleed is on the target
-            item_def_id: ammo_item_def.id, // ID of the ammunition causing the bleed
-            consuming_item_instance_id: None, // Projectiles are not consumed "by" the effect
-            started_at: current_time,
-            ends_at: current_time + TimeDuration::from_micros((bleed_duration_seconds * 1_000_000.0) as i64),
-            total_amount: Some(total_bleed_damage),
-            amount_applied_so_far: Some(0.0),
-            effect_type: active_effects::EffectType::Bleed,
-            tick_interval_micros: (bleed_tick_interval_seconds * 1_000_000.0) as u64,
-            next_tick_at: current_time + TimeDuration::from_micros((bleed_tick_interval_seconds * 1_000_000.0) as i64),
-        };
-
-        ctx.db.active_consumable_effect().insert(new_effect);
+        // Use centralized apply_bleeding_effect function which respects MAX_BLEED_STACKS
+        active_effects::apply_bleeding_effect(
+            ctx,
+            target_player_id,
+            total_bleed_damage,
+            bleed_duration_seconds,
+            bleed_tick_interval_seconds,
+        )?;
+        
         log::info!(
-            "Created Bleed effect on player {:?} from ammo '{}': {:.1} total damage over {:.1}s (tick every {:.1}s)",
+            "Applied Bleed effect on player {:?} from ammo '{}': {:.1} total damage over {:.1}s (tick every {:.1}s)",
             target_player_id,
             ammo_item_def.name,
             total_bleed_damage,

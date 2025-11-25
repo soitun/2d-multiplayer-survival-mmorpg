@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type SplitAndDropItemFromFumaroleSlotToWorld = {
-  fumaroleId: bigint,
+  fumaroleId: number,
   slotIndex: number,
   quantityToSplit: number,
 };
@@ -47,7 +47,7 @@ export const SplitAndDropItemFromFumaroleSlotToWorld = {
     if (_cached_SplitAndDropItemFromFumaroleSlotToWorld_type_value) return _cached_SplitAndDropItemFromFumaroleSlotToWorld_type_value;
     _cached_SplitAndDropItemFromFumaroleSlotToWorld_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_SplitAndDropItemFromFumaroleSlotToWorld_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "slotIndex", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "quantityToSplit", algebraicType: __AlgebraicTypeValue.U32 },
     );

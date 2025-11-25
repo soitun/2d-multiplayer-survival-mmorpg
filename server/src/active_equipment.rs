@@ -59,6 +59,9 @@ use crate::player_inventory::find_first_empty_player_slot;
 // Sound events imports
 use crate::sound_events;
 
+// Weather imports for rain detection
+use crate::world_state::{get_weather_for_position, WeatherType};
+
 // --- Interaction Constants ---
 /// Maximum distance for player-item interactions
 const PLAYER_INTERACT_DISTANCE: f32 = 80.0;
@@ -86,6 +89,48 @@ pub struct ActiveEquipment {
     pub feet_item_instance_id: Option<u64>,
     pub hands_item_instance_id: Option<u64>,
     pub back_item_instance_id: Option<u64>,
+}
+
+/// Schedule table for filling equipped water containers during rain
+#[spacetimedb::table(name = water_container_fill_schedule, scheduled(fill_equipped_water_containers))]
+#[derive(Clone, Debug)]
+pub struct WaterContainerFillSchedule {
+    #[primary_key]
+    #[auto_inc]
+    pub schedule_id: u64,
+    pub scheduled_at: spacetimedb::ScheduleAt,
+}
+
+/// Initializes the water container fill schedule
+/// Runs every 2 seconds to check for equipped water containers during rain
+pub fn init_water_container_fill_schedule(ctx: &ReducerContext) -> Result<(), String> {
+    use spacetimedb::spacetimedb_lib::ScheduleAt;
+    use spacetimedb::TimeDuration;
+    
+    let schedule_table = ctx.db.water_container_fill_schedule();
+    
+    // Check if schedule already exists
+    if schedule_table.iter().count() > 0 {
+        log::debug!("Water container fill schedule already initialized.");
+        return Ok(());
+    }
+    
+    log::info!("Initializing water container fill schedule (runs every 2 seconds)...");
+    
+    // Create schedule that runs every 2 seconds
+    let interval = TimeDuration::from_micros(2_000_000); // 2 seconds
+    let schedule = WaterContainerFillSchedule {
+        schedule_id: 0, // Auto-increment
+        scheduled_at: ScheduleAt::Interval(interval),
+    };
+    
+    crate::try_insert_schedule!(
+        schedule_table,
+        schedule.clone(),
+        "Water container fill"
+    );
+    
+    Ok(())
 }
 
 /// Sets an item from inventory/hotbar as the player's "active" item (e.g., tool or weapon in hand).
@@ -811,5 +856,119 @@ pub fn equip_armor(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
     active_equipments.player_identity().update(equipment);
 
     log::info!("Player {:?} equipped armor '{}' (Instance ID: {}) to slot {:?}.", sender_id, item_def.name, item_instance_id, target_slot_type);
+    Ok(())
+}
+
+/// Scheduled reducer that fills equipped water containers during rain
+/// Runs every 2 seconds to check all players with equipped water containers
+#[spacetimedb::reducer]
+pub fn fill_equipped_water_containers(ctx: &ReducerContext, _args: WaterContainerFillSchedule) -> Result<(), String> {
+    // Security check - only allow scheduler to run this
+    if ctx.sender != ctx.identity() {
+        return Err("Water container filling can only be run by scheduler".to_string());
+    }
+
+    let players_table = ctx.db.player();
+    let active_equipments = ctx.db.active_equipment();
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    let mut filled_count = 0;
+    
+    // Check each player
+    for player in players_table.iter() {
+        // Skip dead or knocked out players
+        if player.is_dead || player.is_knocked_out {
+            continue;
+        }
+        
+        // Get player's active equipment
+        let equipment = match active_equipments.player_identity().find(&player.identity) {
+            Some(eq) => eq,
+            None => continue,
+        };
+        
+        // Check if player has a water container equipped
+        let equipped_instance_id = match equipment.equipped_item_instance_id {
+            Some(id) => id,
+            None => continue,
+        };
+        
+        // Get the equipped item
+        let mut equipped_item = match inventory_items.instance_id().find(equipped_instance_id) {
+            Some(item) => item,
+            None => continue,
+        };
+        
+        // Get item definition
+        let item_def = match item_defs.id().find(equipped_item.item_def_id) {
+            Some(def) => def,
+            None => continue,
+        };
+        
+        // Check if it's a water container
+        let max_capacity = match item_def.name.as_str() {
+            "Reed Water Bottle" => crate::rain_collector::REED_WATER_BOTTLE_CAPACITY,
+            "Plastic Water Jug" => crate::rain_collector::PLASTIC_WATER_JUG_CAPACITY,
+            _ => continue, // Not a water container
+        };
+        
+        // Check if container is already full
+        let current_water = equipped_item.item_data.as_ref()
+            .and_then(|data| {
+                // Try parsing as JSON first (new format: {"water_liters": 2.0})
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+                    parsed.get("water_liters").and_then(|v| v.as_f64()).map(|v| v as f32)
+                } else {
+                    // Fallback to plain number string (old format: "2.0")
+                    data.parse::<f32>().ok()
+                }
+            })
+            .unwrap_or(0.0);
+        if current_water >= max_capacity {
+            continue; // Already full
+        }
+        
+        // Check if it's raining at player's position
+        let chunk_weather = get_weather_for_position(ctx, player.position_x, player.position_y);
+        
+        // Skip if not raining
+        if chunk_weather.current_weather == WeatherType::Clear {
+            continue;
+        }
+        
+        // Check if player is inside a building (can't collect rain indoors)
+        if crate::building_enclosure::is_position_inside_building(ctx, player.position_x, player.position_y) {
+            continue;
+        }
+        
+        // Calculate fill rate based on weather intensity
+        // Using same rates as rain collectors but scaled down for realism
+        let fill_rate_per_second = match chunk_weather.current_weather {
+            WeatherType::LightRain => 0.01,      // 0.01L per second (120 seconds to fill 2L bottle)
+            WeatherType::ModerateRain => 0.02,   // 0.02L per second (100 seconds to fill 2L bottle)
+            WeatherType::HeavyRain => 0.04,      // 0.04L per second (50 seconds to fill 2L bottle)
+            WeatherType::HeavyStorm => 0.06,     // 0.06L per second (33 seconds to fill 2L bottle)
+            WeatherType::Clear => continue,      // Already checked above
+        };
+        
+        // Calculate water to add (2 second interval)
+        let water_to_add = fill_rate_per_second * 2.0;
+        let new_water_level = (current_water + water_to_add).min(max_capacity);
+        
+        // Update the item's water level (store as JSON for client compatibility)
+        equipped_item.item_data = Some(format!(r#"{{"water_liters":{}}}"#, new_water_level));
+        inventory_items.instance_id().update(equipped_item);
+        
+        filled_count += 1;
+        
+        log::debug!("Filled {} for player {:?} from {:.2}L to {:.2}L (max: {:.2}L) during {:?}", 
+                   item_def.name, player.identity, current_water, new_water_level, max_capacity, chunk_weather.current_weather);
+    }
+    
+    if filled_count > 0 {
+        log::debug!("Filled {} equipped water containers during rain", filled_count);
+    }
+    
     Ok(())
 }

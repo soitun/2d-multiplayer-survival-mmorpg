@@ -694,12 +694,15 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 switch (effectTypeTag) {
                     case 'Bleed':
                         effectApplies = true;
+                        const totalDamage = effect.totalAmount ?? 0;
+                        const appliedDamage = effect.amountAppliedSoFar ?? 0;
+                        const remainingDamage = totalDamage - appliedDamage;
                         effectData = {
                             id: 'bleeding',
                             name: 'Bleeding',
                             emoji: '🩸',
                             type: 'negative' as const,
-                            description: 'Losing blood from wounds.',
+                            description: `Losing blood from wounds. ${remainingDamage.toFixed(1)} damage remaining.`,
                             duration: bufferedRemainingTime
                         };
                         break;
