@@ -914,112 +914,216 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
     let campfires = ctx.db.campfire();
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
 
-    // --- Find a valid spawn position - NEW: MANDATORY Random coastal beach spawn ---
+    // --- Find a valid spawn position - Robust multi-strategy beach spawn ---
     
-    // --- Find a valid spawn position - NEW: MANDATORY Random coastal beach spawn ---
+    // Strategy 1: Random sampling (fast, works most of the time)
+    // Strategy 2: Perimeter scan (guaranteed to find beaches around island edge)
+    // Strategy 3: Emergency fallback (find ANY non-water tile)
     
-    // Optimized: Use random sampling instead of full map scan to avoid O(N) loop on 360k tiles
-    let mut coastal_beach_tiles = Vec::new();
-    let max_search_attempts = 100; // Try 100 random spots instead of scanning 360,000 tiles
+    let mut coastal_beach_tiles: Vec<(i32, i32)> = Vec::new(); // Store just (x, y) coordinates
+    let max_search_attempts = 500; // Increased from 100 for better hit rate
+    let map_height_half = (WORLD_HEIGHT_TILES / 2) as i32;
     
-    log::info!("Searching for coastal beach tiles via random sampling...");
+    log::info!("Searching for coastal beach tiles via random sampling (up to {} attempts)...", max_search_attempts);
     
-    for _ in 0..max_search_attempts {
-        // Pick a random tile in the southern half (y > half_height)
-        // NOTE: In SpacetimeDB/this game, y=0 is typically bottom? 
-        // The original code checked: if tile.world_y < map_height_half { continue; }
-        // So we want larger Y values? Let's stick to the original logic's intent:
-        // The original code filtered: tile.world_y >= map_height_half.
-        let map_height_half = (WORLD_HEIGHT_TILES / 2) as i32;
-        
+    // --- STRATEGY 1: Random sampling in southern half ---
+    for attempt in 0..max_search_attempts {
         let tile_x = ctx.rng().gen_range(0..WORLD_WIDTH_TILES as i32);
         let tile_y = ctx.rng().gen_range(map_height_half..WORLD_HEIGHT_TILES as i32);
         
-        // Efficiently lookup JUST this tile using the compressed helper
         if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
             if tile_type == TileType::Beach {
-                 // Found a beach tile! Now check if it is coastal (adjacent to Sea)
-                 // Check 3x3 grid around it
-                 let mut is_coastal = false;
-                 for dx in -1..=1i32 {
+                // Check if coastal (adjacent to water)
+                let mut is_coastal = false;
+                for dx in -1..=1i32 {
                     for dy in -1..=1i32 {
                         if dx == 0 && dy == 0 { continue; }
                         if let Some(adj_type) = get_tile_type_at_position(ctx, tile_x + dx, tile_y + dy) {
-                            if adj_type.is_water() { // Includes both Sea and HotSpringWater
+                            if adj_type.is_water() {
                                 is_coastal = true;
                                 break;
                             }
                         }
                     }
                     if is_coastal { break; }
-                 }
+                }
 
-                 if is_coastal {
-                     // Reconstruct a lightweight representation or just use coordinates
-                     // Since we just need one, we can break immediately if we want, 
-                     // or collect a few to pick randomly from.
-                     // For speed, let's just add it.
-                     
-                     // We need a WorldTile struct to match original logic or refactor logic.
-                     // Refactoring logic is cleaner. We just need x/y.
-                     // But to minimize code change, let's construct a dummy tile or just change the next step.
-                     
-                     // Let's just collect coordinates (x,y)
-                     // But wait, the original code collected `WorldTile` structs.
-                     // Let's reconstruct it since we have the data.
-                     let tile = WorldTile {
-                         id: 0, // Dummy ID, not used for spawn calc
-                         chunk_x: tile_x / environment::CHUNK_SIZE_TILES as i32,
-                         chunk_y: tile_y / environment::CHUNK_SIZE_TILES as i32,
-                         tile_x: tile_x % environment::CHUNK_SIZE_TILES as i32,
-                         tile_y: tile_y % environment::CHUNK_SIZE_TILES as i32,
-                         world_x: tile_x,
-                         world_y: tile_y,
-                         tile_type: TileType::Beach,
-                         variant: 0,
-                         biome_data: None,
-                     };
-                     coastal_beach_tiles.push(tile);
-                     
-                     // If we found enough samples, break early
-                     if coastal_beach_tiles.len() >= 5 {
-                         break;
-                     }
-                 }
+                if is_coastal {
+                    coastal_beach_tiles.push((tile_x, tile_y));
+                    if coastal_beach_tiles.len() >= 10 {
+                        log::info!("Found {} coastal beach tiles after {} random samples", coastal_beach_tiles.len(), attempt + 1);
+                        break;
+                    }
+                }
             }
         }
     }
     
-    // Fallback: If random sampling failed (rare), try a known safe spot or panic
+    // --- STRATEGY 2: Perimeter scan if random sampling failed ---
+    // Beaches are guaranteed around the island perimeter, so scan edges
     if coastal_beach_tiles.is_empty() {
-         log::warn!("Random sampling found no beach tiles. Scanning center area...");
-         // Fallback logic could go here, but with 100 attempts on a map with beaches, it's highly unlikely to fail.
-         // Return error if still empty
-         return Err(format!("CRITICAL ERROR: No coastal beach tiles found after random sampling! Cannot spawn player."));
+        log::warn!("Random sampling found no beach tiles. Scanning island perimeter...");
+        
+        // Scan the bottom edge (y = near max) - most likely to have beaches
+        let perimeter_scan_depth = 30; // Scan 30 tiles inward from edges
+        let scan_step = 5; // Check every 5th tile for efficiency
+        
+        // Bottom edge (high Y values in southern half)
+        for y_offset in 0..perimeter_scan_depth {
+            let tile_y = (WORLD_HEIGHT_TILES as i32) - 10 - y_offset; // Start 10 tiles from edge
+            if tile_y < map_height_half { break; } // Stay in southern half
+            
+            for tile_x in (0..WORLD_WIDTH_TILES as i32).step_by(scan_step as usize) {
+                if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                    if tile_type == TileType::Beach {
+                        // Quick coastal check - just need one adjacent water tile
+                        for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                            if let Some(adj_type) = get_tile_type_at_position(ctx, tile_x + dx, tile_y + dy) {
+                                if adj_type.is_water() {
+                                    coastal_beach_tiles.push((tile_x, tile_y));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if coastal_beach_tiles.len() >= 10 { break; }
+            }
+            if coastal_beach_tiles.len() >= 10 { break; }
+        }
+        
+        // Also scan left and right edges if still need more
+        if coastal_beach_tiles.len() < 5 {
+            for x_offset in 0..perimeter_scan_depth {
+                // Left edge
+                let tile_x = 10 + x_offset;
+                for tile_y in (map_height_half..WORLD_HEIGHT_TILES as i32).step_by(scan_step as usize) {
+                    if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                        if tile_type == TileType::Beach {
+                            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                                if let Some(adj_type) = get_tile_type_at_position(ctx, tile_x + dx, tile_y + dy) {
+                                    if adj_type.is_water() {
+                                        coastal_beach_tiles.push((tile_x, tile_y));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if coastal_beach_tiles.len() >= 10 { break; }
+                }
+                
+                // Right edge
+                let tile_x = (WORLD_WIDTH_TILES as i32) - 10 - x_offset;
+                for tile_y in (map_height_half..WORLD_HEIGHT_TILES as i32).step_by(scan_step as usize) {
+                    if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                        if tile_type == TileType::Beach {
+                            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                                if let Some(adj_type) = get_tile_type_at_position(ctx, tile_x + dx, tile_y + dy) {
+                                    if adj_type.is_water() {
+                                        coastal_beach_tiles.push((tile_x, tile_y));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if coastal_beach_tiles.len() >= 10 { break; }
+                }
+                if coastal_beach_tiles.len() >= 10 { break; }
+            }
+        }
+        
+        if !coastal_beach_tiles.is_empty() {
+            log::info!("Perimeter scan found {} coastal beach tiles", coastal_beach_tiles.len());
+        }
     }
     
-    // Step 2: Find a valid spawn point from coastal beach tiles (OPTIMIZED with spatial queries)
+    // --- STRATEGY 3: Emergency fallback - find ANY beach tile (not necessarily coastal) ---
+    if coastal_beach_tiles.is_empty() {
+        log::warn!("Perimeter scan found no coastal beaches. Searching for ANY beach tile...");
+        
+        // Scan with larger steps to find any beach
+        for tile_y in (map_height_half..WORLD_HEIGHT_TILES as i32).step_by(10) {
+            for tile_x in (0..WORLD_WIDTH_TILES as i32).step_by(10) {
+                if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                    if tile_type == TileType::Beach {
+                        coastal_beach_tiles.push((tile_x, tile_y));
+                        if coastal_beach_tiles.len() >= 5 { break; }
+                    }
+                }
+            }
+            if coastal_beach_tiles.len() >= 5 { break; }
+        }
+        
+        if !coastal_beach_tiles.is_empty() {
+            log::info!("Emergency scan found {} beach tiles", coastal_beach_tiles.len());
+        }
+    }
+    
+    // --- STRATEGY 4: Last resort - find ANY walkable land tile ---
+    if coastal_beach_tiles.is_empty() {
+        log::error!("No beach tiles found anywhere! Finding ANY land tile as last resort...");
+        
+        // Find any grass or dirt tile in the center-ish area
+        let center_x = (WORLD_WIDTH_TILES / 2) as i32;
+        let center_y = (WORLD_HEIGHT_TILES * 3 / 4) as i32; // 3/4 down (southern half center)
+        
+        // Spiral outward from center
+        for radius in (0..200).step_by(5) {
+            for angle in (0..360).step_by(45) {
+                let rad = (angle as f32).to_radians();
+                let tile_x = center_x + (rad.cos() * radius as f32) as i32;
+                let tile_y = center_y + (rad.sin() * radius as f32) as i32;
+                
+                // Bounds check
+                if tile_x < 0 || tile_x >= WORLD_WIDTH_TILES as i32 { continue; }
+                if tile_y < 0 || tile_y >= WORLD_HEIGHT_TILES as i32 { continue; }
+                
+                if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                    if tile_type.is_walkable() {
+                        coastal_beach_tiles.push((tile_x, tile_y));
+                        log::warn!("Last resort: Found walkable tile at ({}, {}) - type: {:?}", tile_x, tile_y, tile_type);
+                        break;
+                    }
+                }
+            }
+            if !coastal_beach_tiles.is_empty() { break; }
+        }
+    }
+    
+    // --- ABSOLUTE FINAL FALLBACK: Hardcoded safe position ---
+    if coastal_beach_tiles.is_empty() {
+        // This should NEVER happen, but if it does, spawn at center of map
+        let emergency_x = (WORLD_WIDTH_TILES / 2) as i32;
+        let emergency_y = (WORLD_HEIGHT_TILES * 3 / 4) as i32;
+        log::error!("CRITICAL: All spawn strategies failed! Using hardcoded fallback position ({}, {})", emergency_x, emergency_y);
+        coastal_beach_tiles.push((emergency_x, emergency_y));
+    }
+    
+    // Step 2: Find a valid spawn point from candidate tiles (OPTIMIZED with spatial queries)
     let mut spawn_x: f32;
     let mut spawn_y: f32;
-    let max_spawn_attempts = 50; // Increased attempts significantly
+    let max_spawn_attempts = 50;
     let mut spawn_attempt = 0;
     let mut last_collision_reason = String::new();
+    let mut selected_tile_x: i32 = 0;
+    let mut selected_tile_y: i32 = 0;
     
-    // OPTIMIZATION: Define search radius once (used for all spatial queries)
-    const SPAWN_SEARCH_RADIUS: f32 = 200.0; // Check entities within 200px radius
-    
-    // Try to find a valid spawn on a random coastal beach tile
+    // Try to find a valid spawn on a random candidate tile
     loop {
-        // Pick a random coastal beach tile
+        // Pick a random candidate tile
         let random_index = ctx.rng().gen_range(0..coastal_beach_tiles.len());
-        let selected_tile = &coastal_beach_tiles[random_index];
+        let (tile_x, tile_y) = coastal_beach_tiles[random_index];
+        selected_tile_x = tile_x;
+        selected_tile_y = tile_y;
         
         // Convert tile coordinates to world pixel coordinates (center of tile)
-        spawn_x = (selected_tile.world_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
-        spawn_y = (selected_tile.world_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+        spawn_x = (tile_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+        spawn_y = (tile_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
         
-        log::debug!("Attempt {}: Testing spawn at coastal beach tile ({}, {}) -> world pos ({:.1}, {:.1})", 
-                   spawn_attempt + 1, selected_tile.world_x, selected_tile.world_y, spawn_x, spawn_y);
+        log::debug!("Attempt {}: Testing spawn at tile ({}, {}) -> world pos ({:.1}, {:.1})", 
+                   spawn_attempt + 1, tile_x, tile_y, spawn_x, spawn_y);
         
         // Step 3: Check for collisions at this beach tile position (OPTIMIZED spatial queries)
         let mut collision = false;
@@ -1106,15 +1210,15 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         
         // If no collision found, we have a valid spawn point!
         if !collision {
-            log::info!("SUCCESS: Coastal beach spawn found at ({:.1}, {:.1}) on tile ({}, {}) after {} attempts", 
-                      spawn_x, spawn_y, selected_tile.world_x, selected_tile.world_y, spawn_attempt + 1);
+            log::info!("SUCCESS: Spawn found at ({:.1}, {:.1}) on tile ({}, {}) after {} attempts", 
+                      spawn_x, spawn_y, selected_tile_x, selected_tile_y, spawn_attempt + 1);
             break;
         }
         
         // Log collision reason for debugging
         if spawn_attempt < 10 { // Only log first 10 attempts to avoid spam
-            log::debug!("Attempt {} failed: {} at coastal beach tile ({}, {})", 
-                       spawn_attempt + 1, last_collision_reason, selected_tile.world_x, selected_tile.world_y);
+            log::debug!("Attempt {} failed: {} at tile ({}, {})", 
+                       spawn_attempt + 1, last_collision_reason, selected_tile_x, selected_tile_y);
         }
         
         spawn_attempt += 1;

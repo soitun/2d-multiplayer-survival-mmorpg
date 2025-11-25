@@ -330,6 +330,10 @@ import hearthIcon from '../assets/items/hearth.png'; // ADDED: Homestead Hearth 
 import wolfPeltIcon from '../assets/items/wolf_pelt.png';
 import foxPeltIcon from '../assets/items/fox_pelt.png';
 
+// Building components
+import woodDoorIcon from '../assets/items/wood_door.png';
+import metalDoorIcon from '../assets/items/metal_door.png';
+
 // Misc/Special
 import deathMarkerIcon from '../assets/items/death_marker.png';
 
@@ -647,6 +651,10 @@ const iconMap: { [key: string]: string | undefined } = {
   // Trophy decorations
   'wolf_pelt.png': wolfPeltIcon,
   'fox_pelt.png': foxPeltIcon,
+  
+  // Building components
+  'wood_door.png': woodDoorIcon,
+  'metal_door.png': metalDoorIcon,
   
   // Misc/Special
   'death_marker.png': deathMarkerIcon,

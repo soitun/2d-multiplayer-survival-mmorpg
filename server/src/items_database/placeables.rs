@@ -147,5 +147,32 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Fox Pelt", "A beautiful fox pelt with rich, vibrant fur. This rare trophy makes an excellent display piece, demonstrating your skill at hunting elusive prey.", ItemCategory::Placeable)
             .icon("fox_pelt.png")
             .build(), // No crafting cost - dropped by foxes
+
+        // === BUILDING COMPONENTS ===
+
+        // Wood Door - Craftable door for doorframes
+        ItemBuilder::new("Wood Door", "A sturdy wooden door that can be placed into a doorframe. Provides secure entry to your structures.", ItemCategory::Placeable)
+            .icon("wood_door.png")
+            .stackable(5)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 20)
+            .respawn_time(300)
+            .build(),
+
+        // Metal Door - Advanced door for doorframes
+        ItemBuilder::new("Metal Door", "A reinforced metal door that can be placed into a doorframe. Much stronger than wooden doors, providing superior protection.", ItemCategory::Placeable)
+            .icon("metal_door.png")
+            .stackable(3)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 25 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
+            ])
+            .crafting_output(1, 45)
+            .respawn_time(600)
+            .build(),
     ]
 }

@@ -930,9 +930,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 style={container.containerType === 'rain_collector' ? { marginTop: '12px' } : undefined}
                 disabledSlots={
                     (container.containerType === 'campfire' && attachedBrothPot) 
-                        ? new Set([0, 1, 2, 3, 4]) // Disable all 5 campfire fuel slots when broth pot is attached
+                        ? new Set([1, 2, 3, 4]) // Disable slots 1-4 when broth pot attached, keep slot 0 for adding fuel
                         : (container.containerType === 'fumarole' && attachedBrothPot)
-                        ? new Set([0, 1, 2, 3, 4, 5]) // Disable all 6 fumarole slots when broth pot is attached
+                        ? new Set([0, 1, 2, 3, 4, 5]) // Disable all 6 fumarole slots when broth pot is attached (fumaroles don't need fuel)
                         : undefined
                 }
             />
