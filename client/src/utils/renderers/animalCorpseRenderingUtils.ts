@@ -1,75 +1,97 @@
 import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
 import { imageManager } from './imageManager';
 
-// Import animal images directly from assets
-import cinderFoxImg from '../../assets/cinder_fox2.png';
-import tundraWolfImg from '../../assets/tundra_wolf.png';
-import cableViperImg from '../../assets/cable_viper.png';
-import walrusImg from '../../assets/walrus.png';
+// Import sprite sheets (same as wildAnimalRenderingUtils)
+import walrusWalkingSheet from '../../assets/walrus_walking.png';
+import foxWalkingSheet from '../../assets/fox_walking.png';
+import crabWalkingSheet from '../../assets/crab_walking.png';
+import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
+import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
+
+// Sprite sheet configuration (must match wildAnimalRenderingUtils)
+const SPRITE_SHEET_CONFIG = {
+    sheetWidth: 320,
+    sheetHeight: 320,
+    sheetCols: 3,
+    sheetRows: 3,
+};
+
+const FRAME_WIDTH = Math.floor(SPRITE_SHEET_CONFIG.sheetWidth / SPRITE_SHEET_CONFIG.sheetCols);
+const FRAME_HEIGHT = Math.floor(SPRITE_SHEET_CONFIG.sheetHeight / SPRITE_SHEET_CONFIG.sheetRows);
+
+// Right-facing sprite position (middle left of sheet - col 0, row 1)
+const RIGHT_FACING_COL = 0;
+const RIGHT_FACING_ROW = 1;
 
 // Animal corpse dimensions and rendering constants
 export const ANIMAL_CORPSE_HEIGHT = 96; // Height for interaction indicators
 export const ANIMAL_CORPSE_COLLISION_RADIUS = 16; // From server-side constant
 
-// Helper function to get correct image for animal corpse (single variation only)
-function getCorpseImageSrc(species: any, animalId: bigint): string {
+// Map species to their sprite sheets
+const speciesSpriteSheets: Record<string, string> = {
+    'CinderFox': foxWalkingSheet,
+    'TundraWolf': tundraWolfWalkingSheet,
+    'CableViper': cableViperWalkingSheet,
+    'ArcticWalrus': walrusWalkingSheet,
+    'BeachCrab': crabWalkingSheet,
+};
+
+// Get corpse render size based on species (match live animal sizes)
+function getCorpseRenderSize(species: any): { width: number; height: number } {
     switch (species.tag) {
-        case 'CinderFox':
-            return cinderFoxImg;
-        case 'TundraWolf':
-            return tundraWolfImg;
-        case 'CableViper':
-            return cableViperImg;
         case 'ArcticWalrus':
-            return walrusImg;
+            return { width: 128, height: 128 };
+        case 'TundraWolf':
+            return { width: 96, height: 96 };
+        case 'CinderFox':
+            return { width: 112, height: 112 };
+        case 'CableViper':
+            return { width: 72, height: 72 };
+        case 'BeachCrab':
+            return { width: 64, height: 64 };
         default:
-            return cinderFoxImg;
+            return { width: 96, height: 96 };
     }
+}
+
+// Helper function to get sprite sheet for animal corpse
+function getCorpseSpriteSheet(species: any): string {
+    return speciesSpriteSheets[species.tag] || foxWalkingSheet;
 }
 
 // Preload animal corpse images using imageManager
 export const preloadAnimalCorpseImages = () => {
-  // console.log('[AnimalCorpse] Preloading animal corpse images with imageManager...');
-  
-  // Preload using imageManager for consistency with other assets
-  imageManager.preloadImage(cinderFoxImg);
-  imageManager.preloadImage(tundraWolfImg);
-  imageManager.preloadImage(cableViperImg);
-  imageManager.preloadImage(walrusImg);  // Add missing walrus image
-  
-  // console.log('[AnimalCorpse] Animal corpse images queued for preloading');
+    // Preload all sprite sheets
+    Object.values(speciesSpriteSheets).forEach(sheet => {
+        imageManager.preloadImage(sheet);
+    });
 };
 
 /**
- * Renders an animal corpse as a flipped animal sprite
+ * Renders an animal corpse as a flipped animal sprite (facing right, upside down)
  */
 export const renderAnimalCorpse = (
   ctx: CanvasRenderingContext2D,
   corpse: SpacetimeDBAnimalCorpse,
   currentTime: number
 ) => {
-  // console.log(`🦴 [ANIMAL CORPSE RENDER] Rendering corpse ${corpse.id} at (${corpse.posX}, ${corpse.posY}) species: ${corpse.animalSpecies.tag}`);
-  
   // Canvas is already translated, so we use world coordinates directly
   const screenX = corpse.posX;
   const screenY = corpse.posY;
 
-  // Get the appropriate animal image based on species and ID for consistent variations
-  const imageSrc = getCorpseImageSrc(corpse.animalSpecies, corpse.animalId);
+  // Get the appropriate sprite sheet based on species
+  const spriteSheetSrc = getCorpseSpriteSheet(corpse.animalSpecies);
+  const spriteSheet = imageManager.getImage(spriteSheetSrc);
   
-  // console.log(`[AnimalCorpse] Looking for image: ${imageSrc}`);
-  const img = imageManager.getImage(imageSrc);
+  // Get render size for this species
+  const renderSize = getCorpseRenderSize(corpse.animalSpecies);
   
-  if (!img) {
-    // console.log(`[AnimalCorpse] Image not loaded, rendering fallback rectangle at (${screenX}, ${screenY})`);
+  if (!spriteSheet || !spriteSheet.complete) {
     // Fallback: render a simple rectangle if image not loaded
     ctx.fillStyle = '#8B4513'; // Brown color for corpse
-    ctx.fillRect(screenX - 48, screenY - 48, 96, 96);
-    // console.log(`[AnimalCorpse] Drew fallback rectangle for corpse ${corpse.id}`);
+    ctx.fillRect(screenX - renderSize.width / 2, screenY - renderSize.height / 2, renderSize.width, renderSize.height);
     return;
-    }
-  
-  // console.log(`[AnimalCorpse] Image loaded successfully, proceeding with sprite render`);
+  }
 
   ctx.save();
 
@@ -88,16 +110,21 @@ export const renderAnimalCorpse = (
   // Move to corpse position with shake offset
   ctx.translate(screenX + shakeX, screenY + shakeY);
   
-  // Flip the sprite both horizontally and vertically to indicate it's dead (upside down)
-  ctx.scale(-1, -1);
+  // Flip vertically only (upside down but still facing right)
+  ctx.scale(1, -1);
   
-  // Render the animal image (flipped) - same size as live animals
-  const imgWidth = 96;
-  const imgHeight = 96;
-  ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+  // Calculate source rectangle for the right-facing sprite
+  const sx = RIGHT_FACING_COL * FRAME_WIDTH;
+  const sy = RIGHT_FACING_ROW * FRAME_HEIGHT;
+  
+  // Render the sprite frame (flipped vertically)
+  ctx.drawImage(
+    spriteSheet,
+    sx, sy, FRAME_WIDTH, FRAME_HEIGHT,  // Source rect from sprite sheet
+    -renderSize.width / 2, -renderSize.height / 2, renderSize.width, renderSize.height  // Dest rect
+  );
 
   ctx.restore();
-  // console.log(`[AnimalCorpse] Completed rendering corpse ${corpse.id}`);
 };
 
 // Export for use in interaction system
@@ -106,4 +133,4 @@ export const getAnimalCorpseInteractionBounds = (corpse: SpacetimeDBAnimalCorpse
   y: corpse.posY - ANIMAL_CORPSE_COLLISION_RADIUS,
   width: ANIMAL_CORPSE_COLLISION_RADIUS * 2,
   height: ANIMAL_CORPSE_COLLISION_RADIUS * 2,
-}); 
+});

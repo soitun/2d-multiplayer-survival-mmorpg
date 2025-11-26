@@ -161,7 +161,7 @@ pub struct WildAnimal {
     pub pos_y: f32,
     pub direction_x: f32, // Normalized direction vector
     pub direction_y: f32,
-    pub facing_direction: String, // "left" or "right" for sprite mirroring
+    pub facing_direction: String, // "left", "right", "up", or "down" for directional sprites
     pub state: AnimalState,
     pub health: f32,
     pub spawn_x: f32, // Original spawn position for patrolling
@@ -1047,6 +1047,10 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let proposed_x = animal.pos_x + dx * normalize_factor;
         let proposed_y = animal.pos_y + dy * normalize_factor;
         
+        // Store starting position to calculate actual movement
+        let start_x = animal.pos_x;
+        let start_y = animal.pos_y;
+        
         let is_attacking = animal.state == AnimalState::Attacking;
         let (final_x, final_y) = resolve_animal_collision(
             ctx,
@@ -1064,10 +1068,22 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         animal.direction_x = dx / distance;
         animal.direction_y = dy / distance;
         
-        // Update facing direction based on horizontal movement
-        // Only change facing direction if there's significant horizontal movement
-        if dx.abs() > 0.1 {
-            animal.facing_direction = if dx > 0.0 { "right".to_string() } else { "left".to_string() };
+        // Update facing direction based on ACTUAL movement (not intended direction)
+        // This prevents jittery flipping when herding/patrolling behaviors adjust target
+        let actual_move_x = final_x - start_x;
+        let actual_move_y = final_y - start_y;
+        
+        // Only change facing direction if there's significant actual movement
+        // Threshold of 2.0 pixels ensures meaningful movement before flipping
+        // Use the dominant axis (whichever has more movement) to determine direction
+        if actual_move_x.abs() > 2.0 || actual_move_y.abs() > 2.0 {
+            if actual_move_x.abs() > actual_move_y.abs() {
+                // Horizontal movement is dominant
+                animal.facing_direction = if actual_move_x > 0.0 { "right".to_string() } else { "left".to_string() };
+            } else {
+                // Vertical movement is dominant
+                animal.facing_direction = if actual_move_y > 0.0 { "down".to_string() } else { "up".to_string() };
+            }
         }
     }
 }
@@ -1195,7 +1211,7 @@ pub fn spawn_wild_animal(
         pos_y,
         direction_x: 1.0,
         direction_y: 0.0,
-        facing_direction: "left".to_string(), // Default facing direction (matches current sprites)
+        facing_direction: "down".to_string(), // Default facing direction
         state: AnimalState::Patrolling,
         health: stats.max_health,
         spawn_x: pos_x,

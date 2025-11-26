@@ -19,7 +19,7 @@ import shelterSpritePath from '../assets/doodads/shelter_b.png';
 import cinderFoxImg from '../assets/cinder_fox2.png';
 import tundraWolfImg from '../assets/tundra_wolf.png';
 import cableViperImg from '../assets/cable_viper.png';
-import walrusImg from '../assets/walrus.png';
+import walrusImg from '../assets/walrus2.png';
 
 // Import cloud image paths
 import cloud1Texture from '../assets/environment/clouds/cloud1.png';

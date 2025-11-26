@@ -6,12 +6,48 @@ import {
   ANIMAL_COLLISION_SIZES 
 } from '../animalCollisionUtils';
 
-// Import animal images from assets folder (consistent with other game assets)
-import cinderFoxImg from '../../assets/cinder_fox2.png';
-import tundraWolfImg from '../../assets/tundra_wolf.png';
-import cableViperImg from '../../assets/cable_viper.png';
-import walrusImg from '../../assets/walrus.png';
-import crabImg from '../../assets/crab.png';
+// Import sprite sheets (320x320, 3x3 grid, ~107x107 per frame)
+// These are the PRIMARY source for all animals
+import walrusWalkingSheet from '../../assets/walrus_walking.png';
+import foxWalkingSheet from '../../assets/fox_walking.png';
+import crabWalkingSheet from '../../assets/crab_walking.png';
+import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
+import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
+
+
+// --- Sprite Sheet Configuration ---
+// All animal sprite sheets follow the same 3x3 grid format (320x320 sheet)
+// Only 4 directional sprites are used (no walking animation frames):
+//   [0,0]    [0,1]     [0,2]      <- Row 0: unused, DOWN facing (middle), unused
+//   [1,0]    [1,1]     [1,2]      <- Row 1: LEFT facing, unused, RIGHT facing  
+//   [2,0]    [2,1]     [2,2]      <- Row 2: unused, UP facing (middle), unused
+
+const SPRITE_SHEET_CONFIG = {
+    sheetWidth: 320,
+    sheetHeight: 320,
+    sheetCols: 3,
+    sheetRows: 3,
+    // Direction to sprite position mapping (row, col) - just 4 static sprites
+    directionMap: {
+        'down':  { row: 0, col: 1 },  // Top middle
+        'up':    { row: 2, col: 1 },  // Bottom middle
+        'left':  { row: 1, col: 2 },  // Middle right (sprite faces left)
+        'right': { row: 1, col: 0 },  // Middle left (sprite faces right)
+    } as Record<string, { row: number; col: number }>,
+};
+
+// Calculate frame dimensions from sheet size
+const FRAME_WIDTH = Math.floor(SPRITE_SHEET_CONFIG.sheetWidth / SPRITE_SHEET_CONFIG.sheetCols);
+const FRAME_HEIGHT = Math.floor(SPRITE_SHEET_CONFIG.sheetHeight / SPRITE_SHEET_CONFIG.sheetRows);
+
+// Map species to their sprite sheets (all animals now have sprite sheets)
+const speciesSpriteSheets: Record<string, string> = {
+    'CinderFox': foxWalkingSheet,
+    'TundraWolf': tundraWolfWalkingSheet,
+    'CableViper': cableViperWalkingSheet,
+    'ArcticWalrus': walrusWalkingSheet,
+    'BeachCrab': crabWalkingSheet,
+};
 
 // --- Constants for damage visual effects ---
 const ANIMAL_SHAKE_DURATION_MS = 200; // How long the shake lasts
@@ -62,35 +98,65 @@ interface WildAnimalRenderProps {
     localPlayerPosition?: { x: number; y: number } | null;
 }
 
-// Get the appropriate image source for each species (using imported assets)
-function getAnimalImageSrc(species: AnimalSpecies, animalId?: bigint): string {
-    switch (species.tag) {
-        case 'CinderFox':
-            return cinderFoxImg;
-        case 'TundraWolf':
-            return tundraWolfImg;
-        case 'CableViper':
-            return cableViperImg;
-        case 'ArcticWalrus':
-            return walrusImg;
-        case 'BeachCrab':
-            return crabImg;
-        default:
-            return cinderFoxImg;
+// Get the sprite sheet for a species
+function getSpriteSheet(species: AnimalSpecies): string {
+    return speciesSpriteSheets[species.tag] || foxWalkingSheet; // Fallback to fox
+}
+
+// Get the source rectangle for a sprite from the sheet based on direction (no animation)
+function getSpriteSourceRect(
+    direction: string
+): { sx: number; sy: number; sw: number; sh: number } {
+    const { directionMap } = SPRITE_SHEET_CONFIG;
+    
+    // Normalize direction to 4-way (map 8-way to 4-way)
+    let normalizedDir = direction.toLowerCase();
+    
+    // Map diagonal directions to closest cardinal direction
+    if (normalizedDir === 'up_left' || normalizedDir === 'up-left' || normalizedDir === 'upleft') {
+        normalizedDir = 'left';
+    } else if (normalizedDir === 'up_right' || normalizedDir === 'up-right' || normalizedDir === 'upright') {
+        normalizedDir = 'right';
+    } else if (normalizedDir === 'down_left' || normalizedDir === 'down-left' || normalizedDir === 'downleft') {
+        normalizedDir = 'left';
+    } else if (normalizedDir === 'down_right' || normalizedDir === 'down-right' || normalizedDir === 'downright') {
+        normalizedDir = 'right';
     }
+    
+    // Default to 'down' if direction not found
+    if (!directionMap[normalizedDir]) {
+        normalizedDir = 'down';
+    }
+    
+    const { row, col } = directionMap[normalizedDir];
+    
+    return {
+        sx: col * FRAME_WIDTH,
+        sy: row * FRAME_HEIGHT,
+        sw: FRAME_WIDTH,
+        sh: FRAME_HEIGHT,
+    };
 }
 
 // Get species-specific rendering properties
 function getSpeciesRenderingProps(species: AnimalSpecies) {
-    // All animals now use the same square dimensions for consistency
-    const standardSize = 96; // Consistent square size for all animals
-    const standardShadow = 32; // Consistent shadow radius
-    
-    return { 
-        width: standardSize, 
-        height: standardSize, 
-        shadowRadius: standardShadow 
-    };
+    // Species-specific sizes
+    switch (species.tag) {
+        case 'ArcticWalrus':
+            // Walruses are large, hefty animals
+            return { width: 128, height: 128, shadowRadius: 40 };
+        case 'TundraWolf':
+            return { width: 96, height: 96, shadowRadius: 32 };
+        case 'CinderFox':
+            // Foxes are larger
+            return { width: 112, height: 112, shadowRadius: 32 };
+        case 'CableViper':
+            return { width: 72, height: 72, shadowRadius: 24 };
+        case 'BeachCrab':
+            return { width: 64, height: 64, shadowRadius: 20 };
+        default:
+            return { width: 96, height: 96, shadowRadius: 32 };
+    }
 }
 
 // Main wild animal rendering function
@@ -219,8 +285,13 @@ export function renderWildAnimal({
     // --- Flash Logic ---
     const isFlashing = animal.health > 0 && effectiveHitElapsed < ANIMAL_HIT_FLASH_DURATION_MS;
 
-    const imageSrc = getAnimalImageSrc(animal.species, animal.id);
-    const animalImage = imageManager.getImage(imageSrc);
+    // Get sprite sheet for this species (all animals use sprite sheets now)
+    const spriteSheetSrc = getSpriteSheet(animal.species);
+    const spriteSheetImage = imageManager.getImage(spriteSheetSrc);
+    
+    // Check if sprite sheet is loaded
+    const useSpriteSheet = spriteSheetImage && spriteSheetImage.complete;
+    const animalImage = spriteSheetImage;
     
     // Get fallback color for each species
     const getFallbackColor = (species: AnimalSpecies): string => {
@@ -246,41 +317,82 @@ export function renderWildAnimal({
     ctx.save();
     ctx.globalAlpha = alpha;
     
-    // Apply horizontal flipping based on facing direction
-    const shouldFlip = animal.facingDirection === "right";
+    // Note: No horizontal flipping needed - sprite sheets have all 4 directions
+    // Legacy flipping is only used for static images that don't have sprite sheets
+    const shouldFlip = !useSpriteSheet && animal.facingDirection === "right";
     if (shouldFlip) {
         ctx.scale(-1, 1); // Flip horizontally
         ctx.translate(-renderPosX * 2, 0); // Adjust position after flipping
     }
 
-    // Render shadow (always render shadows - no animals hide)
+    // Render dynamic shadow based on time of day (using current sprite frame)
     {
         ctx.save();
-        if (useImageFallback) {
-            // For fallback circles, create a simple shadow ellipse
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.beginPath();
-            ctx.ellipse(renderPosX, renderPosY + 20, props.width / 3, 8, 0, 0, Math.PI * 2);
-            ctx.fill();
+        if (useSpriteSheet && animalImage) {
+            // Create a temporary canvas to extract the current frame for shadow
+            const shadowCanvas = document.createElement('canvas');
+            shadowCanvas.width = FRAME_WIDTH;
+            shadowCanvas.height = FRAME_HEIGHT;
+            const shadowCtx = shadowCanvas.getContext('2d');
+            
+            if (shadowCtx) {
+                const spriteRect = getSpriteSourceRect(animal.facingDirection);
+                shadowCtx.drawImage(
+                    animalImage,
+                    spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
+                    0, 0, FRAME_WIDTH, FRAME_HEIGHT
+                );
+                
+                // Use the extracted frame for dynamic shadow
+                drawDynamicGroundShadow({
+                    ctx,
+                    entityImage: shadowCanvas as unknown as HTMLImageElement,
+                    entityCenterX: renderPosX,
+                    entityBaseY: renderPosY + props.height / 2,
+                    imageDrawWidth: props.width,
+                    imageDrawHeight: props.height,
+                    cycleProgress: cycleProgress,
+                    baseShadowColor: '0,0,0',
+                    maxShadowAlpha: 0.6,
+                    maxStretchFactor: 3.0,
+                    minStretchFactor: 0.25,
+                    shadowBlur: 2,
+                    pivotYOffset: 0,
+                    shakeOffsetX: shakeX,
+                    shakeOffsetY: shakeY,
+                });
+            }
         } else if (animalImage) {
-            // Use dynamic ground shadow matching player shadow parameters for consistency
+            // Static image - use directly for shadow
             drawDynamicGroundShadow({
                 ctx,
                 entityImage: animalImage,
                 entityCenterX: renderPosX,
-                entityBaseY: renderPosY + props.height / 2, // Bottom of the animal
+                entityBaseY: renderPosY + props.height / 2,
                 imageDrawWidth: props.width,
                 imageDrawHeight: props.height,
                 cycleProgress: cycleProgress,
                 baseShadowColor: '0,0,0',
-                maxShadowAlpha: 0.6, // Match player shadow opacity
-                maxStretchFactor: 3.0, // Match player dramatic shadows
-                minStretchFactor: 0.25, // Match player minimum visibility
-                shadowBlur: 2, // Match player base shadow blur
-                pivotYOffset: 0, // Match player pivot offset
+                maxShadowAlpha: 0.6,
+                maxStretchFactor: 3.0,
+                minStretchFactor: 0.25,
+                shadowBlur: 2,
+                pivotYOffset: 0,
                 shakeOffsetX: shakeX,
                 shakeOffsetY: shakeY,
             });
+        } else {
+            // Fallback ellipse shadow if no image available
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(
+                renderPosX + shakeX, 
+                renderPosY + props.height / 2 - 5 + shakeY,
+                props.width / 2.5,
+                props.height / 8,
+                0, 0, Math.PI * 2
+            );
+            ctx.fill();
         }
         ctx.restore();
     }
@@ -314,57 +426,110 @@ export function renderWildAnimal({
         const letter = animal.species.tag.charAt(0); // C, T, or C
         ctx.fillText(letter, centerX, centerY);
     } else {
-        // --- Prepare sprite on offscreen canvas (for white flash tinting) ---
+        // --- Prepare sprite on offscreen canvas (for white flash tinting and sprite sheet extraction) ---
         if (offscreenCtx && animalImage) {
-            offscreenCanvas.width = animalImage.width;
-            offscreenCanvas.height = animalImage.height;
-            offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            // Get sprite frame info for sprite sheets
+            const spriteRect = useSpriteSheet 
+                ? getSpriteSourceRect(animal.facingDirection)
+                : null;
             
-            // Draw the original image to the offscreen canvas
-            offscreenCtx.drawImage(animalImage, 0, 0);
+            if (useSpriteSheet && spriteRect) {
+                // Sprite sheet mode - extract and render specific frame
+                const { sx, sy, sw, sh } = spriteRect;
+                
+                // Size offscreen canvas to single frame
+                offscreenCanvas.width = sw;
+                offscreenCanvas.height = sh;
+                offscreenCtx.clearRect(0, 0, sw, sh);
+                
+                // Draw the specific frame from sprite sheet
+                offscreenCtx.drawImage(
+                    animalImage,
+                    sx, sy, sw, sh,  // Source rectangle (frame from sheet)
+                    0, 0, sw, sh      // Destination on offscreen canvas
+                );
+                
+                // Apply white flash if needed
+                if (isFlashing) {
+                    offscreenCtx.globalCompositeOperation = 'source-in';
+                    offscreenCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                    offscreenCtx.fillRect(0, 0, sw, sh);
+                    offscreenCtx.globalCompositeOperation = 'source-over';
+                }
+                
+                // Draw the frame to main canvas (scaled to animal size)
+                ctx.drawImage(
+                    offscreenCanvas,
+                    renderX,
+                    renderY,
+                    props.width,
+                    props.height
+                );
+            } else {
+                // Static image mode (original behavior)
+                offscreenCanvas.width = animalImage.width;
+                offscreenCanvas.height = animalImage.height;
+                offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+                
+                // Draw the original image to the offscreen canvas
+                offscreenCtx.drawImage(animalImage, 0, 0);
 
-            // Apply white flash if needed
-            if (isFlashing) {
-                offscreenCtx.globalCompositeOperation = 'source-in';
-                offscreenCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                offscreenCtx.globalCompositeOperation = 'source-over';
+                // Apply white flash if needed
+                if (isFlashing) {
+                    offscreenCtx.globalCompositeOperation = 'source-in';
+                    offscreenCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                    offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+                    offscreenCtx.globalCompositeOperation = 'source-over';
+                }
+
+                // Draw the (possibly tinted) offscreen canvas to the main canvas
+                ctx.drawImage(
+                    offscreenCanvas,
+                    renderX,
+                    renderY,
+                    props.width,
+                    props.height
+                );
             }
-
-            // Draw the (possibly tinted) offscreen canvas to the main canvas
-            ctx.drawImage(
-                offscreenCanvas,
-                renderX,
-                renderY,
-                props.width,
-                props.height
-            );
         } else {
             // Fallback: draw image directly without flash effect
-            ctx.drawImage(
-                animalImage!,
-                renderX,
-                renderY,
-                props.width,
-                props.height
-            );
+            if (useSpriteSheet) {
+                const spriteRect = getSpriteSourceRect(animal.facingDirection);
+                ctx.drawImage(
+                    animalImage!,
+                    spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
+                    renderX,
+                    renderY,
+                    props.width,
+                    props.height
+                );
+            } else {
+                ctx.drawImage(
+                    animalImage!,
+                    renderX,
+                    renderY,
+                    props.width,
+                    props.height
+                );
+            }
         }
     }
 
     ctx.restore();
 }
 
-// Preload wild animal images using imageManager (using imported assets)
+// Preload wild animal images using imageManager
 export function preloadWildAnimalImages(): void {
-    const imagesToLoad = [
-        cinderFoxImg,
-        tundraWolfImg,
-        cableViperImg,
-        walrusImg,
-        crabImg
+    // All animal sprite sheets
+    const spriteSheets = [
+        walrusWalkingSheet,
+        foxWalkingSheet,
+        crabWalkingSheet,
+        tundraWolfWalkingSheet,
+        cableViperWalkingSheet,
     ];
     
-    imagesToLoad.forEach(imageSrc => {
+    spriteSheets.forEach(imageSrc => {
         imageManager.preloadImage(imageSrc);
     });
 }

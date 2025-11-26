@@ -1553,10 +1553,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         (AnimalSpecies::CinderFox, 40),      // 40% - Most common
         (AnimalSpecies::ArcticWalrus, 20),   // 20% - Common (beaches only)
         (AnimalSpecies::BeachCrab, 30),      // 30% - Common beach creature
-        // TundraWolf removed - no wolves spawning
-        // (AnimalSpecies::TundraWolf, 30),     // 30% - Moderately common
-        // CableViper removed - no snakes spawning
-        // (AnimalSpecies::CableViper, 20),     // 20% - Uncommon
+        (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
+        (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

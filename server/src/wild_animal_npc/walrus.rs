@@ -656,17 +656,25 @@ fn execute_light_curiosity_orbit(
         animal.direction_x = move_dx / move_distance;
         animal.direction_y = move_dy / move_distance;
         
+        // Store starting position
+        let start_x = animal.pos_x;
+        let start_y = animal.pos_y;
+        
         // Move at slow patrol speed (walruses are curious, not urgent)
         let move_speed = stats.movement_speed * 0.5 * dt; // Half patrol speed
         
         animal.pos_x += animal.direction_x * move_speed;
         animal.pos_y += animal.direction_y * move_speed;
         
-        // Update facing direction based on movement
-        if animal.direction_x > 0.1 {
-            animal.facing_direction = "right".to_string();
-        } else if animal.direction_x < -0.1 {
-            animal.facing_direction = "left".to_string();
+        // Update facing direction based on ACTUAL movement delta (4 directions)
+        let actual_move_x = animal.pos_x - start_x;
+        let actual_move_y = animal.pos_y - start_y;
+        if actual_move_x.abs() > 2.0 || actual_move_y.abs() > 2.0 {
+            if actual_move_x.abs() > actual_move_y.abs() {
+                animal.facing_direction = if actual_move_x > 0.0 { "right".to_string() } else { "left".to_string() };
+            } else {
+                animal.facing_direction = if actual_move_y > 0.0 { "down".to_string() } else { "up".to_string() };
+            }
         }
     }
     
