@@ -82,6 +82,8 @@ const DEBUG_OVERRIDES: { [bitmask: number]: number } = {
     5: 14,
     17: 14,
     18: 20,
+    171: 47,
+    213: 47,
     55: 47,
     21: 14,
     73: 12,

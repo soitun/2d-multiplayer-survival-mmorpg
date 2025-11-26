@@ -89,6 +89,32 @@ const DENSE_FOREST_NOISE_FREQUENCY: f64 = 0.003; // Large-scale forest regions
 const DENSE_FOREST_THRESHOLD: f64 = 0.6; // Areas above this are dense forests
 const DENSE_FOREST_MULTIPLIER: f32 = 3.0; // 3x tree density in dense forests
 
+// --- Resource Scaling Constants ---
+// Reference point for resource density calculations (600x600 map)
+const BASE_AREA_TILES: f32 = 360_000.0; // 600x600 reference map
+
+// Base counts for 600x600 map (optimized for competitive but not frustrating gameplay)
+const BASE_TREE_COUNT_600X600: u32 = 900;   // ~0.25% density, ~480px avg spacing
+const BASE_STONE_COUNT_600X600: u32 = 100;  // ~3s walk to find one
+const BASE_BARREL_CLUSTERS_600X600: u32 = 14; // Rare, contested PvP hotspots
+
+/// Calculate resource count with sublinear scaling for any map size.
+/// Uses 600x600 (360k tiles) as the reference point.
+/// 
+/// The 0.85 exponent creates sublinear scaling so that:
+/// - Smaller maps (300x300) get proportionally MORE resources per area
+/// - Larger maps (900x900) get proportionally FEWER resources per area
+/// - This keeps gameplay balanced regardless of map size
+/// 
+/// Examples:
+/// - 300x300 (0.25x area): scale=0.29, trees=261, stones=29
+/// - 600x600 (1.00x area): scale=1.00, trees=900, stones=100
+/// - 800x800 (1.78x area): scale=1.58, trees=1422, stones=158
+fn scale_resource_count(base_count_at_600x600: u32, current_tiles: u32) -> u32 {
+    let scale_factor = (current_tiles as f32 / BASE_AREA_TILES).powf(0.85);
+    (base_count_at_600x600 as f32 * scale_factor).round().max(1.0) as u32
+}
+
 // --- Helper function to calculate chunk index ---
 pub fn calculate_chunk_index(pos_x: f32, pos_y: f32) -> u32 {
     // Convert position to tile coordinates
@@ -897,11 +923,16 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
     let total_tiles = crate::WORLD_WIDTH_TILES * crate::WORLD_HEIGHT_TILES;
 
-    // Calculate targets and limits
-    let target_tree_count = (total_tiles as f32 * crate::tree::TREE_DENSITY_PERCENT) as u32;
+    // Calculate targets and limits using sublinear scaling
+    // Trees: 900 on 600x600 reference map, scales sublinearly to other sizes
+    let target_tree_count = scale_resource_count(BASE_TREE_COUNT_600X600, total_tiles);
     let max_tree_attempts = target_tree_count * crate::tree::MAX_TREE_SEEDING_ATTEMPTS_FACTOR;
-    let target_stone_count = (total_tiles as f32 * crate::stone::STONE_DENSITY_PERCENT) as u32;
+    
+    // Stones: 100 on 600x600 reference map, scales sublinearly to other sizes
+    let target_stone_count = scale_resource_count(BASE_STONE_COUNT_600X600, total_tiles);
     let max_stone_attempts = target_stone_count * crate::tree::MAX_TREE_SEEDING_ATTEMPTS_FACTOR;
+    
+    // Sea stacks: keep original density-based calculation
     let target_sea_stack_count = (total_tiles as f32 * SEA_STACK_DENSITY_PERCENT) as u32;
     let max_sea_stack_attempts = target_sea_stack_count * crate::tree::MAX_TREE_SEEDING_ATTEMPTS_FACTOR;
 

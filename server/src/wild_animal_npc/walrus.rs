@@ -4,8 +4,13 @@
  *                                                                            *
  * Walruses are massive, slow defensive animals that patrol beaches.         *
  * They only attack when provoked (attacked first), never flee from threats, *
- * ignore fire completely, and are extremely persistent once engaged.        *
+ * and are extremely persistent once engaged.                                *
  * Strong but slow with equal movement and sprint speeds.                    *
+ *                                                                            *
+ * UNIQUE TRAIT: Walruses are CURIOUS about light sources (campfires,        *
+ * lanterns). Instead of fearing fire like other animals, they will          *
+ * investigate and slowly circle around warm glowing lights, watching        *
+ * with fascination while keeping a safe distance.                           *
  *                                                                            *
  ******************************************************************************/
 
@@ -19,6 +24,8 @@ use crate::utils::get_distance_squared;
 
 // Table trait imports
 use crate::player as PlayerTableTrait;
+use crate::campfire::campfire as CampfireTableTrait;
+use crate::lantern::lantern as LanternTableTrait;
 use super::core::{
     AnimalBehavior, AnimalStats, AnimalState, MovementPattern, WildAnimal, AnimalSpecies,
     move_towards_target, can_attack, transition_to_state, emit_species_sound,
@@ -26,6 +33,14 @@ use super::core::{
     TAMING_PROTECT_RADIUS, ThreatType, detect_threats_to_owner, find_closest_threat,
     handle_generic_threat_targeting, detect_and_handle_stuck_movement,
 };
+
+// Walrus light curiosity constants
+const LIGHT_CURIOSITY_DETECTION_RADIUS: f32 = 350.0; // How far walrus can detect light sources
+const LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED: f32 = LIGHT_CURIOSITY_DETECTION_RADIUS * LIGHT_CURIOSITY_DETECTION_RADIUS;
+const LIGHT_CURIOSITY_MIN_DISTANCE: f32 = 120.0; // Minimum distance to keep from light source
+const LIGHT_CURIOSITY_MAX_DISTANCE: f32 = 180.0; // Maximum distance to orbit at
+const LIGHT_CURIOSITY_ORBIT_SPEED: f32 = 0.4; // Radians per second for circling (slow, curious pace)
+const LIGHT_CURIOSITY_CHANCE: f32 = 0.02; // 2% chance per tick to notice light when patrolling
 
 pub struct ArcticWalrusBehavior;
 
@@ -136,6 +151,7 @@ impl AnimalBehavior for ArcticWalrusBehavior {
         // 🦭 WILD WALRUS BEHAVIOR: Normal defensive walrus logic
         match animal.state {
             AnimalState::Patrolling => {
+                // First check for nearby players that might make us alert
                 if let Some(player) = detected_player {
                     let distance = get_player_distance(animal, player);
                     
@@ -148,7 +164,81 @@ impl AnimalBehavior for ArcticWalrusBehavior {
                         
                         log::info!("Arctic Walrus {} becomes alert - player {} approaching at {:.1}px", 
                                   animal.id, player.identity, distance);
+                        return Ok(());
                     }
+                }
+                
+                // 🔥 LIGHT CURIOSITY: Check for nearby light sources (campfires, lanterns)
+                // Walruses are curious about warm glowing lights - they'll investigate!
+                if rng.gen::<f32>() < LIGHT_CURIOSITY_CHANCE {
+                    if let Some((light_x, light_y, _distance_sq)) = find_nearest_light_source(ctx, animal.pos_x, animal.pos_y) {
+                        // Set investigation target to the light source
+                        animal.investigation_x = Some(light_x);
+                        animal.investigation_y = Some(light_y);
+                        
+                        transition_to_state(animal, AnimalState::Investigating, current_time, None, "curious about light");
+                        
+                        log::info!("🦭🔥 Arctic Walrus {} curious about light source at ({:.1}, {:.1}) - investigating!", 
+                                  animal.id, light_x, light_y);
+                    }
+                }
+            },
+            
+            AnimalState::Investigating => {
+                // 🔥 LIGHT CURIOSITY BEHAVIOR: Circle around light sources at safe distance
+                if let (Some(light_x), Some(light_y)) = (animal.investigation_x, animal.investigation_y) {
+                    // Check if the light source is still active
+                    let light_still_active = find_nearest_light_source(ctx, light_x, light_y)
+                        .map(|(lx, ly, _)| {
+                            let dx = lx - light_x;
+                            let dy = ly - light_y;
+                            (dx * dx + dy * dy) < 100.0 // Within 10px = same light source
+                        })
+                        .unwrap_or(false);
+                    
+                    if !light_still_active {
+                        // Light went out or was destroyed - return to patrol
+                        animal.investigation_x = None;
+                        animal.investigation_y = None;
+                        transition_to_state(animal, AnimalState::Patrolling, current_time, None, "light source gone");
+                        log::debug!("Arctic Walrus {} - light source gone, returning to patrol", animal.id);
+                        return Ok(());
+                    }
+                    
+                    // Check if player gets too close while investigating
+                    if let Some(player) = detected_player {
+                        let distance = get_player_distance(animal, player);
+                        if distance <= stats.perception_range * 0.4 { // Alert at 40% range while investigating
+                            animal.investigation_x = None;
+                            animal.investigation_y = None;
+                            transition_to_state(animal, AnimalState::Alert, current_time, None, "player too close");
+                            emit_species_sound(ctx, animal, player.identity, "warning");
+                            log::info!("Arctic Walrus {} becomes alert - player interrupted light watching", animal.id);
+                            return Ok(());
+                        }
+                    }
+                    
+                    // 🔄 Execute orbiting movement around the light source
+                    // Using AI tick interval approximation (~66ms per tick)
+                    let dt = 0.066_f32;
+                    execute_light_curiosity_orbit(animal, light_x, light_y, dt, stats, rng);
+                    
+                    // Occasionally emit a curious grunt while watching the light
+                    if rng.gen::<f32>() < 0.005 { // 0.5% chance per tick
+                        crate::sound_events::emit_walrus_growl_sound(ctx, animal.pos_x, animal.pos_y, ctx.identity());
+                        log::debug!("Arctic Walrus {} grunts curiously at the light", animal.id);
+                    }
+                    
+                    // Randomly decide to stop watching after some time (average ~1 minute watching)
+                    if rng.gen::<f32>() < 0.001 {
+                        animal.investigation_x = None;
+                        animal.investigation_y = None;
+                        transition_to_state(animal, AnimalState::Patrolling, current_time, None, "lost interest in light");
+                        log::debug!("Arctic Walrus {} lost interest in light, resuming patrol", animal.id);
+                    }
+                } else {
+                    // No investigation target - return to patrol
+                    transition_to_state(animal, AnimalState::Patrolling, current_time, None, "no investigation target");
                 }
             },
             
@@ -477,4 +567,119 @@ fn find_nearby_walrus_group_center(ctx: &ReducerContext, current_walrus: &WildAn
     let count = nearby_walruses.len() as f32;
     
     Some((total_x / count, total_y / count))
+}
+
+/******************************************************************************
+ *                       LIGHT CURIOSITY BEHAVIOR                             *
+ *                                                                            *
+ * Walruses are curious about light sources (campfires, lanterns).            *
+ * They will keep their distance but hover relatively close and circle       *
+ * around player campfires - watching the warm glow with interest.           *
+ ******************************************************************************/
+
+/// Find the closest active light source (burning campfire or lit lantern) within detection range
+fn find_nearest_light_source(ctx: &ReducerContext, walrus_x: f32, walrus_y: f32) -> Option<(f32, f32, f32)> {
+    let mut closest_light: Option<(f32, f32, f32)> = None; // (x, y, distance_sq)
+    let mut closest_distance_sq = LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED;
+    
+    // Check burning campfires
+    for campfire in ctx.db.campfire().iter() {
+        if !campfire.is_burning || campfire.is_destroyed {
+            continue;
+        }
+        
+        let dx = walrus_x - campfire.pos_x;
+        let dy = walrus_y - campfire.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED && distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_light = Some((campfire.pos_x, campfire.pos_y, distance_sq));
+        }
+    }
+    
+    // Check lit lanterns
+    for lantern in ctx.db.lantern().iter() {
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+        
+        let dx = walrus_x - lantern.pos_x;
+        let dy = walrus_y - lantern.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED && distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_light = Some((lantern.pos_x, lantern.pos_y, distance_sq));
+        }
+    }
+    
+    closest_light
+}
+
+/// Execute circling behavior around a light source
+/// Walrus will orbit at a safe distance, slowly circling the light with curiosity
+fn execute_light_curiosity_orbit(
+    animal: &mut WildAnimal, 
+    light_x: f32, 
+    light_y: f32, 
+    dt: f32,
+    stats: &AnimalStats,
+    rng: &mut impl Rng,
+) {
+    let dx = animal.pos_x - light_x;
+    let dy = animal.pos_y - light_y;
+    let current_distance = (dx * dx + dy * dy).sqrt();
+    
+    // Calculate current angle from light to walrus
+    let current_angle = dy.atan2(dx);
+    
+    // Advance the orbit angle (walruses circle slowly, clockwise)
+    // Add some randomness to make it look more natural
+    let orbit_variation = if rng.gen::<f32>() < 0.1 { rng.gen::<f32>() * 0.2 - 0.1 } else { 0.0 };
+    let new_angle = current_angle + (LIGHT_CURIOSITY_ORBIT_SPEED + orbit_variation) * dt;
+    
+    // Determine target orbit distance (within min/max range)
+    let target_distance = (LIGHT_CURIOSITY_MIN_DISTANCE + LIGHT_CURIOSITY_MAX_DISTANCE) / 2.0;
+    
+    // Calculate target position on the orbit circle
+    let target_x = light_x + target_distance * new_angle.cos();
+    let target_y = light_y + target_distance * new_angle.sin();
+    
+    // Calculate direction to target orbit position
+    let move_dx = target_x - animal.pos_x;
+    let move_dy = target_y - animal.pos_y;
+    let move_distance = (move_dx * move_dx + move_dy * move_dy).sqrt();
+    
+    if move_distance > 1.0 {
+        // Normalize direction
+        animal.direction_x = move_dx / move_distance;
+        animal.direction_y = move_dy / move_distance;
+        
+        // Move at slow patrol speed (walruses are curious, not urgent)
+        let move_speed = stats.movement_speed * 0.5 * dt; // Half patrol speed
+        
+        animal.pos_x += animal.direction_x * move_speed;
+        animal.pos_y += animal.direction_y * move_speed;
+        
+        // Update facing direction based on movement
+        if animal.direction_x > 0.1 {
+            animal.facing_direction = "right".to_string();
+        } else if animal.direction_x < -0.1 {
+            animal.facing_direction = "left".to_string();
+        }
+    }
+    
+    // If too close to the light, back off
+    if current_distance < LIGHT_CURIOSITY_MIN_DISTANCE {
+        // Move away from light
+        if current_distance > 0.0 {
+            let away_x = dx / current_distance;
+            let away_y = dy / current_distance;
+            let backup_speed = stats.movement_speed * 0.3 * dt;
+            
+            animal.pos_x += away_x * backup_speed;
+            animal.pos_y += away_y * backup_speed;
+        }
+    }
 }

@@ -413,11 +413,12 @@ Return a JSON object with these exact fields:
   }
 });
 
-// Gemini Icon Generation (using Imagen 3 via REST API for best results)
+// OpenAI DALL-E 2 Icon Generation (fast, cheap, great for pixel art)
+// Cost: ~$0.016-0.020 per 256x256 image
 app.post('/api/gemini/icon', async (req, res) => {
   try {
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'Gemini API key not configured' });
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OpenAI API key not configured' });
     }
 
     const { subject } = req.body;
@@ -426,103 +427,57 @@ app.post('/api/gemini/icon', async (req, res) => {
       return res.status(400).json({ error: 'Subject string required' });
     }
 
-    console.log(`[Proxy] Gemini icon request: ${subject}`);
+    console.log(`[Proxy] DALL-E icon request: ${subject}`);
 
-    // Concise pixel art prompt - Imagen works better with simpler prompts
-    const iconPrompt = `Pixel art game icon of ${subject}, 64x64, transparent background, clean black outlines, top-down RPG style, warm colors`;
+    // Optimized pixel art prompt for DALL-E 2 - emphasizes transparent PNG background
+    const iconPrompt = `A pixel art style ${subject} with consistent pixel width and clean black outlines, designed as a game item icon. Rendered with a transparent background, PNG format. The object should have a clear silhouette, sharp pixel-level detail, and fit naturally in a top-down RPG game like Secret of Mana. No background, no shadows outside the object. Stylized with a warm palette and light dithering where appropriate.`;
 
-    // Try Imagen 3 first (best for image generation)
-    try {
-      const imagenResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            instances: [{ prompt: iconPrompt }],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: '1:1',
-              outputOptions: { mimeType: 'image/png' }
-            }
-          })
-        }
-      );
-
-      if (imagenResponse.ok) {
-        const imagenData = await imagenResponse.json() as { predictions?: Array<{ bytesBase64Encoded?: string }> };
-        const predictions = imagenData.predictions || [];
-        if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
-          console.log(`[Proxy] Generated icon via Imagen 3 successfully`);
-          return res.json({
-            icon_base64: predictions[0].bytesBase64Encoded,
-            mime_type: 'image/png',
-          });
-        }
-      } else {
-        const errorText = await imagenResponse.text();
-        console.log(`[Proxy] Imagen 3 not available (${imagenResponse.status}), trying Gemini fallback: ${errorText.substring(0, 100)}`);
-      }
-    } catch (imagenError: any) {
-      console.log(`[Proxy] Imagen 3 error, trying Gemini fallback: ${imagenError.message}`);
-    }
-
-    // Fallback to Gemini 2.0 Flash with image generation
-    const model = genAI!.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        temperature: 0.4,
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
+      body: JSON.stringify({
+        model: 'dall-e-2',
+        prompt: iconPrompt,
+        n: 1,
+        size: '256x256',
+        response_format: 'b64_json',
+      }),
     });
 
-    try {
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: [{ text: `Generate a pixel art game icon: ${iconPrompt}` }]
-        }],
-        generationConfig: {
-          responseModalities: ['image', 'text'],
-          responseMimeType: 'text/plain',
-        } as any,
-      });
-
-      const response = result.response;
-      
-      // Check if we got an image in the response
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      for (const part of parts) {
-        if ((part as any).inlineData?.mimeType?.startsWith('image/')) {
-          const imageData = (part as any).inlineData;
-          console.log(`[Proxy] Generated icon successfully`);
-          return res.json({
-            icon_base64: imageData.data,
-            mime_type: imageData.mimeType,
-          });
-        }
-      }
-
-      // If no image was generated, return a placeholder indicator
-      console.log(`[Proxy] No image in response, returning placeholder indicator`);
+    if (!response.ok) {
+      const errorData = await response.json() as { error?: { message?: string } };
+      console.error(`[Proxy] DALL-E error (${response.status}):`, errorData);
       return res.json({
         icon_base64: null,
         placeholder: true,
         description: subject,
-      });
-
-    } catch (imageError: any) {
-      // Image generation may not be available - return placeholder
-      console.log(`[Proxy] Image generation not available: ${imageError.message}`);
-      return res.json({
-        icon_base64: null,
-        placeholder: true,
-        description: subject,
-        error: 'Image generation not available, use placeholder'
+        error: errorData.error?.message || 'DALL-E generation failed'
       });
     }
 
+    const data = await response.json() as { data?: Array<{ b64_json?: string }> };
+    
+    if (data.data && data.data[0]?.b64_json) {
+      console.log(`[Proxy] Generated icon via DALL-E 2 successfully`);
+      return res.json({
+        icon_base64: data.data[0].b64_json,
+        mime_type: 'image/png',
+      });
+    }
+
+    // If no image was generated, return a placeholder indicator
+    console.log(`[Proxy] No image in DALL-E response, returning placeholder`);
+    return res.json({
+      icon_base64: null,
+      placeholder: true,
+      description: subject,
+    });
+
   } catch (error: any) {
-    console.error('[Proxy] Gemini icon error:', error);
+    console.error('[Proxy] DALL-E icon error:', error);
     res.status(500).json({ error: error.message || 'Icon generation failed' });
   }
 });
@@ -533,7 +488,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   OpenAI Whisper: POST /api/whisper/transcribe`);
   console.log(`   OpenAI Chat: POST /api/openai/chat`);
   console.log(`   Gemini Brew: POST /api/gemini/brew`);
-  console.log(`   Gemini Icon: POST /api/gemini/icon`);
+  console.log(`   DALL-E 2 Icon: POST /api/gemini/icon`);
   console.log(`   Health Check: GET /health`);
 });
 

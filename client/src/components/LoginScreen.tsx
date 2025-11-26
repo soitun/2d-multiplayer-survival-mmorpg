@@ -393,7 +393,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                             { label: 'ABOUT', selector: '[data-about-section]' },
                             { label: 'LOADOUT', selector: '[data-tools-section]' },
                             { label: 'FEATURES', selector: '[data-features-section]' },
-                            { label: 'NEWS', selector: '[data-blog-section]' },
+                            { label: 'BLOG', selector: '[data-blog-section]' },
                             { label: 'FAQ', selector: '[data-faq-section]' },
                         ].map((item) => (
                             <button

@@ -36,7 +36,7 @@ const BlogHeader: React.FC = () => {
             }}>
                 {/* Logo */}
                 <div 
-                    onClick={() => handleNavigate('/blog')}
+                    onClick={() => handleNavigate('/')}
                     style={{
                         display: 'flex',
                         alignItems: 'center',

@@ -3,14 +3,11 @@ use spacetimedb::{Timestamp};
 // Import necessary constants
 use crate::{PLAYER_RADIUS}; // Removed unused TILE_SIZE_PX
 
-// Import tree constants needed for density calculation
-use crate::tree::TREE_DENSITY_PERCENT;
-
 // --- Stone-Specific Constants ---
 pub(crate) const STONE_RADIUS: f32 = 40.0;
 pub(crate) const PLAYER_STONE_COLLISION_DISTANCE_SQUARED: f32 = (PLAYER_RADIUS + STONE_RADIUS) * (PLAYER_RADIUS + STONE_RADIUS);
 pub(crate) const STONE_COLLISION_Y_OFFSET: f32 = 50.0;
-pub(crate) const STONE_DENSITY_PERCENT: f32 = crate::tree::TREE_DENSITY_PERCENT / 20.0; // Reduced to half the previous amount
+pub(crate) const STONE_DENSITY_PERCENT: f32 = 0.000278; // ~100 stones on 600x600 map (3x previous)
 pub(crate) const MIN_STONE_DISTANCE_PX: f32 = 150.0;
 pub(crate) const MIN_STONE_DISTANCE_SQ: f32 = MIN_STONE_DISTANCE_PX * MIN_STONE_DISTANCE_PX;
 pub(crate) const MIN_STONE_TREE_DISTANCE_PX: f32 = 100.0;

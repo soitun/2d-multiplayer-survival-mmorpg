@@ -46,8 +46,9 @@ pub const BARREL_RESPAWN_TIME_SECONDS: u32 = 600; // 10 minutes respawn time
 pub const BARREL_ATTACK_COOLDOWN_MS: u64 = 1000; // 1 second between attacks (used by damage_barrel for cooldown checks)
 
 /// Density of barrel clusters per map tile. Used to scale clusters with map size.
-/// Baseline: 500x500 tiles (250,000) -> 250000 * 0.00008 = 20 clusters.
-pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.00008;
+/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.00004 = 14 clusters.
+/// Barrels are rare, contested PvP hotspots - not meant to be everywhere.
+pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.00004;
 /// How many dirt road tiles roughly correspond to one barrel cluster capacity.
 /// Used as an upper bound so road-heavy maps don't explode cluster counts.
 pub const ROAD_TILES_PER_CLUSTER: f32 = 200.0;
