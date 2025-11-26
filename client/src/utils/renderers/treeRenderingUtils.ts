@@ -50,19 +50,19 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
                 targetWidth = 400; // Same size as MannaAsh variant A
                 break;
             case 'DownyOak':
-                imageSource = downyOakImage;
+                imageSource = sitkaSpruceImage;
                 targetWidth = 480; // Full size (same as old uniform height)
                 break;
             case 'StonePine':
-                imageSource = stonePineImage;
+                imageSource = beachBirchImage;
                 targetWidth = 360; // 25% shorter than Sitka Spruce
                 break;
             case 'StonePine2':
-                imageSource = stonePineImage2;
+                imageSource = beachBirchImage2;
                 targetWidth = 360; // Same size as StonePine variant A
                 break;
             default:
-                imageSource = downyOakImage;
+                imageSource = sitkaSpruceImage;
                 targetWidth = TARGET_TREE_WIDTH_PX; // Fallback to Sitka Spruce size
         }
         
@@ -253,9 +253,9 @@ const treeConfig: GroundEntityConfig<Tree> = {
 imageManager.preloadImage(birchImage);
 imageManager.preloadImage(mountainHemlockImage);
 imageManager.preloadImage(mountainHemlockImage2);
-imageManager.preloadImage(downyOakImage);
-imageManager.preloadImage(stonePineImage);
-imageManager.preloadImage(stonePineImage2);
+imageManager.preloadImage(sitkaSpruceImage);
+imageManager.preloadImage(beachBirchImage);
+imageManager.preloadImage(beachBirchImage2);
 
 // Refactored rendering function
 export function renderTree(
