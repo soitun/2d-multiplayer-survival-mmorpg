@@ -508,7 +508,8 @@ export function renderSeaStackSingle(
   doodadImages: Map<string, HTMLImageElement> | null,
   cycleProgress?: number, // Day/night cycle for dynamic shadows
   currentTimeMs?: number, // Current time for animations
-  renderHalfMode?: 'top' | 'bottom' | 'full' // NEW: Control which half to render
+  renderHalfMode?: 'top' | 'bottom' | 'full', // Control which half to render
+  localPlayerPosition?: { x: number; y: number } | null // Player position for transparency logic
 ): void {
   // Trigger image preloading on first call
   preloadSeaStackImages();
@@ -541,6 +542,61 @@ export function renderSeaStackSingle(
         opacity: seaStack.opacity || 1.0,
         imageIndex: imageIndex
       };
+    
+    // Calculate transparency when player is behind sea stack (same logic as trees)
+    const MIN_ALPHA = 0.3;
+    const MAX_ALPHA = 1.0;
+    let stackAlpha = clientStack.opacity;
+    
+    if (localPlayerPosition) {
+      // Calculate sea stack dimensions
+      const width = SEA_STACK_CONFIG.BASE_WIDTH * clientStack.scale;
+      const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
+      
+      // Sea stacks have lots of transparent space - use tighter bounds for actual rock
+      // The rock texture is roughly 30% of the width (centered) and 70% of height (from bottom)
+      const rockWidth = width * 0.3;
+      const rockHeight = height * 0.7;
+      
+      // Sea stack bounding box for overlap detection (tighter to actual rock)
+      const stackLeft = clientStack.x - rockWidth / 2;
+      const stackRight = clientStack.x + rockWidth / 2;
+      const stackTop = clientStack.y - rockHeight;
+      const stackBottom = clientStack.y;
+      
+      // Player bounding box
+      const playerSize = 48;
+      const playerLeft = localPlayerPosition.x - playerSize / 2;
+      const playerRight = localPlayerPosition.x + playerSize / 2;
+      const playerTop = localPlayerPosition.y - playerSize;
+      const playerBottom = localPlayerPosition.y;
+      
+      // Check if player overlaps with sea stack visually
+      const overlapsHorizontally = playerRight > stackLeft && playerLeft < stackRight;
+      const overlapsVertically = playerBottom > stackTop && playerTop < stackBottom;
+      
+      // Sea stack should be transparent if:
+      // 1. It overlaps with player visually
+      // 2. Stack renders AFTER player (stack.y > player.y means stack is in front in Y-sort)
+      if (overlapsHorizontally && overlapsVertically && clientStack.y > localPlayerPosition.y) {
+        // Calculate how much the player is behind the stack (for smooth fade)
+        const depthDifference = clientStack.y - localPlayerPosition.y;
+        const maxDepthForFade = 100; // Same as trees
+        
+        if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+          // Closer to stack = more transparent
+          const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+          stackAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+          stackAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, stackAlpha));
+        } else if (depthDifference >= maxDepthForFade) {
+          // Very close - use minimum alpha
+          stackAlpha = MIN_ALPHA;
+        }
+      }
+    }
+    
+    // Update client stack opacity with calculated alpha
+    clientStack.opacity = stackAlpha;
       
     // Render with water effects, but skip shadow (drawn separately)
     renderSeaStack(ctx, clientStack, stackImage, cycleProgress, false, true, currentTimeMs || Date.now(), renderHalfMode);

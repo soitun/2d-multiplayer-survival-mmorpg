@@ -77,11 +77,59 @@ export function renderBasaltColumn(
     ctx: CanvasRenderingContext2D,
     basaltColumn: BasaltColumn,
     nowMs: number,
-    cycleProgress: number
+    cycleProgress: number,
+    localPlayerPosition?: { x: number; y: number } | null // Player position for transparency logic
 ): void {
-    // console.log(`🗿 [BASALT RENDER] Rendering basalt column ${basaltColumn.id} at (${basaltColumn.posX}, ${basaltColumn.posY}), type: ${basaltColumn.columnType}`);
-    // console.log(`🗿 [BASALT RENDER] Image sources:`, { type1: basaltColumn1Image, type2: basaltColumn2Image, type3: basaltColumn3Image });
-    // console.log(`🗿 [BASALT RENDER] Config:`, basaltColumnConfig);
+    // Calculate if basalt column visually overlaps and occludes the player (same logic as trees)
+    const MIN_ALPHA = 0.3; // Minimum opacity when blocking player
+    const MAX_ALPHA = 1.0; // Full opacity when not blocking
+    
+    let columnAlpha = MAX_ALPHA;
+    
+    if (localPlayerPosition) {
+        // Basalt column bounding box for overlap detection
+        const columnLeft = basaltColumn.posX - BASALT_COLUMN_WIDTH / 2;
+        const columnRight = basaltColumn.posX + BASALT_COLUMN_WIDTH / 2;
+        const columnTop = basaltColumn.posY - BASALT_COLUMN_HEIGHT + 20; // Match calculateDrawPosition anchor
+        const columnBottom = basaltColumn.posY + 20;
+        
+        // Player bounding box
+        const playerSize = 48;
+        const playerLeft = localPlayerPosition.x - playerSize / 2;
+        const playerRight = localPlayerPosition.x + playerSize / 2;
+        const playerTop = localPlayerPosition.y - playerSize;
+        const playerBottom = localPlayerPosition.y;
+        
+        // Check if player overlaps with basalt column visually
+        const overlapsHorizontally = playerRight > columnLeft && playerLeft < columnRight;
+        const overlapsVertically = playerBottom > columnTop && playerTop < columnBottom;
+        
+        // Basalt column should be transparent if:
+        // 1. It overlaps with player visually
+        // 2. Column renders AFTER player (column.posY > player.posY means column is in front in Y-sort)
+        if (overlapsHorizontally && overlapsVertically && basaltColumn.posY > localPlayerPosition.y) {
+            // Calculate how much the player is behind the column (for smooth fade)
+            const depthDifference = basaltColumn.posY - localPlayerPosition.y;
+            const maxDepthForFade = 100; // Max distance for fade effect
+            
+            if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+                // Closer to column = more transparent
+                const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+                columnAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+                columnAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, columnAlpha));
+            } else if (depthDifference >= maxDepthForFade) {
+                // Very close - use minimum alpha
+                columnAlpha = MIN_ALPHA;
+            }
+        }
+    }
+    
+    // Apply transparency if needed
+    const needsTransparency = columnAlpha < MAX_ALPHA;
+    if (needsTransparency) {
+        ctx.save();
+        ctx.globalAlpha = columnAlpha;
+    }
     
     renderConfiguredGroundEntity({
         ctx,
@@ -93,7 +141,10 @@ export function renderBasaltColumn(
         cycleProgress,
     });
     
-    // console.log(`🗿 [BASALT RENDER] Finished rendering basalt column ${basaltColumn.id}`);
+    // Restore context if transparency was applied
+    if (needsTransparency) {
+        ctx.restore();
+    }
 }
 
 /**

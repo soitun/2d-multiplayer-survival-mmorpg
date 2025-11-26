@@ -1079,7 +1079,7 @@ export const renderYSortedEntities = ({
         } else if (type === 'sea_stack') {
             const seaStack = entity as any; // Sea stack from SpacetimeDB
             // Render ONLY top half - bottom half is rendered separately before swimming players
-            renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top');
+            renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top', localPlayerPosition);
         } else if (type === 'homestead_hearth') {
             const hearth = entity as SpacetimeDBHomesteadHearth;
             // Check if this hearth is the closest interactable target
@@ -1108,7 +1108,7 @@ export const renderYSortedEntities = ({
         } else if (type === 'basalt_column') {
             const basaltColumn = entity as SpacetimeDBBasaltColumn;
             // console.log('🗿 [RENDER] Rendering basalt column', basaltColumn.id, 'at', basaltColumn.posX, basaltColumn.posY);
-            renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress);
+            renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress, localPlayerPosition);
         } else if (type === 'foundation_cell') {
             const foundation = entity as SpacetimeDBFoundationCell;
             // Foundations use cell coordinates directly - renderFoundation handles conversion
@@ -1351,6 +1351,7 @@ export const renderYSortedEntities = ({
                 woodDoorImage,
                 metalDoorImage,
                 isHighlighted,
+                localPlayerPosition,
             });
         }
     });

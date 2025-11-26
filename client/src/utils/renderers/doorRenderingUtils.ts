@@ -31,6 +31,7 @@ interface RenderDoorProps {
   metalDoorImage: HTMLImageElement | null;
   isHighlighted?: boolean;
   nowMs?: number;
+  localPlayerPosition?: { x: number; y: number } | null; // Player position for transparency logic
 }
 
 /**
@@ -61,6 +62,7 @@ export const renderDoor = ({
   metalDoorImage,
   isHighlighted = false,
   nowMs = Date.now(),
+  localPlayerPosition,
 }: RenderDoorProps) => {
   if (door.isDestroyed) {
     return;
@@ -71,8 +73,6 @@ export const renderDoor = ({
     return;
   }
 
-  ctx.save();
-
   // Calculate draw position - door is centered on the edge
   const drawWidth = DOOR_RENDER_WIDTH; // Full foundation width (96px) to match walls
   const drawHeight = DOOR_RENDER_HEIGHT; // Full foundation height (96px)
@@ -80,6 +80,57 @@ export const renderDoor = ({
   // Door position is at the edge center, but offset 64px up to align with foundation
   let drawX = door.posX - drawWidth / 2;
   let drawY = door.posY - drawHeight / 2 - 44; // Offset 44px up to align with foundation
+
+  // Calculate transparency for SOUTH doors when player is behind them (similar to trees/south walls)
+  const MIN_ALPHA = 0.3;
+  const MAX_ALPHA = 1.0;
+  let doorAlpha = MAX_ALPHA;
+
+  // Only apply transparency to south doors (edge 2) when player is behind them
+  if (localPlayerPosition && door.edge === DOOR_EDGE_SOUTH && !door.isOpen) {
+    // Door bounding box for overlap detection
+    const doorLeft = drawX;
+    const doorRight = drawX + drawWidth;
+    const doorTop = drawY;
+    const doorBottom = drawY + drawHeight;
+    
+    // Player bounding box
+    const playerSize = 48;
+    const playerLeft = localPlayerPosition.x - playerSize / 2;
+    const playerRight = localPlayerPosition.x + playerSize / 2;
+    const playerTop = localPlayerPosition.y - playerSize;
+    const playerBottom = localPlayerPosition.y;
+    
+    // Check if player overlaps with door visually
+    const overlapsHorizontally = playerRight > doorLeft && playerLeft < doorRight;
+    const overlapsVertically = playerBottom > doorTop && playerTop < doorBottom;
+    
+    // South door: player is behind if player.y > door.posY (player is south of door)
+    const isPlayerBehind = localPlayerPosition.y > door.posY;
+    
+    if (overlapsHorizontally && overlapsVertically && isPlayerBehind) {
+      // Calculate depth difference for smooth fade
+      const depthDifference = Math.abs(door.posY - localPlayerPosition.y);
+      const maxDepthForFade = 100;
+      
+      if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+        const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+        doorAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+        doorAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, doorAlpha));
+      } else if (depthDifference >= maxDepthForFade) {
+        doorAlpha = MIN_ALPHA;
+      }
+    }
+  }
+
+  // Apply transparency if needed
+  const needsTransparency = doorAlpha < MAX_ALPHA;
+  if (needsTransparency) {
+    ctx.save();
+    ctx.globalAlpha = doorAlpha;
+  } else {
+    ctx.save();
+  }
 
   // Draw highlight box if interactable (always draw, even when door is open/invisible)
   if (isHighlighted) {
