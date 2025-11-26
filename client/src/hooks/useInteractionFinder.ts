@@ -103,6 +103,7 @@ interface UseInteractionFinderResult {
     closestInteractableHarvestableResourceId: bigint | null;
     closestInteractableCampfireId: number | null;
     closestInteractableFurnaceId: number | null; // ADDED: Furnace support
+    closestInteractableFumaroleId: number | null; // ADDED: Fumarole support (volcanic heat source)
     closestInteractableLanternId: number | null;
     closestInteractableHearthId: number | null; // ADDED: HomesteadHearth support
     closestInteractableDroppedItemId: bigint | null;
@@ -218,6 +219,7 @@ export function useInteractionFinder({
     const [closestInteractableHarvestableResourceId, setClosestInteractableHarvestableResourceId] = useState<bigint | null>(null);
     const [closestInteractableCampfireId, setClosestInteractableCampfireId] = useState<number | null>(null);
     const [closestInteractableFurnaceId, setClosestInteractableFurnaceId] = useState<number | null>(null); // ADDED: Furnace state
+    const [closestInteractableFumaroleId, setClosestInteractableFumaroleId] = useState<number | null>(null); // ADDED: Fumarole state
     const [closestInteractableLanternId, setClosestInteractableLanternId] = useState<number | null>(null);
     const [closestInteractableHearthId, setClosestInteractableHearthId] = useState<number | null>(null); // ADDED: HomesteadHearth state
     const [closestInteractableDroppedItemId, setClosestInteractableDroppedItemId] = useState<bigint | null>(null);
@@ -237,6 +239,7 @@ export function useInteractionFinder({
         closestInteractableHarvestableResourceId: null,
         closestInteractableCampfireId: null,
         closestInteractableFurnaceId: null,
+        closestInteractableFumaroleId: null, // ADDED: Fumarole
         closestInteractableLanternId: null,
         closestInteractableHearthId: null, // ADDED: HomesteadHearth
         closestInteractableDroppedItemId: null,
@@ -266,6 +269,9 @@ export function useInteractionFinder({
 
         let closestFurnaceId: number | null = null; // ADDED: Furnace tracking variables
         let closestFurnaceDistSq = PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
+
+        let closestFumaroleId: number | null = null; // ADDED: Fumarole tracking variables
+        let closestFumaroleDistSq = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
 
         let closestLanternId: number | null = null;
         let closestLanternDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED;
@@ -400,8 +406,6 @@ export function useInteractionFinder({
             }
 
             // Find closest fumarole - ADDED: Volcanic heat source (always-on, opens broth pot UI if present)
-            let closestFumaroleId: bigint | null = null;
-            let closestFumaroleDistSq = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
             if (fumaroles) {
                 fumaroles.forEach((fumarole) => {
                     // Fumaroles are ground-level entities, use their position directly
@@ -410,7 +414,7 @@ export function useInteractionFinder({
                     const distSq = dx * dx + dy * dy;
                     if (distSq < closestFumaroleDistSq) {
                         closestFumaroleDistSq = distSq;
-                        closestFumaroleId = BigInt(fumarole.id);
+                        closestFumaroleId = fumarole.id;
                     }
                 });
             }
@@ -895,6 +899,7 @@ export function useInteractionFinder({
             closestInteractableHarvestableResourceId: closestHarvestableResourceId,
             closestInteractableCampfireId: closestCampfireId,
             closestInteractableFurnaceId: closestFurnaceId, // ADDED: Furnace return
+            closestInteractableFumaroleId: closestFumaroleId, // ADDED: Fumarole return
             closestInteractableLanternId: closestLanternId,
             closestInteractableHearthId: closestHearthId, // ADDED: HomesteadHearth return
             closestInteractableDroppedItemId: closestDroppedItemId,
@@ -921,6 +926,9 @@ export function useInteractionFinder({
         }
         if (calculatedResult.closestInteractableFurnaceId !== closestInteractableFurnaceId) { // ADDED: Furnace useEffect
             setClosestInteractableFurnaceId(calculatedResult.closestInteractableFurnaceId);
+        }
+        if (calculatedResult.closestInteractableFumaroleId !== closestInteractableFumaroleId) { // ADDED: Fumarole state update
+            setClosestInteractableFumaroleId(calculatedResult.closestInteractableFumaroleId);
         }
         if (calculatedResult.closestInteractableLanternId !== closestInteractableLanternId) {
             setClosestInteractableLanternId(calculatedResult.closestInteractableLanternId);
@@ -989,6 +997,7 @@ export function useInteractionFinder({
         closestInteractableHarvestableResourceId,
         closestInteractableCampfireId,
         closestInteractableFurnaceId, // ADDED: Furnace final return
+        closestInteractableFumaroleId, // ADDED: Fumarole final return
         closestInteractableLanternId,
         closestInteractableHearthId, // ADDED: HomesteadHearth final return
         closestInteractableDroppedItemId,
