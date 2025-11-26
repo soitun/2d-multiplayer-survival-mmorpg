@@ -256,6 +256,10 @@ export const useSpacetimeTables = ({
     // OPTIMIZATION: Track players in a Ref to avoid re-renders on position updates
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
     const lastPlayerUpdateRef = useRef<number>(0); // For throttling React updates
+    
+    // OPTIMIZATION: Simple throttle for wild animal updates (not complex batching)
+    const lastWildAnimalRenderRef = useRef<number>(0);
+    const WILD_ANIMAL_THROTTLE_MS = 50; // Only re-render every 50ms max (20fps for animals)
 
     
     // Throttle spatial subscription updates to prevent frame drops
@@ -652,6 +656,23 @@ export const useSpacetimeTables = ({
     };
 
     // --- Effect for Subscriptions and Callbacks ---
+    // === SUBSCRIPTION UPDATE PROFILING ===
+    const subUpdateCountsRef = useRef<Record<string, number>>({});
+    const subUpdateLastLogRef = useRef(Date.now());
+    const trackSubUpdate = (tableName: string) => {
+        subUpdateCountsRef.current[tableName] = (subUpdateCountsRef.current[tableName] || 0) + 1;
+        // Log every 5 seconds
+        if (Date.now() - subUpdateLastLogRef.current > 5000) {
+            const counts = subUpdateCountsRef.current;
+            const total = Object.values(counts).reduce((a, b) => a + b, 0);
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            console.log(`[SUB_UPDATES] Total: ${total} updates in 5s. Top tables:`, sorted.slice(0, 5).map(([k, v]) => `${k}:${v}`).join(', '));
+            subUpdateCountsRef.current = {};
+            subUpdateLastLogRef.current = Date.now();
+        }
+    };
+    // === END PROFILING ===
+
     useEffect(() => {
         // --- Callback Registration & Initial Subscriptions (Only Once Per Connection Instance) ---
         if (connection && !isSubscribingRef.current) {
@@ -661,6 +682,7 @@ export const useSpacetimeTables = ({
              
             // --- Player Subscriptions ---
             const handlePlayerInsert = (ctx: any, player: SpacetimeDB.Player) => {
+                trackSubUpdate('player_insert');
                  // Update Ref immediately
                  playersRef.current.set(player.identity.toHexString(), player);
                  
@@ -675,6 +697,7 @@ export const useSpacetimeTables = ({
                  }
              };
             const handlePlayerUpdate = (ctx: any, oldPlayer: SpacetimeDB.Player, newPlayer: SpacetimeDB.Player) => {
+                trackSubUpdate('player_update');
                 const playerHexId = newPlayer.identity.toHexString();
                 
                 // 1. Always update the Source of Truth (Ref) immediately
@@ -848,6 +871,7 @@ export const useSpacetimeTables = ({
             // --- World State Subscriptions ---
             const handleWorldStateInsert = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(state);
             const handleWorldStateUpdate = (ctx: any, oldState: SpacetimeDB.WorldState, newState: SpacetimeDB.WorldState) => {
+                trackSubUpdate('worldState_update');
                 const significantChange = oldState.timeOfDay !== newState.timeOfDay || oldState.isFullMoon !== newState.isFullMoon || oldState.cycleCount !== newState.cycleCount;
                 if (significantChange) setWorldState(newState);
             };
@@ -1263,37 +1287,38 @@ export const useSpacetimeTables = ({
                 setFirePatches(prev => { const newMap = new Map(prev); newMap.delete(firePatch.id.toString()); return newMap; });
             };
 
-            // Wild Animal handlers
+            // Wild Animal handlers - SIMPLE THROTTLE for performance
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                // CRITICAL FIX: Always update animal on INSERT, even if already in cache
-                // This ensures animals transitioning between chunks are immediately updated
-                // when the new chunk subscription picks them up
-                setWildAnimals(prev => {
-                    const newMap = new Map(prev);
-                    newMap.set(animal.id.toString(), animal);
-                    return newMap;
-                });
+                // Always update immediately for new animals
+                setWildAnimals(prev => new Map(prev).set(animal.id.toString(), animal));
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
-                // CRITICAL FIX: Always update when chunk_index changes to prevent disappearing animals
-                // When an animal moves between chunks, we MUST update it even if other fields haven't changed
+                trackSubUpdate('wildAnimal_update');
+                
+                // CRITICAL: Always update for chunk changes (prevents disappearing animals)
                 const chunkIndexChanged = oldAnimal.chunkIndex !== newAnimal.chunkIndex;
                 
-                // PERFORMANCE FIX: Only update for visually significant changes
-                // Ignore timing micro-updates (lastAttackTime, stateChangeTime, etc.) that cause excessive re-renders
-                // BUT: Always update if chunk_index changed OR if animal is moving (position changed)
-                const visuallySignificant = 
-                    chunkIndexChanged ||                                      // CRITICAL: Chunk index changed (prevents disappearing)
-                    Math.abs(oldAnimal.posX - newAnimal.posX) > 0.1 ||  // Position changed significantly
-                    Math.abs(oldAnimal.posY - newAnimal.posY) > 0.1 ||  // Position changed significantly
-                    Math.abs(oldAnimal.health - newAnimal.health) > 0.1 || // Health changed significantly
-                    oldAnimal.species !== newAnimal.species ||           // Species changed
-                    oldAnimal.state !== newAnimal.state ||               // State changed (idle, attacking, etc.)
-                    oldAnimal.facingDirection !== newAnimal.facingDirection; // Facing direction changed
+                // Critical changes that must render immediately
+                const criticalChange = 
+                    chunkIndexChanged ||
+                    Math.abs(oldAnimal.health - newAnimal.health) > 0.1 ||
+                    oldAnimal.species !== newAnimal.species;
                 
-                if (visuallySignificant) {
+                if (criticalChange) {
+                    trackSubUpdate('wildAnimal_render');
                     setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
+                    lastWildAnimalRenderRef.current = performance.now();
+                    return;
                 }
+                
+                // Position/state/direction changes: throttle to WILD_ANIMAL_THROTTLE_MS
+                const now = performance.now();
+                if (now - lastWildAnimalRenderRef.current > WILD_ANIMAL_THROTTLE_MS) {
+                    trackSubUpdate('wildAnimal_render');
+                    setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
+                    lastWildAnimalRenderRef.current = now;
+                }
+                // Note: Updates that don't meet threshold are dropped (interpolation handles smoothness)
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 setWildAnimals(prev => {

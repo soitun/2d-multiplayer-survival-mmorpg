@@ -330,6 +330,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const campfireParticlesRef = useRef<Particle[]>([]);
   const torchParticlesRef = useRef<Particle[]>([]);
 
+  // High-frequency value refs (to avoid renderGame dependency array churn)
+  const animationFrameRef = useRef<number>(0);
+  const sprintAnimationFrameRef = useRef<number>(0);
+  const idleAnimationFrameRef = useRef<number>(0);
+  const worldMousePosRef = useRef<{ x: number | null; y: number | null }>({ x: 0, y: 0 });
+  const cameraOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const predictedPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const interpolatedCloudsRef = useRef<Map<string, any>>(new Map());
+  const cycleProgressRef = useRef<number>(0.375);
+  const ySortedEntitiesRef = useRef<any[]>([]);
+
   useEffect(() => {
     placementActionsRef.current = placementActions;
   }, [placementActions]);
@@ -501,7 +512,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Use ref instead of state to avoid re-renders every frame
   const deltaTimeRef = useRef<number>(0);
 
+  // Sync high-frequency values to refs (reduces renderGame dependency array churn)
+  useEffect(() => { animationFrameRef.current = animationFrame; }, [animationFrame]);
+  useEffect(() => { sprintAnimationFrameRef.current = sprintAnimationFrame; }, [sprintAnimationFrame]);
+  useEffect(() => { idleAnimationFrameRef.current = idleAnimationFrame; }, [idleAnimationFrame]);
+  useEffect(() => { worldMousePosRef.current = worldMousePos; }, [worldMousePos]);
+  useEffect(() => { cameraOffsetRef.current = { x: cameraOffsetX, y: cameraOffsetY }; }, [cameraOffsetX, cameraOffsetY]);
+  useEffect(() => { predictedPositionRef.current = predictedPosition; }, [predictedPosition]);
+
   const interpolatedClouds = useCloudInterpolation({ serverClouds: clouds, deltaTime: deltaTimeRef.current });
+  useEffect(() => { interpolatedCloudsRef.current = interpolatedClouds; }, [interpolatedClouds]);
+  useEffect(() => { cycleProgressRef.current = worldState?.cycleProgress ?? 0.375; }, [worldState?.cycleProgress]);
+  // Note: ySortedEntities sync is done after useEntityFiltering hook below
   const interpolatedGrass = useGrassInterpolation({ serverGrass: grass, deltaTime: deltaTimeRef.current });
 
   // --- Use Entity Filtering Hook ---
@@ -591,6 +613,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
   );
+
+  // Sync ySortedEntities to ref (reduces renderGame dependency array churn)
+  useEffect(() => { ySortedEntitiesRef.current = ySortedEntities; }, [ySortedEntities]);
 
   // --- UI State ---
   const { hoveredPlayerIds, handlePlayerHover } = usePlayerHover();
@@ -1523,8 +1548,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     performanceMode.current.lastFrameTime = frameTime;
   }, []);
 
+  // === PERFORMANCE PROFILING ===
+  const perfProfilingRef = useRef({
+    lastLogTime: Date.now(),
+    frameCount: 0,
+    totalFrameTime: 0,
+    maxFrameTime: 0,
+    slowFrames: 0, // frames > 16ms
+  });
+
   const renderGame = useCallback(() => {
     const frameStartTime = performance.now();
+    
+    // Track frame count for periodic logging
+    perfProfilingRef.current.frameCount++;
     const canvas = gameCanvasRef.current;
     const maskCanvas = maskCanvasRef.current;
     if (!canvas || !maskCanvas) return;
@@ -1534,14 +1571,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Emergency performance mode removed
 
     const now_ms = Date.now();
-    const currentWorldMouseX = worldMousePos.x;
-    const currentWorldMouseY = worldMousePos.y;
+    // Read from refs to avoid dependency array churn
+    const currentWorldMouseX = worldMousePosRef.current.x;
+    const currentWorldMouseY = worldMousePosRef.current.y;
+    const currentCameraOffsetX = cameraOffsetRef.current.x;
+    const currentCameraOffsetY = cameraOffsetRef.current.y;
+    const currentPredictedPosition = predictedPositionRef.current;
+    const currentAnimationFrame = animationFrameRef.current;
+    const currentSprintAnimationFrame = sprintAnimationFrameRef.current;
+    const currentIdleAnimationFrame = idleAnimationFrameRef.current;
+    const currentInterpolatedClouds = interpolatedCloudsRef.current;
+    const currentCycleProgress = cycleProgressRef.current;
+    const currentYSortedEntities = ySortedEntitiesRef.current;
     const currentCanvasWidth = canvasSize.width;
     const currentCanvasHeight = canvasSize.height;
 
-    // Get current cycle progress for dynamic shadows
-    // Default to "noonish" (0.375) if worldState or cycleProgress is not yet available.
-    const currentCycleProgress = worldState?.cycleProgress ?? 0.375;
+    // currentCycleProgress is read from ref above (defaults to 0.375 in ref initialization)
 
     // --- ADD THESE LOGS for basic renderGame entry check ---
     // console.log(
@@ -1560,19 +1605,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx,
       currentCanvasWidth,
       currentCanvasHeight,
-      cameraOffsetX,
-      cameraOffsetY
+      currentCameraOffsetX,
+      currentCameraOffsetY
     );
 
     ctx.save();
-    ctx.translate(cameraOffsetX, cameraOffsetY);
+    ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
     
     // Set shelter clipping data for shadow rendering
     setShelterClippingData(shelterClippingData);
     
     // Pass the necessary viewport parameters to the optimized background renderer
-    // console.log('[GameCanvas DEBUG] Rendering world background at camera offset:', cameraOffsetX, cameraOffsetY, 'worldTiles size:', worldTiles?.size || 0);
-    renderWorldBackground(ctx, grassImageRef, cameraOffsetX, cameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug);
+    // console.log('[GameCanvas DEBUG] Rendering world background at camera offset:', currentCameraOffsetX, currentCameraOffsetY, 'worldTiles size:', worldTiles?.size || 0);
+    renderWorldBackground(ctx, grassImageRef, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug);
 
     // MOVED: Swimming shadows now render after water overlay to appear above sea stack underwater zones
 
@@ -1584,8 +1629,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderWaterPatches(
       ctx,
       waterPatches,
-      -cameraOffsetX, // Camera world X position
-      -cameraOffsetY, // Camera world Y position
+      -currentCameraOffsetX, // Camera world X position
+      -currentCameraOffsetY, // Camera world Y position
       currentCanvasWidth,
       currentCanvasHeight
     );
@@ -1597,8 +1642,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderFirePatches(
       ctx,
       firePatches,
-      -cameraOffsetX, // Camera world X position
-      -cameraOffsetY, // Camera world Y position
+      -currentCameraOffsetX, // Camera world X position
+      -currentCameraOffsetY, // Camera world Y position
       currentCanvasWidth,
       currentCanvasHeight,
       now_ms
@@ -1706,11 +1751,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // EXACT same position logic as renderYSortedEntities
       let playerForRendering = player;
-      if (isLocalPlayer && predictedPosition) {
+      if (isLocalPlayer && currentPredictedPosition) {
         playerForRendering = {
           ...player,
-          positionX: predictedPosition.x,
-          positionY: predictedPosition.y
+          positionX: currentPredictedPosition.x,
+          positionY: currentPredictedPosition.y
         };
       } else if (!isLocalPlayer && remotePlayerInterpolation) {
         const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
@@ -1736,15 +1781,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let currentAnimFrame: number;
       if (playerForRendering.isOnWater) {
         // Swimming animations - ALL swimming uses idle animation frames from water sprite
-        currentAnimFrame = idleAnimationFrame; // Swimming sprite uses idle frames for all swimming movement
+        currentAnimFrame = currentIdleAnimationFrame; // Swimming sprite uses idle frames for all swimming movement
       } else {
         // Land animation
         if (!isPlayerMoving) {
-          currentAnimFrame = idleAnimationFrame;
+          currentAnimFrame = currentIdleAnimationFrame;
         } else if (playerForRendering.isSprinting) {
-          currentAnimFrame = sprintAnimationFrame;
+          currentAnimFrame = currentSprintAnimationFrame;
         } else {
-          currentAnimFrame = animationFrame;
+          currentAnimFrame = currentAnimationFrame;
         }
       }
 
@@ -1792,11 +1837,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Use predicted position for local player
       let playerForRendering = player;
-      if (isLocalPlayer && predictedPosition) {
+      if (isLocalPlayer && currentPredictedPosition) {
         playerForRendering = {
           ...player,
-          positionX: predictedPosition.x,
-          positionY: predictedPosition.y,
+          positionX: currentPredictedPosition.x,
+          positionY: currentPredictedPosition.y,
           direction: localFacingDirection || player.direction,
         };
       }
@@ -1888,8 +1933,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- STEP 2: Render water overlay (appears over underwater shadows and below visible sprites) ---
     renderWaterOverlay(
       ctx,
-      -cameraOffsetX, // Convert camera offset to world camera position
-      -cameraOffsetY,
+      -currentCameraOffsetX, // Convert camera offset to world camera position
+      -currentCameraOffsetY,
       canvasSize.width,
       canvasSize.height,
       deltaTimeRef.current / 1000, // Convert ms to seconds
@@ -1901,7 +1946,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
     
     // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
-    const nonSwimmingEntities = ySortedEntities.filter(entity => 
+    const nonSwimmingEntities = currentYSortedEntities.filter(entity => 
       !(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)
     );
     
@@ -1913,11 +1958,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const isLocalPlayer = localPlayerId === playerId;
         
         let playerForRendering = player;
-        if (isLocalPlayer && predictedPosition) {
+        if (isLocalPlayer && currentPredictedPosition) {
           playerForRendering = {
             ...player,
-            positionX: predictedPosition.x,
-            positionY: predictedPosition.y
+            positionX: currentPredictedPosition.x,
+            positionY: currentPredictedPosition.y
           };
         } else if (!isLocalPlayer && remotePlayerInterpolation) {
           const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
@@ -1975,19 +2020,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let currentAnimFrame: number;
       if (player.isOnWater) {
         if (!isPlayerMoving) {
-          currentAnimFrame = idleAnimationFrame;
+          currentAnimFrame = currentIdleAnimationFrame;
         } else if (player.isSprinting) {
-          currentAnimFrame = sprintAnimationFrame;
+          currentAnimFrame = currentSprintAnimationFrame;
         } else {
-          currentAnimFrame = animationFrame;
+          currentAnimFrame = currentAnimationFrame;
         }
       } else {
         if (!isPlayerMoving) {
-          currentAnimFrame = idleAnimationFrame;
+          currentAnimFrame = currentIdleAnimationFrame;
         } else if (player.isSprinting) {
-          currentAnimFrame = sprintAnimationFrame;
+          currentAnimFrame = currentSprintAnimationFrame;
         } else {
-          currentAnimFrame = animationFrame;
+          currentAnimFrame = currentAnimationFrame;
         }
       }
       
@@ -2074,7 +2119,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           worldMouseX: currentWorldMouseX,
           worldMouseY: currentWorldMouseY,
           localPlayerId: localPlayerId,
-          animationFrame,
+          animationFrame: currentAnimationFrame,
           sprintAnimationFrame,
           idleAnimationFrame,
           nowMs: now_ms,
@@ -2082,7 +2127,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onPlayerHover: handlePlayerHover,
           cycleProgress: currentCycleProgress,
           renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
-          localPlayerPosition: predictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
+          localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
           playerDodgeRollStates,
           remotePlayerInterpolation,
           localPlayerIsCrouching,
@@ -2099,8 +2144,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           treeShadowsEnabled,
           isTreeFalling,
           getFallProgress,
-          cameraOffsetX,
-          cameraOffsetY,
+          cameraOffsetX: currentCameraOffsetX,
+          cameraOffsetY: currentCameraOffsetY,
           foundationTileImagesRef,
           allWalls: wallCells,
           allFoundations: foundationCells,
@@ -2132,8 +2177,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderHotSprings(
       ctx,
       detectedHotSprings,
-      -cameraOffsetX, // Camera X in world coordinates
-      -cameraOffsetY, // Camera Y in world coordinates
+      -currentCameraOffsetX, // Camera X in world coordinates
+      -currentCameraOffsetY, // Camera Y in world coordinates
       canvasSize.width,
       canvasSize.height
     );
@@ -2146,8 +2191,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx,
         foundation: targetedFoundation,
         worldScale: 1.0,
-        viewOffsetX: -cameraOffsetX,
-        viewOffsetY: -cameraOffsetY,
+        viewOffsetX: -currentCameraOffsetX,
+        viewOffsetY: -currentCameraOffsetY,
       });
     }
     // --- End Foundation Target Indicator ---
@@ -2159,8 +2204,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx,
         wall: targetedWall,
         worldScale: 1.0,
-        viewOffsetX: -cameraOffsetX,
-        viewOffsetY: -cameraOffsetY,
+        viewOffsetX: -currentCameraOffsetX,
+        viewOffsetY: -currentCameraOffsetY,
       });
     }
     // --- End Wall Target Indicator ---
@@ -2225,8 +2270,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,
       doodadImagesRef,
       worldScale: 1,
-      viewOffsetX: -cameraOffsetX,
-      viewOffsetY: -cameraOffsetY,
+      viewOffsetX: -currentCameraOffsetX,
+      viewOffsetY: -currentCameraOffsetY,
       localPlayerX,
       localPlayerY,
       inventoryItems,
@@ -2240,11 +2285,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (clouds && clouds.size > 0 && cloudImagesRef.current) {
       renderCloudsDirectly({
         ctx,
-        clouds: interpolatedClouds,
+        clouds: currentInterpolatedClouds,
         cloudImages: cloudImagesRef.current,
         worldScale: 1,
-        cameraOffsetX,
-        cameraOffsetY
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY
       });
     }
     // --- End Render Clouds on Canvas ---
@@ -2261,8 +2306,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.setLineDash([10, 5]); // Dashed line pattern
       
       // Calculate visible chunk range based on camera position
-      const cameraWorldX = -cameraOffsetX;
-      const cameraWorldY = -cameraOffsetY;
+      const cameraWorldX = -currentCameraOffsetX;
+      const cameraWorldY = -currentCameraOffsetY;
       const startChunkX = Math.floor((cameraWorldX - CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
       const endChunkX = Math.ceil((cameraWorldX + currentCanvasWidth + CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
       const startChunkY = Math.floor((cameraWorldY - CHUNK_SIZE_PX) / CHUNK_SIZE_PX);
@@ -2305,15 +2350,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Render Chunk Boundaries ---
 
-    ctx.restore(); // This is the restore from translate(cameraOffsetX, cameraOffsetY)
+    ctx.restore(); // This is the restore from translate(currentCameraOffsetX, currentCameraOffsetY)
 
     // --- Render Rain Before Color Overlay ---
     // Rain should be rendered before the day/night overlay so it doesn't show above the darkness at night
     // Calculate rain intensity from chunk-based weather system
     let rainIntensity = 0.0;
     if (localPlayer && chunkWeather) {
-      const playerX = predictedPosition?.x ?? localPlayer.positionX;
-      const playerY = predictedPosition?.y ?? localPlayer.positionY;
+      const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
+      const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const currentChunkIndex = calculateChunkIndex(playerX, playerY);
       const chunkWeatherData = chunkWeather.get(currentChunkIndex.toString());
       
@@ -2332,8 +2377,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (showWeatherOverlay && rainIntensity > 0) {
       renderRain(
         ctx,
-        -cameraOffsetX, // Convert screen offset to world camera position
-        -cameraOffsetY, // Convert screen offset to world camera position
+        -currentCameraOffsetX, // Convert screen offset to world camera position
+        -currentCameraOffsetY, // Convert screen offset to world camera position
         currentCanvasWidth,
         currentCanvasHeight,
         rainIntensity,
@@ -2352,7 +2397,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           currentCanvasWidth,
           currentCanvasHeight,
           rainIntensity, // Target intensity (will smoothly transition)
-          worldState?.cycleProgress ?? 0.5, // Time of day progress
+          currentCycleProgress, // Time of day progress (read from ref)
           Date.now() // Current time for transition timing
         );
         // --- End Weather Atmosphere Overlay ---
@@ -2366,7 +2411,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Render Resource Sparkle Particles (Above Day/Night Overlay for visibility) ---
     // Resource sparkle particles render AFTER day/night overlay so they glow visibly at night
     ctx.save();
-    ctx.translate(cameraOffsetX, cameraOffsetY); // Re-apply camera translation for world-space particles
+    ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
     renderParticlesToCanvas(ctx, resourceSparkleParticles);
     ctx.restore();
     // --- End Resource Sparkle Particles ---
@@ -2419,8 +2464,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const currentProgress = Math.min(Math.max((Date.now() - holdInteractionProgress.startTime) / interactionDuration, 0), 1);
           drawInteractionIndicator(
             ctx,
-            entityPosX + cameraOffsetX,
-            entityPosY + cameraOffsetY - (entityHeight / 2) - 15,
+            entityPosX + currentCameraOffsetX,
+            entityPosY + currentCameraOffsetY - (entityHeight / 2) - 15,
             currentProgress
           );
         }
@@ -2496,8 +2541,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderCampfireLight({
         ctx,
         campfire: fire,
-        cameraOffsetX,
-        cameraOffsetY,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
       });
     });
 
@@ -2506,8 +2551,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderLanternLight({
         ctx,
         lantern: lantern,
-        cameraOffsetX,
-        cameraOffsetY,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
       });
     });
 
@@ -2516,8 +2561,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderFurnaceLight({
         ctx,
         furnace: furnace,
-        cameraOffsetX,
-        cameraOffsetY,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
       });
     });
 
@@ -2528,8 +2573,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx,
         runeStone,
         currentCycleProgress,
-        cameraOffsetX,
-        cameraOffsetY,
+        currentCameraOffsetX,
+        currentCameraOffsetY,
         now_ms // Pass nowMs to enable particle rendering
       );
     });
@@ -2550,10 +2595,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let renderPositionX = player.positionX;
       let renderPositionY = player.positionY;
       
-      if (playerId === localPlayerId && predictedPosition) {
+      if (playerId === localPlayerId && currentPredictedPosition) {
         // For local player, use predicted position
-        renderPositionX = predictedPosition.x;
-        renderPositionY = predictedPosition.y;
+        renderPositionX = currentPredictedPosition.x;
+        renderPositionY = currentPredictedPosition.y;
       } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
         // For remote players, use interpolated position
         const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
@@ -2568,8 +2613,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         player,
         activeEquipments,
         itemDefinitions,
-        cameraOffsetX,
-        cameraOffsetY,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
         renderPositionX,
         renderPositionY,
       });
@@ -2580,6 +2625,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     ctx.restore();
 
+    // === PERFORMANCE PROFILING - Frame time tracking ===
+    const frameEndTime = performance.now();
+    const frameTime = frameEndTime - frameStartTime;
+    perfProfilingRef.current.totalFrameTime += frameTime;
+    if (frameTime > perfProfilingRef.current.maxFrameTime) {
+      perfProfilingRef.current.maxFrameTime = frameTime;
+    }
+    if (frameTime > 16) {
+      perfProfilingRef.current.slowFrames++;
+    }
+    
+    // Log every 5 seconds
+    if (Date.now() - perfProfilingRef.current.lastLogTime > 5000) {
+      const p = perfProfilingRef.current;
+      const avgFrameTime = p.totalFrameTime / p.frameCount;
+      console.log(`[FRAME_PERF] Avg: ${avgFrameTime.toFixed(2)}ms, Max: ${p.maxFrameTime.toFixed(2)}ms, Slow(>16ms): ${p.slowFrames}/${p.frameCount} frames`);
+      console.log(`[ENTITY_COUNTS] Players: ${players.size}, Trees: ${trees?.size || 0}, Stones: ${stones?.size || 0}, YSorted: ${currentYSortedEntities.length}`);
+      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}`);
+      // Reset
+      perfProfilingRef.current = { lastLogTime: Date.now(), frameCount: 0, totalFrameTime: 0, maxFrameTime: 0, slowFrames: 0 };
+    }
+    // === END PERFORMANCE PROFILING ===
+
     // Performance monitoring - check frame time at end
     checkPerformance(frameStartTime);
 
@@ -2587,15 +2655,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   }, [checkPerformance,
     // Dependencies
+    // NOTE: High-frequency values are now read from refs to avoid callback recreation every frame:
+    // - cameraOffsetX/Y, worldMousePos, animationFrame, predictedPosition
+    // - sprintAnimationFrame, idleAnimationFrame, interpolatedClouds, worldState.cycleProgress
     visibleHarvestableResources,
     visibleHarvestableResourcesMap,
     visibleDroppedItems, visibleCampfires, visibleSleepingBags,
-    ySortedEntities, visibleCampfiresMap, visibleDroppedItemsMap, visibleBoxesMap,
+    visibleCampfiresMap, visibleDroppedItemsMap, visibleBoxesMap,
     players, itemDefinitions, inventoryItems, trees, stones,
     worldState, localPlayerId, localPlayer, activeEquipments, localPlayerPin, viewCenterOffset,
-         itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, grassImageRef, cloudImagesRef, cameraOffsetX, cameraOffsetY,
-    canvasSize.width, canvasSize.height, worldMousePos.x, worldMousePos.y,
-    animationFrame, placementInfo, placementError, overlayRgba, maskCanvasRef,
+    itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, grassImageRef, cloudImagesRef,
+    canvasSize.width, canvasSize.height,
+    placementInfo, placementError, overlayRgba, maskCanvasRef,
     closestInteractableHarvestableResourceId,
     closestInteractableCampfireId, closestInteractableDroppedItemId, closestInteractableBoxId, isClosestInteractableBoxEmpty,
     closestInteractableWaterPosition,
@@ -2606,11 +2677,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visiblePlayerCorpses,
     visibleStashes,
     visibleSleepingBags,
-    interpolatedClouds,
     isSearchingCraftRecipes,
-    worldState?.cycleProgress, // Correct dependency for renderGame
-    visibleTrees, // Added to dependency array
-    visibleTreesMap, // Added to dependency array
+    visibleTrees,
+    visibleTreesMap,
     playerCorpses,
     showInventory,
     gameCanvasRef,
@@ -2622,10 +2691,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleSheltersMap,
     shelterImageRef.current,
     minimapCache,
-    visibleHarvestableResourcesMap,
-    chunkWeather, // Chunk-based weather data
-    predictedPosition, // Player predicted position for chunk calculation
-     // Viewport-culled resource maps for sparkles
+    chunkWeather,
+    clouds, // Only need clouds prop for the size check, interpolation is via ref
   ]);
 
   const gameLoopCallback = useCallback((frameInfo: FrameInfo) => {
