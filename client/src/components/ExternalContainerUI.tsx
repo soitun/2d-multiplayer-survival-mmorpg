@@ -1443,7 +1443,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     border: attachedBrothPot.isSeawater 
                                         ? '1px solid rgba(135, 206, 250, 0.5)' // Lighter cyan border for salt water
                                         : '1px solid rgba(0, 150, 255, 0.5)', // Blue border for fresh water
+                                    position: 'relative',
                                 }}>
+                                    {/* Water fill */}
                                     <div style={{
                                         width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
                                         height: '100%',
@@ -1459,6 +1461,27 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                 : '0 0 8px rgba(0, 150, 255, 0.6)') // Blue glow for fresh water
                                             : 'none',
                                     }} />
+                                    {/* Yellow tick marks every 250ml (20 ticks for 5000ml) */}
+                                    {Array.from({ length: 19 }, (_, i) => {
+                                        const tickPosition = ((i + 1) * 250 / 5000) * 100; // Position as percentage
+                                        const isMajorTick = (i + 1) % 4 === 0; // Every 1000ml (4 x 250ml)
+                                        return (
+                                            <div
+                                                key={i}
+                                                style={{
+                                                    position: 'absolute',
+                                                    left: `${tickPosition}%`,
+                                                    top: 0,
+                                                    width: isMajorTick ? '2px' : '1px',
+                                                    height: '100%',
+                                                    backgroundColor: isMajorTick 
+                                                        ? 'rgba(255, 215, 0, 0.9)' // Bright gold for major ticks (1000ml)
+                                                        : 'rgba(255, 215, 0, 0.5)', // Dimmer gold for minor ticks (250ml)
+                                                    pointerEvents: 'none',
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                         </div>
 
