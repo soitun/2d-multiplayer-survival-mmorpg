@@ -24,11 +24,6 @@ const carouselItems: CarouselItem[] = [
         icon: buildGovern,
     },
     {
-        title: "Choose Your Combat",
-        description: "Enjoy optional PvP with personal flags and dedicated PvP zones. Toggle your combat preference or seek out dangerous regions for high-risk, high-reward encounters. Peace-loving babushkas can trade and build without fear.",
-        icon: chooseCombat,
-    },
-    {
         title: "Living Economy",
         description: "Master a complex economy system with player-driven marketplaces and auction houses. Corner markets on rare materials, establish trading empires, and become the wealthiest babushka in the land through shrewd business dealings.",
         icon: livingEconomy,

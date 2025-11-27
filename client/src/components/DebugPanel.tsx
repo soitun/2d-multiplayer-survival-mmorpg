@@ -59,6 +59,29 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         }
     };
 
+    const cycleSeason = (direction: 'forward' | 'backward') => {
+        const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        const currentSeason = worldState?.currentSeason?.tag || 'Spring';
+        const currentIndex = seasonOrder.indexOf(currentSeason);
+        
+        let nextIndex: number;
+        if (direction === 'forward') {
+            nextIndex = (currentIndex + 1) % seasonOrder.length;
+        } else {
+            nextIndex = (currentIndex - 1 + seasonOrder.length) % seasonOrder.length;
+        }
+        
+        const nextSeason = seasonOrder[nextIndex];
+
+        if (connection) {
+            try {
+                (connection.reducers as any).debugSetSeason(nextSeason);
+            } catch (error) {
+                console.warn('Debug season function not available (production build?):', error);
+            }
+        }
+    };
+
     const getWeatherColor = () => {
         const weather = worldState?.currentWeather?.tag;
         switch (weather) {
@@ -94,8 +117,20 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         return { bg: 'linear-gradient(135deg, rgba(255, 235, 59, 0.3), rgba(251, 192, 45, 0.4))', color: '#FFD54F', border: '1px solid #FFD54F' };
     };
 
+    const getSeasonColor = () => {
+        const season = worldState?.currentSeason?.tag;
+        switch (season) {
+            case 'Spring': return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', emoji: '🌸' };
+            case 'Summer': return { bg: 'linear-gradient(135deg, rgba(255, 213, 79, 0.3), rgba(255, 193, 7, 0.4))', color: '#FFD54F', border: '1px solid #FFD54F', emoji: '☀️' };
+            case 'Autumn': return { bg: 'linear-gradient(135deg, rgba(255, 138, 101, 0.3), rgba(255, 112, 67, 0.4))', color: '#FF8A65', border: '1px solid #FF8A65', emoji: '🍂' };
+            case 'Winter': return { bg: 'linear-gradient(135deg, rgba(144, 202, 249, 0.3), rgba(100, 181, 246, 0.4))', color: '#90CAF9', border: '1px solid #90CAF9', emoji: '❄️' };
+            default: return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', emoji: '🌸' };
+        }
+    };
+
     const weatherColors = getWeatherColor();
     const timeColors = getTimeColor();
+    const seasonColors = getSeasonColor();
 
     return (
         <div style={{
@@ -411,6 +446,92 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         <button
                             onClick={(e) => {
                                 cycleTime('forward');
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            →
+                        </button>
+                    </div>
+
+                    {/* Season Control */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* Left Arrow */}
+                        <button
+                            onClick={(e) => {
+                                cycleSeason('backward');
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))',
+                                color: '#aaaaaa',
+                                border: '1px solid rgba(170, 170, 170, 0.3)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                minWidth: '32px',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(120, 120, 120, 0.4), rgba(100, 100, 100, 0.5))';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.4))';
+                                e.currentTarget.style.color = '#aaaaaa';
+                            }}
+                        >
+                            ←
+                        </button>
+                        
+                        {/* Season Display Button (non-clickable) */}
+                        <div
+                            style={{
+                                background: seasonColors.bg,
+                                color: seasonColors.color,
+                                border: seasonColors.border,
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'default',
+                                textShadow: '0 0 5px currentColor',
+                                boxShadow: '0 0 10px rgba(255, 255, 255, 0.2)',
+                                fontFamily: 'inherit',
+                                letterSpacing: '0.5px',
+                                flex: 1,
+                                textAlign: 'center'
+                            }}
+                        >
+                            {seasonColors.emoji} {worldState?.currentSeason?.tag || 'SPRING'}
+                        </div>
+                        
+                        {/* Right Arrow */}
+                        <button
+                            onClick={(e) => {
+                                cycleSeason('forward');
                                 e.currentTarget.blur();
                             }}
                             onFocus={(e) => e.currentTarget.blur()}

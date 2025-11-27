@@ -1548,10 +1548,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
                                                                 {/* In Progress Features */}
                                                                 {[
+                                                                    { name: "🍲 Cauldron & Procedural Brewing System", status: "85%" },
                                                                     { name: "🎣 Simple Fishing", status: "75%" },
                                                                     { name: "🔧 Tool & Weapon Durability", status: "60%" },
                                                                     { name: "👥 Social & Team Features", status: "40%" },
-                                                                    { name: "🍲 Cauldron & Procedural Brewing System", status: "45%" },
                                                                 ].map((feature, index) => (
                                                                     <tr key={index} style={{
                                                                         backgroundColor: 'rgba(255, 165, 0, 0.15)',

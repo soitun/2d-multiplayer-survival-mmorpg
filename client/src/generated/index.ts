@@ -73,6 +73,8 @@ import { CrushBoneItem } from "./crush_bone_item_reducer.ts";
 export { CrushBoneItem };
 import { DamageWildAnimal } from "./damage_wild_animal_reducer.ts";
 export { DamageWildAnimal };
+import { DebugSetSeason } from "./debug_set_season_reducer.ts";
+export { DebugSetSeason };
 import { DebugSetTime } from "./debug_set_time_reducer.ts";
 export { DebugSetTime };
 import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
@@ -2070,6 +2072,10 @@ const REMOTE_MODULE = {
       reducerName: "damage_wild_animal",
       argsType: DamageWildAnimal.getTypeScriptAlgebraicType(),
     },
+    debug_set_season: {
+      reducerName: "debug_set_season",
+      argsType: DebugSetSeason.getTypeScriptAlgebraicType(),
+    },
     debug_set_time: {
       reducerName: "debug_set_time",
       argsType: DebugSetTime.getTypeScriptAlgebraicType(),
@@ -3073,6 +3079,7 @@ export type Reducer = never
 | { name: "CreateGeneratedBrew", args: CreateGeneratedBrew }
 | { name: "CrushBoneItem", args: CrushBoneItem }
 | { name: "DamageWildAnimal", args: DamageWildAnimal }
+| { name: "DebugSetSeason", args: DebugSetSeason }
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
@@ -3634,6 +3641,22 @@ export class RemoteReducers {
 
   removeOnDamageWildAnimal(callback: (ctx: ReducerEventContext, animalId: bigint, damage: number, attackerId: __Identity) => void) {
     this.connection.offReducer("damage_wild_animal", callback);
+  }
+
+  debugSetSeason(seasonStr: string) {
+    const __args = { seasonStr };
+    let __writer = new __BinaryWriter(1024);
+    DebugSetSeason.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("debug_set_season", __argsBuffer, this.setCallReducerFlags.debugSetSeasonFlags);
+  }
+
+  onDebugSetSeason(callback: (ctx: ReducerEventContext, seasonStr: string) => void) {
+    this.connection.onReducer("debug_set_season", callback);
+  }
+
+  removeOnDebugSetSeason(callback: (ctx: ReducerEventContext, seasonStr: string) => void) {
+    this.connection.offReducer("debug_set_season", callback);
   }
 
   debugSetTime(timeTypeStr: string) {
@@ -7434,6 +7457,11 @@ export class SetReducerFlags {
   damageWildAnimalFlags: __CallReducerFlags = 'FullUpdate';
   damageWildAnimal(flags: __CallReducerFlags) {
     this.damageWildAnimalFlags = flags;
+  }
+
+  debugSetSeasonFlags: __CallReducerFlags = 'FullUpdate';
+  debugSetSeason(flags: __CallReducerFlags) {
+    this.debugSetSeasonFlags = flags;
   }
 
   debugSetTimeFlags: __CallReducerFlags = 'FullUpdate';
