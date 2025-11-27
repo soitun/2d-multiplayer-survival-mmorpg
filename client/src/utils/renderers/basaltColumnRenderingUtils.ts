@@ -1,6 +1,5 @@
 import { BasaltColumn } from '../../generated'; // Import generated type
 import basaltColumn1Image from '../../assets/doodads/basalt_column_new.png'; // Type1
-import basaltColumn2Image from '../../assets/doodads/basalt_column2_new.png'; // Type2
 import basaltColumn3Image from '../../assets/doodads/basalt_column3_new.png'; // Type3
 import { applyStandardDropShadow, drawDynamicGroundShadow } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
@@ -13,7 +12,6 @@ export const BASALT_COLUMN_HEIGHT = 540; // Tall vertical rock formations (1.5x 
 // --- Basalt Column Variant Images Array ---
 const BASALT_COLUMN_VARIANT_IMAGES = [
     basaltColumn1Image,    // Type1
-    basaltColumn2Image,    // Type2
     basaltColumn3Image,    // Type3
 ];
 
@@ -21,8 +19,7 @@ const BASALT_COLUMN_VARIANT_IMAGES = [
 const basaltColumnConfig: GroundEntityConfig<BasaltColumn> = {
     getImageSource: (entity) => {
         // Select basalt column variant based on entity.columnType
-        const variantIndex = entity.columnType.tag === 'Type1' ? 0 :
-                            entity.columnType.tag === 'Type2' ? 1 : 2;
+        const variantIndex = entity.columnType.tag === 'Type1' ? 0 : 1;
         return BASALT_COLUMN_VARIANT_IMAGES[variantIndex];
     },
 

@@ -242,8 +242,8 @@ pub fn calculate_slide_collision_with_grid(
                      }
                  }
             },
-            spatial_grid::EntityType::BasaltColumn(basalt_id) => {
-                 if let Some(basalt) = basalt_columns.id().find(basalt_id) {
+           spatial_grid::EntityType::BasaltColumn(basalt_id) => {
+                if let Some(basalt) = basalt_columns.id().find(basalt_id) {
                      let basalt_collision_y = basalt.pos_y - BASALT_COLUMN_COLLISION_Y_OFFSET;
                      let dx = final_x - basalt.pos_x;
                      let dy = final_y - basalt_collision_y;

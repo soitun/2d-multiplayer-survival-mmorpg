@@ -31,7 +31,6 @@ import * as BasaltColumnTypeVariants from './basalt_column_type_variants'
 
 // The tagged union or sum type for the algebraic type `BasaltColumnType`.
 export type BasaltColumnType = BasaltColumnTypeVariants.Type1 |
-  BasaltColumnTypeVariants.Type2 |
   BasaltColumnTypeVariants.Type3;
 
 let _cached_BasaltColumnType_type_value: __AlgebraicTypeType | null = null;
@@ -45,7 +44,6 @@ export const BasaltColumnType = {
   // assert!(foo.value === 42);
   // ```
   Type1: { tag: "Type1" } as const,
-  Type2: { tag: "Type2" } as const,
   Type3: { tag: "Type3" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
@@ -53,7 +51,6 @@ export const BasaltColumnType = {
     _cached_BasaltColumnType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
     _cached_BasaltColumnType_type_value.value.variants.push(
       { name: "Type1", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Type2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Type3", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_BasaltColumnType_type_value;

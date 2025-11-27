@@ -1719,8 +1719,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END SEA STACK SHADOWS ---
 
     // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
+    const localPlayerPositionForSeaStacks = currentPredictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
     visibleSeaStacks.forEach(seaStack => {
-      renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms);
+      renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms, localPlayerPositionForSeaStacks);
     });
     // --- END SEA STACK BOTTOMS ---
 

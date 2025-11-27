@@ -5,7 +5,7 @@ use crate::PLAYER_RADIUS;
 
 // Collision constants - basalt columns are solid obstacles
 pub(crate) const BASALT_COLUMN_RADIUS: f32 = 35.0;
-pub(crate) const BASALT_COLUMN_COLLISION_Y_OFFSET: f32 = 40.0; // Offset for visual sprite positioning
+pub(crate) const BASALT_COLUMN_COLLISION_Y_OFFSET: f32 = 40.0;
 pub(crate) const PLAYER_BASALT_COLUMN_COLLISION_DISTANCE_SQUARED: f32 = 
     (PLAYER_RADIUS + BASALT_COLUMN_RADIUS) * (PLAYER_RADIUS + BASALT_COLUMN_RADIUS);
 
@@ -19,20 +19,18 @@ pub(crate) const MIN_BASALT_COLUMN_TO_FUMAROLE_DISTANCE_SQ: f32 =
     MIN_BASALT_COLUMN_TO_FUMAROLE_DISTANCE_PX * MIN_BASALT_COLUMN_TO_FUMAROLE_DISTANCE_PX;
 
 /// --- Basalt Column Type Enum ---
-/// Three visual variants of basalt columns (same functionality, different graphics)
+/// Two visual variants of basalt columns (same functionality, different graphics)
 #[derive(SpacetimeType, Clone, Copy, Debug, PartialEq)]
 pub enum BasaltColumnType {
     Type1,
-    Type2,
     Type3,
 }
 
 impl BasaltColumnType {
     /// Returns a random basalt column type
     pub fn random(rng: &mut impl rand::Rng) -> Self {
-        match rng.gen_range(0..3) {
+        match rng.gen_range(0..2) {
             0 => BasaltColumnType::Type1,
-            1 => BasaltColumnType::Type2,
             _ => BasaltColumnType::Type3,
         }
     }
@@ -51,7 +49,7 @@ pub struct BasaltColumn {
     pub pos_y: f32,
     #[index(btree)]
     pub chunk_index: u32, // For spatial filtering/queries
-    pub column_type: BasaltColumnType, // Visual variant (Type1, Type2, or Type3)
+    pub column_type: BasaltColumnType, // Visual variant (Type1 or Type3)
 }
 
 impl BasaltColumn {

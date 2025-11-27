@@ -29,6 +29,5 @@ import {
 } from "spacetimedb";
 
 export type Type1 = { tag: "Type1" };
-export type Type2 = { tag: "Type2" };
 export type Type3 = { tag: "Type3" };
 

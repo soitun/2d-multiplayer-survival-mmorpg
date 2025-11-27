@@ -655,10 +655,11 @@ export function renderSeaStackBottomOnly(
   seaStack: any, // Server-provided sea stack entity
   doodadImages: Map<string, HTMLImageElement> | null,
   cycleProgress?: number, // Day/night cycle for dynamic shadows
-  currentTimeMs?: number // Current time for animations
+  currentTimeMs?: number, // Current time for animations
+  localPlayerPosition?: { x: number; y: number } | null // Player position for transparency logic
 ): void {
   // Render only the bottom half, skipping shadow (already drawn separately)
-  renderSeaStackSingle(ctx, seaStack, doodadImages, cycleProgress, currentTimeMs, 'bottom');
+  renderSeaStackSingle(ctx, seaStack, doodadImages, cycleProgress, currentTimeMs, 'bottom', localPlayerPosition);
 }
 
 /**

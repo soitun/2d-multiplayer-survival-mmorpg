@@ -1126,9 +1126,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         for basalt in ctx.db.basalt_column().iter() {
             // Basalt columns are permanent obstacles (no health/respawn check needed)
             
-            // Basalt columns have a generous collision radius for projectiles
-            const PROJECTILE_BASALT_HIT_RADIUS: f32 = 35.0; // Match BASALT_COLUMN_RADIUS
-            const PROJECTILE_BASALT_Y_OFFSET: f32 = 40.0; // Match BASALT_COLUMN_COLLISION_Y_OFFSET
+            const PROJECTILE_BASALT_HIT_RADIUS: f32 = 35.0;
+            const PROJECTILE_BASALT_Y_OFFSET: f32 = 40.0;
             
             let basalt_hit_y = basalt.pos_y - PROJECTILE_BASALT_Y_OFFSET;
             

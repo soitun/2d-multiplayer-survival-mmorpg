@@ -724,7 +724,7 @@ const COLLISION_RADII = {
   BARREL: 25, // Smaller barrel collision radius for better accuracy
   SEA_STACK: 60, // Base radius for sea stacks - reduced significantly for smoother collision like trees
   HOMESTEAD_HEARTH: 55, // Homestead hearth collision radius (matches server-side HEARTH_COLLISION_RADIUS)
-  BASALT_COLUMN: 35, // Basalt column collision radius (matches server-side BASALT_COLUMN_RADIUS)
+  BASALT_COLUMN: 35, // Basalt column collision radius
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -739,7 +739,7 @@ const COLLISION_OFFSETS = {
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
   SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
-  BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset (matches server-side BASALT_COLUMN_COLLISION_Y_OFFSET)
+  BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
 } as const;
 
 // Shelter AABB dimensions (must match server-side constants in shelter.rs)

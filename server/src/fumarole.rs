@@ -51,7 +51,7 @@ pub(crate) const MIN_FUMAROLE_DISTANCE_SQ: f32 = MIN_FUMAROLE_DISTANCE_PX * MIN_
 // Container constants
 pub const NUM_FUMAROLE_SLOTS: usize = 6; // 6 slots for items to incinerate
 const FUMAROLE_PROCESS_INTERVAL_SECS: u64 = 1; // Process every 1 second (for burn damage)
-const FUMAROLE_ITEM_CONSUMPTION_TICKS: u64 = 5; // Consume 1 item every 5 ticks (5 seconds, like Rust recycler)
+const FUMAROLE_ITEM_CONSUMPTION_TICKS: u64 = 2; // Consume 1 item every 2 ticks (2 seconds, doubled speed)
 const CHARCOAL_PRODUCTION_AMOUNT: u32 = 3; // Produce 3 charcoal per item (rewarding for PvP hotspot)
 
 /// --- Fumarole Data Structure ---
@@ -477,7 +477,7 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
     const FUMAROLE_DAMAGE_RADIUS_SQUARED: f32 = 1600.0; // Same as campfire
     const FUMAROLE_DAMAGE_PER_TICK: f32 = 5.0; // Same as campfire
     const FUMAROLE_DAMAGE_EFFECT_DURATION_SECONDS: u64 = 3; // Same as campfire
-    const FUMAROLE_BURN_TICK_INTERVAL_SECONDS: f32 = 2.0; // Same as campfire
+    const FUMAROLE_BURN_TICK_INTERVAL_SECONDS: f32 = 1.0; // Doubled speed (was 2.0)
     const VISUAL_CENTER_Y_OFFSET: f32 = 42.0; // Same as campfire
     
     for player_entity in ctx.db.player().iter() {
@@ -512,7 +512,7 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
     fumarole.consumption_tick_counter += 1;
     made_changes = true;
     
-    // Only consume items every FUMAROLE_ITEM_CONSUMPTION_TICKS (5 seconds, like Rust recycler)
+    // Only consume items every FUMAROLE_ITEM_CONSUMPTION_TICKS (2 seconds, doubled speed)
     let should_consume_items = fumarole.consumption_tick_counter >= FUMAROLE_ITEM_CONSUMPTION_TICKS;
     
     if should_consume_items {
