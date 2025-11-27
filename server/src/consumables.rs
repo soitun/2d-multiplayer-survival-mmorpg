@@ -102,8 +102,12 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     apply_item_effects_and_consume(ctx, sender_id, &item_def, item_instance_id, &mut player_to_update)?;
 
     // Emit appropriate sound based on item type
-    if item_def.name == "Anti-Venom" {
-        // Anti-Venom is a liquid serum, so use drinking sound
+    // Check if this is an AI-generated brew (liquid) - should use drinking sound
+    let is_ai_brew = ctx.db.brew_recipe_cache().iter()
+        .any(|recipe| recipe.output_item_def_id == item_def.id);
+    
+    if item_def.name == "Anti-Venom" || is_ai_brew {
+        // Anti-Venom and all AI-generated brews are liquids, use drinking sound
         emit_drinking_water_sound(ctx, player_to_update.position_x, player_to_update.position_y, sender_id);
     } else {
         // Default to eating sound for solid consumables

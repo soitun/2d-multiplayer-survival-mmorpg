@@ -64,15 +64,19 @@ pub const VALID_BREW_CATEGORIES: &[&str] = &[
 
 /// Maps brew categories to server-side EffectType variants
 /// Returns None for categories that only use stats (health/hunger/thirst)
+/// NOTE: medicinal_tea and healing_broth should NOT map to HealthRegen - 
+/// their healing is handled by consumable_health_gain stat on the item definition.
+/// Creating a stub HealthRegen effect would conflict with the real healing effect.
 pub fn map_category_to_effect(category: &str) -> Option<EffectType> {
     match category {
-        "medicinal_tea" => Some(EffectType::HealthRegen),
+        // medicinal_tea: healing handled by item's consumable_health_gain stat, no special effect needed
+        // healing_broth: healing handled by item's consumable_health_gain stat, no special effect needed
         "poison" => Some(EffectType::Poisoned),           // Use new Poisoned effect (not FoodPoisoning)
         "alcoholic" => Some(EffectType::Intoxicated),     // Drunk effect
         "performance_enhancer" => Some(EffectType::SpeedBoost), // Speed/stamina buffs
         "psychoactive" => Some(EffectType::NightVision),  // Enhanced vision
         // These categories use stats only (no special effect):
-        // healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew
+        // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew
         _ => None,
     }
 }

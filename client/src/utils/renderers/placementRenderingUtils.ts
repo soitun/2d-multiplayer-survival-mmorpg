@@ -382,6 +382,7 @@ export function isPlacementTooFar(
     const placeDistSq = (worldX - playerX) ** 2 + (worldY - playerY) ** 2;
 
     // Use appropriate placement range based on item type
+    // These should match server-side placement distance constants!
     let clientPlacementRangeSq: number;
     if (placementInfo.iconAssetName === 'shelter_b.png') {
         // Shelter has a much larger placement range (256px vs 64px for other items)
@@ -390,6 +391,14 @@ export function isPlacementTooFar(
         // Matron's Chest has increased placement range (200px) to make placement easier
         const HEARTH_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = HEARTH_PLACEMENT_MAX_DISTANCE * HEARTH_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'field_cauldron.png') {
+        // Field Cauldron (broth pot) matches server PLAYER_BROTH_POT_INTERACTION_DISTANCE = 200.0
+        const BROTH_POT_PLACEMENT_MAX_DISTANCE = 200.0;
+        clientPlacementRangeSq = BROTH_POT_PLACEMENT_MAX_DISTANCE * BROTH_POT_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'wood_door.png' || placementInfo.iconAssetName === 'metal_door.png') {
+        // Doors match server BUILDING_PLACEMENT_MAX_DISTANCE = 128.0
+        const DOOR_PLACEMENT_MAX_DISTANCE = 128.0;
+        clientPlacementRangeSq = DOOR_PLACEMENT_MAX_DISTANCE * DOOR_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;
