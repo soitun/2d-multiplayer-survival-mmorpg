@@ -2001,7 +2001,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const mergedEntities: MergedEntityType[] = [
       ...nonSwimmingEntities.map(e => ({ ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const })),
       ...swimmingPlayerTopHalves.map(e => ({ ...e, _ySort: e.yPosition, _isSwimmingTop: true as const }))
-    ].sort((a, b) => a._ySort - b._ySort);
+    ].sort((a, b) => {
+      // CRITICAL: Broth pot MUST render above campfires and fumaroles
+      // This check must be here because this sort can undo the useEntityFiltering sort
+      const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
+      const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
+      
+      if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
+        return 1; // Broth pot renders after (above) campfire/fumarole
+      }
+      if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
+        return -1; // Broth pot renders after (above) campfire/fumarole
+      }
+      
+      return a._ySort - b._ySort;
+    });
     
     // Helper to render a swimming player top half
     const renderSwimmingPlayerTopHalf = (item: typeof swimmingPlayerTopHalves[number]) => {

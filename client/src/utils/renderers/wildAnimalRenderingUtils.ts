@@ -15,8 +15,9 @@ import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 import ternWalkingSheet from '../../assets/tern_walking.png';
 import crowWalkingSheet from '../../assets/crow_walking.png';
-// Note: Tern and Crow use placeholder sprites until proper assets are added
-// They will fall back to the fox sprite sheet with different coloring
+// Flying sprite sheets for birds
+import ternFlyingSheet from '../../assets/tern_flying.png';
+import crowFlyingSheet from '../../assets/crow_flying.png';
 
 
 // --- Sprite Sheet Configuration ---
@@ -53,6 +54,12 @@ const speciesSpriteSheets: Record<string, string> = {
     'BeachCrab': crabWalkingSheet,
     'Tern': ternWalkingSheet,
     'Crow': crowWalkingSheet,
+};
+
+// Map species to their flying sprite sheets (for birds when in flight)
+const speciesFlyingSpriteSheets: Record<string, string> = {
+    'Tern': ternFlyingSheet,
+    'Crow': crowFlyingSheet,
 };
 
 // --- Constants for damage visual effects ---
@@ -104,8 +111,12 @@ interface WildAnimalRenderProps {
     localPlayerPosition?: { x: number; y: number } | null;
 }
 
-// Get the sprite sheet for a species
-function getSpriteSheet(species: AnimalSpecies): string {
+// Get the sprite sheet for a species (considers flying state for birds)
+function getSpriteSheet(species: AnimalSpecies, isFlying: boolean = false): string {
+    // Check for flying sprite sheet if the animal is flying
+    if (isFlying && speciesFlyingSpriteSheets[species.tag]) {
+        return speciesFlyingSpriteSheets[species.tag];
+    }
     return speciesSpriteSheets[species.tag] || foxWalkingSheet; // Fallback to fox
 }
 
@@ -166,8 +177,8 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Terns are medium-sized coastal birds
             return { width: 96, height: 96, shadowRadius: 28 };
         case 'Crow':
-            // Crows are medium-sized inland birds
-            return { width: 88, height: 88, shadowRadius: 26 };
+            // Crows are medium-sized inland birds (slightly larger)
+            return { width: 104, height: 104, shadowRadius: 30 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }
@@ -300,8 +311,17 @@ export function renderWildAnimal({
     const isFlashing = animal.health > 0 && effectiveHitElapsed < ANIMAL_HIT_FLASH_DURATION_MS;
 
     // Get sprite sheet for this species (all animals use sprite sheets now)
-    const spriteSheetSrc = getSpriteSheet(animal.species);
+    // Use flying sprite sheet for birds when they are flying
+    // Birds use flying sprites when isFlying is true, walking sprites otherwise
+    const isBird = animal.species.tag === 'Tern' || animal.species.tag === 'Crow';
+    const useFlying = isBird && animal.isFlying === true;
+    const spriteSheetSrc = getSpriteSheet(animal.species, useFlying);
     const spriteSheetImage = imageManager.getImage(spriteSheetSrc);
+    
+    // Debug logging for bird sprite selection (uncomment to debug)
+    // if (isBird) {
+    //     console.log(`${animal.species.tag} #${animal.id}: isFlying=${animal.isFlying}, useFlying=${useFlying}`);
+    // }
     
     // Check if sprite sheet is loaded
     const useSpriteSheet = spriteSheetImage && spriteSheetImage.complete;
@@ -536,7 +556,7 @@ export function renderWildAnimal({
 
 // Preload wild animal images using imageManager
 export function preloadWildAnimalImages(): void {
-    // All animal sprite sheets
+    // All animal sprite sheets (walking/grounded)
     const spriteSheets = [
         walrusWalkingSheet,
         foxWalkingSheet,
@@ -547,7 +567,14 @@ export function preloadWildAnimalImages(): void {
         crowWalkingSheet,
     ];
     
-    spriteSheets.forEach(imageSrc => {
+    // Flying sprite sheets for birds
+    const flyingSpriteSheets = [
+        ternFlyingSheet,
+        crowFlyingSheet,
+    ];
+    
+    // Preload all sprite sheets
+    [...spriteSheets, ...flyingSpriteSheets].forEach(imageSrc => {
         imageManager.preloadImage(imageSrc);
     });
 }

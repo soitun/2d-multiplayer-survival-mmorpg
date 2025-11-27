@@ -1646,8 +1646,18 @@ export function useEntityFiltering(
     // than the old method, but it avoids massive memory allocation, which is the
     // likely cause of the garbage-collection lag spikes.
     allEntities.sort((a, b) => {
-      // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - ABSOLUTE FIRST CHECK
-      // This MUST be the very first check to guarantee walls are never obscured by fog
+      // ABSOLUTE FIRST CHECK: Broth pot MUST render above campfires and fumaroles
+      // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
+      // Moving this to very top ensures no other logic can interfere
+      if (a.type === 'broth_pot' && (b.type === 'campfire' || b.type === 'fumarole')) {
+        return 1; // Broth pot renders after (above) campfire/fumarole
+      }
+      if (b.type === 'broth_pot' && (a.type === 'campfire' || a.type === 'fumarole')) {
+        return -1; // Broth pot renders after (above) campfire/fumarole
+      }
+      
+      // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - SECOND CHECK
+      // This MUST run early to guarantee walls are never obscured by fog
       // Walls represent the building structure and should always be visible above fog
       // Check BOTH type strings explicitly to ensure we catch all cases
       const aIsFog = a.type === 'fog_overlay';
@@ -1705,6 +1715,8 @@ export function useEntityFiltering(
           return -1; // Fog renders after (above) placeable - absolute precedence
         }
       }
+      
+      // NOTE: Broth pot vs campfire/fumarole check moved to absolute top of comparator
       
       // CRITICAL FIX: Explicitly check if a player is on the same tile as a foundation/wall
       // For foundations and east/west walls: player ALWAYS renders after (above)
@@ -1979,30 +1991,12 @@ export function useEntityFiltering(
         }
       }
       
-      // CRITICAL FIX: Broth pot should ALWAYS render above trees, stones, and campfires
-      // This ensures visual correctness - pots are placed on campfires and should be visible above ground entities
-      if (a.type === 'broth_pot' && (b.type === 'tree' || b.type === 'stone' || b.type === 'campfire')) {
-        return 1; // Pot renders after (above) tree/stone/campfire
+      // SAFETY: Broth pot should render above trees and stones (redundant with early check above for campfire/fumarole)
+      if (a.type === 'broth_pot' && (b.type === 'tree' || b.type === 'stone')) {
+        return 1; // Pot renders after (above) tree/stone
       }
-      if (b.type === 'broth_pot' && (a.type === 'tree' || a.type === 'stone' || a.type === 'campfire')) {
-        return -1; // Pot renders after (above) tree/stone/campfire
-      }
-      
-      // CRITICAL FIX: Broth pot should ALWAYS render above its attached campfire (redundant but explicit)
-      // This ensures visual correctness even though pot has lower Y position for placement
-      if (a.type === 'broth_pot' && b.type === 'campfire') {
-        const brothPot = a.entity as SpacetimeDBBrothPot;
-        const campfire = b.entity as SpacetimeDBCampfire;
-        if (brothPot.attachedToCampfireId === campfire.id) {
-          return 1; // Pot renders after (above) campfire
-        }
-      }
-      if (b.type === 'broth_pot' && a.type === 'campfire') {
-        const brothPot = b.entity as SpacetimeDBBrothPot;
-        const campfire = a.entity as SpacetimeDBCampfire;
-        if (brothPot.attachedToCampfireId === campfire.id) {
-          return -1; // Pot renders after (above) campfire
-        }
+      if (b.type === 'broth_pot' && (a.type === 'tree' || a.type === 'stone')) {
+        return -1; // Pot renders after (above) tree/stone
       }
       
       const yA = getEntityY(a, stableTimestamp);
