@@ -677,6 +677,51 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(30.0, "Charcoal")
             .build(),
 
+        // === BIRD MEAT ===
+        ItemBuilder::new("Raw Tern Meat", "Lean meat from a coastal tern. Slightly fishy flavor from its diet, but nutritious when cooked.", ItemCategory::Consumable)
+            .icon("tern_meat.png")
+            .stackable(20)
+            .consumable(4.0, 8.0, -3.0)
+            .cookable(25.0, "Cooked Tern Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Tern Meat", "Well-cooked tern meat. Light and lean with a mild coastal flavor.", ItemCategory::Consumable)
+            .icon("cooked_tern_meat.png")
+            .stackable(20)
+            .consumable(20.0, 28.0, 10.0)
+            .cookable(25.0, "Burnt Tern Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Tern Meat", "Overcooked tern meat. Dry and tasteless, but can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_tern_meat.png")
+            .stackable(20)
+            .consumable(-2.0, 6.0, -6.0)
+            .crafting_output(6, 0)
+            .cookable(25.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Crow Meat", "Dark, gamey meat from a crow. Has a strong, earthy flavor that cooking helps mellow.", ItemCategory::Consumable)
+            .icon("crow_meat.png")
+            .stackable(20)
+            .consumable(3.0, 7.0, -4.0)
+            .cookable(25.0, "Cooked Crow Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Crow Meat", "Well-cooked crow meat. Dark and rich with a distinctive gamey taste.", ItemCategory::Consumable)
+            .icon("cooked_crow_meat.png")
+            .stackable(20)
+            .consumable(18.0, 25.0, 8.0)
+            .cookable(25.0, "Burnt Crow Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Crow Meat", "Charred crow meat. Nearly inedible but can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_crow_meat.png")
+            .stackable(20)
+            .consumable(-3.0, 5.0, -7.0)
+            .crafting_output(5, 0)
+            .cookable(25.0, "Charcoal")
+            .build(),
+
         // === SPECIALTY FOODS & MISC ===
         ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")

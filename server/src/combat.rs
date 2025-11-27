@@ -3104,6 +3104,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::CableViper => Some("Viper Scale"),
             crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => None, // Walrus doesn't drop cloth-type resources
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
+            crate::wild_animal_npc::AnimalSpecies::Tern => Some("Feathers"), // Terns drop feathers
+            crate::wild_animal_npc::AnimalSpecies::Crow => Some("Feathers"), // Crows drop feathers
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -3138,6 +3140,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::CableViper => "Raw Viper Meat",
             crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => "Raw Walrus Meat",
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => "Raw Crab Meat",
+            crate::wild_animal_npc::AnimalSpecies::Tern => "Raw Tern Meat",
+            crate::wild_animal_npc::AnimalSpecies::Crow => "Raw Crow Meat",
         };
         match grant_resource(ctx, attacker_id, meat_type, quantity_per_hit) {
             Ok(_) => resources_granted.push((meat_type.to_string(), quantity_per_hit)),
@@ -3150,13 +3154,15 @@ pub fn damage_animal_corpse(
                  animal_corpse_id, attacker_id, item_def.name, item_def.category, effectiveness_multiplier);
         
         // Grant 1 skull when corpse is depleted, regardless of tool used (like player corpses)
-        // Note: Crabs don't have skulls - they have exoskeletons
+        // Note: Crabs and birds don't drop skulls
         let skull_type: Option<&str> = match animal_corpse.animal_species {
             crate::wild_animal_npc::AnimalSpecies::CinderFox => Some("Fox Skull"),
             crate::wild_animal_npc::AnimalSpecies::TundraWolf => Some("Wolf Skull"),
             crate::wild_animal_npc::AnimalSpecies::CableViper => Some("Viper Skull"),
             crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => Some("Walrus Skull"), // Large, imposing skull with tusks
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't have skulls - they have exoskeletons
+            crate::wild_animal_npc::AnimalSpecies::Tern => None, // Birds don't drop skulls
+            crate::wild_animal_npc::AnimalSpecies::Crow => None, // Birds don't drop skulls
         };
         
         if let Some(skull_name) = skull_type {

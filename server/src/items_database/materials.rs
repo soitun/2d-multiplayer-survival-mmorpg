@@ -85,7 +85,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
 
         // Sulfur Ore - Raw sulfur resource
         basic_material("Sulfur Ore", "Raw sulfur ore extracted from mineral deposits. Useful for crafting explosives and advanced materials.", 1000)
-            .icon("sulfur.png")
+            .icon("sulfur_ore.png")
             .respawn_time(300)
             .build(),
 
@@ -166,6 +166,18 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // Crab Claw - Weapon/tool component from crabs
         basic_material("Crab Claw", "A sharp pincer claw from a beach crab. Can be fashioned into improvised weapons or tools.", 20)
             .icon("crab_claw.png")
+            .build(),
+
+        // === BIRD MATERIALS ===
+
+        // Tern Feathers - Lightweight feathers from coastal terns
+        basic_material("Tern Feathers", "Soft, waterproof feathers from a coastal tern. Useful for crafting fletching and lightweight insulation.", 50)
+            .icon("tern_feathers.png")
+            .build(),
+
+        // Crow Feathers - Dark feathers from inland crows
+        basic_material("Crow Feathers", "Sleek black feathers from a crow. Valued for crafting arrow fletching and decorative items.", 50)
+            .icon("crow_feathers.png")
             .build(),
 
         // NOTE: Animal skulls (Fox, Wolf, Viper) moved to weapons.rs as they are weapons like Human Skull

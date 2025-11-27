@@ -33,4 +33,6 @@ export type TundraWolf = { tag: "TundraWolf" };
 export type CableViper = { tag: "CableViper" };
 export type ArcticWalrus = { tag: "ArcticWalrus" };
 export type BeachCrab = { tag: "BeachCrab" };
+export type Tern = { tag: "Tern" };
+export type Crow = { tag: "Crow" };
 

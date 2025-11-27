@@ -29,9 +29,9 @@ impl OreType {
         let center_y = crate::WORLD_HEIGHT_PX / 2.0;
         let is_north = pos_y < center_y;
         
-        // Ultra-rare Memory ore check (1% chance everywhere)
+        // Rare Memory ore check (3% chance everywhere)
         let memory_roll = rng.gen::<f32>();
-        if memory_roll < 0.01 {
+        if memory_roll < 0.03 {
             return OreType::Memory;
         }
         

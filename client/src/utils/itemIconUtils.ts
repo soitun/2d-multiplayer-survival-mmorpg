@@ -20,6 +20,8 @@ import metalOreIcon from '../assets/items/metal_ore.png';
 import metalFragmentsIcon from '../assets/items/metal_fragments.png';
 import tinCanIcon from '../assets/items/tin_can.png';
 import scrapBatteriesIcon from '../assets/items/scrap_batteries.png';
+import sulfurIcon from '../assets/items/sulfur.png';
+import sulfurOreIcon from '../assets/items/sulfur_ore.png';
 
 // Bone materials
 import boneIcon from '../assets/items/bone.png';
@@ -356,9 +358,14 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Metal materials
   'metal_ore.png': metalOreIcon,
+  'metal.png': metalOreIcon, // Server uses "metal.png" for Metal Ore, map to metal_ore.png asset
   'metal_fragments.png': metalFragmentsIcon,
   'tin_can.png': tinCanIcon,
   'scrap_batteries.png': scrapBatteriesIcon,
+  
+  // Sulfur materials
+  'sulfur.png': sulfurIcon, // Used for both Sulfur Ore and refined Sulfur
+  'sulfur_ore.png': sulfurOreIcon, // Alternative name if server uses this
   
   // Bone materials
   'bone.png': boneIcon,

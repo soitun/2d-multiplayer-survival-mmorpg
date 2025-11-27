@@ -40,13 +40,13 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
     
     // Species distribution (same as initial seeding)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 40),    // 40% - Most common
-        (AnimalSpecies::ArcticWalrus, 20), // 20% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 30),    // 30% - Common beach creature
-        // TundraWolf removed - no wolves spawning
-        // (AnimalSpecies::TundraWolf, 30),   // 30% - Moderately common  
-        // CableViper removed - no snakes spawning
-        // (AnimalSpecies::CableViper, 20),     // 20% - Uncommon
+        (AnimalSpecies::CinderFox, 30),      // 30% - Common
+        (AnimalSpecies::ArcticWalrus, 15),   // 15% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 20),      // 20% - Common beach creature
+        (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
+        (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
+        (AnimalSpecies::Tern, 15),           // 15% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     
@@ -287,6 +287,13 @@ fn spawn_animal(
         heart_effect_until: None,
         crying_effect_until: None,
         last_food_check: None,
+        
+        // Bird scavenging/stealing system fields
+        held_item_name: None,
+        held_item_quantity: None,
+        flying_target_x: None,
+        flying_target_y: None,
+        is_flying: matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow), // Birds start flying
     };
     
     // Attempt to spawn the animal

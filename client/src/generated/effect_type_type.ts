@@ -56,7 +56,8 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.NightVision |
   EffectTypeVariants.WarmthBoost |
   EffectTypeVariants.ColdResistance |
-  EffectTypeVariants.PoisonResistance;
+  EffectTypeVariants.PoisonResistance |
+  EffectTypeVariants.FireResistance;
 
 let _cached_EffectType_type_value: __AlgebraicTypeType | null = null;
 
@@ -95,6 +96,7 @@ export const EffectType = {
   WarmthBoost: { tag: "WarmthBoost" } as const,
   ColdResistance: { tag: "ColdResistance" } as const,
   PoisonResistance: { tag: "PoisonResistance" } as const,
+  FireResistance: { tag: "FireResistance" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_EffectType_type_value) return _cached_EffectType_type_value;
@@ -127,6 +129,7 @@ export const EffectType = {
       { name: "WarmthBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ColdResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PoisonResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FireResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_EffectType_type_value;
   },

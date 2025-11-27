@@ -109,6 +109,8 @@ pub enum AnimalSpecies {
     CableViper,
     ArcticWalrus,
     BeachCrab,
+    Tern,       // Scavenger bird that picks up dropped items and alerts other animals
+    Crow,       // Thief bird that steals items from player inventory
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -123,6 +125,11 @@ pub enum AnimalState {
     Alert,
     Following,     // NEW: Following tamed player
     Protecting,    // NEW: Attacking enemies of tamed player
+    Flying,        // Birds patrolling in flight over vast distances
+    FlyingChase,   // Birds aggressively chasing players in flight
+    Grounded,      // Birds on the ground - either still or walking in tiny circles
+    Scavenging,    // Terns picking up dropped items
+    Stealing,      // Crows stealing from player inventory
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -194,6 +201,13 @@ pub struct WildAnimal {
     pub heart_effect_until: Option<Timestamp>, // When to stop showing heart effect
     pub crying_effect_until: Option<Timestamp>, // When to stop showing crying effect (hit by owner)
     pub last_food_check: Option<Timestamp>, // Last time we checked for nearby food
+    
+    // Bird scavenging/stealing system fields
+    pub held_item_name: Option<String>, // Item name the bird is carrying (Tern scavenge / Crow steal)
+    pub held_item_quantity: Option<u32>, // Quantity of the held item
+    pub flying_target_x: Option<f32>, // Flying destination X for vast patrol distances
+    pub flying_target_y: Option<f32>, // Flying destination Y for vast patrol distances
+    pub is_flying: bool, // Whether the bird is currently in flight
 }
 
 // --- AI Processing Schedule Table ---
@@ -296,6 +310,8 @@ pub enum AnimalBehaviorEnum {
     CableViper(crate::wild_animal_npc::viper::CableViperBehavior),
     ArcticWalrus(crate::wild_animal_npc::walrus::ArcticWalrusBehavior),
     BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
+    Tern(crate::wild_animal_npc::tern::TernBehavior),
+    Crow(crate::wild_animal_npc::crow::CrowBehavior),
 }
 
 impl AnimalBehavior for AnimalBehaviorEnum {
@@ -306,6 +322,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.get_stats(),
         }
     }
 
@@ -316,6 +334,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.get_movement_pattern(),
         }
     }
 
@@ -334,6 +354,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
         }
     }
 
@@ -352,6 +374,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
         }
     }
 
@@ -370,6 +394,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
         }
     }
 
@@ -387,6 +413,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
         }
     }
 
@@ -397,6 +425,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
         }
     }
 
@@ -415,6 +445,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
         }
     }
 
@@ -425,6 +457,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.can_be_tamed(),
         }
     }
 
@@ -435,6 +469,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.get_taming_foods(),
         }
     }
 
@@ -445,6 +481,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::CableViper(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::ArcticWalrus(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Tern(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Crow(behavior) => behavior.get_chase_abandonment_multiplier(),
         }
     }
 }
@@ -457,6 +495,8 @@ impl AnimalSpecies {
             AnimalSpecies::CableViper => AnimalBehaviorEnum::CableViper(crate::wild_animal_npc::viper::CableViperBehavior),
             AnimalSpecies::ArcticWalrus => AnimalBehaviorEnum::ArcticWalrus(crate::wild_animal_npc::walrus::ArcticWalrusBehavior),
             AnimalSpecies::BeachCrab => AnimalBehaviorEnum::BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
+            AnimalSpecies::Tern => AnimalBehaviorEnum::Tern(crate::wild_animal_npc::tern::TernBehavior),
+            AnimalSpecies::Crow => AnimalBehaviorEnum::Crow(crate::wild_animal_npc::crow::CrowBehavior),
         }
     }
 
@@ -631,6 +671,8 @@ fn update_animal_ai_state(
                 AnimalSpecies::CableViper => 300.0,
                 AnimalSpecies::ArcticWalrus => 300.0, // Walruses also fear foundations
                 AnimalSpecies::BeachCrab => 200.0, // Crabs are small and scuttle away from buildings
+                AnimalSpecies::Tern => 500.0, // Birds fly away from foundations
+                AnimalSpecies::Crow => 450.0, // Crows fly away from foundations
             };
             
             set_flee_destination_away_from_threat(animal, foundation_x, foundation_y, flee_distance, rng);
@@ -665,6 +707,8 @@ fn update_animal_ai_state(
                         AnimalSpecies::CableViper => 500.0,   // 350 + 150 buffer
                         AnimalSpecies::ArcticWalrus => unreachable!(), // Already handled above
                         AnimalSpecies::BeachCrab => 300.0,    // Crabs scuttle away from fire
+                        AnimalSpecies::Tern => 600.0,         // Birds fly away from fire
+                        AnimalSpecies::Crow => 550.0,         // Crows fly away from fire
                     };
                     
                     set_flee_destination_away_from_threat(animal, player.position_x, player.position_y, flee_distance, rng);
@@ -709,6 +753,8 @@ fn update_animal_ai_state(
                     AnimalSpecies::CableViper => 500.0,
                     AnimalSpecies::ArcticWalrus => unreachable!(), // Already handled above
                     AnimalSpecies::BeachCrab => 300.0, // Crabs scuttle away from campfires
+                    AnimalSpecies::Tern => 600.0, // Birds fly away from campfires
+                    AnimalSpecies::Crow => 550.0, // Crows fly away from campfires
                 };
                 
                 set_flee_destination_away_from_threat(animal, fire_x, fire_y, flee_distance, rng);
@@ -1117,6 +1163,8 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::CableViper => 24.0,
             AnimalSpecies::ArcticWalrus => 64.0, // Strongest knockback - massive walrus attack
             AnimalSpecies::BeachCrab => 16.0, // Small knockback - crab pinch
+            AnimalSpecies::Tern => 8.0, // Very small knockback - bird peck
+            AnimalSpecies::Crow => 12.0, // Small knockback - crow peck
         };
         
         let knockback_dx = (dx_target_from_animal / distance) * knockback_distance;
@@ -1154,6 +1202,8 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::CableViper => "Cable Viper",
         AnimalSpecies::ArcticWalrus => "Arctic Walrus",
         AnimalSpecies::BeachCrab => "Beach Crab",
+        AnimalSpecies::Tern => "Tern",
+        AnimalSpecies::Crow => "Crow",
     };
     
     let new_death_marker = crate::death_marker::DeathMarker {
@@ -1244,6 +1294,13 @@ pub fn spawn_wild_animal(
         heart_effect_until: None,
         crying_effect_until: None,
         last_food_check: None,
+        
+        // Bird scavenging/stealing system fields
+        held_item_name: None,
+        held_item_quantity: None,
+        flying_target_x: None,
+        flying_target_y: None,
+        is_flying: false,
     };
     
     ctx.db.wild_animal().insert(animal);
@@ -2179,6 +2236,8 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::CableViper => stats.chase_trigger_range + 150.0,  // 350 + 150 = 500px
         AnimalSpecies::ArcticWalrus => unreachable!(), // Already handled above
         AnimalSpecies::BeachCrab => 250.0,             // Crabs scuttle away from fire
+        AnimalSpecies::Tern => 500.0,                  // Birds fly away from fire
+        AnimalSpecies::Crow => 450.0,                  // Crows fly away from fire
     };
     
     // Special handling for cornered foxes (don't flee if too close)
@@ -2243,6 +2302,14 @@ pub fn emit_species_sound(
         },
         AnimalSpecies::BeachCrab => {
             crate::sound_events::emit_crab_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::Tern => {
+            // Terns emit a screech sound (can reuse generic sound for now)
+            log::debug!("Tern {} screeching at player {}", animal.id, player_identity);
+        },
+        AnimalSpecies::Crow => {
+            // Crows emit a caw sound (can reuse generic sound for now)
+            log::debug!("Crow {} cawing at player {}", animal.id, player_identity);
         },
     }
     
@@ -2389,6 +2456,8 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::CableViper => 0.15,    // Vipers are moderate
         AnimalSpecies::ArcticWalrus => 0.06,  // Walruses are very slow and deliberate
         AnimalSpecies::BeachCrab => 0.10,     // Crabs scuttle but are fairly predictable
+        AnimalSpecies::Tern => 0.05,          // Terns fly in more consistent directions
+        AnimalSpecies::Crow => 0.08,          // Crows are fairly focused
     };
     
     // Adjust for pack wolves (alphas change direction less frequently)
@@ -2460,6 +2529,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::CableViper => 300.0 + (rng.gen::<f32>() * 200.0), // 6-10m for vipers
             AnimalSpecies::ArcticWalrus => 100.0, // Walruses barely flee (defensive positioning only)
             AnimalSpecies::BeachCrab => 200.0 + (rng.gen::<f32>() * 100.0), // 4-6m for crabs - short scuttle
+            AnimalSpecies::Tern => 800.0 + (rng.gen::<f32>() * 500.0), // 16-26m for terns - fly away
+            AnimalSpecies::Crow => 600.0 + (rng.gen::<f32>() * 400.0), // 12-20m for crows - fly away
         };
         
         animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());
@@ -2491,6 +2562,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::CableViper => 3_000_000, // 3 seconds
             AnimalSpecies::ArcticWalrus => 1_000_000, // 1 second (walruses don't really flee)
             AnimalSpecies::BeachCrab => 2_000_000,  // 2 seconds - quick scuttle escape
+            AnimalSpecies::Tern => 5_000_000,       // 5 seconds - fly away far
+            AnimalSpecies::Crow => 4_000_000,       // 4 seconds - fly away
         };
         
         if distance_to_target <= 50.0 || time_fleeing > max_flee_time {
@@ -2501,6 +2574,210 @@ pub fn execute_standard_flee(
         }
     }
 }
+
+// ============================================================================
+// FLYING BIRD SYSTEM - Reusable for Terns, Crows, and future bird types
+// ============================================================================
+
+/// Flying patrol constants
+const FLYING_PATROL_MIN_DISTANCE: f32 = 400.0;  // Minimum distance to fly when patrolling
+const FLYING_PATROL_MAX_DISTANCE: f32 = 1200.0; // Maximum distance to fly when patrolling
+const FLYING_SPEED_MULTIPLIER: f32 = 2.5;       // Birds fly much faster than they walk
+const FLYING_HEIGHT_VISUAL: f32 = 32.0;         // Visual height offset for flying birds (not actual collision)
+const GROUNDED_CIRCLE_RADIUS: f32 = 30.0;       // Small circle radius for grounded birds
+const CHANCE_TO_LAND: f32 = 0.02;               // 2% chance per tick to land while flying
+const CHANCE_TO_TAKE_OFF: f32 = 0.05;           // 5% chance per tick to take off while grounded
+
+/// **FLYING PATROL** - Birds fly vast distances around the island
+/// This is the primary patrol behavior for birds - they spend most of their time flying
+pub fn execute_flying_patrol(
+    ctx: &ReducerContext,
+    animal: &mut WildAnimal,
+    stats: &AnimalStats,
+    dt: f32,
+    rng: &mut impl Rng,
+) {
+    // Ensure bird is in flying state
+    if !animal.is_flying {
+        animal.is_flying = true;
+    }
+    
+    // Set a flying destination if we don't have one
+    if animal.flying_target_x.is_none() || animal.flying_target_y.is_none() {
+        let fly_distance = FLYING_PATROL_MIN_DISTANCE + rng.gen::<f32>() * (FLYING_PATROL_MAX_DISTANCE - FLYING_PATROL_MIN_DISTANCE);
+        let fly_angle = rng.gen::<f32>() * 2.0 * PI;
+        
+        let target_x = animal.pos_x + fly_distance * fly_angle.cos();
+        let target_y = animal.pos_y + fly_distance * fly_angle.sin();
+        
+        // Clamp to world bounds (birds can fly anywhere, including over water)
+        let clamped_x = target_x.clamp(50.0, WORLD_WIDTH_PX - 50.0);
+        let clamped_y = target_y.clamp(50.0, WORLD_HEIGHT_PX - 50.0);
+        
+        animal.flying_target_x = Some(clamped_x);
+        animal.flying_target_y = Some(clamped_y);
+        
+        log::debug!("{:?} {} set flying patrol destination to ({:.0}, {:.0})", 
+                   animal.species, animal.id, clamped_x, clamped_y);
+    }
+    
+    // Move toward flying destination at high speed (ignore ground obstacles)
+    if let (Some(target_x), Some(target_y)) = (animal.flying_target_x, animal.flying_target_y) {
+        let fly_speed = stats.sprint_speed * FLYING_SPEED_MULTIPLIER;
+        
+        // Calculate direction to target
+        let dx = target_x - animal.pos_x;
+        let dy = target_y - animal.pos_y;
+        let distance = (dx * dx + dy * dy).sqrt();
+        
+        if distance > 20.0 {
+            // Move toward target (flying ignores water/shelter collision)
+            let norm_dx = dx / distance;
+            let norm_dy = dy / distance;
+            
+            let move_amount = fly_speed * dt;
+            let new_x = (animal.pos_x + norm_dx * move_amount).clamp(10.0, WORLD_WIDTH_PX - 10.0);
+            let new_y = (animal.pos_y + norm_dy * move_amount).clamp(10.0, WORLD_HEIGHT_PX - 10.0);
+            
+            animal.pos_x = new_x;
+            animal.pos_y = new_y;
+            animal.direction_x = norm_dx;
+            animal.direction_y = norm_dy;
+            
+            // Update facing direction
+            update_facing_direction(animal);
+            
+            // Update chunk index
+            animal.chunk_index = crate::environment::calculate_chunk_index(animal.pos_x, animal.pos_y);
+        } else {
+            // Reached flying destination - pick a new one or maybe land
+            animal.flying_target_x = None;
+            animal.flying_target_y = None;
+            
+            // Random chance to land
+            if rng.gen::<f32>() < CHANCE_TO_LAND {
+                // Check if current position is valid for landing (not water)
+                if !is_water_tile(ctx, animal.pos_x, animal.pos_y) {
+                    animal.is_flying = false;
+                    animal.state = AnimalState::Grounded;
+                    log::debug!("{:?} {} landed at ({:.0}, {:.0})", 
+                               animal.species, animal.id, animal.pos_x, animal.pos_y);
+                }
+            }
+        }
+    }
+}
+
+/// **GROUNDED IDLE** - Birds on the ground either stay still or walk in tiny circles
+pub fn execute_grounded_idle(
+    ctx: &ReducerContext,
+    animal: &mut WildAnimal,
+    stats: &AnimalStats,
+    dt: f32,
+    rng: &mut impl Rng,
+) {
+    // Ensure bird is not flying
+    animal.is_flying = false;
+    
+    // Random chance to take off
+    if rng.gen::<f32>() < CHANCE_TO_TAKE_OFF {
+        animal.is_flying = true;
+        animal.state = AnimalState::Flying;
+        animal.flying_target_x = None;
+        animal.flying_target_y = None;
+        log::debug!("{:?} {} took off from ground", animal.species, animal.id);
+        return;
+    }
+    
+    // 70% stay still, 30% walk in tiny circle
+    if rng.gen::<f32>() < 0.30 {
+        // Walk in tiny circle around spawn/landing position
+        let circle_angle = rng.gen::<f32>() * 2.0 * PI;
+        let circle_distance = rng.gen::<f32>() * GROUNDED_CIRCLE_RADIUS;
+        
+        let target_x = animal.spawn_x + circle_distance * circle_angle.cos();
+        let target_y = animal.spawn_y + circle_distance * circle_angle.sin();
+        
+        // Slow walking speed on ground
+        let ground_speed = stats.movement_speed * 0.3;
+        
+        // Check for obstacles before moving
+        if !is_water_tile(ctx, target_x, target_y) && !is_position_in_shelter(ctx, target_x, target_y) {
+            move_towards_target(ctx, animal, target_x, target_y, ground_speed, dt);
+        }
+    }
+    // Otherwise stay still (do nothing)
+}
+
+/// **FLYING CHASE** - Birds aggressively fly-chase players for food/items
+pub fn execute_flying_chase(
+    ctx: &ReducerContext,
+    animal: &mut WildAnimal,
+    stats: &AnimalStats,
+    target_x: f32,
+    target_y: f32,
+    dt: f32,
+) {
+    // Ensure bird is flying
+    animal.is_flying = true;
+    
+    // Chase at high flying speed
+    let chase_speed = stats.sprint_speed * FLYING_SPEED_MULTIPLIER;
+    
+    // Calculate direction to target
+    let dx = target_x - animal.pos_x;
+    let dy = target_y - animal.pos_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance > 10.0 {
+        let norm_dx = dx / distance;
+        let norm_dy = dy / distance;
+        
+        let move_amount = chase_speed * dt;
+        let new_x = (animal.pos_x + norm_dx * move_amount).clamp(10.0, WORLD_WIDTH_PX - 10.0);
+        let new_y = (animal.pos_y + norm_dy * move_amount).clamp(10.0, WORLD_HEIGHT_PX - 10.0);
+        
+        animal.pos_x = new_x;
+        animal.pos_y = new_y;
+        animal.direction_x = norm_dx;
+        animal.direction_y = norm_dy;
+        
+        // Update facing direction
+        update_facing_direction(animal);
+        
+        // Update chunk index
+        animal.chunk_index = crate::environment::calculate_chunk_index(animal.pos_x, animal.pos_y);
+    }
+    
+    // Clear any flying target since we're chasing
+    animal.flying_target_x = None;
+    animal.flying_target_y = None;
+}
+
+/// Check if a bird is currently flying
+pub fn is_bird_flying(animal: &WildAnimal) -> bool {
+    animal.is_flying
+}
+
+/// Check if a species is a bird that can fly
+pub fn is_flying_species(species: &AnimalSpecies) -> bool {
+    matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow)
+}
+
+/// Update the facing direction string based on direction vector
+pub fn update_facing_direction(animal: &mut WildAnimal) {
+    if animal.direction_x.abs() > animal.direction_y.abs() {
+        // Horizontal movement is dominant
+        animal.facing_direction = if animal.direction_x > 0.0 { "right".to_string() } else { "left".to_string() };
+    } else {
+        // Vertical movement is dominant
+        animal.facing_direction = if animal.direction_y > 0.0 { "down".to_string() } else { "up".to_string() };
+    }
+}
+
+// ============================================================================
+// END FLYING BIRD SYSTEM
+// ============================================================================
 
 /// **COMMON CHASE DISTANCE CHECKS** - Standard logic for when to stop chasing
 pub fn should_stop_chasing(
@@ -2609,6 +2886,22 @@ pub fn handle_attack_aftermath(
             // Crabs are simple - they pinch and continue attacking
             log::info!("Beach Crab {} delivered pinch attack - continuing defense", animal.id);
         },
+        
+        AnimalSpecies::Tern => {
+            // Terns are scavengers - they peck and then fly away
+            set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 200.0, rng);
+            transition_to_state(animal, AnimalState::Flying, current_time, None, "tern fly away");
+            animal.is_flying = true;
+            log::info!("Tern {} pecked and flew away", animal.id);
+        },
+        
+        AnimalSpecies::Crow => {
+            // Crows are opportunistic - they steal/peck and then fly away
+            set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 250.0, rng);
+            transition_to_state(animal, AnimalState::Flying, current_time, None, "crow fly away");
+            animal.is_flying = true;
+            log::info!("Crow {} attacked and flew away", animal.id);
+        },
     }
 }
 
@@ -2691,6 +2984,22 @@ pub fn handle_standard_damage_response(
                 // Crabs retaliate when attacked - simple defensive behavior
                 transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "crab retaliation");
                 log::info!("Beach Crab {} retaliating against attacker", animal.id);
+            },
+            
+            AnimalSpecies::Tern => {
+                // Terns always flee when damaged - fly away
+                set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 500.0, rng);
+                transition_to_state(animal, AnimalState::Flying, current_time, None, "tern flee damage");
+                animal.is_flying = true;
+                log::info!("Tern {} flying away after damage", animal.id);
+            },
+            
+            AnimalSpecies::Crow => {
+                // Crows flee when damaged but may drop stolen items
+                set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 400.0, rng);
+                transition_to_state(animal, AnimalState::Flying, current_time, None, "crow flee damage");
+                animal.is_flying = true;
+                log::info!("Crow {} flying away after damage", animal.id);
             },
         }
     }
@@ -3316,6 +3625,8 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::CableViper => 500.0,    // Moderate distance
                 AnimalSpecies::ArcticWalrus => 200.0,  // Walruses barely flee
                 AnimalSpecies::BeachCrab => 250.0,    // Crabs scuttle away quickly
+                AnimalSpecies::Tern => 800.0,         // Birds fly far away
+                AnimalSpecies::Crow => 700.0,         // Crows fly away
             };
             
             animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());

@@ -72,6 +72,11 @@ export type WildAnimal = {
   heartEffectUntil: __Timestamp | undefined,
   cryingEffectUntil: __Timestamp | undefined,
   lastFoodCheck: __Timestamp | undefined,
+  heldItemName: string | undefined,
+  heldItemQuantity: number | undefined,
+  flyingTargetX: number | undefined,
+  flyingTargetY: number | undefined,
+  isFlying: boolean,
 };
 let _cached_WildAnimal_type_value: __AlgebraicTypeType | null = null;
 
@@ -120,6 +125,11 @@ export const WildAnimal = {
       { name: "heartEffectUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "cryingEffectUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastFoodCheck", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "heldItemName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "heldItemQuantity", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "flyingTargetX", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "flyingTargetY", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "isFlying", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_WildAnimal_type_value;
   },

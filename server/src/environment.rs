@@ -697,6 +697,79 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             
             false // Not on beach or sandy coastal area
         }
+        
+        AnimalSpecies::Tern => {
+            // 🐦 TERN BEACH REQUIREMENT: Terns spawn on beaches and coastal areas
+            if matches!(tile_type, TileType::Beach) {
+                return true; // Perfect beach habitat for terns
+            }
+            
+            // Also allow grass/sand adjacent to beach or water (coastal)
+            if matches!(tile_type, TileType::Grass | TileType::Sand) {
+                // Check if adjacent to water or beach (within 1 tile)
+                for dy in -1..=1 {
+                    for dx in -1..=1 {
+                        if dx == 0 && dy == 0 { continue; }
+                        
+                        let check_x = tile_x + dx;
+                        let check_y = tile_y + dy;
+                        
+                        // Check bounds
+                        if check_x < 0 || check_y < 0 || 
+                           check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                            continue;
+                        }
+                        
+                        // Check if adjacent tile is water or beach
+                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
+                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                                return true; // Coastal area suitable for tern
+                            }
+                        }
+                    }
+                }
+            }
+            
+            false // Not on beach or coastal area
+        }
+        
+        AnimalSpecies::Crow => {
+            // 🐦‍⬛ CROW INLAND REQUIREMENT: Crows spawn inland on grass, dirt, and near trees
+            // They explicitly avoid beaches and coastal areas
+            if matches!(tile_type, TileType::Beach | TileType::Sand) {
+                return false; // Crows don't like beaches
+            }
+            
+            // Check if too close to water (avoid coastal)
+            for dy in -2..=2 {
+                for dx in -2..=2 {
+                    if dx == 0 && dy == 0 { continue; }
+                    
+                    let check_x = tile_x + dx;
+                    let check_y = tile_y + dy;
+                    
+                    // Check bounds
+                    if check_x < 0 || check_y < 0 || 
+                       check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                        continue;
+                    }
+                    
+                    // Check if adjacent tile is water or beach
+                    for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
+                        if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                            return false; // Too close to coast for crow
+                        }
+                    }
+                }
+            }
+            
+            // Must be on grass, dirt, or road
+            if !matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad) {
+                return false;
+            }
+            
+            true // Inland area suitable for crow
+        }
     }
 }
 
@@ -1625,11 +1698,13 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
     // Define species distribution (weighted probabilities)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 40),      // 40% - Most common
-        (AnimalSpecies::ArcticWalrus, 20),   // 20% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 30),      // 30% - Common beach creature
+        (AnimalSpecies::CinderFox, 30),      // 30% - Common
+        (AnimalSpecies::ArcticWalrus, 15),   // 15% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 20),      // 20% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
+        (AnimalSpecies::Tern, 15),           // 15% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     
@@ -1865,6 +1940,13 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 heart_effect_until: None,
                 crying_effect_until: None,
                 last_food_check: None,
+                
+                // Bird scavenging/stealing system fields
+                held_item_name: None,
+                held_item_quantity: None,
+                flying_target_x: None,
+                flying_target_y: None,
+                is_flying: matches!(chosen_species, AnimalSpecies::Tern | AnimalSpecies::Crow), // Birds start flying
             };
 
             match ctx.db.wild_animal().try_insert(new_animal) {

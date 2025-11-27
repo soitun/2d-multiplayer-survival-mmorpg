@@ -13,6 +13,10 @@ import foxWalkingSheet from '../../assets/fox_walking.png';
 import crabWalkingSheet from '../../assets/crab_walking.png';
 import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
+import ternWalkingSheet from '../../assets/tern_walking.png';
+import crowWalkingSheet from '../../assets/crow_walking.png';
+// Note: Tern and Crow use placeholder sprites until proper assets are added
+// They will fall back to the fox sprite sheet with different coloring
 
 
 // --- Sprite Sheet Configuration ---
@@ -47,6 +51,8 @@ const speciesSpriteSheets: Record<string, string> = {
     'CableViper': cableViperWalkingSheet,
     'ArcticWalrus': walrusWalkingSheet,
     'BeachCrab': crabWalkingSheet,
+    'Tern': ternWalkingSheet,
+    'Crow': crowWalkingSheet,
 };
 
 // --- Constants for damage visual effects ---
@@ -155,6 +161,12 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Vipers are larger snakes
             return { width: 96, height: 96, shadowRadius: 28 };
         case 'BeachCrab':
+            return { width: 64, height: 64, shadowRadius: 20 };
+        case 'Tern':
+            // Terns are small-medium coastal birds
+            return { width: 72, height: 72, shadowRadius: 22 };
+        case 'Crow':
+            // Crows are small-medium inland birds
             return { width: 64, height: 64, shadowRadius: 20 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
@@ -303,6 +315,8 @@ export function renderWildAnimal({
             case 'CableViper': return '#7ED321'; // Green
             case 'ArcticWalrus': return '#8B6914'; // Brown
             case 'BeachCrab': return '#E85D04'; // Orange-red
+            case 'Tern': return '#E0E0E0'; // Light gray/white
+            case 'Crow': return '#1A1A1A'; // Black
             default: return '#9013FE'; // Purple
         }
     };
@@ -529,6 +543,8 @@ export function preloadWildAnimalImages(): void {
         crabWalkingSheet,
         tundraWolfWalkingSheet,
         cableViperWalkingSheet,
+        ternWalkingSheet,
+        crowWalkingSheet,
     ];
     
     spriteSheets.forEach(imageSrc => {

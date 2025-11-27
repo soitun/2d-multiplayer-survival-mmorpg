@@ -55,4 +55,5 @@ export type NightVision = { tag: "NightVision" };
 export type WarmthBoost = { tag: "WarmthBoost" };
 export type ColdResistance = { tag: "ColdResistance" };
 export type PoisonResistance = { tag: "PoisonResistance" };
+export type FireResistance = { tag: "FireResistance" };
 

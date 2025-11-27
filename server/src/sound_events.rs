@@ -621,6 +621,8 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::CinderFox => 1.1,     // Slightly higher, lighter footsteps
         AnimalSpecies::CableViper => 1.0,    // Normal pitch
         AnimalSpecies::BeachCrab => 1.2,     // Higher pitch - small, scuttling footsteps
+        AnimalSpecies::Tern => 1.3,          // High pitch - light bird
+        AnimalSpecies::Crow => 1.2,          // Slightly high pitch - medium bird
     };
     
     let mut rng = ctx.rng();

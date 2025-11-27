@@ -38,4 +38,9 @@ export type Investigating = { tag: "Investigating" };
 export type Alert = { tag: "Alert" };
 export type Following = { tag: "Following" };
 export type Protecting = { tag: "Protecting" };
+export type Flying = { tag: "Flying" };
+export type FlyingChase = { tag: "FlyingChase" };
+export type Grounded = { tag: "Grounded" };
+export type Scavenging = { tag: "Scavenging" };
+export type Stealing = { tag: "Stealing" };
 
