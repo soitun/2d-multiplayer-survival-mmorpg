@@ -771,10 +771,10 @@ pub fn upgrade_foundation(
         return Err("Repair Hammer must be equipped to upgrade foundations.".to_string());
     }
     
-    // 2.5. Check building privilege AND distance from hearth
+    // 2.5. Check building privilege (only if hearths exist)
     // EARLY GAME: If no hearths exist, allow anyone to upgrade (pre-privilege phase)
-    // LATE GAME: Once hearths exist, require building privilege + proximity
-    use crate::homestead_hearth::{player_has_building_privilege, BUILDING_PRIVILEGE_RADIUS_SQUARED};
+    // LATE GAME: Once hearths exist, require building privilege
+    use crate::homestead_hearth::player_has_building_privilege;
     let hearths = ctx.db.homestead_hearth();
     let any_hearth_exists = hearths.iter().any(|h| !h.is_destroyed);
     
@@ -782,25 +782,6 @@ pub fn upgrade_foundation(
         // Hearths exist - require building privilege
         if !player_has_building_privilege(ctx, sender_id) {
             return Err("Building privilege required. Hold E near a Homestead Hearth to gain building privilege.".to_string());
-        }
-        
-        // Check if player is within building privilege radius of ANY hearth
-        let mut within_radius = false;
-        for hearth in hearths.iter() {
-            if hearth.is_destroyed {
-                continue;
-            }
-            let dx = player.position_x - hearth.pos_x;
-            let dy = player.position_y - hearth.pos_y;
-            let distance_squared = dx * dx + dy * dy;
-            if distance_squared <= BUILDING_PRIVILEGE_RADIUS_SQUARED {
-                within_radius = true;
-                break;
-            }
-        }
-        
-        if !within_radius {
-            return Err("Too far from any Homestead Hearth. Building privilege only works within 500px of a hearth.".to_string());
         }
     }
     // If no hearths exist, skip privilege check entirely (early game freedom)
@@ -1421,10 +1402,10 @@ pub fn upgrade_wall(
         return Err("Repair Hammer must be equipped to upgrade walls.".to_string());
     }
     
-    // 2.5. Check building privilege AND distance from hearth
+    // 2.5. Check building privilege (only if hearths exist)
     // EARLY GAME: If no hearths exist, allow anyone to upgrade (pre-privilege phase)
-    // LATE GAME: Once hearths exist, require building privilege + proximity
-    use crate::homestead_hearth::{player_has_building_privilege, BUILDING_PRIVILEGE_RADIUS_SQUARED};
+    // LATE GAME: Once hearths exist, require building privilege
+    use crate::homestead_hearth::player_has_building_privilege;
     let hearths = ctx.db.homestead_hearth();
     let any_hearth_exists = hearths.iter().any(|h| !h.is_destroyed);
     
@@ -1432,25 +1413,6 @@ pub fn upgrade_wall(
         // Hearths exist - require building privilege
         if !player_has_building_privilege(ctx, sender_id) {
             return Err("Building privilege required. Hold E near a Homestead Hearth to gain building privilege.".to_string());
-        }
-        
-        // Check if player is within building privilege radius of ANY hearth
-        let mut within_radius = false;
-        for hearth in hearths.iter() {
-            if hearth.is_destroyed {
-                continue;
-            }
-            let dx = player.position_x - hearth.pos_x;
-            let dy = player.position_y - hearth.pos_y;
-            let distance_squared = dx * dx + dy * dy;
-            if distance_squared <= BUILDING_PRIVILEGE_RADIUS_SQUARED {
-                within_radius = true;
-                break;
-            }
-        }
-        
-        if !within_radius {
-            return Err("Too far from any Homestead Hearth. Building privilege only works within 500px of a hearth.".to_string());
         }
     }
     // If no hearths exist, skip privilege check entirely (early game freedom)
