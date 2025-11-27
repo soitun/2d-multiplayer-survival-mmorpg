@@ -39,7 +39,7 @@ pub(crate) const PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED: f32 =
     PLAYER_FUMAROLE_INTERACTION_DISTANCE * PLAYER_FUMAROLE_INTERACTION_DISTANCE;
 
 // Warmth constants - fumaroles provide passive warmth protection
-pub(crate) const FUMAROLE_WARMTH_RADIUS: f32 = 200.0; // 200px radius warmth protection
+pub(crate) const FUMAROLE_WARMTH_RADIUS: f32 = 600.0; // 600px radius warmth protection (3x original for large heat area)
 pub(crate) const FUMAROLE_WARMTH_RADIUS_SQUARED: f32 = FUMAROLE_WARMTH_RADIUS * FUMAROLE_WARMTH_RADIUS;
 
 // Spawning constants

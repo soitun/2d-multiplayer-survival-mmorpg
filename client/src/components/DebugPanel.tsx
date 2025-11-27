@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useDebug } from '../contexts/DebugContext';
 import { WorldState as SpacetimeDBWorldState } from '../generated';
 import { DbConnection } from '../generated';
+import springIcon from '../assets/ui/spring.png';
+import summerIcon from '../assets/ui/summer.png';
+import autumnIcon from '../assets/ui/autumn.png';
+import winterIcon from '../assets/ui/winter.png';
 
 interface DebugPanelProps {
     localPlayer: any;
@@ -120,11 +124,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
     const getSeasonColor = () => {
         const season = worldState?.currentSeason?.tag;
         switch (season) {
-            case 'Spring': return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', emoji: '🌸' };
-            case 'Summer': return { bg: 'linear-gradient(135deg, rgba(255, 213, 79, 0.3), rgba(255, 193, 7, 0.4))', color: '#FFD54F', border: '1px solid #FFD54F', emoji: '☀️' };
-            case 'Autumn': return { bg: 'linear-gradient(135deg, rgba(255, 138, 101, 0.3), rgba(255, 112, 67, 0.4))', color: '#FF8A65', border: '1px solid #FF8A65', emoji: '🍂' };
-            case 'Winter': return { bg: 'linear-gradient(135deg, rgba(144, 202, 249, 0.3), rgba(100, 181, 246, 0.4))', color: '#90CAF9', border: '1px solid #90CAF9', emoji: '❄️' };
-            default: return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', emoji: '🌸' };
+            case 'Spring': return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', icon: springIcon };
+            case 'Summer': return { bg: 'linear-gradient(135deg, rgba(255, 213, 79, 0.3), rgba(255, 193, 7, 0.4))', color: '#FFD54F', border: '1px solid #FFD54F', icon: summerIcon };
+            case 'Autumn': return { bg: 'linear-gradient(135deg, rgba(255, 138, 101, 0.3), rgba(255, 112, 67, 0.4))', color: '#FF8A65', border: '1px solid #FF8A65', icon: autumnIcon };
+            case 'Winter': return { bg: 'linear-gradient(135deg, rgba(144, 202, 249, 0.3), rgba(100, 181, 246, 0.4))', color: '#90CAF9', border: '1px solid #90CAF9', icon: winterIcon };
+            default: return { bg: 'linear-gradient(135deg, rgba(129, 199, 132, 0.3), rgba(102, 187, 106, 0.4))', color: '#81C784', border: '1px solid #81C784', icon: springIcon };
         }
     };
 
@@ -525,7 +529,12 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                 textAlign: 'center'
                             }}
                         >
-                            {seasonColors.emoji} {worldState?.currentSeason?.tag || 'SPRING'}
+                            <img 
+                                src={seasonColors.icon} 
+                                alt={worldState?.currentSeason?.tag || 'SPRING'}
+                                style={{ width: '14px', height: '14px', objectFit: 'contain', verticalAlign: 'middle', marginRight: '4px' }}
+                            />
+                            {worldState?.currentSeason?.tag || 'SPRING'}
                         </div>
                         
                         {/* Right Arrow */}

@@ -1228,9 +1228,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     while spawned_stone_count < target_stone_count && stone_attempts < max_stone_attempts {
         stone_attempts += 1;
         
-        // Generate random resource amount *before* calling attempt_single_spawn
-        let stone_resource_amount = rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES);
-        
          match attempt_single_spawn(
             &mut rng,
             &mut occupied_tiles,
@@ -1244,7 +1241,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             crate::stone::MIN_STONE_DISTANCE_SQ,
             crate::stone::MIN_STONE_TREE_DISTANCE_SQ,
             0.0,
-            |pos_x, pos_y, resource_amount: u32| {
+            |pos_x, pos_y, _resource_amount: u32| {
                 // Calculate chunk index for the stone
                 let chunk_idx = calculate_chunk_index(pos_x, pos_y);
                 
@@ -1256,22 +1253,41 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 let position_seed: u64 = ((pos_x as u64) << 32) ^ (pos_y as u64);
                 let mut position_rng = StdRng::seed_from_u64(position_seed);
                 
-                // Determine ore type based on location
+                // Determine ore type based on location FIRST
                 let ore_type = crate::stone::OreType::random_for_location(pos_x, pos_y, is_in_quarry, &mut position_rng);
+                
+                // Set resource amount based on ore type
+                // Stone: Basic building material (500-1000)
+                // Metal/Sulfur: Rarer materials (~50% of stone yield, 250-500)
+                // Memory: Tech tree upgrades (120-180)
+                let resource_amount = match ore_type {
+                    crate::stone::OreType::Stone => {
+                        position_rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Metal => {
+                        position_rng.gen_range(crate::stone::METAL_ORE_MIN_RESOURCES..=crate::stone::METAL_ORE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Sulfur => {
+                        position_rng.gen_range(crate::stone::SULFUR_ORE_MIN_RESOURCES..=crate::stone::SULFUR_ORE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Memory => {
+                        position_rng.gen_range(crate::stone::MEMORY_SHARD_MIN_RESOURCES..=crate::stone::MEMORY_SHARD_MAX_RESOURCES)
+                    },
+                };
                 
                 crate::stone::Stone {
                     id: 0,
                     pos_x,
                     pos_y,
                     health: crate::stone::STONE_INITIAL_HEALTH,
-                    resource_remaining: resource_amount, // Use the passed-in resource amount
+                    resource_remaining: resource_amount, // Set based on ore type
                     ore_type, // Set the ore type based on location
                     chunk_index: chunk_idx, // Set the chunk index
                     last_hit_time: None,
                     respawn_at: None,
                 }
             },
-            stone_resource_amount, // Pass the resource amount as extra_args
+            0u32, // Dummy value - resource amount is now determined inside the closure
             |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs for stones
             stones,
         ) {
@@ -1588,7 +1604,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
-                let stone_resource_amount = rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES);
                 
                 // Quarry stones are always in quarries, so is_in_quarry = true
                 let is_in_quarry = true;
@@ -1596,12 +1611,31 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 // Determine ore type based on location (quarry = more metal/sulfur)
                 let ore_type = crate::stone::OreType::random_for_location(world_x_px, world_y_px, is_in_quarry, &mut rng);
                 
+                // Set resource amount based on ore type
+                // Stone: Basic building material (500-1000)
+                // Metal/Sulfur: Rarer materials (~50% of stone yield, 250-500)
+                // Memory: Tech tree upgrades (120-180)
+                let stone_resource_amount = match ore_type {
+                    crate::stone::OreType::Stone => {
+                        rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Metal => {
+                        rng.gen_range(crate::stone::METAL_ORE_MIN_RESOURCES..=crate::stone::METAL_ORE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Sulfur => {
+                        rng.gen_range(crate::stone::SULFUR_ORE_MIN_RESOURCES..=crate::stone::SULFUR_ORE_MAX_RESOURCES)
+                    },
+                    crate::stone::OreType::Memory => {
+                        rng.gen_range(crate::stone::MEMORY_SHARD_MIN_RESOURCES..=crate::stone::MEMORY_SHARD_MAX_RESOURCES)
+                    },
+                };
+                
                 let stone = crate::stone::Stone {
                     id: 0,
                     pos_x: world_x_px,
                     pos_y: world_y_px,
                     health: crate::stone::STONE_INITIAL_HEALTH,
-                    resource_remaining: stone_resource_amount,
+                    resource_remaining: stone_resource_amount, // Set based on ore type
                     ore_type, // Set the ore type based on location
                     chunk_index: chunk_idx,
                     last_hit_time: None,
@@ -2607,14 +2641,30 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         |s: &crate::stone::Stone| s.health == 0, // Filter: only check stones with 0 health
         |s: &mut crate::stone::Stone| { // Update logic
             s.health = crate::stone::STONE_INITIAL_HEALTH;
-            // Generate new random resource amount for respawned stone
-            s.resource_remaining = ctx.rng().gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES);
             // Preserve ore type based on position (deterministic, same as initial spawn)
             let is_in_quarry = is_position_on_monument(ctx, s.pos_x, s.pos_y);
             // Create deterministic RNG seeded from position to ensure consistent ore type
             let position_seed: u64 = ((s.pos_x as u64) << 32) ^ (s.pos_y as u64);
             let mut position_rng = StdRng::seed_from_u64(position_seed);
             s.ore_type = crate::stone::OreType::random_for_location(s.pos_x, s.pos_y, is_in_quarry, &mut position_rng);
+            // Generate new random resource amount based on ore type
+            // Stone: Basic building material (500-1000)
+            // Metal/Sulfur: Rarer materials (~50% of stone yield, 250-500)
+            // Memory: Tech tree upgrades (120-180)
+            s.resource_remaining = match s.ore_type {
+                crate::stone::OreType::Stone => {
+                    position_rng.gen_range(crate::stone::STONE_MIN_RESOURCES..=crate::stone::STONE_MAX_RESOURCES)
+                },
+                crate::stone::OreType::Metal => {
+                    position_rng.gen_range(crate::stone::METAL_ORE_MIN_RESOURCES..=crate::stone::METAL_ORE_MAX_RESOURCES)
+                },
+                crate::stone::OreType::Sulfur => {
+                    position_rng.gen_range(crate::stone::SULFUR_ORE_MIN_RESOURCES..=crate::stone::SULFUR_ORE_MAX_RESOURCES)
+                },
+                crate::stone::OreType::Memory => {
+                    position_rng.gen_range(crate::stone::MEMORY_SHARD_MIN_RESOURCES..=crate::stone::MEMORY_SHARD_MAX_RESOURCES)
+                },
+            };
             s.respawn_at = None;
             s.last_hit_time = None;
         }

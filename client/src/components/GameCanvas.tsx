@@ -486,6 +486,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     furnaces, // Add furnaces for darkness cutouts
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
+    fumaroles, // ADDED: Fumaroles for heat glow at night
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions

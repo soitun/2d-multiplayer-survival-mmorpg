@@ -1988,7 +1988,7 @@ fn remove_hot_spring_effect(ctx: &ReducerContext, player_id: Identity) {
 
 /// Fumarole warmth protection radius (in pixels)
 /// Players within this radius of a fumarole are protected from warmth decay
-pub const FUMAROLE_WARMTH_PROTECTION_RADIUS: f32 = 200.0; // 200px = ~4 tiles radius
+pub const FUMAROLE_WARMTH_PROTECTION_RADIUS: f32 = 600.0; // 600px = ~12 tiles radius (3x original)
 const FUMAROLE_WARMTH_PROTECTION_RADIUS_SQ: f32 = FUMAROLE_WARMTH_PROTECTION_RADIUS * FUMAROLE_WARMTH_PROTECTION_RADIUS;
 
 /// Checks if a player is currently near a fumarole (entity-based detection)

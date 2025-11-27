@@ -9,6 +9,7 @@ import {
     ItemDefinition as SpacetimeDBItemDefinition,
     RuneStone as SpacetimeDBRuneStone, // ADDED: RuneStone
     FirePatch as SpacetimeDBFirePatch, // ADDED: FirePatch
+    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
@@ -274,6 +275,7 @@ interface UseDayNightCycleProps {
     furnaces: Map<string, SpacetimeDBFurnace>;
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
+    fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -298,6 +300,7 @@ export function useDayNightCycle({
     furnaces,
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
+    fumaroles, // ADDED: Fumaroles
     players,
     activeEquipments,
     itemDefinitions,
@@ -564,6 +567,61 @@ export function useDayNightCycle({
             maskCtx.fill();
         });
 
+        // Render fumarole light cutouts - geothermal vents emit heat/light visible at night
+        // Fumaroles are always active (no isBurning check needed)
+        fumaroles.forEach(fumarole => {
+            const screenX = fumarole.posX + cameraOffsetX;
+            const screenY = fumarole.posY + cameraOffsetY;
+            
+            // Fumarole cutout radius - large heat area (600px warmth radius on server)
+            const FUMAROLE_CUTOUT_RADIUS = 300; // Visual cutout is half the warmth radius for better aesthetics
+            const lightRadius = FUMAROLE_CUTOUT_RADIUS;
+            
+            // FIRST: Create the transparent cutout hole for visibility
+            const maskGradient = maskCtx.createRadialGradient(
+                screenX, screenY, lightRadius * 0.05, // Inner radius (5% of total)
+                screenX, screenY, lightRadius // Outer radius
+            );
+            
+            // Strong cutout with smooth fade - creates visible area around fumarole
+            maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+            maskGradient.addColorStop(0.25, 'rgba(0,0,0,0.85)'); // Strong cutout zone
+            maskGradient.addColorStop(0.5, 'rgba(0,0,0,0.6)'); // Gradual transition
+            maskGradient.addColorStop(0.75, 'rgba(0,0,0,0.3)'); // Gentle fade
+            maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+            
+            maskCtx.fillStyle = maskGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+
+            // SECOND: Fill the cutout with warm orange/red geothermal glow (switch composite mode back)
+            maskCtx.globalCompositeOperation = 'source-over';
+            
+            // Add subtle heat shimmer effect using time-based intensity
+            const heatPulse = (Date.now() / 2000) % (Math.PI * 2); // 2 second cycle
+            const heatIntensity = 1.0 + Math.sin(heatPulse) * 0.1; // ±10% pulse
+            
+            // Warm orange-red geothermal glow gradient
+            const heatFillRadius = lightRadius; // Same size as cutout to fill completely
+            const heatGradient = maskCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, heatFillRadius);
+            heatGradient.addColorStop(0, `rgba(255, 120, 40, ${0.35 * heatIntensity})`); // Bright orange center - intense heat
+            heatGradient.addColorStop(0.15, `rgba(240, 90, 30, ${0.30 * heatIntensity})`); // Hot orange
+            heatGradient.addColorStop(0.35, `rgba(200, 70, 25, ${0.22 * heatIntensity})`); // Deep orange-red
+            heatGradient.addColorStop(0.55, `rgba(160, 50, 20, ${0.15 * heatIntensity})`); // Dark red-orange
+            heatGradient.addColorStop(0.75, `rgba(120, 40, 15, ${0.08 * heatIntensity})`); // Very dark red
+            heatGradient.addColorStop(0.9, `rgba(80, 30, 10, ${0.03 * heatIntensity})`); // Faint edge glow
+            heatGradient.addColorStop(1, 'rgba(60, 20, 8, 0)'); // Natural fade to transparent
+            
+            maskCtx.fillStyle = heatGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, heatFillRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+            
+            // Switch back to cutout mode for other lights
+            maskCtx.globalCompositeOperation = 'destination-out';
+        });
+
         // Render rune stone light cutouts with colored atmospheric glows (only at night: twilight evening to twilight morning)
         // Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
         if (typeof currentCycleProgress === 'number') {
@@ -666,7 +724,7 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
+    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation]);
 
     return { overlayRgba, maskCanvasRef };
 } 

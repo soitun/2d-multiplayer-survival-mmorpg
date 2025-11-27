@@ -818,7 +818,7 @@ export function renderWallTargetIndicator({
   
   // Wall thickness constants (match actual wall rendering)
   const WALL_THICKNESS = 4 * worldScale; // For north/south walls
-  const EAST_WEST_WALL_THICKNESS = 12 * worldScale; // For east/west walls
+  const EAST_WEST_WALL_THICKNESS = 24 * worldScale; // For east/west walls
   const DIAGONAL_WALL_THICKNESS = 12 * worldScale; // For diagonal walls
   // Perspective correction: North walls (away from viewer) appear shorter
   const NORTH_WALL_HEIGHT = screenSize * 1.0; // 1.0 tiles tall (full height)
@@ -1109,7 +1109,7 @@ export function renderWall({
   
   // Wall thickness (thin rectangle)
   const WALL_THICKNESS = 4 * worldScale; // 4 pixels thick (for north/south walls)
-  const EAST_WEST_WALL_THICKNESS = 12 * worldScale; // 12 pixels thick for east/west walls (more visible)
+  const EAST_WEST_WALL_THICKNESS = 24 * worldScale; // 24 pixels thick for east/west walls (more visible)
   const DIAGONAL_WALL_THICKNESS = 12 * worldScale; // 12 pixels thick for diagonal walls (more visible)
   
   // Get wall image based on tier (use wall-specific images)
@@ -2236,7 +2236,7 @@ export function renderWall({
       // Calculate health bar position based on wall edge - position it close to the actual wall
       // Use the same constants as wall rendering
       const WALL_THICKNESS = 4 * worldScale;
-      const EAST_WEST_WALL_THICKNESS = 12 * worldScale;
+      const EAST_WEST_WALL_THICKNESS = 24 * worldScale;
       const NORTH_WALL_HEIGHT = screenSize * 1.0;
       const SOUTH_WALL_HEIGHT = screenSize;
       
@@ -2894,7 +2894,7 @@ export function renderWallPreview({
   
   // Wall thickness (thin rectangle)
   const WALL_THICKNESS = 4 * worldScale; // 4 pixels thick (for north/south walls)
-  const EAST_WEST_WALL_THICKNESS = 12 * worldScale; // 12 pixels thick for east/west walls (more visible)
+  const EAST_WEST_WALL_THICKNESS = 24 * worldScale; // 24 pixels thick for east/west walls (more visible)
   const DIAGONAL_WALL_THICKNESS = 12 * worldScale; // 12 pixels thick for diagonal walls (more visible)
   
   // Determine wall rectangle position and size based on edge

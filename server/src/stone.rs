@@ -81,8 +81,21 @@ pub(crate) const MIN_STONE_TREE_DISTANCE_SQ: f32 = MIN_STONE_TREE_DISTANCE_PX * 
 pub(crate) const STONE_INITIAL_HEALTH: u32 = 1000;
 
 // NEW: Resource depletion system - each stone has a random amount of resources
+// Stone ore: Basic building material (upgrade from wood)
 pub(crate) const STONE_MIN_RESOURCES: u32 = 500; // Minimum stone ore per stone node
 pub(crate) const STONE_MAX_RESOURCES: u32 = 1000; // Maximum stone ore per stone node
+
+// Metal ore: Rarer material for metal construction and bullets (~50% of stone yield)
+pub(crate) const METAL_ORE_MIN_RESOURCES: u32 = 250; // Minimum metal ore per metal node
+pub(crate) const METAL_ORE_MAX_RESOURCES: u32 = 500; // Maximum metal ore per metal node (~375 average)
+
+// Sulfur ore: Rarer material for bullets and other uses (~50% of stone yield)
+pub(crate) const SULFUR_ORE_MIN_RESOURCES: u32 = 250; // Minimum sulfur ore per sulfur node
+pub(crate) const SULFUR_ORE_MAX_RESOURCES: u32 = 500; // Maximum sulfur ore per sulfur node (~375 average)
+
+// Memory shard resource constants - for tech tree upgrades (much lower yield)
+pub(crate) const MEMORY_SHARD_MIN_RESOURCES: u32 = 120; // Minimum memory shards per memory node
+pub(crate) const MEMORY_SHARD_MAX_RESOURCES: u32 = 180; // Maximum memory shards per memory node (~150 average)
 
 // NEW Respawn Time Constants for Stones (adjusted for balanced survival gameplay)
 pub(crate) const MIN_STONE_RESPAWN_TIME_SECS: u64 = 240; // 4 minutes

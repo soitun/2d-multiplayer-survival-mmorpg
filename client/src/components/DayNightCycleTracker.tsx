@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { WorldState, TimeOfDay, Season, Player } from '../generated';
 import { calculateChunkIndex } from '../utils/chunkUtils';
+import springIcon from '../assets/ui/spring.png';
+import summerIcon from '../assets/ui/summer.png';
+import autumnIcon from '../assets/ui/autumn.png';
+import winterIcon from '../assets/ui/winter.png';
 
 // Style constants
 const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))';
@@ -110,14 +114,14 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
     }
   };
 
-  // Helper function to get season emoji
-  const getSeasonEmoji = (season: Season) => {
+  // Helper function to get season icon image source
+  const getSeasonIcon = (season: Season): string => {
     switch (season.tag) {
-      case 'Spring': return '🌱';
-      case 'Summer': return '☀️';
-      case 'Autumn': return '🍂';
-      case 'Winter': return '❄️';
-      default: return '🌱'; // Fallback to spring
+      case 'Spring': return springIcon;
+      case 'Summer': return summerIcon;
+      case 'Autumn': return autumnIcon;
+      case 'Winter': return winterIcon;
+      default: return springIcon; // Fallback to spring
     }
   };
 
@@ -210,9 +214,11 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '16px' }}>
-            {getSeasonEmoji(worldState.currentSeason)}
-          </span>
+          <img 
+            src={getSeasonIcon(worldState.currentSeason)} 
+            alt={getSeasonDisplay(worldState.currentSeason)}
+            style={{ width: '16px', height: '16px', objectFit: 'contain' }}
+          />
           <span style={{ fontSize: '16px' }}>
             {getTimeOfDayEmoji(worldState.timeOfDay, worldState.isFullMoon)}
           </span>
@@ -259,29 +265,33 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
           <span style={{ textShadow: '0 0 10px rgba(0, 255, 255, 0.8)' }}>Day {worldState.cycleCount}</span>
           <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
-            <span
-              style={{
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                opacity: 0.9,
-                fontSize: '16px',
-                filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))',
-                position: 'relative'
-              }}
-              onMouseEnter={(e) => { 
-                e.currentTarget.style.opacity = '1'; 
-                e.currentTarget.style.transform = 'scale(1.1)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.9))';
-                setHoveredElement('season');
-              }}
-              onMouseLeave={(e) => { 
-                e.currentTarget.style.opacity = '0.9'; 
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
-                setHoveredElement(null);
-              }}
-            >
-              {getSeasonEmoji(worldState.currentSeason)}
+            <div style={{ position: 'relative' }}>
+              <img
+                src={getSeasonIcon(worldState.currentSeason)}
+                alt={getSeasonDisplay(worldState.currentSeason)}
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: 0.9,
+                  width: '16px',
+                  height: '16px',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))',
+                  display: 'block'
+                }}
+                onMouseEnter={(e) => { 
+                  e.currentTarget.style.opacity = '1'; 
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.9))';
+                  setHoveredElement('season');
+                }}
+                onMouseLeave={(e) => { 
+                  e.currentTarget.style.opacity = '0.9'; 
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
+                  setHoveredElement(null);
+                }}
+              />
               {hoveredElement === 'season' && (
                 <div style={{
                   position: 'absolute',
@@ -307,7 +317,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
                   {getSeasonDisplay(worldState.currentSeason)}
                 </div>
               )}
-            </span>
+            </div>
             <span
               onClick={toggleMinimized}
               style={{
