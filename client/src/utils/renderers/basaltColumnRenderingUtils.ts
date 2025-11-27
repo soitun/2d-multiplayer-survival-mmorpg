@@ -1,14 +1,14 @@
 import { BasaltColumn } from '../../generated'; // Import generated type
-import basaltColumn1Image from '../../assets/doodads/basalt_column.png'; // Type1
-import basaltColumn2Image from '../../assets/doodads/basalt_column2.png'; // Type2
-import basaltColumn3Image from '../../assets/doodads/basalt_column3.png'; // Type3
+import basaltColumn1Image from '../../assets/doodads/basalt_column_new.png'; // Type1
+import basaltColumn2Image from '../../assets/doodads/basalt_column2_new.png'; // Type2
+import basaltColumn3Image from '../../assets/doodads/basalt_column3_new.png'; // Type3
 import { applyStandardDropShadow, drawDynamicGroundShadow } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
 
 // --- Constants ---
-export const BASALT_COLUMN_WIDTH = 200; // 2.5x bigger (was 80) - large rock formations for cover
-export const BASALT_COLUMN_HEIGHT = 300; // 2.5x bigger (was 120) - tall vertical rock formations
+export const BASALT_COLUMN_WIDTH = 360; // Large rock formations for cover (similar to StonePine trees)
+export const BASALT_COLUMN_HEIGHT = 540; // Tall vertical rock formations (1.5x ratio maintained)
 
 // --- Basalt Column Variant Images Array ---
 const BASALT_COLUMN_VARIANT_IMAGES = [
@@ -33,7 +33,7 @@ const basaltColumnConfig: GroundEntityConfig<BasaltColumn> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight + 20, // Anchor at base with slight offset
+        drawY: entity.posY - drawHeight + 36, // Anchor at base with offset scaled for larger size
     }),
 
     getShadowParams: undefined,
@@ -48,10 +48,10 @@ const basaltColumnConfig: GroundEntityConfig<BasaltColumn> = {
             imageDrawWidth,
             imageDrawHeight,
             cycleProgress,
-            maxStretchFactor: 1.2,  // Moderate stretch for tall columns
-            minStretchFactor: 0.2,   // Compressed at noon
-            shadowBlur: 3,           // Soft shadow
-            pivotYOffset: 40,        // Pivot point for shadow
+            maxStretchFactor: 1.4,  // Larger stretch for taller columns
+            minStretchFactor: 0.25,  // Compressed at noon
+            shadowBlur: 4,           // Slightly larger shadow blur
+            pivotYOffset: 72,        // Pivot point for shadow (scaled from 40)
         });
     },
 
@@ -87,11 +87,15 @@ export function renderBasaltColumn(
     let columnAlpha = MAX_ALPHA;
     
     if (localPlayerPosition) {
-        // Basalt column bounding box for overlap detection
-        const columnLeft = basaltColumn.posX - BASALT_COLUMN_WIDTH / 2;
-        const columnRight = basaltColumn.posX + BASALT_COLUMN_WIDTH / 2;
-        const columnTop = basaltColumn.posY - BASALT_COLUMN_HEIGHT + 20; // Match calculateDrawPosition anchor
-        const columnBottom = basaltColumn.posY + 20;
+        // Use a NARROWER width for occlusion detection - the actual rock is only ~35% of sprite width
+        // This prevents transparency from triggering when player is near the transparent edges of the sprite
+        const occlusionWidth = BASALT_COLUMN_WIDTH * 0.35; // ~126px - just the actual rock portion
+        const occlusionHeight = BASALT_COLUMN_HEIGHT * 0.6; // Upper portion that actually occludes
+        
+        const columnLeft = basaltColumn.posX - occlusionWidth / 2;
+        const columnRight = basaltColumn.posX + occlusionWidth / 2;
+        const columnTop = basaltColumn.posY - occlusionHeight; // Only upper portion matters for occlusion
+        const columnBottom = basaltColumn.posY;
         
         // Player bounding box
         const playerSize = 48;

@@ -149,7 +149,7 @@ export interface SpacetimeTableStates {
     wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
     doors: Map<string, SpacetimeDB.Door>; // ADDED: Building doors
     chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
-}   
+}
 
 // Define the props the hook accepts
 interface UseSpacetimeTablesProps {
@@ -223,7 +223,7 @@ export const useSpacetimeTables = ({
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
-    
+
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
     const chunkWeatherUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -243,36 +243,35 @@ export const useSpacetimeTables = ({
 
     // Track current chunk indices to avoid unnecessary resubscriptions
     const currentChunksRef = useRef<number[]>([]);
-    
+
     // --- Refs for Subscription Management ---
     const nonSpatialHandlesRef = useRef<SubscriptionHandle[]>([]);
     // Store spatial subs per chunk index (RESTORED FROM WORKING VERSION)
     const spatialSubsRef = useRef<Map<number, SubscriptionHandle[]>>(new Map());
     const subscribedChunksRef = useRef<Set<number>>(new Set());
     const isSubscribingRef = useRef(false);
-    
+
     // --- NEW: Refs for state that shouldn't trigger re-renders on every update ---
     const playerDodgeRollStatesRef = useRef<Map<string, SpacetimeDB.PlayerDodgeRollState>>(new Map());
     // OPTIMIZATION: Track players in a Ref to avoid re-renders on position updates
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
     const lastPlayerUpdateRef = useRef<number>(0); // For throttling React updates
-    
-    // OPTIMIZATION: Simple throttle for wild animal updates (not complex batching)
-    const lastWildAnimalRenderRef = useRef<number>(0);
-    const WILD_ANIMAL_THROTTLE_MS = 50; // Only re-render every 50ms max (20fps for animals)
 
-    
+    // NOTE: Wild animal updates are NOT throttled - viewport filtering happens at render time
+    // in useEntityFiltering.ts, which is more efficient than throttling updates
+
+
     // Throttle spatial subscription updates to prevent frame drops
     const lastSpatialUpdateRef = useRef<number>(0);
     const pendingChunkUpdateRef = useRef<{ chunks: Set<number>; timestamp: number } | null>(null);
-    
+
     // 🚀 PROGRESSIVE LOADING: Queue system for gradual chunk loading
     const progressiveLoadQueueRef = useRef<number[]>([]);
     const progressiveLoadTimerRef = useRef<NodeJS.Timeout | null>(null);
-    
+
     // Hysteresis system for delayed unsubscription
     const chunkUnsubscribeTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
-    
+
     // PERF: Track chunk crossing frequency for lag spike detection
     const chunkCrossingStatsRef = useRef<{ lastCrossing: number; crossingCount: number; lastResetTime: number }>({
         lastCrossing: 0,
@@ -319,7 +318,7 @@ export const useSpacetimeTables = ({
     // Helper function to create subscriptions for a chunk (reusable)
     const subscribeToChunk = (chunkIndex: number): SubscriptionHandle[] => {
         if (!connection) return [];
-        
+
         const subscriptionStartTime = ENABLE_CHUNK_PERFORMANCE_LOGGING ? performance.now() : 0;
         const newHandlesForChunk: SubscriptionHandle[] = [];
         try {
@@ -330,7 +329,7 @@ export const useSpacetimeTables = ({
                         .subscribe(queries);
                     return handle;
                 };
-                
+
                 const resourceQueries = [
                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
@@ -356,7 +355,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                 ];
                 newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
-                
+
                 const environmentalQueries = [];
                 if (ENABLE_CLOUDS) {
                     environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
@@ -378,7 +377,7 @@ export const useSpacetimeTables = ({
                         .onError((err) => console.error(`${queryName} Sub Error (Chunk ${chunkIndex}):`, err))
                         .subscribe(query);
                 };
-                
+
                 newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
@@ -397,7 +396,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
-                
+
                 if (ENABLE_CLOUDS) {
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
                 }
@@ -416,7 +415,7 @@ export const useSpacetimeTables = ({
             newHandlesForChunk.forEach(safeUnsubscribe);
             return [];
         }
-        
+
         // 🧪 PERFORMANCE TRACKING: Log subscription creation time
         if (ENABLE_CHUNK_PERFORMANCE_LOGGING && subscriptionStartTime > 0) {
             const subscriptionTime = performance.now() - subscriptionStartTime;
@@ -424,13 +423,13 @@ export const useSpacetimeTables = ({
             metrics.totalSubscriptionTime += subscriptionTime;
             metrics.totalSubscriptionsCreated += newHandlesForChunk.length;
             metrics.subscriptionCreationTimes.push(subscriptionTime);
-            
+
             // Keep only last 100 measurements to avoid memory bloat
             if (metrics.subscriptionCreationTimes.length > 100) {
                 metrics.subscriptionCreationTimes.shift();
             }
         }
-        
+
         return newHandlesForChunk;
     };
 
@@ -483,12 +482,12 @@ export const useSpacetimeTables = ({
             const crossingStartTime = performance.now();
             metrics.totalChunkCrossings++;
             metrics.chunksVisibleHistory.push(newChunkIndicesSet.size);
-            
+
             // Keep only last 100 measurements
             if (metrics.chunksVisibleHistory.length > 100) {
                 metrics.chunksVisibleHistory.shift();
             }
-            
+
             // Log periodic summary
             const timeSinceLastLog = now - metrics.lastMetricsLog;
             if (timeSinceLastLog >= CHUNK_METRICS_LOG_INTERVAL_MS) {
@@ -501,7 +500,7 @@ export const useSpacetimeTables = ({
                 const maxSubscriptionTime = metrics.subscriptionCreationTimes.length > 0
                     ? Math.max(...metrics.subscriptionCreationTimes)
                     : 0;
-                
+
                 console.log(`[CHUNK_PERF] 📊 Performance Metrics (${(timeSinceLastLog / 1000).toFixed(1)}s):`, {
                     chunkSize: `${gameConfig.chunkSizeTiles}×${gameConfig.chunkSizeTiles} tiles (${gameConfig.chunkSizePx}px)`,
                     totalCrossings: metrics.totalChunkCrossings,
@@ -512,14 +511,14 @@ export const useSpacetimeTables = ({
                     totalSubscriptionTime: `${metrics.totalSubscriptionTime.toFixed(2)}ms`,
                     crossingsPerSecond: (metrics.totalChunkCrossings / (timeSinceLastLog / 1000)).toFixed(2)
                 });
-                
+
                 // Reset metrics for next interval
                 metrics.totalChunkCrossings = 0;
                 metrics.totalSubscriptionTime = 0;
                 metrics.totalSubscriptionsCreated = 0;
                 metrics.lastMetricsLog = now;
             }
-            
+
             // Track this crossing time
             const crossingTime = performance.now() - crossingStartTime;
             metrics.chunkCrossingTimes.push(crossingTime);
@@ -530,7 +529,7 @@ export const useSpacetimeTables = ({
 
         // Only proceed if there are actual changes
         if (addedChunks.length > 0 || removedChunks.length > 0) {
-            
+
             // 🚀 PERFORMANCE OPTIMIZATION: Limit chunk processing to prevent frame drops
             if (addedChunks.length > 20) {
                 // console.warn(`[CHUNK_PERF] 🎯 PERFORMANCE LIMIT: Reducing ${addedChunks.length} chunks to 20 to prevent lag spike`);
@@ -540,7 +539,7 @@ export const useSpacetimeTables = ({
             const now = performance.now();
             const stats = chunkCrossingStatsRef.current;
             stats.crossingCount++;
-            
+
             // Reset counter every 5 seconds
             if (now - stats.lastResetTime > 5000) {
                 if (stats.crossingCount > 8) { // More than 8 crossings per 5 seconds (with buffer=2, should be reasonable)
@@ -549,13 +548,13 @@ export const useSpacetimeTables = ({
                 stats.crossingCount = 0;
                 stats.lastResetTime = now;
             }
-            
+
             // Detect rapid chunk crossings (potential boundary jitter) - should be rare with buffer=2 and throttling
             if (now - stats.lastCrossing < MIN_CHUNK_UPDATE_INTERVAL_MS && stats.lastCrossing > 0) {
                 // console.warn(`[CHUNK_PERF] ⚡ Rapid chunk crossing detected! ${(now - stats.lastCrossing).toFixed(1)}ms since last crossing (throttling should prevent this)`);
             }
             stats.lastCrossing = now;
-            
+
             // Log chunk changes for debugging with performance timing
             const chunkCalcTime = performance.now() - startTime;
             // Only log chunk changes if there are significant changes or performance issues
@@ -611,24 +610,24 @@ export const useSpacetimeTables = ({
 
                     // Check if we're already subscribed (double-check after timer cancellation)
                     const alreadySubscribed = spatialSubsRef.current.has(chunkIndex);
-                    
+
                     if (alreadySubscribed) {
                         return; // Already subscribed, skip
                     }
-                    
+
                     const subStartTime = performance.now(); // PERF: Track subscription timing
                     // console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!existingTimer})`);
-                    
+
                     const newHandlesForChunk = subscribeToChunk(chunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
                         subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed
-                        
+
                         // PERF: Log subscription timing
                         const subTime = performance.now() - subStartTime;
                         const subscriptionMethod = ENABLE_BATCHED_SUBSCRIPTIONS ? 'batched' : 'individual';
                         const expectedHandles = ENABLE_BATCHED_SUBSCRIPTIONS ? 3 : 12; // Batched: 3 batches vs Individual: ~12 subs
-                        
+
                         if (subTime > 10) { // Log if subscriptions take more than 10ms
                             // console.warn(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions took ${subTime.toFixed(2)}ms (${newHandlesForChunk.length}/${expectedHandles} subs)`);
                         } else if (subTime > 5) {
@@ -639,7 +638,7 @@ export const useSpacetimeTables = ({
 
                 // Update the current chunk reference
                 currentChunksRef.current = [...newChunkIndicesSet];
-                
+
                 // PERF: Log total chunk update timing
                 const totalTime = performance.now() - startTime;
                 if (totalTime > 16) { // Log if chunk update takes more than one frame (16ms at 60fps)
@@ -679,34 +678,34 @@ export const useSpacetimeTables = ({
             // console.log("[useSpacetimeTables] ENTERING main useEffect for callbacks and initial subscriptions.");
 
             // --- Define Callbacks --- (Keep definitions here - Ensure all match the provided example if needed)
-             
+
             // --- Player Subscriptions ---
             const handlePlayerInsert = (ctx: any, player: SpacetimeDB.Player) => {
                 trackSubUpdate('player_insert');
-                 // Update Ref immediately
-                 playersRef.current.set(player.identity.toHexString(), player);
-                 
-                 // Always trigger render for insertions
-                 setPlayers(new Map(playersRef.current));
+                // Update Ref immediately
+                playersRef.current.set(player.identity.toHexString(), player);
 
-                 // Determine local player registration status within the callback
-                 const localPlayerIdHex = connection?.identity?.toHexString();
-                 if (localPlayerIdHex && player.identity.toHexString() === localPlayerIdHex) {
-                         // console.log('[useSpacetimeTables] Local player matched! Setting localPlayerRegistered = true.');
-                         setLocalPlayerRegistered(true);
-                 }
-             };
+                // Always trigger render for insertions
+                setPlayers(new Map(playersRef.current));
+
+                // Determine local player registration status within the callback
+                const localPlayerIdHex = connection?.identity?.toHexString();
+                if (localPlayerIdHex && player.identity.toHexString() === localPlayerIdHex) {
+                    // console.log('[useSpacetimeTables] Local player matched! Setting localPlayerRegistered = true.');
+                    setLocalPlayerRegistered(true);
+                }
+            };
             const handlePlayerUpdate = (ctx: any, oldPlayer: SpacetimeDB.Player, newPlayer: SpacetimeDB.Player) => {
                 trackSubUpdate('player_update');
                 const playerHexId = newPlayer.identity.toHexString();
-                
+
                 // 1. Always update the Source of Truth (Ref) immediately
                 playersRef.current.set(playerHexId, newPlayer);
 
                 // 2. Check for significant changes that require a React re-render
                 const EPSILON = 0.01;
                 const posChanged = Math.abs(oldPlayer.positionX - newPlayer.positionX) > EPSILON || Math.abs(oldPlayer.positionY - newPlayer.positionY) > EPSILON;
-                
+
                 const oldLastHitTimeMicros = oldPlayer.lastHitTime ? BigInt(oldPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const newLastHitTimeMicros = newPlayer.lastHitTime ? BigInt(newPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const lastHitTimeChanged = oldLastHitTimeMicros !== newLastHitTimeMicros;
@@ -722,11 +721,11 @@ export const useSpacetimeTables = ({
                 const now = performance.now();
                 const timeSinceLastUpdate = now - lastPlayerUpdateRef.current;
                 const shouldThrottle = posChanged && !statsChanged && !stateChanged && !onlineStatusChanged && !usernameChanged && !lastHitTimeChanged;
-                
+
                 // Trigger render if:
                 // 1. Non-positional data changed (stats, state, etc.)
                 // 2. OR enough time passed (e.g. 33ms = ~30fps cap for pure movement updates)
-                if (!shouldThrottle || timeSinceLastUpdate > 33) { 
+                if (!shouldThrottle || timeSinceLastUpdate > 33) {
                     setPlayers(new Map(playersRef.current));
                     lastPlayerUpdateRef.current = now;
                 }
@@ -734,74 +733,74 @@ export const useSpacetimeTables = ({
             const handlePlayerDelete = (ctx: any, deletedPlayer: SpacetimeDB.Player) => {
                 // Update Ref
                 playersRef.current.delete(deletedPlayer.identity.toHexString());
-                
+
                 // Always render on delete
                 setPlayers(new Map(playersRef.current));
-                
+
                 if (connection && connection.identity && deletedPlayer.identity.isEqual(connection.identity)) {
                     if (localPlayerRegistered) {
-                       // console.warn('[useSpacetimeTables] Local player deleted from server.');
-                       setLocalPlayerRegistered(false);
+                        // console.warn('[useSpacetimeTables] Local player deleted from server.');
+                        setLocalPlayerRegistered(false);
                     }
                 }
             };
-            
+
             // --- Tree Subscriptions ---
             const handleTreeInsert = (ctx: any, tree: SpacetimeDB.Tree) => setTrees(prev => new Map(prev).set(tree.id.toString(), tree));
             const handleTreeUpdate = (ctx: any, oldTree: SpacetimeDB.Tree, newTree: SpacetimeDB.Tree) => {
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldTree.posX - newTree.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldTree.posY - newTree.posY) > 0.1 ||  // Position changed significantly  
                     Math.abs(oldTree.health - newTree.health) > 0.1 || // Health changed significantly
                     oldTree.treeType !== newTree.treeType ||         // Tree type changed
                     (oldTree.respawnAt === null) !== (newTree.respawnAt === null); // Respawn state changed
-                
+
                 if (visuallySignificant) {
                     setTrees(prev => new Map(prev).set(newTree.id.toString(), newTree));
                 }
             };
             const handleTreeDelete = (ctx: any, tree: SpacetimeDB.Tree) => setTrees(prev => { const newMap = new Map(prev); newMap.delete(tree.id.toString()); return newMap; });
-            
+
             // --- Stone Subscriptions ---
             const handleStoneInsert = (ctx: any, stone: SpacetimeDB.Stone) => setStones(prev => new Map(prev).set(stone.id.toString(), stone));
             const handleStoneUpdate = (ctx: any, oldStone: SpacetimeDB.Stone, newStone: SpacetimeDB.Stone) => {
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldStone.posX - newStone.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldStone.posY - newStone.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldStone.health - newStone.health) > 0.1 || // Health changed significantly
                     (oldStone.respawnAt === null) !== (newStone.respawnAt === null); // Respawn state changed
-                
+
                 if (visuallySignificant) {
                     setStones(prev => new Map(prev).set(newStone.id.toString(), newStone));
                 }
             };
             const handleStoneDelete = (ctx: any, stone: SpacetimeDB.Stone) => setStones(prev => { const newMap = new Map(prev); newMap.delete(stone.id.toString()); return newMap; });
-            
+
             // --- Rune Stone Subscriptions ---
             const handleRuneStoneInsert = (ctx: any, runeStone: SpacetimeDB.RuneStone) => setRuneStones(prev => new Map(prev).set(runeStone.id.toString(), runeStone));
             const handleRuneStoneUpdate = (ctx: any, oldRuneStone: SpacetimeDB.RuneStone, newRuneStone: SpacetimeDB.RuneStone) => {
                 // Only update for visually significant changes
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldRuneStone.posX - newRuneStone.posX) > 0.1 ||
                     Math.abs(oldRuneStone.posY - newRuneStone.posY) > 0.1 ||
                     oldRuneStone.runeType !== newRuneStone.runeType;
-                
+
                 if (visuallySignificant) {
                     setRuneStones(prev => new Map(prev).set(newRuneStone.id.toString(), newRuneStone));
                 }
             };
             const handleRuneStoneDelete = (ctx: any, runeStone: SpacetimeDB.RuneStone) => setRuneStones(prev => { const newMap = new Map(prev); newMap.delete(runeStone.id.toString()); return newMap; });
-            
+
             // --- Campfire Subscriptions ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {
                 setCampfires(prev => new Map(prev).set(campfire.id.toString(), campfire));
                 if (connection.identity && campfire.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
-               }
+                    cancelPlacementRef.current();
+                }
             };
             const handleCampfireUpdate = (ctx: any, oldFire: SpacetimeDB.Campfire, newFire: SpacetimeDB.Campfire) => setCampfires(prev => new Map(prev).set(newFire.id.toString(), newFire));
             const handleCampfireDelete = (ctx: any, campfire: SpacetimeDB.Campfire) => setCampfires(prev => { const newMap = new Map(prev); newMap.delete(campfire.id.toString()); return newMap; });
@@ -810,8 +809,8 @@ export const useSpacetimeTables = ({
             const handleFurnaceInsert = (ctx: any, furnace: SpacetimeDB.Furnace) => {
                 setFurnaces(prev => new Map(prev).set(furnace.id.toString(), furnace));
                 if (connection.identity && furnace.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
-               }
+                    cancelPlacementRef.current();
+                }
             };
             const handleFurnaceUpdate = (ctx: any, oldFurnace: SpacetimeDB.Furnace, newFurnace: SpacetimeDB.Furnace) => setFurnaces(prev => new Map(prev).set(newFurnace.id.toString(), newFurnace));
             const handleFurnaceDelete = (ctx: any, furnace: SpacetimeDB.Furnace) => setFurnaces(prev => { const newMap = new Map(prev); newMap.delete(furnace.id.toString()); return newMap; });
@@ -820,28 +819,28 @@ export const useSpacetimeTables = ({
             const handleLanternInsert = (ctx: any, lantern: SpacetimeDB.Lantern) => {
                 setLanterns(prev => new Map(prev).set(lantern.id.toString(), lantern));
                 if (connection.identity && lantern.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
-               }
+                    cancelPlacementRef.current();
+                }
             };
             const handleLanternUpdate = (ctx: any, oldLantern: SpacetimeDB.Lantern, newLantern: SpacetimeDB.Lantern) => setLanterns(prev => new Map(prev).set(newLantern.id.toString(), newLantern));
             const handleLanternDelete = (ctx: any, lantern: SpacetimeDB.Lantern) => setLanterns(prev => { const newMap = new Map(prev); newMap.delete(lantern.id.toString()); return newMap; });
-            
+
             // --- Homestead Hearth Subscriptions --- ADDED: Same pattern as campfire
             const handleHomesteadHearthInsert = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => {
                 setHomesteadHearths(prev => new Map(prev).set(hearth.id.toString(), hearth));
                 if (connection.identity && hearth.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
-               }
+                    cancelPlacementRef.current();
+                }
             };
             const handleHomesteadHearthUpdate = (ctx: any, oldHearth: SpacetimeDB.HomesteadHearth, newHearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => new Map(prev).set(newHearth.id.toString(), newHearth));
             const handleHomesteadHearthDelete = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => { const newMap = new Map(prev); newMap.delete(hearth.id.toString()); return newMap; });
-            
+
             // --- Broth Pot Subscriptions --- ADDED: Same pattern as campfire
             const handleBrothPotInsert = (ctx: any, brothPot: SpacetimeDB.BrothPot) => {
                 setBrothPots(prev => new Map(prev).set(brothPot.id.toString(), brothPot));
                 if (connection.identity && brothPot.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
-               }
+                    cancelPlacementRef.current();
+                }
             };
             const handleBrothPotUpdate = (ctx: any, oldPot: SpacetimeDB.BrothPot, newPot: SpacetimeDB.BrothPot) => setBrothPots(prev => new Map(prev).set(newPot.id.toString(), newPot));
             const handleBrothPotDelete = (ctx: any, brothPot: SpacetimeDB.BrothPot) => setBrothPots(prev => { const newMap = new Map(prev); newMap.delete(brothPot.id.toString()); return newMap; });
@@ -862,12 +861,12 @@ export const useSpacetimeTables = ({
                 setItemDefinitions(prev => new Map(prev).set(newDef.id.toString(), newDef));
             };
             const handleItemDefDelete = (ctx: any, itemDef: SpacetimeDB.ItemDefinition) => setItemDefinitions(prev => { const newMap = new Map(prev); newMap.delete(itemDef.id.toString()); return newMap; });
-            
+
             // --- Inventory Subscriptions ---
             const handleInventoryInsert = (ctx: any, invItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => new Map(prev).set(invItem.instanceId.toString(), invItem));
             const handleInventoryUpdate = (ctx: any, oldItem: SpacetimeDB.InventoryItem, newItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => new Map(prev).set(newItem.instanceId.toString(), newItem));
             const handleInventoryDelete = (ctx: any, invItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => { const newMap = new Map(prev); newMap.delete(invItem.instanceId.toString()); return newMap; });
-            
+
             // --- World State Subscriptions ---
             const handleWorldStateInsert = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(state);
             const handleWorldStateUpdate = (ctx: any, oldState: SpacetimeDB.WorldState, newState: SpacetimeDB.WorldState) => {
@@ -876,7 +875,7 @@ export const useSpacetimeTables = ({
                 if (significantChange) setWorldState(newState);
             };
             const handleWorldStateDelete = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(null);
-            
+
             // --- Active Equipment Subscriptions ---
             const handleActiveEquipmentInsert = (ctx: any, equip: SpacetimeDB.ActiveEquipment) => {
                 // Debug logs removed for performance
@@ -890,15 +889,15 @@ export const useSpacetimeTables = ({
                 // Debug logs removed for performance
                 setActiveEquipments(prev => { const newMap = new Map(prev); newMap.delete(equip.playerIdentity.toHexString()); return newMap; });
             };
-            
+
             // --- Unified Harvestable Resource Subscriptions ---
             const handleHarvestableResourceInsert = (ctx: any, resource: SpacetimeDB.HarvestableResource) => {
                 setHarvestableResources(prev => new Map(prev).set(resource.id.toString(), resource));
             };
             const handleHarvestableResourceUpdate = (ctx: any, oldResource: SpacetimeDB.HarvestableResource, newResource: SpacetimeDB.HarvestableResource) => {
                 const changed = oldResource.posX !== newResource.posX ||
-                                oldResource.posY !== newResource.posY ||
-                                oldResource.respawnAt !== newResource.respawnAt;
+                    oldResource.posY !== newResource.posY ||
+                    oldResource.respawnAt !== newResource.respawnAt;
                 if (changed) {
                     setHarvestableResources(prev => new Map(prev).set(newResource.id.toString(), newResource));
                 }
@@ -906,7 +905,7 @@ export const useSpacetimeTables = ({
             const handleHarvestableResourceDelete = (ctx: any, resource: SpacetimeDB.HarvestableResource) => {
                 setHarvestableResources(prev => { const newMap = new Map(prev); newMap.delete(resource.id.toString()); return newMap; });
             };
-            
+
             // --- Planted Seed Subscriptions ---
             const handlePlantedSeedInsert = (ctx: any, seed: SpacetimeDB.PlantedSeed) => {
                 setPlantedSeeds(prev => {
@@ -922,42 +921,42 @@ export const useSpacetimeTables = ({
                 }
             };
             const handlePlantedSeedDelete = (ctx: any, seed: SpacetimeDB.PlantedSeed) => setPlantedSeeds(prev => { const newMap = new Map(prev); newMap.delete(seed.id.toString()); return newMap; });
-            
+
             // --- Dropped Item Subscriptions ---
             const handleDroppedItemInsert = (ctx: any, item: SpacetimeDB.DroppedItem) => setDroppedItems(prev => new Map(prev).set(item.id.toString(), item));
             const handleDroppedItemUpdate = (ctx: any, oldItem: SpacetimeDB.DroppedItem, newItem: SpacetimeDB.DroppedItem) => setDroppedItems(prev => new Map(prev).set(newItem.id.toString(), newItem));
             const handleDroppedItemDelete = (ctx: any, item: SpacetimeDB.DroppedItem) => setDroppedItems(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
-            
+
             // --- Wooden Storage Box Subscriptions ---
             const handleWoodenStorageBoxInsert = (ctx: any, box: SpacetimeDB.WoodenStorageBox) => {
                 setWoodenStorageBoxes(prev => new Map(prev).set(box.id.toString(), box));
                 if (connection.identity && box.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
+                    cancelPlacementRef.current();
                 }
             };
             const handleWoodenStorageBoxUpdate = (ctx: any, oldBox: SpacetimeDB.WoodenStorageBox, newBox: SpacetimeDB.WoodenStorageBox) => setWoodenStorageBoxes(prev => new Map(prev).set(newBox.id.toString(), newBox));
             const handleWoodenStorageBoxDelete = (ctx: any, box: SpacetimeDB.WoodenStorageBox) => setWoodenStorageBoxes(prev => { const newMap = new Map(prev); newMap.delete(box.id.toString()); return newMap; });
-            
+
             // --- Recipe Subscriptions ---
             const handleRecipeInsert = (ctx: any, recipe: SpacetimeDB.Recipe) => setRecipes(prev => new Map(prev).set(recipe.recipeId.toString(), recipe));
             const handleRecipeUpdate = (ctx: any, oldRecipe: SpacetimeDB.Recipe, newRecipe: SpacetimeDB.Recipe) => setRecipes(prev => new Map(prev).set(newRecipe.recipeId.toString(), newRecipe));
             const handleRecipeDelete = (ctx: any, recipe: SpacetimeDB.Recipe) => setRecipes(prev => { const newMap = new Map(prev); newMap.delete(recipe.recipeId.toString()); return newMap; });
-            
+
             // --- Crafting Queue Subscriptions ---
             const handleCraftingQueueInsert = (ctx: any, queueItem: SpacetimeDB.CraftingQueueItem) => setCraftingQueueItems(prev => new Map(prev).set(queueItem.queueItemId.toString(), queueItem));
             const handleCraftingQueueUpdate = (ctx: any, oldItem: SpacetimeDB.CraftingQueueItem, newItem: SpacetimeDB.CraftingQueueItem) => setCraftingQueueItems(prev => new Map(prev).set(newItem.queueItemId.toString(), newItem));
             const handleCraftingQueueDelete = (ctx: any, queueItem: SpacetimeDB.CraftingQueueItem) => setCraftingQueueItems(prev => { const newMap = new Map(prev); newMap.delete(queueItem.queueItemId.toString()); return newMap; });
-            
+
             // --- Message Subscriptions ---
             const handleMessageInsert = (ctx: any, msg: SpacetimeDB.Message) => setMessages(prev => new Map(prev).set(msg.id.toString(), msg));
             const handleMessageUpdate = (ctx: any, oldMsg: SpacetimeDB.Message, newMsg: SpacetimeDB.Message) => setMessages(prev => new Map(prev).set(newMsg.id.toString(), newMsg));
             const handleMessageDelete = (ctx: any, msg: SpacetimeDB.Message) => setMessages(prev => { const newMap = new Map(prev); newMap.delete(msg.id.toString()); return newMap; });
-            
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
             const handlePlayerPinDelete = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => { const newMap = new Map(prev); newMap.delete(pin.playerId.toHexString()); return newMap; });
-            
+
             // --- Active Connection Subscriptions ---
             const handleActiveConnectionInsert = (ctx: any, conn: SpacetimeDB.ActiveConnection) => {
                 // console.log(`[useSpacetimeTables LOG] ActiveConnection INSERT: ${conn.identity.toHexString()}`);
@@ -981,7 +980,7 @@ export const useSpacetimeTables = ({
             const handleSleepingBagInsert = (ctx: any, bag: SpacetimeDB.SleepingBag) => {
                 setSleepingBags(prev => new Map(prev).set(bag.id.toString(), bag));
                 if (connection.identity && bag.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
+                    cancelPlacementRef.current();
                 }
             };
             const handleSleepingBagUpdate = (ctx: any, oldBag: SpacetimeDB.SleepingBag, newBag: SpacetimeDB.SleepingBag) => {
@@ -1018,7 +1017,7 @@ export const useSpacetimeTables = ({
             const handleStashDelete = (ctx: any, stash: SpacetimeDB.Stash) => {
                 setStashes(prev => { const newMap = new Map(prev); newMap.delete(stash.id.toString()); return newMap; });
             };
-            
+
             // --- ActiveConsumableEffect Subscriptions ---
             const handleActiveConsumableEffectInsert = (ctx: any, effect: SpacetimeDB.ActiveConsumableEffect) => {
                 // console.log("[useSpacetimeTables] handleActiveConsumableEffectInsert CALLED, effect:", effect);
@@ -1031,7 +1030,7 @@ export const useSpacetimeTables = ({
                 // console.log("[useSpacetimeTables] handleActiveConsumableEffectDelete CALLED, effect:", effect);
                 setActiveConsumableEffects(prev => { const newMap = new Map(prev); newMap.delete(effect.effectId.toString()); return newMap; });
             };
-            
+
             // --- Cloud Subscriptions ---
             const handleCloudInsert = (ctx: any, cloud: SpacetimeDB.Cloud) => {
                 // console.log("[useSpacetimeTables] handleCloudInsert CALLED with cloud:", cloud); // ADDED LOG
@@ -1045,7 +1044,7 @@ export const useSpacetimeTables = ({
                 // console.log("[useSpacetimeTables] handleCloudDelete CALLED for cloud ID:", cloud.id.toString()); // ADDED LOG
                 setClouds(prev => { const newMap = new Map(prev); newMap.delete(cloud.id.toString()); return newMap; });
             };
-            
+
             // --- Grass Subscriptions (DISABLED for Performance) ---
             // Grass subscriptions cause massive lag due to spatial churn - use procedural rendering instead
             const handleGrassInsert = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => new Map(prev).set(item.id.toString(), item));
@@ -1139,7 +1138,7 @@ export const useSpacetimeTables = ({
                     ...dodgeState,
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
-                
+
                 // console.log(`[DODGE DEBUG] Server state INSERT for player ${dodgeState.playerId.toHexString()}`);
                 playerDodgeRollStatesRef.current.set(dodgeState.playerId.toHexString(), stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
@@ -1151,7 +1150,7 @@ export const useSpacetimeTables = ({
                     ...newDodgeState,
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
-                
+
                 // console.log(`[DODGE DEBUG] Server state UPDATE for player ${newDodgeState.playerId.toHexString()}`);
                 playerDodgeRollStatesRef.current.set(newDodgeState.playerId.toHexString(), stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
@@ -1213,7 +1212,7 @@ export const useSpacetimeTables = ({
             const handleRainCollectorInsert = (ctx: any, rainCollector: SpacetimeDB.RainCollector) => {
                 setRainCollectors(prev => new Map(prev).set(rainCollector.id.toString(), rainCollector));
                 if (connection.identity && rainCollector.placedBy.isEqual(connection.identity)) {
-                   cancelPlacementRef.current();
+                    cancelPlacementRef.current();
                 }
             };
             const handleRainCollectorUpdate = (ctx: any, oldRainCollector: SpacetimeDB.RainCollector, newRainCollector: SpacetimeDB.RainCollector) => {
@@ -1228,20 +1227,20 @@ export const useSpacetimeTables = ({
                 // CRITICAL FIX: Ensure we're subscribed to the chunk containing this water patch
                 // Water patches are created via left-click and might be in a chunk we haven't subscribed to yet
                 const patchChunkIndex = waterPatch.chunkIndex;
-                
+
                 // Check if we're subscribed to this chunk
                 if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
                     // We received a water patch insert but aren't subscribed to its chunk
                     // This can happen if the water patch was created just outside the viewport buffer
                     // Subscribe to this chunk immediately to ensure we receive updates
                     console.log(`[WATER_PATCH] Received water patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
-                    
+
                     const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
                     }
                 }
-                
+
                 // Add the water patch to state
                 setWaterPatches(prev => new Map(prev).set(waterPatch.id.toString(), waterPatch));
             };
@@ -1257,22 +1256,22 @@ export const useSpacetimeTables = ({
                 // CRITICAL FIX: Ensure we're subscribed to the chunk containing this fire patch
                 // Fire patches are created via fire arrows and might be in a chunk we haven't subscribed to yet
                 const patchChunkIndex = firePatch.chunkIndex;
-                
+
                 console.log(`[FIRE_PATCH] Insert callback: fire patch ${firePatch.id} at chunk ${patchChunkIndex}, pos (${firePatch.posX.toFixed(1)}, ${firePatch.posY.toFixed(1)})`);
-                
+
                 // Check if we're subscribed to this chunk
                 if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
                     // We received a fire patch insert but aren't subscribed to its chunk
                     // This can happen if the fire patch was created just outside the viewport buffer
                     // Subscribe to this chunk immediately to ensure we receive updates
                     console.log(`[FIRE_PATCH] Received fire patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
-                    
+
                     const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
                     }
                 }
-                
+
                 // Add the fire patch to state
                 setFirePatches(prev => {
                     const newMap = new Map(prev).set(firePatch.id.toString(), firePatch);
@@ -1294,34 +1293,11 @@ export const useSpacetimeTables = ({
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
                 trackSubUpdate('wildAnimal_update');
-                
-                // CRITICAL: Always update for chunk changes (prevents disappearing animals)
-                const chunkIndexChanged = oldAnimal.chunkIndex !== newAnimal.chunkIndex;
-                const healthChanged = Math.abs(oldAnimal.health - newAnimal.health) > 0.1;
-                const speciesChanged = oldAnimal.species !== newAnimal.species;
-                
-                // Critical changes that must render immediately
-                const criticalChange = chunkIndexChanged || healthChanged || speciesChanged;
-                
-                if (criticalChange) {
-                    // Track WHY it's critical for debugging
-                    if (chunkIndexChanged) trackSubUpdate('wildAnimal_critical_chunk');
-                    if (healthChanged) trackSubUpdate('wildAnimal_critical_health');
-                    if (speciesChanged) trackSubUpdate('wildAnimal_critical_species');
-                    trackSubUpdate('wildAnimal_render');
-                    setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
-                    lastWildAnimalRenderRef.current = performance.now();
-                    return;
-                }
-                
-                // Position/state/direction changes: throttle to WILD_ANIMAL_THROTTLE_MS
-                const now = performance.now();
-                if (now - lastWildAnimalRenderRef.current > WILD_ANIMAL_THROTTLE_MS) {
-                    trackSubUpdate('wildAnimal_render_throttled');
-                    setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
-                    lastWildAnimalRenderRef.current = now;
-                }
-                // Note: Updates that don't meet threshold are dropped (interpolation handles smoothness)
+
+                // Simple approach: always update state, let viewport filtering handle the rest
+                // The expensive filtering happens in useEntityFiltering's useMemo, which only
+                // recalculates when wildAnimals map reference changes
+                setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 setWildAnimals(prev => {
@@ -1337,11 +1313,11 @@ export const useSpacetimeTables = ({
             const handleViperSpittleUpdate = (ctx: any, oldSpittle: SpacetimeDBViperSpittle, newSpittle: SpacetimeDBViperSpittle) => {
                 setViperSpittles(prev => new Map(prev).set(newSpittle.id.toString(), newSpittle));
             };
-                          const handleViperSpittleDelete = (ctx: any, spittle: SpacetimeDBViperSpittle) => {
-                  setViperSpittles(prev => { const newMap = new Map(prev); newMap.delete(spittle.id.toString()); return newMap; });
-              };
+            const handleViperSpittleDelete = (ctx: any, spittle: SpacetimeDBViperSpittle) => {
+                setViperSpittles(prev => { const newMap = new Map(prev); newMap.delete(spittle.id.toString()); return newMap; });
+            };
 
-                          const handleAnimalCorpseInsert = (ctx: any, corpse: SpacetimeDB.AnimalCorpse) => {
+            const handleAnimalCorpseInsert = (ctx: any, corpse: SpacetimeDB.AnimalCorpse) => {
                 setAnimalCorpses(prev => new Map(prev).set(corpse.id.toString(), corpse));
             };
             const handleAnimalCorpseUpdate = (ctx: any, oldCorpse: SpacetimeDB.AnimalCorpse, newCorpse: SpacetimeDB.AnimalCorpse) => {
@@ -1356,13 +1332,13 @@ export const useSpacetimeTables = ({
             const handleBarrelUpdate = (ctx: any, oldBarrel: SpacetimeDB.Barrel, newBarrel: SpacetimeDB.Barrel) => {
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldBarrel.posX - newBarrel.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldBarrel.posY - newBarrel.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldBarrel.health - newBarrel.health) > 0.1 || // Health changed significantly
                     oldBarrel.variant !== newBarrel.variant ||           // Barrel variant changed
                     (oldBarrel.respawnAt === null) !== (newBarrel.respawnAt === null); // Respawn state changed
-                
+
                 if (visuallySignificant) {
                     setBarrels(prev => new Map(prev).set(newBarrel.id.toString(), newBarrel));
                 }
@@ -1382,14 +1358,14 @@ export const useSpacetimeTables = ({
             };
             const handleFoundationCellUpdate = (ctx: any, oldFoundation: SpacetimeDB.FoundationCell, newFoundation: SpacetimeDB.FoundationCell) => {
                 // Only update for visually significant changes
-                const visuallySignificant = 
+                const visuallySignificant =
                     oldFoundation.cellX !== newFoundation.cellX ||
                     oldFoundation.cellY !== newFoundation.cellY ||
                     oldFoundation.shape !== newFoundation.shape ||
                     oldFoundation.tier !== newFoundation.tier ||
                     Math.abs(oldFoundation.health - newFoundation.health) > 0.1 ||
                     oldFoundation.isDestroyed !== newFoundation.isDestroyed;
-                
+
                 if (visuallySignificant) {
                     setFoundationCells(prev => new Map(prev).set(newFoundation.id.toString(), newFoundation));
                 }
@@ -1410,7 +1386,7 @@ export const useSpacetimeTables = ({
             };
             const handleWallCellUpdate = (ctx: any, oldWall: SpacetimeDB.WallCell, newWall: SpacetimeDB.WallCell) => {
                 // Only update for visually significant changes
-                const visuallySignificant = 
+                const visuallySignificant =
                     oldWall.cellX !== newWall.cellX ||
                     oldWall.cellY !== newWall.cellY ||
                     oldWall.edge !== newWall.edge ||
@@ -1418,7 +1394,7 @@ export const useSpacetimeTables = ({
                     oldWall.tier !== newWall.tier ||
                     Math.abs(oldWall.health - newWall.health) > 0.1 ||
                     oldWall.isDestroyed !== newWall.isDestroyed;
-                
+
                 if (visuallySignificant) {
                     setWallCells(prev => new Map(prev).set(newWall.id.toString(), newWall));
                 }
@@ -1438,13 +1414,13 @@ export const useSpacetimeTables = ({
             };
             const handleDoorUpdate = (ctx: any, oldDoor: SpacetimeDB.Door, newDoor: SpacetimeDB.Door) => {
                 // Update on any visually significant change
-                const visuallySignificant = 
+                const visuallySignificant =
                     oldDoor.posX !== newDoor.posX ||
                     oldDoor.posY !== newDoor.posY ||
                     oldDoor.isOpen !== newDoor.isOpen ||
                     oldDoor.health !== newDoor.health ||
                     oldDoor.isDestroyed !== newDoor.isDestroyed;
-                
+
                 if (visuallySignificant) {
                     setDoors(prev => new Map(prev).set(newDoor.id.toString(), newDoor));
                 }
@@ -1460,7 +1436,7 @@ export const useSpacetimeTables = ({
             };
             const handleFumaroleUpdate = (ctx: any, oldFumarole: SpacetimeDB.Fumarole, newFumarole: SpacetimeDB.Fumarole) => {
                 // Check for any significant changes (position, broth pot, OR slot contents)
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldFumarole.posX - newFumarole.posX) > 0.1 ||
                     Math.abs(oldFumarole.posY - newFumarole.posY) > 0.1 ||
                     oldFumarole.attachedBrothPotId !== newFumarole.attachedBrothPotId ||
@@ -1477,7 +1453,7 @@ export const useSpacetimeTables = ({
                     oldFumarole.slotDefId4 !== newFumarole.slotDefId4 ||
                     oldFumarole.slotInstanceId5 !== newFumarole.slotInstanceId5 ||
                     oldFumarole.slotDefId5 !== newFumarole.slotDefId5;
-                
+
                 if (visuallySignificant) {
                     setFumaroles(prev => new Map(prev).set(newFumarole.id.toString(), newFumarole));
                 }
@@ -1491,11 +1467,11 @@ export const useSpacetimeTables = ({
             };
             const handleBasaltColumnUpdate = (ctx: any, oldBasaltColumn: SpacetimeDB.BasaltColumn, newBasaltColumn: SpacetimeDB.BasaltColumn) => {
                 // Only update for visually significant changes
-                const visuallySignificant = 
+                const visuallySignificant =
                     Math.abs(oldBasaltColumn.posX - newBasaltColumn.posX) > 0.1 ||
                     Math.abs(oldBasaltColumn.posY - newBasaltColumn.posY) > 0.1 ||
                     oldBasaltColumn.columnType !== newBasaltColumn.columnType;
-                
+
                 if (visuallySignificant) {
                     setBasaltColumns(prev => new Map(prev).set(newBasaltColumn.id.toString(), newBasaltColumn));
                 }
@@ -1562,7 +1538,7 @@ export const useSpacetimeTables = ({
             connection.db.activeConsumableEffect.onInsert(handleActiveConsumableEffectInsert);
             connection.db.activeConsumableEffect.onUpdate(handleActiveConsumableEffectUpdate);
             connection.db.activeConsumableEffect.onDelete(handleActiveConsumableEffectDelete);
-            
+
             // Register Cloud callbacks
             connection.db.cloud.onInsert(handleCloudInsert);
             connection.db.cloud.onUpdate(handleCloudUpdate);
@@ -1644,7 +1620,7 @@ export const useSpacetimeTables = ({
             connection.db.firePatch.onInsert(handleFirePatchInsert);
             connection.db.firePatch.onUpdate(handleFirePatchUpdate);
             connection.db.firePatch.onDelete(handleFirePatchDelete);
-            
+
             // CRITICAL FIX: Populate fire patches from existing cache after registering callbacks
             // This handles fire patches that arrived before callbacks were registered
             console.log('[FIRE_PATCH] Checking for existing fire patches in cache...');
@@ -1668,12 +1644,12 @@ export const useSpacetimeTables = ({
             connection.db.wildAnimal.onUpdate(handleWildAnimalUpdate);
             connection.db.wildAnimal.onDelete(handleWildAnimalDelete);
 
-                          // Register ViperSpittle callbacks - ADDED
-              connection.db.viperSpittle.onInsert(handleViperSpittleInsert);
-              connection.db.viperSpittle.onUpdate(handleViperSpittleUpdate);
-              connection.db.viperSpittle.onDelete(handleViperSpittleDelete);
+            // Register ViperSpittle callbacks - ADDED
+            connection.db.viperSpittle.onInsert(handleViperSpittleInsert);
+            connection.db.viperSpittle.onUpdate(handleViperSpittleUpdate);
+            connection.db.viperSpittle.onDelete(handleViperSpittleDelete);
 
-                          // Register AnimalCorpse callbacks - NON-SPATIAL
+            // Register AnimalCorpse callbacks - NON-SPATIAL
             connection.db.animalCorpse.onInsert(handleAnimalCorpseInsert);
             connection.db.animalCorpse.onUpdate(handleAnimalCorpseUpdate);
             connection.db.animalCorpse.onDelete(handleAnimalCorpseDelete);
@@ -1723,69 +1699,69 @@ export const useSpacetimeTables = ({
             isSubscribingRef.current = true;
 
             // --- Create Initial Non-Spatial Subscriptions ---
-            nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub)); 
-            nonSpatialHandlesRef.current = []; 
-            
+            nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub));
+            nonSpatialHandlesRef.current = [];
+
             // console.log("[useSpacetimeTables] Setting up initial non-spatial subscriptions.");
             const currentInitialSubs = [
-                 connection.subscriptionBuilder().onError((err) => console.error("[PLAYER Sub Error]:", err))
+                connection.subscriptionBuilder().onError((err) => console.error("[PLAYER Sub Error]:", err))
                     .subscribe('SELECT * FROM player'),
                 connection.subscriptionBuilder().onError((err) => console.error("[RUNE_STONE Sub Error]:", err))
-                   .subscribe('SELECT * FROM rune_stone'), // Global subscription for minimap visibility
+                    .subscribe('SELECT * FROM rune_stone'), // Global subscription for minimap visibility
                 connection.subscriptionBuilder().subscribe('SELECT * FROM item_definition'),
-                 connection.subscriptionBuilder().subscribe('SELECT * FROM recipe'),
-                 connection.subscriptionBuilder().subscribe('SELECT * FROM world_state'),
-                 connection.subscriptionBuilder().onError((err) => console.error("[MINIMAP_CACHE Sub Error]:", err))
+                connection.subscriptionBuilder().subscribe('SELECT * FROM recipe'),
+                connection.subscriptionBuilder().subscribe('SELECT * FROM world_state'),
+                connection.subscriptionBuilder().onError((err) => console.error("[MINIMAP_CACHE Sub Error]:", err))
                     .subscribe('SELECT * FROM minimap_cache'),
-                 connection.subscriptionBuilder()
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial INVENTORY subscription error:", err))
-                    .subscribe('SELECT * FROM inventory_item'), 
-                 connection.subscriptionBuilder()
+                    .subscribe('SELECT * FROM inventory_item'),
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial EQUIPMENT subscription error:", err))
-                    .subscribe('SELECT * FROM active_equipment'), 
-                 connection.subscriptionBuilder()
+                    .subscribe('SELECT * FROM active_equipment'),
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial CRAFTING subscription error:", err))
-                    .subscribe('SELECT * FROM crafting_queue_item'), 
-                 connection.subscriptionBuilder()
+                    .subscribe('SELECT * FROM crafting_queue_item'),
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial MESSAGE subscription error:", err))
-                    .subscribe('SELECT * FROM message'), 
-                 connection.subscriptionBuilder()
+                    .subscribe('SELECT * FROM message'),
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial PLAYER_PIN subscription error:", err))
                     .subscribe('SELECT * FROM player_pin'),
-                 connection.subscriptionBuilder()
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial ACTIVE_CONNECTION subscription error:", err))
                     .subscribe('SELECT * FROM active_connection'),
-                 // ADD Non-Spatial SleepingBag subscription
-                 connection.subscriptionBuilder()
+                // ADD Non-Spatial SleepingBag subscription
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial SLEEPING_BAG subscription error:", err))
                     .subscribe('SELECT * FROM sleeping_bag'),
-                 connection.subscriptionBuilder()
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial PLAYER_CORPSE subscription error:", err))
                     .subscribe('SELECT * FROM player_corpse'),
-                 connection.subscriptionBuilder()
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial MEMORY_GRID_PROGRESS subscription error:", err))
                     .subscribe('SELECT * FROM memory_grid_progress'),
-                 connection.subscriptionBuilder() // Added Stash subscription
+                connection.subscriptionBuilder() // Added Stash subscription
                     .onError((err) => console.error("[useSpacetimeTables] Non-spatial STASH subscription error:", err))
                     .subscribe('SELECT * FROM stash'),
-                 connection.subscriptionBuilder() // Added for ActiveConsumableEffect
+                connection.subscriptionBuilder() // Added for ActiveConsumableEffect
                     .onError((err) => console.error("[useSpacetimeTables] Subscription for 'active_consumable_effect' ERROR:", err))
                     .subscribe('SELECT * FROM active_consumable_effect'),
-                 connection.subscriptionBuilder() // Added for KnockedOutStatus
+                connection.subscriptionBuilder() // Added for KnockedOutStatus
                     .onError((err) => console.error("[useSpacetimeTables] Subscription for 'knocked_out_status' ERROR:", err))
                     .subscribe('SELECT * FROM knocked_out_status'),
-                 // Added subscriptions for new tables
-                 connection.subscriptionBuilder().onError((err) => console.error("[RANGED_WEAPON_STATS Sub Error]:", err)).subscribe('SELECT * FROM ranged_weapon_stats'),
-                 connection.subscriptionBuilder().onError((err) => console.error("[PROJECTILE Sub Error]:", err)).subscribe('SELECT * FROM projectile'),
-                 connection.subscriptionBuilder().onError((err) => console.error("[DEATH_MARKER Sub Error]:", err)).subscribe('SELECT * FROM death_marker'),
-                 // ADDED Shelter subscription (non-spatial for now, can be made spatial later if needed)
-                 connection.subscriptionBuilder().onError((err) => console.error("[SHELTER Sub Error]:", err)).subscribe('SELECT * FROM shelter'),
-                 // ADDED ArrowBreakEvent subscription for particle effects
-                 connection.subscriptionBuilder().onError((err) => console.error("[ARROW_BREAK_EVENT Sub Error]:", err)).subscribe('SELECT * FROM arrow_break_event'),
-                 // ADDED ThunderEvent subscription for thunder flash effects
-                 connection.subscriptionBuilder().onError((err) => console.error("[THUNDER_EVENT Sub Error]:", err)).subscribe('SELECT * FROM thunder_event'),
-                 // ADDED PlayerDodgeRollState subscription for dodge roll states
-                 connection.subscriptionBuilder()
+                // Added subscriptions for new tables
+                connection.subscriptionBuilder().onError((err) => console.error("[RANGED_WEAPON_STATS Sub Error]:", err)).subscribe('SELECT * FROM ranged_weapon_stats'),
+                connection.subscriptionBuilder().onError((err) => console.error("[PROJECTILE Sub Error]:", err)).subscribe('SELECT * FROM projectile'),
+                connection.subscriptionBuilder().onError((err) => console.error("[DEATH_MARKER Sub Error]:", err)).subscribe('SELECT * FROM death_marker'),
+                // ADDED Shelter subscription (non-spatial for now, can be made spatial later if needed)
+                connection.subscriptionBuilder().onError((err) => console.error("[SHELTER Sub Error]:", err)).subscribe('SELECT * FROM shelter'),
+                // ADDED ArrowBreakEvent subscription for particle effects
+                connection.subscriptionBuilder().onError((err) => console.error("[ARROW_BREAK_EVENT Sub Error]:", err)).subscribe('SELECT * FROM arrow_break_event'),
+                // ADDED ThunderEvent subscription for thunder flash effects
+                connection.subscriptionBuilder().onError((err) => console.error("[THUNDER_EVENT Sub Error]:", err)).subscribe('SELECT * FROM thunder_event'),
+                // ADDED PlayerDodgeRollState subscription for dodge roll states
+                connection.subscriptionBuilder()
                     .onError((errCtx) => {
                         console.error("[PLAYER_DODGE_ROLL_STATE Sub Error] Full error details:", errCtx);
                     })
@@ -1793,40 +1769,40 @@ export const useSpacetimeTables = ({
                         console.log("[PLAYER_DODGE_ROLL_STATE] Subscription applied successfully!");
                     })
                     .subscribe('SELECT * FROM player_dodge_roll_state'),
-                 // ADDED FishingSession subscription for fishing states
-                 connection.subscriptionBuilder()
+                // ADDED FishingSession subscription for fishing states
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[FISHING_SESSION Sub Error]:", err))
                     .subscribe('SELECT * FROM fishing_session'),
-                 // ADDED SoundEvent subscription for sound effects
-                 connection.subscriptionBuilder()
+                // ADDED SoundEvent subscription for sound effects
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[SOUND_EVENT Sub Error]:", err))
                     .subscribe('SELECT * FROM sound_event'),
-                 // ADDED ContinuousSound subscription for looping sounds
-                 connection.subscriptionBuilder()
+                // ADDED ContinuousSound subscription for looping sounds
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[CONTINUOUS_SOUND Sub Error]:", err))
                     .subscribe('SELECT * FROM continuous_sound'),
-                 // ADDED PlayerDrinkingCooldown subscription for water drinking cooldowns
-                 connection.subscriptionBuilder()
+                // ADDED PlayerDrinkingCooldown subscription for water drinking cooldowns
+                connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_DRINKING_COOLDOWN Sub Error]:", err))
                     .subscribe('SELECT * FROM player_drinking_cooldown'),
-                                   // ADDED ViperSpittle subscription for viper projectiles
-                  connection.subscriptionBuilder()
-                     .onError((err) => console.error("[VIPER_SPITTLE Sub Error]:", err))
-                     .subscribe('SELECT * FROM viper_spittle'),
-                  // ADDED AnimalCorpse subscription - NON-SPATIAL
-                  connection.subscriptionBuilder()
-                     .onError((err) => console.error("[ANIMAL_CORPSE Sub Error]:", err))
-                     .subscribe('SELECT * FROM animal_corpse'),
-                  // CRITICAL FIX: Subscribe to wild_animal globally (like players) to prevent disappearing
-                  // Animals are relatively few in number, so global subscription is fine and prevents
-                  // chunk-boundary disappearing issues
-                  connection.subscriptionBuilder()
-                     .onError((err) => console.error("[WILD_ANIMAL Sub Error]:", err))
-                     .subscribe('SELECT * FROM wild_animal'),
-                  // ADDED ChunkWeather subscription - NON-SPATIAL (subscribe to all chunks for weather)
-                  connection.subscriptionBuilder()
-                     .onError((err) => console.error("[CHUNK_WEATHER Sub Error]:", err))
-                     .subscribe('SELECT * FROM chunk_weather'),
+                // ADDED ViperSpittle subscription for viper projectiles
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[VIPER_SPITTLE Sub Error]:", err))
+                    .subscribe('SELECT * FROM viper_spittle'),
+                // ADDED AnimalCorpse subscription - NON-SPATIAL
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ANIMAL_CORPSE Sub Error]:", err))
+                    .subscribe('SELECT * FROM animal_corpse'),
+                // CRITICAL FIX: Subscribe to wild_animal globally (like players) to prevent disappearing
+                // Animals are relatively few in number, so global subscription is fine and prevents
+                // chunk-boundary disappearing issues
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[WILD_ANIMAL Sub Error]:", err))
+                    .subscribe('SELECT * FROM wild_animal'),
+                // ADDED ChunkWeather subscription - NON-SPATIAL (subscribe to all chunks for weather)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[CHUNK_WEATHER Sub Error]:", err))
+                    .subscribe('SELECT * FROM chunk_weather'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -1834,12 +1810,12 @@ export const useSpacetimeTables = ({
 
         // --- START OPTIMIZED SPATIAL SUBSCRIPTION LOGIC ---
         if (connection && viewport) {
-             // 🎯 NEW: Guard for invalid viewport values to prevent crashes
+            // 🎯 NEW: Guard for invalid viewport values to prevent crashes
             if (isNaN(viewport.minX) || isNaN(viewport.minY) || isNaN(viewport.maxX) || isNaN(viewport.maxY)) {
                 console.warn('[SPATIAL] Viewport contains NaN values, skipping spatial update.', viewport);
                 return;
             }
-            
+
             // 🚨 PRODUCTION FIX: Check for zero-sized viewport (common on initial load)
             const viewportWidth = viewport.maxX - viewport.minX;
             const viewportHeight = viewport.maxY - viewport.minY;
@@ -1873,7 +1849,7 @@ export const useSpacetimeTables = ({
             const currentChunks = getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE);
             const currentChunksKey = currentChunks.sort((a, b) => a - b).join(',');
             const lastChunksKey = (window as any).lastChunksKey || '';
-            
+
             if (currentChunksKey !== lastChunksKey && currentChunks.length > 0) {
                 (window as any).lastChunksKey = currentChunksKey;
                 const minChunk = Math.min(...currentChunks);
@@ -1887,7 +1863,7 @@ export const useSpacetimeTables = ({
                 const viewportHeight = viewport.maxY - viewport.minY;
                 const chunkWidth = (maxChunkX - minChunkX + 1);
                 const chunkHeight = (maxChunkY - minChunkY + 1);
-                
+
                 // Debug logging disabled - subscription count is now optimized (~90-100 chunks)
                 // if (currentChunks.length > 50) {
                 //     console.warn(`🚨 CHUNK OVERLOAD: ${currentChunks.length} chunks (${chunkWidth}×${chunkHeight}) will create ${totalSubscriptions} subscriptions!`);
@@ -1895,7 +1871,7 @@ export const useSpacetimeTables = ({
                 //     console.warn(`🚨 Viewport: (${viewport.minX.toFixed(0)}, ${viewport.minY.toFixed(0)}) to (${viewport.maxX.toFixed(0)}, ${viewport.maxY.toFixed(0)})`);
                 // }
             }
-            
+
             // 🎯 NEW: Separate logic for initial subscription vs. subsequent updates
             // This prevents race conditions on startup.
             if (!subscribedChunksRef.current.size) {
@@ -1914,18 +1890,18 @@ export const useSpacetimeTables = ({
                 chunkUnsubscribeTimersRef.current.clear();
 
                 const newChunkIndicesSet = new Set(getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE));
-                
+
                 // Use a helper to subscribe without diffing logic
                 const subscribeToInitialChunks = (chunksToSub: number[]) => {
                     chunksToSub.forEach(chunkIndex => {
-                         // This is the same logic from processPendingChunkUpdate, but called directly
+                        // This is the same logic from processPendingChunkUpdate, but called directly
                         const newHandlesForChunk: SubscriptionHandle[] = [];
                         try {
                             if (ENABLE_BATCHED_SUBSCRIPTIONS) {
-                                 const resourceQueries = [
+                                const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
-                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,                                     `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
@@ -1943,7 +1919,7 @@ export const useSpacetimeTables = ({
                                 ];
                                 // Removed excessive initial chunk debug logging
                                 newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
-                                
+
                                 const environmentalQueries = [];
                                 if (ENABLE_CLOUDS) environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
                                 // ENABLE_WORLD_TILES deprecated block removed
@@ -1962,9 +1938,9 @@ export const useSpacetimeTables = ({
                         }
                     });
                 };
-                
+
                 subscribeToInitialChunks([...newChunkIndicesSet]);
-                
+
                 currentChunksRef.current = [...newChunkIndicesSet];
                 // subscribedChunksRef is now updated inside subscribeToInitialChunks for each chunk
                 lastSpatialUpdateRef.current = performance.now(); // Set initial timestamp
@@ -1972,14 +1948,14 @@ export const useSpacetimeTables = ({
             } else {
                 // --- SUBSEQUENT UPDATES (existing logic) ---
                 const newChunkIndicesSet = new Set(getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE));
-                
+
                 // Store the pending update and schedule async processing
                 const now = performance.now();
                 pendingChunkUpdateRef.current = { chunks: newChunkIndicesSet, timestamp: now };
-                
+
                 // Throttle updates to prevent frame drops
                 const timeSinceLastUpdate = now - lastSpatialUpdateRef.current;
-                
+
                 if (timeSinceLastUpdate >= CHUNK_UPDATE_THROTTLE_MS) {
                     // Process immediately
                     processPendingChunkUpdate();
@@ -2007,72 +1983,72 @@ export const useSpacetimeTables = ({
 
         // --- Cleanup Function --- 
         return () => {
-             const isConnectionLost = !connection; 
-             // console.log(`[useSpacetimeTables] Running cleanup. Connection Lost: ${isConnectionLost}, Viewport was present: ${!!viewport}`);
+            const isConnectionLost = !connection;
+            // console.log(`[useSpacetimeTables] Running cleanup. Connection Lost: ${isConnectionLost}, Viewport was present: ${!!viewport}`);
 
-             if (isConnectionLost) {
-                 // console.log("[useSpacetimeTables] Cleanup due to connection loss: Unsubscribing non-spatial & all spatial, resetting state.");
-                 nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub));
-                 nonSpatialHandlesRef.current = [];
-                 
-                 // Unsubscribe all remaining spatial subs on connection loss
-                 spatialSubsRef.current.forEach((handles) => { // Use the ref here
+            if (isConnectionLost) {
+                // console.log("[useSpacetimeTables] Cleanup due to connection loss: Unsubscribing non-spatial & all spatial, resetting state.");
+                nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub));
+                nonSpatialHandlesRef.current = [];
+
+                // Unsubscribe all remaining spatial subs on connection loss
+                spatialSubsRef.current.forEach((handles) => { // Use the ref here
                     handles.forEach(safeUnsubscribe);
-                 });
-                 spatialSubsRef.current.clear();
-                 
-                 // Clear any pending unsubscribe timers
-                 chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
-                 chunkUnsubscribeTimersRef.current.clear(); 
-                
-                 isSubscribingRef.current = false;
-                 subscribedChunksRef.current.clear();
-                 currentChunksRef.current = [];
-                 setLocalPlayerRegistered(false);
-                 // Reset table states
-                 setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, and Broth Pot cleanup
-                 setHarvestableResources(new Map());
-                 setItemDefinitions(new Map()); setRecipes(new Map());
-                 setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
-                 setDroppedItems(new Map()); setWoodenStorageBoxes(new Map()); setCraftingQueueItems(new Map());
-                 setMessages(new Map());
-                 setPlayerPins(new Map());
-                 setActiveConnections(new Map());
-                 setSleepingBags(new Map());
-                 setPlayerCorpses(new Map());
-                 setStashes(new Map());
+                });
+                spatialSubsRef.current.clear();
+
+                // Clear any pending unsubscribe timers
+                chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
+                chunkUnsubscribeTimersRef.current.clear();
+
+                isSubscribingRef.current = false;
+                subscribedChunksRef.current.clear();
+                currentChunksRef.current = [];
+                setLocalPlayerRegistered(false);
+                // Reset table states
+                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, and Broth Pot cleanup
+                setHarvestableResources(new Map());
+                setItemDefinitions(new Map()); setRecipes(new Map());
+                setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
+                setDroppedItems(new Map()); setWoodenStorageBoxes(new Map()); setCraftingQueueItems(new Map());
+                setMessages(new Map());
+                setPlayerPins(new Map());
+                setActiveConnections(new Map());
+                setSleepingBags(new Map());
+                setPlayerCorpses(new Map());
+                setStashes(new Map());
                 setRainCollectors(new Map());
                 setWaterPatches(new Map());
                 setFirePatches(new Map());
                 setHotSprings(new Map());
                 setActiveConsumableEffects(new Map());
-                 setClouds(new Map());
-                 setGrass(new Map()); // Always keep grass empty for performance
-                 setKnockedOutStatus(new Map());
-                 setRangedWeaponStats(new Map());
-                 setProjectiles(new Map());
-                 setDeathMarkers(new Map());
-                 setShelters(new Map());
-                  // world tile client cache removed
-                 setPlayerDodgeRollStates(new Map());
-                 // Clear the playerDodgeRollStates ref as well
-                 playerDodgeRollStatesRef.current.clear();
-                 setFishingSessions(new Map());
-                 setPlantedSeeds(new Map());
-                 setSoundEvents(new Map());
-                 setContinuousSounds(new Map());
-                 setPlayerDrinkingCooldowns(new Map());
-                 setWildAnimals(new Map());
-                 setViperSpittles(new Map());
-                 setAnimalCorpses(new Map());
-                 setSeaStacks(new Map());
-                 setChunkWeather(new Map());
-                 setFumaroles(new Map());
-                 setBasaltColumns(new Map());
-             }
+                setClouds(new Map());
+                setGrass(new Map()); // Always keep grass empty for performance
+                setKnockedOutStatus(new Map());
+                setRangedWeaponStats(new Map());
+                setProjectiles(new Map());
+                setDeathMarkers(new Map());
+                setShelters(new Map());
+                // world tile client cache removed
+                setPlayerDodgeRollStates(new Map());
+                // Clear the playerDodgeRollStates ref as well
+                playerDodgeRollStatesRef.current.clear();
+                setFishingSessions(new Map());
+                setPlantedSeeds(new Map());
+                setSoundEvents(new Map());
+                setContinuousSounds(new Map());
+                setPlayerDrinkingCooldowns(new Map());
+                setWildAnimals(new Map());
+                setViperSpittles(new Map());
+                setAnimalCorpses(new Map());
+                setSeaStacks(new Map());
+                setChunkWeather(new Map());
+                setFumaroles(new Map());
+                setBasaltColumns(new Map());
+            }
         };
 
-    }, [connection, viewport]); 
+    }, [connection, viewport]);
 
     // --- Return Hook State ---
     return {

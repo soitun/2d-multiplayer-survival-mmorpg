@@ -2642,7 +2642,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const avgFrameTime = p.totalFrameTime / p.frameCount;
       console.log(`[FRAME_PERF] Avg: ${avgFrameTime.toFixed(2)}ms, Max: ${p.maxFrameTime.toFixed(2)}ms, Slow(>16ms): ${p.slowFrames}/${p.frameCount} frames`);
       console.log(`[ENTITY_COUNTS] Players: ${players.size}, Trees: ${trees?.size || 0}, Stones: ${stones?.size || 0}, YSorted: ${currentYSortedEntities.length}`);
-      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}`);
+      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}, BasaltCols: ${visibleBasaltColumnsMap.size}, Fumaroles: ${visibleFumerolesMap.size}, SeaStacks: ${visibleSeaStacksMap.size}`);
       // Reset
       perfProfilingRef.current = { lastLogTime: Date.now(), frameCount: 0, totalFrameTime: 0, maxFrameTime: 0, slowFrames: 0 };
     }

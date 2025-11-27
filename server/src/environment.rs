@@ -1292,8 +1292,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     use rand::seq::SliceRandom;
     shuffled_tiles.shuffle(&mut rng);
     
-    // Track spawned basalt column positions for collision checking
+    // Track spawned positions for collision checking
     let mut spawned_basalt_positions: Vec<(f32, f32)> = Vec::new();
+    let mut spawned_fumarole_positions: Vec<(f32, f32)> = Vec::new();
     
     // Spawn entities on a proportion of quarry tiles
     // Target for 600x600 map (2 large + 4 small quarries):
@@ -1308,21 +1309,26 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let stone_spawn_chance = 0.015;     // 1.5% - unchanged (stones are important for gameplay)
     
     // Minimum distances for collision checking
-    // Basalt columns are visually large (200x300px), so they need more space
-    const MIN_FUMAROLE_TREE_DIST_SQ: f32 = 80.0 * 80.0;
+    // Basalt columns are visually large (360x540px), so they need more space
+    // Fumaroles have steam effects that need clearance
+    const MIN_FUMAROLE_TREE_DIST_SQ: f32 = 100.0 * 100.0;  // Keep fumaroles away from trees
     const MIN_FUMAROLE_STONE_DIST_SQ: f32 = 80.0 * 80.0;
-    const MIN_BASALT_TREE_DIST_SQ: f32 = 150.0 * 150.0;  // Increased from 100 to 150
-    const MIN_BASALT_STONE_DIST_SQ: f32 = 150.0 * 150.0; // Increased from 100 to 150
-    const MIN_BASALT_BASALT_DIST_SQ: f32 = 120.0 * 120.0; // Basalt columns need space between each other
-    const MIN_QUARRY_STONE_TREE_DIST_SQ: f32 = 60.0 * 60.0;
+    const MIN_FUMAROLE_BASALT_DIST_SQ: f32 = 180.0 * 180.0; // Fumaroles must avoid large basalt columns
+    const MIN_FUMAROLE_FUMAROLE_DIST_SQ: f32 = 120.0 * 120.0; // Fumaroles need space between each other
+    const MIN_BASALT_TREE_DIST_SQ: f32 = 220.0 * 220.0;  // Large basalt (360px) needs more space from trees (320-480px)
+    const MIN_BASALT_STONE_DIST_SQ: f32 = 180.0 * 180.0; // Basalt needs space from stones
+    const MIN_BASALT_BASALT_DIST_SQ: f32 = 250.0 * 250.0; // Large basalt columns need good spacing between each other
+    const MIN_BASALT_FUMAROLE_DIST_SQ: f32 = 180.0 * 180.0; // Basalt must avoid fumaroles
+    const MIN_QUARRY_STONE_TREE_DIST_SQ: f32 = 80.0 * 80.0;
     const MIN_QUARRY_STONE_STONE_DIST_SQ: f32 = 80.0 * 80.0;
-    const MIN_QUARRY_STONE_BASALT_DIST_SQ: f32 = 150.0 * 150.0; // Stones need to avoid basalt columns!
+    const MIN_QUARRY_STONE_BASALT_DIST_SQ: f32 = 200.0 * 200.0; // Stones need more space from large basalt columns
+    const MIN_QUARRY_STONE_FUMAROLE_DIST_SQ: f32 = 100.0 * 100.0; // Stones need to avoid fumaroles!
     
     for (tile_x, tile_y) in &shuffled_tiles {
         let world_x_px = (*tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
         let world_y_px = (*tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
         
-        // Spawn fumarole with low probability (check collision with trees/stones)
+        // Spawn fumarole with low probability (check collision with trees/stones/basalt/other fumaroles)
         if rng.gen::<f32>() < fumarole_spawn_chance {
             let mut too_close = false;
             
@@ -1348,18 +1354,43 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             }
             
+            // Check distance from basalt columns
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < MIN_FUMAROLE_BASALT_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from other fumaroles
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < MIN_FUMAROLE_FUMAROLE_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 let fumarole = crate::fumarole::Fumarole::new(world_x_px, world_y_px, chunk_idx);
                 if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
                     total_spawned_fumarole_count += 1;
+                    spawned_fumarole_positions.push((world_x_px, world_y_px)); // Track position
                     // Schedule processing for burn damage (runs even when empty)
                     let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                 }
             }
         }
         
-        // Spawn basalt column with moderate probability (check collision with trees/stones)
+        // Spawn basalt column with moderate probability (check collision with trees/stones/fumaroles/other basalt)
         if rng.gen::<f32>() < basalt_spawn_chance {
             let mut too_close = false;
             
@@ -1397,6 +1428,18 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             }
             
+            // Check distance from fumaroles
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < MIN_BASALT_FUMAROLE_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 let column_type = crate::basalt_column::BasaltColumnType::random(&mut rng);
@@ -1408,7 +1451,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             }
         }
         
-        // Spawn stone with moderate probability (check collision with trees/other stones)
+        // Spawn stone with moderate probability (check collision with trees/other stones/basalt/fumaroles)
         if rng.gen::<f32>() < stone_spawn_chance {
             let mut too_close = false;
             
@@ -1440,6 +1483,18 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     let dx = world_x_px - bx;
                     let dy = world_y_px - by;
                     if (dx * dx + dy * dy) < MIN_QUARRY_STONE_BASALT_DIST_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from fumaroles (stones must avoid hot steam vents!)
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < MIN_QUARRY_STONE_FUMAROLE_DIST_SQ {
                         too_close = true;
                         break;
                     }

@@ -1,5 +1,5 @@
 import { Fumarole } from '../../generated'; // Import generated type
-import fumaroleImage from '../../assets/doodads/fumarole.png'; // Fumarole sprite
+import fumaroleImage from '../../assets/doodads/fumarole_new2.png'; // Fumarole sprite
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
 
@@ -129,6 +129,7 @@ function updateSteamParticles(fumaroleId: string, fumaroleX: number, fumaroleY: 
 
 /**
  * Renders steam particles for a fumarole
+ * OPTIMIZED: Uses simple circles with opacity instead of expensive gradients
  */
 function renderSteamParticles(ctx: CanvasRenderingContext2D, fumaroleId: string): void {
     const particles = fumaroleSteamParticles.get(fumaroleId);
@@ -136,19 +137,24 @@ function renderSteamParticles(ctx: CanvasRenderingContext2D, fumaroleId: string)
     
     ctx.save();
     
+    // Batch all particles with same fill style approach
     for (const p of particles) {
         // Fade out as particle ages
         const fadeOpacity = p.opacity * p.life;
         
-        // Draw particle as a soft circle (steam puff)
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        gradient.addColorStop(0, `rgba(255, 255, 255, ${fadeOpacity * 0.8})`);
-        gradient.addColorStop(0.5, `rgba(220, 220, 220, ${fadeOpacity * 0.4})`);
-        gradient.addColorStop(1, `rgba(200, 200, 200, 0)`);
-        
-        ctx.fillStyle = gradient;
+        // OPTIMIZED: Use simple filled circles instead of gradients
+        // Draw outer soft edge (larger, more transparent)
+        ctx.globalAlpha = fadeOpacity * 0.3;
+        ctx.fillStyle = 'rgb(220, 220, 220)';
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw inner core (smaller, more opaque)
+        ctx.globalAlpha = fadeOpacity * 0.6;
+        ctx.fillStyle = 'rgb(255, 255, 255)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
         ctx.fill();
     }
     
