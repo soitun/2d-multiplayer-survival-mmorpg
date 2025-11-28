@@ -56,13 +56,6 @@ const PARTICLE_MIN_SIZE = 4; // Minimum particle size (doubled from 2)
 const PARTICLE_MAX_SIZE = 12; // Larger max for more variation (doubled from 6)
 const PARTICLE_GLOW_INTENSITY = 0.9; // Brighter glow
 
-// Magical ray configuration (vertical light beams)
-const RAY_COUNT = 5; // Number of light rays emanating from runestone
-const RAY_WIDTH_BASE = 16; // Base width of rays in pixels (doubled from 8)
-const RAY_HEIGHT = 240; // Height of the light rays (doubled from 120)
-const RAY_SWAY_AMOUNT = 6; // Horizontal sway amount (doubled from 3)
-const RAY_SWAY_SPEED = 0.8; // Sway animation speed
-
 // Ground pool configuration (light reflection on ground)
 const GROUND_POOL_RADIUS = 180; // Radius of ground light pool (doubled from 90)
 const GROUND_POOL_INTENSITY = 0.4; // Intensity of ground pool
@@ -152,77 +145,6 @@ function generateRisingParticles(
     }
     
     return particles;
-}
-
-/**
- * Render magical light rays emanating upward from the runestone
- * Creates ethereal vertical beams that sway gently
- */
-function renderMagicalRays(
-    ctx: CanvasRenderingContext2D,
-    runeStone: RuneStone,
-    runeType: RuneStoneTypeKey,
-    cameraOffsetX: number,
-    cameraOffsetY: number,
-    nowMs: number,
-    timeIntensity: number
-): void {
-    const color = RUNE_STONE_COLORS[runeType];
-    const accentColor = RUNE_STONE_ACCENT_COLORS[runeType];
-    const currentTimeSeconds = nowMs / 1000;
-    const stoneId = Number(runeStone.id) || 0;
-    
-    ctx.save();
-    
-    // Render rays with slight offset from runestone center
-    for (let i = 0; i < RAY_COUNT; i++) {
-        // Deterministic positioning based on stone ID and ray index
-        const seed = stoneId * 100 + i;
-        const baseAngle = (i / RAY_COUNT) * Math.PI - Math.PI / 2; // Spread across top half
-        const angleOffset = (seededRandom(seed) - 0.5) * 0.8;
-        const distanceFromCenter = 40 + seededRandom(seed + 1) * 60; // Doubled from 20-50 range
-        
-        const rayBaseX = runeStone.posX + Math.cos(baseAngle + angleOffset) * distanceFromCenter;
-        const rayBaseY = runeStone.posY - LIGHT_CENTER_Y_OFFSET - 40; // Start above the light center (doubled from 20)
-        
-        // Sway animation - each ray has different phase
-        const swayPhase = currentTimeSeconds * RAY_SWAY_SPEED + i * 1.2;
-        const swayOffset = Math.sin(swayPhase) * RAY_SWAY_AMOUNT;
-        
-        // Intensity pulsing - staggered per ray
-        const pulsePhase = currentTimeSeconds * 1.5 + i * 0.7;
-        const pulseIntensity = 0.6 + Math.sin(pulsePhase) * 0.4;
-        
-        const screenX = rayBaseX + cameraOffsetX + swayOffset;
-        const screenY = rayBaseY + cameraOffsetY;
-        
-        // Ray width varies along height (wider at bottom, narrower at top)
-        const rayWidth = RAY_WIDTH_BASE * (0.5 + seededRandom(seed + 2) * 0.5);
-        
-        // Create vertical gradient for the ray
-        const rayGradient = ctx.createLinearGradient(
-            screenX, screenY,
-            screenX, screenY - RAY_HEIGHT
-        );
-        
-        const rayAlpha = timeIntensity * pulseIntensity * 0.25;
-        rayGradient.addColorStop(0, `rgba(${accentColor.r}, ${accentColor.g}, ${accentColor.b}, ${rayAlpha})`);
-        rayGradient.addColorStop(0.3, `rgba(${color.r}, ${color.g}, ${color.b}, ${rayAlpha * 0.6})`);
-        rayGradient.addColorStop(0.7, `rgba(${color.r}, ${color.g}, ${color.b}, ${rayAlpha * 0.3})`);
-        rayGradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
-        
-        // Draw tapered ray shape
-        ctx.fillStyle = rayGradient;
-        ctx.beginPath();
-        ctx.moveTo(screenX - rayWidth / 2, screenY);
-        ctx.lineTo(screenX + rayWidth / 2, screenY);
-        ctx.lineTo(screenX + rayWidth / 6, screenY - RAY_HEIGHT);
-        ctx.lineTo(screenX - rayWidth / 6, screenY - RAY_HEIGHT);
-        ctx.closePath();
-        ctx.fill();
-    }
-    
-    ctx.restore();
 }
 
 /**
@@ -613,21 +535,6 @@ export function renderRuneStoneNightLight(
         );
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // LAYER 6: MAGICAL RISING RAYS - Vertical light beams
-    // ═══════════════════════════════════════════════════════════════════════
-    if (nowMs !== undefined) {
-        renderMagicalRays(
-            ctx,
-            runeStone,
-            runeType,
-            cameraOffsetX,
-            cameraOffsetY,
-            nowMs,
-            finalIntensity
-        );
-    }
-    
     // ═══════════════════════════════════════════════════════════════════════
     // LAYER 7: RISING GLOWING PARTICLES - Mystical floating motes
     // ═══════════════════════════════════════════════════════════════════════

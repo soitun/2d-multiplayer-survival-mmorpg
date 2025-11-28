@@ -292,6 +292,12 @@ function AppContent() {
               viewMaxY: currentViewport.maxY
             }, Date.now()).map(t => [t.id.toString(), t])) : new Map(), // Filter visible trees only
             stones,
+            runeStones: currentViewport ? new Map(filterVisibleEntities(runeStones, {
+              viewMinX: currentViewport.minX,
+              viewMinY: currentViewport.minY,
+              viewMaxX: currentViewport.maxX,
+              viewMaxY: currentViewport.maxY
+            }, Date.now()).map(rs => [rs.id.toString(), rs])) : new Map(), // Filter visible rune stones only
             boxes: woodenStorageBoxes,
             rainCollectors,
             furnaces, // Add furnaces to collision system

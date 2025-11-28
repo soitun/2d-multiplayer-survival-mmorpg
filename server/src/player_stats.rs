@@ -276,10 +276,11 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
 
         // Calculate Warmth
         // NEW WARMTH LOGIC: Base warmth change per second based on TimeOfDay
+        // Base warmth decay values are halved from original values
         let base_warmth_change_per_sec = match world_state.time_of_day {
-            TimeOfDay::Midnight => -2.0,
-            TimeOfDay::Night => -1.5,
-            TimeOfDay::TwilightEvening => -0.5,
+            TimeOfDay::Midnight => -1.0,  // Was -2.0
+            TimeOfDay::Night => -0.75,    // Was -1.5
+            TimeOfDay::TwilightEvening => -0.25,  // Was -0.5
             TimeOfDay::Dusk => 0.0,
             TimeOfDay::Afternoon => 1.0, 
             TimeOfDay::Noon => 2.0,

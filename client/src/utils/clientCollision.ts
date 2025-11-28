@@ -84,6 +84,7 @@ const COLLISION_PERF = {
   PLAYER_CULL_DISTANCE_SQ: 200 * 200,    // Only check players within 200px
   TREE_CULL_DISTANCE_SQ: 250 * 250,      // Only check trees within 250px
   STONE_CULL_DISTANCE_SQ: 150 * 150,     // Only check stones within 150px
+  RUNE_STONE_CULL_DISTANCE_SQ: 300 * 300, // Only check rune stones within 300px (larger than trees due to bigger radius)
   ANIMAL_CULL_DISTANCE_SQ: 300 * 300,    // Only check animals within 300px
   STRUCTURE_CULL_DISTANCE_SQ: 200 * 200, // Only check structures within 200px
   
@@ -233,7 +234,7 @@ function getCollisionCandidates(
     entities.runeStones,
     playerX,
     playerY,
-    COLLISION_PERF.STONE_CULL_DISTANCE_SQ, // Use same cull distance as stones
+    COLLISION_PERF.RUNE_STONE_CULL_DISTANCE_SQ, // Use dedicated cull distance for larger rune stones
     COLLISION_PERF.MAX_STONES_TO_CHECK
   );
   
