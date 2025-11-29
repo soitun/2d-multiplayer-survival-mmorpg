@@ -15,6 +15,7 @@ import { Identity } from 'spacetimedb';
 import { PopulatedItem } from './InventoryUI'; // Reuse PopulatedItem type
 import { getItemIcon } from '../utils/itemIconUtils';
 import CraftingSearchBar from './CraftingSearchBar'; // Import the new component
+import { ITEM_TO_NODE_MAP, MEMORY_GRID_NODES } from './MemoryGridData'; // Memory Grid integration
 
 interface CraftingUIProps {
     playerIdentity: Identity | null;
@@ -27,6 +28,7 @@ interface CraftingUIProps {
     onItemMouseEnter: (item: PopulatedItem, event: React.MouseEvent<HTMLDivElement>) => void;
     onItemMouseLeave: () => void;
     onItemMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
+    purchasedMemoryNodes?: Set<string>; // Memory Grid nodes the player has purchased
 }
 
 // Helper to calculate remaining time
@@ -45,6 +47,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     onItemMouseEnter,
     onItemMouseLeave,
     onItemMouseMove,
+    purchasedMemoryNodes = new Set(['center']), // Default: only center node unlocked
 }) => {
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [craftQuantities, setCraftQuantities] = useState<Map<string, number>>(new Map()); // State for quantity input
@@ -252,6 +255,29 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         return recipe.ingredients.length > 0; // Also ensure there are ingredients
     };
 
+    // --- Helper to check Memory Grid unlock status ---
+    const isRecipeUnlockedByMemoryGrid = useCallback((recipe: Recipe): boolean => {
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef) return true; // Unknown item, allow crafting
+        
+        const requiredNode = ITEM_TO_NODE_MAP[outputDef.name];
+        if (!requiredNode) return true; // Item doesn't require Memory Grid unlock
+        
+        return purchasedMemoryNodes.has(requiredNode);
+    }, [itemDefinitions, purchasedMemoryNodes]);
+
+    // --- Helper to get required Memory Grid node name for display ---
+    const getRequiredNodeName = useCallback((recipe: Recipe): string | null => {
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef) return null;
+        
+        const requiredNodeId = ITEM_TO_NODE_MAP[outputDef.name];
+        if (!requiredNodeId) return null;
+        
+        const node = MEMORY_GRID_NODES.find(n => n.id === requiredNodeId);
+        return node ? node.name : requiredNodeId;
+    }, [itemDefinitions]);
+
     // --- Search Handler with localStorage persistence ---
     const handleSearchChange = (newSearchTerm: string) => {
         setSearchTerm(newSearchTerm);
@@ -377,7 +403,13 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
 
                         const currentQuantity = craftQuantities.get(recipe.recipeId.toString()) || 1;
                         const maxCraftableForThisRecipe = calculateMaxCraftable(recipe);
-                        const isCraftable = canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftableForThisRecipe && currentQuantity > 0;
+                        
+                        // Check if recipe is locked by Memory Grid
+                        const isMemoryGridUnlocked = isRecipeUnlockedByMemoryGrid(recipe);
+                        const requiredNodeName = !isMemoryGridUnlocked ? getRequiredNodeName(recipe) : null;
+                        
+                        // Recipe is only craftable if unlocked AND has resources
+                        const isCraftable = isMemoryGridUnlocked && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftableForThisRecipe && currentQuantity > 0;
 
                         const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                             let newQuantity = parseInt(e.target.value, 10);
@@ -398,13 +430,20 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                             <div key={recipe.recipeId.toString()} className={styles.craftingRecipeRow} style={{ 
                                 padding: '12px', 
                                 marginBottom: '8px', 
-                                background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))', 
+                                background: !isMemoryGridUnlocked 
+                                    ? 'linear-gradient(135deg, rgba(40, 30, 50, 0.6), rgba(30, 25, 40, 0.7))' // Darker purple for locked
+                                    : 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))', 
                                 borderRadius: '6px',
-                                border: isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(0, 170, 255, 0.3)',
-                                boxShadow: isCraftable ? '0 0 15px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
+                                border: !isMemoryGridUnlocked 
+                                    ? '2px solid rgba(139, 92, 246, 0.4)' // Purple border for locked
+                                    : isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(0, 170, 255, 0.3)',
+                                boxShadow: !isMemoryGridUnlocked 
+                                    ? 'inset 0 0 10px rgba(139, 92, 246, 0.1)' // Purple glow for locked
+                                    : isCraftable ? '0 0 15px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
                                 display: 'flex',
                                 gap: '12px',
-                                transition: 'all 0.3s ease'
+                                transition: 'all 0.3s ease',
+                                opacity: !isMemoryGridUnlocked ? 0.7 : 1 // Slightly dimmed for locked
                             }}>
                                 {/* Left Column: Recipe Icon */}
                                 <div 
@@ -414,7 +453,8 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                         flexShrink: 0,
                                         cursor: 'pointer',
                                         transition: 'transform 0.1s ease-out',
-                                        transform: 'scale(1)'
+                                        transform: 'scale(1)',
+                                        position: 'relative'
                                     }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.transform = 'scale(1.05)';
@@ -429,25 +469,73 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                     <img
                                         src={getItemIcon(outputDef.iconAssetName)}
                                         alt={outputDef.name}
-                                        style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                                        style={{ 
+                                            width: '100%', 
+                                            height: '100%', 
+                                            objectFit: 'contain', 
+                                            imageRendering: 'pixelated',
+                                            filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : 'none'
+                                        }}
                                     />
+                                    {/* Lock overlay for locked recipes */}
+                                    {!isMemoryGridUnlocked && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            background: 'rgba(139, 92, 246, 0.2)',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <span style={{ fontSize: '20px', filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }}>🔒</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Right Column: Content (3 rows) */}
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     
-                                    {/* Row 1: Recipe Name */}
+                                    {/* Row 1: Recipe Name + Lock Indicator */}
                                     <div style={{ 
                                         fontSize: '16px', 
                                         fontWeight: 'bold', 
-                                        color: '#00ffff',
+                                        color: !isMemoryGridUnlocked ? '#8b5cf6' : '#00ffff', // Purple for locked
                                         wordBreak: 'break-word',
                                         lineHeight: '1.2',
                                         textAlign: 'left',
-                                        textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
+                                        textShadow: !isMemoryGridUnlocked ? '0 0 8px rgba(139, 92, 246, 0.6)' : '0 0 8px rgba(0, 255, 255, 0.6)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
                                     }}>
+                                        {!isMemoryGridUnlocked && (
+                                            <span style={{ fontSize: '14px' }}>🔒</span>
+                                        )}
                                         {outputDef.name}
                                     </div>
+                                    
+                                    {/* Memory Grid Lock Message */}
+                                    {!isMemoryGridUnlocked && requiredNodeName && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: '#8b5cf6',
+                                            background: 'rgba(139, 92, 246, 0.15)',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            width: 'fit-content'
+                                        }}>
+                                            <span>⚡</span>
+                                            <span>Unlock "<strong>{requiredNodeName}</strong>" in Memory Grid</span>
+                                        </div>
+                                    )}
 
                                     {/* Row 2: Resources */}
                                     <div style={{ 
@@ -640,20 +728,28 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                                 padding: '8px 16px',
                                                 fontSize: '13px',
                                                 fontWeight: 'bold',
-                                                background: isCraftable ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
-                                                color: isCraftable ? '#00ff88' : '#666',
-                                                border: isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(100, 100, 120, 0.3)',
+                                                background: !isMemoryGridUnlocked 
+                                                    ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(100, 70, 180, 0.4))' // Purple for locked
+                                                    : isCraftable ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                                color: !isMemoryGridUnlocked ? '#8b5cf6' : isCraftable ? '#00ff88' : '#666',
+                                                border: !isMemoryGridUnlocked 
+                                                    ? '2px solid rgba(139, 92, 246, 0.5)'
+                                                    : isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(100, 100, 120, 0.3)',
                                                 borderRadius: '4px',
                                                 cursor: isCraftable ? 'pointer' : 'not-allowed',
                                                 minWidth: '70px',
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.5px',
-                                                boxShadow: isCraftable ? '0 0 15px rgba(0, 255, 136, 0.3), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none',
-                                                textShadow: isCraftable ? '0 0 8px rgba(0, 255, 136, 0.6)' : 'none',
+                                                boxShadow: !isMemoryGridUnlocked 
+                                                    ? '0 0 15px rgba(139, 92, 246, 0.2), inset 0 0 10px rgba(139, 92, 246, 0.1)'
+                                                    : isCraftable ? '0 0 15px rgba(0, 255, 136, 0.3), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none',
+                                                textShadow: !isMemoryGridUnlocked 
+                                                    ? '0 0 8px rgba(139, 92, 246, 0.6)'
+                                                    : isCraftable ? '0 0 8px rgba(0, 255, 136, 0.6)' : 'none',
                                                 transition: 'all 0.3s ease'
                                             }}
                                         >
-                                            CRAFT
+                                            {!isMemoryGridUnlocked ? 'LOCKED' : 'CRAFT'}
                                         </button>
                                     </div>
                                 </div>
