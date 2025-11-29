@@ -199,7 +199,7 @@ pub fn get_harvest_loot(
     const BONE_CLUB_MULTIPLIER: f64 = 3.0;
     const AK74_BAYONET_MULTIPLIER: f64 = 7.0; // Highest effectiveness for modern military bayonet
     const PRIMARY_CORPSE_TOOL_MULTIPLIER: f64 = 1.0;
-    const NON_PRIMARY_ITEM_MULTIPLIER: f64 = 0.1;
+    const NON_PRIMARY_ITEM_MULTIPLIER: f64 = 0.4; // Increased from 0.1 to 0.4 - allows new players to harvest basic resources
     
     let effectiveness_multiplier = match tool_name {
         "AK74 Bayonet" => AK74_BAYONET_MULTIPLIER,
@@ -215,10 +215,22 @@ pub fn get_harvest_loot(
     };
     
     // Calculate actual chances with multiplier (clamped to reasonable values)
-    let actual_fat_chance = (base_fat_chance * effectiveness_multiplier).clamp(0.0, 0.95);
-    let actual_cloth_chance = (base_cloth_chance * effectiveness_multiplier).clamp(0.0, 0.95);
-    let actual_bone_chance = (base_bone_chance * effectiveness_multiplier).clamp(0.0, 0.95);
-    let actual_meat_chance = (base_meat_chance * effectiveness_multiplier).clamp(0.0, 0.95);
+    // For non-primary tools, ensure minimum 10% chance for basic resources (fat, bone, meat, leather)
+    const MIN_BASIC_RESOURCE_CHANCE: f64 = 0.10; // 10% minimum chance for basic resources
+    let is_non_primary_tool = effectiveness_multiplier == NON_PRIMARY_ITEM_MULTIPLIER;
+    
+    let mut actual_fat_chance = (base_fat_chance * effectiveness_multiplier).clamp(0.0, 0.95);
+    let mut actual_cloth_chance = (base_cloth_chance * effectiveness_multiplier).clamp(0.0, 0.95);
+    let mut actual_bone_chance = (base_bone_chance * effectiveness_multiplier).clamp(0.0, 0.95);
+    let mut actual_meat_chance = (base_meat_chance * effectiveness_multiplier).clamp(0.0, 0.95);
+    
+    // Apply minimum floor for basic resources when using non-primary tools
+    if is_non_primary_tool {
+        actual_fat_chance = actual_fat_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        actual_bone_chance = actual_bone_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        actual_meat_chance = actual_meat_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        // Cloth/leather don't get minimum floor as they're more specialized
+    }
     
     // Determine quantity per successful hit based on tool
     let base_quantity = match tool_name {
@@ -260,7 +272,11 @@ pub fn get_harvest_loot(
     // NEW: Universal Animal Leather drop for most animals (like Animal Fat/Bone)
     // This gives animals a chance to drop the universal leather resource (except crabs and birds)
     if !matches!(animal_species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern | AnimalSpecies::Crow) {
-        let animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
+        let mut animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
+        // Apply minimum floor for animal leather when using non-primary tools
+        if is_non_primary_tool {
+            animal_leather_chance = animal_leather_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        }
         if rng.gen_bool(animal_leather_chance) {
             loot.push(("Animal Leather".to_string(), base_quantity));
         }

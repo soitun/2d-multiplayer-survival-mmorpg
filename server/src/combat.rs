@@ -2361,6 +2361,65 @@ pub fn damage_player_corpse(
     // Play weapon-specific hit sounds
     play_weapon_hit_sound(ctx, item_def, corpse.pos_x, corpse.pos_y, attacker_id);
 
+    // Ranged weapons cannot harvest resources from corpses - they can only deal damage
+    if item_def.category == ItemCategory::RangedWeapon {
+        log::info!(
+            "[DamagePlayerCorpse] Ranged weapon '{}' cannot harvest resources - only dealing damage",
+            item_def.name
+        );
+        
+        // Update corpse health and return without granting resources
+        if corpse.health == 0 {
+            // Corpse depleted - handle deletion and item scattering (same as normal depletion)
+            let mut items_to_drop: Vec<(u64, u32)> = Vec::new();
+            let inventory_items_table = ctx.db.inventory_item();
+
+            for i in 0..corpse.num_slots() as u8 {
+                if let (Some(instance_id), Some(def_id)) = (corpse.get_slot_instance_id(i), corpse.get_slot_def_id(i)) {
+                    if let Some(item) = inventory_items_table.instance_id().find(instance_id) {
+                        items_to_drop.push((def_id, item.quantity));
+                        inventory_items_table.instance_id().delete(instance_id);
+                    }
+                }
+            }
+
+            // Scatter items around the corpse's location
+            let corpse_pos_x = corpse.pos_x;
+            let corpse_pos_y = corpse.pos_y;
+
+            for (item_def_id, quantity) in items_to_drop {
+                let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 30.0;
+                let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 30.0;
+                let drop_pos_x = corpse_pos_x + offset_x;
+                let drop_pos_y = corpse_pos_y + offset_y;
+
+                match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+                    Ok(_) => log::debug!("[DamagePlayerCorpse] Dropped {} of item_def_id {} from depleted corpse {} at ({:.1}, {:.1})", 
+                                       quantity, item_def_id, corpse_id, drop_pos_x, drop_pos_y),
+                    Err(e) => log::error!("[DamagePlayerCorpse] Failed to drop item_def_id {} from corpse {}: {}", item_def_id, corpse_id, e),
+                }
+            }
+
+            // Delete the PlayerCorpse entity itself
+            player_corpses_table.id().delete(corpse_id);
+            
+            // Cancel any existing despawn schedule
+            let despawn_schedule_table = ctx.db.player_corpse_despawn_schedule();
+            if despawn_schedule_table.corpse_id().find(corpse_id as u64).is_some() {
+                despawn_schedule_table.corpse_id().delete(corpse_id as u64);
+            }
+        } else {
+            // Corpse still has health, just update it
+            player_corpses_table.id().update(corpse);
+        }
+        
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::PlayerCorpse),
+            resource_granted: None,
+        });
+    }
+
     let mut resources_granted: Vec<(String, u32)> = Vec::new();
 
     // Determine resources based on RNG and tool
@@ -3043,6 +3102,30 @@ pub fn damage_animal_corpse(
     // Play weapon-specific hit sounds
     play_weapon_hit_sound(ctx, item_def, animal_corpse.pos_x, animal_corpse.pos_y, attacker_id);
 
+    // Ranged weapons cannot harvest resources from corpses - they can only deal damage
+    if item_def.category == ItemCategory::RangedWeapon {
+        log::info!(
+            "[DamageAnimalCorpse] Ranged weapon '{}' cannot harvest resources - only dealing damage",
+            item_def.name
+        );
+        
+        // Update corpse health and return without granting resources
+        if animal_corpse.health == 0 {
+            // Corpse depleted - delete it
+            animal_corpse_table.id().delete(&animal_corpse_id);
+            log::info!("[DamageAnimalCorpse] AnimalCorpse {} entity deleted after being depleted by ranged weapon.", animal_corpse_id);
+        } else {
+            // Corpse still has health, just update it
+            animal_corpse_table.id().update(animal_corpse);
+        }
+        
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::AnimalCorpse),
+            resource_granted: None,
+        });
+    }
+
     let mut resources_granted: Vec<(String, u32)> = Vec::new();
 
     // Get animal-specific loot chances
@@ -3055,7 +3138,7 @@ pub fn damage_animal_corpse(
     const MACHETE_MULTIPLIER: f64 = 7.0; // High effectiveness for sharp cutting tool
     const AK74_BAYONET_MULTIPLIER: f64 = 10.0; // Highest effectiveness for modern military bayonet
     const PRIMARY_CORPSE_TOOL_MULTIPLIER: f64 = 1.0;
-    const NON_PRIMARY_ITEM_MULTIPLIER: f64 = 0.1;
+    const NON_PRIMARY_ITEM_MULTIPLIER: f64 = 0.4; // Increased from 0.1 to 0.4 - allows new players to harvest basic resources
 
     let effectiveness_multiplier = match item_def.name.as_str() {
         "AK74 Bayonet" => AK74_BAYONET_MULTIPLIER,
@@ -3072,10 +3155,22 @@ pub fn damage_animal_corpse(
     };
 
     // Calculate actual chances based on tool effectiveness
-    let actual_fat_chance = (base_fat_chance * effectiveness_multiplier).clamp(0.0, base_fat_chance);
-    let actual_cloth_chance = (base_cloth_chance * effectiveness_multiplier).clamp(0.0, base_cloth_chance);
-    let actual_bone_chance = (base_bone_chance * effectiveness_multiplier).clamp(0.0, base_bone_chance);
-    let actual_meat_chance = (base_meat_chance * effectiveness_multiplier).clamp(0.0, base_meat_chance);
+    // For non-primary tools, ensure minimum 10% chance for basic resources (fat, bone, meat, leather)
+    const MIN_BASIC_RESOURCE_CHANCE: f64 = 0.10; // 10% minimum chance for basic resources
+    let is_non_primary_tool = effectiveness_multiplier == NON_PRIMARY_ITEM_MULTIPLIER;
+    
+    let mut actual_fat_chance = (base_fat_chance * effectiveness_multiplier).clamp(0.0, base_fat_chance);
+    let mut actual_cloth_chance = (base_cloth_chance * effectiveness_multiplier).clamp(0.0, base_cloth_chance);
+    let mut actual_bone_chance = (base_bone_chance * effectiveness_multiplier).clamp(0.0, base_bone_chance);
+    let mut actual_meat_chance = (base_meat_chance * effectiveness_multiplier).clamp(0.0, base_meat_chance);
+    
+    // Apply minimum floor for basic resources when using non-primary tools
+    if is_non_primary_tool {
+        actual_fat_chance = actual_fat_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        actual_bone_chance = actual_bone_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        actual_meat_chance = actual_meat_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+        // Cloth/leather don't get minimum floor as they're more specialized
+    }
 
     // Determine quantity based on tool
     let quantity_per_hit = match item_def.name.as_str() {
@@ -3133,7 +3228,11 @@ pub fn damage_animal_corpse(
 
     // NEW: Universal Animal Leather drop for ALL animals (like Animal Fat/Bone)
     // This gives all animals a chance to drop the universal leather resource
-    let animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
+    let mut animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
+    // Apply minimum floor for animal leather when using non-primary tools
+    if is_non_primary_tool {
+        animal_leather_chance = animal_leather_chance.max(MIN_BASIC_RESOURCE_CHANCE);
+    }
     if animal_corpse.health > 0 && rng.gen_bool(animal_leather_chance) {
         match grant_resource(ctx, attacker_id, "Animal Leather", quantity_per_hit) {
             Ok(_) => resources_granted.push(("Animal Leather".to_string(), quantity_per_hit)),
