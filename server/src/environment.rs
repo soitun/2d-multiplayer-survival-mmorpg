@@ -1362,6 +1362,41 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_sea_stack_count, target_sea_stack_count, sea_stack_attempts
     );
 
+    // --- Seed Sea Barrels (Flotsam/Cargo Crates) around Sea Stacks ---
+    log::info!("Seeding Sea Barrels (flotsam/cargo crates) around sea stacks...");
+    match barrel::spawn_sea_barrels_around_stacks(ctx, &spawned_sea_stack_positions) {
+        Ok(_) => {
+            let total_barrels = ctx.db.barrel().iter().count();
+            let sea_barrels = ctx.db.barrel().iter()
+                .filter(|b| b.variant >= barrel::SEA_BARREL_VARIANT_START && b.variant < barrel::SEA_BARREL_VARIANT_END)
+                .count();
+            log::info!("Successfully spawned {} sea barrels (total barrels: {})", sea_barrels, total_barrels);
+        }
+        Err(e) => {
+            log::error!("Failed to spawn sea barrels: {}", e);
+        }
+    }
+
+    // --- Seed Beach Barrels (Sea Variants 3-5) on Beach Tiles ---
+    log::info!("Seeding Beach Barrels (sea variants 3-5) on beach tiles...");
+    match barrel::spawn_beach_barrels(ctx) {
+        Ok(_) => {
+            let total_barrels = ctx.db.barrel().iter().count();
+            let beach_barrels = ctx.db.barrel().iter()
+                .filter(|b| {
+                    // Count barrels on beach tiles (all sea variants 3-5)
+                    b.variant >= barrel::SEA_BARREL_VARIANT_START && 
+                    b.variant < barrel::SEA_BARREL_VARIANT_END &&
+                    crate::environment::is_position_on_beach_tile(ctx, b.pos_x, b.pos_y)
+                })
+                .count();
+            log::info!("Successfully spawned {} beach barrels (total barrels: {})", beach_barrels, total_barrels);
+        }
+        Err(e) => {
+            log::error!("Failed to spawn beach barrels: {}", e);
+        }
+    }
+
     // --- DISABLED: Hot Spring Entity Spawning (now using HotSpringWater tile type instead) ---
     // Hot springs are now handled purely via the HotSpringWater tile type
     // No need for entities - the healing effect triggers when standing on HotSpringWater tiles

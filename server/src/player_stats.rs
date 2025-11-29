@@ -275,24 +275,19 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         let new_thirst = (player.thirst - (elapsed_seconds * thirst_drain_rate)).max(0.0).min(PLAYER_MAX_THIRST);
 
         // Calculate Warmth
-        // NEW WARMTH LOGIC: Base warmth change per second based on TimeOfDay
-        // Rust-like pacing: ~5 min to reach 0 warmth, ~8-15 min total exposure to death
-        // Timeline at midnight (worst case):
-        //   0-30 sec: warmth 100→91 (fine, just UI hint "getting cold")
-        //   30-90 sec: warmth 91→73 (chilled, slow drain visible)
-        //   90-240 sec: warmth 73→28 (cold, noticeable drain, approaching danger)
-        //   240-310 sec: warmth 28→0 (freezing, HP damage starts at ~280 sec / 4.7 min)
-        //   310-500+ sec: HP draining, death around 500-600 sec (~8-10 min total)
+        // BALANCED WARMTH LOGIC: Daytime safe, nighttime challenging but fair
+        // Daytime: Strong warmth gain to offset rain
+        // Nighttime: Slow drain gives time to find shelter/warmth sources
         let base_warmth_change_per_sec = match world_state.time_of_day {
-            TimeOfDay::Midnight => -0.30,  // ~5.5 min to 0 warmth (was -1.0)
-            TimeOfDay::Night => -0.22,     // ~7.5 min to 0 warmth (was -0.75)
-            TimeOfDay::TwilightEvening => -0.08,  // ~21 min to 0 warmth (was -0.25)
-            TimeOfDay::Dusk => 0.0,
-            TimeOfDay::Afternoon => 1.0, 
-            TimeOfDay::Noon => 2.0,
-            TimeOfDay::Morning => 1.0,
-            TimeOfDay::TwilightMorning => 0.5,
-            TimeOfDay::Dawn => 0.0,
+            TimeOfDay::Midnight => -0.10,  // ~16.7 min to 0 warmth
+            TimeOfDay::Night => -0.08,     // ~20.8 min to 0 warmth
+            TimeOfDay::TwilightEvening => -0.03,  // ~55 min to 0 warmth
+            TimeOfDay::Dusk => 0.2,        // Slight gain to offset rain (was 0.0)
+            TimeOfDay::Afternoon => 1.2,   // Increased from 1.0 for better rain resistance
+            TimeOfDay::Noon => 2.0,        // Peak warmth gain
+            TimeOfDay::Morning => 1.2,     // Increased from 1.0 for better rain resistance
+            TimeOfDay::TwilightMorning => 0.7,  // Increased from 0.5 for better rain resistance
+            TimeOfDay::Dawn => 0.2,         // Slight gain to offset rain (was 0.0)
         };
 
         // Apply indoor warmth protection to reduce cold drain (but not eliminate it)

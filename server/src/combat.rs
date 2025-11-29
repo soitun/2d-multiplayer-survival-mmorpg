@@ -2345,12 +2345,16 @@ pub fn damage_player_corpse(
     if corpse.health == 0 { // Already fully harvested
         // If health is already 0, but the entity somehow still exists, log and exit.
         // This might happen if two hits are processed very closely.
+        // Still update last_hit_time for visual feedback before deletion
+        corpse.last_hit_time = Some(timestamp);
+        player_corpses_table.id().update(corpse);
         log::warn!("[DamagePlayerCorpse] Corpse {} already has 0 health. No action taken.", corpse_id);
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::PlayerCorpse), resource_granted: None });
     }
 
     let old_health = corpse.health;
     corpse.health = corpse.health.saturating_sub(damage as u32);
+    // Always update last_hit_time on every hit for shake effect
     corpse.last_hit_time = Some(timestamp);
 
     log::info!(
@@ -3085,12 +3089,16 @@ pub fn damage_animal_corpse(
         .ok_or_else(|| format!("Target animal corpse {} disappeared", animal_corpse_id))?;
 
     if animal_corpse.health == 0 {
+        // Still update last_hit_time for visual feedback before deletion
+        animal_corpse.last_hit_time = Some(timestamp);
+        animal_corpse_table.id().update(animal_corpse);
         log::warn!("[DamageAnimalCorpse] Animal corpse {} already has 0 health. No action taken.", animal_corpse_id);
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::AnimalCorpse), resource_granted: None });
     }
 
     let old_health = animal_corpse.health;
     animal_corpse.health = animal_corpse.health.saturating_sub(damage as u32);
+    // Always update last_hit_time on every hit for shake effect
     animal_corpse.last_hit_time = Some(timestamp);
     animal_corpse.last_hit_by = Some(attacker_id);
 
@@ -3554,7 +3562,7 @@ pub fn play_weapon_hit_sound(
     if item_def.name == "Stone Hatchet" || item_def.name == "Metal Hatchet" || item_def.name == "Stone Pickaxe" || item_def.name == "Metal Pickaxe" || item_def.name == "Bush Knife" || item_def.name == "AK74 Bayonet" {
         sound_events::emit_melee_hit_sharp_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted melee_hit_sharp sound for {} hitting target", item_def.name);
-    } else if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Bone Knife" || item_def.name == "Bone Gaff Hook" {
+    } else if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" || item_def.name == "Bone Knife" || item_def.name == "Bone Gaff Hook" {
         sound_events::emit_spear_hit_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted spear_hit sound for {} hitting target", item_def.name);
     } else if item_def.name == "Combat Ladle" || item_def.name == "Repair Hammer" || item_def.name == "Rock" || 

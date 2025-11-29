@@ -33,11 +33,11 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
 
         // Starting materials in Inventory (Slots 0-23)
         ("Crossbow", 1, None, Some(0u16)),
-        ("9x18mm Round", 100, None, Some(1u16)),
+        ("9x18mm Round", 500, None, Some(1u16)),
         ("Wooden Arrow", 500, None, Some(2u16)),
         ("Wood Door", 2, None, Some(3u16)),
         ("Wood", 5000, None, Some(4u16)),
-        // ("Bone Knife", 1, None, Some(5u16)),
+        ("Reed Harpoon", 1, None, Some(5u16)),
         // ("Hunting Bow", 1, None, Some(6u16)),
         // ("Wooden Arrow", 20, None, Some(7u16)),
         // Armor sets (commented out by default)

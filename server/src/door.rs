@@ -626,10 +626,8 @@ pub fn interact_door(ctx: &ReducerContext, door_id: u64) -> Result<(), String> {
     let state_str = if updated_door.is_open { "opened" } else { "closed" };
     log::info!("[InteractDoor] Door {} {} by player {:?}", door_id, state_str, sender_id);
     
-    // 6. Play door opening sound when door is opened
-    if updated_door.is_open {
-        crate::sound_events::emit_door_opening_sound(ctx, door.pos_x, door.pos_y, sender_id);
-    }
+    // 6. Play door sound when door is opened or closed (same sound for both)
+    crate::sound_events::emit_door_opening_sound(ctx, door.pos_x, door.pos_y, sender_id);
     
     Ok(())
 }

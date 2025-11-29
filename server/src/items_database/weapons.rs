@@ -85,6 +85,20 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
         // === CRAFTABLE SPEARS ===
         // Ranged melee weapons with reach advantage
 
+        // Reed Harpoon - Fragile starter spear (Tier 0.5)
+        ItemBuilder::new("Reed Harpoon", "A fragile harpoon made from reeds and bone fragments. Light and buoyant, but weaker than a proper wooden spear.", ItemCategory::Weapon)
+            .icon("reed_harpoon.png")
+            .weapon(18, 20, 1.2) // Lower damage than Wooden Spear, slightly faster swing speed
+            .damage_type(DamageType::Pierce) // Piercing weapon
+            .bleed_effect(1.5, 6.0, 1.0) // Weaker bleed than Wooden Spear
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 10 },
+            ])
+            .crafting_output(1, 15) // Quick to craft
+            .respawn_time(300)
+            .build(),
+
         // Wooden Spear - Basic spear, longest reach
         ItemBuilder::new("Wooden Spear", "A sharpened stick. Better than throwing rocks.", ItemCategory::Weapon)
             .icon("spear.png")

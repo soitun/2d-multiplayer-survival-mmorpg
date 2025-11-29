@@ -1,13 +1,19 @@
-//! # Roadside Barrel System
+//! # Barrel System (Road, Sea & Beach)
 //! 
-//! This module handles destructible barrels that spawn on dirt roads and drop loot when destroyed.
-//! Barrels spawn in clusters of 1-3 and respawn after being destroyed.
+//! This module handles destructible barrels that spawn in three locations:
+//! 1. **Road Barrels** (variants 0-2): Spawn on dirt roads in clusters of 1-3
+//! 2. **Sea Barrels** (variants 3-5): Spawn in ocean water around sea stacks (flotsam/cargo crates)
+//! 3. **Beach Barrels** (variants 3-5): All sea barrel variants can wash up on beaches, but much rarer
+//!
+//! All types drop loot when destroyed and respawn after being destroyed.
 //!
 //! ## Key Features:
-//! - Spawn only on dirt road tiles
-//! - Cluster spawning with proper spacing
+//! - Road barrels spawn only on dirt road tiles
+//! - Sea barrels (variants 3-5) spawn in ocean water near sea stacks (15% chance per stack)
+//! - Beach barrels (variants 3-5) spawn on beach tiles (much rarer - 0.01% density)
+//! - Cluster spawning with proper spacing (road barrels)
 //! - Health-based destruction system
-//! - Configurable loot tables
+//! - Configurable loot tables (shared between all types)
 //! - Automatic respawning after destruction
 //! - Collision detection similar to storage boxes
 
@@ -20,6 +26,7 @@ use spacetimedb::spacetimedb_lib::ScheduleAt;
 // Import necessary items from other modules
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::player as PlayerTableTrait;
+use crate::world_tile as WorldTileTableTrait;
 use crate::dropped_item::{create_dropped_item_entity, calculate_drop_position};
 use crate::{Player, PLAYER_RADIUS, TileType};
 use crate::utils::get_distance_squared;
@@ -40,15 +47,27 @@ pub const MIN_BARREL_CLUSTER_DISTANCE_SQ: f32 = 400.0 * 400.0; // Minimum distan
 pub const MIN_BARREL_DISTANCE_SQ: f32 = 60.0 * 60.0; // Minimum distance between individual barrels in cluster
 pub const BARREL_RESPAWN_TIME_SECONDS: u32 = 600; // 10 minutes respawn time
 
+// Sea barrel (flotsam/cargo crate) constants
+pub const SEA_BARREL_VARIANT_START: u8 = 3; // Variants 3, 4, 5 are sea barrels
+pub const SEA_BARREL_VARIANT_END: u8 = 6; // Exclusive end (so 3, 4, 5)
+pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.15; // 15% chance to spawn 1-2 sea barrels near each sea stack
+pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 150.0; // Minimum distance from sea stack center
+pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 300.0; // Maximum distance from sea stack center
+pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance between sea barrels
+
+// Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches, but much rarer)
+pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0001; // 0.01% of beach tiles get a barrel (much rarer than sea stack spawning)
+pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 150.0 * 150.0; // Minimum distance between beach barrels
+
 // Damage constants
 // Note: Damage is determined by weapon type through the combat system
 // No fixed damage constant needed - weapons define their own damage via pvp_damage_min/max
 pub const BARREL_ATTACK_COOLDOWN_MS: u64 = 1000; // 1 second between attacks (used by damage_barrel for cooldown checks)
 
 /// Density of barrel clusters per map tile. Used to scale clusters with map size.
-/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.00004 = 14 clusters.
+/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.000052 = ~19 clusters (30% increase).
 /// Barrels are rare, contested PvP hotspots - not meant to be everywhere.
-pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.00004;
+pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.000052; // Increased by 30% from 0.00004
 /// How many dirt road tiles roughly correspond to one barrel cluster capacity.
 /// Used as an upper bound so road-heavy maps don't explode cluster counts.
 pub const ROAD_TILES_PER_CLUSTER: f32 = 200.0;
@@ -63,7 +82,7 @@ pub struct Barrel {
     pub pos_x: f32,
     pub pos_y: f32,
     pub health: f32,
-    pub variant: u8, // 0, 1, or 2 for three different visual variations
+    pub variant: u8, // 0, 1, 2 for road barrels; 3, 4, 5 for sea flotsam/cargo crates (can spawn around sea stacks or on beaches)
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
     pub respawn_at: Option<Timestamp>, // When this barrel should respawn (if destroyed)
@@ -191,10 +210,10 @@ pub fn has_player_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32)
 }
 
 /// Generates loot drops around a destroyed barrel
-/// Guarantees 1-3 items will drop (100% chance for at least one item)
+/// Guarantees 1 item, max 2 items (like Rust)
 fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_pos_y: f32) -> Result<(), String> {
     let loot_table = get_barrel_loot_table(ctx);
-    const MAX_DROPS_PER_BARREL: usize = 3;
+    const MAX_DROPS_PER_BARREL: usize = 2;
     
     log::info!("[BarrelLoot] Generating loot drops for barrel at ({:.1}, {:.1})", barrel_pos_x, barrel_pos_y);
     
@@ -225,13 +244,13 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
         shuffled
     };
     
-    // GUARANTEE: If no items rolled to drop, force drop a common item
+    // GUARANTEE: If no items rolled to drop, force drop 1 common item (barrels always drop something)
     if items_to_drop.is_empty() {
         log::info!("[BarrelLoot] No items rolled to drop, forcing a guaranteed common item drop");
         
         // Find a common tier item (highest drop chances) to guarantee
         let fallback_item = loot_table.iter()
-            .filter(|item| item.drop_chance >= 0.60) // Common tier items
+            .filter(|item| item.drop_chance >= 0.40) // Common tier items (40%+ drop chance)
             .next();
             
         if let Some(guaranteed_item) = fallback_item {
@@ -277,7 +296,7 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
         }
     }
     
-    log::info!("[BarrelLoot] Created {} loot drops for destroyed barrel (GUARANTEED at least 1)", drops_created);
+    log::info!("[BarrelLoot] Created {} loot drops for destroyed barrel (guaranteed 1, max 2)", drops_created);
     Ok(())
 }
 
@@ -466,8 +485,16 @@ pub fn spawn_barrel_clusters_scaled(
             continue; // Try another location
         }
 
-        // Spawn 2-4 barrels in a cluster pattern
-        let barrels_in_cluster = ctx.rng().gen_range(2..=4);
+        // Spawn 1-3 barrels in a cluster pattern with weighted probabilities
+        // 1 barrel: 45%, 2 barrels: 45%, 3 barrels: 10% (rare)
+        let cluster_size_roll: f32 = ctx.rng().gen();
+        let barrels_in_cluster = if cluster_size_roll < 0.45 {
+            1 // 45% chance for single barrel
+        } else if cluster_size_roll < 0.90 {
+            2 // 45% chance for 2-barrel cluster
+        } else {
+            3 // 10% chance for 3-barrel cluster (rare)
+        };
         let mut barrels_spawned_in_cluster = 0;
         
         for barrel_idx in 0..barrels_in_cluster {
@@ -585,8 +612,16 @@ pub fn spawn_barrel_clusters(
             continue;
         }
         
-        // Determine cluster size (1-3 barrels)
-        let cluster_size = ctx.rng().gen_range(1..=3);
+        // Determine cluster size (1-3 barrels) with weighted probabilities
+        // 1 barrel: 45%, 2 barrels: 45%, 3 barrels: 10% (rare)
+        let cluster_size_roll: f32 = ctx.rng().gen();
+        let cluster_size = if cluster_size_roll < 0.45 {
+            1 // 45% chance for single barrel
+        } else if cluster_size_roll < 0.90 {
+            2 // 45% chance for 2-barrel cluster
+        } else {
+            3 // 10% chance for 3-barrel cluster (rare)
+        };
         
         // Try to spawn the cluster
         if spawn_barrel_cluster_at_position(ctx, center_x, center_y, cluster_size, next_cluster_id)? {
@@ -678,4 +713,260 @@ fn spawn_barrel_cluster_at_position(
     }
     
     Ok(true)
+}
+
+/// Spawns sea barrels (flotsam/cargo crates) around sea stacks
+/// These are variants 3, 4, 5 and only spawn in ocean water near sea stacks
+pub fn spawn_sea_barrels_around_stacks(
+    ctx: &ReducerContext,
+    sea_stack_positions: &[(f32, f32)],
+) -> Result<(), String> {
+    if sea_stack_positions.is_empty() {
+        log::info!("[SeaBarrelSpawn] No sea stacks available for sea barrel spawning");
+        return Ok(());
+    }
+
+    log::info!("[SeaBarrelSpawn] Starting sea barrel spawning around {} sea stacks", sea_stack_positions.len());
+
+    let mut spawned_count = 0;
+    let barrels = ctx.db.barrel();
+    let mut spawned_sea_barrel_positions = Vec::<(f32, f32)>::new();
+
+    for &(stack_x, stack_y) in sea_stack_positions {
+        // Roll for spawning chance (15% per stack)
+        let spawn_roll: f32 = ctx.rng().gen();
+        if spawn_roll > SEA_BARREL_SPAWN_CHANCE_PER_STACK {
+            continue; // Skip this sea stack
+        }
+
+        // Determine how many sea barrels to spawn (1-2)
+        let barrel_count = if ctx.rng().gen::<f32>() < 0.6 {
+            1 // 60% chance for single barrel
+        } else {
+            2 // 40% chance for 2 barrels
+        };
+
+        let mut barrels_spawned_near_this_stack = 0;
+
+        for barrel_idx in 0..barrel_count {
+            let mut attempts = 0;
+            const MAX_POSITION_ATTEMPTS: u32 = 10;
+
+            while attempts < MAX_POSITION_ATTEMPTS {
+                attempts += 1;
+
+                // Generate position in a ring around the sea stack
+                let angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32) +
+                           ctx.rng().gen_range(-0.5..0.5); // Add randomness
+                let distance = ctx.rng().gen_range(MIN_SEA_BARREL_DISTANCE_FROM_STACK..MAX_SEA_BARREL_DISTANCE_FROM_STACK);
+                
+                let barrel_x = stack_x + angle.cos() * distance;
+                let barrel_y = stack_y + angle.sin() * distance;
+
+                // Validate position: must be on ocean water
+                if !crate::environment::is_position_on_ocean_water(ctx, barrel_x, barrel_y) {
+                    continue; // Try another position
+                }
+
+                // Check distance from other sea barrels
+                let mut too_close = false;
+                for &(other_x, other_y) in &spawned_sea_barrel_positions {
+                    let dx = barrel_x - other_x;
+                    let dy = barrel_y - other_y;
+                    if dx * dx + dy * dy < MIN_SEA_BARREL_DISTANCE_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+                if too_close {
+                    continue; // Try another position
+                }
+
+                // Check distance from existing road barrels (avoid overlap)
+                let mut too_close_to_road_barrel = false;
+                for existing_barrel in barrels.iter() {
+                    if existing_barrel.health == 0.0 { continue; } // Skip destroyed barrels
+                    if existing_barrel.variant < SEA_BARREL_VARIANT_START {
+                        // This is a road barrel, check distance
+                        let dx = barrel_x - existing_barrel.pos_x;
+                        let dy = barrel_y - existing_barrel.pos_y;
+                        if dx * dx + dy * dy < MIN_SEA_BARREL_DISTANCE_SQ {
+                            too_close_to_road_barrel = true;
+                            break;
+                        }
+                    }
+                }
+                if too_close_to_road_barrel {
+                    continue; // Try another position
+                }
+
+                // Position is valid - spawn the sea barrel
+                let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END); // 3, 4, or 5
+                let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
+
+                let new_barrel = Barrel {
+                    id: 0, // auto_inc
+                    pos_x: barrel_x,
+                    pos_y: barrel_y,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant,
+                    last_hit_time: None,
+                    respawn_at: None,
+                    cluster_id: 0, // Sea barrels don't use cluster IDs (they're individual spawns)
+                };
+
+                match barrels.try_insert(new_barrel) {
+                    Ok(inserted_barrel) => {
+                        spawned_sea_barrel_positions.push((barrel_x, barrel_y));
+                        barrels_spawned_near_this_stack += 1;
+                        spawned_count += 1;
+                        log::info!(
+                            "[SeaBarrelSpawn] Spawned sea barrel #{} (variant {}) at ({:.1}, {:.1}) near sea stack at ({:.1}, {:.1})",
+                            inserted_barrel.id, variant, barrel_x, barrel_y, stack_x, stack_y
+                        );
+                        break; // Successfully spawned, move to next barrel
+                    }
+                    Err(e) => {
+                        log::warn!("[SeaBarrelSpawn] Failed to insert sea barrel: {}", e);
+                        // Continue to try another position
+                    }
+                }
+            }
+        }
+
+        if barrels_spawned_near_this_stack > 0 {
+            log::info!(
+                "[SeaBarrelSpawn] Spawned {} sea barrel(s) near sea stack at ({:.1}, {:.1})",
+                barrels_spawned_near_this_stack, stack_x, stack_y
+            );
+        }
+    }
+
+    log::info!("[SeaBarrelSpawn] Finished spawning {} sea barrels around sea stacks", spawned_count);
+    Ok(())
+}
+
+/// Spawns sea barrel variants (3, 4, 5) on beach tiles
+/// All sea barrel variants can wash up on beaches, but much rarer than around sea stacks
+pub fn spawn_beach_barrels(
+    ctx: &ReducerContext,
+) -> Result<(), String> {
+    log::info!("[BeachBarrelSpawn] Starting beach barrel spawning...");
+
+    // Collect all beach tiles
+    let world_tiles = ctx.db.world_tile();
+    let beach_tiles: Vec<(i32, i32)> = world_tiles.iter()
+        .filter(|tile| tile.tile_type == crate::TileType::Beach)
+        .map(|tile| (tile.world_x, tile.world_y))
+        .collect();
+
+    if beach_tiles.is_empty() {
+        log::info!("[BeachBarrelSpawn] No beach tiles available for barrel spawning");
+        return Ok(());
+    }
+
+    // Calculate target count based on beach tile density
+    let target_count = ((beach_tiles.len() as f32) * BEACH_BARREL_SPAWN_DENSITY_PERCENT).round() as u32;
+    let max_attempts = target_count * MAX_BARREL_SEEDING_ATTEMPTS_FACTOR;
+
+    log::info!(
+        "[BeachBarrelSpawn] Attempting to spawn {} beach barrels from {} beach tiles (max attempts: {})",
+        target_count, beach_tiles.len(), max_attempts
+    );
+
+    let mut spawned_count = 0;
+    let mut attempts = 0;
+    let barrels = ctx.db.barrel();
+    let mut spawned_beach_barrel_positions = Vec::<(f32, f32)>::new();
+
+    while spawned_count < target_count && attempts < max_attempts {
+        attempts += 1;
+
+        // Pick a random beach tile
+        let tile_idx = ctx.rng().gen_range(0..beach_tiles.len());
+        let (tile_x, tile_y) = beach_tiles[tile_idx];
+
+        // Convert to world position (center of tile with slight random offset)
+        let offset_x = ctx.rng().gen_range(-0.3..0.3) * crate::TILE_SIZE_PX as f32;
+        let offset_y = ctx.rng().gen_range(-0.3..0.3) * crate::TILE_SIZE_PX as f32;
+        let barrel_x = (tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32 + offset_x;
+        let barrel_y = (tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32 + offset_y;
+
+        // Validate position: must still be on beach tile
+        if !crate::environment::is_position_on_beach_tile(ctx, barrel_x, barrel_y) {
+            continue; // Try another position
+        }
+
+        // Check distance from other beach barrels
+        let mut too_close = false;
+        for &(other_x, other_y) in &spawned_beach_barrel_positions {
+            let dx = barrel_x - other_x;
+            let dy = barrel_y - other_y;
+            if dx * dx + dy * dy < MIN_BEACH_BARREL_DISTANCE_SQ {
+                too_close = true;
+                break;
+            }
+        }
+        if too_close {
+            continue; // Try another position
+        }
+
+        // Check distance from existing barrels (all variants)
+        let mut too_close_to_existing = false;
+        for existing_barrel in barrels.iter() {
+            if existing_barrel.health == 0.0 { continue; } // Skip destroyed barrels
+            let dx = barrel_x - existing_barrel.pos_x;
+            let dy = barrel_y - existing_barrel.pos_y;
+            if dx * dx + dy * dy < MIN_BEACH_BARREL_DISTANCE_SQ {
+                too_close_to_existing = true;
+                break;
+            }
+        }
+        if too_close_to_existing {
+            continue; // Try another position
+        }
+
+        // Check collision with players
+        if has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+            continue; // Try another position
+        }
+
+        // Position is valid - spawn a random sea barrel variant (3, 4, or 5)
+        let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END); // Random variant 3, 4, or 5
+        let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
+
+        let new_barrel = Barrel {
+            id: 0, // auto_inc
+            pos_x: barrel_x,
+            pos_y: barrel_y,
+            chunk_index: chunk_idx,
+            health: BARREL_INITIAL_HEALTH,
+            variant, // Random sea barrel variant (3, 4, or 5)
+            last_hit_time: None,
+            respawn_at: None,
+            cluster_id: 0, // Beach barrels don't use cluster IDs
+        };
+
+        match barrels.try_insert(new_barrel) {
+            Ok(inserted_barrel) => {
+                spawned_beach_barrel_positions.push((barrel_x, barrel_y));
+                spawned_count += 1;
+                log::info!(
+                    "[BeachBarrelSpawn] Spawned beach barrel #{} (variant {}) at ({:.1}, {:.1}) on beach tile ({}, {})",
+                    inserted_barrel.id, variant, barrel_x, barrel_y, tile_x, tile_y
+                );
+            }
+            Err(e) => {
+                log::warn!("[BeachBarrelSpawn] Failed to insert beach barrel: {}", e);
+                // Continue to try another position
+            }
+        }
+    }
+
+    log::info!(
+        "[BeachBarrelSpawn] Finished spawning {} beach barrels (target: {}, attempts: {})",
+        spawned_count, target_count, attempts
+    );
+    Ok(())
 } 

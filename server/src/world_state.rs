@@ -47,11 +47,12 @@ pub(crate) const WARMTH_DRAIN_MULTIPLIER_NIGHT: f32 = 2.0;
 pub(crate) const WARMTH_DRAIN_MULTIPLIER_MIDNIGHT: f32 = 3.0;
 pub(crate) const WARMTH_DRAIN_MULTIPLIER_DAWN_DUSK: f32 = 1.5;
 
-// Rain warmth drain modifiers (additive with time-of-day multipliers)
-pub(crate) const WARMTH_DRAIN_RAIN_LIGHT: f32 = 1.0;      // Light rain adds 1.0 per second
-pub(crate) const WARMTH_DRAIN_RAIN_MODERATE: f32 = 2.0;   // Moderate rain adds 2.0 per second
-pub(crate) const WARMTH_DRAIN_RAIN_HEAVY: f32 = 3.0;      // Heavy rain adds 3.0 per second
-pub(crate) const WARMTH_DRAIN_RAIN_STORM: f32 = 4.0;      // Heavy storm adds 4.0 per second
+// Rain warmth drain modifiers (balanced for fair gameplay)
+// Daytime should remain safe even with heavy rain, nighttime should be challenging but manageable
+pub(crate) const WARMTH_DRAIN_RAIN_LIGHT: f32 = 0.2;      // Light rain: -0.2/sec
+pub(crate) const WARMTH_DRAIN_RAIN_MODERATE: f32 = 0.4;   // Moderate rain: -0.4/sec
+pub(crate) const WARMTH_DRAIN_RAIN_HEAVY: f32 = 0.7;      // Heavy rain: -0.7/sec (daytime +1.0 - 0.7 = +0.3/sec safe)
+pub(crate) const WARMTH_DRAIN_RAIN_STORM: f32 = 1.0;      // Heavy storm: -1.0/sec (daytime +1.0 - 1.0 = 0.0/sec stable)
 
 // --- Weather Constants ---
 // Aleutian islands are rainy but not constantly stormy - aim for ~25% rain coverage at any time
