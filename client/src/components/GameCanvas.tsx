@@ -171,6 +171,7 @@ interface GameCanvasProps {
   localPlayerId?: string;
   connection: any | null;
   predictedPosition: { x: number; y: number } | null;
+  getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
   grass: Map<string, SpacetimeDBGrass>;
   placementInfo: PlacementItemInfo | null;
@@ -258,6 +259,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   localPlayerId,
   connection,
   predictedPosition,
+  getCurrentPositionNow,
   activeEquipments,
   activeConnections,
   placementInfo,
@@ -898,6 +900,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection,
     localPlayerId: localPlayer?.identity?.toHexString(),
     localPlayer,
+    predictedPosition, // ADDED: Client's predicted position for accurate projectile firing
+    getCurrentPositionNow, // ADDED: Function for exact position at firing time
     activeEquipments,
     itemDefinitions,
     inventoryItems,

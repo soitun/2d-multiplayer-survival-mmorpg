@@ -171,6 +171,7 @@ interface GameScreenProps {
 
     // Predicted Position
     predictedPosition: { x: number; y: number } | null;
+    getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
 
     // Placement State/Actions (from usePlacementManager)
@@ -297,7 +298,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         messages,
         activeConnections,
         localPlayerId, playerIdentity, connection,
-        predictedPosition, canvasRef,
+        predictedPosition, getCurrentPositionNow, canvasRef,
         placementInfo, placementActions, placementError, startPlacement, cancelPlacement,
         interactingWith, handleSetInteractingWith,
         draggedItemInfo, onItemDragStart, onItemDrop,
@@ -749,6 +750,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 localPlayerId={localPlayerId}
                 connection={connection}
                 predictedPosition={predictedPosition}
+                getCurrentPositionNow={getCurrentPositionNow}
                 localFacingDirection={props.facingDirection} // ADD: Pass local facing direction for instant visual feedback
                 placementInfo={placementInfo}
                 placementActions={placementActions}

@@ -478,9 +478,62 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     };
   }, [updatePosition]);
 
+  // ADDED: Function to get the EXACT position at this moment (not cached from last frame)
+  // This is critical for accurate projectile spawning during fast movement
+  const getCurrentPositionNow = useCallback((): { x: number; y: number } | null => {
+    if (!clientPositionRef.current || !localPlayer) {
+      return clientPositionRef.current;
+    }
+
+    const now = performance.now();
+    const deltaTime = (now - lastUpdateTime.current) / 1000; // seconds since last frame
+    
+    // Check if we're in a dodge roll
+    const playerId = localPlayer.identity.toHexString();
+    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
+    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
+    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
+    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500;
+    
+    if (isDodgeRolling && dodgeRollState) {
+      // Calculate exact dodge roll position at this moment
+      const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0);
+      const easedProgress = 1 - Math.pow(1 - dodgeProgress, 2); // ease-out quad
+      
+      return {
+        x: dodgeRollState.startX + (dodgeRollState.targetX - dodgeRollState.startX) * easedProgress,
+        y: dodgeRollState.startY + (dodgeRollState.targetY - dodgeRollState.startY) * easedProgress
+      };
+    }
+    
+    // For normal movement, extrapolate from last known position
+    const { direction, sprinting } = inputState;
+    const isActuallyMoving = direction.x !== 0 || direction.y !== 0;
+    
+    if (!isActuallyMoving || deltaTime <= 0 || deltaTime > 0.1) {
+      // Not moving or stale data - return cached position
+      return clientPositionRef.current;
+    }
+    
+    // Calculate speed (same logic as updatePosition)
+    let speed = PLAYER_SPEED;
+    if (sprinting) speed *= SPRINT_MULTIPLIER;
+    if (localPlayer.isOnWater) speed *= WATER_SPEED_PENALTY;
+    if (hasExhaustedEffect(connection, playerId)) speed *= EXHAUSTED_SPEED_PENALTY;
+    
+    // Extrapolate position based on time since last frame
+    const moveDistance = speed * deltaTime;
+    
+    return {
+      x: clientPositionRef.current.x + direction.x * moveDistance,
+      y: clientPositionRef.current.y + direction.y * moveDistance
+    };
+  }, [localPlayer, inputState, playerDodgeRollStates, connection]);
+
   // Return the current position and state
   return { 
     predictedPosition: clientPositionRef.current,
+    getCurrentPositionNow, // ADDED: Function for exact position at firing time
     isAutoWalking,
     isAutoAttacking,
     facingDirection: lastFacingDirection.current

@@ -51,6 +51,8 @@ interface InputHandlerProps {
     connection: DbConnection | null;
     localPlayerId?: string;
     localPlayer: Player | undefined | null;
+    predictedPosition: { x: number; y: number } | null; // ADDED: Client's predicted position for accurate firing
+    getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
     activeEquipments: Map<string, ActiveEquipment>;
     itemDefinitions: Map<string, ItemDefinition>;
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
@@ -133,6 +135,8 @@ export const useInputHandler = ({
     connection,
     localPlayerId,
     localPlayer,
+    predictedPosition, // ADDED: Client's predicted position for accurate firing
+    getCurrentPositionNow, // ADDED: Function for exact position at firing time
     activeEquipments,
     itemDefinitions,
     inventoryItems,
@@ -198,6 +202,8 @@ export const useInputHandler = ({
     const placementActionsRef = useLatest(placementActions);
     const connectionRef = useLatest(connection);
     const localPlayerRef = useLatest(localPlayer);
+    const predictedPositionRef = useLatest(predictedPosition); // ADDED: Ref for client's predicted position
+    const getCurrentPositionNowRef = useLatest(getCurrentPositionNow); // ADDED: Ref for exact position function
     const activeEquipmentsRef = useLatest(activeEquipments);
     // UNIFIED TARGET REF - single source of truth for current interaction target
     const closestTargetRef = useLatest(closestInteractableTarget);
@@ -1079,14 +1085,20 @@ export const useInputHandler = ({
                         if (equippedItemDef.category?.tag === "RangedWeapon") {
                             if (localPlayerActiveEquipment.isReadyToFire) {
                                 const currentPlayer = localPlayerRef.current;
+                                // CRITICAL: Use getCurrentPositionNow() for EXACT position at this moment
+                                // This calculates position on-demand, not from last animation frame
+                                const exactPos = getCurrentPositionNowRef.current?.();
+                                const fallbackPos = predictedPositionRef.current;
                                 if (connectionRef.current?.reducers && worldMousePosRefInternal.current.x !== null && worldMousePosRefInternal.current.y !== null && currentPlayer) {
                                     // console.log("[InputHandler MOUSEDOWN] Ranged weapon loaded. Firing!");
-                                    // Send client's current predicted position for accurate projectile spawn during movement
+                                    // Use EXACT position calculated at this moment for perfect accuracy
+                                    const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
+                                    const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
                                     connectionRef.current.reducers.fireProjectile(
                                         worldMousePosRefInternal.current.x, 
                                         worldMousePosRefInternal.current.y,
-                                        currentPlayer.positionX,
-                                        currentPlayer.positionY
+                                        fireX,
+                                        fireY
                                     );
                                 } else {
                                     console.warn("[InputHandler MOUSEDOWN] Cannot fire ranged weapon: No connection/reducers or invalid mouse position.");
@@ -1367,17 +1379,22 @@ export const useInputHandler = ({
             if (connectionRef.current?.reducers && localPlayerId && localPlayerRef.current && activeEquipmentsRef.current && itemDefinitionsRef.current && worldMousePosRefInternal.current.x !== null && worldMousePosRefInternal.current.y !== null) {
                 const localEquipment = activeEquipmentsRef.current.get(localPlayerId);
                 const currentPlayer = localPlayerRef.current;
+                // CRITICAL: Use getCurrentPositionNow() for EXACT position at this moment
+                const exactPos = getCurrentPositionNowRef.current?.();
+                const fallbackPos = predictedPositionRef.current;
                 if (localEquipment?.equippedItemDefId && currentPlayer) {
                     const itemDef = itemDefinitionsRef.current.get(String(localEquipment.equippedItemDefId));
 
                     if (itemDef && (itemDef.name === "Hunting Bow" || itemDef.category === SpacetimeDB.ItemCategory.RangedWeapon)) {
                         try {
-                            // Send client's current predicted position for accurate projectile spawn during movement
+                            // Use EXACT position calculated at this moment for perfect accuracy
+                            const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
+                            const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
                             connectionRef.current.reducers.fireProjectile(
                                 worldMousePosRefInternal.current.x, 
                                 worldMousePosRefInternal.current.y,
-                                currentPlayer.positionX,
-                                currentPlayer.positionY
+                                fireX,
+                                fireY
                             );
                             lastClientSwingAttemptRef.current = Date.now();
                             lastServerSwingTimestampRef.current = Date.now();

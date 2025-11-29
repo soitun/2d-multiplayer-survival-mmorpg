@@ -160,22 +160,31 @@ pub fn fire_projectile(
         return Err("Dead players cannot fire projectiles".to_string());
     }
     
-    // Anti-cheat: Validate client position is within reasonable distance of server position
-    // Allow up to ~150 units of desync (accounts for network latency + movement speed)
-    const MAX_POSITION_DESYNC: f32 = 150.0;
+    // CLIENT-AUTHORITATIVE PROJECTILE SPAWNING for PvP responsiveness
+    // Always trust client position for projectile spawn - this ensures bullets spawn from where
+    // the player sees themselves, not where the laggy server thinks they are.
+    // 
+    // Only validate against impossible positions (teleporting) - use same tolerance as movement system
+    // Movement system uses BASE_MAX_MOVEMENT_SPEED * 6.0 = 4800 px/s buffer for client prediction
+    // With 200ms latency: 4800 * 0.2 = 960 pixels maximum reasonable desync
+    // Dodge rolls can move 450 pixels instantly, so we need generous tolerance
+    const MAX_POSITION_DESYNC: f32 = 2000.0; // Very generous - only catches actual teleporting
     const MAX_POSITION_DESYNC_SQ: f32 = MAX_POSITION_DESYNC * MAX_POSITION_DESYNC;
     
     let dx = client_player_x - player.position_x;
     let dy = client_player_y - player.position_y;
     let desync_sq = dx * dx + dy * dy;
     
-    // Use client position if within tolerance, otherwise fall back to server position
+    // CLIENT-AUTHORITATIVE: Always use client position unless it's clearly impossible
+    // This matches the movement system's client-authoritative approach and ensures
+    // bullets spawn accurately during sprinting, dodge rolling, and high-latency situations
     let (spawn_x, spawn_y) = if desync_sq <= MAX_POSITION_DESYNC_SQ {
         (client_player_x, client_player_y)
     } else {
-        log::warn!("Player {:?} fire_projectile position desync too large ({:.1} units), using server position", 
+        // Only reject if position is impossibly far (likely cheating/teleporting)
+        log::warn!("Player {:?} fire_projectile position desync suspiciously large ({:.1} units), rejecting shot", 
             player_id, desync_sq.sqrt());
-        (player.position_x, player.position_y)
+        return Err(format!("Position validation failed: desync too large ({:.1} units)", desync_sq.sqrt()));
     };
 
     // Get the equipped item and its definition

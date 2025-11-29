@@ -288,7 +288,7 @@ function AppContent() {
     });
     
     // Simplified predicted movement - minimal lag
-    const { predictedPosition, isAutoAttacking, facingDirection } = usePredictedMovement({
+    const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
         localPlayer,
         inputState,
         connection,
@@ -957,6 +957,7 @@ function AppContent() {
                             onItemDragStart={handleItemDragStart}
                             onItemDrop={handleItemDrop}
                             predictedPosition={predictedPosition}
+                            getCurrentPositionNow={getCurrentPositionNow}
                             canvasRef={canvasRef}
                             isMinimapOpen={isMinimapOpen}
                             setIsMinimapOpen={setIsMinimapOpen}
