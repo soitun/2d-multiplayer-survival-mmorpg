@@ -73,7 +73,7 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
     },
     dropped_item: {
         behavior: InteractionBehavior.TAP,
-        priority: 78, // Below placeables (80) so campfires/furnaces win when both in range; above boxes (70)
+        priority: 95, // Above water (85) so items can be picked up while in water; below harvestable resources (100)
         actionType: 'pickup_item'
     },
     

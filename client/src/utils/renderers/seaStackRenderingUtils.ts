@@ -429,7 +429,7 @@ function renderSeaStack(
       const fadeProgress = i / numSlices; // 0 at top, 1 at bottom
       // Underwater portion should be SEMI-TRANSPARENT so water tiles show through
       // Start at ~50% opacity at water line, fade to fully transparent at bottom
-      const baseOpacity = 0.1; // Base opacity for underwater portion (water shows through)
+      const baseOpacity = 0.0; // Base opacity for underwater portion (water shows through)
       let sliceOpacity: number;
       if (fadeProgress < 0.5) {
         // First 50%: semi-transparent (water shows through)
@@ -579,23 +579,35 @@ export function renderSeaStackSingle(
       const overlapsHorizontally = playerRight > stackLeft && playerLeft < stackRight;
       const overlapsVertically = playerBottom > stackTop && playerTop < stackBottom;
       
-      // Sea stack should be transparent if:
-      // 1. It overlaps with player visually
-      // 2. Stack renders AFTER player (stack.y > player.y means stack is in front in Y-sort)
-      if (overlapsHorizontally && overlapsVertically && clientStack.y > localPlayerPosition.y) {
-        // Calculate how much the player is behind the stack (for smooth fade)
-        const depthDifference = clientStack.y - localPlayerPosition.y;
+      // Sea stack should be transparent ONLY when player is BEHIND it
+      // CRITICAL FIX: Add buffer threshold to prevent transparency when player is at/near same level
+      // Player is "below" when playerBottom >= stackBottom (player's feet at or below stack's base)
+      // In this case, player is IN FRONT and stack should be fully opaque
+      const TRANSPARENCY_THRESHOLD = 40; // Minimum distance player must be above stack base to trigger transparency (increased for stricter check)
+      const isPlayerBelowOrAtStack = playerBottom >= (stackBottom - TRANSPARENCY_THRESHOLD);
+      
+      // Only apply transparency when:
+      // 1. Player overlaps with stack visually
+      // 2. Player is CLEARLY above the stack (playerBottom is at least THRESHOLD pixels above stackBottom)
+      // This prevents transparency when player is at/near the same level or below
+      if (overlapsHorizontally && overlapsVertically && !isPlayerBelowOrAtStack && playerBottom < (stackBottom - TRANSPARENCY_THRESHOLD)) {
+        // Player is CLEARLY BEHIND the stack (playerBottom is well above stack base)
+        // Stack is blocking the player, so make stack transparent
+        const depthDifference = stackBottom - playerBottom;
         const maxDepthForFade = 100; // Same as trees
         
-        if (depthDifference > 0 && depthDifference < maxDepthForFade) {
-          // Closer to stack = more transparent
-          const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+        if (depthDifference > TRANSPARENCY_THRESHOLD && depthDifference < maxDepthForFade) {
+          // Closer to stack = more transparent (but only if clearly above threshold)
+          const fadeFactor = 1 - ((depthDifference - TRANSPARENCY_THRESHOLD) / (maxDepthForFade - TRANSPARENCY_THRESHOLD));
           stackAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
           stackAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, stackAlpha));
         } else if (depthDifference >= maxDepthForFade) {
           // Very close - use minimum alpha
           stackAlpha = MIN_ALPHA;
         }
+      } else {
+        // Player is at/near same level or below stack = player is in front, ensure stack is fully opaque
+        stackAlpha = MAX_ALPHA;
       }
     }
     

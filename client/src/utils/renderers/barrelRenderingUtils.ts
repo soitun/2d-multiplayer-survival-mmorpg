@@ -2,6 +2,12 @@ import { Barrel } from '../../generated'; // Import generated type
 import barrelImage from '../../assets/doodads/barrel.png'; // Variant 0
 import barrel2Image from '../../assets/doodads/barrel2.png'; // Variant 1 
 import barrel3Image from '../../assets/doodads/barrel3.png'; // Variant 2
+// Sea barrel variants (flotsam/cargo crates) - variants 3, 4, 5
+// TODO: Add actual sea barrel images when available
+// For now, using road barrel images as placeholders
+import seaBarrelImage from '../../assets/doodads/barrel4.png'; // Variant 3 (placeholder)
+import seaBarrel2Image from '../../assets/doodads/barrel5.png'; // Variant 4 (placeholder)
+import seaBarrel3Image from '../../assets/doodads/barrel6.png'; // Variant 5 (placeholder)
 import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
@@ -18,11 +24,20 @@ const HEALTH_BAR_Y_OFFSET = 6; // Adjust offset for barrel image centering
 const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Same as storage boxes
 
 // --- Barrel Variant Images Array ---
+// Variants 0-2: Road barrels
+// Variants 3-5: Sea barrels (flotsam/cargo crates)
 const BARREL_VARIANT_IMAGES = [
-    barrelImage,    // Variant 0 (default)
-    barrel2Image,   // Variant 1  
-    barrel3Image,   // Variant 2
+    barrelImage,       // Variant 0 (road barrel)
+    barrel2Image,      // Variant 1 (road barrel)
+    barrel3Image,      // Variant 2 (road barrel)
+    seaBarrelImage,    // Variant 3 (sea flotsam/cargo crate - placeholder)
+    seaBarrel2Image,   // Variant 4 (sea flotsam/cargo crate - placeholder)
+    seaBarrel3Image,   // Variant 5 (sea flotsam/cargo crate - placeholder)
 ];
+
+// Constants for sea barrel variants
+const SEA_BARREL_VARIANT_START = 3;
+const SEA_BARREL_VARIANT_END = 6; // Exclusive end
 
 // --- Client-side animation tracking for barrel shakes ---
 const clientBarrelShakeStartTimes = new Map<string, number>(); // barrelId -> client timestamp when shake started
@@ -36,8 +51,13 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
         }
         
         // Select barrel variant based on entity.variant field
-        const variantIndex = (entity.variant ?? 0) % BARREL_VARIANT_IMAGES.length;
-        return BARREL_VARIANT_IMAGES[variantIndex];
+        // Variants 0-2: Road barrels, Variants 3-5: Sea barrels (flotsam/cargo crates)
+        const variantIndex = (entity.variant ?? 0);
+        if (variantIndex < BARREL_VARIANT_IMAGES.length) {
+            return BARREL_VARIANT_IMAGES[variantIndex];
+        }
+        // Fallback to variant 0 if invalid variant
+        return BARREL_VARIANT_IMAGES[0];
     },
 
     getTargetDimensions: (img, _entity) => ({

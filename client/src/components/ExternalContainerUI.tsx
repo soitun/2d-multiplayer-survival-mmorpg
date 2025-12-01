@@ -1311,6 +1311,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                         parentId: attachedBrothPot.id
                                     };
                                     
+                                    // Visual feedback for empty slots - subtle pulsing animation
+                                    const isEmpty = !itemInSlot;
+                                    const filledIngredientCount = brothPotItems.filter(item => item !== null).length;
+                                    
                                     return (
                                         <DroppableSlot
                                             key={`broth_pot_${attachedBrothPot.id}_${index}`}
@@ -1319,9 +1323,18 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                             className={styles.slot}
                                             isDraggingOver={false}
                                             style={{
-                                                border: '2px solid rgba(100, 200, 100, 0.5)',
-                                                background: 'linear-gradient(135deg, rgba(50, 150, 50, 0.15), rgba(100, 200, 100, 0.1))',
-                                                boxShadow: 'inset 0 0 8px rgba(100, 200, 100, 0.15)'
+                                                border: isEmpty 
+                                                    ? '2px dashed rgba(100, 200, 100, 0.4)' // Dashed border for empty slots
+                                                    : '2px solid rgba(100, 200, 100, 0.7)', // Solid border for filled slots
+                                                background: isEmpty
+                                                    ? 'linear-gradient(135deg, rgba(50, 150, 50, 0.08), rgba(100, 200, 100, 0.05))' // Dimmer for empty
+                                                    : 'linear-gradient(135deg, rgba(50, 150, 50, 0.15), rgba(100, 200, 100, 0.1))', // Normal for filled
+                                                boxShadow: isEmpty
+                                                    ? 'inset 0 0 8px rgba(100, 200, 100, 0.1), 0 0 4px rgba(100, 200, 100, 0.2)' // Subtle glow for empty
+                                                    : 'inset 0 0 8px rgba(100, 200, 100, 0.15)',
+                                                animation: isEmpty && filledIngredientCount < 3
+                                                    ? 'ingredientSlotPulse 2s ease-in-out infinite' // Pulse empty slots when not all filled
+                                                    : 'none',
                                             }}
                                         >
                                             {itemInSlot && (
@@ -1336,35 +1349,49 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                     onMouseMove={onExternalItemMouseMove}
                                                 />
                                             )}
-                                            {/* Generic ingredient icon in top left */}
+                                            {/* Generic ingredient icon in top left - show number for empty slots */}
                                             <div style={{
                                                 position: 'absolute',
                                                 top: '4px',
                                                 left: '4px',
-                                                fontSize: '14px',
+                                                fontSize: isEmpty ? '12px' : '14px',
                                                 zIndex: 5,
                                                 pointerEvents: 'none',
-                                                textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                                                textShadow: '0 0 2px rgba(0, 0, 0, 0.8)',
+                                                color: isEmpty ? 'rgba(100, 200, 100, 0.6)' : 'inherit',
+                                                fontWeight: isEmpty ? 'bold' : 'normal',
                                             }}>
-                                                ⚪
+                                                {isEmpty ? `${index + 1}` : '⚪'}
                                             </div>
                                         </DroppableSlot>
                                     );
                                 })}
                             </div>
                             
-                            {/* Arrow indicator between ingredients and output */}
-                            <div style={{
-                                fontSize: '20px',
-                                color: '#ffcc44',
-                                textShadow: '0 0 8px rgba(255, 200, 0, 0.6)',
-                                userSelect: 'none',
-                                pointerEvents: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}>
-                                <FontAwesomeIcon icon={faArrowRight} />
-                            </div>
+                            {/* Arrow indicator between ingredients and output - changes color based on readiness */}
+                            {(() => {
+                                const filledIngredientCount = brothPotItems.filter(item => item !== null).length;
+                                const hasEnoughWater = attachedBrothPot.waterLevelMl >= 250;
+                                const isReady = filledIngredientCount >= 3 && hasEnoughWater && !attachedBrothPot.isSeawater;
+                                
+                                return (
+                                    <div style={{
+                                        fontSize: '20px',
+                                        color: isReady ? '#00ff88' : '#ffcc44', // Green when ready, yellow when not
+                                        textShadow: isReady 
+                                            ? '0 0 8px rgba(0, 255, 136, 0.8)' 
+                                            : '0 0 8px rgba(255, 200, 0, 0.6)',
+                                        userSelect: 'none',
+                                        pointerEvents: 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        opacity: isReady ? 1 : 0.5, // Dimmed when not ready
+                                        transition: 'all 0.3s ease',
+                                    }}>
+                                        <FontAwesomeIcon icon={faArrowRight} />
+                                    </div>
+                                );
+                            })()}
                             
                             {/* Output Slot container */}
                             <div>
@@ -1446,30 +1473,94 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             </div>
                         </div>
                         
-                        {/* Water level display with visual bar - right under all inventory slots */}
-                        <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                        {/* Visual Readiness Indicator - shows ingredient and water status - SUBDUED */}
+                        {(() => {
+                            const filledIngredientCount = brothPotItems.filter(item => item !== null).length;
+                            const hasEnoughWater = attachedBrothPot.waterLevelMl >= 250;
+                            const isReady = filledIngredientCount >= 3 && hasEnoughWater && !attachedBrothPot.isSeawater;
+                            
+                            return (
+                                <div style={{
+                                    marginTop: '4px',
+                                    marginBottom: '4px',
+                                    padding: '4px 8px',
+                                    background: isReady 
+                                        ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.08), rgba(0, 200, 100, 0.05))'
+                                        : 'linear-gradient(135deg, rgba(255, 200, 0, 0.08), rgba(255, 150, 0, 0.05))',
+                                    border: isReady
+                                        ? '1px solid rgba(0, 255, 136, 0.2)'
+                                        : '1px solid rgba(255, 200, 0, 0.2)',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    fontSize: '10px',
+                                    color: isReady ? 'rgba(0, 255, 136, 0.7)' : 'rgba(255, 200, 0, 0.7)',
+                                    fontWeight: 'normal',
+                                    opacity: 0.7,
+                                }}>
+                                    {/* Ingredient count indicator */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <span style={{ fontSize: '9px' }}>⚪</span>
+                                        <span>{filledIngredientCount}/3</span>
+                                    </div>
+                                    {/* Water indicator */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <span style={{ fontSize: '9px' }}>{attachedBrothPot.isSeawater ? '🌊' : '💧'}</span>
+                                        <span>{hasEnoughWater ? '✓' : `${Math.round(attachedBrothPot.waterLevelMl)}/250ml`}</span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* Water level display with visual bar - PROMINENT with more spacing */}
+                        <div style={{ marginTop: '20px', marginBottom: '20px' }}>
                             <div style={{ 
-                                fontSize: '12px', 
+                                fontSize: '14px', 
                                 color: '#87CEEB', 
-                                marginBottom: '6px',
-                                textAlign: 'center'
+                                marginBottom: '10px',
+                                textAlign: 'center',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 4px rgba(135, 206, 250, 0.6)',
                             }}>
                                 {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
                             </div>
                             
-                                {/* Visual water level bar */}
+                                {/* Visual water level bar - LARGER and more prominent */}
                                 <div style={{
                                     width: '100%',
-                                    height: '8px',
-                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden',
+                                    height: '14px', // Increased from 8px to 14px
+                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                    borderRadius: '7px',
+                                    overflow: 'visible', // Changed to visible to show threshold line
                                     border: attachedBrothPot.isSeawater 
-                                        ? '1px solid rgba(135, 206, 250, 0.5)' // Lighter cyan border for salt water
-                                        : '1px solid rgba(0, 150, 255, 0.5)', // Blue border for fresh water
+                                        ? '2px solid rgba(135, 206, 250, 0.7)' // Lighter cyan border for salt water - thicker
+                                        : '2px solid rgba(0, 150, 255, 0.7)', // Blue border for fresh water - thicker
                                     position: 'relative',
+                                    boxShadow: '0 0 8px rgba(0, 150, 255, 0.3), inset 0 0 4px rgba(0, 150, 255, 0.2)',
                                 }}>
-                                    {/* Water fill */}
+                                    {/* Minimum water threshold line at 250ml (first tick) - BRIGHT RED/GOLD - MORE PROMINENT */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: `${(250 / 5000) * 100}%`,
+                                        top: '-3px',
+                                        bottom: '-3px',
+                                        width: '4px', // Increased from 3px to 4px
+                                        backgroundColor: attachedBrothPot.waterLevelMl >= 250 
+                                            ? 'rgba(0, 255, 136, 1)' // Green when threshold met - fully opaque
+                                            : 'rgba(255, 100, 50, 1)', // Red when threshold not met - fully opaque
+                                        borderRadius: '2px',
+                                        zIndex: 10,
+                                        pointerEvents: 'none',
+                                        boxShadow: attachedBrothPot.waterLevelMl >= 250
+                                            ? '0 0 8px rgba(0, 255, 136, 1)' // Green glow when met - brighter
+                                            : '0 0 8px rgba(255, 100, 50, 1)', // Red glow when not met - brighter
+                                        animation: attachedBrothPot.waterLevelMl < 250 
+                                            ? 'thresholdPulse 1.5s ease-in-out infinite' 
+                                            : 'none',
+                                    }} />
+                                    {/* Water fill - MORE PROMINENT */}
                                     <div style={{
                                         width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
                                         height: '100%',
@@ -1479,16 +1570,18 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                 : 'linear-gradient(90deg, #0066cc 0%, #0080ff 50%, #0099ff 100%)') // Deep blue gradient for fresh water
                                             : 'transparent',
                                         transition: 'width 0.3s ease',
+                                        borderRadius: '5px',
                                         boxShadow: attachedBrothPot.waterLevelMl > 0 
                                             ? (attachedBrothPot.isSeawater 
-                                                ? '0 0 8px rgba(135, 206, 250, 0.6)' // Cyan glow for salt water
-                                                : '0 0 8px rgba(0, 150, 255, 0.6)') // Blue glow for fresh water
+                                                ? '0 0 10px rgba(135, 206, 250, 0.8), inset 0 0 4px rgba(135, 206, 250, 0.4)' // Cyan glow for salt water - brighter
+                                                : '0 0 10px rgba(0, 150, 255, 0.8), inset 0 0 4px rgba(0, 150, 255, 0.4)') // Blue glow for fresh water - brighter
                                             : 'none',
                                     }} />
-                                    {/* Yellow tick marks every 250ml (20 ticks for 5000ml) */}
+                                    {/* Yellow tick marks every 250ml (20 ticks for 5000ml) - ADJUSTED FOR LARGER BAR */}
                                     {Array.from({ length: 19 }, (_, i) => {
                                         const tickPosition = ((i + 1) * 250 / 5000) * 100; // Position as percentage
                                         const isMajorTick = (i + 1) % 4 === 0; // Every 1000ml (4 x 250ml)
+                                        const isFirstTick = i === 0; // First tick is the minimum threshold
                                         return (
                                             <div
                                                 key={i}
@@ -1498,10 +1591,13 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                     top: 0,
                                                     width: isMajorTick ? '2px' : '1px',
                                                     height: '100%',
-                                                    backgroundColor: isMajorTick 
-                                                        ? 'rgba(255, 215, 0, 0.9)' // Bright gold for major ticks (1000ml)
-                                                        : 'rgba(255, 215, 0, 0.5)', // Dimmer gold for minor ticks (250ml)
+                                                    backgroundColor: isFirstTick
+                                                        ? 'rgba(255, 200, 0, 1)' // Bright gold for first tick (minimum threshold)
+                                                        : isMajorTick 
+                                                            ? 'rgba(255, 215, 0, 0.9)' // Bright gold for major ticks (1000ml)
+                                                            : 'rgba(255, 215, 0, 0.5)', // Dimmer gold for minor ticks (250ml)
                                                     pointerEvents: 'none',
+                                                    zIndex: isFirstTick ? 5 : 1, // First tick above water fill
                                                 }}
                                             />
                                         );
@@ -2503,6 +2599,26 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 @keyframes scanLine {
                     0% { transform: translateX(-100%); }
                     100% { transform: translateX(100%); }
+                }
+                @keyframes ingredientSlotPulse {
+                    0%, 100% {
+                        opacity: 1;
+                        box-shadow: inset 0 0 8px rgba(100, 200, 100, 0.1), 0 0 4px rgba(100, 200, 100, 0.2);
+                    }
+                    50% {
+                        opacity: 0.85;
+                        box-shadow: inset 0 0 8px rgba(100, 200, 100, 0.15), 0 0 8px rgba(100, 200, 100, 0.4);
+                    }
+                }
+                @keyframes thresholdPulse {
+                    0%, 100% {
+                        opacity: 0.9;
+                        box-shadow: 0 0 6px rgba(255, 100, 50, 0.8);
+                    }
+                    50% {
+                        opacity: 1;
+                        box-shadow: 0 0 12px rgba(255, 100, 50, 1);
+                    }
                 }
             `}</style>
         </div>

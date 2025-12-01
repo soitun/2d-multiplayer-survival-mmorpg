@@ -71,7 +71,11 @@ export const renderEquippedItem = (
   // --- End Shake Offset ---
 
   // --- Item Size and Position ---
-  const scale = 0.05; // User's value
+  // Skulls render at actual pixel size (1:1 scale) - all other items use 0.05 scale
+  const isSkull = itemDef.name === "Human Skull" || itemDef.name === "Fox Skull" || 
+                   itemDef.name === "Wolf Skull" || itemDef.name === "Viper Skull" || 
+                   itemDef.name === "Walrus Skull";
+  const scale = isSkull ? 0.5 : 0.05; // Skulls render at 100% size (actual pixels), other items at 5% scale
   const itemWidth = itemImgFromCaller.width * scale;
   const itemHeight = itemImgFromCaller.height * scale;
   let itemOffsetX = 0; 
@@ -102,7 +106,7 @@ export const renderEquippedItem = (
   const handOffsetX = gameConfig.spriteWidth * 0.2; 
   const handOffsetY = gameConfig.spriteHeight * 0.05;
 
-  if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear") {
+  if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
     // Base rotations to make spear point in player's direction
     // (assuming spear asset points horizontally to the right by default)
     switch (player.direction) {
@@ -323,7 +327,7 @@ export const renderEquippedItem = (
       isSwinging = true; 
       const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
       
-      if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear") {
+      if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
           isSpearThrusting = true;
           const SPEAR_MAX_THRUST_EXTENSION = (itemDef as any).attackRange || 100; 
           thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_MAX_THRUST_EXTENSION;
@@ -369,7 +373,7 @@ export const renderEquippedItem = (
   ctx.translate(pivotX, pivotY); 
 
   // Apply general orientation/scaling based on player direction (and spear specifics)
-  if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear") {
+  if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
     ctx.rotate(rotation); // `rotation` is pre-calculated spearRotation
     ctx.scale(spearScaleX, spearScaleY);
   } else if (itemDef.name === "Hunting Bow") {
@@ -513,7 +517,7 @@ export const renderEquippedItem = (
   // --- REGULAR ITEM DRAWING (AND SWING FOR NON-SPEAR/NON-BANDAGE-ANIMATING) --- 
   if (!bandageDrawnWithAnimation && !seloOliveOilDrawnWithAnimation && !waterDrinkingDrawnWithAnimation) {
     ctx.save(); // Save for regular item drawing / swing
-    if (itemDef.name !== "Wooden Spear" && itemDef.name !== "Stone Spear" && itemDef.name !== "Bandage" && itemDef.name !== "Selo Olive Oil"
+    if (itemDef.name !== "Wooden Spear" && itemDef.name !== "Stone Spear" && itemDef.name !== "Reed Harpoon" && itemDef.name !== "Bandage" && itemDef.name !== "Selo Olive Oil"
         && itemDef.name?.toLowerCase() !== "hunting bow" && itemDef.category?.tag !== "RangedWeapon") {
       ctx.rotate(currentAngle); 
     }
@@ -610,7 +614,7 @@ export const renderEquippedItem = (
 
   // --- Draw Attack Visual Effect --- 
   if (isSwinging) { 
-    if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear") {
+    if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
         // Draw a "thrust line" effect for the spear
         ctx.save();
         try {

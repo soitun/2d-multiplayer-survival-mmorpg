@@ -76,6 +76,8 @@ import fieldCauldronIcon from '../assets/items/field_cauldron.png';
 
 import spearIcon from '../assets/items/spear.png';
 import stoneSpearIcon from '../assets/items/stone_spear.png';
+import reedHarpoonIcon from '../assets/items/reed_harpoon.png';
+
 import huntingBowIcon from '../assets/items/bow.png';
 import crossbowIcon from '../assets/items/crossbow.png';
 
@@ -263,6 +265,12 @@ import crabClawIcon from '../assets/items/crab_claw.png';
 import bearMeatIcon from '../assets/items/bear_meat.png';
 import boarMeatIcon from '../assets/items/boar_meat.png';
 import chickenMeatIcon from '../assets/items/chicken_meat.png';
+import rawCrowMeatIcon from '../assets/items/raw_crow_meat.png';
+import cookedCrowMeatIcon from '../assets/items/cooked_crow_meat.png';
+import burntCrowMeatIcon from '../assets/items/burnt_crow_meat.png';
+import rawTernMeatIcon from '../assets/items/raw_tern_meat.png';
+import cookedTernMeatIcon from '../assets/items/cooked_tern_meat.png';
+import burntTernMeatIcon from '../assets/items/burnt_tern_meat.png';
 
 // Fish
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
@@ -420,6 +428,7 @@ const iconMap: { [key: string]: string | undefined } = {
   // === WEAPONS ===
   'spear.png': spearIcon,
   'stone_spear.png': stoneSpearIcon,
+  'reed_harpoon.png': reedHarpoonIcon,
   'bow.png': huntingBowIcon,
   'crossbow.png': crossbowIcon,
   
@@ -606,6 +615,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'bear_meat.png': bearMeatIcon,
   'boar_meat.png': boarMeatIcon,
   'chicken_meat.png': chickenMeatIcon,
+  'raw_crow_meat.png': rawCrowMeatIcon,
+  'cooked_crow_meat.png': cookedCrowMeatIcon,
+  'burnt_crow_meat.png': burntCrowMeatIcon,
+  'raw_tern_meat.png': rawTernMeatIcon,
+  'cooked_tern_meat.png': cookedTernMeatIcon,
+  'burnt_tern_meat.png': burntTernMeatIcon,
   
   // Fish
   'raw_twigfish.png': rawTwigfishIcon,

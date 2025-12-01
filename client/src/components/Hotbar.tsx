@@ -261,7 +261,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Torch' // Allow torches to work underwater
+      'Torch', // Allow torches to work underwater
+      'Reed Harpoon' // Allow reed harpoon to be used in water
     ];
     if (allowedInWater.includes(itemInSlot.definition.name)) return false;
     
@@ -549,7 +550,8 @@ const Hotbar: React.FC<HotbarProps> = ({
           const allowedInWater = [
             'Reed Water Bottle', 
             'Plastic Water Jug',
-            'Torch' // Allow torches to stay equipped in water
+            'Torch', // Allow torches to stay equipped in water
+            'Reed Harpoon' // Allow reed harpoon to stay equipped in water
           ];
           if (allowedInWater.includes(currentItem.definition.name)) {
             return; // Keep allowed items equipped
@@ -719,7 +721,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Torch' // Allow torches to work underwater
+      'Torch', // Allow torches to work underwater
+      'Reed Harpoon' // Allow reed harpoon to be used in water
     ];
     
     if (localPlayer?.isOnWater && isWeaponType && !allowedInWater.includes(itemInSlot.definition.name)) {
