@@ -13,8 +13,10 @@ import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroun
 import { imageManager } from './imageManager'; // Import image manager
 
 // --- Constants --- (Keep exportable if used elsewhere)
-export const BARREL_WIDTH = 72; // Increased size for better visibility 
+export const BARREL_WIDTH = 72; // Standard barrel size
 export const BARREL_HEIGHT = 72;
+export const BARREL5_WIDTH = 144; // Variant 4 (barrel5.png) rendered at larger size
+export const BARREL5_HEIGHT = 144;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels
@@ -60,15 +62,30 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
         return BARREL_VARIANT_IMAGES[0];
     },
 
-    getTargetDimensions: (img, _entity) => ({
-        width: BARREL_WIDTH,
-        height: BARREL_HEIGHT,
-    }),
+    getTargetDimensions: (img, entity) => {
+        // Variant 4 (barrel5.png) renders at 144x144px, all others at 72x72px
+        const variantIndex = Number(entity.variant ?? 0);
+        if (variantIndex === 4) {
+            return {
+                width: BARREL5_WIDTH,
+                height: BARREL5_HEIGHT,
+            };
+        }
+        return {
+            width: BARREL_WIDTH,
+            height: BARREL_HEIGHT,
+        };
+    },
 
-    calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
-        drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight - 12, // Slight Y adjustment for centering
-    }),
+    calculateDrawPosition: (entity, drawWidth, drawHeight) => {
+        // Scale Y offset for variant 4 (barrel5.png - 2x larger barrel)
+        const variantIndex = Number(entity.variant ?? 0);
+        const yOffset = variantIndex === 4 ? 24 : 12; // Double offset for variant 4
+        return {
+            drawX: entity.posX - drawWidth / 2,
+            drawY: entity.posY - drawHeight - yOffset, // Slight Y adjustment for centering
+        };
+    },
 
     getShadowParams: undefined,
 
@@ -87,6 +104,10 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // Scale pivotYOffset based on barrel size (variant 4 is 2x larger)
+            const variantIndex = Number(entity.variant ?? 0);
+            const pivotYOffset = variantIndex === 4 ? 60 : 30; // Double for variant 4
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
@@ -98,7 +119,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 maxStretchFactor: 1.1, 
                 minStretchFactor: 0.15,  
                 shadowBlur: 2,         
-                pivotYOffset: 30, // Smaller than storage boxes
+                pivotYOffset,
                 // Pass shake offsets so shadow moves with the barrel
                 shakeOffsetX,
                 shakeOffsetY       
@@ -143,28 +164,34 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
             const elapsedSinceHit = nowMs - lastHitTimeMs;
 
             if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
+                // Scale health bar size for variant 4 (barrel5.png - 2x larger barrel = 2x larger health bar)
+                const variantIndex = Number(entity.variant ?? 0);
+                const healthBarWidth = variantIndex === 4 ? HEALTH_BAR_WIDTH * 2 : HEALTH_BAR_WIDTH;
+                const healthBarHeight = variantIndex === 4 ? HEALTH_BAR_HEIGHT * 2 : HEALTH_BAR_HEIGHT;
+                const healthBarYOffset = variantIndex === 4 ? HEALTH_BAR_Y_OFFSET * 2 : HEALTH_BAR_Y_OFFSET;
+
                 const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET; // Position below barrel 
+                const barOuterX = finalDrawX + (finalDrawWidth - healthBarWidth) / 2;
+                const barOuterY = finalDrawY + finalDrawHeight + healthBarYOffset; // Position below barrel 
 
                 const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
                 const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
 
                 // Background
                 ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
+                ctx.fillRect(barOuterX, barOuterY, healthBarWidth, healthBarHeight);
 
                 // Health bar
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
+                const healthBarInnerWidth = healthBarWidth * healthPercentage;
                 const r = Math.floor(255 * (1 - healthPercentage));
                 const g = Math.floor(255 * healthPercentage);
                 ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
+                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, healthBarHeight);
 
                 // Border
                 ctx.strokeStyle = `rgba(0,0,0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
+                ctx.lineWidth = variantIndex === 4 ? 2 : 1; // Thicker border for larger barrel
+                ctx.strokeRect(barOuterX, barOuterY, healthBarWidth, healthBarHeight);
             }
         }
     },

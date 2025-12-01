@@ -776,8 +776,15 @@ pub fn find_targets_in_cone(
             continue;
         }
         
+        // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
+        let collision_y_offset = if barrel.variant == 4 {
+            crate::barrel::BARREL_COLLISION_Y_OFFSET * 2.0 // 96.0 for variant 4
+        } else {
+            crate::barrel::BARREL_COLLISION_Y_OFFSET // 48.0 for others
+        };
+        
         let dx = barrel.pos_x - player.position_x;
-        let target_y = barrel.pos_y - BARREL_COLLISION_Y_OFFSET;
+        let target_y = barrel.pos_y - collision_y_offset;
         let dy = target_y - player.position_y;
         let dist_sq = dx * dx + dy * dy;
         

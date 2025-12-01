@@ -401,17 +401,23 @@ export function drawDynamicGroundShadow({
   
   ctx.translate(effectiveEntityCenterX, effectiveEntityBaseY - pivotYOffset);
 
-  // Apply shadow transformation matrix to create realistic shadow casting
-  // The shadow is anchored at the entity's base and stretches/leans based on sun position
-  // Morning: positive shearX (shadows point right/west)
-  // Afternoon: negative shearX (shadows point left/east)
+  // Calculate shadow height based on length (before perspective flattening)
+  const scaledShadowHeight = imageDrawHeight * shadowLength;
+  
+  // Apply shadow transformation matrix:
+  // - shearX: leans the shadow left/right based on sun position
+  // - scaleY: flattens the shadow onto the ground plane (perspective)
+  // 
+  // ANCHOR GUARANTEE: The transform [1, 0, shearX, scaleY] maps:
+  //   (x, 0) → (x, 0)  -- points at y=0 stay at y'=0 (anchor locked)
+  //   (x, y) → (x + shearX*y, scaleY*y)  -- points above anchor get sheared & compressed
   ctx.transform(
-    1.0,                    // Scale X (keep original width)
-    0,                      // Shear Y (no vertical shear)
-    shadowShearX,          // Shear X (positive = right/west, negative = left/east)
-    shadowScaleY,          // Scale Y (vertical compression/stretch)
-    0,                      // Translate X (no additional translation - anchored)
-    0                       // Translate Y (no additional translation - anchored)
+    1.0,            // Scale X (keep original width)
+    0,              // Shear Y (none)
+    shadowShearX,   // Shear X (leans shadow based on sun direction)
+    shadowScaleY,   // Scale Y (flattens onto ground - perspective compression)
+    0,              // Translate X
+    0               // Translate Y
   );
 
   // Apply blur to the drawing of the offscreen (silhouette) canvas
@@ -422,16 +428,27 @@ export function drawDynamicGroundShadow({
   // Apply overallAlpha for day/night intensity
   ctx.globalAlpha = overallAlpha;
   
-  // Draw the offscreen (silhouette) canvas onto the main canvas
-  // The shadow is drawn from the anchor point (entity base)
-  // Apply shadowLength to scale the shadow height for realistic shadow casting
-  const scaledShadowHeight = imageDrawHeight * shadowLength;
+  // SPRITE PADDING COMPENSATION:
+  // Most sprites have transparent padding at the bottom (~3-8% of height).
+  // This means the silhouette's visual "feet" are at y = -padding, not y = 0.
+  // When shear is applied, this creates a HORIZONTAL gap:
+  //   x_displacement = shearX * (-padding)
+  // 
+  // To fix this, we calculate the horizontal offset that the padding causes
+  // and shift the entire shadow back to compensate.
+  const estimatedPaddingPercent = 0.04; // ~4% typical sprite bottom padding
+  const estimatedPaddingPx = scaledShadowHeight * estimatedPaddingPercent;
+  // The padding at y = -estimatedPaddingPx gets sheared by: shearX * (-estimatedPaddingPx)
+  // To compensate, shift X in the OPPOSITE direction:
+  const paddingShearCompensation = shadowShearX * estimatedPaddingPx;
+  
+  // Draw the shadow silhouette with horizontal compensation for sprite padding
   ctx.drawImage(
-    offscreenCanvas,     // Source is now the prepared offscreen canvas
-    -imageDrawWidth / 2, // Centered horizontally on the anchor (transform handles flip)
-    -scaledShadowHeight, // Position so the bottom of the shadow aligns with the anchor, scaled by shadowLength
+    offscreenCanvas,
+    -imageDrawWidth / 2 + paddingShearCompensation,  // Compensate for padding-induced shear offset
+    -scaledShadowHeight,                              // Top of shadow at y = -height
     imageDrawWidth,
-    scaledShadowHeight   // Scale shadow height based on shadowLength
+    scaledShadowHeight                                // Full shadow height
   );
 
   // Reset filter and alpha

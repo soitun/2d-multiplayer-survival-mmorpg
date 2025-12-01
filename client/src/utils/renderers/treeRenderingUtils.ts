@@ -112,7 +112,7 @@ const treeConfig: GroundEntityConfig<Tree> = {
         drawDynamicGroundShadow({
             ctx,
             entityImage,
-            entityCenterX: entityPosX + 25, // Offset to the right to center shadow better
+            entityCenterX: entityPosX, // No manual offset - padding compensation in shadowUtils handles alignment
             entityBaseY: entityPosY,
             imageDrawWidth,
             imageDrawHeight,

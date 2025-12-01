@@ -182,11 +182,24 @@ pub fn has_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, exclud
             if barrel.id == exclude { continue; } // Skip the barrel we're checking against
         }
         
+        // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
+        let collision_y_offset = if barrel.variant == 4 {
+            BARREL_COLLISION_Y_OFFSET * 2.0 // 96.0 for variant 4
+        } else {
+            BARREL_COLLISION_Y_OFFSET // 48.0 for others
+        };
+        let collision_radius = if barrel.variant == 4 {
+            BARREL_COLLISION_RADIUS * 2.0 // 50.0 for variant 4
+        } else {
+            BARREL_COLLISION_RADIUS // 25.0 for others
+        };
+        let barrel_barrel_collision_distance_sq = (collision_radius * 2.0 + 20.0) * (collision_radius * 2.0 + 20.0);
+        
         let dx = pos_x - barrel.pos_x;
-        let dy = pos_y - (barrel.pos_y - BARREL_COLLISION_Y_OFFSET);
+        let dy = pos_y - (barrel.pos_y - collision_y_offset);
         let distance_sq = dx * dx + dy * dy;
         
-        if distance_sq < BARREL_BARREL_COLLISION_DISTANCE_SQUARED {
+        if distance_sq < barrel_barrel_collision_distance_sq {
             return true;
         }
     }

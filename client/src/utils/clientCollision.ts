@@ -301,12 +301,17 @@ function getCollisionCandidates(
   for (const barrel of nearbyBarrels) {
     if (barrel.respawnAt) continue; // Skip destroyed barrels
     
+    // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
+    const variantIndex = Number(barrel.variant ?? 0);
+    const collisionYOffset = variantIndex === 4 ? COLLISION_OFFSETS.BARREL.y * 2 : COLLISION_OFFSETS.BARREL.y;
+    const collisionRadius = variantIndex === 4 ? COLLISION_RADII.BARREL * 2 : COLLISION_RADII.BARREL;
+    
     shapes.push({
       id: barrel.id.toString(),
       type: `barrel-${barrel.id.toString()}`,
       x: barrel.posX + COLLISION_OFFSETS.BARREL.x,
-      y: barrel.posY + COLLISION_OFFSETS.BARREL.y,
-      radius: COLLISION_RADII.BARREL
+      y: barrel.posY + collisionYOffset,
+      radius: collisionRadius
     });
   }
   

@@ -1489,14 +1489,22 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 continue; // Skip destroyed barrels
             }
             
-            // Use a more generous hit radius for projectiles and account for Y offset
-            const PROJECTILE_BARREL_HIT_RADIUS: f32 = 32.0; // Larger than collision radius (25.0)
-            const PROJECTILE_BARREL_Y_OFFSET: f32 = 48.0; // Same as collision Y offset for consistency
+            // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
+            let projectile_barrel_hit_radius = if barrel.variant == 4 {
+                64.0 // 2x larger hit radius for variant 4
+            } else {
+                32.0 // Standard hit radius
+            };
+            let projectile_barrel_y_offset = if barrel.variant == 4 {
+                96.0 // 2x larger Y offset for variant 4
+            } else {
+                48.0 // Standard Y offset
+            };
             
-            let barrel_hit_y = barrel.pos_y - PROJECTILE_BARREL_Y_OFFSET;
+            let barrel_hit_y = barrel.pos_y - projectile_barrel_y_offset;
             
             // Use line segment collision detection instead of just checking current position
-            if line_intersects_circle(prev_x, prev_y, current_x, current_y, barrel.pos_x, barrel_hit_y, PROJECTILE_BARREL_HIT_RADIUS) {
+            if line_intersects_circle(prev_x, prev_y, current_x, current_y, barrel.pos_x, barrel_hit_y, projectile_barrel_hit_radius) {
                 log::info!(
                     "[ProjectileUpdate] Projectile {} from owner {:?} hit Barrel {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
                     projectile.id, projectile.owner_id, barrel.id, prev_x, prev_y, current_x, current_y
