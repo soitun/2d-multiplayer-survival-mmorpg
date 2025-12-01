@@ -1684,6 +1684,82 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
     
+    // --- GUARANTEE: Ensure south quarries have fumaroles (simpler O(n) approach) ---
+    // Count fumaroles already in the south half of the map
+    let map_height_half_px = (WORLD_HEIGHT_TILES as f32 / 2.0) * crate::TILE_SIZE_PX as f32;
+    let south_fumarole_count = spawned_fumarole_positions.iter()
+        .filter(|(_, y)| *y >= map_height_half_px)
+        .count();
+    
+    // Target: at least 4 fumaroles in south (one per small quarry on 600x600 map)
+    // Scale with map size
+    let map_scale = ((WORLD_WIDTH_TILES * WORLD_HEIGHT_TILES) as f32 / (600.0 * 600.0)).sqrt();
+    let min_south_fumaroles = (4.0 * map_scale).round().max(2.0) as usize;
+    
+    if south_fumarole_count < min_south_fumaroles {
+        let needed = min_south_fumaroles - south_fumarole_count;
+        log::info!("🏔️ South quarries have {} fumaroles, need {} more (target: {})", 
+                  south_fumarole_count, needed, min_south_fumaroles);
+        
+        // Collect south quarry tiles that are far from existing fumaroles
+        const MIN_DIST_FROM_FUMAROLE_SQ: f32 = 200.0 * 200.0; // 200px minimum
+        
+        let mut candidate_tiles: Vec<(f32, f32)> = quarry_tiles.iter()
+            .filter(|(_, tile_y)| *tile_y >= (WORLD_HEIGHT_TILES / 2) as i32)
+            .map(|(tx, ty)| {
+                ((*tx as f32 + 0.5) * crate::TILE_SIZE_PX as f32,
+                 (*ty as f32 + 0.5) * crate::TILE_SIZE_PX as f32)
+            })
+            .filter(|(wx, wy)| {
+                // Check if far enough from all existing fumaroles
+                !spawned_fumarole_positions.iter().any(|(fx, fy)| {
+                    let dx = wx - fx;
+                    let dy = wy - fy;
+                    (dx * dx + dy * dy) < MIN_DIST_FROM_FUMAROLE_SQ
+                })
+            })
+            .collect();
+        
+        // Shuffle and try to spawn needed fumaroles
+        candidate_tiles.shuffle(&mut rng);
+        
+        let mut spawned_count = 0;
+        const MIN_NEW_FUMAROLE_DIST_SQ: f32 = 60.0 * 60.0; // Minimum between new fumaroles
+        
+        for (world_x_px, world_y_px) in candidate_tiles.iter().take(needed * 10) {
+            if spawned_count >= needed {
+                break;
+            }
+            
+            // Check distance from newly spawned fumaroles in this loop
+            let too_close_to_new = spawned_fumarole_positions.iter()
+                .skip(spawned_fumarole_positions.len().saturating_sub(spawned_count))
+                .any(|(fx, fy)| {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    (dx * dx + dy * dy) < MIN_NEW_FUMAROLE_DIST_SQ
+                });
+            
+            if !too_close_to_new {
+                let chunk_idx = calculate_chunk_index(*world_x_px, *world_y_px);
+                let fumarole = crate::fumarole::Fumarole::new(*world_x_px, *world_y_px, chunk_idx);
+                if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
+                    total_spawned_fumarole_count += 1;
+                    spawned_fumarole_positions.push((*world_x_px, *world_y_px));
+                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
+                    spawned_count += 1;
+                    log::info!("🏔️✅ Force-spawned fumarole #{} in south at ({:.0}, {:.0})", 
+                              spawned_count, world_x_px, world_y_px);
+                }
+            }
+        }
+        
+        log::info!("🏔️ Force-spawned {} additional fumaroles in south quarries", spawned_count);
+    } else {
+        log::info!("🏔️ South quarries already have {} fumaroles (target: {})", 
+                  south_fumarole_count, min_south_fumaroles);
+    }
+    
     log::info!("🏔️ Finished seeding quarry entities: {} stones, {} fumaroles, {} basalt columns", 
                total_spawned_quarry_stone_count, total_spawned_fumarole_count, total_spawned_basalt_column_count);
 

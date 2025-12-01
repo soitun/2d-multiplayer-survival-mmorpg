@@ -4,7 +4,7 @@ use crate::player;
 use crate::active_equipment::active_equipment;
 use crate::items::{inventory_item, item_definition};
 use crate::dropped_item::{create_dropped_item_entity, calculate_drop_position};
-use crate::world_state::{world_state as WorldStateTableTrait, TimeOfDay, WeatherType};
+use crate::world_state::{world_state as WorldStateTableTrait, TimeOfDay, WeatherType, get_weather_for_position};
 use rand::Rng;
 
 // Fishing state tracking
@@ -30,78 +30,404 @@ pub struct FishingSession {
     pub has_bite: bool,
 }
 
-// Fishing loot table entry
+// Fish tier enum for categorizing fish rarity
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FishTier {
+    Common,    // Tier 1: Twigfish, Herring, Smelt
+    Uncommon,  // Tier 2: Greenling, Sculpin, Pacific Cod
+    Rare,      // Tier 3: Dolly Varden, Rockfish, Steelhead
+    Premium,   // Tier 4: Pink Salmon, Sockeye Salmon, King Salmon, Halibut
+}
+
+// Fish spawn time preference
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FishTimePreference {
+    Any,           // Can be caught any time
+    Day,           // Prefer daylight hours (Morning, Noon, Afternoon)
+    Night,         // Prefer night hours (Night, Midnight)
+    Twilight,      // Prefer twilight hours (TwilightMorning, TwilightEvening)
+    DawnDusk,      // Prefer dawn/dusk specifically
+    Dawn,          // Dawn only (for extremely rare fish)
+}
+
+// Fishing loot table entry with time-of-day preferences
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct FishingLoot {
     pub item_name: String,
     pub min_quantity: u32,
     pub max_quantity: u32,
-    pub drop_chance: f32, // 0.0 to 1.0
+    pub drop_chance: f32, // 0.0 to 1.0 base weight for selection
     pub is_junk: bool,
 }
 
-// Static fishing loot table
-pub fn get_fishing_loot_table() -> Vec<FishingLoot> {
+// Fish weather preference (matches WeatherType variants)
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FishWeatherPreference {
+    Any,           // No weather preference
+    Clear,         // Prefers calm, clear conditions
+    LightRain,     // Prefers light rain
+    ModerateRain,  // Prefers moderate rain
+    HeavyRain,     // Prefers heavy rain
+    HeavyStorm,    // Thrives in storms (the crazies)
+}
+
+// Fish entry with metadata for spawning logic
+pub struct FishEntry {
+    pub name: &'static str,
+    pub tier: FishTier,
+    pub time_preference: FishTimePreference,
+    pub weather_preference: FishWeatherPreference, // NEW: Weather preference
+    pub base_weight: f32,      // Base spawn weight within its tier
+    pub deep_water_bonus: f32, // Extra weight when fishing in deep water (0.0 to 1.0)
+}
+
+// Get all available fish with their spawn parameters
+fn get_fish_database() -> Vec<FishEntry> {
     vec![
-        FishingLoot {
-            item_name: "Raw Twigfish".to_string(),
-            min_quantity: 1,
-            max_quantity: 1,
-            drop_chance: 1.0, // Always get at least one fish
-            is_junk: false,
+        // === TIER 1: COMMON (Small Fish) ===
+        FishEntry {
+            name: "Raw Twigfish",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::Any,
+            weather_preference: FishWeatherPreference::Any, // Catches anything
+            base_weight: 1.0,
+            deep_water_bonus: 0.0,
         },
-        FishingLoot {
-            item_name: "Tin Can".to_string(),
-            min_quantity: 1,
-            max_quantity: 1,
-            drop_chance: 0.3, // 30% chance for junk
-            is_junk: true,
+        FishEntry {
+            name: "Raw Herring",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::DawnDusk,
+            weather_preference: FishWeatherPreference::LightRain, // Schooling fish surface during light rain
+            base_weight: 0.9,
+            deep_water_bonus: 0.1,
+        },
+        FishEntry {
+            name: "Raw Smelt",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::Night,
+            weather_preference: FishWeatherPreference::Clear, // Oily "candlefish" prefer calm nights
+            base_weight: 0.8,
+            deep_water_bonus: 0.2,
+        },
+        
+        // === TIER 2: UNCOMMON (Medium Fish) ===
+        FishEntry {
+            name: "Raw Greenling",
+            tier: FishTier::Uncommon,
+            time_preference: FishTimePreference::Day,
+            weather_preference: FishWeatherPreference::Clear, // Rocky-bottom fish prefer clear days
+            base_weight: 1.0,
+            deep_water_bonus: 0.1,
+        },
+        FishEntry {
+            name: "Raw Sculpin",
+            tier: FishTier::Uncommon,
+            time_preference: FishTimePreference::Night,
+            weather_preference: FishWeatherPreference::HeavyStorm, // Bottom dwellers active during storms
+            base_weight: 0.8,
+            deep_water_bonus: 0.3,
+        },
+        FishEntry {
+            name: "Raw Pacific Cod",
+            tier: FishTier::Uncommon,
+            time_preference: FishTimePreference::Any,
+            weather_preference: FishWeatherPreference::ModerateRain, // Feed actively during steady rain
+            base_weight: 0.7,
+            deep_water_bonus: 0.4,
+        },
+        
+        // === TIER 3: RARE (Large Fish) ===
+        FishEntry {
+            name: "Raw Dolly Varden",
+            tier: FishTier::Rare,
+            time_preference: FishTimePreference::Twilight,
+            weather_preference: FishWeatherPreference::LightRain, // Char love misty conditions
+            base_weight: 1.0,
+            deep_water_bonus: 0.2,
+        },
+        FishEntry {
+            name: "Raw Rockfish",
+            tier: FishTier::Rare,
+            time_preference: FishTimePreference::Night,
+            weather_preference: FishWeatherPreference::HeavyStorm, // Deep dwellers rise during storms
+            base_weight: 0.8,
+            deep_water_bonus: 0.5, // Strongly prefers deep water
+        },
+        FishEntry {
+            name: "Raw Steelhead",
+            tier: FishTier::Rare,
+            time_preference: FishTimePreference::DawnDusk,
+            weather_preference: FishWeatherPreference::HeavyRain, // Run upstream during heavy rain
+            base_weight: 0.7,
+            deep_water_bonus: 0.3,
+        },
+        
+        // === TIER 4: PREMIUM (Very Large/Rare Fish) ===
+        FishEntry {
+            name: "Raw Pink Salmon",
+            tier: FishTier::Premium,
+            time_preference: FishTimePreference::DawnDusk,
+            weather_preference: FishWeatherPreference::ModerateRain, // Salmon active in steady rain
+            base_weight: 1.0,
+            deep_water_bonus: 0.3,
+        },
+        FishEntry {
+            name: "Raw Sockeye Salmon",
+            tier: FishTier::Premium,
+            time_preference: FishTimePreference::Twilight,
+            weather_preference: FishWeatherPreference::HeavyRain, // Red salmon run in heavy rain
+            base_weight: 0.7,
+            deep_water_bonus: 0.4,
+        },
+        FishEntry {
+            name: "Raw King Salmon",
+            tier: FishTier::Premium,
+            time_preference: FishTimePreference::Dawn,
+            weather_preference: FishWeatherPreference::HeavyStorm, // The legendary king appears in storms!
+            base_weight: 0.4, // Very rare even at dawn
+            deep_water_bonus: 0.5,
+        },
+        FishEntry {
+            name: "Raw Halibut",
+            tier: FishTier::Premium,
+            time_preference: FishTimePreference::Any,
+            weather_preference: FishWeatherPreference::Any, // Deep flatfish don't care about surface weather
+            base_weight: 0.3, // Very rare but can be caught anytime
+            deep_water_bonus: 0.8, // Strongly prefers deep water
         },
     ]
 }
 
-// Generate loot for a successful fishing attempt with time-of-day and weather bonuses
-pub fn generate_fishing_loot(ctx: &ReducerContext) -> Vec<String> {
-    let mut loot = vec!["Raw Twigfish".to_string()]; // Always get a fish
+// Check if a fish's time preference matches the current time of day
+fn fish_matches_time(time_pref: FishTimePreference, time_of_day: &TimeOfDay) -> bool {
+    match time_pref {
+        FishTimePreference::Any => true,
+        FishTimePreference::Day => matches!(time_of_day, 
+            TimeOfDay::Morning | TimeOfDay::Noon | TimeOfDay::Afternoon),
+        FishTimePreference::Night => matches!(time_of_day, 
+            TimeOfDay::Night | TimeOfDay::Midnight),
+        FishTimePreference::Twilight => matches!(time_of_day, 
+            TimeOfDay::TwilightMorning | TimeOfDay::TwilightEvening | TimeOfDay::Dawn | TimeOfDay::Dusk),
+        FishTimePreference::DawnDusk => matches!(time_of_day, 
+            TimeOfDay::Dawn | TimeOfDay::Dusk),
+        FishTimePreference::Dawn => matches!(time_of_day, TimeOfDay::Dawn),
+    }
+}
+
+// Calculate time-based multiplier for fish spawn weight
+fn get_time_spawn_multiplier(time_pref: FishTimePreference, time_of_day: &TimeOfDay) -> f32 {
+    if fish_matches_time(time_pref, time_of_day) {
+        // Full weight during preferred time
+        1.0
+    } else {
+        // Reduced weight outside preferred time (but still possible for most fish)
+        match time_pref {
+            FishTimePreference::Any => 1.0,
+            FishTimePreference::Day | FishTimePreference::Night => 0.3, // 30% weight off-hours
+            FishTimePreference::Twilight | FishTimePreference::DawnDusk => 0.15, // 15% weight off-hours
+            FishTimePreference::Dawn => 0.05, // Only 5% chance outside dawn (extremely rare)
+        }
+    }
+}
+
+// Check if a fish's weather preference matches the current weather
+fn fish_matches_weather(weather_pref: FishWeatherPreference, weather: &WeatherType) -> bool {
+    match weather_pref {
+        FishWeatherPreference::Any => true,
+        FishWeatherPreference::Clear => matches!(weather, WeatherType::Clear),
+        FishWeatherPreference::LightRain => matches!(weather, WeatherType::LightRain),
+        FishWeatherPreference::ModerateRain => matches!(weather, WeatherType::ModerateRain),
+        FishWeatherPreference::HeavyRain => matches!(weather, WeatherType::HeavyRain),
+        FishWeatherPreference::HeavyStorm => matches!(weather, WeatherType::HeavyStorm),
+    }
+}
+
+// Calculate weather-based multiplier for fish spawn weight
+fn get_weather_spawn_multiplier(weather_pref: FishWeatherPreference, weather: &WeatherType) -> f32 {
+    if fish_matches_weather(weather_pref, weather) {
+        // Full bonus during exact preferred weather
+        match weather_pref {
+            FishWeatherPreference::Any => 1.0,
+            FishWeatherPreference::Clear => 1.5,         // 50% bonus in clear weather
+            FishWeatherPreference::LightRain => 1.6,     // 60% bonus in light rain
+            FishWeatherPreference::ModerateRain => 1.8,  // 80% bonus in moderate rain
+            FishWeatherPreference::HeavyRain => 2.0,     // 100% bonus in heavy rain
+            FishWeatherPreference::HeavyStorm => 2.5,    // 150% bonus in storms (risk/reward!)
+        }
+    } else {
+        // Partial bonus for adjacent weather conditions, reduced for non-adjacent
+        match (weather_pref, weather) {
+            // Any weather preference always gets 1.0
+            (FishWeatherPreference::Any, _) => 1.0,
+            
+            // Clear fish: small penalty in light rain, bigger penalty in heavier rain
+            (FishWeatherPreference::Clear, WeatherType::LightRain) => 0.7,
+            (FishWeatherPreference::Clear, _) => 0.4,
+            
+            // Light rain fish: partial bonus in clear or moderate
+            (FishWeatherPreference::LightRain, WeatherType::Clear) => 0.6,
+            (FishWeatherPreference::LightRain, WeatherType::ModerateRain) => 1.2,
+            (FishWeatherPreference::LightRain, _) => 0.4,
+            
+            // Moderate rain fish: partial bonus in light or heavy rain
+            (FishWeatherPreference::ModerateRain, WeatherType::LightRain) => 1.2,
+            (FishWeatherPreference::ModerateRain, WeatherType::HeavyRain) => 1.2,
+            (FishWeatherPreference::ModerateRain, _) => 0.5,
+            
+            // Heavy rain fish: partial bonus in moderate rain or storm
+            (FishWeatherPreference::HeavyRain, WeatherType::ModerateRain) => 1.2,
+            (FishWeatherPreference::HeavyRain, WeatherType::HeavyStorm) => 1.4,
+            (FishWeatherPreference::HeavyRain, _) => 0.3,
+            
+            // Storm fish: partial bonus in heavy rain, very rare otherwise
+            (FishWeatherPreference::HeavyStorm, WeatherType::HeavyRain) => 1.0,
+            (FishWeatherPreference::HeavyStorm, WeatherType::ModerateRain) => 0.4,
+            (FishWeatherPreference::HeavyStorm, _) => 0.15,
+        }
+    }
+}
+
+// Get base spawn chance for each tier (modified by conditions)
+fn get_tier_spawn_chance(tier: FishTier, effectiveness: f32, deep_water_factor: f32) -> f32 {
+    // Base chances for each tier (these determine the probability of "upgrading" to a higher tier)
+    // deep_water_factor: 0.0 = shallow/shore, 1.0 = very deep water
+    let base_chance = match tier {
+        FishTier::Common => 1.0,   // Always eligible
+        FishTier::Uncommon => 0.35 + (effectiveness * 0.15) + (deep_water_factor * 0.15), // 35-65% base
+        FishTier::Rare => 0.12 + (effectiveness * 0.12) + (deep_water_factor * 0.20),     // 12-44% base
+        FishTier::Premium => 0.03 + (effectiveness * 0.07) + (deep_water_factor * 0.15),  // 3-25% base
+    };
+    base_chance.clamp(0.0, 1.0)
+}
+
+// Generate loot for a successful fishing attempt with time-of-day, weather, and depth bonuses
+// Uses chunk-based weather at the fishing target location for accurate local conditions
+pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32) -> Vec<String> {
+    let mut loot = Vec::new();
     
-    // Get current time of day and weather for fishing bonuses
+    // Get current time of day (global)
     let time_of_day = get_current_time_of_day(ctx);
-    let current_weather = get_current_weather(ctx);
     
-    // Calculate fishing effectiveness multiplier based on time of day
+    // Get chunk-based weather at the actual fishing location (NOT global weather!)
+    // This ensures fishing in a rainy chunk gives rain bonuses even if other areas are clear
+    let chunk_weather = get_weather_for_position(ctx, target_x, target_y);
+    let current_weather = chunk_weather.current_weather;
+    
+    // Calculate effectiveness multipliers
     let time_effectiveness = get_fishing_effectiveness_multiplier(&time_of_day);
-    
-    // Calculate rain-based fishing effectiveness multiplier
     let rain_effectiveness = get_rain_fishing_multiplier(&current_weather);
+    let total_effectiveness = time_effectiveness * rain_effectiveness;
     
-    // Combine both multipliers - rain stacks with time bonuses!
-    let total_fishing_effectiveness = time_effectiveness * rain_effectiveness;
+    // TODO: In the future, we could calculate actual depth from shore distance
+    // For now, use a random depth factor (simulates different fishing spots)
+    let deep_water_factor = ctx.rng().gen_range(0.0..1.0);
     
-    // Base chances modified by combined effectiveness
-    let base_bonus_fish_chance = 0.3; // 30% base chance for bonus fish
-    let base_junk_chance = 0.5; // 50% base chance for junk
+    // Get all fish and their spawn data
+    let fish_database = get_fish_database();
     
-    // Apply combined bonuses
-    let bonus_fish_chance = base_bonus_fish_chance * total_fishing_effectiveness;
-    let junk_chance = base_junk_chance * (2.0 - total_fishing_effectiveness); // Less junk during good fishing times
+    // Determine which tier of fish to catch (roll from highest to lowest)
+    let selected_tier = {
+        let premium_chance = get_tier_spawn_chance(FishTier::Premium, total_effectiveness, deep_water_factor);
+        let rare_chance = get_tier_spawn_chance(FishTier::Rare, total_effectiveness, deep_water_factor);
+        let uncommon_chance = get_tier_spawn_chance(FishTier::Uncommon, total_effectiveness, deep_water_factor);
+        
+        let roll = ctx.rng().gen_range(0.0..1.0);
+        
+        if roll < premium_chance {
+            FishTier::Premium
+        } else if roll < premium_chance + rare_chance {
+            FishTier::Rare
+        } else if roll < premium_chance + rare_chance + uncommon_chance {
+            FishTier::Uncommon
+        } else {
+            FishTier::Common
+        }
+    };
     
-    // Roll for bonus fish (better during dawn/dusk and rain)
-    if ctx.rng().gen_range(0.0..1.0) < bonus_fish_chance {
-        loot.push("Raw Twigfish".to_string());
-        log::info!("Bonus fish caught during {:?} with {:?}! (time: {:.2}x, rain: {:.2}x, total: {:.2}x)", 
-                  time_of_day, current_weather, time_effectiveness, rain_effectiveness, total_fishing_effectiveness);
+    // Filter fish by selected tier and calculate weights (including weather preference!)
+    let mut eligible_fish: Vec<(&FishEntry, f32)> = fish_database
+        .iter()
+        .filter(|fish| fish.tier == selected_tier)
+        .map(|fish| {
+            let time_mult = get_time_spawn_multiplier(fish.time_preference, &time_of_day);
+            let weather_mult = get_weather_spawn_multiplier(fish.weather_preference, &current_weather);
+            let depth_bonus = fish.deep_water_bonus * deep_water_factor;
+            let weight = fish.base_weight * time_mult * weather_mult * (1.0 + depth_bonus);
+            (fish, weight)
+        })
+        .filter(|(_, weight)| *weight > 0.001) // Filter out negligible weights
+        .collect();
+    
+    // If no fish are eligible at this tier (very unlikely), fall back to common
+    if eligible_fish.is_empty() {
+        eligible_fish = fish_database
+            .iter()
+            .filter(|fish| fish.tier == FishTier::Common)
+            .map(|fish| (fish, fish.base_weight))
+            .collect();
     }
     
-    // Roll for junk (less likely during good fishing conditions)
+    // Weighted random selection from eligible fish
+    let total_weight: f32 = eligible_fish.iter().map(|(_, w)| w).sum();
+    let mut roll = ctx.rng().gen_range(0.0..total_weight);
+    
+    let selected_fish = eligible_fish
+        .iter()
+        .find(|(_, weight)| {
+            roll -= weight;
+            roll <= 0.0
+        })
+        .map(|(fish, _)| fish.name)
+        .unwrap_or("Raw Twigfish"); // Ultimate fallback
+    
+    loot.push(selected_fish.to_string());
+    
+    // Log the catch with details (including chunk weather info)
+    log::info!("🎣 Fish caught: {} (Tier: {:?}, Time: {:?}, ChunkWeather: {:?}, Effectiveness: {:.2}x, Depth: {:.2}, Pos: {:.0},{:.0})",
+              selected_fish, selected_tier, time_of_day, current_weather, total_effectiveness, deep_water_factor, target_x, target_y);
+    
+    // Bonus fish chance during excellent conditions
+    let bonus_fish_chance = 0.15 * total_effectiveness; // 15% base, up to ~37% in perfect conditions
+    if ctx.rng().gen_range(0.0..1.0) < bonus_fish_chance {
+        // Bonus fish is always common tier (can't stack premium catches too easily)
+        let common_fish: Vec<&FishEntry> = fish_database
+            .iter()
+            .filter(|f| f.tier == FishTier::Common)
+            .collect();
+        
+        if let Some(bonus) = common_fish.get(ctx.rng().gen_range(0..common_fish.len())) {
+            loot.push(bonus.name.to_string());
+            log::info!("🐟 Bonus fish! Also caught: {}", bonus.name);
+        }
+    }
+    
+    // Junk chance (lower during good conditions)
+    let junk_chance = 0.25 * (2.0 - total_effectiveness); // 25% base, down to ~0% in perfect conditions
     if ctx.rng().gen_range(0.0..1.0) < junk_chance {
         loot.push("Tin Can".to_string());
     }
     
-    // Very rare bonus during optimal fishing times (dawn/dusk + rain)
-    if total_fishing_effectiveness > 2.0 && ctx.rng().gen_range(0.0..1.0) < 0.25 {
-        loot.push("Raw Twigfish".to_string());
-        log::info!("🐟🌧️ PERFECT fishing conditions! Extra bonus fish during {:?} + {:?} (total effectiveness: {:.2}x)", 
-                  time_of_day, current_weather, total_fishing_effectiveness);
+    // Very rare extra premium fish during perfect conditions (dawn/dusk + heavy rain/storm)
+    if total_effectiveness > 3.0 && selected_tier == FishTier::Premium {
+        if ctx.rng().gen_range(0.0..1.0) < 0.10 {
+            loot.push("Raw Twigfish".to_string()); // Extra small fish as "bycatch"
+            log::info!("🐟🌧️ PERFECT fishing conditions! Extra bycatch during {:?} + {:?}", 
+                      time_of_day, current_weather);
+        }
+    }
+    
+    // Storm fishing bonus: Small chance for storm-preferring fish as extra catch
+    if matches!(current_weather, WeatherType::HeavyStorm) && ctx.rng().gen_range(0.0..1.0) < 0.12 {
+        // During storms, there's a 12% chance to get an extra storm-loving fish
+        let storm_fish: Vec<&FishEntry> = fish_database
+            .iter()
+            .filter(|f| f.weather_preference == FishWeatherPreference::HeavyStorm)
+            .collect();
+        
+        if let Some(storm_catch) = storm_fish.get(ctx.rng().gen_range(0..storm_fish.len().max(1))) {
+            loot.push(storm_catch.name.to_string());
+            log::info!("⛈️ Storm bonus! The churning waters brought up: {}", storm_catch.name);
+        }
     }
     
     loot
@@ -114,17 +440,6 @@ fn get_current_time_of_day(ctx: &ReducerContext) -> TimeOfDay {
         None => {
             log::warn!("No world state found, defaulting to Noon for fishing calculations");
             TimeOfDay::Noon
-        }
-    }
-}
-
-// Helper function to get current weather from world state
-fn get_current_weather(ctx: &ReducerContext) -> WeatherType {
-    match ctx.db.world_state().iter().next() {
-        Some(world_state) => world_state.current_weather.clone(),
-        None => {
-            log::warn!("No world state found, defaulting to Clear weather for fishing calculations");
-            WeatherType::Clear
         }
     }
 }
@@ -288,7 +603,8 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
     
     if success {
         // Generate loot server-side to ensure fairness and prevent cheating
-        let generated_loot = generate_fishing_loot(ctx);
+        // Pass fishing target position for accurate chunk-based weather calculations
+        let generated_loot = generate_fishing_loot(ctx, fishing_session.target_x, fishing_session.target_y);
         
         if generated_loot.is_empty() {
             log::error!("Player {} successful fishing but no loot generated! This should never happen!", player_id);

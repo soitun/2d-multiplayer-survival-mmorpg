@@ -587,6 +587,290 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(35.0, "Charcoal")
             .build(),
 
+        // --- TIER 1: SMALL FISH (Common) ---
+        
+        ItemBuilder::new("Raw Herring", "A small, silvery schooling fish common in cold northern waters. Oily flesh makes it best when cooked.", ItemCategory::Consumable)
+            .icon("raw_herring.png")
+            .stackable(15)
+            .consumable(6.0, 8.0, -2.0)
+            .cookable(35.0, "Cooked Herring")
+            .respawn_time(160)
+            .build(),
+
+        ItemBuilder::new("Cooked Herring", "Properly cooked herring with crispy skin. The oily flesh provides good energy.", ItemCategory::Consumable)
+            .icon("cooked_herring.png")
+            .stackable(15)
+            .consumable(18.0, 25.0, 6.0)
+            .cookable(25.0, "Burnt Herring")
+            .build(),
+
+        ItemBuilder::new("Burnt Herring", "Overcooked herring. The oils have turned rancid and bitter.", ItemCategory::Consumable)
+            .icon("burnt_herring.png")
+            .stackable(15)
+            .consumable(3.0, 6.0, -3.0)
+            .crafting_output(6, 0)
+            .cookable(30.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Smelt", "A small, oily fish also known as 'candlefish' because it's so fatty it can be lit like a candle. Best caught at night.", ItemCategory::Consumable)
+            .icon("raw_smelt.png")
+            .stackable(15)
+            .consumable(5.0, 10.0, -3.0)
+            .cookable(30.0, "Cooked Smelt")
+            .respawn_time(150)
+            .build(),
+
+        ItemBuilder::new("Cooked Smelt", "Perfectly fried smelt. The high oil content makes it very satisfying and energy-rich.", ItemCategory::Consumable)
+            .icon("cooked_smelt.png")
+            .stackable(15)
+            .consumable(16.0, 28.0, 4.0)
+            .cookable(22.0, "Burnt Smelt")
+            .build(),
+
+        ItemBuilder::new("Burnt Smelt", "Overcooked smelt. The excessive oil has caused it to char badly.", ItemCategory::Consumable)
+            .icon("burnt_smelt.png")
+            .stackable(15)
+            .consumable(2.0, 8.0, -4.0)
+            .crafting_output(5, 0)
+            .cookable(28.0, "Charcoal")
+            .build(),
+
+        // --- TIER 2: MEDIUM FISH (Uncommon) ---
+
+        ItemBuilder::new("Raw Greenling", "A medium-sized fish with mottled green-brown coloring. Common in rocky coastal waters during daylight hours.", ItemCategory::Consumable)
+            .icon("raw_greenling.png")
+            .stackable(10)
+            .consumable(8.0, 12.0, -2.0)
+            .cookable(40.0, "Cooked Greenling")
+            .respawn_time(200)
+            .build(),
+
+        ItemBuilder::new("Cooked Greenling", "Well-prepared greenling with firm, white flesh. A reliable and nutritious catch.", ItemCategory::Consumable)
+            .icon("cooked_greenling.png")
+            .stackable(10)
+            .consumable(25.0, 38.0, 10.0)
+            .cookable(28.0, "Burnt Greenling")
+            .build(),
+
+        ItemBuilder::new("Burnt Greenling", "Overcooked greenling. Dry and tough, but still edible in a pinch.", ItemCategory::Consumable)
+            .icon("burnt_greenling.png")
+            .stackable(10)
+            .consumable(4.0, 10.0, -6.0)
+            .crafting_output(9, 0)
+            .cookable(35.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Sculpin", "An ugly, spiny bottom-dweller found in deeper waters at night. Careful preparation required to avoid the venomous spines.", ItemCategory::Consumable)
+            .icon("raw_sculpin.png")
+            .stackable(10)
+            .consumable(6.0, 10.0, -4.0)
+            .cookable(45.0, "Cooked Sculpin")
+            .respawn_time(220)
+            .build(),
+
+        ItemBuilder::new("Cooked Sculpin", "Properly prepared sculpin. Despite its ugly appearance, the meat is surprisingly sweet and delicate.", ItemCategory::Consumable)
+            .icon("cooked_sculpin.png")
+            .stackable(10)
+            .consumable(22.0, 35.0, 8.0)
+            .cookable(30.0, "Burnt Sculpin")
+            .build(),
+
+        ItemBuilder::new("Burnt Sculpin", "Overcooked sculpin. The delicate flavor has been destroyed by excessive heat.", ItemCategory::Consumable)
+            .icon("burnt_sculpin.png")
+            .stackable(10)
+            .consumable(3.0, 8.0, -8.0)
+            .crafting_output(8, 0)
+            .cookable(38.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Pacific Cod", "A large, flaky white fish and staple of northern fishing communities. Excellent nutrition when properly cooked.", ItemCategory::Consumable)
+            .icon("raw_pacific_cod.png")
+            .stackable(8)
+            .consumable(10.0, 15.0, -2.0)
+            .cookable(50.0, "Cooked Pacific Cod")
+            .respawn_time(240)
+            .build(),
+
+        ItemBuilder::new("Cooked Pacific Cod", "Perfectly cooked cod with tender, flaky white flesh. A hearty and satisfying meal.", ItemCategory::Consumable)
+            .icon("cooked_pacific_cod.png")
+            .stackable(8)
+            .consumable(30.0, 45.0, 12.0)
+            .cookable(32.0, "Burnt Pacific Cod")
+            .build(),
+
+        ItemBuilder::new("Burnt Pacific Cod", "Overcooked cod. Dried out and tough, losing most of its appeal.", ItemCategory::Consumable)
+            .icon("burnt_pacific_cod.png")
+            .stackable(8)
+            .consumable(5.0, 12.0, -5.0)
+            .crafting_output(12, 0)
+            .cookable(40.0, "Charcoal")
+            .build(),
+
+        // --- TIER 3: LARGE FISH (Rare) ---
+
+        ItemBuilder::new("Raw Dolly Varden", "A beautiful Arctic char with pink-spotted sides. Most active during twilight hours in cold streams and coastal waters.", ItemCategory::Consumable)
+            .icon("raw_dolly_varden.png")
+            .stackable(8)
+            .consumable(12.0, 18.0, -1.0)
+            .cookable(45.0, "Cooked Dolly Varden")
+            .respawn_time(280)
+            .build(),
+
+        ItemBuilder::new("Cooked Dolly Varden", "Exquisitely prepared char with delicate pink flesh. A prized catch among northern anglers.", ItemCategory::Consumable)
+            .icon("cooked_dolly_varden.png")
+            .stackable(8)
+            .consumable(35.0, 50.0, 15.0)
+            .cookable(30.0, "Burnt Dolly Varden")
+            .build(),
+
+        ItemBuilder::new("Burnt Dolly Varden", "Overcooked char. What a waste of such a beautiful fish.", ItemCategory::Consumable)
+            .icon("burnt_dolly_varden.png")
+            .stackable(8)
+            .consumable(6.0, 14.0, -4.0)
+            .crafting_output(11, 0)
+            .cookable(38.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Rockfish", "A large, deep-water fish with striking red and orange coloring. Best caught at night when they rise from the depths.", ItemCategory::Consumable)
+            .icon("raw_rockfish.png")
+            .stackable(6)
+            .consumable(14.0, 20.0, -3.0)
+            .cookable(50.0, "Cooked Rockfish")
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Cooked Rockfish", "Beautifully prepared rockfish with firm, succulent flesh. A premium catch from the deep.", ItemCategory::Consumable)
+            .icon("cooked_rockfish.png")
+            .stackable(6)
+            .consumable(38.0, 55.0, 14.0)
+            .cookable(32.0, "Burnt Rockfish")
+            .build(),
+
+        ItemBuilder::new("Burnt Rockfish", "Overcooked rockfish. The firm flesh has become rubbery and unappetizing.", ItemCategory::Consumable)
+            .icon("burnt_rockfish.png")
+            .stackable(6)
+            .consumable(6.0, 15.0, -6.0)
+            .crafting_output(14, 0)
+            .cookable(42.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Steelhead", "A magnificent sea-run rainbow trout, prized for its fighting spirit. Most active at dawn and dusk.", ItemCategory::Consumable)
+            .icon("raw_steelhead.png")
+            .stackable(6)
+            .consumable(15.0, 22.0, 0.0)
+            .cookable(48.0, "Cooked Steelhead")
+            .respawn_time(320)
+            .build(),
+
+        ItemBuilder::new("Cooked Steelhead", "Perfectly grilled steelhead with rich, pink flesh. One of the finest fish in northern waters.", ItemCategory::Consumable)
+            .icon("cooked_steelhead.png")
+            .stackable(6)
+            .consumable(42.0, 60.0, 18.0)
+            .cookable(30.0, "Burnt Steelhead")
+            .build(),
+
+        ItemBuilder::new("Burnt Steelhead", "Overcooked steelhead. A tragic waste of such a magnificent fish.", ItemCategory::Consumable)
+            .icon("burnt_steelhead.png")
+            .stackable(6)
+            .consumable(7.0, 16.0, -5.0)
+            .crafting_output(13, 0)
+            .cookable(40.0, "Charcoal")
+            .build(),
+
+        // --- TIER 4: PREMIUM FISH (Very Rare) ---
+
+        ItemBuilder::new("Raw Pink Salmon", "A robust Pacific salmon with distinctive humped back. Returns to coastal waters to spawn, most active at dawn and dusk.", ItemCategory::Consumable)
+            .icon("raw_pink_salmon.png")
+            .stackable(5)
+            .consumable(16.0, 25.0, 2.0)
+            .cookable(52.0, "Cooked Pink Salmon")
+            .respawn_time(360)
+            .build(),
+
+        ItemBuilder::new("Cooked Pink Salmon", "Deliciously prepared pink salmon. The light pink flesh is tender and flavorful.", ItemCategory::Consumable)
+            .icon("cooked_pink_salmon.png")
+            .stackable(5)
+            .consumable(45.0, 65.0, 20.0)
+            .cookable(32.0, "Burnt Pink Salmon")
+            .build(),
+
+        ItemBuilder::new("Burnt Pink Salmon", "Overcooked salmon. Dry and lacking the delicate flavor it once had.", ItemCategory::Consumable)
+            .icon("burnt_pink_salmon.png")
+            .stackable(5)
+            .consumable(8.0, 18.0, -4.0)
+            .crafting_output(15, 0)
+            .cookable(42.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Sockeye Salmon", "A prized Pacific salmon with brilliant red flesh, rich in oils and nutrients. Caught during twilight hours.", ItemCategory::Consumable)
+            .icon("raw_sockeye_salmon.png")
+            .stackable(5)
+            .consumable(18.0, 28.0, 3.0)
+            .cookable(55.0, "Cooked Sockeye Salmon")
+            .respawn_time(400)
+            .build(),
+
+        ItemBuilder::new("Cooked Sockeye Salmon", "Expertly prepared sockeye with deep red, flavorful flesh. A true delicacy of the north.", ItemCategory::Consumable)
+            .icon("cooked_sockeye_salmon.png")
+            .stackable(5)
+            .consumable(50.0, 72.0, 22.0)
+            .cookable(35.0, "Burnt Sockeye Salmon")
+            .build(),
+
+        ItemBuilder::new("Burnt Sockeye Salmon", "Overcooked sockeye. The beautiful red color has turned grey and the flesh is dry.", ItemCategory::Consumable)
+            .icon("burnt_sockeye_salmon.png")
+            .stackable(5)
+            .consumable(9.0, 20.0, -3.0)
+            .crafting_output(16, 0)
+            .cookable(45.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw King Salmon", "The legendary Chinook salmon, largest of all Pacific salmon. An extremely rare and prized catch, best found at dawn.", ItemCategory::Consumable)
+            .icon("raw_king_salmon.png")
+            .stackable(3)
+            .consumable(22.0, 35.0, 5.0)
+            .cookable(60.0, "Cooked King Salmon")
+            .respawn_time(480)
+            .build(),
+
+        ItemBuilder::new("Cooked King Salmon", "Magnificently prepared king salmon. The rich, buttery flesh practically melts in your mouth. The finest fish in these waters.", ItemCategory::Consumable)
+            .icon("cooked_king_salmon.png")
+            .stackable(3)
+            .consumable(60.0, 85.0, 28.0)
+            .cookable(38.0, "Burnt King Salmon")
+            .build(),
+
+        ItemBuilder::new("Burnt King Salmon", "Overcooked king salmon. Even burnt, remnants of its exceptional quality remain.", ItemCategory::Consumable)
+            .icon("burnt_king_salmon.png")
+            .stackable(3)
+            .consumable(12.0, 25.0, -2.0)
+            .crafting_output(18, 0)
+            .cookable(48.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Halibut", "A massive flatfish from the deep ocean floor. Can grow to enormous sizes. Requires deep water fishing.", ItemCategory::Consumable)
+            .icon("raw_halibut.png")
+            .stackable(3)
+            .consumable(20.0, 32.0, 2.0)
+            .cookable(58.0, "Cooked Halibut")
+            .respawn_time(450)
+            .build(),
+
+        ItemBuilder::new("Cooked Halibut", "Perfectly prepared halibut with dense, meaty white flesh. A substantial and satisfying meal.", ItemCategory::Consumable)
+            .icon("cooked_halibut.png")
+            .stackable(3)
+            .consumable(55.0, 80.0, 25.0)
+            .cookable(36.0, "Burnt Halibut")
+            .build(),
+
+        ItemBuilder::new("Burnt Halibut", "Overcooked halibut. The thick flesh has dried out completely.", ItemCategory::Consumable)
+            .icon("burnt_halibut.png")
+            .stackable(3)
+            .consumable(10.0, 22.0, -4.0)
+            .crafting_output(17, 0)
+            .cookable(46.0, "Charcoal")
+            .build(),
+
         // === ANIMAL MEAT ===
         ItemBuilder::new("Raw Fox Meat", "Lean meat from a fox. Light and gamey, provides some nutrition even when raw.", ItemCategory::Consumable)
             .icon("fox_meat.png")
@@ -679,7 +963,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
 
         // === BIRD MEAT ===
         ItemBuilder::new("Raw Tern Meat", "Lean meat from a coastal tern. Slightly fishy flavor from its diet, but nutritious when cooked.", ItemCategory::Consumable)
-            .icon("tern_meat.png")
+            .icon("raw_tern_meat.png")
             .stackable(20)
             .consumable(4.0, 8.0, -3.0)
             .cookable(25.0, "Cooked Tern Meat")
@@ -701,7 +985,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         ItemBuilder::new("Raw Crow Meat", "Dark, gamey meat from a crow. Has a strong, earthy flavor that cooking helps mellow.", ItemCategory::Consumable)
-            .icon("crow_meat.png")
+            .icon("raw_crow_meat.png")
             .stackable(20)
             .consumable(3.0, 7.0, -4.0)
             .cookable(25.0, "Cooked Crow Meat")
