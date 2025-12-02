@@ -119,7 +119,7 @@ const BlogFooter: React.FC = () => {
                                 e.currentTarget.style.color = '#00aaff';
                             }}
                         >
-                            Selo Oils LLC
+                            Martin Erlic
                         </a>
                     </p>
                     <p style={{
@@ -129,7 +129,7 @@ const BlogFooter: React.FC = () => {
                         textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                         fontFamily: "'Courier New', Consolas, Monaco, monospace",
                     }}>
-                        © 2025 Selo Oils LLC
+                        © 2025 Martin Erlic
                     </p>
                 </div>
 

@@ -109,6 +109,30 @@ fn get_fish_database() -> Vec<FishEntry> {
             base_weight: 0.8,
             deep_water_bonus: 0.2,
         },
+        FishEntry {
+            name: "Raw Black Katy Chiton",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::Any, // Found in intertidal zones at any time
+            weather_preference: FishWeatherPreference::Clear, // Rocky areas prefer clear conditions
+            base_weight: 0.7,
+            deep_water_bonus: -0.3, // Prefers shallow/rocky areas, not deep water
+        },
+        FishEntry {
+            name: "Raw Sea Urchin",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::Day, // More active during daylight
+            weather_preference: FishWeatherPreference::Clear, // Rocky coastal areas prefer clear weather
+            base_weight: 0.75,
+            deep_water_bonus: -0.2, // Found in rocky shallow areas
+        },
+        FishEntry {
+            name: "Raw Blue Mussel",
+            tier: FishTier::Common,
+            time_preference: FishTimePreference::Any, // Filter feeders, always present
+            weather_preference: FishWeatherPreference::Any, // Abundant regardless of weather
+            base_weight: 0.9, // Very common coastal shellfish
+            deep_water_bonus: -0.4, // Strongly prefers shallow rocky areas near shore
+        },
         
         // === TIER 2: UNCOMMON (Medium Fish) ===
         FishEntry {

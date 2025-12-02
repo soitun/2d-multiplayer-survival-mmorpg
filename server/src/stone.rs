@@ -25,6 +25,7 @@ impl OreType {
     }
 
     /// Determines ore type based on location with weighted probabilities
+    /// South = MORE STONE (beginner-friendly), North = more Metal/Sulfur (risky, rewarding)
     pub fn random_for_location(pos_x: f32, pos_y: f32, is_in_quarry: bool, rng: &mut impl Rng) -> OreType {
         let center_y = crate::WORLD_HEIGHT_PX / 2.0;
         let is_north = pos_y < center_y;
@@ -36,31 +37,34 @@ impl OreType {
         }
         
         if is_in_quarry {
-            // Quarries: 49.5% Metal, 29.7% Sulfur, 19.8% Stone (after Memory check)
+            // Quarries: 45% Metal, 35% Sulfur, 17% Stone (after Memory check)
+            // Quarries are for advanced resources
             let roll = rng.gen::<f32>();
-            if roll < 0.5 {
+            if roll < 0.45 {
                 OreType::Metal
-            } else if roll < 0.8 {
+            } else if roll < 0.80 {
                 OreType::Sulfur
             } else {
                 OreType::Stone
             }
         } else if is_north {
-            // North terrain: 39.6% Metal, 29.7% Sulfur, 29.7% Stone (after Memory check)
+            // North terrain: 35% Metal, 30% Sulfur, 32% Stone (after Memory check)
+            // Risky north with more advanced ores
             let roll = rng.gen::<f32>();
-            if roll < 0.4 {
+            if roll < 0.35 {
                 OreType::Metal
-            } else if roll < 0.7 {
+            } else if roll < 0.65 {
                 OreType::Sulfur
             } else {
                 OreType::Stone
             }
         } else {
-            // South terrain: 69.3% Stone, 19.8% Metal, 9.9% Sulfur (after Memory check)
+            // South terrain: 82% Stone, 12% Metal, 3% Sulfur (after Memory check)
+            // MUCH MORE STONE in south - beginner-friendly, abundant basic resources
             let roll = rng.gen::<f32>();
-            if roll < 0.7 {
+            if roll < 0.82 {
                 OreType::Stone
-            } else if roll < 0.9 {
+            } else if roll < 0.94 {
                 OreType::Metal
             } else {
                 OreType::Sulfur

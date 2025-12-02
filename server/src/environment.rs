@@ -95,7 +95,7 @@ const BASE_AREA_TILES: f32 = 360_000.0; // 600x600 reference map
 
 // Base counts for 600x600 map (optimized for competitive but not frustrating gameplay)
 const BASE_TREE_COUNT_600X600: u32 = 900;   // ~0.25% density, ~480px avg spacing
-const BASE_STONE_COUNT_600X600: u32 = 100;  // ~3s walk to find one
+const BASE_STONE_COUNT_600X600: u32 = 180;  // INCREASED: More stones, especially in south (~2s walk to find one)
 const BASE_BARREL_CLUSTERS_600X600: u32 = 14; // Rare, contested PvP hotspots
 
 /// Calculate resource count with sublinear scaling for any map size.
@@ -240,6 +240,109 @@ pub fn is_position_on_beach_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     // Check if the position is on a beach tile
     for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
         return tile.tile_type == crate::TileType::Beach;
+    }
+    
+    false
+}
+
+/// Checks if position is on a Forest tile (dense forested area)
+/// Forest tiles have much higher tree density and darker ground texture
+pub fn is_position_on_forest_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    // Convert pixel position to tile coordinates
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Try compressed lookup first for better performance
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type == crate::TileType::Forest;
+    }
+    
+    // FALLBACK: Use original method if compressed data not available
+    let world_tiles = ctx.db.world_tile();
+    
+    // Check if the position is on a forest tile
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type == crate::TileType::Forest;
+    }
+    
+    false
+}
+
+/// Checks if position is on an arctic biome tile (Tundra or Alpine)
+/// Arctic tiles are too cold/rocky for trees to grow
+pub fn is_position_on_arctic_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    // Convert pixel position to tile coordinates
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Try compressed lookup first for better performance
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type.is_arctic(); // Uses TileType::is_arctic() method
+    }
+    
+    // FALLBACK: Use original method if compressed data not available
+    let world_tiles = ctx.db.world_tile();
+    
+    // Check if the position is on an arctic tile
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type.is_arctic();
+    }
+    
+    false
+}
+
+/// Checks if position is on a Tundra tile specifically
+pub fn is_position_on_tundra_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type == crate::TileType::Tundra;
+    }
+    
+    let world_tiles = ctx.db.world_tile();
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type == crate::TileType::Tundra;
+    }
+    
+    false
+}
+
+/// Checks if position is on an Alpine tile specifically
+pub fn is_position_on_alpine_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type == crate::TileType::Alpine;
+    }
+    
+    let world_tiles = ctx.db.world_tile();
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type == crate::TileType::Alpine;
+    }
+    
+    false
+}
+
+/// Checks if position is on an Asphalt tile (compound/paved area)
+/// Asphalt tiles are used for the central compound and mini-compounds
+pub fn is_position_on_asphalt_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    // Convert pixel position to tile coordinates
+    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Try compressed lookup first for better performance
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        return tile_type == crate::TileType::Asphalt;
+    }
+    
+    // FALLBACK: Use original method if compressed data not available
+    let world_tiles = ctx.db.world_tile();
+    
+    // Check if the position is on an asphalt tile
+    for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
+        return tile.tile_type == crate::TileType::Asphalt;
     }
     
     false
@@ -802,11 +905,36 @@ pub fn validate_spawn_location(
     
     match spawn_condition {
         plants_database::SpawnCondition::Forest => {
-            // Mushrooms: Must be on grass + near trees (within 150px)
-            if !matches!(current_tile_type, Some(TileType::Grass)) {
+            // Mushrooms: Must be on grass/forest/tundra + near trees (within 150px)
+            // OR on Forest tile type (which inherently has dense trees)
+            // Tundra has arctic mushrooms that grow in mossy areas
+            if !matches!(current_tile_type, Some(TileType::Grass | TileType::Forest | TileType::Tundra)) {
                 return false;
             }
             
+            // If on Forest tile, mushrooms can spawn without being near existing trees
+            // (the tile itself represents dense forest)
+            if matches!(current_tile_type, Some(TileType::Forest)) {
+                return true;
+            }
+            
+            // Tundra mushrooms can spawn more freely (sparse trees, but lots of moss)
+            if matches!(current_tile_type, Some(TileType::Tundra)) {
+                // Lower proximity requirement for tundra mushrooms (they grow in mossy areas)
+                let tundra_proximity_sq = 300.0 * 300.0; // Larger search radius
+                for &(tree_x, tree_y) in tree_positions {
+                    let dx = pos_x - tree_x;
+                    let dy = pos_y - tree_y;
+                    if dx * dx + dy * dy <= tundra_proximity_sq {
+                        return true;
+                    }
+                }
+                // Tundra can also spawn mushrooms randomly (5% chance without tree proximity)
+                // This simulates mushrooms growing in mossy, wet areas
+                return pos_x as u32 % 20 == 0 && pos_y as u32 % 20 == 0;
+            }
+            
+            // For grass tiles, still require proximity to trees
             let forest_distance_sq = 150.0 * 150.0;
             for &(tree_x, tree_y) in tree_positions {
                 let dx = pos_x - tree_x;
@@ -820,6 +948,7 @@ pub fn validate_spawn_location(
         
         plants_database::SpawnCondition::Plains => {
             // Hemp: Must be on grass/dirt + away from trees (>100px) + away from stones (>80px)
+            // Forest tiles are too shaded for plains plants
             if !matches!(current_tile_type, Some(TileType::Grass | TileType::Dirt)) {
                 return false;
             }
@@ -1118,7 +1247,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     // let mut grass_attempts = 0;
 
     // --- Seed Trees --- Use helper function with dense forest clustering ---
-    log::info!("Seeding Trees with dense forest clusters...");
+    log::info!("Seeding Trees with dense forest clusters (including Forest tile type)...");
     
     // Create a separate noise generator for dense forest regions
     let dense_forest_noise = Fbm::<Perlin>::new(ctx.rng().gen());
@@ -1132,31 +1261,52 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         // Generate random resource amount *before* calling attempt_single_spawn
         let tree_resource_amount = rng.gen_range(crate::tree::TREE_MIN_RESOURCES..=crate::tree::TREE_MAX_RESOURCES);
 
-        // Generate candidate position first to check for dense forest
-        let candidate_tile_x = rng.gen_range(min_tile_x..max_tile_x);
-        let candidate_tile_y = rng.gen_range(min_tile_y..max_tile_y);
-        let candidate_pos_x = (candidate_tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
-        let candidate_pos_y = (candidate_tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
-        
-        // Check if this position is in a dense forest region
-        let dense_forest_value = dense_forest_noise.get([
-            candidate_pos_x as f64 * DENSE_FOREST_NOISE_FREQUENCY,
-            candidate_pos_y as f64 * DENSE_FOREST_NOISE_FREQUENCY
-        ]);
-        let is_dense_forest = dense_forest_value > DENSE_FOREST_THRESHOLD;
-        
-        // Adjust spawn threshold for dense forests (lower threshold = easier to spawn)
-        let adjusted_threshold = if is_dense_forest {
-            crate::tree::TREE_SPAWN_NOISE_THRESHOLD * 0.3 // Much easier to spawn in dense forests
-        } else {
-            crate::tree::TREE_SPAWN_NOISE_THRESHOLD
+        // Create threshold function that checks position and returns appropriate threshold
+        // This allows Forest tiles to have much denser tree spawning
+        let threshold_fn = |pos_x: f32, pos_y: f32| -> f64 {
+            // Check if this position is on a Forest tile type (new tile-based forest system)
+            let is_forest_tile = is_position_on_forest_tile(ctx, pos_x, pos_y);
+            
+            // Check if this position is in a dense forest region (noise-based clustering)
+            let dense_forest_value = dense_forest_noise.get([
+                pos_x as f64 * DENSE_FOREST_NOISE_FREQUENCY,
+                pos_y as f64 * DENSE_FOREST_NOISE_FREQUENCY
+            ]);
+            let is_noise_dense_forest = dense_forest_value > DENSE_FOREST_THRESHOLD;
+            
+            // Adjust spawn threshold for dense forests (lower threshold = easier to spawn)
+            // Forest tiles get MUCH denser spawning - use negative threshold to always pass noise check
+            // This ensures Forest tiles are truly dense with trees
+            if is_forest_tile {
+                -1.0 // Always pass noise check on Forest tiles (guaranteed dense forests)
+            } else if is_noise_dense_forest {
+                crate::tree::TREE_SPAWN_NOISE_THRESHOLD * 0.3 // Easier spawn in noise-based dense forests
+            } else {
+                crate::tree::TREE_SPAWN_NOISE_THRESHOLD
+            }
         };
         
-        // Adjust minimum distance for dense forests (allow closer packing)
-        let adjusted_min_distance_sq = if is_dense_forest {
-            crate::tree::MIN_TREE_DISTANCE_SQ * 0.4 // Trees can be 60% closer in dense forests
-        } else {
-            crate::tree::MIN_TREE_DISTANCE_SQ
+        // Create distance function that checks position and returns appropriate minimum distance
+        let distance_fn = |pos_x: f32, pos_y: f32| -> f32 {
+            // Check if this position is on a Forest tile type
+            let is_forest_tile = is_position_on_forest_tile(ctx, pos_x, pos_y);
+            
+            // Check if this position is in a dense forest region (noise-based clustering)
+            let dense_forest_value = dense_forest_noise.get([
+                pos_x as f64 * DENSE_FOREST_NOISE_FREQUENCY,
+                pos_y as f64 * DENSE_FOREST_NOISE_FREQUENCY
+            ]);
+            let is_noise_dense_forest = dense_forest_value > DENSE_FOREST_THRESHOLD;
+            
+            // Adjust minimum distance for dense forests (allow closer packing)
+            // Forest tiles allow VERY close packing for true dense forest appearance
+            if is_forest_tile {
+                crate::tree::MIN_TREE_DISTANCE_SQ * 0.1 // Trees can be 90% closer on Forest tiles (very dense!)
+            } else if is_noise_dense_forest {
+                crate::tree::MIN_TREE_DISTANCE_SQ * 0.4 // Trees can be 60% closer in noise-based dense forests
+            } else {
+                crate::tree::MIN_TREE_DISTANCE_SQ
+            }
         };
         
         match attempt_single_spawn(
@@ -1168,8 +1318,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             min_tile_x, max_tile_x, min_tile_y, max_tile_y,
             &fbm,
             crate::tree::TREE_SPAWN_NOISE_FREQUENCY,
-            adjusted_threshold, // Use adjusted threshold
-            adjusted_min_distance_sq, // Use adjusted distance
+            crate::tree::TREE_SPAWN_NOISE_THRESHOLD, // Base threshold (will be overridden by threshold_fn)
+            crate::tree::MIN_TREE_DISTANCE_SQ, // Base distance (will be overridden by distance_fn)
             0.0,
             0.0,
             |pos_x, pos_y, (tree_type_roll, resource_amount): (f64, u32)| { // Closure now accepts both values
@@ -1210,7 +1360,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args
-            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs for trees
+            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y) || is_position_on_tundra_tile(ctx, pos_x, pos_y) || is_position_on_alpine_tile(ctx, pos_x, pos_y), // Block water, central compound, hot springs, tundra, and alpine for trees
+            threshold_fn, // Position-based threshold function
+            distance_fn, // Position-based distance function
             trees,
         ) {
             Ok(true) => spawned_tree_count += 1,
@@ -1289,6 +1441,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             },
             0u32, // Dummy value - resource amount is now determined inside the closure
             |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs for stones
+            |_pos_x, _pos_y| crate::tree::TREE_SPAWN_NOISE_THRESHOLD, // Base threshold for stones
+            |_pos_x, _pos_y| crate::stone::MIN_STONE_DISTANCE_SQ, // Base distance for stones
             stones,
         ) {
             Ok(true) => spawned_stone_count += 1,
@@ -1350,6 +1504,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             },
             (sea_stack_scale, variant), // Pass scale and variant as extra_args
             |pos_x, pos_y| !is_position_on_ocean_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y), // Only spawn on ocean water, not inland water
+            |_pos_x, _pos_y| SEA_STACK_SPAWN_NOISE_THRESHOLD, // Base threshold for sea stacks
+            |_pos_x, _pos_y| MIN_SEA_STACK_DISTANCE_SQ, // Base distance for sea stacks
             ctx.db.sea_stack(),
         ) {
             Ok(true) => spawned_sea_stack_count += 1,
@@ -1820,6 +1976,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         &spawned_tree_positions, &spawned_stone_positions
                     )
                 },
+                |_pos_x, _pos_y| config.noise_threshold as f64, // Base threshold for plants
+                |_pos_x, _pos_y| config.min_distance_sq, // Base distance for plants
                 harvestable_resources,
             ) {
                 Ok(true) => spawned_count += 1,

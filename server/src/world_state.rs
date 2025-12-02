@@ -2000,6 +2000,8 @@ fn spawn_seasonal_plant_batch(ctx: &ReducerContext, season: &Season, batch_size:
                     &tree_positions, &stone_positions
                 )
             },
+            |_pos_x, _pos_y| config.noise_threshold as f64, // Base threshold for plants
+            |_pos_x, _pos_y| config.min_distance_sq, // Base distance for plants
             ctx.db.harvestable_resource(),
         ) {
             Ok(true) => spawned_count += 1,

@@ -220,12 +220,20 @@ function getTerrainColor(colorValue: number): [number, number, number] {
   switch (colorValue) {
     case 0:   // Sea - Bright blue, easily recognizable as water
       return [30, 80, 140]; // Rich blue (much brighter)
+    case 48:  // Asphalt - Dark gray for paved compounds
+      return [60, 60, 60]; // Dark gray
     case 64:  // Beach - Sandy beige, distinct from water and land
       return [180, 170, 140]; // Light sandy beige (very bright)
     case 96:  // Sand - Warm sand color
       return [200, 180, 130]; // Warm light sand (distinct from beach)
+    case 100: // Forest - Darker green for dense forest
+      return [40, 90, 50]; // Dark forest green
     case 128: // Grass - Vibrant green, clearly vegetation
       return [60, 120, 70]; // Medium-bright green (much more visible)
+    case 140: // Tundra - Pale mossy green-gray for arctic grassland
+      return [120, 140, 100]; // Pale greenish-gray
+    case 180: // Alpine - Light gray for rocky high-altitude terrain
+      return [150, 150, 160]; // Light blue-gray
     case 192: // Dirt - Earthy brown
       return [110, 85, 65]; // Medium brown (clearly dirt)
     case 224: // DirtRoad - Darker brown for roads
@@ -244,8 +252,12 @@ function getTerrainColor(colorValue: number): [number, number, number] {
 function getTerrainType(colorValue: number): number {
   // Group similar terrain types together for region detection
   if (colorValue === 0) return 0; // Sea
+  if (colorValue === 48) return 7; // Asphalt - paved compounds (distinct)
   if (colorValue === 64) return 1; // Beach
   if (colorValue === 96) return 2; // Sand
+  if (colorValue === 100) return 8; // Forest - dense vegetation (distinct)
+  if (colorValue === 140) return 9; // Tundra - arctic grassland (distinct)
+  if (colorValue === 180) return 10; // Alpine - rocky terrain (distinct)
   if (colorValue === 255) return 6; // HotSpringWater - separate type for visibility
   if (colorValue >= 128 && colorValue < 192) return 3; // Grass
   if (colorValue >= 192 && colorValue < 224) return 4; // Dirt

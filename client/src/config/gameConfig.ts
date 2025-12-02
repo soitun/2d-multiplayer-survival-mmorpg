@@ -15,8 +15,8 @@ export const FOUNDATION_TILE_SIZE = 96; // 2x TILE_SIZE
 
 // --- Server World & Chunk Configuration (Client-Side Assumption - TODO: Make Server-Driven) ---
 // These values MUST match the server's current world generation settings.
-const SERVER_WORLD_WIDTH_TILES = 600; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
-const SERVER_WORLD_HEIGHT_TILES = 600; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
+const SERVER_WORLD_WIDTH_TILES = 1000; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
+const SERVER_WORLD_HEIGHT_TILES = 1000; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
 // OPTIMIZED: Changed from 5×5 to 16×16 based on performance testing
 // Results: 60-70% reduction in subscriptions, eliminated performance spikes
 // See CHUNK_SIZE_TESTING.md for detailed test results
@@ -46,7 +46,7 @@ export const gameConfig = {
   get worldHeightPx() { return this.worldHeightTiles * this.tileSize; },
 
   // Player Movement
-  playerSpeed: 400.0, // Balanced for 60s world traversal (24,000px / 400px/s = 60s)
+  playerSpeed: 200.0, // Balanced for 60s world traversal (24,000px / 400px/s = 60s)
   sprintMultiplier: 2.0, // 2x speed for sprinting (800 px/s)
   crouchMultiplier: 0.5, // Half speed when crouching (200 px/s)
   waterSpeedPenalty: 0.5, // Speed reduction in water

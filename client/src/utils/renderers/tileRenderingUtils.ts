@@ -3,6 +3,13 @@ import dirtTile from '../../assets/tiles/dirt.png';
 import dirtRoadTile from '../../assets/tiles/dirt_road.png';
 import seaTile from '../../assets/tiles/sea_new.png';
 import beachTile from '../../assets/tiles/beach_new.png';
+// Import new tile types from the new/ folder
+import asphaltTile from '../../assets/tiles/new/asphalt.png';
+import forestTile from '../../assets/tiles/new/forest.png';
+import quarryTile from '../../assets/tiles/new/quarry.png';
+import hotSpringWaterTile from '../../assets/tiles/new/hotspringwater.png';
+import tundraTile from '../../assets/tiles/new/tundra.png';
+import alpineTile from '../../assets/tiles/new/alpine.png';
 // Import existing autotile assets (these files exist)
 import grassDirtAutotile from '../../assets/tiles/tileset_grass_dirt_autotile.png';
 import grassBeachAutotile from '../../assets/tiles/tileset_grass_beach_autotile_new.png';
@@ -41,8 +48,8 @@ export const TILE_ASSETS: Record<string, TileAssetConfig> = {
         // variants: ['../../assets/tiles/dirt_variant1.png']
     },
     'Quarry': { 
-        baseTexture: dirtTile, // Use same texture as Dirt (visually identical)
-        // Quarry tiles mark quarry areas but render the same as dirt
+        baseTexture: quarryTile, // Use distinct quarry texture (rocky gray-brown)
+        // Quarry tiles have a unique rocky appearance for mining areas
     },
     'DirtRoad': { 
         baseTexture: dirtRoadTile,
@@ -69,8 +76,24 @@ export const TILE_ASSETS: Record<string, TileAssetConfig> = {
         baseTexture: beachTile, // Use beach texture for sand for now
     },
     'HotSpringWater': {
-        baseTexture: seaTile, // Use sea texture for hot spring water (bright blue)
-        // Hot springs are rendered as bright cyan/white water pools
+        baseTexture: hotSpringWaterTile, // Use distinct teal/turquoise hot spring water texture
+        // Hot springs have a unique cyan/turquoise water appearance
+    },
+    'Asphalt': {
+        baseTexture: asphaltTile, // Dark gray paved texture for compounds
+        // Asphalt is used for central compound and mini-compounds at road terminals
+    },
+    'Forest': {
+        baseTexture: forestTile, // Dark green dense forest ground texture
+        // Forest tiles represent dense forested areas with higher tree density
+    },
+    'Tundra': {
+        baseTexture: tundraTile, // Arctic tundra texture (mossy, low vegetation)
+        // Tundra tiles appear in northern regions - too cold for trees
+    },
+    'Alpine': {
+        baseTexture: alpineTile, // High-altitude rocky terrain texture
+        // Alpine tiles appear in the far north - sparse, rocky landscape
     },
 };
 

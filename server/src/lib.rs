@@ -406,9 +406,9 @@ pub fn get_effective_player_radius(is_crouching: bool) -> f32 {
 // ADD: Water movement constants
 pub const WATER_SPEED_PENALTY: f32 = 0.5; // 50% speed reduction (50% of normal speed)
 
-// World Dimensions - UPDATED to 600x600 tiles
-pub const WORLD_WIDTH_TILES: u32 = 600;
-pub const WORLD_HEIGHT_TILES: u32 = 600;
+// World Dimensions
+pub const WORLD_WIDTH_TILES: u32 = 1000;
+pub const WORLD_HEIGHT_TILES: u32 = 1000;
 // Change back to f32 as they are used in float calculations
 pub const WORLD_WIDTH_PX: f32 = (WORLD_WIDTH_TILES * TILE_SIZE_PX) as f32;
 pub const WORLD_HEIGHT_PX: f32 = (WORLD_HEIGHT_TILES * TILE_SIZE_PX) as f32;
@@ -1376,14 +1376,18 @@ pub fn update_viewport(ctx: &ReducerContext, min_x: f32, min_y: f32, max_x: f32,
 // ADD: Tile types and world generation structures
 #[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
 pub enum TileType {
-    Grass,
+    Grass,      // Temperate meadows (south/middle of island)
     Dirt, 
     DirtRoad,
     Sea,
     Beach,
     Sand,
-    HotSpringWater, // NEW: Distinct type for hot spring water pools
-    Quarry, // NEW: Quarry tiles (visually identical to Dirt, but marks quarry areas)
+    HotSpringWater, // Distinct type for hot spring water pools (teal/turquoise)
+    Quarry,     // Quarry tiles (rocky gray-brown texture for mining areas)
+    Asphalt,    // Paved compound areas (dark gray, for central compound and mini-compounds)
+    Forest,     // Dense forested areas (dark green, higher tree density)
+    Tundra,     // Arctic tundra (northern regions - mossy, low vegetation)
+    Alpine,     // High-altitude rocky terrain (far north - sparse, rocky)
 }
 
 impl TileType {
@@ -1422,13 +1426,28 @@ impl TileType {
     
     /// Returns true if this tile should block building placement
     pub fn blocks_building(&self) -> bool {
-        // Water tiles block building
-        self.is_water()
+        // Water tiles and asphalt (compounds) block building
+        matches!(self, TileType::Sea | TileType::HotSpringWater | TileType::Asphalt)
     }
     
     /// Returns true if this tile should have water visual effects (waves, etc.)
     pub fn has_water_visuals(&self) -> bool {
         self.is_water()
+    }
+    
+    /// Returns true if this tile is a forest tile (dense vegetation)
+    pub fn is_forest(&self) -> bool {
+        matches!(self, TileType::Forest)
+    }
+    
+    /// Returns true if this tile is a paved/developed area (asphalt compound)
+    pub fn is_paved(&self) -> bool {
+        matches!(self, TileType::Asphalt)
+    }
+    
+    /// Returns true if this tile is a road or paved area
+    pub fn is_road_or_paved(&self) -> bool {
+        matches!(self, TileType::DirtRoad | TileType::Asphalt)
     }
 }
 
@@ -1511,6 +1530,10 @@ impl TileType {
             TileType::Sand => 5,
             TileType::HotSpringWater => 6,
             TileType::Quarry => 7,
+            TileType::Asphalt => 8,
+            TileType::Forest => 9,
+            TileType::Tundra => 10,
+            TileType::Alpine => 11,
         }
     }
     
@@ -1525,8 +1548,32 @@ impl TileType {
             5 => Some(TileType::Sand),
             6 => Some(TileType::HotSpringWater),
             7 => Some(TileType::Quarry),
+            8 => Some(TileType::Asphalt),
+            9 => Some(TileType::Forest),
+            10 => Some(TileType::Tundra),
+            11 => Some(TileType::Alpine),
             _ => None,
         }
+    }
+    
+    /// Returns true if this is a cold/arctic biome tile (Tundra or Alpine)
+    pub fn is_arctic(&self) -> bool {
+        matches!(self, TileType::Tundra | TileType::Alpine)
+    }
+    
+    /// Returns true if this is tundra
+    pub fn is_tundra(&self) -> bool {
+        matches!(self, TileType::Tundra)
+    }
+    
+    /// Returns true if this is alpine terrain
+    pub fn is_alpine(&self) -> bool {
+        matches!(self, TileType::Alpine)
+    }
+    
+    /// Returns true if this tile can support trees (not water, alpine, or paved)
+    pub fn can_have_trees(&self) -> bool {
+        !matches!(self, TileType::Sea | TileType::HotSpringWater | TileType::Asphalt | TileType::Alpine | TileType::Beach | TileType::Sand)
     }
 }
 

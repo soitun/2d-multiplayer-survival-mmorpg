@@ -152,7 +152,7 @@ pub fn is_respawn_position_clear(ctx: &ReducerContext, target_x: f32, target_y: 
 /// Attempts one resource spawn at a random valid tile.
 /// Handles noise check, distance checks, water check, and insertion.
 /// Returns Ok(true) if successful, Ok(false) if conditions not met (e.g., tile occupied, too close, on water), Err on DB error.
-pub fn attempt_single_spawn<T, F, N, R, A, W>(
+pub fn attempt_single_spawn<T, F, N, R, A, W, TH, DH>(
     rng: &mut R, // Generic RNG type
     occupied_tiles: &mut HashSet<(u32, u32)>,
     spawned_positions: &mut Vec<(f32, f32)>, // Keep mutable for adding
@@ -171,6 +171,8 @@ pub fn attempt_single_spawn<T, F, N, R, A, W>(
     create_entity: F,
     extra_arg: A, // Add generic argument for extra data needed by create_entity
     water_check_fn: W, // NEW: Water check function
+    threshold_fn: TH, // NEW: Position-based threshold function (returns threshold for given position)
+    distance_fn: DH, // NEW: Position-based distance function (returns min_dist_sq_self for given position)
     table: &impl Table<Row = T>, // Use `impl Trait` for the table
 ) -> Result<bool, String> // Return standard String error
 where
@@ -179,6 +181,8 @@ where
     N: NoiseFn<f64, 2>, // Correct NoiseFn signature
     R: Rng + ?Sized, // Make RNG generic
     W: Fn(f32, f32) -> bool, // NEW: Water check function type
+    TH: Fn(f32, f32) -> f64, // NEW: Threshold function type (takes position, returns threshold)
+    DH: Fn(f32, f32) -> f32, // NEW: Distance function type (takes position, returns min_dist_sq_self)
 {
     // Generate random tile coordinates
     if min_tile_x >= max_tile_x || min_tile_y >= max_tile_y {
@@ -202,19 +206,25 @@ where
         return Ok(false); // Skip spawning on water
     }
 
+    // **NEW: Get position-based threshold (allows Forest tiles to have different thresholds)**
+    let position_threshold = threshold_fn(pos_x, pos_y);
+
     // Noise check
     let noise_val = noise_fn.get([
         (pos_x as f64 / WORLD_WIDTH_PX as f64) * noise_freq,
         (pos_y as f64 / WORLD_HEIGHT_PX as f64) * noise_freq,
     ]);
     let normalized_noise = (noise_val + 1.0) / 2.0;
-    if normalized_noise <= noise_threshold { 
+    if normalized_noise <= position_threshold { 
         return Ok(false);
     }
 
+    // **NEW: Get position-based distance (allows Forest tiles to have closer tree spacing)**
+    let position_min_dist_sq_self = distance_fn(pos_x, pos_y);
+
     // Distance checks (perform all checks *before* potential insertion)
     // Check against self using an immutable slice borrow of the mutable vec
-    if check_distance_sq(pos_x, pos_y, &spawned_positions, min_dist_sq_self) {
+    if check_distance_sq(pos_x, pos_y, &spawned_positions, position_min_dist_sq_self) {
         return Ok(false);
     }
     // Check against other resource types

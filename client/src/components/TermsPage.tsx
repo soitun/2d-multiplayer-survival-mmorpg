@@ -69,7 +69,7 @@ const TermsPage: React.FC = () => {
                         fontSize: '16px',
                         color: 'rgba(255, 255, 255, 0.8)',
                     }}>
-                        By accessing or using Broth & Bullets ("the Game"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not use the Game. These Terms constitute a legally binding agreement between you and Selo Oils LLC ("we," "us," or "Company").
+                        By accessing or using Broth & Bullets ("the Game"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not use the Game. These Terms constitute a legally binding agreement between you and Martin Erlic ("we," "us," or "Company").
                     </p>
                 </section>
 
@@ -161,7 +161,7 @@ const TermsPage: React.FC = () => {
                         fontSize: '16px',
                         color: 'rgba(255, 255, 255, 0.8)',
                     }}>
-                        All content, features, and functionality of the Game are owned by Selo Oils LLC and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the Game without our express written permission.
+                        All content, features, and functionality of the Game are owned by Martin Erlic and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the Game without our express written permission.
                     </p>
                 </section>
 
@@ -178,7 +178,7 @@ const TermsPage: React.FC = () => {
                         fontSize: '16px',
                         color: 'rgba(255, 255, 255, 0.8)',
                     }}>
-                        To the maximum extent permitted by law, Selo Oils LLC shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the Game. Our total liability shall not exceed the amount you paid for access to the Game, if any.
+                        To the maximum extent permitted by law, Martin Erlic shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the Game. Our total liability shall not exceed the amount you paid for access to the Game, if any.
                     </p>
                 </section>
 

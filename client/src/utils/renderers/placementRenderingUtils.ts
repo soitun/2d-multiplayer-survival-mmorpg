@@ -95,7 +95,7 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
             // Check bounds and extract tile type
             if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
                 const tileTypeU8 = chunk.tileTypes[tileIndex];
-                // Convert Uint8 to tile type tag (matching server-side enum)
+                // Convert Uint8 to tile type tag (matching server-side enum in lib.rs TileType::to_u8)
                 switch (tileTypeU8) {
                     case 0: return 'Grass';
                     case 1: return 'Dirt';
@@ -104,7 +104,11 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
                     case 4: return 'Beach';
                     case 5: return 'Sand';
                     case 6: return 'HotSpringWater'; // Hot spring water pools
-                    case 7: return 'Quarry'; // Quarry tiles
+                    case 7: return 'Quarry'; // Quarry tiles (rocky gray-brown)
+                    case 8: return 'Asphalt'; // Paved compound areas
+                    case 9: return 'Forest'; // Dense forested areas
+                    case 10: return 'Tundra'; // Arctic tundra (northern regions)
+                    case 11: return 'Alpine'; // High-altitude rocky terrain
                     default: return 'Grass';
                 }
             }

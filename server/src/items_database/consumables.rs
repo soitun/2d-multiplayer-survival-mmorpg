@@ -871,6 +871,77 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(46.0, "Charcoal")
             .build(),
 
+        // === SHELLFISH & INVERTEBRATES ===
+
+        ItemBuilder::new("Raw Black Katy Chiton", "A leathery marine mollusk found clinging to rocky intertidal zones. The tough foot meat requires careful preparation.", ItemCategory::Consumable)
+            .icon("raw_black_katy_chiton.png")
+            .stackable(15)
+            .consumable(4.0, 6.0, -1.0)
+            .cookable(40.0, "Cooked Black Katy Chiton")
+            .respawn_time(140)
+            .build(),
+
+        ItemBuilder::new("Cooked Black Katy Chiton", "Properly prepared chiton. The tough meat becomes tender and flavorful when cooked correctly.", ItemCategory::Consumable)
+            .icon("cooked_black_katy_chiton.png")
+            .stackable(15)
+            .consumable(14.0, 22.0, 4.0)
+            .cookable(28.0, "Burnt Black Katy Chiton")
+            .build(),
+
+        ItemBuilder::new("Burnt Black Katy Chiton", "Overcooked chiton. The tough meat has become rubbery and unappetizing.", ItemCategory::Consumable)
+            .icon("burnt_black_katy_chiton.png")
+            .stackable(15)
+            .consumable(2.0, 5.0, -2.0)
+            .crafting_output(4, 0)
+            .cookable(32.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Sea Urchin", "A spiny echinoderm found in rocky coastal areas. The orange roe inside is considered a delicacy, but requires careful handling.", ItemCategory::Consumable)
+            .icon("raw_sea_urchin.png")
+            .stackable(15)
+            .consumable(5.0, 8.0, -2.0)
+            .cookable(35.0, "Cooked Sea Urchin")
+            .respawn_time(150)
+            .build(),
+
+        ItemBuilder::new("Cooked Sea Urchin", "Carefully prepared sea urchin. The rich, briny roe is creamy and delicious when properly cooked.", ItemCategory::Consumable)
+            .icon("cooked_sea_urchin.png")
+            .stackable(15)
+            .consumable(16.0, 26.0, 5.0)
+            .cookable(25.0, "Burnt Sea Urchin")
+            .build(),
+
+        ItemBuilder::new("Burnt Sea Urchin", "Overcooked sea urchin. The delicate roe has been destroyed by excessive heat.", ItemCategory::Consumable)
+            .icon("burnt_sea_urchin.png")
+            .stackable(15)
+            .consumable(2.0, 6.0, -3.0)
+            .crafting_output(5, 0)
+            .cookable(30.0, "Charcoal")
+            .build(),
+
+        ItemBuilder::new("Raw Blue Mussel", "A common bivalve mollusk found attached to rocks and pilings. Filter-feeding mussels are abundant in coastal waters.", ItemCategory::Consumable)
+            .icon("raw_blue_mussel.png")
+            .stackable(20)
+            .consumable(3.0, 5.0, 0.0)
+            .cookable(30.0, "Cooked Blue Mussel")
+            .respawn_time(120)
+            .build(),
+
+        ItemBuilder::new("Cooked Blue Mussel", "Steamed mussel with tender, sweet meat. A simple but satisfying coastal delicacy.", ItemCategory::Consumable)
+            .icon("cooked_blue_mussel.png")
+            .stackable(20)
+            .consumable(12.0, 18.0, 3.0)
+            .cookable(22.0, "Burnt Blue Mussel")
+            .build(),
+
+        ItemBuilder::new("Burnt Blue Mussel", "Overcooked mussel. The tender meat has shriveled and become tough.", ItemCategory::Consumable)
+            .icon("burnt_blue_mussel.png")
+            .stackable(20)
+            .consumable(1.0, 3.0, -1.0)
+            .crafting_output(3, 0)
+            .cookable(28.0, "Charcoal")
+            .build(),
+
         // === ANIMAL MEAT ===
         ItemBuilder::new("Raw Fox Meat", "Lean meat from a fox. Light and gamey, provides some nutrition even when raw.", ItemCategory::Consumable)
             .icon("fox_meat.png")

@@ -27,22 +27,27 @@ export class ProceduralWorldRenderer {
         const promises: Promise<void>[] = [];
         
         Object.entries(TILE_ASSETS).forEach(([tileType, config]) => {
-            // Load base texture
-            promises.push(this.loadImage(config.baseTexture, `${tileType}_base`));
+            // Load base texture - wrap in catch to handle missing files gracefully
+            promises.push(
+                this.loadImage(config.baseTexture, `${tileType}_base`)
+                    .catch(err => {
+                        console.warn(`[ProceduralWorldRenderer] Failed to load base texture for ${tileType}:`, err);
+                    })
+            );
             
             // Load variants if they exist
             config.variants?.forEach((variant, index) => {
-                promises.push(this.loadImage(variant, `${tileType}_variant${index}`));
+                promises.push(this.loadImage(variant, `${tileType}_variant${index}`).catch(() => {}));
             });
             
             // Load animation frames if they exist
             config.animationFrames?.forEach((frame, index) => {
-                promises.push(this.loadImage(frame, `${tileType}_frame${index}`));
+                promises.push(this.loadImage(frame, `${tileType}_frame${index}`).catch(() => {}));
             });
             
             // Load autotile sheets if they exist
             if (config.autotileSheet) {
-                promises.push(this.loadImage(config.autotileSheet, `${tileType}_autotile`));
+                promises.push(this.loadImage(config.autotileSheet, `${tileType}_autotile`).catch(() => {}));
             }
         });
 
@@ -60,9 +65,16 @@ export class ProceduralWorldRenderer {
         try {
             await Promise.all(promises);
             this.isInitialized = true;
+            // Log which base textures were loaded
+            const loadedBases = Object.keys(TILE_ASSETS).filter(t => this.tileCache.images.has(`${t}_base`));
+            const missingBases = Object.keys(TILE_ASSETS).filter(t => !this.tileCache.images.has(`${t}_base`));
+            console.log('[ProceduralWorldRenderer] Loaded base textures:', loadedBases.join(', '));
+            if (missingBases.length > 0) {
+                console.error('[ProceduralWorldRenderer] MISSING base textures:', missingBases.join(', '));
+            }
             console.log('[ProceduralWorldRenderer] Loaded transition autotiles:', Object.keys(AUTOTILE_CONFIGS).join(', '));
         } catch (error) {
-            // console.error('[ProceduralWorldRenderer] Failed to preload tile assets:', error);
+            console.error('[ProceduralWorldRenderer] Failed to preload tile assets:', error);
         }
     }
     
@@ -91,10 +103,6 @@ export class ProceduralWorldRenderer {
         });
         
         this.tileCache.lastUpdate = Date.now();
-        // Only log significant cache updates
-        if (this.tileCache.tiles.size % 1000 === 0) {
-            console.log(`[TILES] Cache now contains ${this.tileCache.tiles.size} tiles`);
-        }
     }
     
     public renderProceduralWorld(
@@ -221,16 +229,11 @@ export class ProceduralWorldRenderer {
         } else {
             // Render regular tile
             const image = this.getTileImage(tile);
+            
             if (image && image.complete && image.naturalHeight !== 0) {
                 ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
             } else {
-                // Fallback based on tile type
-                // Disabled excessive logging for failed image loads
-                // if (!(window as any).failedImageCount) (window as any).failedImageCount = 0;
-                // (window as any).failedImageCount++;
-                // if ((window as any).failedImageCount % 20 === 0) {
-                //     console.log(`[TILES] ${(window as any).failedImageCount} tiles using fallback colors (images not loaded)`);
-                // }
+                // Fallback based on tile type - use solid colors
                 this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
             }
             
@@ -423,7 +426,12 @@ export class ProceduralWorldRenderer {
             'Sea': 'S',
             'Beach': 'B',
             'Sand': 'Sa',
-            'HotSpringWater': 'HS'
+            'HotSpringWater': 'HS',
+            'Quarry': 'Q',
+            'Asphalt': 'AS',
+            'Forest': 'F',
+            'Tundra': 'TU',
+            'Alpine': 'AL'
         };
         return abbreviations[tileType] || tileType.substring(0, 2).toUpperCase();
     }
@@ -459,6 +467,21 @@ export class ProceduralWorldRenderer {
                 break;
             case 'HotSpringWater':
                 ctx.fillStyle = '#64D4FF'; // Bright cyan for hot spring water (highly visible!)
+                break;
+            case 'Quarry':
+                ctx.fillStyle = '#7A6B5C'; // Rocky gray-brown
+                break;
+            case 'Asphalt':
+                ctx.fillStyle = '#3C3C3C'; // Dark gray paved
+                break;
+            case 'Forest':
+                ctx.fillStyle = '#2E5E2E'; // Dark green dense forest
+                break;
+            case 'Tundra':
+                ctx.fillStyle = '#8B9B7A'; // Pale mossy green-gray (arctic)
+                break;
+            case 'Alpine':
+                ctx.fillStyle = '#9B9B9B'; // Light gray rocky terrain
                 break;
             default:
                 ctx.fillStyle = '#808080'; // Gray fallback

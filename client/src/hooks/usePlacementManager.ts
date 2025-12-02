@@ -73,7 +73,7 @@ function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number
       // Check bounds and extract tile type
       if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
         const tileTypeU8 = chunk.tileTypes[tileIndex];
-        // Convert Uint8 to tile type tag (matching server-side enum)
+        // Convert Uint8 to tile type tag (matching server-side enum in lib.rs TileType::to_u8)
         switch (tileTypeU8) {
           case 0: return 'Grass';
           case 1: return 'Dirt';
@@ -81,6 +81,12 @@ function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number
           case 3: return 'Sea';
           case 4: return 'Beach';
           case 5: return 'Sand';
+          case 6: return 'HotSpringWater';
+          case 7: return 'Quarry';
+          case 8: return 'Asphalt';
+          case 9: return 'Forest';
+          case 10: return 'Tundra';
+          case 11: return 'Alpine';
           default: return 'Grass';
         }
       }

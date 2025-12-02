@@ -771,7 +771,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         case 4: return 'Beach';
         case 5: return 'Sand';
         case 6: return 'HotSpringWater'; // Hot spring water pools
-        case 7: return 'Quarry'; // Quarry tiles (visually identical to Dirt)
+        case 7: return 'Quarry'; // Quarry tiles (rocky gray-brown)
+        case 8: return 'Asphalt'; // Paved compound areas
+        case 9: return 'Forest'; // Dense forested areas
+        case 10: return 'Tundra'; // Arctic tundra (northern regions)
+        case 11: return 'Alpine'; // High-altitude rocky terrain
         default: return 'Grass';
       }
     };

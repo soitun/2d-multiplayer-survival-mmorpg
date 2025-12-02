@@ -19,20 +19,19 @@ const HOT_SPRING_BASE_COUNT: u32 = 4;
 const HOT_SPRING_BASE_AREA_TILES: f32 = (crate::WORLD_WIDTH_TILES * crate::WORLD_HEIGHT_TILES) as f32; // 600x600 = 360k tiles
 
 // --- Quarry Constants ---
-/// Base density for 600x600 map (360k tiles²) = 2 large quarries (north)
-const QUARRY_LARGE_BASE_COUNT: u32 = 2; // 2 large quarries for 600x600 map
-/// Base density for 600x600 map = 4 small quarries (south)
-const QUARRY_SMALL_BASE_COUNT: u32 = 4; // 4 small quarries on south side for 600x600 map
-// Use actual world size from lib.rs for base area calculation
-const QUARRY_BASE_AREA_TILES: f32 = (crate::WORLD_WIDTH_TILES * crate::WORLD_HEIGHT_TILES) as f32; // 600x600 = 360k tiles
+/// Base density for 600x600 map (360k tiles²) - FIXED baseline for scaling
+const QUARRY_BASE_AREA_TILES: f32 = 360_000.0; // 600x600 = 360k tiles (FIXED baseline)
+/// Base counts for 600x600 map - will scale up with larger maps
+const QUARRY_LARGE_BASE_COUNT: u32 = 3; // 3 large quarries for 600x600 map (north)
+const QUARRY_SMALL_BASE_COUNT: u32 = 6; // 6 small quarries for 600x600 map (south PvP spots)
 // Large quarries (north/central)
 const QUARRY_LARGE_MIN_RADIUS_TILES: i32 = 18;
 const QUARRY_LARGE_MAX_RADIUS_TILES: i32 = 25;
 // Small quarries (south - for PvP/warmth)
-const QUARRY_SMALL_MIN_RADIUS_TILES: i32 = 9;  // Half size
-const QUARRY_SMALL_MAX_RADIUS_TILES: i32 = 12; // Half size
-const MIN_QUARRY_DISTANCE: f32 = 120.0; // Minimum distance between large quarries
-const MIN_SMALL_QUARRY_DISTANCE: f32 = 60.0; // Minimum distance between small quarries
+const QUARRY_SMALL_MIN_RADIUS_TILES: i32 = 10;  // Slightly larger
+const QUARRY_SMALL_MAX_RADIUS_TILES: i32 = 14;  // Slightly larger
+const MIN_QUARRY_DISTANCE: f32 = 100.0; // Reduced for more placement options
+const MIN_SMALL_QUARRY_DISTANCE: f32 = 50.0; // Reduced for more small quarries
 const MIN_QUARRY_TO_HOT_SPRING_DISTANCE: f32 = 80.0; // Keep quarries away from hot springs
 
 #[spacetimedb::reducer]
@@ -103,9 +102,15 @@ struct WorldFeatures {
     dirt_paths: Vec<Vec<bool>>,
     hot_spring_water: Vec<Vec<bool>>, // Hot spring water (inner pool)
     hot_spring_beach: Vec<Vec<bool>>, // Hot spring beach (shore)
+    hot_spring_centers: Vec<(f32, f32, i32)>, // Hot spring centers (x, y, radius) for forest generation
     quarry_dirt: Vec<Vec<bool>>, // Quarry dirt areas (circular cleared zones)
     quarry_roads: Vec<Vec<bool>>, // Quarry access roads (dirt roads leading in)
     quarry_centers: Vec<(f32, f32, i32)>, // Quarry center positions (x, y, radius) for entity spawning
+    asphalt_compound: Vec<Vec<bool>>, // Central compound and mini-compounds (paved asphalt)
+    forest_areas: Vec<Vec<bool>>, // Dense forested areas
+    tundra_areas: Vec<Vec<bool>>, // Arctic tundra (northern regions)
+    alpine_areas: Vec<Vec<bool>>, // High-altitude rocky terrain (far north)
+    island_positions: Vec<(f64, f64, f64)>, // Scattered island centers (x, y, radius) for biome assignment
     width: usize,
     height: usize,
 }
@@ -132,8 +137,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         }
     }
     
-    // Generate wavy shore distance map
-    let shore_distance = generate_wavy_shore_distance(config, noise, width, height);
+    // Generate wavy shore distance map (returns island positions too)
+    let (shore_distance, island_positions) = generate_wavy_shore_distance_with_islands(config, noise, width, height);
     
     // Generate river network flowing to sea
     let river_network = generate_river_network(config, noise, &shore_distance, width, height);
@@ -149,11 +154,23 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     
     // Generate hot spring locations (large water pools with beach shores)
     // Pass river and lake data to ensure hot springs don't spawn near ANY water
-    let (hot_spring_water, hot_spring_beach) = generate_hot_springs(config, noise, &shore_distance, &river_network, &lake_map, width, height);
+    // Also returns centers for surrounding forest generation
+    let (hot_spring_water, hot_spring_beach, hot_spring_centers) = generate_hot_springs(config, noise, &shore_distance, &river_network, &lake_map, width, height);
     
     // Generate quarry locations (dirt areas with enhanced stone spawning)
     // Pass hot spring data to ensure quarries don't spawn near hot springs
     let (quarry_dirt, quarry_roads, quarry_centers) = generate_quarries(config, noise, &shore_distance, &river_network, &lake_map, &hot_spring_water, &road_network, width, height);
+    
+    // Generate asphalt compounds (central compound + mini-compounds at road terminals)
+    let asphalt_compound = generate_asphalt_compounds(config, noise, &shore_distance, &road_network, width, height);
+    
+    // Generate latitude-based biome areas (Tundra and Alpine for northern regions)
+    let (tundra_areas, alpine_areas) = generate_latitude_biomes(config, noise, &shore_distance, width, height);
+    
+    // Generate forest areas (dense forested regions with higher tree density)
+    // Now respects biome boundaries - no forests in tundra/alpine
+    // Also adds dense forest rings around hot springs with organic paths
+    let forest_areas = generate_forest_areas_with_biomes(config, noise, &shore_distance, &river_network, &lake_map, &road_network, &hot_spring_water, &hot_spring_beach, &hot_spring_centers, &quarry_dirt, &tundra_areas, &alpine_areas, width, height);
     
     WorldFeatures {
         heightmap,
@@ -164,9 +181,15 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         dirt_paths,
         hot_spring_water,
         hot_spring_beach,
+        hot_spring_centers,
         quarry_dirt,
         quarry_roads,
         quarry_centers,
+        asphalt_compound,
+        forest_areas,
+        tundra_areas,
+        alpine_areas,
+        island_positions,
         width,
         height,
     }
@@ -180,20 +203,28 @@ fn generate_scattered_islands(
     base_island_radius: f64,
     center_x: f64,
     center_y: f64
-) {
-    log::info!("Generating a few scattered small islands throughout the sea (3-5 total)");
+) -> Vec<(f64, f64, f64)> {
+    // Scale island count with map size - fewer islands on larger maps
+    let map_area = (width * height) as f64;
+    let base_area = 360_000.0; // 600x600 baseline
+    let scale_factor = (base_area / map_area).sqrt().max(0.3).min(1.0); // Reduce islands on larger maps
     
-    // Generate only small islands (no mini/tiny - just 3-5 scattered islands)
-    generate_island_layer(shore_distance, noise, width, height, base_island_radius, center_x, center_y,
+    // Increase noise threshold to be more selective (fewer islands)
+    let adjusted_threshold = 0.3 + (1.0 - scale_factor) * 0.2; // Higher threshold = fewer islands
+    
+    log::info!("Generating scattered islands (scale factor: {:.2}, threshold: {:.2})", scale_factor, adjusted_threshold);
+    
+    // Generate only small islands with reduced count on larger maps
+    generate_island_layer_with_positions(shore_distance, noise, width, height, base_island_radius, center_x, center_y,
                          base_island_radius * 0.12, // 12% of main island size - nice medium size
                          80.0, // Minimum distance from main island (stay well away)
-                         80.0, // Large minimum distance between islands (spread them out)
-                         0.015, // Much lower frequency for fewer placements
-                         0.3,   // Very high threshold (much more selective)
-                         4000.0); // Noise seed offset
+                         100.0 / scale_factor, // Larger minimum distance on larger maps
+                         0.015 * scale_factor, // Lower frequency for fewer placements on larger maps
+                         adjusted_threshold,   // Higher threshold = more selective
+                         4000.0) // Noise seed offset
 }
 
-fn generate_island_layer(
+fn generate_island_layer_with_positions(
     shore_distance: &mut Vec<Vec<f64>>, 
     noise: &Perlin, 
     width: usize, 
@@ -207,8 +238,8 @@ fn generate_island_layer(
     noise_frequency: f64,
     noise_threshold: f64,
     noise_seed: f64
-) {
-    let mut island_positions = Vec::new();
+) -> Vec<(f64, f64, f64)> {
+    let mut island_positions: Vec<(f64, f64, f64)> = Vec::new();
     
     // First pass: Find potential island positions using noise
     for y in 30..height-30 { // Stay away from edges
@@ -245,11 +276,11 @@ fn generate_island_layer(
     log::info!("Placing {} islands of radius {:.1}", island_positions.len(), island_radius);
     
     // Second pass: Actually create the islands
-    for (island_x, island_y, radius) in island_positions {
-        let search_radius = (radius + 5.0) as usize;
+    for (island_x, island_y, radius) in &island_positions {
+        let search_radius = (*radius + 5.0) as usize;
         
-        for y in ((island_y as usize).saturating_sub(search_radius))..=((island_y as usize) + search_radius).min(height - 1) {
-            for x in ((island_x as usize).saturating_sub(search_radius))..=((island_x as usize) + search_radius).min(width - 1) {
+        for y in ((*island_y as usize).saturating_sub(search_radius))..=((*island_y as usize) + search_radius).min(height - 1) {
+            for x in ((*island_x as usize).saturating_sub(search_radius))..=((*island_x as usize) + search_radius).min(width - 1) {
                 let dx = x as f64 - island_x;
                 let dy = y as f64 - island_y;
                 let distance_from_island_center = (dx * dx + dy * dy).sqrt();
@@ -275,8 +306,116 @@ fn generate_island_layer(
             }
         }
     }
+    
+    island_positions
 }
 
+/// Generate shore distance map with expanded south beaches and return island positions
+fn generate_wavy_shore_distance_with_islands(config: &WorldGenConfig, noise: &Perlin, width: usize, height: usize) -> (Vec<Vec<f64>>, Vec<(f64, f64, f64)>) {
+    let mut shore_distance = vec![vec![-100.0; width]; height]; // Start with deep water everywhere
+    let center_x = width as f64 / 2.0;
+    let center_y = height as f64 / 2.0;
+    
+    // Main island - back to original size
+    let base_island_radius = (width.min(height) as f64 * 0.35).min(center_x.min(center_y) - 20.0);
+    
+    // EXPANDED SOUTH BEACHES: Stretch the main island shape southward
+    // The south side gets 1.3x the radius to create larger beach zones
+    let south_stretch_factor = 1.3;
+    
+    // Generate main island with asymmetric shape (larger to the south)
+    for y in 0..height {
+        for x in 0..width {
+            let dx = x as f64 - center_x;
+            let dy = y as f64 - center_y;
+            
+            // Apply south stretch: if y > center, stretch the island radius
+            let effective_dy = if dy > 0.0 {
+                dy / south_stretch_factor // Points south of center are "closer" to center
+            } else {
+                dy
+            };
+            
+            let distance_from_center = (dx * dx + effective_dy * effective_dy).sqrt();
+            
+            // Create wavy shores using multiple noise functions
+            let shore_noise1 = noise.get([x as f64 * 0.015, y as f64 * 0.015, 1000.0]);
+            let shore_noise2 = noise.get([x as f64 * 0.008, y as f64 * 0.012, 2000.0]);
+            let shore_noise3 = noise.get([x as f64 * 0.025, y as f64 * 0.025, 3000.0]);
+            
+            // Combine noise for realistic wavy shores
+            let shore_variation = shore_noise1 * 18.0 + shore_noise2 * 30.0 + shore_noise3 * 10.0;
+            let adjusted_radius = base_island_radius + shore_variation;
+            
+            // Distance from shore (negative = water, positive = land)
+            shore_distance[y][x] = adjusted_radius - distance_from_center;
+        }
+    }
+    
+    // Add 2 separate islands in corners with proper water gaps
+    let corner_positions = [
+        (width / 5, height / 5),           // Top-left corner area (moved further from edge)
+        (width * 4 / 5, height / 5),       // Top-right corner area  
+        (width / 5, height * 4 / 5),       // Bottom-left corner area
+        (width * 4 / 5, height * 4 / 5),   // Bottom-right corner area
+    ];
+    
+    // Select 2 corners that won't overlap with main island
+    let selected_corners = [
+        corner_positions[(width + height) % 4],       
+        corner_positions[(width + height + 2) % 4],   
+    ];
+    
+    let secondary_island_radius = base_island_radius * 0.4; // Larger islands (40% of main)
+    let min_separation_distance = base_island_radius * 0.6; // Reduced minimum distance to allow larger islands
+    
+    // Track corner island positions for biome assignment
+    let mut all_island_positions: Vec<(f64, f64, f64)> = Vec::new();
+    
+    for (island_x, island_y) in selected_corners {
+        // Check if this corner is far enough from main island
+        let dist_from_main = ((island_x as f64 - center_x).powi(2) + (island_y as f64 - center_y).powi(2)).sqrt();
+        
+        if dist_from_main > min_separation_distance {
+            all_island_positions.push((island_x as f64, island_y as f64, secondary_island_radius));
+            
+            for y in 0..height {
+                for x in 0..width {
+                    let dx = x as f64 - island_x as f64;
+                    let dy = y as f64 - island_y as f64;
+                    let distance_from_island_center = (dx * dx + dy * dy).sqrt();
+                    
+                    // Add wavy shores to secondary islands
+                    let shore_noise = noise.get([x as f64 * 0.03, y as f64 * 0.03, (island_x + island_y) as f64]);
+                    let island_variation = shore_noise * 8.0; // Smaller variation for smaller islands
+                    let island_adjusted_radius = secondary_island_radius + island_variation;
+                    
+                    // Only create land if this point is close to THIS island AND far from main island
+                    let island_shore_distance = island_adjusted_radius - distance_from_island_center;
+                    let main_island_distance = ((x as f64 - center_x).powi(2) + (y as f64 - center_y).powi(2)).sqrt();
+                    
+                    // Only create secondary island land if:
+                    // 1. Point is within secondary island radius
+                    // 2. Point is far enough from main island center
+                    if island_shore_distance > 0.0 && main_island_distance > base_island_radius + 20.0 {
+                        shore_distance[y][x] = island_shore_distance;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Generate scattered small and mini islands throughout the sea (reduced count on larger maps)
+    let scattered_islands = generate_scattered_islands(&mut shore_distance, noise, width, height, base_island_radius, center_x, center_y);
+    all_island_positions.extend(scattered_islands);
+    
+    log::info!("Total islands generated: {} (including corner and scattered)", all_island_positions.len());
+    
+    (shore_distance, all_island_positions)
+}
+
+// Keep the old function for backward compatibility (but it won't be used)
+#[allow(dead_code)]
 fn generate_wavy_shore_distance(config: &WorldGenConfig, noise: &Perlin, width: usize, height: usize) -> Vec<Vec<f64>> {
     let mut shore_distance = vec![vec![-100.0; width]; height]; // Start with deep water everywhere
     let center_x = width as f64 / 2.0;
@@ -368,13 +507,23 @@ fn generate_river_network(config: &WorldGenConfig, noise: &Perlin, shore_distanc
         return rivers;
     }
     
-    log::info!("Generating clean main rivers with natural meanders (NO tributaries)");
+    log::info!("Generating rivers that scale with map size");
     
-    // Scale river parameters with map size - all rivers same width for consistency
-            let map_scale = ((width * height) as f64 / (WORLD_WIDTH_TILES as f64 * WORLD_HEIGHT_TILES as f64)).sqrt();
-    let river_width = (3.0 * map_scale).max(2.0) as i32; // Same width for all rivers
+    // PROPER SCALING: Base everything on 600x600 map
+    let base_area = 360_000.0_f64; // 600x600
+    let current_area = (width * height) as f64;
+    let map_scale = (current_area / base_area).sqrt();
     
-    // Generate ONLY 2 main rivers with beautiful meandering (avoiding center)
+    // River width scales with map size - WIDER on larger maps
+    let river_width = (3.0 + map_scale * 2.0).min(8.0).max(3.0) as i32;
+    
+    // Number of rivers scales with map size
+    let base_river_count = 2;
+    let river_count = ((base_river_count as f64) * map_scale).round().max(2.0).min(5.0) as usize;
+    
+    log::info!("Map scale: {:.2}x -> {} rivers with width {}", map_scale, river_count, river_width);
+    
+    // Generate rivers with varied paths across the island
     // River 1: Flows from north highlands to southeast coast
     trace_highly_meandering_river(&mut rivers, noise, 
                       width / 2 - width / 8, height / 5,     // Start: North area
@@ -387,11 +536,32 @@ fn generate_river_network(config: &WorldGenConfig, noise: &Perlin, shore_distanc
                       width / 2 + width / 6, height * 5 / 6, // End: South area
                       width, height, river_width, 2000);
     
-    // REMOVED: All tributary and distributary generation
-    // NO MORE: generate_spaced_tributaries()
-    // NO MORE: generate_spaced_distributaries()
+    // Additional rivers for larger maps
+    if river_count >= 3 {
+        // River 3: Flows from northeast to southwest coast
+        trace_highly_meandering_river(&mut rivers, noise,
+                          width * 3 / 4, height / 4,         // Start: Northeast
+                          width / 5, height * 3 / 4,         // End: Southwest
+                          width, height, river_width, 3000);
+    }
     
-    log::info!("Generated 2 clean main rivers with natural meanders (width: {})", river_width);
+    if river_count >= 4 {
+        // River 4: Flows from center-north to west coast
+        trace_highly_meandering_river(&mut rivers, noise,
+                          width / 2 + width / 10, height / 6, // Start: North-central
+                          width / 6, height / 2,               // End: West coast
+                          width, height, river_width - 1, 4000); // Slightly narrower
+    }
+    
+    if river_count >= 5 {
+        // River 5: Flows from east to south
+        trace_highly_meandering_river(&mut rivers, noise,
+                          width * 4 / 5, height * 2 / 5,      // Start: East
+                          width / 2, height * 5 / 6,          // End: South
+                          width, height, river_width - 1, 5000); // Slightly narrower
+    }
+    
+    log::info!("Generated {} rivers with natural meanders (width: {})", river_count, river_width);
     
     rivers
 }
@@ -556,21 +726,28 @@ fn draw_river_segment(rivers: &mut Vec<Vec<bool>>, center_x: i32, center_y: i32,
 fn generate_lakes(config: &WorldGenConfig, noise: &Perlin, shore_distance: &[Vec<f64>], width: usize, height: usize) -> Vec<Vec<bool>> {
     let mut lakes = vec![vec![false; width]; height];
     
-    // Scale lake density with map size
-    let map_scale = (width * height) as f64 / (WORLD_WIDTH_TILES as f64 * WORLD_HEIGHT_TILES as f64); // Relative to base map size
-    let base_lake_density = 0.012; // Base sampling frequency for lakes
-    let scaled_density = base_lake_density * map_scale.sqrt();
+    // PROPER SCALING: Base everything on 600x600 map
+    let base_area = 360_000.0_f64; // 600x600 (FIXED baseline)
+    let current_area = (width * height) as f64;
+    let map_scale = (current_area / base_area).sqrt();
+    
+    let base_lake_density = 0.010; // Slightly lower frequency for better distribution
+    let scaled_density = base_lake_density / map_scale; // Lower density for larger maps (more lakes naturally)
+    
+    log::info!("Lake generation - map scale: {:.2}x", map_scale);
     
     // Generate lake centers in safe inland areas
     let mut lake_centers = Vec::new();
     
     // Multiple passes for different lake types and sizes
-    // Pass 1: Large central lakes deep inland
-    for y in 25..height-25 {
-        for x in 25..width-25 {
-            if shore_distance[y][x] > 40.0 { // Deep inland for large lakes
-                let lake_noise = noise.get([x as f64 * scaled_density * 0.8, y as f64 * scaled_density * 0.8, 5000.0]);
-                if lake_noise > 0.6 { // Higher threshold for large lakes
+    // LARGER RADII for bigger lakes on larger maps
+    
+    // Pass 1: Large central lakes deep inland (VERY LARGE on big maps)
+    for y in 30..height-30 {
+        for x in 30..width-30 {
+            if shore_distance[y][x] > 45.0 { // Deep inland for large lakes
+                let lake_noise = noise.get([x as f64 * scaled_density * 0.7, y as f64 * scaled_density * 0.7, 5000.0]);
+                if lake_noise > 0.55 { // Slightly lower threshold for more large lakes
                     lake_centers.push((x, y, 2)); // Size type 2 = large
                 }
             }
@@ -578,11 +755,11 @@ fn generate_lakes(config: &WorldGenConfig, noise: &Perlin, shore_distance: &[Vec
     }
     
     // Pass 2: Medium lakes moderately inland  
-    for y in 20..height-20 {
-        for x in 20..width-20 {
-            if shore_distance[y][x] > 25.0 { // Moderately inland
+    for y in 25..height-25 {
+        for x in 25..width-25 {
+            if shore_distance[y][x] > 30.0 { // Moderately inland
                 let lake_noise = noise.get([x as f64 * scaled_density, y as f64 * scaled_density, 5500.0]);
-                if lake_noise > 0.45 { // Medium threshold for medium lakes
+                if lake_noise > 0.40 { // Lower threshold for more lakes
                     lake_centers.push((x, y, 1)); // Size type 1 = medium
                 }
             }
@@ -590,33 +767,40 @@ fn generate_lakes(config: &WorldGenConfig, noise: &Perlin, shore_distance: &[Vec
     }
     
     // Pass 3: Small lakes closer to shore (like ponds)
-    for y in 15..height-15 {
-        for x in 15..width-15 {
-            if shore_distance[y][x] > 18.0 { // Closer to shore
-                let lake_noise = noise.get([x as f64 * scaled_density * 1.2, y as f64 * scaled_density * 1.2, 6000.0]);
-                if lake_noise > 0.3 { // Lower threshold for small lakes
+    for y in 20..height-20 {
+        for x in 20..width-20 {
+            if shore_distance[y][x] > 22.0 { // Closer to shore
+                let lake_noise = noise.get([x as f64 * scaled_density * 1.1, y as f64 * scaled_density * 1.1, 6000.0]);
+                if lake_noise > 0.28 { // Lower threshold for more small lakes
                     lake_centers.push((x, y, 0)); // Size type 0 = small
                 }
             }
         }
     }
     
-    // Scale total lake count with map size
-    let max_lakes = (35.0 * map_scale) as usize; // Significantly increased from 12
+    // Scale total lake count with map size - MORE lakes on larger maps
+    let base_lake_count = 40.0;
+    let max_lakes = (base_lake_count * map_scale * map_scale).max(20.0) as usize; // Quadratic scaling
     lake_centers.truncate(max_lakes);
     
+    log::info!("Selected {} lake positions (max allowed: {})", lake_centers.len(), max_lakes);
+    
     // Generate lakes around centers with size-based radius
+    // SCALE lake sizes with map size for proportional lakes
+    let lake_size_scale = map_scale.max(1.0); // Lakes get bigger on larger maps
+    
     for (center_x, center_y, size_type) in lake_centers {
+        // Base radii SCALED with map size
         let base_radius = match size_type {
-            2 => 18.0, // Large lakes
-            1 => 12.0, // Medium lakes  
-            0 => 6.0,  // Small lakes/ponds
-            _ => 8.0,  // Fallback
+            2 => 22.0 * lake_size_scale, // Large lakes - BIGGER
+            1 => 14.0 * lake_size_scale, // Medium lakes  
+            0 => 8.0 * lake_size_scale,  // Small lakes/ponds
+            _ => 10.0 * lake_size_scale, // Fallback
         };
         
         let lake_radius = base_radius + noise.get([center_x as f64 * 0.1, center_y as f64 * 0.1, 6000.0]) * (base_radius * 0.4);
         
-        let search_radius = (lake_radius + 8.0) as usize;
+        let search_radius = (lake_radius + 10.0) as usize;
         for y in (center_y.saturating_sub(search_radius))..=(center_y + search_radius).min(height - 1) {
             for x in (center_x.saturating_sub(search_radius))..=(center_x + search_radius).min(width - 1) {
                 let dx = x as f64 - center_x as f64;
@@ -855,7 +1039,7 @@ fn generate_hot_springs(
     lake_map: &[Vec<bool>],
     width: usize, 
     height: usize
-) -> (Vec<Vec<bool>>, Vec<Vec<bool>>) {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<(f32, f32, i32)>) {
     let mut hot_spring_water = vec![vec![false; width]; height];
     let mut hot_spring_beach = vec![vec![false; width]; height];
     
@@ -914,7 +1098,7 @@ fn generate_hot_springs(
         log::error!("⚠️⚠️⚠️ NO VALID POSITIONS FOUND FOR HOT SPRINGS! ⚠️⚠️⚠️");
         log::error!("Map size: {}x{} tiles, min_distance_from_edge: {}", 
                    width, height, min_distance_from_edge);
-        return (hot_spring_water, hot_spring_beach);
+        return (hot_spring_water, hot_spring_beach, Vec::new());
     }
     
     // Step 2: Select hot spring positions with GUARANTEED deep inland placement
@@ -1100,7 +1284,7 @@ fn generate_hot_springs(
     }
     
     log::info!("Generated {} hot spring pools with water and beach layers", hot_spring_centers.len());
-    (hot_spring_water, hot_spring_beach)
+    (hot_spring_water, hot_spring_beach, hot_spring_centers)
 }
 
 fn generate_quarries(
@@ -1396,6 +1580,430 @@ fn create_quarry_access_road(
     }
 }
 
+/// Generate asphalt compound areas
+/// - Central compound: The main paved area at the center of the map (DOUBLED in size)
+/// - Mini-compounds: Smaller paved areas at road terminals (where roads meet beaches)
+fn generate_asphalt_compounds(
+    _config: &WorldGenConfig,
+    _noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    road_network: &[Vec<bool>],
+    width: usize,
+    height: usize,
+) -> Vec<Vec<bool>> {
+    let mut asphalt = vec![vec![false; width]; height];
+    
+    let center_x = width / 2;
+    let center_y = height / 2;
+    let compound_size = 16; // DOUBLED: Size of central compound (was 8, now 16 for ~32x32 tile area)
+    
+    // Create central asphalt compound (square area at center)
+    for y in (center_y.saturating_sub(compound_size))..=(center_y + compound_size).min(height - 1) {
+        for x in (center_x.saturating_sub(compound_size))..=(center_x + compound_size).min(width - 1) {
+            asphalt[y][x] = true;
+        }
+    }
+    
+    log::info!("Created central compound at ({}, {}) with size {} ({}x{} tiles)", 
+               center_x, center_y, compound_size, compound_size * 2 + 1, compound_size * 2 + 1);
+    
+    // Find road terminals (road tiles near beaches where roads "end")
+    // These are positions where roads are adjacent to beach tiles
+    let mini_compound_radius = 5; // Slightly larger mini-compounds
+    let beach_threshold = 12.0; // Shore distance threshold for beach
+    
+    // Check all road tiles
+    for y in 0..height {
+        for x in 0..width {
+            if !road_network[y][x] {
+                continue;
+            }
+            
+            // Check if this road tile is near beach (potential terminal)
+            let near_beach = shore_distance[y][x] > 0.0 && shore_distance[y][x] < beach_threshold + 5.0;
+            
+            if !near_beach {
+                continue;
+            }
+            
+            // Check if there's beach in adjacent tiles (actual terminal)
+            let mut has_adjacent_beach = false;
+            for dy in -2..=2i32 {
+                for dx in -2..=2i32 {
+                    let check_x = (x as i32 + dx) as usize;
+                    let check_y = (y as i32 + dy) as usize;
+                    if check_x < width && check_y < height {
+                        if shore_distance[check_y][check_x] >= 0.0 && shore_distance[check_y][check_x] < beach_threshold {
+                            has_adjacent_beach = true;
+                            break;
+                        }
+                    }
+                }
+                if has_adjacent_beach { break; }
+            }
+            
+            if has_adjacent_beach {
+                // Create mini-compound at this road terminal
+                for dy in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
+                    for dx in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
+                        let dist_sq = dx * dx + dy * dy;
+                        if dist_sq <= (mini_compound_radius * mini_compound_radius) as i32 {
+                            let compound_x = (x as i32 + dx) as usize;
+                            let compound_y = (y as i32 + dy) as usize;
+                            if compound_x < width && compound_y < height {
+                                // Only place asphalt on non-beach, non-water tiles
+                                if shore_distance[compound_y][compound_x] >= beach_threshold {
+                                    asphalt[compound_y][compound_x] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("Generated asphalt compounds (central + mini-compounds at road terminals)");
+    asphalt
+}
+
+/// Generate forest areas using noise-based distribution (OLD VERSION - kept for reference)
+/// Forests are dense vegetation areas that complement meadows (Grass) and clearings (Dirt)
+#[allow(dead_code)]
+fn generate_forest_areas(
+    _config: &WorldGenConfig,
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    road_network: &[Vec<bool>],
+    hot_spring_water: &[Vec<bool>],
+    quarry_dirt: &[Vec<bool>],
+    width: usize,
+    height: usize,
+) -> Vec<Vec<bool>> {
+    let mut forest = vec![vec![false; width]; height];
+    
+    // Forest generation parameters
+    let forest_noise_scale = 0.008; // Large-scale forest regions
+    let forest_threshold = 0.25; // Higher = less forest coverage (0.0-1.0)
+    let min_shore_distance = 20.0; // Forests don't grow too close to shore
+    let forest_edge_noise_scale = 0.05; // Fine detail for forest edges
+    
+    for y in 0..height {
+        for x in 0..width {
+            // Skip tiles that shouldn't have forests
+            let shore_dist = shore_distance[y][x];
+            
+            // No forests on/near water, beaches, roads, quarries, hot springs
+            if shore_dist < min_shore_distance {
+                continue;
+            }
+            if river_network[y][x] || lake_map[y][x] {
+                continue;
+            }
+            if road_network[y][x] {
+                continue;
+            }
+            if hot_spring_water[y][x] {
+                continue;
+            }
+            if quarry_dirt[y][x] {
+                continue;
+            }
+            
+            // Use multiple noise layers for natural-looking forest distribution
+            let base_noise = noise.get([x as f64 * forest_noise_scale, y as f64 * forest_noise_scale]);
+            let detail_noise = noise.get([x as f64 * forest_edge_noise_scale, y as f64 * forest_edge_noise_scale]);
+            
+            // Combine noise layers (base determines regions, detail adds edge variation)
+            let combined_noise = (base_noise * 0.7 + detail_noise * 0.3 + 1.0) / 2.0; // Normalize to 0-1
+            
+            // Forests grow where noise exceeds threshold
+            if combined_noise > forest_threshold {
+                // Additional distance-from-water factor (forests denser inland)
+                let inland_bonus = ((shore_dist - min_shore_distance) / 50.0).min(0.2);
+                if combined_noise + inland_bonus > forest_threshold {
+                    forest[y][x] = true;
+                }
+            }
+        }
+    }
+    
+    // Count forest tiles for logging
+    let forest_count: usize = forest.iter().flat_map(|row| row.iter()).filter(|&&b| b).count();
+    let total_tiles = width * height;
+    let forest_percentage = (forest_count as f64 / total_tiles as f64) * 100.0;
+    
+    log::info!("Generated {} forest tiles ({:.1}% of map)", forest_count, forest_percentage);
+    forest
+}
+
+/// Generate latitude-based biome areas for realistic Aleutian island geography
+/// - South: Grass/Meadows (temperate) - ~40% of land
+/// - Middle: Tundra (arctic grassland) - ~35% of land  
+/// - North: Alpine (rocky, harsh terrain) - ~25% of land (EXPANDED - should feel like its own biome)
+fn generate_latitude_biomes(
+    _config: &WorldGenConfig,
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    width: usize,
+    height: usize,
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>) {
+    let mut tundra = vec![vec![false; width]; height];
+    let mut alpine = vec![vec![false; width]; height];
+    
+    // EXPANDED BIOMES: Alpine should feel like its own large region
+    // Latitude thresholds (0.0 = north, 1.0 = south)
+    let alpine_threshold = 0.28;  // Top 28% of map is alpine (EXPANDED from 15%)
+    let tundra_threshold = 0.60;  // 28-60% from top is tundra (32% of map)
+    // Below 60% (40% of map) is temperate (grass/forest)
+    
+    // Noise scales for natural, irregular biome boundaries with MORE variation
+    let boundary_noise_scale = 0.012; // Larger features
+    let detail_noise_scale = 0.035;
+    let large_scale_noise = 0.005; // Very large-scale variation
+    
+    for y in 0..height {
+        // Calculate latitude progress (0.0 = top/north, 1.0 = bottom/south)
+        let latitude = y as f64 / height as f64;
+        
+        for x in 0..width {
+            // Skip water areas
+            if shore_distance[y][x] < 0.0 {
+                continue;
+            }
+            
+            // Add multiple noise layers for organic, wavy biome boundaries
+            let boundary_noise = noise.get([x as f64 * boundary_noise_scale, y as f64 * boundary_noise_scale, 7000.0]);
+            let detail_noise = noise.get([x as f64 * detail_noise_scale, y as f64 * detail_noise_scale, 7500.0]);
+            let large_noise = noise.get([x as f64 * large_scale_noise, y as f64 * large_scale_noise, 7800.0]);
+            
+            // Combined noise creates more dramatic, natural biome boundaries
+            // Large scale noise creates sweeping north-south variations
+            let noise_offset = boundary_noise * 0.10 + detail_noise * 0.04 + large_noise * 0.06;
+            let effective_latitude = latitude + noise_offset;
+            
+            // Determine biome based on effective latitude
+            if effective_latitude < alpine_threshold {
+                alpine[y][x] = true;
+            } else if effective_latitude < tundra_threshold {
+                tundra[y][x] = true;
+            }
+            // Everything else is temperate (grass/forest) - no flag needed
+        }
+    }
+    
+    // Count biome tiles for logging
+    let alpine_count: usize = alpine.iter().flat_map(|row| row.iter()).filter(|&&b| b).count();
+    let tundra_count: usize = tundra.iter().flat_map(|row| row.iter()).filter(|&&b| b).count();
+    let total_land_tiles: usize = shore_distance.iter()
+        .flat_map(|row| row.iter())
+        .filter(|&&d| d >= 0.0)
+        .count();
+    
+    log::info!("Generated latitude biomes: {} alpine tiles ({:.1}%), {} tundra tiles ({:.1}%)", 
+               alpine_count, (alpine_count as f64 / total_land_tiles.max(1) as f64) * 100.0,
+               tundra_count, (tundra_count as f64 / total_land_tiles.max(1) as f64) * 100.0);
+    
+    (tundra, alpine)
+}
+
+/// Generate forest areas that respect latitude biome boundaries
+/// Forests are SPARSE organic patches with very high tree density - NOT dominant terrain
+/// Grass meadows should dominate the south, with forests being occasional dense groves
+/// SPECIAL: Hot springs are surrounded by dense forest rings with organic paths leading in
+fn generate_forest_areas_with_biomes(
+    _config: &WorldGenConfig,
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    road_network: &[Vec<bool>],
+    hot_spring_water: &[Vec<bool>],
+    hot_spring_beach: &[Vec<bool>],
+    hot_spring_centers: &[(f32, f32, i32)],
+    quarry_dirt: &[Vec<bool>],
+    tundra_areas: &[Vec<bool>],
+    alpine_areas: &[Vec<bool>],
+    width: usize,
+    height: usize,
+) -> Vec<Vec<bool>> {
+    let mut forest = vec![vec![false; width]; height];
+    
+    // Forest generation parameters - Adjusted for larger, longer forests, especially in south
+    // Forests should be ~12-15% of land (increased from 8-12%)
+    let forest_noise_scale = 0.008; // Lower frequency = larger patches (was 0.012)
+    let forest_threshold = 0.50; // Lower threshold = more forests (was 0.62)
+    let min_shore_distance = 25.0; // Forests stay further from shore
+    let forest_edge_noise_scale = 0.06; // Fine detail for organic forest edges
+    let secondary_noise_scale = 0.003; // Lower frequency = larger forest regions (was 0.004)
+    
+    // ===== PHASE 1: Generate dense forest rings around hot springs =====
+    // Each hot spring should feel like a hidden clearing in dense woods
+    log::info!("🌲 Generating dense forest rings around {} hot springs...", hot_spring_centers.len());
+    
+    for (center_x, center_y, water_radius) in hot_spring_centers {
+        let cx = *center_x as i32;
+        let cy = *center_y as i32;
+        let water_r = *water_radius;
+        
+        // Forest ring parameters
+        let forest_inner_radius = water_r + 4;  // Start forest just outside beach (4 tiles from water edge)
+        let forest_outer_radius = water_r + 20; // Dense forest extends 16 tiles beyond water
+        let path_width = 3; // Width of the path in tiles
+        
+        // Determine path direction (random but deterministic based on position)
+        // Use noise to pick a direction that feels natural
+        let path_angle_noise = noise.get([*center_x as f64 * 0.1, *center_y as f64 * 0.1, 8888.0]);
+        let path_angle = (path_angle_noise + 1.0) * std::f64::consts::PI; // 0 to 2*PI
+        
+        // Create the forest ring with an organic path cut through
+        for dy in -forest_outer_radius..=forest_outer_radius {
+            for dx in -forest_outer_radius..=forest_outer_radius {
+                let tile_x = cx + dx;
+                let tile_y = cy + dy;
+                
+                // Bounds check
+                if tile_x < 0 || tile_y < 0 || tile_x >= width as i32 || tile_y >= height as i32 {
+                    continue;
+                }
+                
+                let tx = tile_x as usize;
+                let ty = tile_y as usize;
+                
+                // Skip if in tundra/alpine
+                if tundra_areas[ty][tx] || alpine_areas[ty][tx] {
+                    continue;
+                }
+                
+                // Skip water, beach, roads
+                if hot_spring_water[ty][tx] || hot_spring_beach[ty][tx] {
+                    continue;
+                }
+                if river_network[ty][tx] || lake_map[ty][tx] {
+                    continue;
+                }
+                if road_network[ty][tx] {
+                    continue;
+                }
+                if shore_distance[ty][tx] < 0.0 {
+                    continue; // Skip ocean
+                }
+                
+                // Calculate distance from hot spring center
+                let dist = ((dx * dx + dy * dy) as f32).sqrt();
+                
+                // Check if this tile is in the forest ring zone
+                if dist >= forest_inner_radius as f32 && dist <= forest_outer_radius as f32 {
+                    // Calculate angle from center to this tile
+                    let tile_angle = (dy as f64).atan2(dx as f64);
+                    
+                    // Check if this tile is in the path corridor
+                    let angle_diff = (tile_angle - path_angle).abs();
+                    let angle_diff_wrapped = angle_diff.min(2.0 * std::f64::consts::PI - angle_diff);
+                    
+                    // Path width varies with distance (wider at edge, narrower near spring)
+                    let dist_factor = (dist - forest_inner_radius as f32) / (forest_outer_radius - forest_inner_radius) as f32;
+                    let effective_path_width = (path_width as f32 * (0.5 + dist_factor * 0.5)) / dist.max(1.0);
+                    let is_in_path = angle_diff_wrapped < effective_path_width as f64;
+                    
+                    if !is_in_path {
+                        // Add organic edge variation using noise
+                        let edge_noise = noise.get([tile_x as f64 * 0.08, tile_y as f64 * 0.08, 6500.0]);
+                        let inner_variation = edge_noise * 2.0;
+                        let outer_variation = edge_noise * 3.0;
+                        
+                        let adjusted_inner = forest_inner_radius as f64 + inner_variation;
+                        let adjusted_outer = forest_outer_radius as f64 + outer_variation;
+                        
+                        if dist as f64 >= adjusted_inner && dist as f64 <= adjusted_outer {
+                            forest[ty][tx] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // ===== PHASE 2: Generate sparse organic forest patches elsewhere =====
+    for y in 0..height {
+        for x in 0..width {
+            // Skip tiles that shouldn't have forests
+            let shore_dist = shore_distance[y][x];
+            
+            // No forests in tundra or alpine biomes (too cold/rocky)
+            if tundra_areas[y][x] || alpine_areas[y][x] {
+                continue;
+            }
+            
+            // No forests on/near water, beaches, roads, quarries, hot springs
+            if shore_dist < min_shore_distance {
+                continue;
+            }
+            if river_network[y][x] || lake_map[y][x] {
+                continue;
+            }
+            if road_network[y][x] {
+                continue;
+            }
+            if hot_spring_water[y][x] || hot_spring_beach[y][x] {
+                continue;
+            }
+            if quarry_dirt[y][x] {
+                continue;
+            }
+            
+            // Skip if already marked as forest (from hot spring rings)
+            if forest[y][x] {
+                continue;
+            }
+            
+            // Use multiple noise layers for natural-looking forest distribution
+            let base_noise = noise.get([x as f64 * forest_noise_scale, y as f64 * forest_noise_scale, 6000.0]);
+            let detail_noise = noise.get([x as f64 * forest_edge_noise_scale, y as f64 * forest_edge_noise_scale, 6100.0]);
+            let large_scale_noise = noise.get([x as f64 * secondary_noise_scale, y as f64 * secondary_noise_scale, 6200.0]);
+            
+            // Combine noise layers - base determines regions, detail adds organic edges
+            // Large scale noise creates natural variation in where forests can appear
+            let combined_noise = (base_noise * 0.5 + detail_noise * 0.2 + large_scale_noise * 0.3 + 1.0) / 2.0;
+            
+            // SOUTH BIAS: Encourage more forests in the south (temperate region)
+            // y=0 is north, y=height is south. South starts around y=height*0.6
+            let south_factor = if y as f32 > height as f32 * 0.6 {
+                // In south (temperate region): boost forest likelihood
+                let south_progress = ((y as f32 - height as f32 * 0.6) / (height as f32 * 0.4)).min(1.0);
+                0.12 * south_progress // Up to 0.12 bonus in deep south
+            } else {
+                0.0 // No bonus in north/middle
+            };
+            
+            // Additional organic shaping - forests cluster in certain areas
+            let cluster_noise = noise.get([x as f64 * 0.025, y as f64 * 0.025, 6300.0]);
+            let cluster_factor = (cluster_noise + 1.0) / 2.0; // 0-1 range
+            
+            // Forests grow where threshold is exceeded, with south bias and cluster factor
+            // Reduced cluster penalty to allow more forests
+            let effective_threshold = forest_threshold + (1.0 - cluster_factor) * 0.10 - south_factor as f64;
+            
+            if combined_noise > effective_threshold {
+                forest[y][x] = true;
+            }
+        }
+    }
+    
+    // Count forest tiles for logging
+    let forest_count: usize = forest.iter().flat_map(|row| row.iter()).filter(|&&b| b).count();
+    let total_land_tiles: usize = shore_distance.iter()
+        .flat_map(|row| row.iter())
+        .filter(|&&d| d >= 0.0)
+        .count();
+    let forest_percentage = (forest_count as f64 / total_land_tiles.max(1) as f64) * 100.0;
+    
+    log::info!("Generated {} forest tiles ({:.1}% of land) - including hot spring rings", forest_count, forest_percentage);
+    forest
+}
+
 fn generate_chunk(
     ctx: &ReducerContext, 
     config: &WorldGenConfig, 
@@ -1475,10 +2083,10 @@ fn determine_realistic_tile_type(
         return TileType::Sea;
     }
     
-    // Hot spring water (inner pool) - just like rivers and lakes
+    // Hot spring water (inner pool) - uses distinct HotSpringWater tile type (teal/turquoise)
     if features.hot_spring_water[y][x] {
         return TileType::HotSpringWater;
-        }
+    }
         
     // Hot spring beach (shore) - just like regular beaches
     if features.hot_spring_beach[y][x] {
@@ -1490,27 +2098,34 @@ fn determine_realistic_tile_type(
     let center_y = features.height as i32 / 2;
     let is_south_side = world_y > center_y;
     
-    // Base beach threshold
-    let mut beach_threshold = 10.0;
+    // Base beach threshold - slightly larger overall
+    let mut beach_threshold = 12.0;
     
-    // Expand beach on south side of main island (not separate islands)
-    if is_south_side && shore_distance > 0.0 && shore_distance < 50.0 {
+    // Expand beach significantly on south side of main island
+    if is_south_side && shore_distance > 0.0 && shore_distance < 60.0 {
         // Gradual expansion: max at the southern edge, tapering toward center
         let south_progress = (world_y - center_y) as f64 / (features.height as i32 - center_y) as f64;
-        beach_threshold = 10.0 + (20.0 * south_progress); // Ranges from 10 to 30 tiles
+        beach_threshold = 12.0 + (35.0 * south_progress); // Ranges from 12 to 47 tiles (much larger south beaches)
     }
     
-    if shore_distance < beach_threshold || is_near_water(features, x, y) {
+    let near_water = is_near_water(features, x, y);
+    if shore_distance < beach_threshold || near_water {
         return TileType::Beach;
     }
     
+    // ASPHALT COMPOUNDS: Central compound and mini-compounds at road terminals
+    // Check BEFORE roads so compound areas use Asphalt instead of DirtRoad
+    if features.asphalt_compound[y][x] {
+        return TileType::Asphalt;
+    }
+    
     // Roads can cross deep water (rivers/lakes) but NOT beaches
-    // Check roads AFTER beaches so beaches take priority
+    // Check roads AFTER asphalt compounds so compound centers are paved
     if features.road_network[y][x] {
         return TileType::DirtRoad;
     }
     
-    // Quarry dirt areas - use dedicated Quarry tile type (visually identical to Dirt)
+    // Quarry areas - use dedicated Quarry tile type (rocky gray-brown texture)
     if features.quarry_dirt[y][x] {
         return TileType::Quarry;
     }
@@ -1520,7 +2135,30 @@ fn determine_realistic_tile_type(
         return TileType::DirtRoad;
     }
     
-    // Dirt patches using noise
+    // ALPINE BIOME: Rocky, sparse terrain in far north
+    // Check BEFORE forest since alpine has no forests
+    if features.alpine_areas[y][x] {
+        return TileType::Alpine;
+    }
+    
+    // TUNDRA BIOME: Arctic grassland in northern regions
+    // Check BEFORE forest since tundra has no forests  
+    if features.tundra_areas[y][x] {
+        // Tundra can still have dirt patches (exposed permafrost)
+        let dirt_noise = noise.get([world_x as f64 * 0.02, world_y as f64 * 0.015]);
+        if dirt_noise > 0.45 && dirt_noise < 0.55 {
+            return TileType::Dirt;
+        }
+        return TileType::Tundra;
+    }
+    
+    // FOREST AREAS: Dense forested regions with higher tree density
+    // Only in temperate zones (south of tundra line)
+    if features.forest_areas[y][x] {
+        return TileType::Forest;
+    }
+    
+    // Dirt patches using noise (in temperate zone)
     let dirt_noise = noise.get([world_x as f64 * 0.02, world_y as f64 * 0.015]);
     if dirt_noise > 0.4 && dirt_noise < 0.6 {
         if config.dirt_patch_frequency > 0.0 {
@@ -1531,7 +2169,7 @@ fn determine_realistic_tile_type(
         }
     }
     
-    // Default to grass
+    // Default to grass (meadow areas) - temperate zone only
     TileType::Grass
 }
 
@@ -1658,7 +2296,11 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
                 TileType::Dirt => 192,     // Dark brown dirt
                 TileType::DirtRoad => 224, // Very dark brown roads
                 TileType::HotSpringWater => 255, // BRIGHT WHITE/CYAN - highly visible hot springs!
-                TileType::Quarry => 192,   // Same as Dirt (visually identical)
+                TileType::Quarry => 192,   // Same as Dirt (rocky brown)
+                TileType::Asphalt => 48,   // Dark gray (paved compounds)
+                TileType::Forest => 100,   // Darker green (dense forest)
+                TileType::Tundra => 140,   // Pale greenish-gray (arctic grassland)
+                TileType::Alpine => 180,   // Light gray (rocky terrain)
             };
             
             // Write directly to buffer (overwriting if multiple tiles map to same pixel is fine/expected)

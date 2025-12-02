@@ -36,4 +36,8 @@ export type Beach = { tag: "Beach" };
 export type Sand = { tag: "Sand" };
 export type HotSpringWater = { tag: "HotSpringWater" };
 export type Quarry = { tag: "Quarry" };
+export type Asphalt = { tag: "Asphalt" };
+export type Forest = { tag: "Forest" };
+export type Tundra = { tag: "Tundra" };
+export type Alpine = { tag: "Alpine" };
 
