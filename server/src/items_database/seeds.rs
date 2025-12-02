@@ -659,5 +659,31 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(480) // 8 minutes - fast-growing coastal grass
             .consumable(0.5, 0.5, 0.0) // health, hunger, thirst - minimal nutrition
             .build(),
+
+        // === ALPINE PLANT SPORES/SEEDS ===
+
+        // Arctic Poppy Seeds - Rare alpine flower seeds
+        ItemBuilder::new("Arctic Poppy Seeds", "Seeds for growing arctic poppies. These hardy alpine flowers grow year-round in harsh conditions. Can be eaten but are very small.", ItemCategory::Placeable)
+            .icon("arctic_poppy_seeds.png")
+            .stackable(40)
+            .respawn_time(1800) // 30 minutes - rare alpine flower
+            .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - minimal nutrition
+            .build(),
+
+        // Lichen Spores - Slow-growing alpine lichen
+        ItemBuilder::new("Lichen Spores", "Spores for growing arctic lichen. Extremely slow-growing but hardy in alpine conditions. Can be eaten but provide minimal nutrition.", ItemCategory::Placeable)
+            .icon("lichen_spores.png")
+            .stackable(30)
+            .respawn_time(2400) // 40 minutes - very slow growing
+            .consumable(0.5, 1.0, 0.0) // health, hunger, thirst - minimal nutrition
+            .build(),
+
+        // Moss Spores - Alpine moss propagation
+        ItemBuilder::new("Moss Spores", "Spores for growing mountain moss. Grows on rocks in alpine conditions. Can be eaten but are very fibrous.", ItemCategory::Placeable)
+            .icon("moss_spores.png")
+            .stackable(40)
+            .respawn_time(1500) // 25 minutes - moderate growth
+            .consumable(0.5, 1.0, 0.5) // health, hunger, thirst - fibrous
+            .build(),
     ]
 }

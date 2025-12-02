@@ -106,72 +106,37 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === NEW ARCTIC/SUBARCTIC PLANTS ===
-        ItemBuilder::new("Scurvy Grass", "Arctic plant rich in vitamin C. Essential for preventing scurvy on long voyages. Grows year-round in coastal areas.", ItemCategory::Consumable)
+        // These simple survival plants burn directly to charcoal (no cooked stage)
+        ItemBuilder::new("Scurvy Grass", "Arctic plant rich in vitamin C. Essential for preventing scurvy. Best eaten raw - cooking destroys the vitamin C.", ItemCategory::Consumable)
             .icon("scurvy_grass.png")
             .stackable(20)
             .consumable(15.0, 8.0, 5.0) // High health (vitamin C), low hunger/thirst
-            .cookable(25.0, "Burnt Scurvy Grass")
+            .cookable(25.0, "Charcoal") // Burns directly - cooking destroys vitamin C anyway
             .respawn_time(150)
-            .build(),
-
-        ItemBuilder::new("Burnt Scurvy Grass", "Overcooked scurvy grass. Vitamin C destroyed by heat, but still edible.", ItemCategory::Consumable)
-            .icon("burnt_scurvy_grass.png")
-            .stackable(20)
-            .consumable(2.0, 5.0, -2.0)
-            .crafting_output(8, 0)
-            .cookable(30.0, "Charcoal")
-            .respawn_time(40)
             .build(),
 
         ItemBuilder::new("Crowberry", "Small, dark berries from low-growing subarctic shrubs. Tart flavor with good nutrition.", ItemCategory::Consumable)
             .icon("crowberry.png")
             .stackable(25)
             .consumable(8.0, 12.0, 10.0)
-            .cookable(22.0, "Burnt Crowberry")
+            .cookable(22.0, "Charcoal") // Burns directly - small berries just char
             .respawn_time(180)
-            .build(),
-
-        ItemBuilder::new("Burnt Crowberry", "Overcooked crowberries. Dark and bitter, nutrients destroyed by heat.", ItemCategory::Consumable)
-            .icon("burnt_crowberry.png")
-            .stackable(25)
-            .consumable(-1.0, 3.0, -3.0)
-            .crafting_output(6, 0)
-            .cookable(25.0, "Charcoal")
-            .respawn_time(35)
             .build(),
 
         ItemBuilder::new("Sea Plantain", "Maritime plant with year-round edible leaves. Salty flavor from growing near the ocean.", ItemCategory::Consumable)
             .icon("sea_plantain.png")
             .stackable(18)
             .consumable(12.0, 10.0, -5.0) // Negative thirst due to salt content
-            .cookable(20.0, "Burnt Sea Plantain")
+            .cookable(20.0, "Charcoal") // Burns directly - salty leaves just char
             .respawn_time(140)
-            .build(),
-
-        ItemBuilder::new("Burnt Sea Plantain", "Charred sea plantain. Salt concentration increased by cooking, very thirsty-making.", ItemCategory::Consumable)
-            .icon("burnt_sea_plantain.png")
-            .stackable(18)
-            .consumable(1.0, 4.0, -10.0) // Very negative thirst
-            .crafting_output(5, 0)
-            .cookable(28.0, "Charcoal")
-            .respawn_time(30)
             .build(),
 
         ItemBuilder::new("Glasswort", "Salt-tolerant succulent with crunchy texture. Natural source of salt and minerals.", ItemCategory::Consumable)
             .icon("glasswort.png")
             .stackable(15)
             .consumable(4.0, 8.0, -8.0) // Good hunger, very negative thirst (salty)
-            .cookable(30.0, "Burnt Glasswort")
+            .cookable(30.0, "Charcoal") // Burns directly - succulent just chars
             .respawn_time(160)
-            .build(),
-
-        ItemBuilder::new("Burnt Glasswort", "Cooked glasswort. Concentrates the salt even more, making it very thirsty-making.", ItemCategory::Consumable)
-            .icon("burnt_glasswort.png")
-            .stackable(15)
-            .consumable(1.0, 5.0, -15.0) // Extremely negative thirst
-            .crafting_output(7, 0)
-            .cookable(35.0, "Charcoal")
-            .respawn_time(40)
             .build(),
 
         ItemBuilder::new("Beet", "A deep red root vegetable with a sweet, earthy flavor. Nutritious and can be eaten raw or cooked.", ItemCategory::Consumable)
@@ -1445,6 +1410,33 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
 
         // NOTE: Stone Soup variants removed - brewing system now uses AI-generated recipes
         // AI-generated brew recipes create ItemDefinitions dynamically via ai_brewing.rs
+
+        // === NEW: ALPINE-SPECIFIC PLANTS ===
+        // Survival food: Edible raw, burns directly to charcoal (no burnt stage)
+        // Lichen and moss also provide plant fiber (fibrous materials)
+        ItemBuilder::new("Arctic Lichen", "A slow-growing alpine lichen. Extremely hardy, grows year-round on rocks. Edible raw.", ItemCategory::Consumable)
+            .icon("arctic_lichen.png")
+            .stackable(10)
+            .consumable(3.0, 8.0, 5.0) // Low nutrition but edible raw
+            .cookable(50.0, "Charcoal") // Burns directly to charcoal (no intermediate stage)
+            .respawn_time(1800)
+            .build(),
+
+        ItemBuilder::new("Mountain Moss", "Alpine moss that grows on rocks. Can be eaten raw or burned directly to charcoal. Provides plant fiber.", ItemCategory::Consumable)
+            .icon("mountain_moss.png")
+            .stackable(15)
+            .consumable(4.0, 10.0, 6.0) // Slightly better than lichen
+            .cookable(50.0, "Charcoal") // Burns directly to charcoal (no intermediate stage)
+            .respawn_time(1500)
+            .build(),
+
+        ItemBuilder::new("Arctic Poppy", "A rare alpine flower. Beautiful and hardy, grows year-round in harsh conditions. Edible raw.", ItemCategory::Consumable)
+            .icon("arctic_poppy.png")
+            .stackable(10)
+            .consumable(5.0, 12.0, 8.0) // Decent nutrition for alpine plant
+            .cookable(50.0, "Charcoal") // Burns directly to charcoal (no intermediate stage)
+            .respawn_time(2000)
+            .build(),
 
     ]
 }

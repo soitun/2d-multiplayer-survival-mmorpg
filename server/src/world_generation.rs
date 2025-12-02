@@ -1755,9 +1755,9 @@ fn generate_latitude_biomes(
     
     // EXPANDED BIOMES: Alpine should feel like its own large region
     // Latitude thresholds (0.0 = north, 1.0 = south)
-    let alpine_threshold = 0.28;  // Top 28% of map is alpine (EXPANDED from 15%)
-    let tundra_threshold = 0.60;  // 28-60% from top is tundra (32% of map)
-    // Below 60% (40% of map) is temperate (grass/forest)
+    let alpine_threshold = 0.35;  // Top 35% of map is alpine (EXPANDED from 28%)
+    let tundra_threshold = 0.58;  // 35-58% from top is tundra (23% of map - REDUCED from 32%)
+    // Below 58% (42% of map) is temperate (grass/forest)
     
     // Noise scales for natural, irregular biome boundaries with MORE variation
     let boundary_noise_scale = 0.012; // Larger features

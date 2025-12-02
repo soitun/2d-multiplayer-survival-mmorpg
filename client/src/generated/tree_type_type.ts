@@ -35,7 +35,11 @@ export type TreeType = TreeTypeVariants.AleppoPine |
   TreeTypeVariants.MannaAsh2 |
   TreeTypeVariants.DownyOak |
   TreeTypeVariants.StonePine |
-  TreeTypeVariants.StonePine2;
+  TreeTypeVariants.StonePine2 |
+  TreeTypeVariants.DwarfPine |
+  TreeTypeVariants.MountainHemlockSnow |
+  TreeTypeVariants.ArcticWillow |
+  TreeTypeVariants.KrummholzSpruce;
 
 let _cached_TreeType_type_value: __AlgebraicTypeType | null = null;
 
@@ -53,6 +57,10 @@ export const TreeType = {
   DownyOak: { tag: "DownyOak" } as const,
   StonePine: { tag: "StonePine" } as const,
   StonePine2: { tag: "StonePine2" } as const,
+  DwarfPine: { tag: "DwarfPine" } as const,
+  MountainHemlockSnow: { tag: "MountainHemlockSnow" } as const,
+  ArcticWillow: { tag: "ArcticWillow" } as const,
+  KrummholzSpruce: { tag: "KrummholzSpruce" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TreeType_type_value) return _cached_TreeType_type_value;
@@ -64,6 +72,10 @@ export const TreeType = {
       { name: "DownyOak", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StonePine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StonePine2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DwarfPine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlockSnow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ArcticWillow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KrummholzSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TreeType_type_value;
   },

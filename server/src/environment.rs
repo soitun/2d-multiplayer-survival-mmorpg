@@ -1055,6 +1055,16 @@ pub fn validate_spawn_location(
             }
             false
         }
+        
+        plants_database::SpawnCondition::Tundra => {
+            // Tundra-specific plants: Must be on Tundra tile type
+            matches!(current_tile_type, Some(TileType::Tundra))
+        }
+        
+        plants_database::SpawnCondition::Alpine => {
+            // Alpine-specific plants: Must be on Alpine tile type
+            matches!(current_tile_type, Some(TileType::Alpine))
+        }
     }
 }
 
@@ -1326,16 +1336,30 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 // Calculate chunk index for the tree
                 let chunk_idx = calculate_chunk_index(pos_x, pos_y);
                 
-                // Check if position is on a beach tile first
+                // Determine tree type based on biome and position
                 let tree_type = if is_position_on_beach_tile(ctx, pos_x, pos_y) {
-                    // If on beach tile, randomly choose between StonePine variants
+                    // Beach tiles: StonePine variants
                     if tree_type_roll < 0.5 {
                         crate::tree::TreeType::StonePine
                     } else {
                         crate::tree::TreeType::StonePine2
                     }
+                } else if is_position_on_alpine_tile(ctx, pos_x, pos_y) {
+                    // Alpine biome: Mostly DwarfPine, rarely MountainHemlockSnow (snow-covered)
+                    if tree_type_roll < 0.8 {
+                        crate::tree::TreeType::DwarfPine // 80% - common alpine tree
+                    } else {
+                        crate::tree::TreeType::MountainHemlockSnow // 20% - rare snow-covered hemlock
+                    }
+                } else if is_position_on_tundra_tile(ctx, pos_x, pos_y) {
+                    // Tundra biome: Mostly ArcticWillow, rarely KrummholzSpruce (twisted wind-sculpted)
+                    if tree_type_roll < 0.75 {
+                        crate::tree::TreeType::ArcticWillow // 75% - common hardy shrub-tree
+                    } else {
+                        crate::tree::TreeType::KrummholzSpruce // 25% - rare twisted spruce
+                    }
                 } else {
-                    // Otherwise, determine tree type with weighted probability using the passed-in roll
+                    // Temperate biome: standard tree types with weighted probability
                     if tree_type_roll < 0.6 { // 60% chance for DownyOak
                         crate::tree::TreeType::DownyOak
                     } else if tree_type_roll < 0.8 { // 20% chance for AleppoPine
@@ -1360,7 +1384,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args
-            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y) || is_position_on_tundra_tile(ctx, pos_x, pos_y) || is_position_on_alpine_tile(ctx, pos_x, pos_y), // Block water, central compound, hot springs, tundra, and alpine for trees
+            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs - allow sparse trees in tundra/alpine
             threshold_fn, // Position-based threshold function
             distance_fn, // Position-based distance function
             trees,
@@ -1380,6 +1404,22 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     while spawned_stone_count < target_stone_count && stone_attempts < max_stone_attempts {
         stone_attempts += 1;
         
+        // Create threshold function for stones that increases density in Alpine/Tundra
+        let stone_threshold_fn = |pos_x: f32, pos_y: f32| -> f64 {
+            let is_alpine = is_position_on_alpine_tile(ctx, pos_x, pos_y);
+            let is_tundra = is_position_on_tundra_tile(ctx, pos_x, pos_y);
+            
+            // Alpine: 3x density (exposed rock faces) - lower threshold = easier to spawn
+            if is_alpine {
+                crate::tree::TREE_SPAWN_NOISE_THRESHOLD * 0.2 // Much easier to spawn (3x density)
+            } else if is_tundra {
+                // Tundra: 2x density (permafrost exposure) - moderate threshold reduction
+                crate::tree::TREE_SPAWN_NOISE_THRESHOLD * 0.4 // Easier to spawn (2x density)
+            } else {
+                crate::tree::TREE_SPAWN_NOISE_THRESHOLD // Normal density in temperate
+            }
+        };
+        
          match attempt_single_spawn(
             &mut rng,
             &mut occupied_tiles,
@@ -1389,7 +1429,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             min_tile_x, max_tile_x, min_tile_y, max_tile_y,
             &fbm,
             crate::tree::TREE_SPAWN_NOISE_FREQUENCY,
-            crate::tree::TREE_SPAWN_NOISE_THRESHOLD,
+            crate::tree::TREE_SPAWN_NOISE_THRESHOLD, // Base threshold (overridden by threshold_fn)
             crate::stone::MIN_STONE_DISTANCE_SQ,
             crate::stone::MIN_STONE_TREE_DISTANCE_SQ,
             0.0,
@@ -1400,13 +1440,17 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 // Determine if this position is in a quarry
                 let is_in_quarry = is_position_on_monument(ctx, pos_x, pos_y);
                 
+                // Check biome for ore type probability adjustment
+                let is_alpine = is_position_on_alpine_tile(ctx, pos_x, pos_y);
+                let is_tundra = is_position_on_tundra_tile(ctx, pos_x, pos_y);
+                
                 // Create a deterministic RNG seeded from position for ore type selection
                 // This ensures consistent ore type per position while appearing random
                 let position_seed: u64 = ((pos_x as u64) << 32) ^ (pos_y as u64);
                 let mut position_rng = StdRng::seed_from_u64(position_seed);
                 
-                // Determine ore type based on location FIRST
-                let ore_type = crate::stone::OreType::random_for_location(pos_x, pos_y, is_in_quarry, &mut position_rng);
+                // Determine ore type based on location FIRST (with biome-specific adjustments)
+                let ore_type = crate::stone::OreType::random_for_location_with_biome(pos_x, pos_y, is_in_quarry, is_alpine, is_tundra, &mut position_rng);
                 
                 // Set resource amount based on ore type
                 // Stone: Basic building material (500-1000)
@@ -1441,7 +1485,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             },
             0u32, // Dummy value - resource amount is now determined inside the closure
             |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs for stones
-            |_pos_x, _pos_y| crate::tree::TREE_SPAWN_NOISE_THRESHOLD, // Base threshold for stones
+            stone_threshold_fn, // Biome-specific threshold for stones (Alpine 3x, Tundra 2x density)
             |_pos_x, _pos_y| crate::stone::MIN_STONE_DISTANCE_SQ, // Base distance for stones
             stones,
         ) {

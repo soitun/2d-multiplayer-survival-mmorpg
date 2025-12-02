@@ -36,9 +36,13 @@ pub enum PlantType {
     
     // === NEW: ARCTIC/SUBARCTIC PLANTS (Botanically accurate for Aleutian Islands) ===
     ScurvyGrass,  // Cochlearia - Arctic vitamin C source, grows year-round
-    Crowberry,    // Empetrum - Low-growing subarctic berry, persists in winter
+    Crowberry,    // Empetrum - Low-growing subarctic berry, persists in winter (TUNDRA)
     SeaPlantain,  // Plantago maritima - Maritime plant, leaves available year-round
     Glasswort,    // Salicornia - Salt-tolerant maritime succulent
+    // === NEW: ALPINE-SPECIFIC PLANTS ===
+    ArcticLichen, // Lichen - Year-round alpine plant, slow-growing
+    MountainMoss, // Moss - Year-round alpine plant, grows on rocks
+    ArcticPoppy,  // Papaver - Alpine flower, year-round in harsh conditions
     
     // === MUSHROOMS (Can grow in cold, humid maritime conditions) ===
     Chanterelle,
@@ -116,6 +120,8 @@ pub enum SpawnCondition {
     Clearings,   // Dirt roads, clearings (potato)
     Coastal,     // Beach, riverside (pumpkin)
     InlandWater, // Along inland water (reed)
+    Tundra,      // Tundra biome only (arctic plants)
+    Alpine,      // Alpine biome only (mountain plants)
 }
 
 // --- Plant Configuration Database ---
@@ -241,8 +247,60 @@ lazy_static! {
             seed_drop_chance: 0.60, // Increased from 0.45 for farming sustainability
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
-            spawn_condition: SpawnCondition::Plains, // Low-growing shrub on open ground
+            spawn_condition: SpawnCondition::Tundra, // Low-growing arctic shrub - TUNDRA ONLY
             growing_seasons: vec![Season::Summer, Season::Autumn, Season::Winter], // Berries persist into winter
+        });
+        
+        // === NEW: ALPINE-SPECIFIC PLANTS ===
+        configs.insert(PlantType::ArcticLichen, PlantConfig {
+            entity_name: "Arctic Lichen".to_string(),
+            density_percent: 0.0008, // Sparse but visible (~200 plants across Alpine)
+            min_distance_sq: 40.0 * 40.0,
+            min_tree_distance_sq: 30.0 * 30.0,
+            min_stone_distance_sq: 20.0 * 20.0, // Can grow on/near rocks
+            noise_threshold: 0.65,
+            primary_yield: ("Arctic Lichen".to_string(), 1, 2),
+            secondary_yield: Some(("Plant Fiber".to_string(), 1, 2, 0.60)), // 60% chance for fiber (lichen is fibrous)
+            seed_type: "Lichen Spores".to_string(),
+            seed_drop_chance: 0.40, // 40% chance - slow-growing alpine plant
+            min_respawn_time_secs: 1800, // 30 minutes (slow-growing)
+            max_respawn_time_secs: 2700, // 45 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine biome only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round - extremely hardy
+        });
+        
+        configs.insert(PlantType::MountainMoss, PlantConfig {
+            entity_name: "Mountain Moss".to_string(),
+            density_percent: 0.0012, // More common than lichen (~300 plants across Alpine)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 25.0 * 25.0,
+            min_stone_distance_sq: 15.0 * 15.0, // Grows on rocks
+            noise_threshold: 0.60,
+            primary_yield: ("Mountain Moss".to_string(), 2, 4),
+            secondary_yield: Some(("Plant Fiber".to_string(), 2, 3, 0.70)), // 70% chance for fiber (moss is fibrous)
+            seed_type: "Moss Spores".to_string(),
+            seed_drop_chance: 0.45, // 45% chance - alpine moss
+            min_respawn_time_secs: 1500, // 25 minutes
+            max_respawn_time_secs: 2400, // 40 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine biome only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round - grows on rocks
+        });
+        
+        configs.insert(PlantType::ArcticPoppy, PlantConfig {
+            entity_name: "Arctic Poppy".to_string(),
+            density_percent: 0.0006, // Rare alpine flower (~150 plants across Alpine)
+            min_distance_sq: 50.0 * 50.0,
+            min_tree_distance_sq: 40.0 * 40.0,
+            min_stone_distance_sq: 30.0 * 30.0,
+            noise_threshold: 0.70,
+            primary_yield: ("Arctic Poppy".to_string(), 1, 2),
+            secondary_yield: None,
+            seed_type: "Arctic Poppy Seeds".to_string(),
+            seed_drop_chance: 0.50, // 50% chance - alpine flower
+            min_respawn_time_secs: 2000, // 33 minutes
+            max_respawn_time_secs: 3000, // 50 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine biome only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round - extremely hardy alpine flower
         });
         
         // === VEGETABLES ===

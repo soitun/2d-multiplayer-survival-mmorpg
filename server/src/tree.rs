@@ -39,6 +39,10 @@ pub enum TreeType {
     DownyOak,
     StonePine,  // Variant A for trees that spawn on beach tiles
     StonePine2, // Variant B for trees that spawn on beach tiles
+    DwarfPine,  // Stunted, wind-bent tree for Alpine biome (sparse)
+    MountainHemlockSnow, // Rare snow-covered hemlock for Alpine biome
+    ArcticWillow, // Short, hardy shrub-tree for Tundra biome (common)
+    KrummholzSpruce, // Wind-sculpted twisted spruce for Tundra biome (rare)
 }
 
 #[spacetimedb::table(name = tree, public)]

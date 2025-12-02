@@ -34,4 +34,8 @@ export type MannaAsh2 = { tag: "MannaAsh2" };
 export type DownyOak = { tag: "DownyOak" };
 export type StonePine = { tag: "StonePine" };
 export type StonePine2 = { tag: "StonePine2" };
+export type DwarfPine = { tag: "DwarfPine" };
+export type MountainHemlockSnow = { tag: "MountainHemlockSnow" };
+export type ArcticWillow = { tag: "ArcticWillow" };
+export type KrummholzSpruce = { tag: "KrummholzSpruce" };
 

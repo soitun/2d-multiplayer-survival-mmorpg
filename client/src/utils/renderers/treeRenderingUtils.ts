@@ -5,6 +5,10 @@ import mountainHemlockImage2 from '../../assets/doodads/mountain_hemlock_d.png';
 import sitkaSpruceImage from '../../assets/doodads/sitka_spruce_c.png';
 import beachBirchImage from '../../assets/doodads/sitka_alder_c.png';
 import beachBirchImage2 from '../../assets/doodads/sitka_alder_d.png';
+import dwarfPineImage from '../../assets/doodads/dwarf_pine.png';
+import arcticWillowImage from '../../assets/doodads/arctic_willow.png';
+import mountainHemlockSnowImage from '../../assets/doodads/mountain_hemlock_snow.png';
+import krummholzSpruceImage from '../../assets/doodads/krummholz_spruce.png';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Import shadow utils
 import { applyStandardDropShadow } from './shadowUtils'; // Import new shadow util
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
@@ -60,6 +64,22 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
             case 'StonePine2':
                 imageSource = beachBirchImage2;
                 targetWidth = 360; // Same size as StonePine variant A
+                break;
+            case 'DwarfPine':
+                imageSource = dwarfPineImage;
+                targetWidth = 280; // 42% shorter - stunted alpine tree
+                break;
+            case 'MountainHemlockSnow':
+                imageSource = mountainHemlockSnowImage;
+                targetWidth = 360; // 25% shorter - snow-covered alpine hemlock
+                break;
+            case 'ArcticWillow':
+                imageSource = arcticWillowImage;
+                targetWidth = 240; // 50% shorter - short tundra shrub-tree
+                break;
+            case 'KrummholzSpruce':
+                imageSource = krummholzSpruceImage;
+                targetWidth = 300; // Twisted wind-sculpted spruce, medium size
                 break;
             default:
                 imageSource = sitkaSpruceImage;
@@ -256,6 +276,10 @@ imageManager.preloadImage(mountainHemlockImage2);
 imageManager.preloadImage(sitkaSpruceImage);
 imageManager.preloadImage(beachBirchImage);
 imageManager.preloadImage(beachBirchImage2);
+imageManager.preloadImage(dwarfPineImage);
+imageManager.preloadImage(arcticWillowImage);
+imageManager.preloadImage(mountainHemlockSnowImage);
+imageManager.preloadImage(krummholzSpruceImage);
 
 // Refactored rendering function
 export function renderTree(

@@ -27,6 +27,12 @@ impl OreType {
     /// Determines ore type based on location with weighted probabilities
     /// South = MORE STONE (beginner-friendly), North = more Metal/Sulfur (risky, rewarding)
     pub fn random_for_location(pos_x: f32, pos_y: f32, is_in_quarry: bool, rng: &mut impl Rng) -> OreType {
+        Self::random_for_location_with_biome(pos_x, pos_y, is_in_quarry, false, false, rng)
+    }
+    
+    /// Determines ore type based on location with biome-specific adjustments
+    /// Alpine/Tundra = Higher Metal probability (exposed rock faces, permafrost)
+    pub fn random_for_location_with_biome(pos_x: f32, pos_y: f32, is_in_quarry: bool, is_alpine: bool, is_tundra: bool, rng: &mut impl Rng) -> OreType {
         let center_y = crate::WORLD_HEIGHT_PX / 2.0;
         let is_north = pos_y < center_y;
         
@@ -47,8 +53,30 @@ impl OreType {
             } else {
                 OreType::Stone
             }
+        } else if is_alpine {
+            // Alpine biome: 50% Metal, 25% Sulfur, 22% Stone (after Memory check)
+            // Exposed rock faces = more Metal ore
+            let roll = rng.gen::<f32>();
+            if roll < 0.50 {
+                OreType::Metal
+            } else if roll < 0.75 {
+                OreType::Sulfur
+            } else {
+                OreType::Stone
+            }
+        } else if is_tundra {
+            // Tundra biome: 40% Metal, 25% Sulfur, 32% Stone (after Memory check)
+            // Permafrost exposure = moderate Metal ore
+            let roll = rng.gen::<f32>();
+            if roll < 0.40 {
+                OreType::Metal
+            } else if roll < 0.65 {
+                OreType::Sulfur
+            } else {
+                OreType::Stone
+            }
         } else if is_north {
-            // North terrain: 35% Metal, 30% Sulfur, 32% Stone (after Memory check)
+            // North terrain (temperate): 35% Metal, 30% Sulfur, 32% Stone (after Memory check)
             // Risky north with more advanced ores
             let roll = rng.gen::<f32>();
             if roll < 0.35 {
@@ -59,7 +87,7 @@ impl OreType {
                 OreType::Stone
             }
         } else {
-            // South terrain: 82% Stone, 12% Metal, 3% Sulfur (after Memory check)
+            // South terrain (temperate): 82% Stone, 12% Metal, 3% Sulfur (after Memory check)
             // MUCH MORE STONE in south - beginner-friendly, abundant basic resources
             let roll = rng.gen::<f32>();
             if roll < 0.82 {
