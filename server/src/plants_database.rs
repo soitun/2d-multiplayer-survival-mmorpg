@@ -78,6 +78,10 @@ pub enum PlantType {
     WoodPile,       // Small pile of wood - general terrain
     BeachWoodPile,  // Driftwood pile - beaches only
     StonePile,      // Small pile of stones - general terrain
+    LeavesPile,     // Pile of fallen leaves - forest only, gives plant fiber
+    MetalOrePile,   // Pile of metal ore - alpine/quarry areas only, rare
+    SulfurPile,     // Pile of sulfur deposits - alpine/volcanic areas only, rare
+    CharcoalPile,   // Pile of charcoal - forest areas (old burn sites), rare
 }
 
 // --- Plant Configuration System ---
@@ -1011,6 +1015,74 @@ lazy_static! {
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Plains, // Open areas
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::LeavesPile, PlantConfig {
+            entity_name: "Leaves Pile".to_string(),
+            density_percent: 0.0009, // Common in forests (~225 across map)
+            min_distance_sq: 90.0 * 90.0,
+            min_tree_distance_sq: 30.0 * 30.0, // Close to trees (fallen leaves)
+            min_stone_distance_sq: 60.0 * 60.0,
+            noise_threshold: 0.72,
+            primary_yield: ("Plant Fiber".to_string(), 30, 50), // ~40 plant fiber average
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 900,  // 15 minutes
+            max_respawn_time_secs: 1500, // 25 minutes
+            spawn_condition: SpawnCondition::Forest, // Forest only - near trees
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::MetalOrePile, PlantConfig {
+            entity_name: "Metal Ore Pile".to_string(),
+            density_percent: 0.00025, // Very rare (~60 across map) - valuable resource
+            min_distance_sq: 150.0 * 150.0, // Far apart
+            min_tree_distance_sq: 100.0 * 100.0, // Away from trees (rocky areas)
+            min_stone_distance_sq: 40.0 * 40.0, // Can be near stone nodes
+            noise_threshold: 0.82, // High threshold = rare spawns
+            primary_yield: ("Metal Ore".to_string(), 15, 25), // ~20 metal ore average - small bonus
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 2400, // 40 minutes - slow respawn
+            max_respawn_time_secs: 3600, // 60 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine/quarry areas only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::SulfurPile, PlantConfig {
+            entity_name: "Sulfur Pile".to_string(),
+            density_percent: 0.0002, // Very rare (~50 across map) - valuable explosive material
+            min_distance_sq: 160.0 * 160.0, // Far apart
+            min_tree_distance_sq: 120.0 * 120.0, // Away from trees (volcanic/rocky areas)
+            min_stone_distance_sq: 50.0 * 50.0,
+            noise_threshold: 0.85, // Very high threshold = very rare spawns
+            primary_yield: ("Sulfur Ore".to_string(), 10, 20), // ~15 sulfur ore average - valuable
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 3000, // 50 minutes - very slow respawn
+            max_respawn_time_secs: 4200, // 70 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine/volcanic areas only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
+        configs.insert(PlantType::CharcoalPile, PlantConfig {
+            entity_name: "Charcoal Pile".to_string(),
+            density_percent: 0.0003, // Rare (~75 across map) - old burn sites in forests
+            min_distance_sq: 130.0 * 130.0,
+            min_tree_distance_sq: 50.0 * 50.0, // Near trees but not too close (burned clearings)
+            min_stone_distance_sq: 70.0 * 70.0,
+            noise_threshold: 0.80, // High threshold = rare spawns
+            primary_yield: ("Charcoal".to_string(), 20, 35), // ~27 charcoal average
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 1800, // 30 minutes
+            max_respawn_time_secs: 2700, // 45 minutes
+            spawn_condition: SpawnCondition::Forest, // Forest areas - old burn sites
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
         });
         

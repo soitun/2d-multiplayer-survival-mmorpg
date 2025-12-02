@@ -31,6 +31,8 @@ import {
 export type PatchA = { tag: "PatchA" };
 export type PatchB = { tag: "PatchB" };
 export type PatchC = { tag: "PatchC" };
+export type PatchD = { tag: "PatchD" };
+export type PatchE = { tag: "PatchE" };
 export type TallGrassA = { tag: "TallGrassA" };
 export type TallGrassB = { tag: "TallGrassB" };
 export type BushRounded = { tag: "BushRounded" };

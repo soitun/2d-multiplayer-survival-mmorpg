@@ -39,6 +39,8 @@ pub enum GrassAppearanceType {
     PatchA, // Default patch
     PatchB, // Another variant
     PatchC, // Yet another variant
+    PatchD, // Additional variant (grass4.png)
+    PatchE, // Additional variant (grass5.png)
     TallGrassA,
     TallGrassB,
     BushRounded,
@@ -49,7 +51,6 @@ pub enum GrassAppearanceType {
     
     // Water foliage
     ReedBedsA,       // Tall swaying reeds
-    ReedBedsB,       // Dense reed clusters  
     Bulrushes,       // Classic cattails
     LilyPads,        // Floating surface plants (no sway)
     SeaweedForest,   // Underwater kelp-like plants
@@ -67,7 +68,6 @@ impl GrassAppearanceType {
     pub fn is_water_foliage(&self) -> bool {
         matches!(self, 
             GrassAppearanceType::ReedBedsA | 
-            GrassAppearanceType::ReedBedsB | 
             GrassAppearanceType::Bulrushes | 
             GrassAppearanceType::LilyPads | 
             GrassAppearanceType::SeaweedForest | 

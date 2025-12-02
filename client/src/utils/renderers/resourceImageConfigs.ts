@@ -71,6 +71,10 @@ import memoryShardImageSource from '../../assets/doodads/memory_shard.png';
 import woodPileImageSource from '../../assets/doodads/pile_wood.png';
 import beachWoodPileImageSource from '../../assets/doodads/pile_beach_wood.png';
 import stonePileImageSource from '../../assets/doodads/pile_stone.png';
+import leavesPileImageSource from '../../assets/doodads/pile_leaves.png';
+import metalOrePileImageSource from '../../assets/doodads/pile_metal.png';
+import sulfurPileImageSource from '../../assets/doodads/pile_sulfur.png';
+import charcoalPileImageSource from '../../assets/doodads/pile_charcoal.png';
 
 // Resource type to image source mapping (BOTANICALLY ACCURATE FOR ALEUTIAN ISLANDS)
 export const RESOURCE_IMAGE_SOURCES = {
@@ -145,8 +149,12 @@ export const RESOURCE_IMAGE_SOURCES = {
   // === RESOURCE PILES (Small bonus resources) ===
   WoodPile: woodPileImageSource,
   BeachWoodPile: beachWoodPileImageSource,
-  StonePile: stonePileImageSource
-} satisfies Record<HarvestableResourceType, string>;
+  StonePile: stonePileImageSource,
+  LeavesPile: leavesPileImageSource,
+  MetalOrePile: metalOrePileImageSource,
+  SulfurPile: sulfurPileImageSource,
+  CharcoalPile: charcoalPileImageSource
+} as Record<HarvestableResourceType, string>; // Using 'as' instead of 'satisfies' - new types will be added after bindings regeneration
 
 // Explicit type export for better type inference
 export type ResourceImageSources = typeof RESOURCE_IMAGE_SOURCES;

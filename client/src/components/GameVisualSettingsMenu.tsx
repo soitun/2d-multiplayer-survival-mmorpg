@@ -252,7 +252,8 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         </div>
                     </div>
 
-                    {/* Grass Setting */}
+                    {/* Grass Setting - HIDDEN FOR NOW (not deleted) */}
+                    {false && (
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -319,6 +320,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             </label>
                         </div>
                     </div>
+                    )}
 
                     {/* Status Overlays Setting (Cold/Low Health) */}
                     <div style={{ marginBottom: '25px' }}>

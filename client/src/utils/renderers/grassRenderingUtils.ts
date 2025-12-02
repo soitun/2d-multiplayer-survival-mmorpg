@@ -6,12 +6,13 @@ import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation';
 import grass1TextureUrl from '../../assets/doodads/grass1.png';
 import grass2TextureUrl from '../../assets/doodads/grass2.png';
 import grass3TextureUrl from '../../assets/doodads/grass3.png';
+import grass4TextureUrl from '../../assets/doodads/grass4.png';
+import grass5TextureUrl from '../../assets/doodads/grass5.png';
 import tallGrassATextureUrl from '../../assets/doodads/tall_grass_a.png';
 import tallGrassBTextureUrl from '../../assets/doodads/tall_grass_b.png';
 
 // Water foliage assets
 import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
-import reedBedsBTextureUrl from '../../assets/doodads/reed_beds_b.png';
 import bulrushesTextureUrl from '../../assets/doodads/bulrushes.png';
 import lilyPadsTextureUrl from '../../assets/doodads/lily_pads.png';
 import seaweedForestTextureUrl from '../../assets/doodads/seaweed_forest.png';
@@ -91,10 +92,11 @@ const SWAYING_GRASS_TYPES = new Set<string>([
     GrassAppearanceType.PatchA.tag,
     GrassAppearanceType.PatchB.tag,
     GrassAppearanceType.PatchC.tag,
+    'PatchD', // Will be available after bindings regeneration
+    'PatchE', // Will be available after bindings regeneration
     GrassAppearanceType.TallGrassA.tag,
     GrassAppearanceType.TallGrassB.tag,
     GrassAppearanceType.ReedBedsA.tag,
-    GrassAppearanceType.ReedBedsB.tag,
     GrassAppearanceType.Bulrushes.tag,
     GrassAppearanceType.SeaweedForest.tag,
     // LilyPads and AlgaeMats do NOT sway (surface floaters)
@@ -166,10 +168,11 @@ const grassAssetPaths: Record<string, string> = {
     [GrassAppearanceType.PatchA.tag]: grass1TextureUrl,
     [GrassAppearanceType.PatchB.tag]: grass2TextureUrl,
     [GrassAppearanceType.PatchC.tag]: grass3TextureUrl,
+    'PatchD': grass4TextureUrl, // Will be available after bindings regeneration
+    'PatchE': grass5TextureUrl, // Will be available after bindings regeneration
     [GrassAppearanceType.TallGrassA.tag]: tallGrassATextureUrl,
     [GrassAppearanceType.TallGrassB.tag]: tallGrassBTextureUrl,
     [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
-    [GrassAppearanceType.ReedBedsB.tag]: reedBedsBTextureUrl, 
     [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
     [GrassAppearanceType.LilyPads.tag]: lilyPadsTextureUrl,
     [GrassAppearanceType.SeaweedForest.tag]: seaweedForestTextureUrl,
@@ -178,21 +181,22 @@ const grassAssetPaths: Record<string, string> = {
 
 const grassTargetWidths: Record<string, number> = {
     // Small dense grass patches - subtle background, won't compete with resources
-    [GrassAppearanceType.PatchA.tag]: 72,      // Small rounded clump - subtle
-    [GrassAppearanceType.PatchB.tag]: 72,      // Dense rounded clump - slightly larger
-    [GrassAppearanceType.PatchC.tag]: 72,      // Medium clump - balanced
+    [GrassAppearanceType.PatchA.tag]: 128,      // Small rounded clump - subtle
+    [GrassAppearanceType.PatchB.tag]: 128,      // Dense rounded clump - slightly larger
+    [GrassAppearanceType.PatchC.tag]: 128,      // Medium clump - balanced
+    [GrassAppearanceType.PatchD.tag]: 128,      // Additional variant - consistent size
+    [GrassAppearanceType.PatchE.tag]: 128,      // Additional variant - consistent size
     
     // Tall grass variants - visible but not overwhelming
-    [GrassAppearanceType.TallGrassA.tag]: 112, // Single stalk with seed head - increased from 96 for better visibility
-    [GrassAppearanceType.TallGrassB.tag]: 112, // Tall with feathery plumes - prominent but not dominant
+    [GrassAppearanceType.TallGrassA.tag]: 128, // Single stalk with seed head - increased from 96 for better visibility
+    [GrassAppearanceType.TallGrassB.tag]: 128, // Tall with feathery plumes - prominent but not dominant
     
     // Water foliage - distinctive but balanced
-    [GrassAppearanceType.ReedBedsA.tag]: 112, // Tall swaying reeds - medium-tall
-    [GrassAppearanceType.ReedBedsB.tag]: 108,  // Dense reed clusters - slightly smaller
-    [GrassAppearanceType.Bulrushes.tag]: 104,  // Classic cattails - medium size
-    [GrassAppearanceType.LilyPads.tag]: 96,    // Floating surface plants - medium
-    [GrassAppearanceType.SeaweedForest.tag]: 108, // Underwater kelp - medium
-    [GrassAppearanceType.AlgaeMats.tag]: 88,   // Surface algae patches - smaller, subtle
+    [GrassAppearanceType.ReedBedsA.tag]: 128, // Tall swaying reeds - medium-tall
+    [GrassAppearanceType.Bulrushes.tag]: 128,  // Classic cattails - medium size
+    [GrassAppearanceType.LilyPads.tag]: 128,    // Floating surface plants - medium
+    [GrassAppearanceType.SeaweedForest.tag]: 128, // Underwater kelp - medium
+    [GrassAppearanceType.AlgaeMats.tag]: 128,   // Surface algae patches - smaller, subtle
 };
 const DEFAULT_GRASS_WIDTH = 72; // Default for any unmapped types
 

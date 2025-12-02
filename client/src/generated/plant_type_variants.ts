@@ -79,4 +79,8 @@ export type MemoryShard = { tag: "MemoryShard" };
 export type WoodPile = { tag: "WoodPile" };
 export type BeachWoodPile = { tag: "BeachWoodPile" };
 export type StonePile = { tag: "StonePile" };
+export type LeavesPile = { tag: "LeavesPile" };
+export type MetalOrePile = { tag: "MetalOrePile" };
+export type SulfurPile = { tag: "SulfurPile" };
+export type CharcoalPile = { tag: "CharcoalPile" };
 

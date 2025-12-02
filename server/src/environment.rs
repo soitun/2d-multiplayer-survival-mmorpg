@@ -2411,13 +2411,18 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         let sway_speed = rng.gen_range(0.5..2.0);
         
         // Choose grass appearance type with weighted distribution
+        // Updated to include PatchD and PatchE
         let appearance_roll: f64 = rng.gen_range(0.0..1.0);
-        let appearance_type = if appearance_roll < 0.3 {
+        let appearance_type = if appearance_roll < 0.2 {
             GrassAppearanceType::PatchA
-        } else if appearance_roll < 0.6 {
+        } else if appearance_roll < 0.4 {
             GrassAppearanceType::PatchB
-        } else if appearance_roll < 0.8 {
+        } else if appearance_roll < 0.6 {
             GrassAppearanceType::PatchC
+        } else if appearance_roll < 0.7 {
+            GrassAppearanceType::PatchD
+        } else if appearance_roll < 0.8 {
+            GrassAppearanceType::PatchE
         } else if appearance_roll < 0.9 {
             GrassAppearanceType::TallGrassA
         } else {
@@ -2454,6 +2459,104 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     log::info!(
         "Finished seeding {} grass entities (target: {}, attempts: {}).",
         spawned_grass_count, target_grass_count, grass_attempts
+    );
+
+    // --- Seed Water Foliage (Lily Pads, Algae Mats, Bulrushes) on Inland Sea Tiles ---
+    log::info!("Seeding Water Foliage (inland sea tiles only)...");
+    
+    // Count inland water tiles (Sea tiles that are inland, not coastal)
+    let mut inland_water_tile_count = 0u32;
+    for tile in world_tiles_for_biome.iter() {
+        if tile.tile_type == TileType::Sea && is_tile_inland_water(ctx, tile.world_x, tile.world_y) {
+            inland_water_tile_count += 1;
+        }
+    }
+    
+    // Target ~8% of inland water tiles for water foliage
+    const WATER_FOLIAGE_DENSITY_PERCENT: f32 = 0.08;
+    let target_water_foliage_count = (inland_water_tile_count as f32 * WATER_FOLIAGE_DENSITY_PERCENT) as u32;
+    let max_water_foliage_attempts = target_water_foliage_count * 4; // 4x attempts factor
+    
+    let mut spawned_water_foliage_count = 0u32;
+    let mut water_foliage_attempts = 0u32;
+    
+    while spawned_water_foliage_count < target_water_foliage_count && water_foliage_attempts < max_water_foliage_attempts {
+        water_foliage_attempts += 1;
+        
+        // Generate random tile coordinates
+        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+        
+        // Check if this is an inland Sea tile
+        let mut is_inland_sea = false;
+        for tile in world_tiles_for_biome.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+            if tile.tile_type == TileType::Sea && is_tile_inland_water(ctx, tile_x as i32, tile_y as i32) {
+                is_inland_sea = true;
+            }
+            break;
+        }
+        
+        if !is_inland_sea {
+            continue; // Skip non-inland sea tiles
+        }
+        
+        // Calculate position
+        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        
+        // Skip central compound
+        if is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+        
+        // Generate random water foliage properties
+        let sway_offset_seed = rng.gen::<u32>();
+        let sway_speed = rng.gen_range(0.5..2.0);
+        
+        // Choose water foliage type with weighted distribution
+        let appearance_roll: f64 = rng.gen_range(0.0..1.0);
+        let appearance_type = if appearance_roll < 0.25 {
+            GrassAppearanceType::Bulrushes // 25% - common
+        } else if appearance_roll < 0.45 {
+            GrassAppearanceType::LilyPads // 20% - common
+        } else if appearance_roll < 0.65 {
+            GrassAppearanceType::AlgaeMats // 20% - common
+        } else if appearance_roll < 0.85 {
+            GrassAppearanceType::ReedBedsA // 20% - common
+        } else {
+            GrassAppearanceType::SeaweedForest // 15% - less common
+        };
+        
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        
+        let new_water_foliage = Grass {
+            id: 0,
+            pos_x,
+            pos_y,
+            health: crate::grass::GRASS_INITIAL_HEALTH,
+            appearance_type,
+            chunk_index: chunk_idx,
+            last_hit_time: None,
+            respawn_at: None,
+            sway_offset_seed,
+            sway_speed,
+            disturbed_at: None,
+            disturbance_direction_x: 0.0,
+            disturbance_direction_y: 0.0,
+        };
+        
+        match grasses.try_insert(new_water_foliage) {
+            Ok(_) => {
+                spawned_water_foliage_count += 1;
+            }
+            Err(e) => {
+                log::warn!("Failed to insert water foliage at ({}, {}): {}", pos_x, pos_y, e);
+            }
+        }
+    }
+    log::info!(
+        "Finished seeding {} water foliage entities (target: {}, attempts: {}, inland water tiles: {}).",
+        spawned_water_foliage_count, target_water_foliage_count, water_foliage_attempts, inland_water_tile_count
     );
 
     // --- Seed Clouds ---

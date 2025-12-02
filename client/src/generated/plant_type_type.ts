@@ -80,7 +80,11 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.MemoryShard |
   PlantTypeVariants.WoodPile |
   PlantTypeVariants.BeachWoodPile |
-  PlantTypeVariants.StonePile;
+  PlantTypeVariants.StonePile |
+  PlantTypeVariants.LeavesPile |
+  PlantTypeVariants.MetalOrePile |
+  PlantTypeVariants.SulfurPile |
+  PlantTypeVariants.CharcoalPile;
 
 let _cached_PlantType_type_value: __AlgebraicTypeType | null = null;
 
@@ -143,6 +147,10 @@ export const PlantType = {
   WoodPile: { tag: "WoodPile" } as const,
   BeachWoodPile: { tag: "BeachWoodPile" } as const,
   StonePile: { tag: "StonePile" } as const,
+  LeavesPile: { tag: "LeavesPile" } as const,
+  MetalOrePile: { tag: "MetalOrePile" } as const,
+  SulfurPile: { tag: "SulfurPile" } as const,
+  CharcoalPile: { tag: "CharcoalPile" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_PlantType_type_value) return _cached_PlantType_type_value;
@@ -199,6 +207,10 @@ export const PlantType = {
       { name: "WoodPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BeachWoodPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StonePile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "LeavesPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MetalOrePile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SulfurPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CharcoalPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_PlantType_type_value;
   },

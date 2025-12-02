@@ -33,6 +33,8 @@ import * as GrassAppearanceTypeVariants from './grass_appearance_type_variants'
 export type GrassAppearanceType = GrassAppearanceTypeVariants.PatchA |
   GrassAppearanceTypeVariants.PatchB |
   GrassAppearanceTypeVariants.PatchC |
+  GrassAppearanceTypeVariants.PatchD |
+  GrassAppearanceTypeVariants.PatchE |
   GrassAppearanceTypeVariants.TallGrassA |
   GrassAppearanceTypeVariants.TallGrassB |
   GrassAppearanceTypeVariants.BushRounded |
@@ -60,6 +62,8 @@ export const GrassAppearanceType = {
   PatchA: { tag: "PatchA" } as const,
   PatchB: { tag: "PatchB" } as const,
   PatchC: { tag: "PatchC" } as const,
+  PatchD: { tag: "PatchD" } as const,
+  PatchE: { tag: "PatchE" } as const,
   TallGrassA: { tag: "TallGrassA" } as const,
   TallGrassB: { tag: "TallGrassB" } as const,
   BushRounded: { tag: "BushRounded" } as const,
@@ -81,6 +85,8 @@ export const GrassAppearanceType = {
       { name: "PatchA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PatchB", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PatchC", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PatchD", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PatchE", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TallGrassA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TallGrassB", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BushRounded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

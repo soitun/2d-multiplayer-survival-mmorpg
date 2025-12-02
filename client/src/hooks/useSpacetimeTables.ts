@@ -2039,6 +2039,55 @@ export const useSpacetimeTables = ({
 
     }, [connection, viewport]);
 
+    // Track previous grassEnabled state to detect re-enable
+    const prevGrassEnabledRef = useRef(grassEnabled);
+    
+    // Handle grass toggle - clear when disabled, force re-subscription when re-enabled
+    useEffect(() => {
+        const wasDisabled = !prevGrassEnabledRef.current;
+        const isNowEnabled = grassEnabled;
+        
+        if (!grassEnabled) {
+            // Grass disabled - clear the grass map
+            console.log('[useSpacetimeTables] Grass disabled - clearing grass map');
+            setGrass(new Map());
+        } else if (wasDisabled && isNowEnabled && connection) {
+            // Grass was just re-enabled - force re-subscription of current chunks
+            // Use currentChunksRef (the actively tracked chunks) rather than subscribedChunksRef
+            const currentChunks = currentChunksRef.current;
+            console.log(`[useSpacetimeTables] Grass re-enabled - subscribing to ${currentChunks.length} chunks:`, currentChunks);
+            
+            if (currentChunks.length === 0) {
+                console.warn('[useSpacetimeTables] No current chunks found for grass re-subscription!');
+            }
+            
+            // Subscribe to grass for all current chunks
+            currentChunks.forEach(chunkIndex => {
+                try {
+                    const grassQuery = GRASS_PERFORMANCE_MODE 
+                        ? `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`
+                        : `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`;
+                    
+                    console.log(`[GRASS_RESUB] Subscribing to grass for chunk ${chunkIndex}`);
+                    
+                    const handle = connection.subscriptionBuilder()
+                        .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
+                        .subscribe([grassQuery]);
+                    
+                    // Add to existing chunk handles
+                    const existingHandles = spatialSubsRef.current.get(chunkIndex) || [];
+                    existingHandles.push(handle);
+                    spatialSubsRef.current.set(chunkIndex, existingHandles);
+                } catch (error) {
+                    console.error(`[GRASS_RESUB] Failed to re-subscribe grass for chunk ${chunkIndex}:`, error);
+                }
+            });
+        }
+        
+        // Update the ref for next comparison
+        prevGrassEnabledRef.current = grassEnabled;
+    }, [grassEnabled, connection]);
+
     // --- Return Hook State ---
     return {
         players,
@@ -2097,11 +2146,4 @@ export const useSpacetimeTables = ({
         fumaroles, // ADDED fumaroles
         basaltColumns, // ADDED basalt columns
     };
-    
-    // Clear grass data when grass is disabled
-    useEffect(() => {
-        if (!grassEnabled) {
-            setGrass(new Map());
-        }
-    }, [grassEnabled]);
 }; 
