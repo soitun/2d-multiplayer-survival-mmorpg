@@ -3059,4 +3059,8 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
 /// - 0.5 = Half all plant spawns (scarce resources, harder survival)
 /// - 0.1 = Very sparse world (10% of normal plants, extreme scarcity)
 /// - 3.0 = Very abundant world (300% of normal plants, easy resources)
-pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.10;
+/// 
+/// BALANCED for gameplay: 0.40 provides meaningful scarcity while still
+/// allowing resource gathering to feel rewarding. Players should find
+/// plants regularly while exploring but not be drowning in them.
+pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.40;

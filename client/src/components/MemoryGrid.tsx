@@ -15,13 +15,20 @@ interface MemoryGridProps {
   playerShards?: number; // Current player memory shards
   purchasedNodes?: Set<string>; // Set of purchased node IDs
   onNodePurchase?: (node: MemoryGridNode) => void;
+  onFactionReset?: () => void; // Callback for resetting faction (costs 2000 shards)
 }
+
+// Faction reset cost - must match server/src/memory_grid.rs FACTION_RESET_COST
+const FACTION_RESET_COST = 2000;
 
 const MemoryGrid: React.FC<MemoryGridProps> = ({
   playerShards = 1000, // Default for demo
   purchasedNodes = new Set(['center']), // Default with center node purchased
   onNodePurchase,
+  onFactionReset,
 }) => {
+  // State for faction reset confirmation dialog
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   // Initialize with center node selected by default
   const [selectedNode, setSelectedNode] = useState<MemoryGridNode | null>(() => 
     MEMORY_GRID_NODES.find(n => n.id === 'center') || null
@@ -117,6 +124,32 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
       }
     }) as MemoryGridNode[];
   }, [purchasedNodes]);
+
+  // Check if player has unlocked any faction
+  const unlockedFaction = useMemo(() => {
+    const factionUnlockIds = [
+      'unlock-black-wolves', 'unlock-hive', 'unlock-university',
+      'unlock-data-angels', 'unlock-battalion', 'unlock-admiralty'
+    ];
+    for (const factionId of factionUnlockIds) {
+      if (purchasedNodes.has(factionId)) {
+        const factionKey = factionId.replace('unlock-', '');
+        return FACTIONS[factionKey] || null;
+      }
+    }
+    return null;
+  }, [purchasedNodes]);
+
+  // Can afford faction reset?
+  const canAffordReset = playerShards >= FACTION_RESET_COST;
+
+  // Handle faction reset
+  const handleFactionReset = useCallback(() => {
+    if (onFactionReset && canAffordReset) {
+      onFactionReset();
+      setShowResetConfirm(false);
+    }
+  }, [onFactionReset, canAffordReset]);
 
   // Memoize branch labels - only recalculate when scale or panOffset changes
   const branchLabels = useMemo((): React.ReactElement[] => {
@@ -452,6 +485,47 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           Memory Shards: {playerShards.toLocaleString()}
         </div>
         
+        {/* Current Faction indicator */}
+        {unlockedFaction && (
+          <div
+            style={{
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: unlockedFaction.color,
+              padding: '8px 12px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              border: `1px solid ${unlockedFaction.color}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}
+          >
+            <div style={{ fontWeight: 'bold' }}>
+              ⚔ {unlockedFaction.name}
+            </div>
+            {onFactionReset && (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  color: '#ef4444',
+                  border: '1px solid #ef4444',
+                  borderRadius: '3px',
+                  padding: '3px 6px',
+                  fontSize: '9px',
+                  cursor: 'pointer',
+                  opacity: canAffordReset ? 1 : 0.5
+                }}
+                disabled={!canAffordReset}
+                title={canAffordReset ? 'Reset faction (2000 shards)' : 'Need 2000 shards to reset'}
+              >
+                Reset Faction ({FACTION_RESET_COST})
+              </button>
+            )}
+          </div>
+        )}
+        
         {/* Control buttons */}
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
@@ -470,6 +544,104 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Faction Reset Confirmation Dialog */}
+      {showResetConfirm && unlockedFaction && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100
+          }}
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+              border: '2px solid #ef4444',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '400px',
+              textAlign: 'center'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ 
+              color: '#ef4444', 
+              fontSize: '18px', 
+              fontWeight: 'bold', 
+              marginBottom: '16px' 
+            }}>
+              ⚠ FACTION RESET
+            </div>
+            
+            <div style={{ 
+              color: '#ffffff', 
+              marginBottom: '16px',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to leave <span style={{ color: unlockedFaction.color, fontWeight: 'bold' }}>{unlockedFaction.name}</span>?
+            </div>
+            
+            <div style={{ 
+              color: '#9ca3af', 
+              fontSize: '12px',
+              marginBottom: '16px',
+              padding: '12px',
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: '4px'
+            }}>
+              This will remove your faction unlock and ALL faction branch nodes.
+              <br />
+              <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                Cost: {FACTION_RESET_COST} Memory Shards
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                style={{
+                  background: '#374151',
+                  color: '#ffffff',
+                  border: '1px solid #6b7280',
+                  borderRadius: '4px',
+                  padding: '8px 24px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFactionReset}
+                disabled={!canAffordReset}
+                style={{
+                  background: canAffordReset ? '#ef4444' : '#374151',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 24px',
+                  fontSize: '12px',
+                  cursor: canAffordReset ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold',
+                  opacity: canAffordReset ? 1 : 0.5
+                }}
+              >
+                {canAffordReset ? 'CONFIRM RESET' : `Need ${FACTION_RESET_COST - playerShards} more shards`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Node Info Panel */}
       {(selectedNode || hoveredNode) && (

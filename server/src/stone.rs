@@ -36,9 +36,10 @@ impl OreType {
         let center_y = crate::WORLD_HEIGHT_PX / 2.0;
         let is_north = pos_y < center_y;
         
-        // Rare Memory ore check (3% chance everywhere)
+        // Memory ore check (12% chance everywhere) - BOOSTED for early progression
+        // Memory shards are critical for tech tree - make them more accessible
         let memory_roll = rng.gen::<f32>();
-        if memory_roll < 0.03 {
+        if memory_roll < 0.12 {
             return OreType::Memory;
         }
         
@@ -125,9 +126,10 @@ pub(crate) const METAL_ORE_MAX_RESOURCES: u32 = 500; // Maximum metal ore per me
 pub(crate) const SULFUR_ORE_MIN_RESOURCES: u32 = 250; // Minimum sulfur ore per sulfur node
 pub(crate) const SULFUR_ORE_MAX_RESOURCES: u32 = 500; // Maximum sulfur ore per sulfur node (~375 average)
 
-// Memory shard resource constants - for tech tree upgrades (much lower yield)
-pub(crate) const MEMORY_SHARD_MIN_RESOURCES: u32 = 120; // Minimum memory shards per memory node
-pub(crate) const MEMORY_SHARD_MAX_RESOURCES: u32 = 180; // Maximum memory shards per memory node (~150 average)
+// Memory shard resource constants - for tech tree upgrades
+// BOOSTED: Players need ~15-30 shards for first unlock, one memory node should enable that
+pub(crate) const MEMORY_SHARD_MIN_RESOURCES: u32 = 80; // Minimum memory shards per memory node
+pub(crate) const MEMORY_SHARD_MAX_RESOURCES: u32 = 150; // Maximum memory shards per memory node (~115 average)
 
 // NEW Respawn Time Constants for Stones (adjusted for balanced survival gameplay)
 pub(crate) const MIN_STONE_RESPAWN_TIME_SECS: u64 = 240; // 4 minutes

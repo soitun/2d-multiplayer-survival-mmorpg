@@ -64,9 +64,13 @@ pub(crate) const GREEN_RUNE_MAX_SEEDS_PER_BURST: u32 = 2; // Maximum seeds per s
 pub(crate) const GREEN_RUNE_SEED_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS;
 pub(crate) const GREEN_RUNE_SEED_MIN_DISTANCE: f32 = 150.0;
 
-// Blue (Memory Shard) Effect Constants - Increased for PvP hotspots
-pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT: u32 = 15; // Max shards per night (increased from 5)
-pub(crate) const BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS: u64 = 120; // One shard every 2 minutes during night (faster spawn rate)
+// Blue (Memory Shard) Effect Constants - BOOSTED for fast early progression
+// Night lasts 5 minutes (300 seconds), shards spawn every 30 seconds = ~10 spawns per night
+// With 25 shards max and 1-2 per spawn, expect ~15-20 shards/night/rune
+pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT: u32 = 25; // Max shards per night (doubled for early game rush)
+pub(crate) const BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS: u64 = 30; // Spawn every 30 seconds during night (4x faster!)
+pub(crate) const BLUE_RUNE_MIN_SHARDS_PER_BURST: u32 = 1; // Minimum shards per spawn
+pub(crate) const BLUE_RUNE_MAX_SHARDS_PER_BURST: u32 = 2; // Maximum shards per spawn (1-2 random)
 pub(crate) const BLUE_RUNE_SHARD_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS; // Spawn within full effect radius
 pub(crate) const BLUE_RUNE_SHARD_MIN_DISTANCE: f32 = 150.0; // Minimum distance from rune stone (spawn away from center)
 
@@ -425,35 +429,49 @@ pub fn spawn_memory_shards_at_night(
         };
         
         if can_spawn {
-            // Spawn a memory shard away from the rune stone center, within its radius
+            // Spawn a BURST of memory shards (1-2 per spawn) away from the rune stone center
             // This creates PvP hotspots around the rune stone, not directly on it
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let distance = rng.gen_range(BLUE_RUNE_SHARD_MIN_DISTANCE..BLUE_RUNE_SHARD_SPAWN_RADIUS);
-            let shard_x = rune_stone.pos_x + angle.cos() * distance;
-            let shard_y = rune_stone.pos_y + angle.sin() * distance;
+            let shards_to_spawn = rng.gen_range(BLUE_RUNE_MIN_SHARDS_PER_BURST..=BLUE_RUNE_MAX_SHARDS_PER_BURST);
+            let mut spawned_this_burst = 0;
             
-            // Check if position is valid (not in water, etc.)
-            if !crate::environment::is_position_on_water(ctx, shard_x, shard_y) {
-                let chunk_idx = crate::environment::calculate_chunk_index(shard_x, shard_y);
+            for _ in 0..shards_to_spawn {
+                // Check if we've hit the night cap
+                if config.shards_spawned_this_night >= BLUE_RUNE_SHARDS_PER_NIGHT {
+                    break;
+                }
                 
-                // Create dropped item
-                ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
-                    id: 0,
-                    item_def_id: memory_shard_def_id,
-                    quantity: 1,
-                    pos_x: shard_x,
-                    pos_y: shard_y,
-                    chunk_index: chunk_idx,
-                    created_at: current_time,
-                    item_data: None,
-                });
+                let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+                let distance = rng.gen_range(BLUE_RUNE_SHARD_MIN_DISTANCE..BLUE_RUNE_SHARD_SPAWN_RADIUS);
+                let shard_x = rune_stone.pos_x + angle.cos() * distance;
+                let shard_y = rune_stone.pos_y + angle.sin() * distance;
                 
-                config.shards_spawned_this_night += 1;
-                config.last_shard_spawn_time = Some(current_time);
-                
+                // Check if position is valid (not in water, etc.)
+                if !crate::environment::is_position_on_water(ctx, shard_x, shard_y) {
+                    let chunk_idx = crate::environment::calculate_chunk_index(shard_x, shard_y);
+                    
+                    // Create dropped item
+                    ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
+                        id: 0,
+                        item_def_id: memory_shard_def_id,
+                        quantity: 1,
+                        pos_x: shard_x,
+                        pos_y: shard_y,
+                        chunk_index: chunk_idx,
+                        created_at: current_time,
+                        item_data: None,
+                    });
+                    
+                    config.shards_spawned_this_night += 1;
+                    spawned_this_burst += 1;
+                }
+            }
+            
+            config.last_shard_spawn_time = Some(current_time);
+            
+            if spawned_this_burst > 0 {
                 log::info!(
-                    "Blue rune stone {} spawned memory shard {} at ({:.1}, {:.1})",
-                    rune_stone.id, config.shards_spawned_this_night, shard_x, shard_y
+                    "Blue rune stone {} spawned {} memory shards (total: {}/{})",
+                    rune_stone.id, spawned_this_burst, config.shards_spawned_this_night, BLUE_RUNE_SHARDS_PER_NIGHT
                 );
             }
         }

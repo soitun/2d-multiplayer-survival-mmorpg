@@ -104,7 +104,7 @@ const BlogFooter: React.FC = () => {
                     }}>
                         Broth & Bullets is developed by{' '}
                         <a
-                            href="https://seloolive.com/products/authentic-croatian-olive-oil?variant=40790542549035#reviews"
+                            href="https://martinerlic.com"
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{

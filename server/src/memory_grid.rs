@@ -156,161 +156,175 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
 
 /// Get the cost and prerequisites for a specific node ID
 /// 
-/// DESIGN PHILOSOPHY:
-/// - Basic survival items (campfire, furnace, sleeping bag, storage box, etc.) are FREE
-/// - Memory Grid gates MID to LATE game items and PASSIVE BONUSES
-/// - Rescaled for fast, fun gameplay loop
+/// DESIGN PHILOSOPHY (v2 - Fast Early Progression):
+/// - TIER 1: Very cheap (15-30 shards) - unlock 2-3 nodes in first 15 minutes
+/// - TIER 2: Affordable (50-80 shards) - complete in first hour
+/// - TIER 3: Moderate (120-200 shards) - first few hours
+/// - TIER 4: Expensive (300-450 shards) - end of first session / next day  
+/// - TIER 5: Very expensive (600-900 shards) - first week of play
+/// - FACTION UNLOCK: Major milestone (400 shards) - after first Tier 5
+/// - FACTION BRANCHES: Long-term goals (400-2500 shards) - weeks to complete
+/// 
+/// For 60-120 day wipe cycles, full faction mastery should take 30-60 days
+/// Players are locked into ONE faction after unlock - reset costs 2000 shards
 fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
     match node_id {
         // Center node (free)
         "center" => Some((0, vec![])),
         
         // ============================================
-        // TIER 1 - First Upgrades (60-100 shards)
-        // Mid-game weapon/tool upgrades
+        // TIER 1 - First Upgrades (15-30 shards)
+        // "WOW! Power unlocked!" in first 15 minutes
         // ============================================
-        "crossbow" => Some((80, vec!["center"])),           // Better ranged weapon
-        "metal-hatchet" => Some((60, vec!["center"])),      // Better wood gathering
-        "metal-pickaxe" => Some((60, vec!["center"])),      // Better stone gathering
-        "lantern" => Some((50, vec!["center"])),            // Better lighting than torch
-        "bush-knife" => Some((80, vec!["center"])),         // Combat/wood hybrid
-        "mining-efficiency" => Some((100, vec!["center"])), // Passive: +30% yield
+        "crossbow" => Some((25, vec!["center"])),           // Better ranged weapon
+        "metal-hatchet" => Some((15, vec!["center"])),      // Better wood gathering - CHEAPEST
+        "metal-pickaxe" => Some((15, vec!["center"])),      // Better stone gathering - CHEAPEST
+        "lantern" => Some((20, vec!["center"])),            // Better lighting than torch
+        "bush-knife" => Some((25, vec!["center"])),         // Combat/wood hybrid
+        "mining-efficiency" => Some((30, vec!["center"])),  // Passive: +30% yield
         
         // ============================================
-        // TIER 2 - Mid-Game Items (120-200 shards)
+        // TIER 2 - Early-Mid Game (50-80 shards)
+        // Complete within first hour
         // ============================================
-        "bone-arrow" => Some((120, vec!["crossbow", "bush-knife", "metal-hatchet"])),
-        "fire-arrow" => Some((150, vec!["crossbow", "lantern", "metal-hatchet"])),
-        "flashlight" => Some((140, vec!["lantern", "crossbow", "metal-pickaxe"])),
-        "reed-bellows" => Some((180, vec!["metal-pickaxe", "lantern", "mining-efficiency"])),
-        "crafting-speed-1" => Some((200, vec!["bush-knife", "mining-efficiency", "crossbow"])), // Passive: +15% craft speed
+        "bone-arrow" => Some((50, vec!["crossbow", "bush-knife", "metal-hatchet"])),
+        "fire-arrow" => Some((60, vec!["crossbow", "lantern", "metal-hatchet"])),
+        "flashlight" => Some((55, vec!["lantern", "crossbow", "metal-pickaxe"])),
+        "reed-bellows" => Some((70, vec!["metal-pickaxe", "lantern", "mining-efficiency"])),
+        "crafting-speed-1" => Some((80, vec!["bush-knife", "mining-efficiency", "crossbow"])), // Passive: +15% craft speed
         
         // ============================================
-        // TIER 3 - Advanced Items (250-400 shards)
+        // TIER 3 - Mid Game (120-200 shards)
+        // First few hours of play
         // ============================================
-        "hollow-reed-arrow" => Some((250, vec!["bone-arrow", "crafting-speed-1", "fire-arrow"])),
-        "reed-snorkel" => Some((280, vec!["fire-arrow", "bone-arrow", "flashlight"])),
-        "reed-fishing-rod" => Some((260, vec!["flashlight", "fire-arrow", "reed-bellows"])),
-        "reed-rain-collector" => Some((350, vec!["reed-bellows", "flashlight", "crafting-speed-1"])),
-        "movement-speed-1" => Some((400, vec!["crafting-speed-1", "reed-bellows", "bone-arrow"])), // Passive: +10% move speed
+        "hollow-reed-arrow" => Some((120, vec!["bone-arrow", "crafting-speed-1", "fire-arrow"])),
+        "reed-snorkel" => Some((140, vec!["fire-arrow", "bone-arrow", "flashlight"])),
+        "reed-fishing-rod" => Some((130, vec!["flashlight", "fire-arrow", "reed-bellows"])),
+        "reed-rain-collector" => Some((180, vec!["reed-bellows", "flashlight", "crafting-speed-1"])),
+        "movement-speed-1" => Some((200, vec!["crafting-speed-1", "reed-bellows", "bone-arrow"])), // Passive: +10% move speed
         
         // ============================================
-        // TIER 4 - Late-Game Items (450-700 shards)
+        // TIER 4 - Late Session (300-450 shards)
+        // End of first long session or second day
         // ============================================
-        "metal-door" => Some((500, vec!["hollow-reed-arrow", "movement-speed-1", "reed-snorkel"])),
-        "shelter" => Some((600, vec!["reed-snorkel", "hollow-reed-arrow", "reed-fishing-rod"])),
-        "9x18mm-round" => Some((550, vec!["reed-fishing-rod", "reed-snorkel", "hollow-reed-arrow"])),
-        "metal-armor" => Some((700, vec!["reed-rain-collector", "hollow-reed-arrow", "movement-speed-1"])),
-        "crafting-speed-2" => Some((600, vec!["movement-speed-1", "reed-rain-collector", "hollow-reed-arrow"])), // Passive: +25% craft speed
+        "metal-door" => Some((300, vec!["hollow-reed-arrow", "movement-speed-1", "reed-snorkel"])),
+        "shelter" => Some((380, vec!["reed-snorkel", "hollow-reed-arrow", "reed-fishing-rod"])),
+        "9x18mm-round" => Some((350, vec!["reed-fishing-rod", "reed-snorkel", "hollow-reed-arrow"])),
+        "metal-armor" => Some((450, vec!["reed-rain-collector", "hollow-reed-arrow", "movement-speed-1"])),
+        "crafting-speed-2" => Some((400, vec!["movement-speed-1", "reed-rain-collector", "hollow-reed-arrow"])), // Passive: +25% craft speed
         
         // ============================================
-        // TIER 5 - End-Game Items (800-1000 shards)
+        // TIER 5 - End-Game Items (600-900 shards)
+        // First week of play - major achievement
         // ============================================
-        "makarov-pm" => Some((900, vec!["metal-door", "crafting-speed-2", "shelter"])),
-        "combat-drone" => Some((950, vec!["shelter", "metal-door", "9x18mm-round"])),
-        "rain-collector" => Some((800, vec!["9x18mm-round", "shelter", "metal-armor"])), // Advanced rain collector upgrade
-        "broth-mastery" => Some((850, vec!["metal-armor", "9x18mm-round", "shelter"])), // Passive: broths last 50% longer
-        "armor-mastery" => Some((900, vec!["metal-armor", "shelter", "crafting-speed-2"])), // Passive: armor durability +30%
-        "movement-speed-2" => Some((1000, vec!["crafting-speed-2", "metal-armor", "metal-door"])), // Passive: +20% move speed
+        "makarov-pm" => Some((750, vec!["metal-door", "crafting-speed-2", "shelter"])),
+        "combat-drone" => Some((800, vec!["shelter", "metal-door", "9x18mm-round"])),
+        "rain-collector" => Some((600, vec!["9x18mm-round", "shelter", "metal-armor"])), // Advanced rain collector upgrade
+        "broth-mastery" => Some((700, vec!["metal-armor", "9x18mm-round", "shelter"])), // Passive: broths last 50% longer
+        "armor-mastery" => Some((750, vec!["metal-armor", "shelter", "crafting-speed-2"])), // Passive: armor durability +30%
+        "movement-speed-2" => Some((900, vec!["crafting-speed-2", "metal-armor", "metal-door"])), // Passive: +20% move speed
         
         // ============================================
-        // FACTION UNLOCK NODES (600 shards each)
-        // Requires ANY Tier 5 node
+        // FACTION UNLOCK NODES (400 shards each)
+        // Major milestone - requires ANY Tier 5 node
+        // Player commits to ONE faction (reset costs 2000 shards)
         // ============================================
-        "unlock-black-wolves" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-hive" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-university" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-data-angels" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-battalion" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-admiralty" => Some((600, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-black-wolves" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-hive" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-university" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-data-angels" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-battalion" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-admiralty" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
         
         // ============================================
-        // FACTION BRANCHES (400-2000 shards per node)
+        // FACTION BRANCHES (400-2500 shards per node)
+        // Long-term progression over weeks
+        // 5 nodes per path = 5800 shards to complete one path
         // ============================================
         
-        // BLACK WOLVES - Berserker Path
+        // BLACK WOLVES - Berserker Path (Total: 5800 shards)
         "riot-vest" => Some((400, vec!["unlock-black-wolves"])),
         "shock-pike" => Some((600, vec!["riot-vest"])),
-        "slab-shield" => Some((800, vec!["shock-pike"])),
-        "flash-hammer" => Some((1200, vec!["slab-shield"])),
-        "adrenal-surge" => Some((2000, vec!["flash-hammer"])),
+        "slab-shield" => Some((900, vec!["shock-pike"])),
+        "flash-hammer" => Some((1400, vec!["slab-shield"])),
+        "adrenal-surge" => Some((2500, vec!["flash-hammer"])), // Capstone
         
-        // BLACK WOLVES - Assassin Path
+        // BLACK WOLVES - Assassin Path (Total: 5800 shards)
         "combat-stims" => Some((400, vec!["unlock-black-wolves"])),
         "suppressor-rig" => Some((600, vec!["combat-stims"])),
-        "grav-boots" => Some((800, vec!["suppressor-rig"])),
-        "field-interrogator" => Some((1200, vec!["grav-boots"])),
-        "armor-durability" => Some((2000, vec!["field-interrogator"])),
+        "grav-boots" => Some((900, vec!["suppressor-rig"])),
+        "field-interrogator" => Some((1400, vec!["grav-boots"])),
+        "armor-durability" => Some((2500, vec!["field-interrogator"])), // Capstone
         
-        // HIVE - Industrialist Path
+        // HIVE - Industrialist Path (Total: 5800 shards)
         "spore-grain-vat" => Some((400, vec!["unlock-hive"])),
         "slime-furnace" => Some((600, vec!["spore-grain-vat"])),
-        "chameleon-harness" => Some((800, vec!["slime-furnace"])),
-        "mealworm-factory" => Some((1200, vec!["chameleon-harness"])),
-        "crafting-speed-hive" => Some((2000, vec!["mealworm-factory"])),
+        "chameleon-harness" => Some((900, vec!["slime-furnace"])),
+        "mealworm-factory" => Some((1400, vec!["chameleon-harness"])),
+        "crafting-speed-hive" => Some((2500, vec!["mealworm-factory"])), // Capstone
         
-        // HIVE - Toxicologist Path
+        // HIVE - Toxicologist Path (Total: 5800 shards)
         "venom-knife" => Some((400, vec!["unlock-hive"])),
         "poison-resistance" => Some((600, vec!["venom-knife"])),
-        "acid-sprayer" => Some((800, vec!["poison-resistance"])),
-        "toxic-coating" => Some((1200, vec!["acid-sprayer"])),
-        "toxic-bloom" => Some((2000, vec!["toxic-coating"])),
+        "acid-sprayer" => Some((900, vec!["poison-resistance"])),
+        "toxic-coating" => Some((1400, vec!["acid-sprayer"])),
+        "toxic-bloom" => Some((2500, vec!["toxic-coating"])), // Capstone
         
-        // UNIVERSITY - Engineer Path
+        // UNIVERSITY - Engineer Path (Total: 5800 shards)
         "auto-turret" => Some((400, vec!["unlock-university"])),
         "scanner-drone" => Some((600, vec!["auto-turret"])),
-        "repair-swarm" => Some((800, vec!["scanner-drone"])),
-        "stabilizer-field" => Some((1200, vec!["repair-swarm"])),
-        "fabricator-burst" => Some((2000, vec!["stabilizer-field"])),
+        "repair-swarm" => Some((900, vec!["scanner-drone"])),
+        "stabilizer-field" => Some((1400, vec!["repair-swarm"])),
+        "fabricator-burst" => Some((2500, vec!["stabilizer-field"])), // Capstone
         
-        // UNIVERSITY - Scholar Path
+        // UNIVERSITY - Scholar Path (Total: 5800 shards)
         "logic-furnace" => Some((400, vec!["unlock-university"])),
         "bioprinter-table" => Some((600, vec!["logic-furnace"])),
-        "geneforge-vat" => Some((800, vec!["bioprinter-table"])),
-        "mining-yield-ii" => Some((1200, vec!["geneforge-vat"])),
-        "crafting-speed-uni" => Some((2000, vec!["mining-yield-ii"])),
+        "geneforge-vat" => Some((900, vec!["bioprinter-table"])),
+        "mining-yield-ii" => Some((1400, vec!["geneforge-vat"])),
+        "crafting-speed-uni" => Some((2500, vec!["mining-yield-ii"])), // Capstone
         
-        // DATA ANGELS - Netrunner Path
+        // DATA ANGELS - Netrunner Path (Total: 5800 shards)
         "jammer-tower" => Some((400, vec!["unlock-data-angels"])),
         "ghost-uplink" => Some((600, vec!["jammer-tower"])),
-        "neurochef-decryptor" => Some((800, vec!["ghost-uplink"])),
-        "drone-hijack" => Some((1200, vec!["neurochef-decryptor"])),
-        "hacking-speed" => Some((2000, vec!["drone-hijack"])),
+        "neurochef-decryptor" => Some((900, vec!["ghost-uplink"])),
+        "drone-hijack" => Some((1400, vec!["neurochef-decryptor"])),
+        "hacking-speed" => Some((2500, vec!["drone-hijack"])), // Capstone
         
-        // DATA ANGELS - Phantom Path
+        // DATA ANGELS - Phantom Path (Total: 5800 shards)
         "backdoor-cloak" => Some((400, vec!["unlock-data-angels"])),
         "signal-scrubber" => Some((600, vec!["backdoor-cloak"])),
-        "memory-leech" => Some((800, vec!["signal-scrubber"])),
-        "movement-speed-da" => Some((1200, vec!["memory-leech"])),
-        "overclock" => Some((2000, vec!["movement-speed-da"])),
+        "memory-leech" => Some((900, vec!["signal-scrubber"])),
+        "movement-speed-da" => Some((1400, vec!["memory-leech"])),
+        "overclock" => Some((2500, vec!["movement-speed-da"])), // Capstone
         
-        // BATTALION - Colonel Path
+        // BATTALION - Colonel Path (Total: 5800 shards)
         "battalion-smg" => Some((400, vec!["unlock-battalion"])),
         "mortar-nest" => Some((600, vec!["battalion-smg"])),
-        "fragment-armor" => Some((800, vec!["mortar-nest"])),
-        "ammo-press" => Some((1200, vec!["fragment-armor"])),
-        "ranged-damage" => Some((2000, vec!["ammo-press"])),
+        "fragment-armor" => Some((900, vec!["mortar-nest"])),
+        "ammo-press" => Some((1400, vec!["fragment-armor"])),
+        "ranged-damage" => Some((2500, vec!["ammo-press"])), // Capstone
         
-        // BATTALION - Tactician Path
+        // BATTALION - Tactician Path (Total: 5800 shards)
         "tactical-optics" => Some((400, vec!["unlock-battalion"])),
         "supply-cache" => Some((600, vec!["tactical-optics"])),
-        "field-ration-kit" => Some((800, vec!["supply-cache"])),
-        "max-hp" => Some((1200, vec!["field-ration-kit"])),
-        "rally-cry" => Some((2000, vec!["max-hp"])),
+        "field-ration-kit" => Some((900, vec!["supply-cache"])),
+        "max-hp" => Some((1400, vec!["field-ration-kit"])),
+        "rally-cry" => Some((2500, vec!["max-hp"])), // Capstone
         
-        // ADMIRALTY - Captain Path
+        // ADMIRALTY - Captain Path (Total: 5800 shards)
         "tide-beacon" => Some((400, vec!["unlock-admiralty"])),
         "storm-sail-raft" => Some((600, vec!["tide-beacon"])),
-        "net-cannon" => Some((800, vec!["storm-sail-raft"])),
-        "luminous-buoy" => Some((1200, vec!["net-cannon"])),
-        "naval-command" => Some((2000, vec!["luminous-buoy"])),
+        "net-cannon" => Some((900, vec!["storm-sail-raft"])),
+        "luminous-buoy" => Some((1400, vec!["net-cannon"])),
+        "naval-command" => Some((2500, vec!["luminous-buoy"])), // Capstone
         
-        // ADMIRALTY - Storm Caller Path
+        // ADMIRALTY - Storm Caller Path (Total: 5800 shards)
         "saltwater-desal" => Some((400, vec!["unlock-admiralty"])),
         "weathercock-tower" => Some((600, vec!["saltwater-desal"])),
-        "weather-resistance" => Some((800, vec!["weathercock-tower"])),
-        "tide-gauge" => Some((1200, vec!["weather-resistance"])),
-        "tempest-call" => Some((2000, vec!["tide-gauge"])),
+        "weather-resistance" => Some((900, vec!["weathercock-tower"])),
+        "tide-gauge" => Some((1400, vec!["weather-resistance"])),
+        "tempest-call" => Some((2500, vec!["tide-gauge"])), // Capstone
         
         _ => None, // Unknown node
     }
@@ -516,4 +530,121 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         // Default: no requirement
         _ => None,
     }
+}
+
+/// Cost in shards to reset faction choice
+pub const FACTION_RESET_COST: u64 = 2000;
+
+/// List of all faction unlock node IDs
+const FACTION_UNLOCK_NODES: [&str; 6] = [
+    "unlock-black-wolves",
+    "unlock-hive", 
+    "unlock-university",
+    "unlock-data-angels",
+    "unlock-battalion",
+    "unlock-admiralty",
+];
+
+/// List of all faction branch node IDs (to be removed on reset)
+const FACTION_BRANCH_NODES: [&str; 60] = [
+    // Black Wolves
+    "riot-vest", "shock-pike", "slab-shield", "flash-hammer", "adrenal-surge",
+    "combat-stims", "suppressor-rig", "grav-boots", "field-interrogator", "armor-durability",
+    // Hive
+    "spore-grain-vat", "slime-furnace", "chameleon-harness", "mealworm-factory", "crafting-speed-hive",
+    "venom-knife", "poison-resistance", "acid-sprayer", "toxic-coating", "toxic-bloom",
+    // University
+    "auto-turret", "scanner-drone", "repair-swarm", "stabilizer-field", "fabricator-burst",
+    "logic-furnace", "bioprinter-table", "geneforge-vat", "mining-yield-ii", "crafting-speed-uni",
+    // Data Angels
+    "jammer-tower", "ghost-uplink", "neurochef-decryptor", "drone-hijack", "hacking-speed",
+    "backdoor-cloak", "signal-scrubber", "memory-leech", "movement-speed-da", "overclock",
+    // Battalion
+    "battalion-smg", "mortar-nest", "fragment-armor", "ammo-press", "ranged-damage",
+    "tactical-optics", "supply-cache", "field-ration-kit", "max-hp", "rally-cry",
+    // Admiralty
+    "tide-beacon", "storm-sail-raft", "net-cannon", "luminous-buoy", "naval-command",
+    "saltwater-desal", "weathercock-tower", "weather-resistance", "tide-gauge", "tempest-call",
+];
+
+/// Get which faction a player has unlocked (if any)
+pub fn get_player_faction(ctx: &spacetimedb::ReducerContext, player_id: Identity) -> Option<String> {
+    if let Some(progress) = ctx.db.memory_grid_progress().player_id().find(&player_id) {
+        for faction in &FACTION_UNLOCK_NODES {
+            if has_node(&progress.purchased_nodes, faction) {
+                return Some(faction.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Check if a player has already unlocked a faction
+pub fn player_has_faction(ctx: &spacetimedb::ReducerContext, player_id: Identity) -> bool {
+    get_player_faction(ctx, player_id).is_some()
+}
+
+/// Reducer: Reset faction choice - removes faction unlock and all faction branch nodes
+/// Costs FACTION_RESET_COST shards (2000)
+#[reducer]
+pub fn reset_faction(ctx: &spacetimedb::ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    
+    // Get player's progress
+    let progress = ctx.db.memory_grid_progress().player_id().find(&player_id)
+        .ok_or("No memory grid progress found")?;
+    
+    // Check if player has a faction to reset
+    if !player_has_faction(ctx, player_id) {
+        return Err("You have not unlocked any faction yet.".to_string());
+    }
+    
+    // Check if player has enough shards
+    let available_shards = count_memory_shards_in_inventory(ctx, player_id);
+    if available_shards < FACTION_RESET_COST {
+        return Err(format!(
+            "Insufficient memory shards for faction reset. Need {} but only have {}.",
+            FACTION_RESET_COST, available_shards
+        ));
+    }
+    
+    // Consume shards
+    consume_memory_shards(ctx, player_id, FACTION_RESET_COST)?;
+    
+    // Remove all faction-related nodes from purchased list
+    let mut nodes: Vec<&str> = progress.purchased_nodes
+        .split(',')
+        .map(|s| s.trim())
+        .collect();
+    
+    // Filter out faction unlocks and branches
+    nodes.retain(|node| {
+        !FACTION_UNLOCK_NODES.contains(node) && !FACTION_BRANCH_NODES.contains(node)
+    });
+    
+    // Update progress
+    let mut updated_progress = progress.clone();
+    updated_progress.purchased_nodes = nodes.join(",");
+    updated_progress.total_shards_spent += FACTION_RESET_COST;
+    updated_progress.last_updated = ctx.timestamp;
+    
+    ctx.db.memory_grid_progress().player_id().update(updated_progress);
+    
+    // Record the reset as a special "purchase"
+    let reset_record = MemoryGridPurchase {
+        id: 0,
+        player_id,
+        node_id: "faction-reset".to_string(),
+        node_name: "Faction Reset".to_string(),
+        cost: FACTION_RESET_COST,
+        purchased_at: ctx.timestamp,
+    };
+    ctx.db.memory_grid_purchases().insert(reset_record);
+    
+    spacetimedb::log::info!(
+        "Player {} reset their faction for {} shards",
+        player_id, FACTION_RESET_COST
+    );
+    
+    Ok(())
 }

@@ -115,8 +115,9 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
     
     // Define all loot entries as (name, min_qty, max_qty, drop_chance)  
     let loot_definitions = [
-        // --- COMMON TIER (40-60% drop rates) - Basic survival items ---
-        ("Memory Shard", 3, 6, 0.55),          // Reduced from 8-15 at 98% - still common but not guaranteed
+        // --- COMMON TIER (40-65% drop rates) - Basic survival items ---
+        // Memory shards are critical for early progression - boosted for "power rush" feeling
+        ("Memory Shard", 5, 10, 0.70),         // BOOSTED: 5-10 shards at 70% = reliable early shard source
         ("Rope", 1, 2, 0.50),                  // Essential crafting material
         ("Metal Fragments", 1, 3, 0.45),       // Crafting material - reduced quantity
         ("Wooden Arrow", 2, 5, 0.50),          // Basic ammunition - reduced quantity

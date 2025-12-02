@@ -262,6 +262,12 @@ function getCollisionCandidates(
     // The corpse entity will handle collision for dead animals instead
     if (animal.health <= 0) continue;
     
+    // Skip flying birds (Tern and Crow) - they should be able to fly through trees and other entities
+    const isBird = animal.species.tag === 'Tern' || animal.species.tag === 'Crow';
+    if (isBird && animal.isFlying === true) {
+      continue; // Flying birds have no collision - they can pass through everything
+    }
+    
     shapes.push({
       id: animal.id.toString(),
       type: `animal-${animal.id.toString()}`,

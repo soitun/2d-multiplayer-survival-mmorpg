@@ -25,10 +25,14 @@ import quarryAlpineAutotile from '../assets/tiles/new/tileset_quarry_alpine_auto
 import asphaltDirtRoadAutotile from '../assets/tiles/new/tileset_asphalt_dirtroad_autotile.png';
 import asphaltBeachAutotile from '../assets/tiles/new/tileset_asphalt_beach_autotile.png';
 import asphaltAlpineAutotile from '../assets/tiles/new/tileset_asphalt_alpine_autotile.png';
+import asphaltTundraAutotile from '../assets/tiles/new/tileset_asphalt_tundra_autotile.png';
+import asphaltSeaAutotile from '../assets/tiles/new/tileset_asphalt_sea_autotile.png';
 import alpineDirtRoadAutotile from '../assets/tiles/new/tileset_alpine_dirtroad_autotile.png';
 import alpineDirtAutotile from '../assets/tiles/new/tileset_alpine_dirt_autotile.png';
 import alpineBeachAutotile from '../assets/tiles/new/tileset_alpine_beach_autotile.png';
 import alpineTundraAutotile from '../assets/tiles/new/tileset_alpine_tundra_autotile.png';
+import forestTundraAutotile from '../assets/tiles/new/tileset_forest_tundra_autotile.png';
+import hotSpringWaterBeachAutotile from '../assets/tiles/new/tileset_hotspringwater_beach_autotile.png';
 
 /**
  * 15-Tile Hierarchical Autotile System
@@ -149,6 +153,9 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Forest' && primaryType === 'Forest') return 'Forest';
     if (tileType === 'Forest') return 'Grass';
     
+    // Don't map Tundra to Grass when checking Forest_Tundra transitions (Tundra is secondary)
+    if (tileType === 'Tundra' && primaryType === 'Forest' && secondaryType === 'Tundra') return 'Tundra';
+    
     // Don't map Quarry to Dirt when checking Quarry_* transitions (Quarry is primary)
     // Also don't map Quarry to Dirt when checking Grass_Dirt - we want Grass to use Quarry_Grass instead
     if (tileType === 'Quarry' && primaryType === 'Quarry') return 'Quarry';
@@ -157,7 +164,7 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Quarry') return 'Dirt';
     
     // Don't map Tundra to Grass when checking Tundra_* transitions (Tundra is primary)
-    // Also don't map Tundra to Grass when checking DirtRoad_Tundra, Grass_Tundra, Dirt_Tundra, Quarry_Tundra, or Alpine_Tundra - we want to detect Tundra neighbors
+    // Also don't map Tundra to Grass when checking DirtRoad_Tundra, Grass_Tundra, Dirt_Tundra, Quarry_Tundra, Alpine_Tundra, or Asphalt_Tundra - we want to detect Tundra neighbors
     // IMPORTANT: When checking Quarry_Grass, don't map Tundra to Grass - we want Quarry_Tundra to take priority
     if (tileType === 'Tundra' && primaryType === 'Tundra') return 'Tundra';
     if (tileType === 'Tundra' && primaryType === 'DirtRoad' && secondaryType === 'Tundra') return 'Tundra'; // Keep Tundra for DirtRoad_Tundra
@@ -165,6 +172,7 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Tundra' && primaryType === 'Dirt' && secondaryType === 'Tundra') return 'Tundra'; // Keep Tundra for Dirt_Tundra
     if (tileType === 'Tundra' && primaryType === 'Quarry' && secondaryType === 'Tundra') return 'Tundra'; // Keep Tundra for Quarry_Tundra
     if (tileType === 'Tundra' && primaryType === 'Alpine' && secondaryType === 'Tundra') return 'Tundra'; // Keep Tundra for Alpine_Tundra
+    if (tileType === 'Tundra' && primaryType === 'Asphalt' && secondaryType === 'Tundra') return 'Tundra'; // Keep Tundra for Asphalt_Tundra
     if (tileType === 'Tundra' && primaryType === 'Quarry' && secondaryType === 'Grass') return 'Tundra'; // Don't map Tundra to Grass when checking Quarry_Grass - prioritize Quarry_Tundra
     if (tileType === 'Tundra') return 'Grass';
     
@@ -183,6 +191,13 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Alpine' && primaryType === 'Asphalt' && secondaryType === 'DirtRoad') return 'Alpine'; // Don't map Alpine to DirtRoad when checking Asphalt_DirtRoad
     if (tileType === 'Alpine' && primaryType === 'Quarry' && secondaryType === 'Dirt') return 'Alpine'; // Don't map Alpine to Dirt when checking Quarry_Dirt - prioritize Quarry_Alpine
     if (tileType === 'Alpine') return 'Dirt';
+    
+    // Don't map HotSpringWater to Beach when checking HotSpringWater_Beach transitions (HotSpringWater is primary)
+    if (tileType === 'HotSpringWater' && primaryType === 'HotSpringWater') return 'HotSpringWater';
+    // Don't map Beach to Sea when checking HotSpringWater_Beach transitions (Beach is secondary)
+    if (tileType === 'Beach' && primaryType === 'HotSpringWater' && secondaryType === 'Beach') return 'Beach';
+    // HotSpringWater can be treated as Beach for other transitions (they're both water-like)
+    if (tileType === 'HotSpringWater') return 'Beach';
     
     return tileType;
 }
@@ -401,6 +416,26 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    'Asphalt_Tundra': {
+        primaryType: 'Asphalt',
+        secondaryType: 'Tundra',
+        tilesetPath: asphaltTundraAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Asphalt_Sea': {
+        primaryType: 'Asphalt',
+        secondaryType: 'Sea',
+        tilesetPath: asphaltSeaAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
     'Alpine_DirtRoad': {
         primaryType: 'Alpine',
         secondaryType: 'DirtRoad',
@@ -561,6 +596,26 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    'Forest_Tundra': {
+        primaryType: 'Forest',
+        secondaryType: 'Tundra',
+        tilesetPath: forestTundraAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'HotSpringWater_Beach': {
+        primaryType: 'HotSpringWater',
+        secondaryType: 'Beach',
+        tilesetPath: hotSpringWaterBeachAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
     // NOTE: DirtRoad_Dirt was removed because using the same tileset with swapped
     // interiors doesn't work - the transition tiles (A1-A9, B1-B4) are designed
     // for Dirt->DirtRoad direction only. DirtRoad tiles will use secondaryInterior
@@ -615,6 +670,12 @@ function getNeighborMask(
             // This prevents Alpine from interfering with Asphalt/Beach transitions
             if (originalNeighborType === 'Alpine' && secondaryType !== 'Alpine' && primaryType !== 'Alpine') {
                 continue; // Skip Alpine neighbors when not checking for Alpine transitions
+            }
+            
+            // Skip Sea neighbors when checking for HotSpringWater_Beach transitions (Sea is different from Beach)
+            // This prevents Sea from interfering with HotSpringWater_Beach transitions
+            if (originalNeighborType === 'Sea' && primaryType === 'HotSpringWater' && secondaryType === 'Beach') {
+                continue; // Skip Sea neighbors when checking HotSpringWater_Beach - we want Beach neighbors only
             }
             
             // Count as secondary if:
@@ -672,7 +733,9 @@ function selectIslandTile(mask: number): { row: number; col: number } | null {
     if (mask === 168) return { row: 2, col: 1 };
     if (mask === 169) return { row: 0, col: 0 };
     if (mask === 170) return { row: 0, col: 0 };
+    if (mask === 177) return { row: 0, col: 3 };
     if (mask === 178) return { row: 0, col: 3 };
+    if (mask === 183) return { row: 0, col: 0 };
     if (mask === 187) return { row: 0, col: 0 };
     if (mask === 232) return { row: 2, col: 1 };
 
@@ -849,7 +912,7 @@ export function shouldUseAutotiling(
     
     // NEW TILE TYPES: These don't have autotile sheets yet, so render as plain base textures
     // Remove these from the list as you create autotile sheets for them
-    const tilesWithoutAutotiles = ['HotSpringWater'];
+    const tilesWithoutAutotiles: string[] = []; // HotSpringWater now has HotSpringWater_Beach autotile
     
     if (tilesWithoutAutotiles.includes(tileType)) {
         return null; // Render as plain base texture
@@ -898,6 +961,9 @@ export function shouldUseAutotiling(
         if (b[0] === 'Grass_Beach') return 1;
         if (a[0] === 'Dirt_Beach') return -1;
         if (b[0] === 'Dirt_Beach') return 1;
+        // HotSpringWater_Beach should take priority over Beach_Sea when checking HotSpringWater tiles
+        if (a[0] === 'HotSpringWater_Beach') return -1;
+        if (b[0] === 'HotSpringWater_Beach') return 1;
         if (a[0] === 'Beach_Sea') return -1;
         if (b[0] === 'Beach_Sea') return 1;
         return 0;
@@ -908,7 +974,7 @@ export function shouldUseAutotiling(
     for (const [, config] of configEntries) {
         if (mappedTileType === config.primaryType) {
             if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            if (config.primaryType === 'HotSpringWater') continue;
+            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
             
             // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
             // This is different from the bitmask which includes absorbed same-type neighbors
@@ -932,8 +998,8 @@ export function shouldUseAutotiling(
     for (const [, config] of configEntries) {
         if (mappedTileType === config.primaryType) {
             if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            if (config.primaryType === 'HotSpringWater') continue;
-            if (mappedTileType === 'Sea' || mappedTileType === 'HotSpringWater') continue;
+            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
+            if (mappedTileType === 'Sea') continue; // Sea still doesn't use autotiles
             
             // For Quarry tiles, ensure we use a Quarry config (not Dirt fallback)
             if (mappedTileType === 'Quarry' && config.primaryType !== 'Quarry') continue;
@@ -1011,6 +1077,11 @@ export function getAutotilesForTile(
         autotileTileType = 'Asphalt';
         fallbackTileType = 'DirtRoad';
     }
+    if (tileType === 'HotSpringWater') {
+        // HotSpringWater has its own configs (HotSpringWater_Beach), no fallback needed
+        autotileTileType = 'HotSpringWater';
+        fallbackTileType = null; // HotSpringWater only transitions to Beach, no fallback
+    }
     
     if ('worldX' in centerTile && 'worldY' in centerTile) {
         const tileWorldX = (centerTile as WorldTile).worldX;
@@ -1027,7 +1098,7 @@ export function getAutotilesForTile(
     for (const [, config] of Object.entries(AUTOTILE_CONFIGS)) {
         if (autotileTileType === config.primaryType) {
             if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            if (config.primaryType === 'HotSpringWater') continue;
+            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
             
             const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, autotileTileType);
             
@@ -1047,7 +1118,7 @@ export function getAutotilesForTile(
             
             if (fallbackTileType === config.primaryType && !alreadyHasConfig) {
                 if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-                if (config.primaryType === 'HotSpringWater') continue;
+                // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
                 
                 const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, fallbackTileType);
                 

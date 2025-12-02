@@ -1609,8 +1609,9 @@ fn generate_asphalt_compounds(
     
     // Find road terminals (road tiles near beaches where roads "end")
     // These are positions where roads are adjacent to beach tiles
-    let mini_compound_radius = 5; // Slightly larger mini-compounds
+    let mini_compound_radius = 10; // INCREASED: Larger terminal compounds for visibility (was 5, now 10)
     let beach_threshold = 12.0; // Shore distance threshold for beach
+    let water_threshold = 0.0; // Don't place on actual water
     
     // Check all road tiles
     for y in 0..height {
@@ -1644,6 +1645,7 @@ fn generate_asphalt_compounds(
             
             if has_adjacent_beach {
                 // Create mini-compound at this road terminal
+                // Terminal compounds CAN overlap beach tiles (but not water) for clear visibility
                 for dy in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
                     for dx in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
                         let dist_sq = dx * dx + dy * dy;
@@ -1651,8 +1653,9 @@ fn generate_asphalt_compounds(
                             let compound_x = (x as i32 + dx) as usize;
                             let compound_y = (y as i32 + dy) as usize;
                             if compound_x < width && compound_y < height {
-                                // Only place asphalt on non-beach, non-water tiles
-                                if shore_distance[compound_y][compound_x] >= beach_threshold {
+                                // Place asphalt on any land tile (including beach, but not water)
+                                // This makes terminal compounds clearly visible and take priority
+                                if shore_distance[compound_y][compound_x] > water_threshold {
                                     asphalt[compound_y][compound_x] = true;
                                 }
                             }
@@ -2094,6 +2097,13 @@ fn determine_realistic_tile_type(
     }
     
     // Beach areas around water - CHECK AFTER rivers/lakes/hot springs
+    // ASPHALT COMPOUNDS: Central compound and mini-compounds at road terminals
+    // Check FIRST - terminal compounds take priority over beach tiles for clear visibility
+    // This allows terminal compounds to overlap onto beach areas
+    if features.asphalt_compound[y][x] {
+        return TileType::Asphalt;
+    }
+    
     // EXPANDED: South side of main island gets 2-3x larger beach zones
     let center_y = features.height as i32 / 2;
     let is_south_side = world_y > center_y;
@@ -2111,12 +2121,6 @@ fn determine_realistic_tile_type(
     let near_water = is_near_water(features, x, y);
     if shore_distance < beach_threshold || near_water {
         return TileType::Beach;
-    }
-    
-    // ASPHALT COMPOUNDS: Central compound and mini-compounds at road terminals
-    // Check BEFORE roads so compound areas use Asphalt instead of DirtRoad
-    if features.asphalt_compound[y][x] {
-        return TileType::Asphalt;
     }
     
     // Roads can cross deep water (rivers/lakes) but NOT beaches

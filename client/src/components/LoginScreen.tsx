@@ -1811,7 +1811,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                         }}>
                             Broth & Bullets is developed by{' '}
                             <a
-                                href="https://seloolive.com/products/authentic-croatian-olive-oil?variant=40790542549035#reviews"
+                                href="martinerlic.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{

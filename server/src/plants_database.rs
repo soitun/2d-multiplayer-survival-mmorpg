@@ -924,20 +924,21 @@ lazy_static! {
         });
         
         // === TECHNOLOGICAL DEBRIS ===
-        
+        // BOOSTED for "power rush" early game feel
+        // Beach exploration should reward players with quick Memory Grid unlocks
         configs.insert(PlantType::MemoryShard, PlantConfig {
             entity_name: "Memory Shard".to_string(),
-            density_percent: 0.0006, // TRIPLED: More beach finds for casual exploration (~150 across map)
-            min_distance_sq: 120.0 * 120.0, // Reduced spacing slightly - more frequent discoveries
-            min_tree_distance_sq: 80.0 * 80.0,
-            min_stone_distance_sq: 90.0 * 90.0,
-            noise_threshold: 0.82, // Slightly easier to find - rewarding exploration
-            primary_yield: ("Memory Shard".to_string(), 1, 3), // Occasionally 2-3 for lucky finds
+            density_percent: 0.0015, // 2.5x increase: ~300-400 beach finds across coastline
+            min_distance_sq: 80.0 * 80.0, // Closer together - more frequent discoveries
+            min_tree_distance_sq: 60.0 * 60.0,
+            min_stone_distance_sq: 70.0 * 70.0,
+            noise_threshold: 0.75, // Easier to find - reward beach exploration
+            primary_yield: ("Memory Shard".to_string(), 3, 8), // BOOSTED: 3-8 shards per pickup = 1 Tier 1 unlock per 2-5 finds
             secondary_yield: None,
             seed_type: "".to_string(), // No seeds - technological debris
             seed_drop_chance: 0.0, // No seed drops
-            min_respawn_time_secs: 1800, // 30 minutes - much faster for casual progression
-            max_respawn_time_secs: 2700, // 45 minutes
+            min_respawn_time_secs: 900, // 15 minutes - very fast respawn
+            max_respawn_time_secs: 1500, // 25 minutes
             spawn_condition: SpawnCondition::Coastal, // Debris washed up on beaches and coastline from the crash
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always findable - not biological
         });

@@ -281,7 +281,15 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'tree': return 2;
     case 'stone': return 3;
     case 'rune_stone': return 3.5; // Render between stones and animals
-    case 'wild_animal': return 4;
+    case 'wild_animal': {
+      // Flying birds should render above everything (trees, stones, players, etc.)
+      const animal = item.entity as SpacetimeDBWildAnimal;
+      const isBird = animal.species.tag === 'Tern' || animal.species.tag === 'Crow';
+      if (isBird && animal.isFlying === true) {
+        return 25; // Higher than walls (22-23) and players (21) - renders on top
+      }
+      return 4; // Normal animals render at priority 4
+    }
     case 'wooden_storage_box': return 5;
     case 'stash': return 6;
     case 'campfire': return 7;
@@ -1612,7 +1620,35 @@ export function useEntityFiltering(
     // than the old method, but it avoids massive memory allocation, which is the
     // likely cause of the garbage-collection lag spikes.
     allEntities.sort((a, b) => {
-      // ABSOLUTE FIRST CHECK: Broth pot MUST render above campfires and fumaroles
+      // ABSOLUTE FIRST CHECK: Flying birds MUST render above everything (trees, stones, players, etc.)
+      // This ensures birds in flight are always visible above ground entities
+      const aAnimal = a.type === 'wild_animal' ? (a.entity as SpacetimeDBWildAnimal) : null;
+      const bAnimal = b.type === 'wild_animal' ? (b.entity as SpacetimeDBWildAnimal) : null;
+      
+      const aIsFlyingBird = aAnimal !== null && 
+        (aAnimal.species.tag === 'Tern' || aAnimal.species.tag === 'Crow') &&
+        aAnimal.isFlying === true;
+      const bIsFlyingBird = bAnimal !== null && 
+        (bAnimal.species.tag === 'Tern' || bAnimal.species.tag === 'Crow') &&
+        bAnimal.isFlying === true;
+      
+      // Explicit checks for common ground entities that flying birds should render above
+      if (aIsFlyingBird && (b.type === 'tree' || b.type === 'stone' || b.type === 'player' || b.type === 'rune_stone' || b.type === 'wild_animal')) {
+        return 1; // Flying bird renders after (above) ground entity
+      }
+      if (bIsFlyingBird && (a.type === 'tree' || a.type === 'stone' || a.type === 'player' || a.type === 'rune_stone' || a.type === 'wild_animal')) {
+        return -1; // Flying bird renders after (above) ground entity
+      }
+      
+      // General check: flying bird vs any non-flying entity
+      if (aIsFlyingBird && !bIsFlyingBird) {
+        return 1; // Flying bird renders after (above) non-flying entities
+      }
+      if (bIsFlyingBird && !aIsFlyingBird) {
+        return -1; // Flying bird renders after (above) non-flying entities
+      }
+      
+      // ABSOLUTE SECOND CHECK: Broth pot MUST render above campfires and fumaroles
       // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
       // Moving this to very top ensures no other logic can interfere
       if (a.type === 'broth_pot' && (b.type === 'campfire' || b.type === 'fumarole')) {

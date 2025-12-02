@@ -371,6 +371,8 @@ import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reduc
 export { RegenerateCompressedChunks };
 import { RegisterPlayer } from "./register_player_reducer.ts";
 export { RegisterPlayer };
+import { ResetFaction } from "./reset_faction_reducer.ts";
+export { ResetFaction };
 import { RespawnAtSleepingBag } from "./respawn_at_sleeping_bag_reducer.ts";
 export { RespawnAtSleepingBag };
 import { RespawnDestroyedBarrels } from "./respawn_destroyed_barrels_reducer.ts";
@@ -2640,6 +2642,10 @@ const REMOTE_MODULE = {
       reducerName: "register_player",
       argsType: RegisterPlayer.getTypeScriptAlgebraicType(),
     },
+    reset_faction: {
+      reducerName: "reset_faction",
+      argsType: ResetFaction.getTypeScriptAlgebraicType(),
+    },
     respawn_at_sleeping_bag: {
       reducerName: "respawn_at_sleeping_bag",
       argsType: RespawnAtSleepingBag.getTypeScriptAlgebraicType(),
@@ -3192,6 +3198,7 @@ export type Reducer = never
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
+| { name: "ResetFaction", args: ResetFaction }
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
 | { name: "RespawnRandomly", args: RespawnRandomly }
@@ -5933,6 +5940,18 @@ export class RemoteReducers {
     this.connection.offReducer("register_player", callback);
   }
 
+  resetFaction() {
+    this.connection.callReducer("reset_faction", new Uint8Array(0), this.setCallReducerFlags.resetFactionFlags);
+  }
+
+  onResetFaction(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("reset_faction", callback);
+  }
+
+  removeOnResetFaction(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("reset_faction", callback);
+  }
+
   respawnAtSleepingBag(bagId: number) {
     const __args = { bagId };
     let __writer = new __BinaryWriter(1024);
@@ -8126,6 +8145,11 @@ export class SetReducerFlags {
   registerPlayerFlags: __CallReducerFlags = 'FullUpdate';
   registerPlayer(flags: __CallReducerFlags) {
     this.registerPlayerFlags = flags;
+  }
+
+  resetFactionFlags: __CallReducerFlags = 'FullUpdate';
+  resetFaction(flags: __CallReducerFlags) {
+    this.resetFactionFlags = flags;
   }
 
   respawnAtSleepingBagFlags: __CallReducerFlags = 'FullUpdate';

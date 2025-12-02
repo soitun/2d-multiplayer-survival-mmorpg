@@ -32,6 +32,11 @@ import crowberriesImageSource from '../../assets/doodads/crowberries.png';
 import seaPlantainImageSource from '../../assets/doodads/sea_plantain.png';
 import glasswortImageSource from '../../assets/doodads/glasswort.png';
 
+// NEW ALPINE PLANTS
+import arcticLichenImageSource from '../../assets/doodads/arctic_lichen.png';
+import mountainMossImageSource from '../../assets/doodads/mountain_moss.png';
+import arcticPoppyImageSource from '../../assets/doodads/arctic_poppy.png';
+
 // Mushrooms
 import chanterelleImageSource from '../../assets/doodads/chanterelle.png';
 import porciniImageSource from '../../assets/doodads/porcini.png';
@@ -67,7 +72,7 @@ import beachWoodPileImageSource from '../../assets/doodads/pile_beach_wood.png';
 import stonePileImageSource from '../../assets/doodads/pile_stone.png';
 
 // Resource type to image source mapping (BOTANICALLY ACCURATE FOR ALEUTIAN ISLANDS)
-export const RESOURCE_IMAGE_SOURCES: Record<HarvestableResourceType, string> = {
+export const RESOURCE_IMAGE_SOURCES = {
   // === BASIC CROPS (Cold-hardy varieties) ===
   BorealNettle: borealNettleImageSource,
   Potato: potatoImageSource,
@@ -100,6 +105,11 @@ export const RESOURCE_IMAGE_SOURCES: Record<HarvestableResourceType, string> = {
   Crowberry: crowberriesImageSource,
   SeaPlantain: seaPlantainImageSource,
   Glasswort: glasswortImageSource,
+  
+  // === NEW: ALPINE PLANTS (Year-round hardy alpine species) ===
+  ArcticLichen: arcticLichenImageSource,
+  MountainMoss: mountainMossImageSource,
+  ArcticPoppy: arcticPoppyImageSource,
   
   // === MUSHROOMS (Can grow in cold, humid maritime conditions) ===
   Chanterelle: chanterelleImageSource,
@@ -134,7 +144,10 @@ export const RESOURCE_IMAGE_SOURCES: Record<HarvestableResourceType, string> = {
   WoodPile: woodPileImageSource,
   BeachWoodPile: beachWoodPileImageSource,
   StonePile: stonePileImageSource
-};
+} satisfies Record<HarvestableResourceType, string>;
+
+// Explicit type export for better type inference
+export type ResourceImageSources = typeof RESOURCE_IMAGE_SOURCES;
 
 // Helper function to get image source for a resource type
 export function getResourceImageSource(resourceType: HarvestableResourceType): string {
