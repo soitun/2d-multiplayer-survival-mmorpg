@@ -1128,7 +1128,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         return Ok(());
     }
 
-    log::info!("Seeding environment (trees, stones, unified harvestable resources, clouds) - grass temporarily disabled..." );
+    log::info!("Seeding environment (trees, stones, unified harvestable resources, clouds, grass)..." );
 
     let fbm = Fbm::<Perlin>::new(ctx.rng().gen());
     let mut rng = StdRng::from_rng(ctx.rng()).map_err(|e| format!("Failed to seed RNG: {}", e))?;
@@ -1189,9 +1189,20 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let target_wild_animal_count = (total_tiles as f32 * WILD_ANIMAL_DENSITY_PERCENT) as u32;
     let max_wild_animal_attempts = target_wild_animal_count * MAX_WILD_ANIMAL_SEEDING_ATTEMPTS_FACTOR;
 
-    // Grass seeding parameters - temporarily commented out
-    // let target_grass_count = (total_tiles as f32 * crate::grass::GRASS_DENSITY_PERCENT) as u32;
-    // let max_grass_attempts = target_grass_count * crate::grass::MAX_GRASS_SEEDING_ATTEMPTS_FACTOR;
+    // Grass seeding parameters - OPTIMIZED: No O(n²) distance checks, so we can have more grass
+    // Scale based on number of Grass/Forest tiles (biome-filtered spawning)
+    let world_tiles = ctx.db.world_tile();
+    let mut grass_forest_tile_count = 0u32;
+    for tile in world_tiles.iter() {
+        if matches!(tile.tile_type, TileType::Grass | TileType::Forest) {
+            grass_forest_tile_count += 1;
+        }
+    }
+    // Target ~12% of Grass/Forest tiles for dense "seas" of grass (scales with map size)
+    // Increased from 8% to 12% to create massive contiguous grass regions
+    const GRASS_DENSITY_PERCENT: f32 = 0.12; // 12% of valid tiles - creates massive grass "seas"
+    let target_grass_count = (grass_forest_tile_count as f32 * GRASS_DENSITY_PERCENT) as u32;
+    let max_grass_attempts = target_grass_count * crate::grass::MAX_GRASS_SEEDING_ATTEMPTS_FACTOR;
 
     // --- NEW: Region parameters for grass types ---
     const GRASS_REGION_SIZE_CHUNKS: u32 = 10; // Each region is 10x10 chunks
@@ -1215,7 +1226,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     
     log::info!("Target Clouds: {}, Max Attempts: {}", target_cloud_count, max_cloud_attempts);
     log::info!("Target Wild Animals: {}, Max Attempts: {}", target_wild_animal_count, max_wild_animal_attempts);
-    // log::info!("Target Grass: {}, Max Attempts: {}", target_grass_count, max_grass_attempts);
+    log::info!("Target Grass: {} (from {} Grass/Forest tiles, {:.1}% density), Max Attempts: {}", 
+        target_grass_count, grass_forest_tile_count, GRASS_DENSITY_PERCENT * 100.0, max_grass_attempts);
     // Calculate spawn bounds using helper
     let (min_tile_x, max_tile_x, min_tile_y, max_tile_y) = 
         calculate_tile_bounds(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, crate::tree::TREE_SPAWN_WORLD_MARGIN_TILES);
@@ -1227,9 +1239,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut spawned_sea_stack_positions = Vec::<(f32, f32)>::new();
     // REMOVED: let mut spawned_hot_spring_positions = Vec::<(f32, f32)>::new(); // No longer needed (using tile type)
     let mut spawned_harvestable_positions = Vec::<(f32, f32)>::new(); // Unified for all plants
+    // REMOVED: spawned_grass_positions - no longer needed (removed O(n²) distance check for performance)
     let mut spawned_cloud_positions = Vec::<(f32, f32)>::new();
     let mut spawned_wild_animal_positions = Vec::<(f32, f32)>::new();
-    // let mut spawned_grass_positions = Vec::<(f32, f32)>::new();
 
     let mut spawned_tree_count = 0;
     let mut tree_attempts = 0;
@@ -1253,8 +1265,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut cloud_attempts = 0;
     let mut spawned_wild_animal_count = 0;
     let mut wild_animal_attempts = 0;
-    // let mut spawned_grass_count = 0;
-    // let mut grass_attempts = 0;
+    let mut spawned_grass_count = 0;
+    let mut grass_attempts = 0;
 
     // --- Seed Trees --- Use helper function with dense forest clustering ---
     log::info!("Seeding Trees with dense forest clusters (including Forest tile type)...");
@@ -2324,75 +2336,125 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_wild_animal_count, target_wild_animal_count, wild_animal_attempts
     );
 
-    // --- Seed Grass --- TEMPORARILY COMMENTED OUT
-    // log::info!("Seeding Grass...");
-    // while spawned_grass_count < target_grass_count && grass_attempts < max_grass_attempts {
-    //     grass_attempts += 1;
+    // --- Seed Grass --- OPTIMIZED: No grass-to-grass distance check, biome-filtered (Grass/Forest only)
+    // REMOVED O(n²) grass distance check - grass can overlap, it's decorative
+    // ADDED biome filtering - only spawn on Grass and Forest tiles (no Tundra/Alpine)
+    log::info!("Seeding Grass (optimized - Grass/Forest tiles only)...");
+    
+    // Get world tiles handle for biome checking (reuse from earlier scope)
+    let world_tiles_for_biome = ctx.db.world_tile();
+    
+    while spawned_grass_count < target_grass_count && grass_attempts < max_grass_attempts {
+        grass_attempts += 1;
 
-    //     // Generate random grass properties
-    //     let sway_offset_seed = rng.gen::<u32>();
-    //     let sway_speed = rng.gen_range(0.5..2.0);
+        // Generate random tile coordinates  
+        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
         
-    //     // Choose grass appearance type with weighted distribution
-    //     let appearance_roll: f64 = rng.gen_range(0.0..1.0);
-    //     let appearance_type = if appearance_roll < 0.3 {
-    //         GrassAppearanceType::PatchA
-    //     } else if appearance_roll < 0.6 {
-    //         GrassAppearanceType::PatchB
-    //     } else if appearance_roll < 0.8 {
-    //         GrassAppearanceType::PatchC
-    //     } else if appearance_roll < 0.9 {
-    //         GrassAppearanceType::TallGrassA
-    //     } else {
-    //         GrassAppearanceType::TallGrassB
-    //     };
+        // ===== BIOME FILTER: Only spawn on Grass or Forest tiles =====
+        // Check tile type at this position
+        let mut valid_biome = false;
+        for tile in world_tiles_for_biome.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+            if matches!(tile.tile_type, TileType::Grass | TileType::Forest) {
+                valid_biome = true;
+            }
+            break;
+        }
+        if !valid_biome {
+            continue; // Skip non-grass/forest biomes (Tundra, Alpine, Water, etc.)
+        }
 
-    //     match attempt_single_spawn(
-    //         &mut rng,
-    //         &mut occupied_tiles,
-    //         &mut spawned_grass_positions,
-    //         &spawned_tree_positions,
-    //         &spawned_stone_positions,
-    //         min_tile_x, max_tile_x, min_tile_y, max_tile_y,
-    //         &fbm,
-    //         crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
-    //         crate::grass::GRASS_SPAWN_NOISE_THRESHOLD,
-    //         crate::grass::MIN_GRASS_DISTANCE_SQ,
-    //         crate::grass::MIN_GRASS_TREE_DISTANCE_SQ,
-    //         crate::grass::MIN_GRASS_STONE_DISTANCE_SQ,
-    //         |pos_x, pos_y, (appearance_type, sway_offset_seed, sway_speed): (GrassAppearanceType, u32, f32)| {
-    //             let chunk_idx = calculate_chunk_index(pos_x, pos_y);
-                
-    //             Grass {
-    //                 id: 0,
-    //                 pos_x,
-    //                 pos_y,
-    //                 health: crate::grass::GRASS_INITIAL_HEALTH,
-    //                 appearance_type,
-    //                 chunk_index: chunk_idx,
-    //                 last_hit_time: None,
-    //                 respawn_at: None,
-    //                 sway_offset_seed,
-    //                 sway_speed,
-    //                 disturbed_at: None,
-    //                 disturbance_direction_x: 0.0,
-    //                 disturbance_direction_y: 0.0,
-    //             }
-    //         },
-    //         (appearance_type, sway_offset_seed, sway_speed),
-    //         |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y),
-    //         grasses,
-    //     ) {
-    //         Ok(true) => spawned_grass_count += 1,
-    //         Ok(false) => { /* Condition not met, continue */ }
-    //         Err(_) => { /* Error already logged in helper, continue */ }
-    //     }
-    // }
-    // log::info!(
-    //     "Finished seeding {} grass entities (target: {}, attempts: {}).",
-    //     spawned_grass_count, target_grass_count, grass_attempts
-    // );
-    let spawned_grass_count = 0; // Set to 0 since grass seeding is temporarily disabled
+        // Calculate position
+        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+
+        // Skip central compound
+        if is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+
+        // Noise check for natural distribution
+        let noise_val = fbm.get([
+            (pos_x as f64 / WORLD_WIDTH_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+            (pos_y as f64 / WORLD_HEIGHT_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+        ]);
+        let normalized_noise = (noise_val + 1.0) / 2.0;
+        if normalized_noise <= crate::grass::GRASS_SPAWN_NOISE_THRESHOLD {
+            continue;
+        }
+
+        // REMOVED: Grass-to-grass distance check (was O(n²) - main performance killer)
+        // Grass is small decorative elements, overlapping is fine and looks natural
+
+        // Distance check from trees (O(n) where n = tree count, reasonable)
+        let too_close_to_tree = spawned_tree_positions.iter().any(|(tx, ty)| {
+            let dx = pos_x - tx;
+            let dy = pos_y - ty;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_TREE_DISTANCE_SQ
+        });
+        if too_close_to_tree {
+            continue;
+        }
+
+        // Distance check from stones (O(n) where n = stone count, reasonable)
+        let too_close_to_stone = spawned_stone_positions.iter().any(|(sx, sy)| {
+            let dx = pos_x - sx;
+            let dy = pos_y - sy;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_STONE_DISTANCE_SQ
+        });
+        if too_close_to_stone {
+            continue;
+        }
+
+        // Generate random grass properties
+        let sway_offset_seed = rng.gen::<u32>();
+        let sway_speed = rng.gen_range(0.5..2.0);
+        
+        // Choose grass appearance type with weighted distribution
+        let appearance_roll: f64 = rng.gen_range(0.0..1.0);
+        let appearance_type = if appearance_roll < 0.3 {
+            GrassAppearanceType::PatchA
+        } else if appearance_roll < 0.6 {
+            GrassAppearanceType::PatchB
+        } else if appearance_roll < 0.8 {
+            GrassAppearanceType::PatchC
+        } else if appearance_roll < 0.9 {
+            GrassAppearanceType::TallGrassA
+        } else {
+            GrassAppearanceType::TallGrassB
+        };
+
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        
+        let new_grass = Grass {
+            id: 0,
+            pos_x,
+            pos_y,
+            health: crate::grass::GRASS_INITIAL_HEALTH,
+            appearance_type,
+            chunk_index: chunk_idx,
+            last_hit_time: None,
+            respawn_at: None,
+            sway_offset_seed,
+            sway_speed,
+            disturbed_at: None,
+            disturbance_direction_x: 0.0,
+            disturbance_direction_y: 0.0,
+        };
+
+        match grasses.try_insert(new_grass) {
+            Ok(_) => {
+                spawned_grass_count += 1;
+            }
+            Err(e) => {
+                log::warn!("Failed to insert grass at ({}, {}): {}", pos_x, pos_y, e);
+            }
+        }
+    }
+    log::info!(
+        "Finished seeding {} grass entities (target: {}, attempts: {}).",
+        spawned_grass_count, target_grass_count, grass_attempts
+    );
 
     // --- Seed Clouds ---
     log::info!("Seeding Clouds...");

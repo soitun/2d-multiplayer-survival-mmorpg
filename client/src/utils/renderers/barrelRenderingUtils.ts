@@ -13,10 +13,10 @@ import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroun
 import { imageManager } from './imageManager'; // Import image manager
 
 // --- Constants --- (Keep exportable if used elsewhere)
-export const BARREL_WIDTH = 72; // Standard barrel size
-export const BARREL_HEIGHT = 72;
-export const BARREL5_WIDTH = 144; // Variant 4 (barrel5.png) rendered at larger size
-export const BARREL5_HEIGHT = 144;
+export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
+export const BARREL_HEIGHT = 86;
+export const BARREL5_WIDTH = 172; // Variant 4 (barrel5.png) rendered at larger size (increased from 144)
+export const BARREL5_HEIGHT = 172;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels

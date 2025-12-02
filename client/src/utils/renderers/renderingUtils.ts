@@ -975,7 +975,8 @@ export const renderYSortedEntities = ({
                 drawInteractionOutline(ctx, corpse.posX, corpse.posY + 0, 80, 72, cycleProgress, outlineColor); // Made taller: 48 → 72
             }
         } else if (type === 'grass') {
-            renderGrass(ctx, entity as InterpolatedGrassData, nowMs, cycleProgress, false, true);
+            // Grass rendered from Y-sorted entities - use 'near' LOD since it's already visibility filtered
+            renderGrass(ctx, entity as InterpolatedGrassData, nowMs, cycleProgress, false, true, 'near');
         } else if (type === 'projectile') {
             const projectile = entity as SpacetimeDBProjectile;
             

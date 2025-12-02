@@ -226,6 +226,8 @@ interface GameScreenProps {
     onWeatherOverlayChange: (enabled: boolean) => void;
     statusOverlaysEnabled: boolean;
     onStatusOverlaysChange: (enabled: boolean) => void;
+    grassEnabled: boolean;
+    onGrassChange: (enabled: boolean) => void;
 
     // Sound system for immediate sound effects
     soundSystem: ReturnType<typeof import('../hooks/useSoundSystem').useSoundSystem>;
@@ -331,6 +333,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         onWeatherOverlayChange,
         statusOverlaysEnabled,
         onStatusOverlaysChange,
+        grassEnabled,
+        onGrassChange,
         soundSystem,
         playerDrinkingCooldowns,
         playerDodgeRollStates,
@@ -587,6 +591,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     onWeatherOverlayChange={onWeatherOverlayChange}
                     statusOverlaysEnabled={statusOverlaysEnabled}
                     onStatusOverlaysChange={onStatusOverlaysChange}
+                    grassEnabled={grassEnabled}
+                    onGrassChange={onGrassChange}
                 />
             )}
 

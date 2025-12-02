@@ -2,10 +2,10 @@ use spacetimedb::{SpacetimeType, Timestamp, Table};
 
 // --- Grass-Specific Constants ---
 
-// Grass Spawning Parameters
-pub(crate) const GRASS_DENSITY_PERCENT: f32 = 0.18; // Reduced from 0.25 to 0.18 for better performance (still 1.8x more than original 0.10)
-pub(crate) const GRASS_SPAWN_NOISE_FREQUENCY: f64 = 10.0; // Higher frequency for smaller patches
-pub(crate) const GRASS_SPAWN_NOISE_THRESHOLD: f64 = 0.65; // Noise threshold for spawning
+// Grass Spawning Parameters - Optimized for dense "seas" of grass
+pub(crate) const GRASS_DENSITY_PERCENT: f32 = 0.18; // Used for noise-based density calculation
+pub(crate) const GRASS_SPAWN_NOISE_FREQUENCY: f64 = 1.2; // Much lower frequency = HUGE contiguous patches/regions (was 2.5, originally 10.0)
+pub(crate) const GRASS_SPAWN_NOISE_THRESHOLD: f64 = 0.30; // Much lower threshold = very easy spawning, creates massive "seas" (was 0.45, originally 0.65)
 pub(crate) const GRASS_SPAWN_WORLD_MARGIN_TILES: u32 = 2; // Margin from world edges
 pub(crate) const MAX_GRASS_SEEDING_ATTEMPTS_FACTOR: u32 = 4; // Reduced from 5 to 4 for faster seeding
 pub(crate) const MIN_GRASS_DISTANCE_PX: f32 = 3.0; // Reduced from 10.0 to 3.0 for much denser patches

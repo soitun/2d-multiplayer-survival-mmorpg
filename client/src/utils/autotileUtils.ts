@@ -22,6 +22,7 @@ import quarryBeachAutotile from '../assets/tiles/new/tileset_quarry_beach_autoti
 import quarryDirtRoadAutotile from '../assets/tiles/new/tileset_quarry_dirtroad_autotile.png';
 import quarryTundraAutotile from '../assets/tiles/new/tileset_quarry_tundra_autotile.png';
 import quarryAlpineAutotile from '../assets/tiles/new/tileset_quarry_alpine_autotile.png';
+import quarryForestAutotile from '../assets/tiles/new/tileset_quarry_forest_autotile.png';
 import asphaltDirtRoadAutotile from '../assets/tiles/new/tileset_asphalt_dirtroad_autotile.png';
 import asphaltBeachAutotile from '../assets/tiles/new/tileset_asphalt_beach_autotile.png';
 import asphaltAlpineAutotile from '../assets/tiles/new/tileset_asphalt_alpine_autotile.png';
@@ -150,7 +151,9 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (!tileType) return undefined;
     
     // Don't map Forest to Grass when checking Forest_* transitions (Forest is primary)
+    // Also don't map Forest to Grass when checking Quarry_Forest - we want to detect Forest neighbors
     if (tileType === 'Forest' && primaryType === 'Forest') return 'Forest';
+    if (tileType === 'Forest' && primaryType === 'Quarry' && secondaryType === 'Forest') return 'Forest'; // Keep Forest for Quarry_Forest
     if (tileType === 'Forest') return 'Grass';
     
     // Don't map Tundra to Grass when checking Forest_Tundra transitions (Tundra is secondary)
@@ -380,6 +383,16 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryType: 'Quarry',
         secondaryType: 'Tundra',
         tilesetPath: quarryTundraAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Quarry_Forest': {
+        primaryType: 'Quarry',
+        secondaryType: 'Forest',
+        tilesetPath: quarryForestAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
@@ -678,6 +691,12 @@ function getNeighborMask(
                 continue; // Skip Sea neighbors when checking HotSpringWater_Beach - we want Beach neighbors only
             }
             
+            // Skip Forest neighbors when checking for Quarry transitions that aren't Quarry_Forest
+            // This prevents Forest from interfering with Quarry_Grass transitions (Quarry_Forest should take priority)
+            if (originalNeighborType === 'Forest' && primaryType === 'Quarry' && secondaryType !== 'Forest') {
+                continue; // Skip Forest neighbors when checking Quarry_Grass - prioritize Quarry_Forest
+            }
+            
             // Count as secondary if:
             // 1. The neighbor IS the secondary type, OR
             // 2. The neighbor is the same primary type BUT is "overwhelmed"
@@ -946,13 +965,15 @@ export function shouldUseAutotiling(
         if (a[0].includes('DirtRoad') && !b[0].includes('DirtRoad')) return -1;
         if (b[0].includes('DirtRoad') && !a[0].includes('DirtRoad')) return 1;
         // Second priority: Quarry configs (ensures interior Quarry tiles use Quarry configs, not Dirt fallback)
-        // Prioritize Quarry_Tundra and Quarry_Alpine over other Quarry configs to avoid incorrect neighbor mapping
+        // Prioritize Quarry_Tundra, Quarry_Alpine, and Quarry_Forest over other Quarry configs to avoid incorrect neighbor mapping
         if (a[0].startsWith('Quarry_') && !b[0].startsWith('Quarry_')) return -1;
         if (b[0].startsWith('Quarry_') && !a[0].startsWith('Quarry_')) return 1;
         if (a[0] === 'Quarry_Tundra' && b[0].startsWith('Quarry_')) return -1; // Quarry_Tundra before other Quarry configs
         if (b[0] === 'Quarry_Tundra' && a[0].startsWith('Quarry_')) return 1;
         if (a[0] === 'Quarry_Alpine' && b[0].startsWith('Quarry_')) return -1; // Quarry_Alpine before other Quarry configs (except Tundra)
         if (b[0] === 'Quarry_Alpine' && a[0].startsWith('Quarry_')) return 1;
+        if (a[0] === 'Quarry_Forest' && b[0].startsWith('Quarry_')) return -1; // Quarry_Forest before other Quarry configs (except Tundra/Alpine)
+        if (b[0] === 'Quarry_Forest' && a[0].startsWith('Quarry_')) return 1;
         // Third priority: Grass_Dirt (prevents dirt patches from looking weird)
         if (a[0] === 'Grass_Dirt') return -1;
         if (b[0] === 'Grass_Dirt') return 1;

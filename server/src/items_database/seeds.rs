@@ -9,12 +9,13 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
 
         // === LARGE NUTRITIOUS SEEDS ===
         
-        // Pumpkin Seeds - Large, nutritious seeds
-        ItemBuilder::new("Pumpkin Seeds", "Large edible seeds from pumpkins. Can be planted to grow pumpkin plants or eaten for nutrition.", ItemCategory::Placeable)
+        // Pumpkin Seeds - Large, nutritious seeds (CAN BE TOASTED - popular snack)
+        ItemBuilder::new("Pumpkin Seeds", "Large edible seeds from pumpkins. Can be planted to grow pumpkin plants or toasted for enhanced nutrition.", ItemCategory::Placeable)
             .icon("pumpkin_seeds.png")
             .stackable(50)
             .respawn_time(720) // 12 minutes
             .consumable(2.0, 8.0, -2.0) // health, hunger, thirst
+            .cookable(30.0, "Toasted Pumpkin Seeds") // Toasts into enhanced snack
             .build(),
 
         // Toasted Pumpkin Seeds - Enhanced nutrition when toasted
@@ -23,22 +24,16 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(0) // Made by cooking
             .consumable(5.0, 15.0, -1.0) // health, hunger, thirst
+            .cookable(25.0, "Charcoal") // Overcooking burns them to charcoal
             .build(),
 
-        // Burnt Pumpkin Seeds - Overcooked and bitter
-        ItemBuilder::new("Burnt Pumpkin Seeds", "Overcooked pumpkin seeds that are bitter and less nutritious. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_pumpkin_seeds.png")
-            .stackable(50)
-            .respawn_time(0)
-            .consumable(-2.0, 2.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Sunflower Seeds - Popular edible seeds
-        ItemBuilder::new("Sunflower Seeds", "Nutritious edible seeds from sunflowers. Can be planted to grow sunflower plants or eaten as a healthy snack.", ItemCategory::Placeable)
+        // Sunflower Seeds - Popular edible seeds (CAN BE TOASTED - popular snack)
+        ItemBuilder::new("Sunflower Seeds", "Nutritious edible seeds from sunflowers. Can be planted to grow sunflower plants or toasted for enhanced nutrition.", ItemCategory::Placeable)
             .icon("sunflower_seeds.png")
             .stackable(50)
             .respawn_time(600) // 10 minutes
             .consumable(3.0, 6.0, -3.0) // health, hunger, thirst
+            .cookable(28.0, "Toasted Sunflower Seeds") // Toasts into enhanced snack
             .build(),
 
         // Toasted Sunflower Seeds - Enhanced when toasted
@@ -47,22 +42,16 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(0)
             .consumable(6.0, 12.0, -2.0) // health, hunger, thirst
+            .cookable(25.0, "Charcoal") // Overcooking burns them to charcoal
             .build(),
 
-        // Burnt Sunflower Seeds - Bitter and acrid
-        ItemBuilder::new("Burnt Sunflower Seeds", "Burnt sunflower seeds that taste bitter and acrid. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_sunflower_seeds.png")
-            .stackable(50)
-            .respawn_time(0)
-            .consumable(-3.0, 1.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Flax Seeds - High in omega fatty acids
-        ItemBuilder::new("Flax Seeds", "Tiny seeds rich in healthy oils. Can be planted to grow flax plants or eaten for nutrition.", ItemCategory::Placeable)
+        // Flax Seeds - High in omega fatty acids (CAN BE TOASTED - improves digestibility)
+        ItemBuilder::new("Flax Seeds", "Tiny seeds rich in healthy oils. Can be planted to grow flax plants or toasted for better digestibility.", ItemCategory::Placeable)
             .icon("flax_seeds.png")
             .stackable(60)
             .respawn_time(480) // 8 minutes
             .consumable(2.0, 4.0, -1.0) // health, hunger, thirst
+            .cookable(25.0, "Toasted Flax Seeds") // Toasts into enhanced version
             .build(),
 
         // Toasted Flax Seeds - Enhanced digestibility
@@ -71,14 +60,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(0)
             .consumable(5.0, 8.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Burnt Flax Seeds - Rancid and bitter
-        ItemBuilder::new("Burnt Flax Seeds", "Burnt flax seeds with rancid oils. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_flax_seeds.png")
-            .stackable(60)
-            .respawn_time(0)
-            .consumable(-2.0, 1.0, 0.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Overcooking burns them to charcoal
             .build(),
 
         // === GRAIN SEEDS ===
@@ -91,6 +73,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(420) // 7 minutes
             .consumable(0.0, 0.5, -0.5) // health, hunger, thirst
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Beet Seeds - Emergency food
@@ -99,6 +82,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(420)
             .consumable(0.0, 0.5, 0.0) // health, hunger, thirst
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
 
@@ -112,14 +96,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(70)
             .respawn_time(360) // 6 minutes
             .consumable(0.5, 1.0, -0.5) // health, hunger, thirst
-            .build(),
-
-        // Burnt Chicory Seeds - Charred chicory seeds
-        ItemBuilder::new("Burnt Chicory Seeds", "Charred chicory seeds that are extremely bitter. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_chicory_seeds.png")
-            .stackable(70)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Salsify Seeds - Root vegetable seeds
@@ -128,14 +105,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(70)
             .respawn_time(480) // 8 minutes
             .consumable(0.0, 1.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Burnt Salsify Seeds - Charred salsify seeds
-        ItemBuilder::new("Burnt Salsify Seeds", "Charred salsify seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_salsify_seeds.png")
-            .stackable(70)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // === HERB & MEDICINAL SEEDS ===
@@ -146,14 +116,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(480) // 8 minutes
             .consumable(1.0, 0.5, -0.5) // health, hunger, thirst - medicinal properties
-            .build(),
-
-        // Burnt Yarrow Seeds - Charred medicinal seeds
-        ItemBuilder::new("Burnt Yarrow Seeds", "Charred yarrow seeds that have lost their medicinal properties. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_yarrow_seeds.png")
-            .stackable(60)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Chamomile Seeds - Calming herb seeds
@@ -162,14 +125,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(360) // 6 minutes
             .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - mild calming effect
-            .build(),
-
-        // Burnt Chamomile Seeds - Charred chamomile seeds
-        ItemBuilder::new("Burnt Chamomile Seeds", "Charred chamomile seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_chamomile_seeds.png")
-            .stackable(80)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Valerian Seeds - Sedative herb seeds
@@ -178,14 +134,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(600) // 10 minutes
             .consumable(1.0, -0.5, -1.0) // health, hunger, thirst - medicinal but unpalatable
-            .build(),
-
-        // Burnt Valerian Seeds - Charred valerian seeds
-        ItemBuilder::new("Burnt Valerian Seeds", "Charred valerian seeds that smell terrible. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_valerian_seeds.png")
-            .stackable(50)
-            .respawn_time(0)
-            .consumable(-2.0, -1.0, -2.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Mugwort Seeds - Bitter herb seeds
@@ -194,14 +143,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(420) // 7 minutes
             .consumable(0.5, 0.5, -0.5) // health, hunger, thirst
-            .build(),
-
-        // Burnt Mugwort Seeds - Charred mugwort seeds
-        ItemBuilder::new("Burnt Mugwort Seeds", "Charred mugwort seeds that are acrid and bitter. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mugwort_seeds.png")
-            .stackable(60)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Ginseng Seeds - Rare medicinal seeds
@@ -210,14 +152,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .respawn_time(1800) // 30 minutes - very rare
             .consumable(2.0, 0.5, 0.0) // health, hunger, thirst - medicinal properties
-            .build(),
-
-        // Burnt Ginseng Seeds - Charred ginseng seeds
-        ItemBuilder::new("Burnt Ginseng Seeds", "Charred ginseng seeds that have lost their valuable properties. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_ginseng_seeds.png")
-            .stackable(20)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // === SPECIAL PLANTING MATERIALS ===
@@ -228,14 +163,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(30)
             .respawn_time(720) // 12 minutes
             .consumable(1.5, 1.0, -1.5) // health, hunger, thirst - strong medicinal
-            .build(),
-
-        // Burnt Bear Garlic Bulbs - Charred wild garlic
-        ItemBuilder::new("Burnt Bear Garlic Bulbs", "Charred bear garlic bulbs that are bitter and unpalatable. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_bear_garlic_bulbs.png")
-            .stackable(30)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(30.0, "Charcoal") // Burns directly to charcoal - bulbs just char
             .build(),
 
         // Mint Cuttings - Mint propagation material
@@ -244,14 +172,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(40)
             .respawn_time(300) // 5 minutes - spreads fast
             .consumable(0.5, 0.5, 2.0) // health, hunger, thirst - refreshing
-            .build(),
-
-        // Burnt Mint Cuttings - Charred mint
-        ItemBuilder::new("Burnt Mint Cuttings", "Charred mint cuttings that have lost their refreshing properties. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mint_cuttings.png")
-            .stackable(40)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - cuttings just char
             .build(),
 
         // Horseradish Root - Root cutting for planting
@@ -260,14 +181,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .respawn_time(1200) // 20 minutes
             .consumable(1.0, -1.0, -3.0) // health, hunger, thirst - very strong, reduces appetite
-            .build(),
-
-        // Burnt Horseradish Root - Charred horseradish
-        ItemBuilder::new("Burnt Horseradish Root", "Charred horseradish root that is bitter and acrid. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_horseradish_root.png")
-            .stackable(15)
-            .respawn_time(0)
-            .consumable(-2.0, -1.0, -2.0) // health, hunger, thirst
+            .cookable(35.0, "Charcoal") // Burns directly to charcoal - root just chars
             .build(),
 
 
@@ -280,14 +194,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(600) // 10 minutes
             .consumable(0.0, 1.0, -0.5) // health, hunger, thirst
-            .build(),
-
-        // Burnt Dogbane Seeds - Charred fiber seeds
-        ItemBuilder::new("Burnt Dogbane Seeds", "Charred dogbane seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_dogbane_seeds.png")
-            .stackable(50)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Bog Cotton Seeds - Water fiber plant seeds
@@ -296,14 +203,16 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(480) // 8 minutes
             .consumable(0.0, 0.5, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
-        // Burnt Bog Cotton Seeds - Charred cotton seeds
-        ItemBuilder::new("Burnt Bog Cotton Seeds", "Charred bog cotton seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_bog_cotton_seeds.png")
-            .stackable(60)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.0) // health, hunger, thirst
+        // Arctic Hairgrass Seeds - Arctic fiber plant seeds
+        ItemBuilder::new("Arctic Hairgrass Seeds", "Seeds for growing arctic hairgrass. A hardy arctic grass that provides fiber. Can be eaten but provides minimal nutrition.", ItemCategory::Placeable)
+            .icon("arctic_hairgrass_seeds.png")
+            .stackable(50)
+            .respawn_time(600) // 10 minutes
+            .consumable(0.0, 1.0, -0.5) // health, hunger, thirst
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // === MUSHROOM SPORES ===
@@ -314,14 +223,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .respawn_time(900) // 15 minutes
             .consumable(0.5, 1.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Burnt Chanterelle Spores - Charred spores
-        ItemBuilder::new("Burnt Chanterelle Spores", "Charred chanterelle spores. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(20)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Porcini Spores - Premium mushroom spores
@@ -330,14 +232,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .respawn_time(1200) // 20 minutes
             .consumable(1.0, 1.0, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Burnt Porcini Spores - Charred premium spores
-        ItemBuilder::new("Burnt Porcini Spores", "Charred porcini spores. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(15)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Shaggy Ink Cap Spores - Common mushroom spores
@@ -346,14 +241,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(30)
             .respawn_time(600) // 10 minutes
             .consumable(0.5, 0.5, 0.0) // health, hunger, thirst
-            .build(),
-
-        // Burnt Shaggy Ink Cap Spores - Charred common spores
-        ItemBuilder::new("Burnt Shaggy Ink Cap Spores", "Charred shaggy ink cap spores. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(30)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Fly Agaric Spores - Toxic mushroom spores
@@ -362,14 +250,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .respawn_time(800) // 13 minutes
             .consumable(-3.0, -1.0, -2.0) // health, hunger, thirst - toxic
-            .build(),
-
-        // Burnt Fly Agaric Spores - Charred toxic spores
-        ItemBuilder::new("Burnt Fly Agaric Spores", "Charred fly agaric spores that are still toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(20)
-            .respawn_time(0)
-            .consumable(-5.0, -2.0, -3.0) // health, hunger, thirst - more toxic
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Deadly Webcap Spores - Extremely toxic spores
@@ -378,14 +259,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .respawn_time(1800) // 30 minutes - very rare
             .consumable(-8.0, -3.0, -5.0) // health, hunger, thirst - extremely toxic
-            .build(),
-
-        // Burnt Deadly Webcap Spores - Charred deadly spores
-        ItemBuilder::new("Burnt Deadly Webcap Spores", "Charred deadly webcap spores that remain extremely toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(10)
-            .respawn_time(0)
-            .consumable(-12.0, -5.0, -8.0) // health, hunger, thirst - even more toxic
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Destroying Angel Spores - Lethal mushroom spores
@@ -394,14 +268,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(5)
             .respawn_time(2400) // 40 minutes - extremely rare
             .consumable(-15.0, -5.0, -10.0) // health, hunger, thirst - lethal
-            .build(),
-
-        // Burnt Destroying Angel Spores - Charred lethal spores
-        ItemBuilder::new("Burnt Destroying Angel Spores", "Charred destroying angel spores that remain lethal. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mushroom_spore.png")
-            .stackable(5)
-            .respawn_time(0)
-            .consumable(-20.0, -8.0, -15.0) // health, hunger, thirst - even more lethal
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // === BERRY SEEDS ===
@@ -412,14 +279,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(900) // 15 minutes
             .consumable(0.5, 1.0, 1.0) // health, hunger, thirst - small but refreshing
-            .build(),
-
-        // Burnt Lingonberry Seeds - Charred berry seeds
-        ItemBuilder::new("Burnt Lingonberry Seeds", "Charred lingonberry seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_lingonberry_seeds.png")
-            .stackable(80)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Cloudberry Seeds - Rare arctic berry seeds
@@ -428,14 +288,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(1200) // 20 minutes
             .consumable(1.0, 1.0, 1.0) // health, hunger, thirst - nutritious but small
-            .build(),
-
-        // Burnt Cloudberry Seeds - Charred arctic seeds
-        ItemBuilder::new("Burnt Cloudberry Seeds", "Charred cloudberry seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_cloudberry_seeds.png")
-            .stackable(60)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Bilberry Seeds - Wild blueberry seeds
@@ -444,14 +297,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(100)
             .respawn_time(600) // 10 minutes
             .consumable(0.5, 0.5, 1.0) // health, hunger, thirst - sweet but tiny
-            .build(),
-
-        // Burnt Bilberry Seeds - Charred blueberry seeds
-        ItemBuilder::new("Burnt Bilberry Seeds", "Charred bilberry seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_bilberry_seeds.png")
-            .stackable(100)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Wild Strawberry Seeds - Small strawberry seeds
@@ -460,14 +306,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(120)
             .respawn_time(480) // 8 minutes
             .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - very small
-            .build(),
-
-        // Burnt Wild Strawberry Seeds - Charred strawberry seeds
-        ItemBuilder::new("Burnt Wild Strawberry Seeds", "Charred wild strawberry seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_wild_strawberry_seeds.png")
-            .stackable(120)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Rowan Seeds - Mountain ash seeds
@@ -476,14 +315,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(1800) // 30 minutes
             .consumable(0.5, 1.0, -1.0) // health, hunger, thirst - bitter
-            .build(),
-
-        // Burnt Rowan Seeds - Charred mountain ash seeds
-        ItemBuilder::new("Burnt Rowan Seeds", "Charred rowan seeds that are extremely bitter. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_rowan_seeds.png")
-            .stackable(50)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -1.5) // health, hunger, thirst
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Cranberry Seeds - Bog berry seeds
@@ -492,14 +324,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(900) // 15 minutes
             .consumable(1.0, 1.0, 0.5) // health, hunger, thirst - tart but healthy
-            .build(),
-
-        // Burnt Cranberry Seeds - Charred bog seeds
-        ItemBuilder::new("Burnt Cranberry Seeds", "Charred cranberry seeds. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_cranberry_seeds.png")
-            .stackable(80)
-            .respawn_time(0)
-            .consumable(-1.0, 0.0, -0.5) // health, hunger, thirst
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // === TOXIC PLANT SEEDS ===
@@ -510,14 +335,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(5)
             .respawn_time(3600) // 60 minutes - extremely rare
             .consumable(-10.0, -2.0, -5.0) // health, hunger, thirst - very toxic
-            .build(),
-
-        // Burnt Mandrake Seeds - Charred toxic seeds
-        ItemBuilder::new("Burnt Mandrake Seeds", "Charred mandrake seeds that remain toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_mandrake_seeds.png")
-            .stackable(5)
-            .respawn_time(0)
-            .consumable(-15.0, -4.0, -8.0) // health, hunger, thirst - more toxic
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Belladonna Seeds - Deadly nightshade seeds
@@ -526,14 +344,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .respawn_time(2400) // 40 minutes
             .consumable(-12.0, -3.0, -6.0) // health, hunger, thirst - deadly
-            .build(),
-
-        // Burnt Belladonna Seeds - Charred deadly seeds
-        ItemBuilder::new("Burnt Belladonna Seeds", "Charred belladonna seeds that remain deadly. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_belladonna_seeds.png")
-            .stackable(10)
-            .respawn_time(0)
-            .consumable(-18.0, -5.0, -10.0) // health, hunger, thirst - even more deadly
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Henbane Seeds - Toxic herb seeds
@@ -542,14 +353,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .respawn_time(1800) // 30 minutes
             .consumable(-8.0, -2.0, -4.0) // health, hunger, thirst - toxic
-            .build(),
-
-        // Burnt Henbane Seeds - Charred toxic herb seeds
-        ItemBuilder::new("Burnt Henbane Seeds", "Charred henbane seeds that remain toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_henbane_seeds.png")
-            .stackable(15)
-            .respawn_time(0)
-            .consumable(-12.0, -4.0, -6.0) // health, hunger, thirst - more toxic
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Datura Seeds - Hallucinogenic plant seeds
@@ -558,14 +362,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .respawn_time(2100) // 35 minutes
             .consumable(-10.0, -3.0, -5.0) // health, hunger, thirst - toxic and hallucinogenic
-            .build(),
-
-        // Burnt Datura Seeds - Charred hallucinogenic seeds
-        ItemBuilder::new("Burnt Datura Seeds", "Charred datura seeds that remain toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_datura_seeds.png")
-            .stackable(10)
-            .respawn_time(0)
-            .consumable(-15.0, -5.0, -8.0) // health, hunger, thirst - more toxic
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Wolfsbane Seeds - Extremely toxic flower seeds
@@ -574,14 +371,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(8)
             .respawn_time(2700) // 45 minutes
             .consumable(-15.0, -4.0, -8.0) // health, hunger, thirst - extremely toxic
-            .build(),
-
-        // Burnt Wolfsbane Seeds - Charred extremely toxic seeds
-        ItemBuilder::new("Burnt Wolfsbane Seeds", "Charred wolfsbane seeds that remain extremely toxic. Cannot be planted.", ItemCategory::Consumable)
-            .icon("burnt_wolfsbane_seeds.png")
-            .stackable(8)
-            .respawn_time(0)
-            .consumable(-22.0, -6.0, -12.0) // health, hunger, thirst - even more toxic
+            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // === NON-EDIBLE PLANTING MATERIALS ===
@@ -592,6 +382,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .respawn_time(900) // 15 minutes - rare
             .consumable(-1.0, -2.0, -2.0) // health, hunger, thirst
+            .cookable(40.0, "Charcoal") // Burns directly to charcoal - raw potato chars
             .build(),
 
         // Corn Seeds - Large seeds
@@ -600,6 +391,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .respawn_time(1200) // 20 minutes - valuable crop
             .consumable(0.0, 1.0, -2.0) // health, hunger, thirst
+            .cookable(30.0, "Charcoal") // Burns directly to charcoal - hard kernels just char
             .build(),
 
         // Nettle Seeds - Fiber crop seeds
@@ -608,6 +400,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(30)
             .respawn_time(600) // 10 minutes
             .consumable(-0.5, 1.0, -1.0) // health, hunger, thirst
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Reed Rhizome - Water plant propagation (NOT a seed, but plantable)
@@ -616,6 +409,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .respawn_time(720) // 12 minutes
             .consumable(-3.0, -5.0, -5.0) // health, hunger, thirst
+            .cookable(35.0, "Charcoal") // Burns directly to charcoal - rhizome just chars
             .build(),
 
         // === ARCTIC/SUBARCTIC PLANT SEEDS (Botanically accurate for Aleutian Islands) ===
@@ -626,6 +420,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(300) // 5 minutes - hardy, fast-growing
             .consumable(1.0, 0.5, 0.5) // health, hunger, thirst - vitamin C boost
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Crowberry Seeds - Hardy subarctic berries
@@ -634,6 +429,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(80)
             .respawn_time(1200) // 20 minutes - slow-growing perennial
             .consumable(0.5, 0.5, 1.0) // health, hunger, thirst - small but refreshing
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Sea Plantain Seeds - Maritime plant seeds
@@ -642,6 +438,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(70)
             .respawn_time(600) // 10 minutes - salt-tolerant
             .consumable(0.5, 1.0, -1.0) // health, hunger, thirst - salty
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Glasswort Seeds - Salt-tolerant succulent seeds
@@ -650,6 +447,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(50)
             .respawn_time(720) // 12 minutes - specialized coastal plant
             .consumable(1.0, 1.0, -2.0) // health, hunger, thirst - very salty
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Beach Lyme Grass Seeds - Coastal grass seeds (beach-only planting)
@@ -658,6 +456,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(60)
             .respawn_time(480) // 8 minutes - fast-growing coastal grass
             .consumable(0.5, 0.5, 0.0) // health, hunger, thirst - minimal nutrition
+            .cookable(22.0, "Charcoal") // Burns directly to charcoal - grass seeds just char
             .build(),
 
         // === ALPINE PLANT SPORES/SEEDS ===
@@ -668,6 +467,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(40)
             .respawn_time(1800) // 30 minutes - rare alpine flower
             .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - minimal nutrition
+            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
         // Lichen Spores - Slow-growing alpine lichen
@@ -676,6 +476,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(30)
             .respawn_time(2400) // 40 minutes - very slow growing
             .consumable(0.5, 1.0, 0.0) // health, hunger, thirst - minimal nutrition
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // Moss Spores - Alpine moss propagation
@@ -684,6 +485,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(40)
             .respawn_time(1500) // 25 minutes - moderate growth
             .consumable(0.5, 1.0, 0.5) // health, hunger, thirst - fibrous
+            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
     ]
 }

@@ -1,13 +1,14 @@
 import React from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTree, faCloudRain, faHeartPulse } from '@fortawesome/free-solid-svg-icons';
+import { faTree, faCloudRain, faHeartPulse, faLeaf } from '@fortawesome/free-solid-svg-icons';
 
 // Default visual settings based on optimal neural rendering thresholds
 export const DEFAULT_VISUAL_SETTINGS = {
     treeShadowsEnabled: true,        // Enable tree shadows
     weatherOverlayEnabled: true,     // Enable weather overlay effects
     statusOverlaysEnabled: true,     // Enable cold/low health screen overlays
+    grassEnabled: true,              // Enable grass rendering and subscriptions
 } as const;
 
 interface GameVisualSettingsMenuProps {
@@ -19,6 +20,8 @@ interface GameVisualSettingsMenuProps {
     onWeatherOverlayChange: (enabled: boolean) => void;
     statusOverlaysEnabled: boolean;
     onStatusOverlaysChange: (enabled: boolean) => void;
+    grassEnabled: boolean;
+    onGrassChange: (enabled: boolean) => void;
 }
 
 const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
@@ -30,6 +33,8 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
     onWeatherOverlayChange,
     statusOverlaysEnabled,
     onStatusOverlaysChange,
+    grassEnabled,
+    onGrassChange,
 }) => {
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -243,6 +248,74 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                     }}
                                 />
                                 ENABLE RAIN
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Grass Setting */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#88cc44',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #88cc44',
+                            letterSpacing: '1px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            <FontAwesomeIcon 
+                                icon={faLeaf} 
+                                style={{
+                                    color: '#88cc44',
+                                    textShadow: '0 0 8px #88cc44',
+                                    fontSize: '14px',
+                                }}
+                            />
+                            GRASS RENDERING: {grassEnabled ? 'ENABLED' : 'DISABLED'}
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#aaffaa',
+                            marginBottom: '8px',
+                            opacity: 0.7,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            {grassEnabled 
+                                ? 'Grass subscriptions active - may impact performance' 
+                                : 'Grass disabled for better performance'
+                            }
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            gap: '15px',
+                        }}>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '14px',
+                                color: grassEnabled ? '#88cc44' : '#666',
+                                textShadow: grassEnabled ? '0 0 5px #88cc44' : 'none',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={grassEnabled}
+                                    onChange={(e) => onGrassChange(e.target.checked)}
+                                    style={{
+                                        marginRight: '10px',
+                                        transform: 'scale(1.5)',
+                                        accentColor: '#88cc44',
+                                    }}
+                                />
+                                ENABLE GRASS
                             </label>
                         </div>
                     </div>

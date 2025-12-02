@@ -1,22 +1,15 @@
-import {
-    // Grass, // We will use InterpolatedGrassData
-    GrassAppearanceType
-} from '../../generated'; // Import generated Grass type and AppearanceType
-import { drawDynamicGroundShadow } from './shadowUtils';
-import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
+import { GrassAppearanceType } from '../../generated';
 import { imageManager } from './imageManager';
-import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation'; // Import InterpolatedGrassData
+import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation';
 
-// Import grass assets directly using @ alias
+// Import grass assets directly
 import grass1TextureUrl from '../../assets/doodads/grass1.png';
 import grass2TextureUrl from '../../assets/doodads/grass2.png';
 import grass3TextureUrl from '../../assets/doodads/grass3.png';
 import tallGrassATextureUrl from '../../assets/doodads/tall_grass_a.png';
 import tallGrassBTextureUrl from '../../assets/doodads/tall_grass_b.png';
-import bramblesATextureUrl from '../../assets/doodads/brambles_a.png';
-import bramblesBTextureUrl from '../../assets/doodads/brambles_b.png';
 
-// NEW: Import water foliage assets
+// Water foliage assets
 import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
 import reedBedsBTextureUrl from '../../assets/doodads/reed_beds_b.png';
 import bulrushesTextureUrl from '../../assets/doodads/bulrushes.png';
@@ -24,675 +17,364 @@ import lilyPadsTextureUrl from '../../assets/doodads/lily_pads.png';
 import seaweedForestTextureUrl from '../../assets/doodads/seaweed_forest.png';
 import algaeMatsTextureUrl from '../../assets/doodads/algae_mats.png';
 
-// --- Constants for Grass Rendering ---
-// const TARGET_GRASS_WIDTH_PX = 48; // Old constant, now part of grassSizeConfig
-const SWAY_AMPLITUDE_DEG = 3; // Max sway in degrees (e.g., +/- 3 degrees from vertical)
-const STATIC_ROTATION_DEG = 5; // Max static random rotation in degrees (+/-)
-const SWAY_VARIATION_FACTOR = 0.5; // How much individual sway can vary
-const Y_SORT_OFFSET_GRASS = 5; // Fine-tune Y-sorting position relative to base
-const MAX_POSITION_OFFSET_PX = 4; // Max random pixel offset for X and Y
-const SCALE_VARIATION_MIN = 0.95; // Min random scale factor
-const SCALE_VARIATION_MAX = 1.05; // Max random scale factor
-const DEFAULT_FALLBACK_SWAY_SPEED = 0.1; // Fallback if entity.swaySpeed is undefined
+// =============================================================================
+// GRASS RENDERING CONSTANTS
+// =============================================================================
 
-// NEW: Disturbance effect constants
-const DISTURBANCE_DURATION_MS = 1500; // How long disturbance effect lasts (1.5 seconds)
-const DISTURBANCE_SWAY_AMPLITUDE_DEG = 15; // Much stronger sway when disturbed
-const DISTURBANCE_FADE_FACTOR = 0.8; // How quickly the disturbance fades over time
+// Animation & Visual Constants
+const SWAY_AMPLITUDE_DEG = 1.2; // Reduced from 3 to 1.2 for more subtle sway
+const STATIC_ROTATION_DEG = 5;
+const SWAY_VARIATION_FACTOR = 0.5;
+const Y_SORT_OFFSET_GRASS = 5;
+const MAX_POSITION_OFFSET_PX = 4;
+const SCALE_VARIATION_MIN = 0.95;
+const SCALE_VARIATION_MAX = 1.05;
+const DEFAULT_FALLBACK_SWAY_SPEED = 0.1;
 
-// OPTIMIZATION: Cache disturbance calculations to avoid recalculating every frame
+// Disturbance effect constants (disabled by default for performance)
+const DISTURBANCE_DURATION_MS = 1500;
+const DISTURBANCE_SWAY_AMPLITUDE_DEG = 15;
+const DISTURBANCE_FADE_FACTOR = 0.8;
+const DISTURBANCE_CACHE_DURATION_MS = 50;
+
+// Viewport culling
+const VIEWPORT_MARGIN_PX = 100;
+
+// LOD (Level of Detail) thresholds - squared distances for fast comparison
+const LOD_NEAR_DISTANCE_SQ = 200 * 200;
+const LOD_MID_DISTANCE_SQ = 400 * 400;
+const LOD_FAR_DISTANCE_SQ = 600 * 600;
+
+// Frame throttling per LOD level
+const FRAME_THROTTLE = {
+  NEAR: 1,  // Every frame
+  MID: 2,   // Every 2 frames
+  FAR: 4,   // Every 4 frames
+} as const;
+
+// Maximum grass entities per LOD level (performance limiter)
+const MAX_GRASS_PER_LOD = {
+  NEAR: 60,
+  MID: 35,
+  FAR: 20,
+} as const;
+
+// =============================================================================
+// PERFORMANCE FLAGS - Toggle for testing
+// =============================================================================
+const DISABLE_CLIENT_DISTURBANCE_EFFECTS = true;
+const ENABLE_AGGRESSIVE_CULLING = true;
+const ENABLE_GRASS_PERF_LOGGING = false;
+
+// =============================================================================
+// CACHES & STATE
+// =============================================================================
+
+// Frame counter for throttling (updated only in batch render)
+let frameCounter = 0;
+
+// Disturbance calculation cache
 const disturbanceCache = new Map<string, {
     lastCalculatedMs: number;
     result: { isDisturbed: boolean; disturbanceStrength: number; disturbanceDirectionX: number; disturbanceDirectionY: number; };
 }>();
-const DISTURBANCE_CACHE_DURATION_MS = 50; // Cache for 50ms (20fps cache rate)
 
-// PERFORMANCE: Viewport-based culling instead of circular distance
-const VIEWPORT_MARGIN_PX = 100; // Extra margin around viewport for smooth scrolling
+// LOD level type
+type LODLevel = 'near' | 'mid' | 'far' | 'cull';
 
-// PERFORMANCE: Level-of-detail (LOD) system
-const LOD_NEAR_DISTANCE_SQ = 200 * 200;    // Reduced from 300x300 - Full detail
-const LOD_MID_DISTANCE_SQ = 400 * 400;     // Reduced from 500x500 - Reduced effects  
-const LOD_FAR_DISTANCE_SQ = 600 * 600;     // Reduced from 800x800 - Minimal effects
-const LOD_CULL_DISTANCE_SQ = 800 * 800;    // Reduced from 1200x1200 - Don't render at all (more aggressive)
+// =============================================================================
+// GRASS TYPE CONFIGURATION
+// =============================================================================
 
-// PERFORMANCE: Enhanced frame-based throttling
-const FRAME_THROTTLE_SETTINGS = {
-  NEAR_GRASS_INTERVAL: 1,   // Update every frame
-  MID_GRASS_INTERVAL: 2,    // Update every 2 frames
-  FAR_GRASS_INTERVAL: 5,    // Update every 5 frames
-};
-
-// PERFORMANCE: Grass density control
-const GRASS_DENSITY_LIMITS = {
-  NEAR_MAX_COUNT: 50,       // Max grass entities to render at near distance
-  MID_MAX_COUNT: 30,        // Max grass entities to render at mid distance
-  FAR_MAX_COUNT: 15,        // Max grass entities to render at far distance
-};
-
-// Emergency mode removed
-
-// PERFORMANCE: Pre-computed sin/cos lookup table for common angles
-const SIN_COS_LOOKUP: { [key: number]: { sin: number; cos: number } } = {};
-const LOOKUP_PRECISION = 0.5; // Degrees precision for lookup table
-for (let deg = -20; deg <= 20; deg += LOOKUP_PRECISION) {
-    const rad = deg * (Math.PI / 180);
-    SIN_COS_LOOKUP[deg] = { sin: Math.sin(rad), cos: Math.cos(rad) };
-}
-
-// PERFORMANCE: Spatial partitioning for grass rendering
-const grassSpatialCache = new Map<string, {
-  grassEntities: InterpolatedGrassData[];
-  lastUpdateFrame: number;
-  centerX: number;
-  centerY: number;
-  lodLevel: 'near' | 'mid' | 'far' | 'cull';
-}>();
-
-// Frame counter for throttling
-let frameCounter = 0;
-
-// PERFORMANCE FLAGS: Control rendering complexity
-const DISABLE_CLIENT_DISTURBANCE_EFFECTS = true; // TESTING: Disable disturbance rendering to isolate lag source
-const ENABLE_AGGRESSIVE_CULLING = true; // Enhanced viewport culling for better performance
-const ENABLE_GRASS_PERF_LOGGING = false; // Reduce log spam for cleaner testing
-
-// --- NEW: Define which grass types should sway ---
+// Grass types that should animate with sway
 const SWAYING_GRASS_TYPES = new Set<string>([
     GrassAppearanceType.PatchA.tag,
     GrassAppearanceType.PatchB.tag,
     GrassAppearanceType.PatchC.tag,
     GrassAppearanceType.TallGrassA.tag,
     GrassAppearanceType.TallGrassB.tag,
-    // NEW: Water foliage that should sway
-    GrassAppearanceType.ReedBedsA.tag,      // Reeds sway in water currents
-    GrassAppearanceType.ReedBedsB.tag,      // Reed clusters sway
-    GrassAppearanceType.Bulrushes.tag,      // Cattails sway gently
-    GrassAppearanceType.SeaweedForest.tag,  // Underwater plants sway with currents
-    // NOTE: LilyPads and AlgaeMats should NOT sway (surface floaters)
+    GrassAppearanceType.ReedBedsA.tag,
+    GrassAppearanceType.ReedBedsB.tag,
+    GrassAppearanceType.Bulrushes.tag,
+    GrassAppearanceType.SeaweedForest.tag,
+    // LilyPads and AlgaeMats do NOT sway (surface floaters)
 ]);
 
-// Helper function to check if a grass type should sway
-function shouldGrassSway(appearanceType: GrassAppearanceType): boolean {
-    return SWAYING_GRASS_TYPES.has(appearanceType.tag);
-}
+// Grass types that should NOT have static rotation
+const NO_ROTATION_TYPES = new Set<string>([
+    GrassAppearanceType.LilyPads.tag,
+    GrassAppearanceType.AlgaeMats.tag,
+]);
 
-// NEW: Helper function to calculate disturbance effect (OPTIMIZED)
-function calculateDisturbanceEffect(grass: InterpolatedGrassData, nowMs: number): { 
-    isDisturbed: boolean; 
-    disturbanceStrength: number; 
-    disturbanceDirectionX: number; 
-    disturbanceDirectionY: number; 
-} {
-    // OPTIMIZATION: Use cache to avoid recalculating every frame
-    const cacheKey = `${grass.id}_${grass.disturbedAt ? (grass.disturbedAt as any)?.microsSinceUnixEpoch || 0 : 0}`;
-    const cached = disturbanceCache.get(cacheKey);
+// Fast helper functions
+const shouldGrassSway = (tag: string): boolean => SWAYING_GRASS_TYPES.has(tag);
+const shouldHaveStaticRotation = (tag: string): boolean => !NO_ROTATION_TYPES.has(tag);
+
+// =============================================================================
+// DISTURBANCE EFFECT (CACHED)
+// =============================================================================
+
+const NO_DISTURBANCE = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
+
+function calculateDisturbanceEffect(grass: InterpolatedGrassData, nowMs: number): typeof NO_DISTURBANCE {
+    // Quick exit if disabled
+    if (DISABLE_CLIENT_DISTURBANCE_EFFECTS || !grass.disturbedAt) {
+        return NO_DISTURBANCE;
+    }
     
+    // Check cache
+    const cacheKey = `${grass.id}_${(grass.disturbedAt as any)?.microsSinceUnixEpoch || 0}`;
+    const cached = disturbanceCache.get(cacheKey);
     if (cached && (nowMs - cached.lastCalculatedMs) < DISTURBANCE_CACHE_DURATION_MS) {
         return cached.result;
     }
     
-    // DEBUG: Log when we're calculating new disturbance effects
-    if (ENABLE_GRASS_PERF_LOGGING && Math.random() < 0.001) { // Log 0.1% of calculations
-        console.log(`🌱 [GRASS_DISTURBANCE] Calculating disturbance for grass ${grass.id} - cache miss`);
-    }
-    
-    // Quick exit if no disturbance timestamp
-    if (!grass.disturbedAt) {
-        const result = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
-        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result });
-        return result;
-    }
-    
-    // Convert server timestamp to milliseconds (assuming disturbedAt has microsSinceUnixEpoch)
+    // Calculate disturbance time
     const disturbedAtMs = (grass.disturbedAt as any)?.microsSinceUnixEpoch 
         ? Number((grass.disturbedAt as any).microsSinceUnixEpoch) / 1000 
         : 0;
     
     if (disturbedAtMs === 0) {
-        const result = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
-        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result });
-        return result;
+        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result: NO_DISTURBANCE });
+        return NO_DISTURBANCE;
     }
     
-    const timeSinceDisturbanceMs = nowMs - disturbedAtMs;
-    
-    if (timeSinceDisturbanceMs > DISTURBANCE_DURATION_MS) {
-        const result = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
-        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result });
-        return result;
+    const timeSinceMs = nowMs - disturbedAtMs;
+    if (timeSinceMs > DISTURBANCE_DURATION_MS) {
+        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result: NO_DISTURBANCE });
+        return NO_DISTURBANCE;
     }
     
-    // Calculate fade-out strength (1.0 = full strength, 0.0 = no effect)
-    const fadeProgress = timeSinceDisturbanceMs / DISTURBANCE_DURATION_MS;
-    const disturbanceStrength = Math.pow(1.0 - fadeProgress, DISTURBANCE_FADE_FACTOR);
-    
+    // Calculate fade-out strength
+    const fadeProgress = timeSinceMs / DISTURBANCE_DURATION_MS;
     const result = {
         isDisturbed: true,
-        disturbanceStrength,
+        disturbanceStrength: Math.pow(1.0 - fadeProgress, DISTURBANCE_FADE_FACTOR),
         disturbanceDirectionX: grass.disturbanceDirectionX,
         disturbanceDirectionY: grass.disturbanceDirectionY,
     };
     
-    // DEBUG: Log active disturbance effects
-    if (ENABLE_GRASS_PERF_LOGGING && Math.random() < 0.001) { // Log 0.1% of active disturbances
-        console.log(`🌱 [GRASS_DISTURBANCE] ACTIVE: Grass ${grass.id} - strength: ${disturbanceStrength.toFixed(2)}, direction: (${grass.disturbanceDirectionX.toFixed(2)}, ${grass.disturbanceDirectionY.toFixed(2)})`);
-    }
-    
-    // Cache the result
     disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result });
-    
-    // OPTIMIZATION: Cleanup old cache entries periodically
-    if (disturbanceCache.size > 500) { // Arbitrary limit
-        const oldestAllowed = nowMs - (DISTURBANCE_CACHE_DURATION_MS * 2);
-        for (const [key, entry] of disturbanceCache.entries()) {
-            if (entry.lastCalculatedMs < oldestAllowed) {
-                disturbanceCache.delete(key);
-            }
-        }
-    }
-    
     return result;
 }
 
-// Asset paths for different grass appearances and their animation frames
-const grassAssetPaths: Record<string, string[]> = {
-    [GrassAppearanceType.PatchA.tag]: [grass1TextureUrl],
-    [GrassAppearanceType.PatchB.tag]: [grass2TextureUrl],
-    [GrassAppearanceType.PatchC.tag]: [grass3TextureUrl],
-    [GrassAppearanceType.TallGrassA.tag]: [tallGrassATextureUrl],
-    [GrassAppearanceType.TallGrassB.tag]: [tallGrassBTextureUrl],
-    [GrassAppearanceType.BramblesA.tag]: [bramblesATextureUrl],
-    [GrassAppearanceType.BramblesB.tag]: [bramblesBTextureUrl],
-    // NEW: Water foliage asset paths
-    [GrassAppearanceType.ReedBedsA.tag]: [reedBedsATextureUrl],
-    [GrassAppearanceType.ReedBedsB.tag]: [reedBedsBTextureUrl], 
-    [GrassAppearanceType.Bulrushes.tag]: [bulrushesTextureUrl],
-    [GrassAppearanceType.LilyPads.tag]: [lilyPadsTextureUrl],
-    [GrassAppearanceType.SeaweedForest.tag]: [seaweedForestTextureUrl],
-    [GrassAppearanceType.AlgaeMats.tag]: [algaeMatsTextureUrl],
+// =============================================================================
+// ASSET PATHS & SIZE CONFIGURATION
+// =============================================================================
+
+const grassAssetPaths: Record<string, string> = {
+    [GrassAppearanceType.PatchA.tag]: grass1TextureUrl,
+    [GrassAppearanceType.PatchB.tag]: grass2TextureUrl,
+    [GrassAppearanceType.PatchC.tag]: grass3TextureUrl,
+    [GrassAppearanceType.TallGrassA.tag]: tallGrassATextureUrl,
+    [GrassAppearanceType.TallGrassB.tag]: tallGrassBTextureUrl,
+    [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
+    [GrassAppearanceType.ReedBedsB.tag]: reedBedsBTextureUrl, 
+    [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
+    [GrassAppearanceType.LilyPads.tag]: lilyPadsTextureUrl,
+    [GrassAppearanceType.SeaweedForest.tag]: seaweedForestTextureUrl,
+    [GrassAppearanceType.AlgaeMats.tag]: algaeMatsTextureUrl,
 };
 
-// --- NEW: Configuration for target sizes (width only, height will be scaled) ---
-interface GrassSizeConfig {
-    targetWidth: number;
-    // Add other type-specific rendering params here later if needed (e.g., custom sway)
-}
-
-const grassSizeConfig: Record<string, GrassSizeConfig> = {
-    [GrassAppearanceType.PatchA.tag]: { targetWidth: 48 },
-    [GrassAppearanceType.PatchB.tag]: { targetWidth: 48 },
-    [GrassAppearanceType.PatchC.tag]: { targetWidth: 48 },
-    [GrassAppearanceType.TallGrassA.tag]: { targetWidth: 72 }, // Approx 1.5x
-    [GrassAppearanceType.TallGrassB.tag]: { targetWidth: 96 }, // Approx 2x
-    [GrassAppearanceType.BramblesA.tag]: { targetWidth: 100 },
-    [GrassAppearanceType.BramblesB.tag]: { targetWidth: 120 },
-    // NEW: Water foliage size configurations (large enough for player hiding)
-    [GrassAppearanceType.ReedBedsA.tag]: { targetWidth: 128 },     // Tall dense reeds for cover
-    [GrassAppearanceType.ReedBedsB.tag]: { targetWidth: 144 },     // Wide reed clusters for hiding
-    [GrassAppearanceType.Bulrushes.tag]: { targetWidth: 120 },     // Dense cattail patches
-    [GrassAppearanceType.LilyPads.tag]: { targetWidth: 136 },      // Large floating pad clusters
-    [GrassAppearanceType.SeaweedForest.tag]: { targetWidth: 152 }, // Massive underwater kelp forests
-    [GrassAppearanceType.AlgaeMats.tag]: { targetWidth: 140 },     // Wide surface algae coverage
-    // Default fallback if a new type is added to enum but not here (should be avoided)
-    default: { targetWidth: 48 },
+const grassTargetWidths: Record<string, number> = {
+    // Small dense grass patches - subtle background, won't compete with resources
+    [GrassAppearanceType.PatchA.tag]: 72,      // Small rounded clump - subtle
+    [GrassAppearanceType.PatchB.tag]: 72,      // Dense rounded clump - slightly larger
+    [GrassAppearanceType.PatchC.tag]: 72,      // Medium clump - balanced
+    
+    // Tall grass variants - visible but not overwhelming
+    [GrassAppearanceType.TallGrassA.tag]: 112, // Single stalk with seed head - increased from 96 for better visibility
+    [GrassAppearanceType.TallGrassB.tag]: 112, // Tall with feathery plumes - prominent but not dominant
+    
+    // Water foliage - distinctive but balanced
+    [GrassAppearanceType.ReedBedsA.tag]: 112, // Tall swaying reeds - medium-tall
+    [GrassAppearanceType.ReedBedsB.tag]: 108,  // Dense reed clusters - slightly smaller
+    [GrassAppearanceType.Bulrushes.tag]: 104,  // Classic cattails - medium size
+    [GrassAppearanceType.LilyPads.tag]: 96,    // Floating surface plants - medium
+    [GrassAppearanceType.SeaweedForest.tag]: 108, // Underwater kelp - medium
+    [GrassAppearanceType.AlgaeMats.tag]: 88,   // Surface algae patches - smaller, subtle
 };
-
-// Helper function to check if a grass type should have static rotation (exclude brambles and floating water plants)
-function shouldHaveStaticRotation(appearanceType: GrassAppearanceType): boolean {
-    return appearanceType.tag !== GrassAppearanceType.BramblesA.tag && 
-           appearanceType.tag !== GrassAppearanceType.BramblesB.tag &&
-           appearanceType.tag !== GrassAppearanceType.LilyPads.tag &&     // Floating pads don't rotate
-           appearanceType.tag !== GrassAppearanceType.AlgaeMats.tag;      // Surface mats don't rotate
-}
+const DEFAULT_GRASS_WIDTH = 72; // Default for any unmapped types
 
 // Preload all grass images
-Object.values(grassAssetPaths).flat().forEach(path => imageManager.preloadImage(path));
+Object.values(grassAssetPaths).forEach(path => imageManager.preloadImage(path));
 
-// PERFORMANCE: Viewport-based culling function
-function isInViewport(
-    grassX: number, 
-    grassY: number, 
-    cameraX: number, 
-    cameraY: number, 
-    viewportWidth: number, 
-    viewportHeight: number
-): boolean {
-    const margin = VIEWPORT_MARGIN_PX;
-    const left = cameraX - viewportWidth / 2 - margin;
-    const right = cameraX + viewportWidth / 2 + margin;
-    const top = cameraY - viewportHeight / 2 - margin;
-    const bottom = cameraY + viewportHeight / 2 + margin;
-    
-    return grassX >= left && grassX <= right && grassY >= top && grassY <= bottom;
-}
+// =============================================================================
+// LOD & CULLING HELPERS
+// =============================================================================
 
-// PERFORMANCE: Level-of-detail (LOD) system
-function getLODLevel(distanceSq: number): 'near' | 'mid' | 'far' | 'cull' {
+function getLODLevel(distanceSq: number): LODLevel {
   if (distanceSq <= LOD_NEAR_DISTANCE_SQ) return 'near';
   if (distanceSq <= LOD_MID_DISTANCE_SQ) return 'mid';
   if (distanceSq <= LOD_FAR_DISTANCE_SQ) return 'far';
   return 'cull';
 }
 
-// PERFORMANCE: Check if grass should be rendered this frame based on LOD and throttling
-function shouldRenderGrassThisFrame(lodLevel: 'near' | 'mid' | 'far' | 'cull'): boolean {
+function shouldRenderThisFrame(lodLevel: LODLevel): boolean {
   if (lodLevel === 'cull') return false;
-  
-  const interval = lodLevel === 'near' ? FRAME_THROTTLE_SETTINGS.NEAR_GRASS_INTERVAL :
-                   lodLevel === 'mid' ? FRAME_THROTTLE_SETTINGS.MID_GRASS_INTERVAL :
-                   FRAME_THROTTLE_SETTINGS.FAR_GRASS_INTERVAL;
-  
+  const interval = lodLevel === 'near' ? FRAME_THROTTLE.NEAR :
+                   lodLevel === 'mid' ? FRAME_THROTTLE.MID :
+                   FRAME_THROTTLE.FAR;
   return frameCounter % interval === 0;
 }
 
-// PERFORMANCE: Spatial partitioning for grass entities
-function getGrassEntitiesInRegion(
-  grassEntities: InterpolatedGrassData[],
-  centerX: number,
-  centerY: number,
-  radius: number
-): InterpolatedGrassData[] {
-  const regionKey = `${Math.floor(centerX / 200)},${Math.floor(centerY / 200)}`;
-  const cache = grassSpatialCache.get(regionKey);
-  
-  // Check if we can use cached result
-  if (cache && 
-      (frameCounter - cache.lastUpdateFrame) < 30 && // Cache for 30 frames
-      Math.abs(cache.centerX - centerX) < 100 &&
-      Math.abs(cache.centerY - centerY) < 100) {
-    return cache.grassEntities;
-  }
-  
-  // Filter grass entities in the region
-  const radiusSq = radius * radius;
-  const filteredEntities = grassEntities.filter(grass => {
-    const dx = grass.serverPosX - centerX;
-    const dy = grass.serverPosY - centerY;
-    return (dx * dx + dy * dy) <= radiusSq;
-  });
-  
-  // Update cache
-  grassSpatialCache.set(regionKey, {
-    grassEntities: filteredEntities,
-    lastUpdateFrame: frameCounter,
-    centerX,
-    centerY,
-    lodLevel: getLODLevel(0) // Default LOD level
-  });
-  
-  return filteredEntities;
+function isInViewport(
+    x: number, y: number,
+    camX: number, camY: number,
+    vpWidth: number, vpHeight: number
+): boolean {
+    const margin = VIEWPORT_MARGIN_PX;
+    const halfW = vpWidth / 2;
+    const halfH = vpHeight / 2;
+    return x >= camX - halfW - margin && 
+           x <= camX + halfW + margin && 
+           y >= camY - halfH - margin && 
+           y <= camY + halfH + margin;
 }
 
-// PERFORMANCE: Optimized grass entity distance sorting and limiting
-function sortAndLimitGrassByDistance(
-  grassEntities: InterpolatedGrassData[],
-  cameraX: number,
-  cameraY: number
-): InterpolatedGrassData[] {
-  // Calculate distances and sort by distance
-  const withDistance = grassEntities.map(grass => {
-    const dx = grass.serverPosX - cameraX;
-    const dy = grass.serverPosY - cameraY;
-    const distanceSq = dx * dx + dy * dy;
-    return { grass, distanceSq, lodLevel: getLODLevel(distanceSq) };
-  });
-  
-  // Separate by LOD level and apply limits
-  const nearGrass = withDistance.filter(item => item.lodLevel === 'near').slice(0, GRASS_DENSITY_LIMITS.NEAR_MAX_COUNT);
-  const midGrass = withDistance.filter(item => item.lodLevel === 'mid').slice(0, GRASS_DENSITY_LIMITS.MID_MAX_COUNT);
-  const farGrass = withDistance.filter(item => item.lodLevel === 'far').slice(0, GRASS_DENSITY_LIMITS.FAR_MAX_COUNT);
-  
-  // Combine and sort by distance
-  const allGrass = [...nearGrass, ...midGrass, ...farGrass]
-    .sort((a, b) => a.distanceSq - b.distanceSq)
-    .map(item => item.grass);
-  
-  return allGrass;
-}
+// =============================================================================
+// MAIN RENDER FUNCTION - Optimized single grass entity rendering
+// =============================================================================
 
-// Emergency mode removed
-
-// Configuration for rendering grass using the generic renderer
-const grassConfig: GroundEntityConfig<InterpolatedGrassData> = {
-    getImageSource: (entity: InterpolatedGrassData) => {
-        const appearance = entity.appearanceType;
-        const paths = grassAssetPaths[appearance.tag];
-        if (!paths || paths.length === 0) {
-            console.warn(`[grassRenderingUtils] No asset path found for grass type: ${appearance.tag}`);
-            return null; // Or a fallback image path
-        }
-        const swaySeed = entity.swayOffsetSeed;
-        // Basic animation frame selection (can be expanded)
-        const frameIndex = Math.floor((Date.now() / 200) + swaySeed) % paths.length;
-        return paths[frameIndex];
-    },
-
-    getTargetDimensions: (img, entity: InterpolatedGrassData) => {
-        const appearanceTag = entity.appearanceType.tag;
-        const sizeConf = grassSizeConfig[appearanceTag] || grassSizeConfig.default;
-        const targetWidth = sizeConf.targetWidth;
-
-        const scaleFactor = targetWidth / img.naturalWidth;
-        return {
-            width: targetWidth,
-            height: img.naturalHeight * scaleFactor,
-        };
-    },
-
-    calculateDrawPosition: (entity: InterpolatedGrassData, drawWidth, drawHeight) => {
-        // Use swayOffsetSeed for deterministic randomness
-        const seed = entity.swayOffsetSeed;
-        // Generate offsets between -MAX_POSITION_OFFSET_PX and +MAX_POSITION_OFFSET_PX
-        const randomOffsetX = ((seed % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
-        const randomOffsetY = (((seed >> 8) % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
-
-        return {
-            drawX: entity.serverPosX - drawWidth / 2 + randomOffsetX,
-            drawY: entity.serverPosY - drawHeight + Y_SORT_OFFSET_GRASS + randomOffsetY,
-        };
-    },
-
-    getShadowParams: undefined, 
-
-    drawCustomGroundShadow: (ctx, entity: InterpolatedGrassData, entityImage, entityPosX, entityBaseY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
-        // No-op to prevent any shadow drawing from this path
-    },
-
-    applyEffects: (ctx: CanvasRenderingContext2D, entity: InterpolatedGrassData, nowMs: number, baseDrawX: number, baseDrawY: number, cycleProgress: number, targetImgWidth: number, targetImgHeight: number) => {
-        const swaySeed = entity.swayOffsetSeed;
-        const individualSwayOffset = (swaySeed % 1000) / 1000.0; // Normalize seed to 0-1
-
-        // --- Rotational Sway (only for certain grass types) --- 
-        let currentSwayAngleDeg = 0;
-        if (shouldGrassSway(entity.appearanceType)) {
-            const effectiveSwaySpeed = typeof entity.swaySpeed === 'number' ? entity.swaySpeed : DEFAULT_FALLBACK_SWAY_SPEED;
-            const swayCycle = (nowMs / 1000) * effectiveSwaySpeed * Math.PI * 2 + individualSwayOffset * Math.PI * 2 * SWAY_VARIATION_FACTOR;
-            // Calculate sway angle in degrees, then convert to radians
-            currentSwayAngleDeg = Math.sin(swayCycle) * SWAY_AMPLITUDE_DEG * (1 + (individualSwayOffset - 0.5) * SWAY_VARIATION_FACTOR);
-        }
-        
-        // --- Static Random Rotation (applied to all grass types) --- 
-        const rotationSeedPart = (swaySeed >> 16) % 360; 
-        let staticRandomRotationDeg = 0;
-        // OPTIMIZATION: Skip rotation for distant grass if using reduced detail
-        if (shouldHaveStaticRotation(entity.appearanceType)) {
-            staticRandomRotationDeg = ((rotationSeedPart / 359.0) * (STATIC_ROTATION_DEG * 2)) - STATIC_ROTATION_DEG;
-        }
-
-        // Combine static rotation with dynamic sway rotation
-        const totalRotationDeg = staticRandomRotationDeg + currentSwayAngleDeg;
-        const finalRotationRad = totalRotationDeg * (Math.PI / 180); // Convert to radians for canvas
-
-        // --- Static Random Scale (applied to all grass types) --- 
-        const scaleSeedPart = (swaySeed >> 24) % 1000; 
-        // OPTIMIZATION: Use simpler scale calculation for distant grass
-        const randomScale = SCALE_VARIATION_MIN + (scaleSeedPart / 999.0) * (SCALE_VARIATION_MAX - SCALE_VARIATION_MIN);
-
-        // --- Calculate Pivot Offset for Bottom-Center Anchoring ---
-        // The generic renderer rotates around (finalDrawX + width/2, finalDrawY + height/2)
-        // We want to rotate around (finalDrawX + width/2, finalDrawY + height) - the bottom center
-        // 
-        // When rotating around a different point, we need to adjust the drawing position
-        // to compensate for the rotation displacement.
-        //
-        // For rotation around bottom center instead of image center:
-        // - Horizontal offset: The rotation around bottom center vs center will cause horizontal displacement
-        // - Vertical offset: The rotation will cause the image to shift vertically
-        
-        let offsetX = 0;
-        let offsetY = 0;
-        
-        if (finalRotationRad !== 0) {
-            // Calculate the displacement needed to make rotation appear to happen around bottom-center
-            // instead of the image center
-            const centerToBottomDistanceY = targetImgHeight / 2;
-            
-            // When we rotate around the bottom instead of center, the center point moves
-            // Calculate how much the center moves due to rotation around bottom
-            const rotatedCenterOffsetX = centerToBottomDistanceY * Math.sin(finalRotationRad);
-            const rotatedCenterOffsetY = centerToBottomDistanceY * (1 - Math.cos(finalRotationRad));
-            
-            // Adjust the drawing position to compensate
-            offsetX = -rotatedCenterOffsetX;
-            offsetY = -rotatedCenterOffsetY;
-        }
-
-        return {
-            offsetX,
-            offsetY,
-            rotation: finalRotationRad,
-            scale: randomScale,
-        };
-    },
-
-    fallbackColor: 'rgba(34, 139, 34, 0.7)', 
-};
-
-// Function to render a single grass entity using the generic renderer
+/**
+ * Renders a single grass entity with LOD-based optimizations.
+ * @param ctx - Canvas 2D context
+ * @param grass - Interpolated grass data
+ * @param nowMs - Current time in milliseconds
+ * @param cycleProgress - Animation cycle progress (unused for grass currently)
+ * @param onlyDrawShadow - If true, only draw shadow (grass has no shadows)
+ * @param skipDrawingShadow - If true, skip shadow drawing
+ * @param lodLevel - Pre-calculated LOD level (pass from batch for efficiency)
+ */
 export function renderGrass(
     ctx: CanvasRenderingContext2D,
     grass: InterpolatedGrassData,
     nowMs: number,
     cycleProgress: number,
     onlyDrawShadow?: boolean,
-    skipDrawingShadow?: boolean,
-    cameraX?: number,  // NEW: Add camera position for culling
-    cameraY?: number,   // NEW: Add camera position for culling
-    viewportWidth?: number,  // NEW: Add viewport dimensions for better culling
-    viewportHeight?: number  // NEW: Add viewport dimensions for better culling
+    _skipDrawingShadow?: boolean,
+    lodLevel: LODLevel = 'near'
 ) {
-    if (grass.health <= 0) return; 
+    // Early exits
+    if (grass.health <= 0 || onlyDrawShadow || lodLevel === 'cull') return;
 
-    // PERFORMANCE: Increment frame counter for throttling
-    frameCounter++;
-
-    // PERFORMANCE: Aggressive viewport-based culling (more accurate than circular distance)
-    if (ENABLE_AGGRESSIVE_CULLING && cameraX !== undefined && cameraY !== undefined && viewportWidth !== undefined && viewportHeight !== undefined) {
-        if (!isInViewport(grass.serverPosX, grass.serverPosY, cameraX, cameraY, viewportWidth, viewportHeight)) {
-            return; // Skip rendering - not in viewport
-        }
-    }
-
-    // PERFORMANCE: Calculate distance once and determine LOD level
-    let distanceSq = 0;
-    let lodLevel: 'near' | 'mid' | 'far' | 'cull' = 'near';
+    // Get image
+    const tag = grass.appearanceType.tag;
+    const imgSrc = grassAssetPaths[tag];
+    if (!imgSrc) return;
     
-    if (cameraX !== undefined && cameraY !== undefined) {
-        const dx = grass.serverPosX - cameraX;
-        const dy = grass.serverPosY - cameraY;
-        distanceSq = dx * dx + dy * dy; // Avoid sqrt for performance
-        lodLevel = getLODLevel(distanceSq);
-        
-        if (lodLevel === 'cull') {
-            return; // Too far away, don't render
-        }
-        
-        // PERFORMANCE: Frame throttling for distant grass (TEMPORARILY DISABLED)
-        // if (lodLevel === 'far' && (frameCounter % DISTANT_GRASS_UPDATE_INTERVAL) !== 0) {
-        //     return; // Skip this frame for distant grass
-        // }
-    }
-
-    // Get image source
-    const appearance = grass.appearanceType;
-    const paths = grassAssetPaths[appearance.tag];
-    if (!paths || paths.length === 0) {
-        console.warn(`[grassRenderingUtils] No asset path found for grass type: ${appearance.tag}`);
-        return;
-    }
-    
-    const swaySeed = grass.swayOffsetSeed;
-    const frameIndex = Math.floor((Date.now() / 200) + swaySeed) % paths.length;
-    const imgSrc = paths[frameIndex];
     const img = imageManager.getImage(imgSrc);
     
+    // Fallback for missing/loading images
     if (!img || !img.complete || img.naturalHeight === 0) {
-        // PERFORMANCE: Simplified fallback for distant grass
-        if (lodLevel === 'far') {
-            ctx.fillStyle = 'rgba(34, 139, 34, 0.3)'; // More transparent for distant
-            ctx.fillRect(grass.serverPosX - 8, grass.serverPosY - 16, 16, 16); // Smaller fallback
-        } else {
-            ctx.fillStyle = 'rgba(34, 139, 34, 0.7)';
-            ctx.fillRect(grass.serverPosX - 16, grass.serverPosY - 32, 32, 32);
-        }
+        const alpha = lodLevel === 'far' ? 0.3 : 0.7;
+        const size = lodLevel === 'far' ? 16 : 32;
+        ctx.fillStyle = `rgba(34, 139, 34, ${alpha})`;
+        ctx.fillRect(grass.serverPosX - size/2, grass.serverPosY - size, size, size);
         return;
     }
 
-    // Calculate target dimensions
-    const appearanceTag = grass.appearanceType.tag;
-    const sizeConf = grassSizeConfig[appearanceTag] || grassSizeConfig.default;
-    let targetWidth = sizeConf.targetWidth;
-    let targetHeight = img.naturalHeight * (targetWidth / img.naturalWidth);
-    
-    // PERFORMANCE: Reduce size for distant grass
+    // Calculate dimensions
+    const baseWidth = grassTargetWidths[tag] || DEFAULT_GRASS_WIDTH;
+    const scaleFactor = lodLevel === 'far' ? 0.8 : 1.0;
+    const targetWidth = baseWidth * scaleFactor;
+    const targetHeight = img.naturalHeight * (targetWidth / img.naturalWidth);
+
+    // Seed-based deterministic offsets
+    const seed = grass.swayOffsetSeed;
+    const offsetX = ((seed % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
+    const offsetY = (((seed >> 8) % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
+
+    // For FAR LOD: direct draw without transforms
     if (lodLevel === 'far') {
-        targetWidth *= 0.8; // 20% smaller for distant grass
-        targetHeight *= 0.8;
+        ctx.drawImage(
+            img,
+            grass.serverPosX - targetWidth / 2 + offsetX,
+            grass.serverPosY - targetHeight + Y_SORT_OFFSET_GRASS + offsetY,
+            targetWidth,
+            targetHeight
+        );
+        return;
     }
 
-    // Calculate base draw position
-    const randomOffsetX = ((swaySeed % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
-    const randomOffsetY = (((swaySeed >> 8) % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
-
-    if (onlyDrawShadow) {
-        return; // No shadow for grass currently
-    }
-
-    // PERFORMANCE: Skip complex calculations for distant grass
-    const individualSwayOffset = (swaySeed % 1000) / 1000.0;
-    const canSway = shouldGrassSway(grass.appearanceType);
+    // Calculate sway animation (only for near/mid LOD and swaying types)
+    const canSway = shouldGrassSway(tag);
+    const swayOffset = (seed % 1000) / 1000.0;
+    let swayAngleDeg = 0;
     
-    // PERFORMANCE: Only check disturbance for near/mid LOD grass that can sway
-    const disturbanceEffect = (canSway && lodLevel !== 'far' && !DISABLE_CLIENT_DISTURBANCE_EFFECTS) ? 
-        calculateDisturbanceEffect(grass, nowMs) : 
-        { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
-    
-    // PERFORMANCE: Simplified calculations for different LOD levels
-    let currentSwayAngleDeg = 0;
-    if (canSway && lodLevel !== 'far') {
-        if (disturbanceEffect.isDisturbed) {
-            // Apply disturbance sway - much stronger and in the disturbance direction
-            const effectiveSwaySpeed = typeof grass.swaySpeed === 'number' ? grass.swaySpeed : DEFAULT_FALLBACK_SWAY_SPEED;
-            const disturbanceCycle = (nowMs / 1000) * effectiveSwaySpeed * Math.PI * 6; // Faster oscillation for disturbance
-            
-            // Calculate disturbance angle based on the disturbance direction
-            const disturbanceAngle = Math.atan2(disturbanceEffect.disturbanceDirectionY, disturbanceEffect.disturbanceDirectionX) * (180 / Math.PI);
-            
-            // Create a strong sway in the disturbance direction with oscillation
-            const oscillation = Math.sin(disturbanceCycle) * 0.5 + 0.5; // 0 to 1
-            currentSwayAngleDeg = disturbanceAngle * (DISTURBANCE_SWAY_AMPLITUDE_DEG / 90) * disturbanceEffect.disturbanceStrength * oscillation;
+    if (canSway) {
+        // Check for disturbance effect
+        const disturbance = calculateDisturbanceEffect(grass, nowMs);
+        
+        if (disturbance.isDisturbed) {
+            // Strong sway in disturbance direction
+            const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
+            const cycle = (nowMs / 1000) * swaySpeed * Math.PI * 6;
+            const dirAngle = Math.atan2(disturbance.disturbanceDirectionY, disturbance.disturbanceDirectionX) * (180 / Math.PI);
+            const oscillation = Math.sin(cycle) * 0.5 + 0.5;
+            swayAngleDeg = dirAngle * (DISTURBANCE_SWAY_AMPLITUDE_DEG / 90) * disturbance.disturbanceStrength * oscillation;
         } else if (lodLevel === 'near') {
-            // Full sway calculation only for near grass
-            const effectiveSwaySpeed = typeof grass.swaySpeed === 'number' ? grass.swaySpeed : DEFAULT_FALLBACK_SWAY_SPEED;
-            const swayCycle = (nowMs / 1000) * effectiveSwaySpeed * Math.PI * 2 + individualSwayOffset * Math.PI * 2 * SWAY_VARIATION_FACTOR;
-            currentSwayAngleDeg = Math.sin(swayCycle) * SWAY_AMPLITUDE_DEG * (1 + (individualSwayOffset - 0.5) * SWAY_VARIATION_FACTOR);
+            // Full sway for near grass
+            const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
+            const cycle = (nowMs / 1000) * swaySpeed * Math.PI * 2 + swayOffset * Math.PI * 2 * SWAY_VARIATION_FACTOR;
+            swayAngleDeg = Math.sin(cycle) * SWAY_AMPLITUDE_DEG * (1 + (swayOffset - 0.5) * SWAY_VARIATION_FACTOR);
         } else {
             // Simplified sway for mid LOD
-            const swayCycle = (nowMs / 2000) + individualSwayOffset; // Slower, simpler calculation
-            currentSwayAngleDeg = Math.sin(swayCycle) * SWAY_AMPLITUDE_DEG * 0.5; // Reduced amplitude
+            swayAngleDeg = Math.sin((nowMs / 2000) + swayOffset) * SWAY_AMPLITUDE_DEG * 0.5;
         }
     }
     
-    // Static Random Rotation (skip for far LOD)
-    let staticRandomRotationDeg = 0;
-    if (lodLevel !== 'far' && shouldHaveStaticRotation(grass.appearanceType)) {
-        const rotationSeedPart = (swaySeed >> 16) % 360; 
-        staticRandomRotationDeg = ((rotationSeedPart / 359.0) * (STATIC_ROTATION_DEG * 2)) - STATIC_ROTATION_DEG;
+    // Static rotation (only for applicable types, skip for mid LOD)
+    let staticRotationDeg = 0;
+    if (lodLevel === 'near' && shouldHaveStaticRotation(tag)) {
+        const rotSeed = (seed >> 16) % 360;
+        staticRotationDeg = ((rotSeed / 359.0) * (STATIC_ROTATION_DEG * 2)) - STATIC_ROTATION_DEG;
     }
     
-    // Combine rotations
-    const totalRotationDeg = staticRandomRotationDeg + currentSwayAngleDeg;
+    const totalRotationDeg = staticRotationDeg + swayAngleDeg;
     
-    // Static Random Scale (simplified for distant grass)
-    let randomScale = 1;
+    // Scale variation (only for near LOD)
+    let scale = 1;
     if (lodLevel === 'near') {
-        const scaleSeedPart = (swaySeed >> 24) % 1000; 
-        randomScale = SCALE_VARIATION_MIN + (scaleSeedPart / 999.0) * (SCALE_VARIATION_MAX - SCALE_VARIATION_MIN);
-    } else if (lodLevel === 'mid') {
-        // Simplified scale variation for mid LOD
-        randomScale = 0.95 + (swaySeed % 100) / 1000; // Simplified calculation
+        const scaleSeed = (seed >> 24) % 1000;
+        scale = SCALE_VARIATION_MIN + (scaleSeed / 999.0) * (SCALE_VARIATION_MAX - SCALE_VARIATION_MIN);
     }
 
-    // PERFORMANCE: Skip transforms entirely for far grass with no rotation/scale
-    if (lodLevel === 'far' && Math.abs(totalRotationDeg) < 0.5 && Math.abs(randomScale - 1) < 0.05) {
-        // Direct draw without transforms for maximum performance
-        ctx.drawImage(
-            img,
-            grass.serverPosX - targetWidth / 2 + randomOffsetX,
-            grass.serverPosY - targetHeight + Y_SORT_OFFSET_GRASS + randomOffsetY,
-            targetWidth,
-            targetHeight
-        );
-        return;
-    }
-
-    // PERFORMANCE: Use setTransform instead of multiple transform calls
-    const anchorX = grass.serverPosX + randomOffsetX;
-    const anchorY = grass.serverPosY + randomOffsetY + Y_SORT_OFFSET_GRASS;
+    // Calculate anchor point (bottom-center)
+    const anchorX = grass.serverPosX + offsetX;
+    const anchorY = grass.serverPosY + offsetY + Y_SORT_OFFSET_GRASS;
     
-    if (Math.abs(totalRotationDeg) < 0.1 && Math.abs(randomScale - 1) < 0.01) {
-        // No significant rotation/scale - just translate
-        ctx.drawImage(
-            img,
-            anchorX - targetWidth / 2,
-            anchorY - targetHeight,
-            targetWidth,
-            targetHeight
-        );
+    // Check if transforms are needed
+    const needsTransform = Math.abs(totalRotationDeg) > 0.1 || Math.abs(scale - 1) > 0.01;
+    
+    if (!needsTransform) {
+        // Direct draw - most common fast path
+        ctx.drawImage(img, anchorX - targetWidth / 2, anchorY - targetHeight, targetWidth, targetHeight);
     } else {
-        // PERFORMANCE: Use fast sin/cos lookup for small angles
-        // const { sin: sinRot, cos: cosRot } = totalRotationDeg !== 0 ? 
-        //     fastSinCos(totalRotationDeg) : 
-        //     { sin: 0, cos: 1 };
-
-        // PERFORMANCE: Single setTransform call instead of multiple operations
-        // FALLBACK: Use old method if new transform calculation fails
+        // Full transform path
         ctx.save();
-        
-        // Old method (more reliable)
         ctx.translate(anchorX, anchorY);
-        if (totalRotationDeg !== 0) {
-            ctx.rotate(totalRotationDeg * (Math.PI / 180));
-        }
-        if (randomScale !== 1) {
-            ctx.scale(randomScale, randomScale);
-        }
-        
-        ctx.drawImage(
-            img,
-            -targetWidth / 2,
-            -targetHeight,
-            targetWidth,
-            targetHeight
-        );
-        
-        /*
-        // NEW METHOD (commented out temporarily)
-        ctx.setTransform(
-            cosRot * randomScale,           // a: horizontal scaling and rotation
-            sinRot * randomScale,           // b: horizontal skewing and rotation  
-            -sinRot * randomScale,          // c: vertical skewing and rotation
-            cosRot * randomScale,           // d: vertical scaling and rotation
-            anchorX,                        // e: horizontal translation
-            anchorY                         // f: vertical translation
-        );
-
-        // Draw image with bottom-center at origin
-        ctx.drawImage(
-            img,
-            -targetWidth / 2,
-            -targetHeight,
-            targetWidth,
-            targetHeight
-        );
-        */
-
+        if (totalRotationDeg !== 0) ctx.rotate(totalRotationDeg * (Math.PI / 180));
+        if (scale !== 1) ctx.scale(scale, scale);
+        ctx.drawImage(img, -targetWidth / 2, -targetHeight, targetWidth, targetHeight);
         ctx.restore();
     }
 }
 
-// PERFORMANCE: Batch render multiple grass entities efficiently with aggressive optimization
+// =============================================================================
+// BATCH RENDERING - Optimized for many grass entities
+// =============================================================================
+
+interface GrassWithLOD {
+    grass: InterpolatedGrassData;
+    distanceSq: number;
+    lodLevel: LODLevel;
+}
+
+/**
+ * Batch renders multiple grass entities with LOD-based optimizations.
+ * This is the primary function to use when rendering visible grass from the Y-sorted entities list.
+ */
 export function renderGrassEntities(
     ctx: CanvasRenderingContext2D,
     grassEntities: InterpolatedGrassData[],
@@ -703,95 +385,85 @@ export function renderGrassEntities(
     viewportWidth: number,
     viewportHeight: number,
     onlyDrawShadow?: boolean,
-    skipDrawingShadow?: boolean
+    _skipDrawingShadow?: boolean
 ) {
-    // PERFORMANCE: Increment frame counter and check emergency mode
+    // Update frame counter (single increment per batch)
     frameCounter++;
     
-    // PERFORMANCE: Start timing for grass rendering
+    // Early exit for shadow-only pass (grass has no shadows)
+    if (onlyDrawShadow) return;
+    
     const startTime = ENABLE_GRASS_PERF_LOGGING ? performance.now() : 0;
     
-    // PERFORMANCE: Use spatial partitioning to get relevant grass entities
-    const viewport_radius = Math.max(viewportWidth, viewportHeight);
-    const regionEntities = getGrassEntitiesInRegion(grassEntities, cameraX, cameraY, viewport_radius);
+    // Step 1: Filter visible grass and calculate LOD
+    const grassWithLOD: GrassWithLOD[] = [];
+    const lodCounts = { near: 0, mid: 0, far: 0 };
     
-    // PERFORMANCE: Pre-filter grass entities that are definitely out of view and healthy
-    const visibleGrassEntities = regionEntities.filter(grass => 
-        grass.health > 0 && 
-        isInViewport(grass.serverPosX, grass.serverPosY, cameraX, cameraY, viewportWidth, viewportHeight)
-    );
-    
-    // PERFORMANCE: Sort and limit grass entities by distance with LOD-based density control
-    const optimizedGrassEntities = sortAndLimitGrassByDistance(visibleGrassEntities, cameraX, cameraY);
-    
-    if (ENABLE_GRASS_PERF_LOGGING && frameCounter % 60 === 0) { // Log every 60 frames (~1 second)
-        console.log(`🌱 [GRASS_RENDER] Total: ${grassEntities.length}, Visible: ${visibleGrassEntities.length}, Optimized: ${optimizedGrassEntities.length}`);
-    }
-
-    // PERFORMANCE: Batch render by LOD level to minimize canvas state changes
-    let currentLodLevel: 'near' | 'mid' | 'far' | 'cull' | null = null;
-    let renderedCount = 0;
-    
-    for (const grass of optimizedGrassEntities) {
+    for (const grass of grassEntities) {
+        // Skip dead grass
+        if (grass.health <= 0) continue;
+        
+        // Viewport culling
+        if (ENABLE_AGGRESSIVE_CULLING && 
+            !isInViewport(grass.serverPosX, grass.serverPosY, cameraX, cameraY, viewportWidth, viewportHeight)) {
+            continue;
+        }
+        
+        // Calculate distance and LOD
         const dx = grass.serverPosX - cameraX;
         const dy = grass.serverPosY - cameraY;
         const distanceSq = dx * dx + dy * dy;
         const lodLevel = getLODLevel(distanceSq);
         
-        // PERFORMANCE: Skip rendering if throttled for this LOD level
-        if (!shouldRenderGrassThisFrame(lodLevel)) {
-            continue;
+        // Skip culled grass
+        if (lodLevel === 'cull') continue;
+        
+        // Apply LOD density limits
+        if (lodLevel === 'near' && lodCounts.near >= MAX_GRASS_PER_LOD.NEAR) continue;
+        if (lodLevel === 'mid' && lodCounts.mid >= MAX_GRASS_PER_LOD.MID) continue;
+        if (lodLevel === 'far' && lodCounts.far >= MAX_GRASS_PER_LOD.FAR) continue;
+        
+        // Frame throttling for distant grass
+        if (!shouldRenderThisFrame(lodLevel)) continue;
+        
+        grassWithLOD.push({ grass, distanceSq, lodLevel });
+        lodCounts[lodLevel]++;
+    }
+    
+    // Step 2: Sort by distance (nearest first for proper layering)
+    grassWithLOD.sort((a, b) => a.distanceSq - b.distanceSq);
+    
+    // Step 3: Render all grass
+    let renderedCount = 0;
+    let currentLOD: LODLevel | null = null;
+    
+    for (const { grass, lodLevel } of grassWithLOD) {
+        // Update canvas settings when LOD changes
+        if (currentLOD !== lodLevel) {
+            currentLOD = lodLevel;
+            ctx.imageSmoothingEnabled = lodLevel !== 'far';
         }
         
-        // PERFORMANCE: Setup canvas optimizations when LOD level changes
-        if (currentLodLevel !== lodLevel) {
-            currentLodLevel = lodLevel;
-            
-            // Optimize canvas state for this LOD level
-            if (lodLevel === 'far') {
-                // Disable anti-aliasing for distant grass (performance boost)
-                ctx.imageSmoothingEnabled = false;
-                // Use simpler composite operation
-                ctx.globalCompositeOperation = 'source-over';
-            } else {
-                // Re-enable for near/mid grass
-                ctx.imageSmoothingEnabled = true;
-            }
-        }
-        
-        renderGrass(
-            ctx,
-            grass,
-            nowMs,
-            cycleProgress,
-            onlyDrawShadow,
-            skipDrawingShadow,
-            cameraX,
-            cameraY,
-            viewportWidth,
-            viewportHeight
-        );
-        
+        renderGrass(ctx, grass, nowMs, cycleProgress, false, false, lodLevel);
         renderedCount++;
     }
     
-    // PERFORMANCE: Reset canvas state after batch rendering
+    // Reset canvas state
     ctx.imageSmoothingEnabled = true;
-    ctx.globalCompositeOperation = 'source-over';
     
-    // PERFORMANCE: Log rendering time if enabled
+    // Performance logging
     if (ENABLE_GRASS_PERF_LOGGING) {
-        const endTime = performance.now();
-        const renderTime = endTime - startTime;
-        
-        // Log if rendering takes too long or periodically
-        if (renderTime > 2.0 || frameCounter % 300 === 0) { // Log if >2ms or every 5 seconds
-            console.log(`🌱 [GRASS_RENDER] Rendered ${renderedCount}/${optimizedGrassEntities.length} grass entities in ${renderTime.toFixed(2)}ms`);
+        const renderTime = performance.now() - startTime;
+        if (renderTime > 2.0 || frameCounter % 300 === 0) {
+            console.log(`🌱 [GRASS] Rendered ${renderedCount}/${grassEntities.length} in ${renderTime.toFixed(2)}ms`);
         }
     }
 }
 
-// Legacy function for backward compatibility
+/**
+ * Legacy function - renders a single grass entity with auto-calculated LOD.
+ * Prefer using renderGrassEntities for batch rendering.
+ */
 export function renderGrassFromInterpolation(
     ctx: CanvasRenderingContext2D,
     grass: InterpolatedGrassData,
@@ -801,21 +473,18 @@ export function renderGrassFromInterpolation(
     skipDrawingShadow?: boolean,
     cameraX?: number,
     cameraY?: number,
-    viewportWidth?: number,
-    viewportHeight?: number
+    _viewportWidth?: number,
+    _viewportHeight?: number
 ) {
-    return renderGrass(
-        ctx,
-        grass,
-        nowMs,
-        cycleProgress,
-        onlyDrawShadow,
-        skipDrawingShadow,
-        cameraX,
-        cameraY,
-        viewportWidth,
-        viewportHeight
-    );
+    // Calculate LOD if camera position provided
+    let lodLevel: LODLevel = 'near';
+    if (cameraX !== undefined && cameraY !== undefined) {
+        const dx = grass.serverPosX - cameraX;
+        const dy = grass.serverPosY - cameraY;
+        lodLevel = getLODLevel(dx * dx + dy * dy);
+    }
+    
+    renderGrass(ctx, grass, nowMs, cycleProgress, onlyDrawShadow, skipDrawingShadow, lodLevel);
 }
 
 // PERFORMANCE: Utility to optimize canvas state for grass rendering

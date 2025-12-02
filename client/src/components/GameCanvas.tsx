@@ -2016,6 +2016,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
       const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
       
+      // CRITICAL: Flying birds MUST render above everything (trees, stones, players, etc.)
+      // This check must be here because this sort can undo the useEntityFiltering sort
+      const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
+      const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
+      
+      const aIsFlyingBird = aType === 'wild_animal' && aEntity && 
+        'species' in aEntity && 'isFlying' in aEntity &&
+        (aEntity.species?.tag === 'Tern' || aEntity.species?.tag === 'Crow') &&
+        aEntity.isFlying === true;
+      const bIsFlyingBird = bType === 'wild_animal' && bEntity && 
+        'species' in bEntity && 'isFlying' in bEntity &&
+        (bEntity.species?.tag === 'Tern' || bEntity.species?.tag === 'Crow') &&
+        bEntity.isFlying === true;
+      
+      // Flying bird vs any non-flying entity
+      if (aIsFlyingBird && !bIsFlyingBird) {
+        return 1; // Flying bird renders after (above) non-flying entities
+      }
+      if (bIsFlyingBird && !aIsFlyingBird) {
+        return -1; // Flying bird renders after (above) non-flying entities
+      }
+      
       if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
         return 1; // Broth pot renders after (above) campfire/fumarole
       }

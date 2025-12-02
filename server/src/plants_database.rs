@@ -39,6 +39,7 @@ pub enum PlantType {
     Crowberry,    // Empetrum - Low-growing subarctic berry, persists in winter (TUNDRA)
     SeaPlantain,  // Plantago maritima - Maritime plant, leaves available year-round
     Glasswort,    // Salicornia - Salt-tolerant maritime succulent
+    ArcticHairgrass, // Deschampsia - Arctic grass providing fiber, grows year-round
     // === NEW: ALPINE-SPECIFIC PLANTS ===
     ArcticLichen, // Lichen - Year-round alpine plant, slow-growing
     MountainMoss, // Moss - Year-round alpine plant, grows on rocks
@@ -354,6 +355,23 @@ lazy_static! {
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::Coastal, // Salt-tolerant, grows in maritime areas
             growing_seasons: vec![Season::Summer, Season::Autumn], // Warm season succulent
+        });
+        
+        configs.insert(PlantType::ArcticHairgrass, PlantConfig {
+            entity_name: "Arctic Hairgrass".to_string(),
+            density_percent: 0.0008, // Similar density to Dogbane - fiber plant
+            min_distance_sq: 28.0 * 28.0,
+            min_tree_distance_sq: 18.0 * 18.0,
+            min_stone_distance_sq: 22.0 * 22.0,
+            noise_threshold: 0.64,
+            primary_yield: ("Plant Fiber".to_string(), 3, 5), // Provides fiber directly
+            secondary_yield: None,
+            seed_type: "Arctic Hairgrass Seeds".to_string(),
+            seed_drop_chance: 0.60, // 60% chance - important fiber source should be sustainable
+            min_respawn_time_secs: 900,  // 15 minutes
+            max_respawn_time_secs: 1400, // 23 minutes
+            spawn_condition: SpawnCondition::Tundra, // Arctic grass grows in tundra biome
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round hardy arctic grass
         });
         
         configs.insert(PlantType::Beets, PlantConfig {

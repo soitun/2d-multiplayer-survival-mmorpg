@@ -31,6 +31,7 @@ import scurvyGrassImageSource from '../../assets/doodads/scurvy_grass.png';
 import crowberriesImageSource from '../../assets/doodads/crowberries.png';
 import seaPlantainImageSource from '../../assets/doodads/sea_plantain.png';
 import glasswortImageSource from '../../assets/doodads/glasswort.png';
+import arcticHairgrassImageSource from '../../assets/doodads/arctic_hairgrass.png';
 
 // NEW ALPINE PLANTS
 import arcticLichenImageSource from '../../assets/doodads/arctic_lichen.png';
@@ -105,6 +106,7 @@ export const RESOURCE_IMAGE_SOURCES = {
   Crowberry: crowberriesImageSource,
   SeaPlantain: seaPlantainImageSource,
   Glasswort: glasswortImageSource,
+  ArcticHairgrass: arcticHairgrassImageSource,
   
   // === NEW: ALPINE PLANTS (Year-round hardy alpine species) ===
   ArcticLichen: arcticLichenImageSource,

@@ -55,6 +55,7 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.Crowberry |
   PlantTypeVariants.SeaPlantain |
   PlantTypeVariants.Glasswort |
+  PlantTypeVariants.ArcticHairgrass |
   PlantTypeVariants.ArcticLichen |
   PlantTypeVariants.MountainMoss |
   PlantTypeVariants.ArcticPoppy |
@@ -116,6 +117,7 @@ export const PlantType = {
   Crowberry: { tag: "Crowberry" } as const,
   SeaPlantain: { tag: "SeaPlantain" } as const,
   Glasswort: { tag: "Glasswort" } as const,
+  ArcticHairgrass: { tag: "ArcticHairgrass" } as const,
   ArcticLichen: { tag: "ArcticLichen" } as const,
   MountainMoss: { tag: "MountainMoss" } as const,
   ArcticPoppy: { tag: "ArcticPoppy" } as const,
@@ -171,6 +173,7 @@ export const PlantType = {
       { name: "Crowberry", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SeaPlantain", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Glasswort", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ArcticHairgrass", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ArcticLichen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "MountainMoss", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ArcticPoppy", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

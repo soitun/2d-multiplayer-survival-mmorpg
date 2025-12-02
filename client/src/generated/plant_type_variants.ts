@@ -53,6 +53,7 @@ export type ScurvyGrass = { tag: "ScurvyGrass" };
 export type Crowberry = { tag: "Crowberry" };
 export type SeaPlantain = { tag: "SeaPlantain" };
 export type Glasswort = { tag: "Glasswort" };
+export type ArcticHairgrass = { tag: "ArcticHairgrass" };
 export type ArcticLichen = { tag: "ArcticLichen" };
 export type MountainMoss = { tag: "MountainMoss" };
 export type ArcticPoppy = { tag: "ArcticPoppy" };

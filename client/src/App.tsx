@@ -179,6 +179,11 @@ function AppContent() {
         return saved ? saved === 'true' : true; // true by default
     });
     
+    const [grassEnabled, setGrassEnabled] = useState(() => {
+        const saved = localStorage.getItem('grassEnabled');
+        return saved ? saved === 'true' : true; // true by default
+    });
+    
     // --- Volume Change Handlers ---
     const handleMusicVolumeChange = useCallback((volume: number) => {
         console.log(`[App] handleMusicVolumeChange called with: ${volume.toFixed(3)}`);
@@ -215,6 +220,12 @@ function AppContent() {
         console.log(`[App] handleStatusOverlaysChange called with: ${enabled}`);
         setStatusOverlaysEnabled(enabled);
         localStorage.setItem('statusOverlaysEnabled', enabled.toString());
+    }, []);
+    
+    const handleGrassChange = useCallback((enabled: boolean) => {
+        console.log(`[App] handleGrassChange called with: ${enabled}`);
+        setGrassEnabled(enabled);
+        localStorage.setItem('grassEnabled', enabled.toString());
     }, []);
 
     // --- Viewport State & Refs ---
@@ -270,7 +281,8 @@ function AppContent() {
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
-        viewport: currentViewport, 
+        viewport: currentViewport,
+        grassEnabled, // Pass grass toggle to control subscriptions
     });
 
     // --- Movement Hooks ---
@@ -987,6 +999,8 @@ function AppContent() {
                             weatherOverlayEnabled={weatherOverlayEnabled}
                             onStatusOverlaysChange={handleStatusOverlaysChange}
                             statusOverlaysEnabled={statusOverlaysEnabled}
+                            onGrassChange={handleGrassChange}
+                            grassEnabled={grassEnabled}
                             soundSystem={soundSystemState}
                             playerDrinkingCooldowns={playerDrinkingCooldowns}
                             rainCollectors={rainCollectors}

@@ -321,6 +321,7 @@ import crowberrySeedsIcon from '../assets/items/crowberry_seeds.png';
 import seaPlantainSeedsIcon from '../assets/items/sea_plantain_seeds.png';
 import glasswortSeedsIcon from '../assets/items/glasswort_seeds.png';
 import beachLymeGrassSeedsIcon from '../assets/items/beach_lyme_grass_seeds.png';
+import arcticHairgrassSeedsIcon from '../assets/items/arctic_hairgrass_seeds.png';
 
 // Alpine plant spores/seeds
 import arcticPoppySeedsIcon from '../assets/items/arctic_poppy_seeds.png';
@@ -674,6 +675,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'sea_plantain_seeds.png': seaPlantainSeedsIcon,
   'glasswort_seeds.png': glasswortSeedsIcon,
   'beach_lyme_grass_seeds.png': beachLymeGrassSeedsIcon,
+  'arctic_hairgrass_seeds.png': arcticHairgrassSeedsIcon,
   
   // Alpine plant spores/seeds
   'arctic_poppy_seeds.png': arcticPoppySeedsIcon,

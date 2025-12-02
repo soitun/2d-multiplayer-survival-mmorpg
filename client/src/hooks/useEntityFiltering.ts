@@ -2001,6 +2001,22 @@ export function useEntityFiltering(
         return -1; // Pot renders after (above) tree/stone
       }
       
+      // CRITICAL: Flying birds MUST render above trees, stones, and all ground objects regardless of Y position
+      // This check runs right before Y-sorting to ensure it's not overridden
+      // Reuse variables already declared at the top of the sort function
+      // Ground objects that flying birds should render above
+      const groundObjectTypes = ['tree', 'stone', 'rune_stone', 'basalt_column', 'fumarole', 
+        'wooden_storage_box', 'stash', 'campfire', 'furnace', 'lantern', 'homestead_hearth',
+        'planted_seed', 'dropped_item', 'harvestable_resource', 'barrel', 'rain_collector',
+        'broth_pot', 'sleeping_bag', 'animal_corpse', 'player_corpse', 'foundation_cell'];
+      
+      if (aIsFlyingBird && groundObjectTypes.includes(b.type)) {
+        return 1; // Flying bird renders after (above) ground object
+      }
+      if (bIsFlyingBird && groundObjectTypes.includes(a.type)) {
+        return -1; // Flying bird renders after (above) ground object
+      }
+      
       const yA = getEntityY(a, stableTimestamp);
       const yB = getEntityY(b, stableTimestamp);
       

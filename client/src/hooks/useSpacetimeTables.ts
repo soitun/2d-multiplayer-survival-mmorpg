@@ -46,7 +46,7 @@ import { gameConfig } from '../config/gameConfig';
 // SPATIAL SUBSCRIPTION CONTROL FLAGS
 const DISABLE_ALL_SPATIAL_SUBSCRIPTIONS = false; // 🚨 EMERGENCY: Master switch - disable ALL spatial subscriptions to isolate performance issue
 const ENABLE_CLOUDS = true; // Controls cloud spatial subscriptions
-const ENABLE_GRASS = true; // 🚫 DISABLED: Grass subscriptions cause massive lag spikes
+// ENABLE_GRASS is now controlled by the grassEnabled prop passed to the hook
 const ENABLE_WORLD_TILES = false; // Controls world tile spatial subscriptions (OLD SYSTEM - DEPRECATED)
 // V2 system removed - was causing massive performance issues
 
@@ -154,6 +154,7 @@ interface UseSpacetimeTablesProps {
     connection: DbConnection | null;
     cancelPlacement: () => void; // Function to cancel placement mode
     viewport: { minX: number; minY: number; maxX: number; maxY: number } | null; // New viewport prop
+    grassEnabled?: boolean; // Toggle for grass subscriptions (defaults to true)
 }
 
 // Helper type for subscription handles (adjust if SDK provides a specific type)
@@ -163,6 +164,7 @@ export const useSpacetimeTables = ({
     connection,
     cancelPlacement,
     viewport, // Get viewport from props
+    grassEnabled = true, // Default to enabled if not provided
 }: UseSpacetimeTablesProps): SpacetimeTableStates => {
 
     // --- State Management for Tables ---
@@ -357,7 +359,7 @@ export const useSpacetimeTables = ({
                 if (ENABLE_CLOUDS) {
                     environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
                 }
-                if (ENABLE_GRASS) {
+                if (grassEnabled) {
                     if (GRASS_PERFORMANCE_MODE) {
                         environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
                     } else {
@@ -397,7 +399,7 @@ export const useSpacetimeTables = ({
                 if (ENABLE_CLOUDS) {
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
                 }
-                if (ENABLE_GRASS) {
+                if (grassEnabled) {
                     if (GRASS_PERFORMANCE_MODE) {
                         newHandlesForChunk.push(timedSubscribe('Grass(Perf)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`));
                     } else {
@@ -1903,6 +1905,13 @@ export const useSpacetimeTables = ({
 
                                 const environmentalQueries = [];
                                 if (ENABLE_CLOUDS) environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
+                                if (grassEnabled) {
+                                    if (GRASS_PERFORMANCE_MODE) {
+                                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                                    } else {
+                                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
+                                    }
+                                }
                                 // ENABLE_WORLD_TILES deprecated block removed
                                 if (environmentalQueries.length > 0) {
                                     newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Environmental Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(environmentalQueries));
@@ -2088,4 +2097,11 @@ export const useSpacetimeTables = ({
         fumaroles, // ADDED fumaroles
         basaltColumns, // ADDED basalt columns
     };
+    
+    // Clear grass data when grass is disabled
+    useEffect(() => {
+        if (!grassEnabled) {
+            setGrass(new Map());
+        }
+    }, [grassEnabled]);
 }; 
