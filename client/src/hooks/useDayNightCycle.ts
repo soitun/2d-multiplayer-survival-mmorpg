@@ -23,27 +23,40 @@ export interface ColorPoint {
   r: number; g: number; b: number; a: number;
 }
 
-// Default night: Dark, desaturated blue/grey
+// ============================================================================
+// AAA PIXEL ART DAY/NIGHT COLORS - Inspired by Sea of Stars
+// ============================================================================
+// Key principles:
+// - Night is NEVER pure black - always rich deep blues with purple undertones
+// - Dawn/Dusk have vibrant oranges, magentas, and teals
+// - Full moon has ethereal silver-blue magical glow
+// - Each time period has a distinct cinematic "mood"
+// ============================================================================
+
+// Default night: Rich deep blue transitions, but midnight is TRUE BLACK
+// The contrast makes the blues feel richer
 export const defaultPeakMidnightColor: ColorPoint = { r: 0, g: 0, b: 0, a: 1.0 };
-export const defaultTransitionNightColor: ColorPoint = { r: 40, g: 50, b: 70, a: 0.75 };
+export const defaultTransitionNightColor: ColorPoint = { r: 25, g: 35, b: 65, a: 0.78 };
 
-// Full Moon night: Brighter, cooler grey/blue, less saturated
-export const fullMoonPeakMidnightColor: ColorPoint =    { r: 90, g: 110, b: 130, a: 0.48 };
-export const fullMoonTransitionNightColor: ColorPoint = { r: 75, g: 100, b: 125, a: 0.58 };
+// Full Moon night: Ethereal silver-blue magical glow
+// Brighter, cooler, more mystical - like moonlight bathing the world
+export const fullMoonPeakMidnightColor: ColorPoint = { r: 70, g: 90, b: 140, a: 0.42 };
+export const fullMoonTransitionNightColor: ColorPoint = { r: 55, g: 80, b: 130, a: 0.52 };
 
-// Base keyframes
+// Base keyframes (simplified reference for other systems)
 export const baseKeyframes: Record<number, ColorPoint> = {
-  0.00: defaultPeakMidnightColor,
-  0.20: defaultTransitionNightColor,
-  0.35: { r: 255, g: 180, b: 120, a: 0.25 },
-  0.50: { r: 0, g: 0, b: 0, a: 0.0 },
-  0.65: { r: 255, g: 210, b: 150, a: 0.15 },
-  0.75: { r: 255, g: 150, b: 100, a: 0.35 },
-  0.85: { r: 80, g: 70, b: 90, a: 0.60 },
-  0.95: defaultTransitionNightColor,
-  1.00: defaultPeakMidnightColor,
+  0.00: { r: 140, g: 90, b: 130, a: 0.52 },    // Lavender pre-dawn
+  0.08: { r: 255, g: 200, b: 120, a: 0.12 },   // Morning warmth
+  0.15: { r: 0, g: 0, b: 0, a: 0.0 },          // Day clear
+  0.50: { r: 0, g: 0, b: 0, a: 0.0 },          // Noon clear
+  0.72: { r: 255, g: 140, b: 70, a: 0.22 },    // Sunset orange
+  0.80: { r: 45, g: 40, b: 110, a: 0.78 },     // Night indigo
+  0.92: { r: 12, g: 18, b: 50, a: 0.90 },      // Pre-midnight blue
+  0.945: { r: 0, g: 0, b: 0, a: 1.0 },         // TRUE BLACK midnight
+  0.97: { r: 25, g: 30, b: 70, a: 0.84 },      // Pre-dawn blue
+  1.00: { r: 140, g: 90, b: 130, a: 0.52 },    // Lavender (wrap)
 };
-// --- END ADDED Day/Night Cycle Constants ---
+// --- END Day/Night Cycle Constants ---
 
 // Define TORCH_LIGHT_RADIUS_BASE locally
 const TORCH_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 0.8; // Slightly smaller than campfire
@@ -60,107 +73,122 @@ interface ColorAlphaKeyframe {
 const DAY_COLOR_CONFIG = { rgb: [0, 0, 0] as [number, number, number], alpha: 0.0 }; // Color doesn't matter when alpha is 0
 
 const REGULAR_CYCLE_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // START at 0.0 matching END of Twilight Morning (1.0) - smooth wrap-around transition!
-  { progress: 0.0,  rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples (matches Twilight Morning end at 1.0)
+  // ============================================================================
+  // SEA OF STARS INSPIRED - Rich, saturated, cinematic colors
+  // Night is deep blue (never black!), dawn/dusk are vibrant gold/magenta/teal
+  // ============================================================================
   
-  // Dawn (Server: 0.0 - 0.05, gradual transitions) - FADE OUT (get lighter), not darker!
-  { progress: 0.015, rgb: [150, 70, 100],   alpha: 0.45 },   // Getting lighter
-  { progress: 0.025, rgb: [160, 80, 90],    alpha: 0.40 },   // Pinks emerge, getting lighter
-  { progress: 0.035, rgb: [220, 110, 70],   alpha: 0.30 },   // Oranges appear, much lighter
-  { progress: 0.045, rgb: [255, 140, 60],   alpha: 0.20 },   // Bright oranges, very light
+  // START at 0.0 matching END of Twilight Morning - lavender pre-dawn glow
+  { progress: 0.0,  rgb: [140, 90, 130],   alpha: 0.52 },   // Soft lavender-pink pre-dawn
+  
+  // Dawn (Server: 0.0 - 0.05) - Golden hour magic with magenta undertones
+  { progress: 0.015, rgb: [180, 100, 120], alpha: 0.42 },   // Rose-gold awakening
+  { progress: 0.025, rgb: [220, 120, 90],  alpha: 0.35 },   // Warm coral sunrise
+  { progress: 0.035, rgb: [255, 150, 60],  alpha: 0.28 },   // Rich golden orange
+  { progress: 0.045, rgb: [255, 180, 80],  alpha: 0.18 },   // Bright sunrise gold
 
   // Morning - Transition to Clear Day (Server: 0.05 - 0.35)
-  { progress: 0.06, rgb: [255, 170, 80],   alpha: 0.10 },   // Sunrise peak, almost clear
-  { progress: 0.08, rgb: [160, 80, 90],   alpha: 0.50 },   // Pinks and Muted Oranges appear
-  { progress: 0.10, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen
-  { progress: 0.115, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges, lower alpha
-  { progress: 0.125, rgb: [255, 170, 80],  alpha: 0.10 },   // Sunrise Peak
-  { progress: 0.15, rgb: [255, 190, 100], alpha: 0.05 },   // Lingering soft yellow/orange glow
-  { progress: 0.18, ...DAY_COLOR_CONFIG },                // Morning fully clear
+  { progress: 0.06, rgb: [255, 200, 120],  alpha: 0.12 },   // Warm morning glow
+  { progress: 0.08, rgb: [255, 220, 150],  alpha: 0.08 },   // Soft golden haze
+  { progress: 0.10, rgb: [255, 235, 180],  alpha: 0.05 },   // Fading warmth
+  { progress: 0.12, rgb: [255, 245, 210],  alpha: 0.02 },   // Almost clear
+  { progress: 0.15, ...DAY_COLOR_CONFIG },                  // Morning fully clear
   
-  // Day/Noon/Afternoon clear (80% of cycle = 0.18 to 0.72)
+  // Day/Noon/Afternoon clear (bright, no overlay)
   { progress: 0.35, ...DAY_COLOR_CONFIG }, // Morning clear
   { progress: 0.55, ...DAY_COLOR_CONFIG }, // Noon clear 
-  { progress: 0.70, ...DAY_COLOR_CONFIG }, // Afternoon clear
+  { progress: 0.68, ...DAY_COLOR_CONFIG }, // Late afternoon clear
 
-  // Dusk (Server: 0.72 - 0.76, gradual transitions)
-  // Match TwilightMorning style - same colors and alpha progression (in reverse)
-  { progress: 0.72, rgb: [120, 70, 90],   alpha: 0.55 },   // Early evening purples - matches TwilightMorning end
-  { progress: 0.735, rgb: [160, 80, 90],  alpha: 0.50 },   // Pinks and Muted Oranges
-  { progress: 0.75, rgb: [220, 110, 70],  alpha: 0.35 },   // Oranges strengthen
-  { progress: 0.76, rgb: [255, 140, 60],  alpha: 0.20 },   // Brighter Oranges
+  // Golden Hour / Pre-Dusk (Server: ~0.70 - 0.72) - Warm amber tones
+  { progress: 0.70, rgb: [255, 210, 140],  alpha: 0.06 },   // First hints of golden hour
+  { progress: 0.715, rgb: [255, 180, 100], alpha: 0.12 },   // Deepening gold
 
-  // Twilight Evening (Server: 0.76 - 0.80, LONGER gradual transitions)
-  { progress: 0.77, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dusk (matches TwilightMorning civil dawn)
-  { progress: 0.785, rgb: [80, 50, 90],    alpha: 0.80 },   // Nautical Dusk (matches TwilightMorning nautical dawn)
-  { progress: 0.80, rgb: [5, 5, 10],      alpha: 0.96 },   // Astronomical Dusk (matches TwilightMorning astronomical dawn)
+  // Dusk (Server: 0.72 - 0.76) - Dramatic orange to magenta to teal transition
+  { progress: 0.72, rgb: [255, 140, 70],   alpha: 0.22 },   // Intense sunset orange
+  { progress: 0.735, rgb: [240, 100, 90],  alpha: 0.32 },   // Coral-pink sunset
+  { progress: 0.75, rgb: [200, 80, 120],   alpha: 0.42 },   // Magenta twilight
+  { progress: 0.76, rgb: [160, 70, 140],   alpha: 0.52 },   // Deep purple-magenta
 
-  // Night (Server: 0.80 - 0.92) - Slightly lighter than midnight
-  { progress: 0.85, rgb: [10, 15, 20],    alpha: 0.88 },   // Deep Night (lighter than midnight)
+  // Twilight Evening (Server: 0.76 - 0.80) - Purple to deep blue transition
+  { progress: 0.77, rgb: [120, 60, 150],   alpha: 0.60 },   // Rich violet
+  { progress: 0.785, rgb: [80, 50, 140],   alpha: 0.68 },   // Deep indigo
+  { progress: 0.80, rgb: [45, 40, 110],    alpha: 0.78 },   // Night indigo
 
-  // Midnight (Server: 0.92 - 0.97) - Very dark, darkest part of night
-  { progress: 0.92, rgb: [defaultPeakMidnightColor.r, defaultPeakMidnightColor.g, defaultPeakMidnightColor.b],    alpha: defaultPeakMidnightColor.a },   // Deepest Midnight start
-  { progress: 0.945, rgb: [0, 0, 0],      alpha: 1.0 },   // PITCH BLACK (midnight peak) - true darkness
-  { progress: 0.969, rgb: [defaultTransitionNightColor.r, defaultTransitionNightColor.g, defaultTransitionNightColor.b],    alpha: defaultTransitionNightColor.a },   // Transition from midnight to twilight (just before 0.97)
+  // Night (Server: 0.80 - 0.92) - Rich deep blue (Sea of Stars style - NEVER black)
+  { progress: 0.83, rgb: [30, 35, 90],     alpha: 0.82 },   // Deep starlit blue
+  { progress: 0.86, rgb: [20, 28, 75],     alpha: 0.86 },   // Darker blue
+  { progress: 0.89, rgb: [15, 22, 60],     alpha: 0.88 },   // Deep night blue
 
-  // Twilight Morning (Server: 0.97 - 1.0, pre-dawn twilight RIGHT BEFORE dawn, wraps around)
-  // This wraps around - after 0.97 comes 0.0 (Dawn)
-  { progress: 0.97, rgb: [30, 25, 65],    alpha: 0.85 },   // Astronomical Dawn (darkest purple, matches TwilightEvening end)
-  { progress: 0.985, rgb: [80, 50, 90],    alpha: 0.80 },   // Nautical Dawn
-  { progress: 0.995, rgb: [150, 70, 100],  alpha: 0.65 },   // Civil Dawn
-  { progress: 1.0, rgb: [120, 70, 90],   alpha: 0.55 },   // Early morning purples (matches Dusk start, wraps to Dawn)
+  // Midnight (Server: 0.92 - 0.97) - True black at peak, blue transitions
+  { progress: 0.92, rgb: [12, 18, 50],     alpha: 0.90 },   // Midnight blue start
+  { progress: 0.945, rgb: [0, 0, 0],       alpha: 1.0 },    // TRUE BLACK at midnight peak
+  { progress: 0.965, rgb: [15, 20, 55],    alpha: 0.88 },   // Midnight easing back to blue
+
+  // Twilight Morning (Server: 0.97 - 1.0) - Deep blue to purple to lavender
+  { progress: 0.97, rgb: [25, 30, 70],     alpha: 0.84 },   // Pre-dawn deep blue
+  { progress: 0.98, rgb: [50, 45, 100],    alpha: 0.75 },   // Indigo awakening
+  { progress: 0.99, rgb: [90, 65, 120],    alpha: 0.65 },   // Purple dawn hints
+  { progress: 0.995, rgb: [120, 80, 125],  alpha: 0.58 },   // Lavender pre-dawn
+  { progress: 1.0, rgb: [140, 90, 130],    alpha: 0.52 },   // Soft lavender (matches 0.0)
 ];
 
 const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
-  // START at 0.0 matching END of Full Moon Twilight Morning (1.0) - smooth wrap-around!
-  { progress: 0.0,  rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink (matches Twilight Morning end at 1.0)
+  // ============================================================================
+  // FULL MOON - Ethereal silver-blue magical atmosphere
+  // Brighter nights with mystical moonlit glow, cool blue-silver tones
+  // Inspired by moonlit scenes in Sea of Stars and Ori
+  // ============================================================================
+  
+  // START at 0.0 - Soft silver-lavender pre-dawn under moonlight
+  { progress: 0.0,  rgb: [180, 170, 200], alpha: 0.22 },   // Silver-lavender pre-dawn
 
-  // Dawn (Full Moon, gradual transitions) - FADE OUT (get lighter), not darker!
-  { progress: 0.015, rgb: [210, 180, 160], alpha: 0.12 },   // Getting lighter
-  { progress: 0.025, rgb: [230, 190, 150], alpha: 0.08 },   // Soft oranges, much lighter
-  { progress: 0.035, rgb: [250, 200, 140], alpha: 0.04 },   // Bright pale oranges, very light
-  { progress: 0.045, rgb: [255, 215, 150], alpha: 0.02 },   // Sunrise peak, almost clear
+  // Dawn (Full Moon) - Softer, more ethereal sunrise with silver undertones
+  { progress: 0.015, rgb: [200, 175, 190], alpha: 0.18 },   // Rose-silver awakening
+  { progress: 0.025, rgb: [220, 185, 170], alpha: 0.14 },   // Soft peach-silver
+  { progress: 0.035, rgb: [240, 200, 160], alpha: 0.10 },   // Gentle golden glow
+  { progress: 0.045, rgb: [255, 215, 175], alpha: 0.06 },   // Soft sunrise
 
-  // Morning - Transition to Clear Day (Full Moon)
-  { progress: 0.06, rgb: [255, 225, 170], alpha: 0.01 },   // Lingering soft glow
-  { progress: 0.08, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges appear
-  { progress: 0.10, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen
-  { progress: 0.115, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges
-  { progress: 0.125, rgb: [255, 215, 150], alpha: 0.02 },   // Sunrise Peak
-  { progress: 0.15, rgb: [255, 225, 170], alpha: 0.01 },   // Lingering soft glow
-  { progress: 0.18, ...DAY_COLOR_CONFIG },                // Morning fully clear
+  // Morning - Transition to Clear Day
+  { progress: 0.06, rgb: [255, 225, 190], alpha: 0.04 },   // Fading warmth
+  { progress: 0.08, rgb: [255, 235, 210], alpha: 0.02 },   // Almost clear
+  { progress: 0.12, ...DAY_COLOR_CONFIG },                  // Morning clear
 
-  // Day/Afternoon (Same as regular, 80% of cycle)
+  // Day/Afternoon (Same as regular - bright and clear)
   { progress: 0.35, ...DAY_COLOR_CONFIG },
   { progress: 0.55, ...DAY_COLOR_CONFIG },
-  { progress: 0.70, ...DAY_COLOR_CONFIG },
+  { progress: 0.68, ...DAY_COLOR_CONFIG },
 
-  // Dusk (Full Moon, gradual transitions)
-  // Match Full Moon TwilightMorning style - same colors and alpha progression (in reverse)
-  { progress: 0.72, rgb: [200, 175, 165], alpha: 0.15 },   // Early evening silver-pink - matches Full Moon TwilightMorning end
-  { progress: 0.735, rgb: [210, 180, 160], alpha: 0.12 },   // Pale Pinks/Muted Oranges
-  { progress: 0.75, rgb: [230, 190, 150], alpha: 0.08 },   // Soft Oranges strengthen
-  { progress: 0.76, rgb: [250, 200, 140], alpha: 0.04 },   // Brighter Pale Oranges
+  // Golden Hour / Pre-Dusk - Slightly muted compared to regular
+  { progress: 0.70, rgb: [255, 220, 170], alpha: 0.05 },   // Soft golden hour
+  { progress: 0.715, rgb: [250, 195, 150], alpha: 0.10 },  // Gentle gold
 
-  // Twilight Evening (Full Moon, LONGER gradual transitions)
-  { progress: 0.77, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dusk (matches TwilightMorning civil dawn)
-  { progress: 0.785, rgb: [150, 150, 190], alpha: 0.35 },   // Nautical Dusk (matches TwilightMorning nautical dawn)
-  { progress: 0.80, rgb: [140, 150, 190], alpha: 0.38 },   // Astronomical Dusk (matches TwilightMorning astronomical dawn)
+  // Dusk (Full Moon) - More subdued, transitioning to silver-blue faster
+  { progress: 0.72, rgb: [240, 160, 130], alpha: 0.18 },   // Coral sunset
+  { progress: 0.735, rgb: [210, 140, 150], alpha: 0.26 },  // Rose twilight
+  { progress: 0.75, rgb: [180, 130, 170], alpha: 0.32 },   // Lavender-rose
+  { progress: 0.76, rgb: [150, 130, 185], alpha: 0.36 },   // Silver-lavender
 
-  // Night (Full Moon, Server: 0.80 - 0.92)
-  { progress: 0.85, rgb: [135, 155, 195], alpha: 0.39 },   // Deep Night
+  // Twilight Evening (Full Moon) - Quick transition to magical blue
+  { progress: 0.77, rgb: [130, 140, 190], alpha: 0.38 },   // Silver-blue emerging
+  { progress: 0.785, rgb: [110, 145, 195], alpha: 0.40 },  // Cool moonlight blue
+  { progress: 0.80, rgb: [95, 140, 200],  alpha: 0.42 },   // Ethereal blue
 
-  // Midnight (Full Moon, Server: 0.92 - 0.97) - Lighter than regular midnight but still dark
-  { progress: 0.92, rgb: [130, 150, 190], alpha: 0.40 },   // Full Moon Midnight start
-  { progress: 0.945, rgb: [135, 155, 195], alpha: 0.38 },   // Full Moon Midnight peak
-  { progress: 0.969, rgb: [140, 150, 190], alpha: 0.38 },   // Transition from midnight to twilight (just before 0.97)
+  // Night (Full Moon) - MAGICAL silver-blue moonlit atmosphere
+  { progress: 0.83, rgb: [85, 130, 195],  alpha: 0.40 },   // Soft moonlight
+  { progress: 0.86, rgb: [75, 115, 185],  alpha: 0.42 },   // Deep moonlight
+  { progress: 0.89, rgb: [70, 105, 175],  alpha: 0.43 },   // Rich moonlit blue
 
-  // Twilight Morning (Full Moon, Server: 0.97 - 1.0, pre-dawn twilight RIGHT BEFORE dawn)
-  // This wraps around - after 0.97 comes 0.0 (Dawn)
-  { progress: 0.97, rgb: [150, 160, 190], alpha: 0.32 },   // Astronomical Dawn (matches Dawn start)
-  { progress: 0.985, rgb: [150, 150, 190], alpha: 0.35 },   // Nautical Dawn
-  { progress: 0.995, rgb: [170, 150, 180], alpha: 0.28 },   // Civil Dawn
-  { progress: 1.0, rgb: [200, 175, 165], alpha: 0.15 },   // Early morning silver-pink (matches Dusk start, wraps to Dawn)
+  // Midnight (Full Moon) - Brightest silver-blue, mystical glow
+  { progress: 0.92, rgb: [70, 95, 165],   alpha: 0.44 },   // Midnight moon start
+  { progress: 0.945, rgb: [70, 90, 155],  alpha: 0.45 },   // Midnight moon peak (brightest)
+  { progress: 0.965, rgb: [75, 100, 170], alpha: 0.44 },   // Midnight easing
+
+  // Twilight Morning (Full Moon) - Silver-blue to lavender pre-dawn
+  { progress: 0.97, rgb: [85, 110, 180],  alpha: 0.42 },   // Pre-dawn moonlight
+  { progress: 0.98, rgb: [110, 130, 190], alpha: 0.36 },   // Fading moonlight
+  { progress: 0.99, rgb: [145, 150, 195], alpha: 0.30 },   // Silver-lavender hints
+  { progress: 0.995, rgb: [165, 160, 198], alpha: 0.26 }, // Soft lavender
+  { progress: 1.0, rgb: [180, 170, 200],  alpha: 0.22 },   // Silver-lavender (matches 0.0)
 ];
 
 // Server's full moon cycle interval
