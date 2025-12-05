@@ -109,6 +109,7 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
                     case 9: return 'Forest'; // Dense forested areas
                     case 10: return 'Tundra'; // Arctic tundra (northern regions)
                     case 11: return 'Alpine'; // High-altitude rocky terrain
+                    case 12: return 'TundraGrass'; // Grassy patches in tundra biome
                     default: return 'Grass';
                 }
             }

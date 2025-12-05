@@ -3,16 +3,14 @@ import dirtTile from '../../assets/tiles/dirt.png';
 import dirtRoadTile from '../../assets/tiles/dirt_road.png';
 import seaTile from '../../assets/tiles/sea_new.png';
 import beachTile from '../../assets/tiles/beach_new.png';
-// Import new tile types from the new/ folder
 import asphaltTile from '../../assets/tiles/new/asphalt.png';
 import forestTile from '../../assets/tiles/new/forest.png';
 import quarryTile from '../../assets/tiles/new/quarry.png';
 import hotSpringWaterTile from '../../assets/tiles/new/hotspringwater.png';
 import tundraTile from '../../assets/tiles/new/tundra.png';
 import alpineTile from '../../assets/tiles/new/alpine.png';
-// Import existing autotile assets (these files exist)
+import tundraGrassTile from '../../assets/tiles/new/tundragrass.png';
 import grassDirtAutotile from '../../assets/tiles/tileset_grass_dirt_autotile.png';
-import grassBeachAutotile from '../../assets/tiles/tileset_grass_beach_autotile_new.png';
 import beachSeaAutotile from '../../assets/tiles/tileset_beach_sea_autotile.png';
 // Note: Missing autotile images are loaded dynamically in proceduralWorldRenderer.ts
 // to handle missing files gracefully until they are created
@@ -94,6 +92,10 @@ export const TILE_ASSETS: Record<string, TileAssetConfig> = {
     'Alpine': {
         baseTexture: alpineTile, // High-altitude rocky terrain texture
         // Alpine tiles appear in the far north - sparse, rocky landscape
+    },
+    'TundraGrass': {
+        baseTexture: tundraGrassTile, // Grassy patches within tundra biome
+        // TundraGrass tiles are lighter green grass areas within the tundra
     },
 };
 

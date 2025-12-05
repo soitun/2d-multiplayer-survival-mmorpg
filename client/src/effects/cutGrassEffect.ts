@@ -91,7 +91,7 @@ export function spawnCutGrassParticles(centerX: number, centerY: number, grassId
         
         // Random color from palette
         const color = GRASS_BLADE_COLORS[Math.floor(Math.random() * GRASS_BLADE_COLORS.length)];
-        
+
         const particle: CutGrassParticle = {
             id: `cut_grass_${grassId}_${i}_${now}`,
             x: centerX + (Math.random() - 0.5) * 8, // Small random offset from center
@@ -218,7 +218,7 @@ export function renderCutGrassEffects(ctx: CanvasRenderingContext2D, nowMs: numb
         const currentX = particle.x + particle.velocityX * deltaTimeSeconds;
         // y = y0 + v0*t + 0.5*g*t^2 (gravity applied)
         const currentY = particle.y + particle.velocityY * deltaTimeSeconds + 0.5 * GRAVITY * deltaTimeSeconds * deltaTimeSeconds;
-        
+
         // Calculate current rotation
         const currentRotation = particle.rotation + (particle.rotationSpeed * deltaTimeSeconds);
         
@@ -263,4 +263,4 @@ export function cleanupCutGrassEffectSystem() {
     }
     activeParticles.length = 0;
     dbConn = null;
-}
+} 

@@ -374,7 +374,7 @@ lazy_static! {
             seed_drop_chance: 0.60, // 60% chance - important fiber source should be sustainable
             min_respawn_time_secs: 900,  // 15 minutes
             max_respawn_time_secs: 1400, // 23 minutes
-            spawn_condition: SpawnCondition::Tundra, // Arctic grass grows in tundra biome
+            spawn_condition: SpawnCondition::Alpine, // Arctic grass grows in alpine biome (high altitude)
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round hardy arctic grass
         });
         

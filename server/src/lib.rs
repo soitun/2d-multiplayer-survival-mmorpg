@@ -1376,18 +1376,19 @@ pub fn update_viewport(ctx: &ReducerContext, min_x: f32, min_y: f32, max_x: f32,
 // ADD: Tile types and world generation structures
 #[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
 pub enum TileType {
-    Grass,      // Temperate meadows (south/middle of island)
+    Grass,       // Temperate meadows (south/middle of island)
     Dirt, 
     DirtRoad,
     Sea,
     Beach,
     Sand,
     HotSpringWater, // Distinct type for hot spring water pools (teal/turquoise)
-    Quarry,     // Quarry tiles (rocky gray-brown texture for mining areas)
-    Asphalt,    // Paved compound areas (dark gray, for central compound and mini-compounds)
-    Forest,     // Dense forested areas (dark green, higher tree density)
-    Tundra,     // Arctic tundra (northern regions - mossy, low vegetation)
-    Alpine,     // High-altitude rocky terrain (far north - sparse, rocky)
+    Quarry,      // Quarry tiles (rocky gray-brown texture for mining areas)
+    Asphalt,     // Paved compound areas (dark gray, for central compound and mini-compounds)
+    Forest,      // Dense forested areas (dark green, higher tree density)
+    Tundra,      // Arctic tundra (northern regions - mossy, low vegetation)
+    Alpine,      // High-altitude rocky terrain (far north - sparse, rocky)
+    TundraGrass, // Grassy patches within tundra biome (lighter green tundra grass)
 }
 
 impl TileType {
@@ -1534,6 +1535,7 @@ impl TileType {
             TileType::Forest => 9,
             TileType::Tundra => 10,
             TileType::Alpine => 11,
+            TileType::TundraGrass => 12,
         }
     }
     
@@ -1552,18 +1554,19 @@ impl TileType {
             9 => Some(TileType::Forest),
             10 => Some(TileType::Tundra),
             11 => Some(TileType::Alpine),
+            12 => Some(TileType::TundraGrass),
             _ => None,
         }
     }
     
-    /// Returns true if this is a cold/arctic biome tile (Tundra or Alpine)
+    /// Returns true if this is a cold/arctic biome tile (Tundra, TundraGrass, or Alpine)
     pub fn is_arctic(&self) -> bool {
-        matches!(self, TileType::Tundra | TileType::Alpine)
+        matches!(self, TileType::Tundra | TileType::TundraGrass | TileType::Alpine)
     }
     
-    /// Returns true if this is tundra
+    /// Returns true if this is tundra (including TundraGrass)
     pub fn is_tundra(&self) -> bool {
-        matches!(self, TileType::Tundra)
+        matches!(self, TileType::Tundra | TileType::TundraGrass)
     }
     
     /// Returns true if this is alpine terrain

@@ -291,18 +291,18 @@ pub fn is_position_on_arctic_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) 
     false
 }
 
-/// Checks if position is on a Tundra tile specifically
+/// Checks if position is on a Tundra or TundraGrass tile specifically
 pub fn is_position_on_tundra_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
     let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
     
     if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
-        return tile_type == crate::TileType::Tundra;
+        return tile_type.is_tundra(); // Uses TileType::is_tundra() which includes TundraGrass
     }
     
     let world_tiles = ctx.db.world_tile();
     for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
-        return tile.tile_type == crate::TileType::Tundra;
+        return tile.tile_type.is_tundra(); // Uses TileType::is_tundra() which includes TundraGrass
     }
     
     false
@@ -905,10 +905,10 @@ pub fn validate_spawn_location(
     
     match spawn_condition {
         plants_database::SpawnCondition::Forest => {
-            // Mushrooms: Must be on grass/forest/tundra + near trees (within 150px)
+            // Mushrooms: Must be on grass/forest/tundra/tundragrass + near trees (within 150px)
             // OR on Forest tile type (which inherently has dense trees)
             // Tundra has arctic mushrooms that grow in mossy areas
-            if !matches!(current_tile_type, Some(TileType::Grass | TileType::Forest | TileType::Tundra)) {
+            if !matches!(current_tile_type, Some(TileType::Grass | TileType::Forest | TileType::Tundra | TileType::TundraGrass)) {
                 return false;
             }
             
@@ -919,7 +919,7 @@ pub fn validate_spawn_location(
             }
             
             // Tundra mushrooms can spawn more freely (sparse trees, but lots of moss)
-            if matches!(current_tile_type, Some(TileType::Tundra)) {
+            if matches!(current_tile_type, Some(TileType::Tundra | TileType::TundraGrass)) {
                 // Lower proximity requirement for tundra mushrooms (they grow in mossy areas)
                 let tundra_proximity_sq = 300.0 * 300.0; // Larger search radius
                 for &(tree_x, tree_y) in tree_positions {
@@ -1057,8 +1057,8 @@ pub fn validate_spawn_location(
         }
         
         plants_database::SpawnCondition::Tundra => {
-            // Tundra-specific plants: Must be on Tundra tile type
-            matches!(current_tile_type, Some(TileType::Tundra))
+            // Tundra-specific plants: Must be on Tundra or TundraGrass tile type
+            matches!(current_tile_type, Some(TileType::Tundra | TileType::TundraGrass))
         }
         
         plants_database::SpawnCondition::Alpine => {
@@ -1357,18 +1357,20 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         crate::tree::TreeType::StonePine2
                     }
                 } else if is_position_on_alpine_tile(ctx, pos_x, pos_y) {
-                    // Alpine biome: Mostly DwarfPine, rarely MountainHemlockSnow (snow-covered)
-                    if tree_type_roll < 0.8 {
-                        crate::tree::TreeType::DwarfPine // 80% - common alpine tree
+                    // Alpine biome: Mix of DwarfPine, ArcticWillow, and MountainHemlockSnow
+                    if tree_type_roll < 0.45 {
+                        crate::tree::TreeType::DwarfPine // 45% - common alpine tree
+                    } else if tree_type_roll < 0.80 {
+                        crate::tree::TreeType::ArcticWillow // 35% - hardy shrub-tree (alpine only)
                     } else {
                         crate::tree::TreeType::MountainHemlockSnow // 20% - rare snow-covered hemlock
                     }
                 } else if is_position_on_tundra_tile(ctx, pos_x, pos_y) {
-                    // Tundra biome: Mostly ArcticWillow, rarely KrummholzSpruce (twisted wind-sculpted)
-                    if tree_type_roll < 0.75 {
-                        crate::tree::TreeType::ArcticWillow // 75% - common hardy shrub-tree
+                    // Tundra biome: Mostly KrummholzSpruce (twisted wind-sculpted trees)
+                    if tree_type_roll < 0.70 {
+                        crate::tree::TreeType::KrummholzSpruce // 70% - common twisted spruce
                     } else {
-                        crate::tree::TreeType::KrummholzSpruce // 25% - rare twisted spruce
+                        crate::tree::TreeType::DwarfPine // 30% - some dwarf pines in tundra edges
                     }
                 } else {
                     // Temperate biome: standard tree types with weighted probability

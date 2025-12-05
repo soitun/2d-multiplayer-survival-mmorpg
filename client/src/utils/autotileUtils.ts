@@ -7,11 +7,13 @@ import grassDirtAutotile from '../assets/tiles/new/tileset_grass_dirt_autotile.p
 import dirtBeachAutotile from '../assets/tiles/new/tileset_dirt_beach_autotile.png';
 import grassDirtRoadAutotile from '../assets/tiles/new/tileset_grass_dirtroad_autotile.png';
 import grassTundraAutotile from '../assets/tiles/new/tileset_grass_tundra_autotile.png';
+import grassTundraGrassAutotile from '../assets/tiles/new/tileset_grass_tundragrass_autotile.png';
+import grassForestAutotile from '../assets/tiles/new/tileset_grass_forest_autotile.png';
 import quarryGrassAutotile from '../assets/tiles/new/tileset_quarry_grass_autotile.png';
 import beachDirtRoadAutotile from '../assets/tiles/new/tileset_beach_dirtroad_autotile.png';
 import dirtDirtRoadAutotile from '../assets/tiles/new/tileset_dirt_dirtroad_autotile.png';
 import dirtRoadTundraAutotile from '../assets/tiles/new/tileset_dirtroad_tundra_autotile.png';
-import forestGrassAutotile from '../assets/tiles/new/tileset_forest_grass_autotile.png';
+// REMOVED: forestGrassAutotile (using Forest_TundraGrass instead)
 import forestDirtRoadAutotile from '../assets/tiles/new/tileset_forest_dirtroad_autotile.png';
 import forestBeachAutotile from '../assets/tiles/new/tileset_forest_beach_autotile.png';
 import forestDirtAutotile from '../assets/tiles/new/tileset_forest_dirt_autotile.png';
@@ -33,7 +35,16 @@ import alpineDirtAutotile from '../assets/tiles/new/tileset_alpine_dirt_autotile
 import alpineBeachAutotile from '../assets/tiles/new/tileset_alpine_beach_autotile.png';
 import alpineTundraAutotile from '../assets/tiles/new/tileset_alpine_tundra_autotile.png';
 import forestTundraAutotile from '../assets/tiles/new/tileset_forest_tundra_autotile.png';
-import hotSpringWaterBeachAutotile from '../assets/tiles/new/tileset_hotspringwater_beach_autotile.png';
+import beachHotSpringWaterAutotile from '../assets/tiles/new/tileset_beach_hotspringwater_autotile.png';
+import tundraGrassTundraAutotile from '../assets/tiles/new/tileset_tundragrass_tundra_autotile.png';
+import alpineTundraGrassAutotile from '../assets/tiles/new/tileset_alpine_tundragrass_autotile.png';
+import tundraGrassBeachAutotile from '../assets/tiles/new/tileset_tundragrass_beach_autotile.png';
+// REMOVED: tundraGrassDirtAutotile and tundraGrassDirtRoadAutotile (using Dirt_TundraGrass and DirtRoad_TundraGrass instead)
+// REMOVED: tundraGrassGrassAutotile (using Grass_TundraGrass instead)
+import quarryTundraGrassAutotile from '../assets/tiles/new/tileset_quarry_tundragrass_autotile.png';
+import dirtRoadTundraGrassAutotile from '../assets/tiles/new/tileset_dirtroad_tundragrass_autotile.png';
+import forestTundraGrassAutotile from '../assets/tiles/new/tileset_forest_tundragrass_autotile.png';
+import dirtTundraGrassAutotile from '../assets/tiles/new/tileset_dirt_tundragrass_autotile.png';
 
 /**
  * 15-Tile Hierarchical Autotile System
@@ -153,7 +164,8 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     // Don't map Forest to Grass when checking Forest_* transitions (Forest is primary)
     // Also don't map Forest to Grass when checking Quarry_Forest - we want to detect Forest neighbors
     if (tileType === 'Forest' && primaryType === 'Forest') return 'Forest';
-    if (tileType === 'Forest' && primaryType === 'Quarry' && secondaryType === 'Forest') return 'Forest'; // Keep Forest for Quarry_Forest
+    // CRITICAL: When Quarry is primary, ALWAYS keep Forest distinct so Quarry_Forest can be detected (not Quarry_Grass)
+    if (tileType === 'Forest' && primaryType === 'Quarry') return 'Forest'; // Keep Forest for ALL Quarry transitions
     if (tileType === 'Forest') return 'Grass';
     
     // Don't map Tundra to Grass when checking Forest_Tundra transitions (Tundra is secondary)
@@ -165,6 +177,10 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Quarry' && primaryType === 'Grass' && secondaryType === 'Dirt') return 'Quarry'; // Don't treat as Dirt
     if (tileType === 'Quarry' && secondaryType === 'Dirt') return 'Quarry'; // Keep Quarry distinct from Dirt
     if (tileType === 'Quarry') return 'Dirt';
+    
+    // CRITICAL: Check TundraGrass_Tundra FIRST before general Tundra mapping
+    // Keep Tundra distinct when checking TundraGrass_Tundra transitions (Tundra is secondary)
+    if (tileType === 'Tundra' && primaryType === 'TundraGrass' && secondaryType === 'Tundra') return 'Tundra';
     
     // Don't map Tundra to Grass when checking Tundra_* transitions (Tundra is primary)
     // Also don't map Tundra to Grass when checking DirtRoad_Tundra, Grass_Tundra, Dirt_Tundra, Quarry_Tundra, Alpine_Tundra, or Asphalt_Tundra - we want to detect Tundra neighbors
@@ -186,21 +202,42 @@ function mapTileTypeForAutotile(tileType: string | undefined, primaryType?: stri
     if (tileType === 'Asphalt') return 'DirtRoad';
     
     // Don't map Alpine to Dirt when checking Alpine_* transitions (Alpine is primary)
-    // IMPORTANT: When checking Asphalt_Beach, Asphalt_DirtRoad, or Asphalt_Alpine, don't map Alpine incorrectly
+    // IMPORTANT: When checking Asphalt_Beach, Asphalt_DirtRoad, Asphalt_Alpine, or Alpine_TundraGrass, don't map Alpine incorrectly
     if (tileType === 'Alpine' && primaryType === 'Alpine') return 'Alpine';
     if (tileType === 'Alpine' && primaryType === 'Quarry' && secondaryType === 'Alpine') return 'Alpine'; // Keep Alpine for Quarry_Alpine
     if (tileType === 'Alpine' && primaryType === 'Asphalt' && secondaryType === 'Alpine') return 'Alpine'; // Keep Alpine for Asphalt_Alpine
+    if (tileType === 'Alpine' && primaryType === 'Alpine' && secondaryType === 'TundraGrass') return 'Alpine'; // Keep Alpine for Alpine_TundraGrass
     if (tileType === 'Alpine' && primaryType === 'Asphalt' && secondaryType === 'Beach') return 'Alpine'; // Don't map Alpine to Beach when checking Asphalt_Beach
     if (tileType === 'Alpine' && primaryType === 'Asphalt' && secondaryType === 'DirtRoad') return 'Alpine'; // Don't map Alpine to DirtRoad when checking Asphalt_DirtRoad
     if (tileType === 'Alpine' && primaryType === 'Quarry' && secondaryType === 'Dirt') return 'Alpine'; // Don't map Alpine to Dirt when checking Quarry_Dirt - prioritize Quarry_Alpine
     if (tileType === 'Alpine') return 'Dirt';
     
-    // Don't map HotSpringWater to Beach when checking HotSpringWater_Beach transitions (HotSpringWater is primary)
-    if (tileType === 'HotSpringWater' && primaryType === 'HotSpringWater') return 'HotSpringWater';
-    // Don't map Beach to Sea when checking HotSpringWater_Beach transitions (Beach is secondary)
-    if (tileType === 'Beach' && primaryType === 'HotSpringWater' && secondaryType === 'Beach') return 'Beach';
+    // Don't map HotSpringWater to Beach when checking Beach_HotSpringWater transitions (HotSpringWater is secondary)
+    if (tileType === 'HotSpringWater' && primaryType === 'Beach' && secondaryType === 'HotSpringWater') return 'HotSpringWater';
     // HotSpringWater can be treated as Beach for other transitions (they're both water-like)
     if (tileType === 'HotSpringWater') return 'Beach';
+    
+    // Don't map TundraGrass when checking TundraGrass_* transitions (TundraGrass is primary)
+    // Also don't map TundraGrass to Tundra when it's the secondary in other configs
+    if (tileType === 'TundraGrass' && primaryType === 'TundraGrass') return 'TundraGrass';
+    if (tileType === 'TundraGrass' && secondaryType === 'TundraGrass') return 'TundraGrass';
+    // CRITICAL: When Quarry is primary, ALWAYS keep TundraGrass distinct so Quarry_TundraGrass can be detected (not Quarry_Tundra)
+    if (tileType === 'TundraGrass' && primaryType === 'Quarry') return 'TundraGrass'; // Keep TundraGrass for ALL Quarry transitions
+    // CRITICAL: When DirtRoad is primary, keep TundraGrass distinct so DirtRoad_TundraGrass can be detected
+    if (tileType === 'TundraGrass' && primaryType === 'DirtRoad') return 'TundraGrass'; // Keep TundraGrass for ALL DirtRoad transitions
+    // CRITICAL: When Dirt is primary, keep TundraGrass distinct so Dirt_TundraGrass can be detected (not Dirt_Tundra)
+    if (tileType === 'TundraGrass' && primaryType === 'Dirt') return 'TundraGrass'; // Keep TundraGrass for ALL Dirt transitions
+    // CRITICAL: When Forest is primary, keep TundraGrass distinct so Forest_TundraGrass can be detected
+    if (tileType === 'TundraGrass' && primaryType === 'Forest') return 'TundraGrass'; // Keep TundraGrass for ALL Forest transitions
+    // CRITICAL: When Grass is primary, keep TundraGrass distinct so Grass_TundraGrass can be detected (not Grass_Tundra)
+    if (tileType === 'TundraGrass' && primaryType === 'Grass') return 'TundraGrass'; // Keep TundraGrass for ALL Grass transitions
+    // CRITICAL: When Alpine is primary, keep TundraGrass distinct so Alpine_TundraGrass can be detected (not Alpine_Tundra)
+    if (tileType === 'TundraGrass' && primaryType === 'Alpine') return 'TundraGrass'; // Keep TundraGrass for ALL Alpine transitions
+    // TundraGrass should be treated as Tundra for other transitions (it's a variant within tundra biome)
+    if (tileType === 'TundraGrass') return 'Tundra';
+    
+    // CRITICAL: When checking Grass_TundraGrass, keep Grass distinct
+    if (tileType === 'Grass' && primaryType === 'Grass' && secondaryType === 'TundraGrass') return 'Grass';
     
     return tileType;
 }
@@ -312,7 +349,7 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
     'Beach_HotSpringWater': {
         primaryType: 'Beach',
         secondaryType: 'HotSpringWater',
-        tilesetPath: beachSeaAutotile,
+        tilesetPath: beachHotSpringWaterAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
@@ -333,6 +370,26 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryType: 'Grass',
         secondaryType: 'Tundra',
         tilesetPath: grassTundraAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Grass_TundraGrass': {
+        primaryType: 'Grass',
+        secondaryType: 'TundraGrass',
+        tilesetPath: grassTundraGrassAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Grass_Forest': {
+        primaryType: 'Grass',
+        secondaryType: 'Forest',
+        tilesetPath: grassForestAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
@@ -393,6 +450,16 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryType: 'Quarry',
         secondaryType: 'Forest',
         tilesetPath: quarryForestAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Quarry_TundraGrass': {
+        primaryType: 'Quarry',
+        secondaryType: 'TundraGrass',
+        tilesetPath: quarryTundraGrassAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
@@ -519,6 +586,16 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    'Dirt_TundraGrass': {
+        primaryType: 'Dirt',
+        secondaryType: 'TundraGrass',
+        tilesetPath: dirtTundraGrassAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
     'Grass_DirtRoad': {
         primaryType: 'Grass',
         secondaryType: 'DirtRoad',
@@ -559,16 +636,19 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
-    'Forest_Grass': {
-        primaryType: 'Forest',
-        secondaryType: 'Grass',
-        tilesetPath: forestGrassAutotile,
+    'DirtRoad_TundraGrass': {
+        primaryType: 'DirtRoad',
+        secondaryType: 'TundraGrass',
+        tilesetPath: dirtRoadTundraGrassAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    // REMOVED: Forest_Grass
+    // Using Forest_TundraGrass instead to avoid double borders
+    // Forest tiles autotile with TundraGrass neighbors (one-sided transition)
     'Forest_Dirt': {
         primaryType: 'Forest',
         secondaryType: 'Dirt',
@@ -609,6 +689,42 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    'TundraGrass_Tundra': {
+        primaryType: 'TundraGrass',
+        secondaryType: 'Tundra',
+        tilesetPath: tundraGrassTundraAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Alpine_TundraGrass': {
+        primaryType: 'Alpine',
+        secondaryType: 'TundraGrass',
+        tilesetPath: alpineTundraGrassAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'TundraGrass_Beach': {
+        primaryType: 'TundraGrass',
+        secondaryType: 'Beach',
+        tilesetPath: tundraGrassBeachAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    // REMOVED: TundraGrass_Dirt and TundraGrass_DirtRoad 
+    // These were causing double borders with Dirt_TundraGrass and DirtRoad_TundraGrass
+    // Now only Dirt/DirtRoad autotile with TundraGrass (one-sided transition)
+    // REMOVED: TundraGrass_Grass
+    // Using Grass_TundraGrass instead to avoid double borders
+    // Grass tiles autotile with TundraGrass neighbors (one-sided transition)
     'Forest_Tundra': {
         primaryType: 'Forest',
         secondaryType: 'Tundra',
@@ -619,16 +735,19 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
-    'HotSpringWater_Beach': {
-        primaryType: 'HotSpringWater',
-        secondaryType: 'Beach',
-        tilesetPath: hotSpringWaterBeachAutotile,
+    'Forest_TundraGrass': {
+        primaryType: 'Forest',
+        secondaryType: 'TundraGrass',
+        tilesetPath: forestTundraGrassAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,
         primaryInterior: { row: 1, col: 2 },
         secondaryInterior: { row: 0, col: 0 },
     },
+    // REMOVED: HotSpringWater_Beach
+    // Using Beach_HotSpringWater instead to avoid double borders
+    // Beach tiles autotile with HotSpringWater neighbors (one-sided transition)
     // NOTE: DirtRoad_Dirt was removed because using the same tileset with swapped
     // interiors doesn't work - the transition tiles (A1-A9, B1-B4) are designed
     // for Dirt->DirtRoad direction only. DirtRoad tiles will use secondaryInterior
@@ -669,6 +788,8 @@ function getNeighborMask(
             
             // Skip DirtRoad neighbors when checking for non-DirtRoad secondary types
             // This prevents DirtRoad from interfering with other transitions
+            // Skip DirtRoad neighbors when checking for non-DirtRoad secondary types
+            // This prevents DirtRoad from interfering with other transitions
             if (originalNeighborType === 'DirtRoad' && secondaryType !== 'DirtRoad') {
                 continue; // Skip DirtRoad neighbors when not checking for DirtRoad
             }
@@ -681,14 +802,15 @@ function getNeighborMask(
             
             // Skip Alpine neighbors when checking for non-Alpine secondary types (unless it's the secondary type)
             // This prevents Alpine from interfering with Asphalt/Beach transitions
+            // CRITICAL: Don't skip Alpine when checking Alpine_TundraGrass (Alpine is primary, TundraGrass is secondary)
             if (originalNeighborType === 'Alpine' && secondaryType !== 'Alpine' && primaryType !== 'Alpine') {
                 continue; // Skip Alpine neighbors when not checking for Alpine transitions
             }
             
-            // Skip Sea neighbors when checking for HotSpringWater_Beach transitions (Sea is different from Beach)
-            // This prevents Sea from interfering with HotSpringWater_Beach transitions
-            if (originalNeighborType === 'Sea' && primaryType === 'HotSpringWater' && secondaryType === 'Beach') {
-                continue; // Skip Sea neighbors when checking HotSpringWater_Beach - we want Beach neighbors only
+            // Skip Sea neighbors when checking for Beach_HotSpringWater transitions (Sea is different from HotSpringWater)
+            // This prevents Sea from interfering with Beach_HotSpringWater transitions
+            if (originalNeighborType === 'Sea' && primaryType === 'Beach' && secondaryType === 'HotSpringWater') {
+                continue; // Skip Sea neighbors when checking Beach_HotSpringWater - we want HotSpringWater neighbors only
             }
             
             // Skip Forest neighbors when checking for Quarry transitions that aren't Quarry_Forest
@@ -697,11 +819,102 @@ function getNeighborMask(
                 continue; // Skip Forest neighbors when checking Quarry_Grass - prioritize Quarry_Forest
             }
             
+            // Skip Tundra neighbors when checking for Quarry_TundraGrass transitions
+            // This prevents Tundra from interfering with Quarry_TundraGrass (we want TundraGrass neighbors)
+            if (originalNeighborType === 'Tundra' && primaryType === 'Quarry' && secondaryType === 'TundraGrass') {
+                continue; // Skip Tundra neighbors when checking Quarry_TundraGrass - we want TundraGrass neighbors
+            }
+            
+            // Skip TundraGrass neighbors when checking for Quarry transitions that aren't Quarry_TundraGrass
+            // This prevents TundraGrass from interfering with Quarry_Tundra (Quarry_TundraGrass should take priority)
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'Quarry' && secondaryType !== 'TundraGrass') {
+                continue; // Skip TundraGrass neighbors when checking other Quarry configs - prioritize Quarry_TundraGrass
+            }
+            
+            // CRITICAL: Skip TundraGrass neighbors when checking DirtRoad_Tundra
+            // This prevents TundraGrass from being incorrectly matched as Tundra
+            // TundraGrass neighbors should ONLY match DirtRoad_TundraGrass, not DirtRoad_Tundra
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'DirtRoad' && secondaryType === 'Tundra') {
+                continue; // Skip TundraGrass neighbors when checking DirtRoad_Tundra - they should match DirtRoad_TundraGrass instead
+            }
+            
+            // Skip TundraGrass neighbors when checking for DirtRoad transitions that aren't DirtRoad_TundraGrass
+            // This prevents TundraGrass from interfering with other DirtRoad configs (DirtRoad_TundraGrass should take priority)
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'DirtRoad' && secondaryType !== 'TundraGrass') {
+                continue; // Skip TundraGrass neighbors when checking other DirtRoad configs - prioritize DirtRoad_TundraGrass
+            }
+            
+            // Skip Tundra neighbors when checking for DirtRoad_TundraGrass transitions
+            // This prevents Tundra from interfering with DirtRoad_TundraGrass (we want TundraGrass neighbors)
+            if (originalNeighborType === 'Tundra' && primaryType === 'DirtRoad' && secondaryType === 'TundraGrass') {
+                continue; // Skip Tundra neighbors when checking DirtRoad_TundraGrass - we want TundraGrass neighbors
+            }
+            
+            // Skip TundraGrass neighbors when checking for Forest transitions that aren't Forest_TundraGrass
+            // This prevents TundraGrass from interfering with Forest_Tundra (Forest_TundraGrass should take priority)
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'Forest' && secondaryType !== 'TundraGrass') {
+                continue; // Skip TundraGrass neighbors when checking other Forest configs - prioritize Forest_TundraGrass
+            }
+            
+            // Skip Tundra neighbors when checking for Forest_TundraGrass transitions
+            // This prevents Tundra from interfering with Forest_TundraGrass (we want TundraGrass neighbors)
+            if (originalNeighborType === 'Tundra' && primaryType === 'Forest' && secondaryType === 'TundraGrass') {
+                continue; // Skip Tundra neighbors when checking Forest_TundraGrass - we want TundraGrass neighbors
+            }
+            
+            // CRITICAL: Skip Grass neighbors when checking Forest_TundraGrass transitions
+            // This prevents Grass from interfering with Forest_TundraGrass (we want ONLY TundraGrass neighbors)
+            // Forest_TundraGrass should take priority over Forest_Grass when TundraGrass neighbors exist
+            if (originalNeighborType === 'Grass' && primaryType === 'Forest' && secondaryType === 'TundraGrass') {
+                continue; // Skip Grass neighbors when checking Forest_TundraGrass - we want TundraGrass neighbors only
+            }
+            
+            // Skip TundraGrass neighbors when checking for TundraGrass_* transitions
+            // TundraGrass should only detect the specific secondary type neighbors, not other TundraGrass tiles
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'TundraGrass') {
+                continue; // Skip TundraGrass neighbors - we only want to detect the secondary type neighbors
+            }
+            
+            // Skip Tundra neighbors when checking for TundraGrass transitions that aren't TundraGrass_Tundra
+            // This prevents Tundra from interfering with TundraGrass_Beach, etc.
+            // Note: Alpine_TundraGrass is now Alpine primary, so Tundra neighbors are handled differently
+            if (originalNeighborType === 'Tundra' && primaryType === 'TundraGrass' && secondaryType !== 'Tundra') {
+                continue; // Skip Tundra neighbors when checking TundraGrass_* (except TundraGrass_Tundra)
+            }
+            
+            // CRITICAL: Skip Tundra neighbors when checking Alpine_TundraGrass transitions
+            // This prevents Tundra from interfering with Alpine_TundraGrass (we want TundraGrass neighbors)
+            if (originalNeighborType === 'Tundra' && primaryType === 'Alpine' && secondaryType === 'TundraGrass') {
+                continue; // Skip Tundra neighbors when checking Alpine_TundraGrass - we want TundraGrass neighbors
+            }
+            
+            // CRITICAL: Skip TundraGrass neighbors when checking Grass_TundraGrass transitions
+            // This prevents TundraGrass from being incorrectly matched as Tundra
+            // TundraGrass neighbors should ONLY match Grass_TundraGrass, not Grass_Tundra
+            if (originalNeighborType === 'TundraGrass' && primaryType === 'Grass' && secondaryType === 'TundraGrass') {
+                // Don't skip - we want TundraGrass neighbors for Grass_TundraGrass
+            } else if (originalNeighborType === 'TundraGrass' && primaryType === 'Grass') {
+                continue; // Skip TundraGrass neighbors when checking other Grass configs
+            }
+            
+            // CRITICAL: Skip Tundra neighbors when checking Grass_TundraGrass transitions
+            // This prevents Tundra from interfering with Grass_TundraGrass (we want TundraGrass neighbors)
+            if (originalNeighborType === 'Tundra' && primaryType === 'Grass' && secondaryType === 'TundraGrass') {
+                continue; // Skip Tundra neighbors when checking Grass_TundraGrass - we want TundraGrass neighbors
+            }
+            
+            // Grass neighbors should pass through for Grass_TundraGrass transitions
+            
             // Count as secondary if:
-            // 1. The neighbor IS the secondary type, OR
-            // 2. The neighbor is the same primary type BUT is "overwhelmed"
-            //    (has 3+ cardinal secondary neighbors, so should be absorbed)
-            if (neighborType === secondaryType) {
+            // 1. The neighbor's ACTUAL type matches the secondary type (check original type FIRST)
+            // 2. OR the neighbor's mapped type matches the secondary type
+            // 3. OR the neighbor is the same primary type BUT is "overwhelmed"
+            
+            // CRITICAL: Check ACTUAL neighbor type first before mapping
+            // This ensures TundraGrass neighbors match TundraGrass, not Tundra or Grass
+            if (originalNeighborType === secondaryType) {
+                mask |= offset.bit;
+            } else if (neighborType === secondaryType) {
                 mask |= offset.bit;
             } else if (primaryType && neighborType === primaryType) {
                 // Check if this same-type neighbor is overwhelmed
@@ -931,7 +1144,7 @@ export function shouldUseAutotiling(
     
     // NEW TILE TYPES: These don't have autotile sheets yet, so render as plain base textures
     // Remove these from the list as you create autotile sheets for them
-    const tilesWithoutAutotiles: string[] = []; // HotSpringWater now has HotSpringWater_Beach autotile
+    const tilesWithoutAutotiles: string[] = []; // HotSpringWater uses Beach_HotSpringWater (Beach is primary)
     
     if (tilesWithoutAutotiles.includes(tileType)) {
         return null; // Render as plain base texture
@@ -964,17 +1177,64 @@ export function shouldUseAutotiling(
         // HIGHEST priority: DirtRoad transitions (road overlay is visually on top of terrain)
         if (a[0].includes('DirtRoad') && !b[0].includes('DirtRoad')) return -1;
         if (b[0].includes('DirtRoad') && !a[0].includes('DirtRoad')) return 1;
+        // Within DirtRoad configs: DirtRoad_TundraGrass before DirtRoad_Tundra (TundraGrass is more specific)
+        if (a[0] === 'DirtRoad_TundraGrass' && b[0].startsWith('DirtRoad_')) return -1;
+        if (b[0] === 'DirtRoad_TundraGrass' && a[0].startsWith('DirtRoad_')) return 1;
         // Second priority: Quarry configs (ensures interior Quarry tiles use Quarry configs, not Dirt fallback)
-        // Prioritize Quarry_Tundra, Quarry_Alpine, and Quarry_Forest over other Quarry configs to avoid incorrect neighbor mapping
+        // CRITICAL: Quarry_TundraGrass must be checked BEFORE Quarry_Tundra (TundraGrass is more specific than Tundra)
+        // Same for Quarry_Forest before Quarry_Grass, Quarry_Alpine before Quarry_Dirt
         if (a[0].startsWith('Quarry_') && !b[0].startsWith('Quarry_')) return -1;
         if (b[0].startsWith('Quarry_') && !a[0].startsWith('Quarry_')) return 1;
-        if (a[0] === 'Quarry_Tundra' && b[0].startsWith('Quarry_')) return -1; // Quarry_Tundra before other Quarry configs
-        if (b[0] === 'Quarry_Tundra' && a[0].startsWith('Quarry_')) return 1;
-        if (a[0] === 'Quarry_Alpine' && b[0].startsWith('Quarry_')) return -1; // Quarry_Alpine before other Quarry configs (except Tundra)
-        if (b[0] === 'Quarry_Alpine' && a[0].startsWith('Quarry_')) return 1;
-        if (a[0] === 'Quarry_Forest' && b[0].startsWith('Quarry_')) return -1; // Quarry_Forest before other Quarry configs (except Tundra/Alpine)
+        // Quarry_TundraGrass FIRST (most specific - TundraGrass might be mapped to Tundra otherwise)
+        if (a[0] === 'Quarry_TundraGrass' && b[0].startsWith('Quarry_')) return -1;
+        if (b[0] === 'Quarry_TundraGrass' && a[0].startsWith('Quarry_')) return 1;
+        // Then Quarry_Forest (Forest might be mapped to Grass otherwise)
+        if (a[0] === 'Quarry_Forest' && b[0].startsWith('Quarry_')) return -1;
         if (b[0] === 'Quarry_Forest' && a[0].startsWith('Quarry_')) return 1;
-        // Third priority: Grass_Dirt (prevents dirt patches from looking weird)
+        // Then Quarry_Alpine (Alpine might be mapped to Dirt otherwise)
+        if (a[0] === 'Quarry_Alpine' && b[0].startsWith('Quarry_')) return -1;
+        if (b[0] === 'Quarry_Alpine' && a[0].startsWith('Quarry_')) return 1;
+        // Then Quarry_Tundra (Tundra might be mapped to Grass otherwise)
+        if (a[0] === 'Quarry_Tundra' && b[0].startsWith('Quarry_')) return -1;
+        if (b[0] === 'Quarry_Tundra' && a[0].startsWith('Quarry_')) return 1;
+        // Third priority: Forest configs - Forest_TundraGrass BEFORE Forest_Tundra (TundraGrass is more specific)
+        if (a[0].startsWith('Forest_') && !b[0].startsWith('Forest_')) return -1;
+        if (b[0].startsWith('Forest_') && !a[0].startsWith('Forest_')) return 1;
+        // Forest_TundraGrass FIRST (most specific - TundraGrass might be mapped to Tundra otherwise)
+        if (a[0] === 'Forest_TundraGrass' && b[0].startsWith('Forest_')) return -1;
+        if (b[0] === 'Forest_TundraGrass' && a[0].startsWith('Forest_')) return 1;
+        // Then Forest_Tundra (Tundra might be mapped to Grass, but TundraGrass is more specific)
+        if (a[0] === 'Forest_Tundra' && b[0].startsWith('Forest_') && b[0] !== 'Forest_TundraGrass') return -1;
+        if (b[0] === 'Forest_Tundra' && a[0].startsWith('Forest_') && a[0] !== 'Forest_TundraGrass') return 1;
+        // Forest_Grass removed - using Forest_TundraGrass only
+        // Fourth priority: Alpine configs - Alpine_TundraGrass BEFORE Alpine_Tundra (TundraGrass is more specific)
+        if (a[0].startsWith('Alpine_') && !b[0].startsWith('Alpine_')) return -1;
+        if (b[0].startsWith('Alpine_') && !a[0].startsWith('Alpine_')) return 1;
+        // Alpine_TundraGrass FIRST (most specific - TundraGrass might be mapped to Tundra otherwise)
+        if (a[0] === 'Alpine_TundraGrass' && b[0].startsWith('Alpine_')) return -1;
+        if (b[0] === 'Alpine_TundraGrass' && a[0].startsWith('Alpine_')) return 1;
+        // Then Alpine_Tundra (Tundra might be mapped to Grass, but TundraGrass is more specific)
+        if (a[0] === 'Alpine_Tundra' && b[0].startsWith('Alpine_') && b[0] !== 'Alpine_TundraGrass') return -1;
+        if (b[0] === 'Alpine_Tundra' && a[0].startsWith('Alpine_') && a[0] !== 'Alpine_TundraGrass') return 1;
+        // Fifth priority: TundraGrass configs (biome-specific transitions should be prioritized)
+        // Prioritize TundraGrass_DirtRoad first (road overlays), then TundraGrass_Dirt, then others
+        // Note: Alpine_TundraGrass is now Alpine primary, so it's handled in Alpine configs above
+        if (a[0].startsWith('TundraGrass_') && !b[0].startsWith('TundraGrass_')) return -1;
+        if (b[0].startsWith('TundraGrass_') && !a[0].startsWith('TundraGrass_')) return 1;
+        if (a[0] === 'TundraGrass_DirtRoad' && b[0].startsWith('TundraGrass_')) return -1; // TundraGrass_DirtRoad first (highest priority)
+        if (b[0] === 'TundraGrass_DirtRoad' && a[0].startsWith('TundraGrass_')) return 1;
+        if (a[0] === 'TundraGrass_Dirt' && b[0].startsWith('TundraGrass_')) return -1; // TundraGrass_Dirt second (before TundraGrass_Tundra)
+        if (b[0] === 'TundraGrass_Dirt' && a[0].startsWith('TundraGrass_')) return 1;
+        if (a[0] === 'TundraGrass_Tundra' && b[0].startsWith('TundraGrass_')) return 1; // TundraGrass_Tundra last (lowest priority within TundraGrass)
+        if (b[0] === 'TundraGrass_Tundra' && a[0].startsWith('TundraGrass_')) return -1;
+        // Fifth priority: Grass configs - Grass_TundraGrass and Grass_Forest before others (more specific)
+        if (a[0].startsWith('Grass_') && b[0].startsWith('Grass_')) {
+            if (a[0] === 'Grass_TundraGrass') return -1;
+            if (b[0] === 'Grass_TundraGrass') return 1;
+            if (a[0] === 'Grass_Forest') return -1;
+            if (b[0] === 'Grass_Forest') return 1;
+        }
+        // Grass_Dirt (prevents dirt patches from looking weird)
         if (a[0] === 'Grass_Dirt') return -1;
         if (b[0] === 'Grass_Dirt') return 1;
         // Then other terrain transitions
@@ -982,9 +1242,12 @@ export function shouldUseAutotiling(
         if (b[0] === 'Grass_Beach') return 1;
         if (a[0] === 'Dirt_Beach') return -1;
         if (b[0] === 'Dirt_Beach') return 1;
-        // HotSpringWater_Beach should take priority over Beach_Sea when checking HotSpringWater tiles
-        if (a[0] === 'HotSpringWater_Beach') return -1;
-        if (b[0] === 'HotSpringWater_Beach') return 1;
+        // Dirt_TundraGrass before Dirt_Tundra (TundraGrass is more specific)
+        if (a[0] === 'Dirt_TundraGrass' && b[0].startsWith('Dirt_')) return -1;
+        if (b[0] === 'Dirt_TundraGrass' && a[0].startsWith('Dirt_')) return 1;
+        // Beach_HotSpringWater should take priority over Beach_Sea when checking Beach tiles
+        if (a[0] === 'Beach_HotSpringWater') return -1;
+        if (b[0] === 'Beach_HotSpringWater') return 1;
         if (a[0] === 'Beach_Sea') return -1;
         if (b[0] === 'Beach_Sea') return 1;
         return 0;
@@ -992,14 +1255,206 @@ export function shouldUseAutotiling(
     
     // First pass: Look for configs where this tile is PRIMARY with secondary neighbors
     // DirtRoad configs are checked first due to sorting, so road overlays take priority
-    for (const [, config] of configEntries) {
+    // For TundraGrass, we need to check DirtRoad and Alpine BEFORE Tundra to ensure correct priority
+    let tundraGrassConfigs: Array<[string, AutotileConfig]> = [];
+    let otherConfigs: Array<[string, AutotileConfig]> = [];
+    
+    // Separate TundraGrass configs to handle them specially
+    for (const entry of configEntries) {
+        if (entry[1].primaryType === 'TundraGrass') {
+            tundraGrassConfigs.push(entry);
+        } else {
+            otherConfigs.push(entry);
+        }
+    }
+    
+    // Sort TundraGrass configs by priority: DirtRoad > Dirt > Grass > Beach > others > Tundra
+    // Note: Alpine_TundraGrass is now Alpine primary, so it's handled separately
+    tundraGrassConfigs.sort((a, b) => {
+        if (a[0] === 'TundraGrass_DirtRoad') return -1;
+        if (b[0] === 'TundraGrass_DirtRoad') return 1;
+        if (a[0] === 'TundraGrass_Dirt') return -1; // Dirt before Grass
+        if (b[0] === 'TundraGrass_Dirt') return 1;
+        // TundraGrass_Grass removed - using Grass_TundraGrass only
+        if (a[0] === 'TundraGrass_Beach') return -1; // Beach before Tundra
+        if (b[0] === 'TundraGrass_Beach') return 1;
+        if (a[0] === 'TundraGrass_Tundra') return 1; // Tundra last (lowest priority)
+        if (b[0] === 'TundraGrass_Tundra') return -1;
+        return 0;
+    });
+    
+    // CRITICAL: Sort otherConfigs to ensure proper priority order is maintained
+    // This is essential because TundraGrass neighbors might be incorrectly matched as Tundra
+    otherConfigs.sort((a, b) => {
+        // Within DirtRoad configs: DirtRoad_TundraGrass before DirtRoad_Tundra
+        if (a[0].startsWith('DirtRoad_') && b[0].startsWith('DirtRoad_')) {
+            if (a[0] === 'DirtRoad_TundraGrass') return -1;
+            if (b[0] === 'DirtRoad_TundraGrass') return 1;
+        }
+        // Within Forest configs: Forest_TundraGrass BEFORE Forest_Tundra (TundraGrass is most specific)
+        if (a[0].startsWith('Forest_') && b[0].startsWith('Forest_')) {
+            if (a[0] === 'Forest_TundraGrass') return -1;
+            if (b[0] === 'Forest_TundraGrass') return 1;
+            if (a[0] === 'Forest_Tundra') return -1;
+            if (b[0] === 'Forest_Tundra') return 1;
+            // Forest_Grass removed
+        }
+        return 0; // Keep original sort order for other configs
+    });
+    
+    // Check other configs first (DirtRoad, Quarry, Forest, etc.)
+    // CRITICAL: For Forest tiles, check Forest_TundraGrass (Forest_Grass removed)
+    // This ensures TundraGrass transitions take priority over Grass transitions
+    let forestTundraGrassConfig: [string, AutotileConfig] | null = null;
+    let forestOtherConfigs: Array<[string, AutotileConfig]> = [];
+    let nonForestConfigs: Array<[string, AutotileConfig]> = [];
+    
+    // Separate Forest configs to handle Forest_TundraGrass specially
+    for (const entry of otherConfigs) {
+        if (entry[1].primaryType === 'Forest') {
+            if (entry[0] === 'Forest_TundraGrass') {
+                forestTundraGrassConfig = entry;
+            } else {
+                forestOtherConfigs.push(entry);
+            }
+        } else {
+            nonForestConfigs.push(entry);
+        }
+    }
+    
+    // Check Forest_TundraGrass FIRST if it exists
+    if (forestTundraGrassConfig && mappedTileType === 'Forest') {
+        const [, config] = forestTundraGrassConfig;
+        // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
+        if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
+            return { config, bitmask: -1, isSecondaryInterior: true };
+        }
+        
+        // Calculate bitmask (may include absorbed same-type neighbors for edge rendering)
+        // This will skip Grass neighbors and only detect TundraGrass neighbors
+        const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, mappedTileType);
+        
+        // CRITICAL: If ANY TundraGrass neighbors exist, use Forest_TundraGrass
+        // Even if bitmask is 0 (no neighbors), we should still check if TundraGrass neighbors exist
+        // by checking neighbors directly
+        if (bitmask > 0) {
+            return { config, bitmask };
+        }
+        
+        // Additional check: Look for TundraGrass neighbors directly to ensure we don't miss them
+        // This handles cases where TundraGrass neighbors might not be detected due to mapping issues
+        let hasTundraGrassNeighbor = false;
+        for (const [, offset] of Object.entries(NEIGHBOR_OFFSETS)) {
+            const neighborX = x + offset.x;
+            const neighborY = y + offset.y;
+            const neighborKey = `${neighborX}_${neighborY}`;
+            const neighborTile = worldTiles.get(neighborKey);
+            if (neighborTile && neighborTile.tileType?.tag === 'TundraGrass') {
+                hasTundraGrassNeighbor = true;
+                break;
+            }
+        }
+        
+        // If TundraGrass neighbors exist, use Forest_TundraGrass (even with bitmask 0, use interior)
+        if (hasTundraGrassNeighbor) {
+            return { config, bitmask: 0 }; // Use interior tile when TundraGrass neighbors exist
+        }
+    }
+    
+    // Then check other Forest configs (Forest_Tundra, etc.)
+    for (const [, config] of forestOtherConfigs) {
         if (mappedTileType === config.primaryType) {
-            if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
             
             // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
-            // This is different from the bitmask which includes absorbed same-type neighbors
-            // Truly overwhelmed tiles should be absorbed into secondary type
+            if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
+                return { config, bitmask: -1, isSecondaryInterior: true };
+            }
+            
+            // Calculate bitmask (may include absorbed same-type neighbors for edge rendering)
+            const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, mappedTileType);
+            
+            if (bitmask > 0) {
+                return { config, bitmask };
+            }
+        }
+    }
+    
+    // Then check non-Forest configs (DirtRoad, Quarry, Alpine, etc.)
+    // CRITICAL: For Alpine tiles, check Alpine_TundraGrass BEFORE Alpine_Tundra
+    let alpineTundraGrassConfig: [string, AutotileConfig] | null = null;
+    let alpineOtherConfigs: Array<[string, AutotileConfig]> = [];
+    let otherNonForestConfigs: Array<[string, AutotileConfig]> = [];
+    
+    // Separate Alpine configs to handle Alpine_TundraGrass specially
+    for (const entry of nonForestConfigs) {
+        if (entry[1].primaryType === 'Alpine') {
+            if (entry[0] === 'Alpine_TundraGrass') {
+                alpineTundraGrassConfig = entry;
+            } else {
+                alpineOtherConfigs.push(entry);
+            }
+        } else {
+            otherNonForestConfigs.push(entry);
+        }
+    }
+    
+    // Check Alpine_TundraGrass FIRST if it exists
+    if (alpineTundraGrassConfig && mappedTileType === 'Alpine') {
+        const [, config] = alpineTundraGrassConfig;
+        // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
+        if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
+            return { config, bitmask: -1, isSecondaryInterior: true };
+        }
+        
+        // Calculate bitmask (may include absorbed same-type neighbors for edge rendering)
+        const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, mappedTileType);
+        
+        if (bitmask > 0) {
+            return { config, bitmask };
+        }
+    }
+    
+    // Then check other Alpine configs (Alpine_Tundra, Alpine_DirtRoad, etc.)
+    for (const [, config] of alpineOtherConfigs) {
+        if (mappedTileType === config.primaryType) {
+            // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
+            if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
+                return { config, bitmask: -1, isSecondaryInterior: true };
+            }
+            
+            // Calculate bitmask (may include absorbed same-type neighbors for edge rendering)
+            const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, mappedTileType);
+            
+            if (bitmask > 0) {
+                return { config, bitmask };
+            }
+        }
+    }
+    
+    // Then check other non-Forest, non-Alpine configs (DirtRoad, Quarry, etc.)
+    for (const [, config] of otherNonForestConfigs) {
+        if (mappedTileType === config.primaryType) {
+            if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
+            // HotSpringWater uses Beach_HotSpringWater autotile (Beach is primary), so allow it
+            
+            // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
+            if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
+                return { config, bitmask: -1, isSecondaryInterior: true };
+            }
+            
+            // Calculate bitmask (may include absorbed same-type neighbors for edge rendering)
+            const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, mappedTileType);
+            
+            if (bitmask > 0) {
+                return { config, bitmask };
+            }
+        }
+    }
+    
+    // Then check TundraGrass configs in priority order
+    for (const [, config] of tundraGrassConfigs) {
+        if (mappedTileType === config.primaryType) {
+            // Check if this tile is TRULY overwhelmed (3+ ACTUAL secondary cardinal neighbors)
             if (isOverwhelmedTile(x, y, worldTiles, config.primaryType, config.secondaryType)) {
                 return { config, bitmask: -1, isSecondaryInterior: true };
             }
@@ -1014,17 +1469,26 @@ export function shouldUseAutotiling(
     }
     
     // Second pass: Use primaryInterior for interior PRIMARY tiles
-    // Use the same sorted order to maintain priority
+    // Use the same separated order to maintain priority
     // IMPORTANT: For Quarry tiles, we MUST use a Quarry config, not a Dirt fallback
-    for (const [, config] of configEntries) {
+    // For TundraGrass tiles, prioritize DirtRoad > Alpine > others > Tundra
+    for (const [, config] of otherConfigs) {
         if (mappedTileType === config.primaryType) {
             if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
+            // HotSpringWater uses Beach_HotSpringWater autotile (Beach is primary), so allow it
             if (mappedTileType === 'Sea') continue; // Sea still doesn't use autotiles
             
             // For Quarry tiles, ensure we use a Quarry config (not Dirt fallback)
             if (mappedTileType === 'Quarry' && config.primaryType !== 'Quarry') continue;
             
+            return { config, bitmask: 0 };
+        }
+    }
+    
+    // Check TundraGrass configs in priority order for interior tiles
+    for (const [, config] of tundraGrassConfigs) {
+        if (mappedTileType === config.primaryType) {
+            // For TundraGrass tiles, ensure we use a TundraGrass config (not Tundra fallback)
             return { config, bitmask: 0 };
         }
     }
@@ -1099,9 +1563,14 @@ export function getAutotilesForTile(
         fallbackTileType = 'DirtRoad';
     }
     if (tileType === 'HotSpringWater') {
-        // HotSpringWater has its own configs (HotSpringWater_Beach), no fallback needed
+        // HotSpringWater uses Beach_HotSpringWater (Beach is primary), no fallback needed
         autotileTileType = 'HotSpringWater';
-        fallbackTileType = null; // HotSpringWater only transitions to Beach, no fallback
+        fallbackTileType = null; // HotSpringWater transitions via Beach_HotSpringWater, no fallback
+    }
+    if (tileType === 'TundraGrass') {
+        // TundraGrass has its own configs (TundraGrass_Tundra), can fall back to Tundra configs for other transitions
+        autotileTileType = 'TundraGrass';
+        fallbackTileType = 'Tundra';
     }
     
     if ('worldX' in centerTile && 'worldY' in centerTile) {
@@ -1119,7 +1588,7 @@ export function getAutotilesForTile(
     for (const [, config] of Object.entries(AUTOTILE_CONFIGS)) {
         if (autotileTileType === config.primaryType) {
             if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-            // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
+            // HotSpringWater uses Beach_HotSpringWater autotile (Beach is primary), so allow it
             
             const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, autotileTileType);
             
@@ -1139,7 +1608,7 @@ export function getAutotilesForTile(
             
             if (fallbackTileType === config.primaryType && !alreadyHasConfig) {
                 if (config.primaryType === 'DirtRoad' && config.secondaryType === 'Grass') continue;
-                // HotSpringWater now has HotSpringWater_Beach autotile, so allow it
+                // HotSpringWater uses Beach_HotSpringWater autotile (Beach is primary), so allow it
                 
                 const bitmask = calculateAutotileBitmask(x, y, worldTiles, config.secondaryType, fallbackTileType);
                 

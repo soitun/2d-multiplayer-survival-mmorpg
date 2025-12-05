@@ -2153,6 +2153,19 @@ fn determine_realistic_tile_type(
         if dirt_noise > 0.45 && dirt_noise < 0.55 {
             return TileType::Dirt;
         }
+        
+        // TUNDRA GRASS PATCHES: Use different noise frequency for grass patches
+        // Creates meadow-like areas within tundra similar to temperate grass
+        let tundra_grass_noise = noise.get([
+            world_x as f64 * 0.008 + 500.0,  // Offset to get different pattern from dirt
+            world_y as f64 * 0.008 + 500.0
+        ]);
+        // Spawn TundraGrass in clustered regions (when noise is high)
+        // ~25-30% of tundra will be grassy patches
+        if tundra_grass_noise > 0.35 {
+            return TileType::TundraGrass;
+        }
+        
         return TileType::Tundra;
     }
     
@@ -2305,6 +2318,7 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
                 TileType::Forest => 100,   // Darker green (dense forest)
                 TileType::Tundra => 140,   // Pale greenish-gray (arctic grassland)
                 TileType::Alpine => 180,   // Light gray (rocky terrain)
+                TileType::TundraGrass => 120, // Slightly greener than Tundra (grassy patches)
             };
             
             // Write directly to buffer (overwriting if multiple tiles map to same pixel is fine/expected)
