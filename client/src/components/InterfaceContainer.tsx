@@ -1,9 +1,19 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import InterfaceTabs from './InterfaceTabs';
 import MemoryGrid from './MemoryGrid';
+import AlkPanel from './AlkPanel';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
+import {
+  AlkState,
+  AlkStation,
+  AlkContract,
+  AlkPlayerContract,
+  PlayerShardBalance,
+  WorldState,
+  ItemDefinition,
+} from '../generated';
 import './InterfaceContainer.css';
 
 interface InterfaceContainerProps {
@@ -14,6 +24,15 @@ interface InterfaceContainerProps {
   onClose: () => void;
   showWeatherOverlay?: boolean;
   onToggleWeatherOverlay?: (checked: boolean) => void;
+  // ALK Panel data props
+  alkContracts?: Map<string, AlkContract>;
+  alkPlayerContracts?: Map<string, AlkPlayerContract>;
+  alkStations?: Map<string, AlkStation>;
+  alkState?: AlkState | null;
+  playerShardBalance?: PlayerShardBalance | null;
+  worldState?: WorldState | null;
+  itemDefinitions?: Map<string, ItemDefinition>;
+  inventoryItems?: Map<string, any>; // For counting Memory Shards
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -24,9 +43,18 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   onClose,
   showWeatherOverlay: externalShowWeatherOverlay,
   onToggleWeatherOverlay: externalToggleWeatherOverlay,
+  // ALK Panel data props
+  alkContracts,
+  alkPlayerContracts,
+  alkStations,
+  alkState,
+  playerShardBalance,
+  worldState,
+  itemDefinitions,
+  inventoryItems,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid'>('minimap');
+  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk'>('minimap');
   const [isMinimapLoading, setIsMinimapLoading] = useState(false);
   
   // Grid coordinates visibility preference (stored in localStorage)
@@ -225,7 +253,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   }, [connection.connection, connection.isConnected, updateMemoryGridData]);
 
   // Handle view changes with loading state for minimap
-  const handleViewChange = (view: 'minimap' | 'encyclopedia' | 'memory-grid') => {
+  const handleViewChange = (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk') => {
     if (view === 'minimap' && currentView !== 'minimap') {
       // Show loading when switching TO minimap from another tab
       setIsMinimapLoading(true);
@@ -659,6 +687,29 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        );
+      case 'alk':
+        return (
+          <div className="alk-content" style={{ 
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
+            <AlkPanel
+              playerIdentity={connection.dbIdentity || null}
+              onClose={onClose}
+              alkState={alkState || null}
+              alkStations={alkStations || new Map()}
+              alkContracts={alkContracts || new Map()}
+              alkPlayerContracts={alkPlayerContracts || new Map()}
+              playerShardBalance={playerShardBalance || null}
+              worldState={worldState || null}
+              itemDefinitions={itemDefinitions || new Map()}
+              inventoryItems={inventoryItems || new Map()}
+            />
           </div>
         );
       default:

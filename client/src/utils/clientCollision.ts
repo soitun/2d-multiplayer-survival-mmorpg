@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door } from '../generated';
+import { Player, Tree, Stone, RuneStone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
 // Add at top after imports:
@@ -386,6 +386,29 @@ function getCollisionCandidates(
     }
   }
   
+  // Filter ALK delivery stations (large industrial structures)
+  if (entities.alkStations && entities.alkStations.size > 0) {
+    // ALK stations use worldPosX/worldPosY, filter manually
+    for (const station of entities.alkStations.values()) {
+      if (!station.isActive) continue;
+      
+      const dx = station.worldPosX - playerX;
+      const dy = station.worldPosY - playerY;
+      const distSq = dx * dx + dy * dy;
+      
+      // Larger cull distance for large structure
+      if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
+      
+      shapes.push({
+        id: `alk_station-${station.stationId.toString()}`,
+        type: `alk_station-${station.stationId.toString()}`,
+        x: station.worldPosX + COLLISION_OFFSETS.ALK_STATION.x,
+        y: station.worldPosY + COLLISION_OFFSETS.ALK_STATION.y,
+        radius: COLLISION_RADII.ALK_STATION
+      });
+    }
+  }
+  
   // Filter sea stacks
   const nearbySeaStacks = filterEntitiesByDistance(
     entities.seaStacks,
@@ -757,6 +780,7 @@ const COLLISION_RADII = {
   SEA_STACK: 60, // Base radius for sea stacks - reduced significantly for smoother collision like trees
   HOMESTEAD_HEARTH: 55, // Homestead hearth collision radius (matches server-side HEARTH_COLLISION_RADIUS)
   BASALT_COLUMN: 35, // Basalt column collision radius
+  ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -770,6 +794,7 @@ const COLLISION_OFFSETS = {
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
+  ALK_STATION: { x: 0, y: -170 }, // ALK station collision offset - moved UP to center on building (allows walking behind for Y-sorting)
   SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
@@ -815,6 +840,7 @@ export interface GameEntities {
   homesteadHearths: Map<string, HomesteadHearth>; // Add homestead hearths for collision
   basaltColumns: Map<string, BasaltColumn>; // Add basalt columns for collision
   doors: Map<string, Door>; // Add doors for collision
+  alkStations?: Map<string, AlkStation>; // Add ALK delivery stations for collision
 }
 
 interface CollisionShape {

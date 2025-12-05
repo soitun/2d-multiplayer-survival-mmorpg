@@ -50,13 +50,13 @@ pub const BARREL_RESPAWN_TIME_SECONDS: u32 = 600; // 10 minutes respawn time
 // Sea barrel (flotsam/cargo crate) constants
 pub const SEA_BARREL_VARIANT_START: u8 = 3; // Variants 3, 4, 5 are sea barrels
 pub const SEA_BARREL_VARIANT_END: u8 = 6; // Exclusive end (so 3, 4, 5)
-pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.15; // 15% chance to spawn 1-2 sea barrels near each sea stack
+pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.03; // 3% chance to spawn 1-2 sea barrels near each sea stack (REDUCED from 15%)
 pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 150.0; // Minimum distance from sea stack center
 pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 300.0; // Maximum distance from sea stack center
 pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance between sea barrels
 
 // Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches, but much rarer)
-pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0001; // 0.01% of beach tiles get a barrel (much rarer than sea stack spawning)
+pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.00001; // 0.001% of beach tiles get a barrel (REDUCED from 0.01%)
 pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 150.0 * 150.0; // Minimum distance between beach barrels
 
 // Damage constants
@@ -65,9 +65,9 @@ pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 150.0 * 150.0; // Minimum distance
 pub const BARREL_ATTACK_COOLDOWN_MS: u64 = 1000; // 1 second between attacks (used by damage_barrel for cooldown checks)
 
 /// Density of barrel clusters per map tile. Used to scale clusters with map size.
-/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.000052 = ~19 clusters (30% increase).
+/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.000005 = ~2 clusters (REDUCED from ~19).
 /// Barrels are rare, contested PvP hotspots - not meant to be everywhere.
-pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.000052; // Increased by 30% from 0.00004
+pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.000005; // REDUCED by 90% from 0.000052
 /// How many dirt road tiles roughly correspond to one barrel cluster capacity.
 /// Used as an upper bound so road-heavy maps don't explode cluster counts.
 pub const ROAD_TILES_PER_CLUSTER: f32 = 200.0;

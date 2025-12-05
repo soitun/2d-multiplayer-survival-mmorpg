@@ -104,6 +104,7 @@ interface InventoryUIProps {
     players?: Map<string, Player>; // ADDED: Players for building privilege list
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
     chunkWeather?: Map<string, any>; // ADDED: Chunk-based weather
+    purchasedMemoryNodes?: Set<string>; // ADDED: Memory Grid unlocks for crafting
 }
 
 // Represents an item instance with its definition for rendering
@@ -163,6 +164,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     players,
     activeConsumableEffects,
     chunkWeather,
+    purchasedMemoryNodes,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -1185,6 +1187,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             onItemMouseEnter={handleItemMouseEnter}
                             onItemMouseLeave={handleItemMouseLeave}
                             onItemMouseMove={handleItemMouseMove}
+                            purchasedMemoryNodes={purchasedMemoryNodes}
                         />
                     );
                 })()}

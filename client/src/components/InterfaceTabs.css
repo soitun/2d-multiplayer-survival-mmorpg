@@ -9,13 +9,14 @@
 
 .tab {
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px;
+  margin-right: 2px;
   border: none;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   font-family: 'Courier New', monospace;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -23,16 +24,41 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .tab:first-child {
-  width: 120px;
-  margin-right: 2px;
+  width: 110px;
 }
 
 .encyclopedia-tab {
-  width: 200px;
-  font-size: 11px;
+  width: 130px;
+}
+
+.memory-grid-tab {
+  width: 130px;
+}
+
+.alk-tab {
+  width: 110px;
+}
+
+/* ALK tab special styling - green accent for supply/commerce */
+.alk-tab.active {
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  color: #0f172a;
+  border: 2px solid #00ff88;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.alk-tab.inactive.hovered {
+  background: rgba(0, 255, 136, 0.15);
+  color: #ffffff;
+  border: 2px solid #00ff88;
+  box-shadow: 0 0 4px rgba(0, 255, 136, 0.3);
 }
 
 .tab.disabled {

@@ -505,6 +505,28 @@ function isFoundationPlacementValid(
             }
         }
     }
+    
+    // Check if position is on asphalt tiles (compound areas - cannot build)
+    const foundationTileAtX = Math.floor(worldX / TILE_SIZE);
+    const foundationTileAtY = Math.floor(worldY / TILE_SIZE);
+    const tileTypeAtPosition = getTileTypeFromChunkData(connection, foundationTileAtX, foundationTileAtY);
+    if (tileTypeAtPosition === 'Asphalt') {
+        return false; // Cannot build on asphalt/compound areas
+    }
+    
+    // Check if position is within ALK station monument bounds (2000px radius)
+    const ALK_STATION_MONUMENT_RADIUS = 2000.0;
+    const ALK_STATION_MONUMENT_RADIUS_SQ = ALK_STATION_MONUMENT_RADIUS * ALK_STATION_MONUMENT_RADIUS;
+    
+    for (const station of connection.db.alkStation.iter()) {
+        if (!station.isActive) continue;
+        const stationDx = worldX - station.worldPosX;
+        const stationDy = worldY - station.worldPosY;
+        const stationDistSq = stationDx * stationDx + stationDy * stationDy;
+        if (stationDistSq <= ALK_STATION_MONUMENT_RADIUS_SQ) {
+            return false; // Too close to ALK station
+        }
+    }
 
     // Check if position is already occupied (but allow complementary triangles)
     // IMPORTANT: Check ALL foundations at this cell - there might be two complementary triangles already

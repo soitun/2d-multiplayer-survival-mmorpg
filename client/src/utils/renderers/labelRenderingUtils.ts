@@ -11,7 +11,8 @@ import {
     RainCollector as SpacetimeDBRainCollector,
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth
     BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
-    Door as SpacetimeDBDoor // ADDED: Door
+    Door as SpacetimeDBDoor, // ADDED: Door
+    AlkStation as SpacetimeDBAlkStation // ADDED: ALK Station
 } from '../../generated';
 
 // Import visual heights from useInteractionFinder.ts
@@ -22,6 +23,7 @@ import { CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from './campfireRenderingUt
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from './furnaceRenderingUtils'; // ADDED: Furnace constants
 import { BOX_HEIGHT } from './woodenStorageBoxRenderingUtils';
 import { DOOR_RENDER_Y_OFFSET } from './doorRenderingUtils'; // ADDED: Door render offset
+import { ALK_STATION_HEIGHT, ALK_STATION_Y_OFFSET } from './alkStationRenderingUtils'; // ADDED: ALK Station constants
 
 // Define Sleeping Bag dimensions locally for label positioning
 const SLEEPING_BAG_HEIGHT = 64;
@@ -31,7 +33,7 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -60,6 +62,7 @@ interface RenderLabelsParams {
     brothPots: Map<string, any>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths
     doors: Map<string, SpacetimeDBDoor>; // ADDED: Doors
+    alkStations: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK Stations
     players: Map<string, SpacetimeDBPlayer>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
     // Single unified target - replaces individual harvestable resource IDs
@@ -272,6 +275,7 @@ export function renderInteractionLabels({
     homesteadHearths, // ADDED: Homestead Hearths
     brothPots, // ADDED: Broth pots
     doors, // ADDED: Doors
+    alkStations, // ADDED: ALK Stations
     players,
     itemDefinitions,
     closestInteractableTarget,
@@ -443,6 +447,18 @@ export function renderInteractionLabels({
                 // Position label above the door's visual position (doors are rendered 44px higher)
                 const visualDoorY = door.posY - DOOR_RENDER_Y_OFFSET;
                 textY = visualDoorY - 50;
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'alk_station': {
+            const station = alkStations.get(closestInteractableTarget.id.toString());
+            if (station) {
+                textX = station.worldPosX;
+                // Position label above the building content (not the whole sprite)
+                // The building occupies the bottom ~60% of the sprite, so label goes above that
+                // Building top is roughly at: worldPosY - 450 (for 6x scale with 500px outline height)
+                textY = station.worldPosY - 450; 
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

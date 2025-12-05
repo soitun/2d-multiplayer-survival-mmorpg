@@ -137,6 +137,7 @@ mod broth_pot; // <<< ADDED: Broth pot cooking system
 mod recipes; // <<< ADDED: Recipe system for broth pot cooking
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
+mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -311,6 +312,16 @@ pub use broth_pot::{
 
 // Re-export AI brewing reducers for client bindings
 pub use ai_brewing::{check_brew_cache, create_generated_brew};  
+
+// Re-export ALK (Automated Logistics Kompound) reducers for client bindings
+pub use alk::{
+    get_available_contracts, accept_alk_contract, cancel_alk_contract,
+    deliver_alk_contract, get_shard_balance, check_alk_station_proximity,
+    debug_refresh_alk_contracts, debug_grant_shards, process_alk_contract_refresh,
+    // Types
+    AlkState, AlkStation, AlkContract, AlkPlayerContract, PlayerShardBalance,
+    AlkContractKind, AlkContractStatus, AlkStationAllowance, ItemAlkTag,
+};
 
 // Re-export knocked out functions and types for other modules
 pub use knocked_out::{schedule_knocked_out_recovery, KnockedOutRecoverySchedule, KnockedOutStatus};
@@ -653,6 +664,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize WorldState for scheduled systems
     crate::world_state::seed_world_state(ctx)?;
+    
+    // ADD: Initialize ALK (Automated Logistics Kompound) system
+    crate::alk::init_alk_system(ctx)?;
     
     // ADD: Initialize dodge roll cleanup system
     crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;

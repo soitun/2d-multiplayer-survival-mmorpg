@@ -215,7 +215,7 @@ import nettleLeavesIcon from '../assets/items/nettle_leaves.png';
 
 // Arctic/Subarctic plants (botanically accurate for Aleutian Islands)
 import scurvyGrassIcon from '../assets/items/scurvy_grass.png';
-import crowberriesIcon from '../assets/items/crowberries.png';
+import crowberriesIcon from '../assets/items/crowberry.png';
 import seaPlantainIcon from '../assets/items/sea_plantain.png';
 import glasswortIcon from '../assets/items/glasswort.png';
 
@@ -576,7 +576,7 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Arctic/Subarctic plants (botanically accurate for Aleutian Islands)
   'scurvy_grass.png': scurvyGrassIcon,
-  'crowberries.png': crowberriesIcon,
+  'crowberry.png': crowberriesIcon,
   'sea_plantain.png': seaPlantainIcon,
   'glasswort.png': glasswortIcon,
   

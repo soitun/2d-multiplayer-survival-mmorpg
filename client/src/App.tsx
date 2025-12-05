@@ -278,6 +278,12 @@ function AppContent() {
       doors, // ADDED: Building doors
       playerDodgeRollStates,
       chunkWeather, // ADDED: Chunk-based weather
+      alkStations, // ADDED: ALK delivery stations for minimap
+      alkContracts, // ADDED: ALK contracts
+      alkPlayerContracts, // ADDED: Player's ALK contracts
+      alkState, // ADDED: ALK system state
+      playerShardBalance, // ADDED: Player shard balances
+      memoryGridProgress, // ADDED: Memory Grid unlocks
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -332,7 +338,8 @@ function AppContent() {
             foundationCells, // Add foundation cells for collision detection (especially triangle hypotenuses)
             homesteadHearths, // Add homestead hearths for collision detection
             basaltColumns, // Add basalt columns for collision detection
-            doors // Add doors for collision detection (closed doors only)
+            doors, // Add doors for collision detection (closed doors only)
+            alkStations // Add ALK stations for collision detection (large industrial structures)
         }
     });
 
@@ -1014,6 +1021,12 @@ function AppContent() {
                             isAutoWalking={isAutoWalking} // Pass auto-walk state for dodge roll detection
                             facingDirection={facingDirection} // ADD: Pass local facing direction for instant visual feedback
                             chunkWeather={chunkWeather} // ADDED: Chunk-based weather
+                            alkStations={alkStations} // ADDED: ALK delivery stations for minimap
+                            alkContracts={alkContracts} // ADDED: ALK contracts
+                            alkPlayerContracts={alkPlayerContracts} // ADDED: Player's ALK contracts
+                            alkState={alkState} // ADDED: ALK system state
+                            playerShardBalance={playerShardBalance} // ADDED: Player shard balances
+                            memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
                         />
                     );
                 })()

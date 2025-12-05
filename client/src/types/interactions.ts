@@ -46,7 +46,8 @@ export type InteractionTargetType =
     | 'water'
     | 'rain_collector'
     | 'broth_pot'
-    | 'door';  // ADDED: Building doors
+    | 'door'  // ADDED: Building doors
+    | 'alk_station';  // ADDED: ALK delivery stations
 
 // Interaction behaviors - determines how the interaction works
 export enum InteractionBehavior {
@@ -157,6 +158,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.TAP,
         priority: 85,
         actionType: 'interact_door'
+    },
+    
+    // ALK Station - interface for contract delivery
+    alk_station: {
+        behavior: InteractionBehavior.INTERFACE,
+        priority: 75,
+        actionType: 'open_alk_station'
     }
 };
 

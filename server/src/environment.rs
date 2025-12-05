@@ -3231,4 +3231,4 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
 /// BALANCED for gameplay: 0.40 provides meaningful scarcity while still
 /// allowing resource gathering to feel rewarding. Players should find
 /// plants regularly while exploring but not be drowning in them.
-pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.40;
+pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.10;

@@ -30,6 +30,7 @@ import GameTipsMenu from './GameTipsMenu';
 import GameSettingsMenu from './GameSettingsMenu';
 import GameVisualSettingsMenu from './GameVisualSettingsMenu';
 import type { MenuType } from './GameMenu';
+import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
 
 // Import types used by props
 import {
@@ -76,6 +77,12 @@ import {
     Barrel as SpacetimeDBBarrel, // ADDED Barrel import
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED HomesteadHearth import
     BrothPot as SpacetimeDBBrothPot, // ADDED BrothPot import
+    AlkStation as SpacetimeDBAlkStation, // ADDED ALK station import
+    AlkContract as SpacetimeDBAlkContract, // ADDED ALK contract import
+    AlkPlayerContract as SpacetimeDBAlkPlayerContract, // ADDED ALK player contract import
+    AlkState as SpacetimeDBAlkState, // ADDED ALK state import
+    PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED player shard balance import
+    MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED memory grid progress import
 } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
@@ -245,6 +252,19 @@ interface GameScreenProps {
 
     // Chunk-based weather
     chunkWeather: Map<string, any>;
+
+    // ALK delivery stations for minimap
+    alkStations?: Map<string, SpacetimeDBAlkStation>;
+    // ALK contracts for provisioning board
+    alkContracts?: Map<string, SpacetimeDBAlkContract>;
+    // Player's accepted ALK contracts
+    alkPlayerContracts?: Map<string, SpacetimeDBAlkPlayerContract>;
+    // ALK system state
+    alkState?: SpacetimeDBAlkState | null;
+    // Player shard balances
+    playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
+    // Memory Grid progress for crafting unlocks
+    memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
@@ -487,6 +507,39 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const handleRefreshCancel = () => {
         setShowRefreshDialog(false); // Close the dialog
     };
+
+    // Auto-close ALK delivery panel when walking out of interaction range
+    useEffect(() => {
+        // Only run if we're interacting with an ALK station
+        if (interactingWith?.type !== 'alk_station') return;
+        
+        // Check if we have the necessary data
+        const station = props.alkStations?.get(String(interactingWith.id));
+        if (!station) {
+            // Station was removed or doesn't exist - close panel
+            handleSetInteractingWith(null);
+            return;
+        }
+        
+        // Get player position
+        const playerPos = predictedPosition || (localPlayer ? { x: localPlayer.posX, y: localPlayer.posY } : null);
+        if (!playerPos) return;
+        
+        // Check distance to station (using same threshold as interaction finder)
+        const dx = playerPos.x - station.worldPosX;
+        const dy = playerPos.y - station.worldPosY;
+        const distSq = dx * dx + dy * dy;
+        
+        // Use slightly larger threshold than interaction distance to avoid flickering
+        // PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED = 280 * 280 = 78400
+        // Use 320px (102400) for closing to give some buffer
+        const closeThresholdSq = 320 * 320;
+        
+        if (distSq > closeThresholdSq) {
+            console.log('[GameScreen] Player walked out of ALK station range, closing panel');
+            handleSetInteractingWith(null);
+        }
+    }, [interactingWith, props.alkStations, predictedPosition, localPlayer, handleSetInteractingWith]);
 
     return (
         <div className="game-container">
@@ -796,6 +849,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 chunkWeather={chunkWeather}
                 showWeatherOverlay={weatherOverlayEnabled}
                 showStatusOverlays={statusOverlaysEnabled}
+                alkStations={props.alkStations}
+                alkContracts={props.alkContracts}
+                alkPlayerContracts={props.alkPlayerContracts}
+                alkState={props.alkState}
+                playerShardBalance={props.playerShardBalance}
+                memoryGridProgress={props.memoryGridProgress}
             />
 
             {/* Use our camera offsets for SpeechBubbleManager */}
@@ -848,6 +907,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 knockedOutStatus={knockedOutStatus}
                 worldState={worldState}
                 isGameMenuOpen={currentMenu !== null}
+                memoryGridProgress={props.memoryGridProgress}
             />
             <DayNightCycleTracker
                 worldState={worldState}
@@ -988,6 +1048,25 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isGameMenuOpen={currentMenu !== null}
                 placementInfo={placementInfo}
             />
+
+            {/* ALK Delivery Panel - Shows when interacting with an ALK station */}
+            {interactingWith?.type === 'alk_station' && props.alkStations && (
+                <AlkDeliveryPanel
+                    playerIdentity={playerIdentity}
+                    onClose={() => handleSetInteractingWith(null)}
+                    stationId={Number(interactingWith.id)}
+                    alkStations={props.alkStations}
+                    alkContracts={props.alkContracts || new Map()}
+                    alkPlayerContracts={props.alkPlayerContracts || new Map()}
+                    playerShardBalance={
+                        playerIdentity && props.playerShardBalance 
+                            ? props.playerShardBalance.get(playerIdentity.toHexString()) || null 
+                            : null
+                    }
+                    itemDefinitions={itemDefinitions}
+                    inventoryItems={inventoryItems}
+                />
+            )}
 
         </div>
     );

@@ -36,6 +36,7 @@ import {
     isLantern,
     isBarrel
 } from '../utils/typeGuards';
+import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
 // If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.
@@ -1001,6 +1002,17 @@ export const useInputHandler = ({
                                         // console.log('[E-Tap ACTION] Opening broth pot interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'broth_pot', id: currentTarget.id });
                                         tapActionTaken = true;
+                                        break;
+                                    case 'alk_station':
+                                        // Check if panel was just closed to prevent immediate reopen
+                                        if (!wasAlkPanelJustClosed()) {
+                                            // console.log('[E-Tap ACTION] Opening ALK station interface:', currentTarget.id);
+                                            onSetInteractingWith({ type: 'alk_station', id: currentTarget.id });
+                                            tapActionTaken = true;
+                                        } else {
+                                            console.log('[E-Tap ACTION] Skipping ALK station open - panel was just closed');
+                                            tapActionTaken = true; // Still mark as taken to prevent other actions
+                                        }
                                         break;
                                 }
                             }

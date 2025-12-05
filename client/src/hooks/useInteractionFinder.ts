@@ -16,6 +16,7 @@ import {
     RainCollector as SpacetimeDBRainCollector,
     BrothPot as SpacetimeDBBrothPot,
     Door as SpacetimeDBDoor, // ADDED: Door import
+    AlkStation as SpacetimeDBAlkStation, // ADDED: ALK station import
     DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
@@ -51,6 +52,7 @@ import {
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
+import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
 import { getResourceConfig } from '../utils/renderers/resourceConfigurations';
 import type { ResourceType } from '../types/resourceTypes';
 
@@ -83,6 +85,7 @@ interface UseInteractionFinderProps {
     rainCollectors: Map<string, SpacetimeDBRainCollector>;
     brothPots: Map<string, SpacetimeDBBrothPot>;
     doors: Map<string, SpacetimeDBDoor>; // ADDED: Door support
+    alkStations: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK station support
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     players: Map<string, SpacetimeDBPlayer>;
     shelters: Map<string, SpacetimeDBShelter>;
@@ -117,6 +120,7 @@ interface UseInteractionFinderResult {
     closestInteractableKnockedOutPlayerId: string | null;
     closestInteractableWaterPosition: { x: number; y: number } | null;
     closestInteractableDoorId: bigint | null; // ADDED: Door support
+    closestInteractableAlkStationId: number | null; // ADDED: ALK station support
 }
 
 // Constants for box slots (should match server if possible, or keep fixed)
@@ -204,6 +208,7 @@ export function useInteractionFinder({
     rainCollectors,
     brothPots,
     doors, // ADDED: Door support
+    alkStations, // ADDED: ALK station support
     sleepingBags,
     players,
     shelters,
@@ -230,6 +235,7 @@ export function useInteractionFinder({
     const [closestInteractableRainCollectorId, setClosestInteractableRainCollectorId] = useState<number | null>(null);
     const [closestInteractableBrothPotId, setClosestInteractableBrothPotId] = useState<number | null>(null);
     const [closestInteractableDoorId, setClosestInteractableDoorId] = useState<bigint | null>(null); // ADDED: Door state
+    const [closestInteractableAlkStationId, setClosestInteractableAlkStationId] = useState<number | null>(null); // ADDED: ALK station state
     const [closestInteractableSleepingBagId, setClosestInteractableSleepingBagId] = useState<number | null>(null);
     const [closestInteractableKnockedOutPlayerId, setClosestInteractableKnockedOutPlayerId] = useState<string | null>(null);
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
@@ -253,6 +259,7 @@ export function useInteractionFinder({
         closestInteractableKnockedOutPlayerId: null,
         closestInteractableWaterPosition: null,
         closestInteractableDoorId: null, // ADDED: Door support
+        closestInteractableAlkStationId: null, // ADDED: ALK station support
     });
 
     const updateInteractionResult = useCallback(() => {
@@ -299,6 +306,9 @@ export function useInteractionFinder({
 
         let closestDoorId: bigint | null = null;
         let closestDoorDistSq = PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED; // Increased interaction distance for doors
+
+        let closestAlkStationId: number | null = null;
+        let closestAlkStationDistSq = PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED; // ALK delivery station interaction distance
 
         let closestSleepingBagId: number | null = null;
         let closestSleepingBagDistSq = PLAYER_SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED;
@@ -644,6 +654,24 @@ export function useInteractionFinder({
                 });
             }
 
+            // Find closest ALK delivery station
+            if (alkStations) {
+                alkStations.forEach((station) => {
+                    if (!station.isActive) return; // Skip inactive stations
+                    
+                    // ALK stations use worldPosX/worldPosY as their base position
+                    // For interaction, we use the base position (where players approach from)
+                    const dx = playerX - station.worldPosX;
+                    const dy = playerY - station.worldPosY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < closestAlkStationDistSq) {
+                        closestAlkStationDistSq = distSq;
+                        closestAlkStationId = station.stationId;
+                    }
+                });
+            }
+
             // Find closest knocked out player (excluding local player)
             if (players) {
                 players.forEach((player) => {
@@ -886,6 +914,17 @@ export function useInteractionFinder({
                     });
                 }
             }
+            if (closestAlkStationId !== null) { // CRITICAL: Check for null explicitly since station ID 0 is valid (central compound)
+                const station = alkStations?.get(String(closestAlkStationId));
+                if (station) {
+                    candidates.push({
+                        type: 'alk_station',
+                        id: closestAlkStationId,
+                        position: { x: station.worldPosX, y: station.worldPosY },
+                        distance: Math.sqrt(closestAlkStationDistSq)
+                    });
+                }
+            }
             // Broth pot removed from candidates - it now works through campfire interaction
 
             // Find the closest target using priority selection
@@ -913,6 +952,7 @@ export function useInteractionFinder({
             closestInteractableKnockedOutPlayerId: closestKnockedOutPlayerId,
             closestInteractableWaterPosition: closestWaterPosition,
             closestInteractableDoorId: closestDoorId, // ADDED: Door support
+            closestInteractableAlkStationId: closestAlkStationId, // ADDED: ALK station support
         };
 
         resultRef.current = calculatedResult;
@@ -961,6 +1001,9 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableDoorId !== closestInteractableDoorId) {
             setClosestInteractableDoorId(calculatedResult.closestInteractableDoorId);
         }
+        if (calculatedResult.closestInteractableAlkStationId !== closestInteractableAlkStationId) {
+            setClosestInteractableAlkStationId(calculatedResult.closestInteractableAlkStationId);
+        }
         if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
         }
@@ -1008,6 +1051,7 @@ export function useInteractionFinder({
         closestInteractableRainCollectorId,
         closestInteractableBrothPotId,
         closestInteractableDoorId, // ADDED: Door support
+        closestInteractableAlkStationId, // ADDED: ALK station support
         closestInteractableSleepingBagId,
         closestInteractableKnockedOutPlayerId,
         closestInteractableWaterPosition,

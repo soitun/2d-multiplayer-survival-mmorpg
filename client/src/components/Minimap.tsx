@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -43,6 +43,14 @@ const RUNE_STONE_GREEN_COLOR = '#9dff00'; // Bright cyberpunk yellow-green for a
 const RUNE_STONE_RED_COLOR = '#ff4400'; // Vibrant orange-red for production rune stones
 const RUNE_STONE_BLUE_COLOR = '#8b5cf6'; // Bright blue-purple cyberpunk violet for memory shard rune stones
 const RUNE_STONE_ICON_SIZE = 12; // Twice as large for better visibility on minimap
+
+// ALK Station constants - CRITICAL SUPPLY/OBJECTIVE MARKERS
+const ALK_STATION_ICON_SIZE = 18; // Large for high visibility as major objective points
+const ALK_CENTRAL_COLOR = '#00ff88'; // Bright cyan-green for central compound (no fee)
+const ALK_SUBSTATION_COLOR = '#ffaa00'; // Bright amber for substations (with fee)
+const ALK_STATION_GLOW_COLOR = '#00ff88'; // Matching glow
+const ALK_STATION_OUTLINE_COLOR = '#000000'; // Black outline for contrast
+const ALK_STATION_OUTLINE_WIDTH = 2;
 
 const RESOURCE_ICON_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.8)'; // Strong black outline for clarity
 const RESOURCE_ICON_OUTLINE_WIDTH = 1.5; // Thicker outline for tactical visibility
@@ -183,6 +191,7 @@ interface MinimapProps {
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   campfires: Map<string, SpacetimeDBCampfire>; // Add campfires
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
+  alkStations?: Map<string, SpacetimeDBAlkStation>; // ALK delivery stations
 
   localPlayer: SpacetimeDBPlayer | undefined; // Extracted local player
   localPlayerId?: string;
@@ -553,6 +562,7 @@ export function drawMinimapOntoCanvas({
   barrels,
   campfires,
   sleepingBags,
+  alkStations, // ALK delivery stations
 
   localPlayer, // Destructure localPlayer
   localPlayerId,
@@ -1031,6 +1041,90 @@ export function drawMinimapOntoCanvas({
       ctx.restore();
     }
   });
+
+  // --- Draw ALK Stations (DELIVERY OBJECTIVES) ---
+  // ALK stations are critical supply/delivery points for the economy system
+  if (alkStations) {
+    alkStations.forEach(station => {
+      // Only show active stations
+      if (!station.isActive) return;
+      
+      const screenCoords = worldToMinimap(station.worldPosX, station.worldPosY);
+      if (screenCoords) {
+        const iconSize = ALK_STATION_ICON_SIZE;
+        const halfSize = iconSize / 2;
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        // Determine color based on station type (compound vs substation)
+        const isCentralCompound = station.stationId === 0;
+        const stationColor = isCentralCompound ? ALK_CENTRAL_COLOR : ALK_SUBSTATION_COLOR;
+        
+        ctx.save();
+        
+        // Add strong glow effect for high visibility
+        ctx.shadowColor = stationColor;
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw ALK station icon - hexagonal shape (⬡) for unique identification
+        ctx.beginPath();
+        const sides = 6;
+        for (let i = 0; i < sides; i++) {
+          const angle = (Math.PI / 6) + (i * Math.PI * 2 / sides); // Start rotated 30 degrees for flat-top hex
+          const px = x + halfSize * Math.cos(angle);
+          const py = y + halfSize * Math.sin(angle);
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.closePath();
+        
+        // Draw black outline first for contrast
+        ctx.strokeStyle = ALK_STATION_OUTLINE_COLOR;
+        ctx.lineWidth = ALK_STATION_OUTLINE_WIDTH;
+        ctx.stroke();
+        
+        // Fill with station color
+        ctx.fillStyle = stationColor;
+        ctx.fill();
+        
+        // Draw inner detail - smaller hexagon or icon
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        const innerSize = halfSize * 0.5;
+        for (let i = 0; i < sides; i++) {
+          const angle = (Math.PI / 6) + (i * Math.PI * 2 / sides);
+          const px = x + innerSize * Math.cos(angle);
+          const py = y + innerSize * Math.sin(angle);
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.closePath();
+        
+        // Inner fill - darker for depth
+        ctx.fillStyle = isCentralCompound ? '#004433' : '#553300';
+        ctx.fill();
+        
+        // Draw "ALK" text for central compound only (it's larger/more important)
+        if (isCentralCompound) {
+          ctx.font = 'bold 6px "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('ALK', x, y);
+        }
+        
+        ctx.restore();
+      }
+    });
+  }
 
   // --- Draw Campfires ---
   if (showNightLights) {

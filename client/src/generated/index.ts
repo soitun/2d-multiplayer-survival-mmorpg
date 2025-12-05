@@ -31,6 +31,10 @@ import {
 } from "spacetimedb";
 
 // Import and reexport all reducer arg types
+import { AcceptAlkContract } from "./accept_alk_contract_reducer.ts";
+export { AcceptAlkContract };
+import { CancelAlkContract } from "./cancel_alk_contract_reducer.ts";
+export { CancelAlkContract };
 import { CancelAllCrafting } from "./cancel_all_crafting_reducer.ts";
 export { CancelAllCrafting };
 import { CancelCraftingItem } from "./cancel_crafting_item_reducer.ts";
@@ -39,6 +43,8 @@ import { CancelFishing } from "./cancel_fishing_reducer.ts";
 export { CancelFishing };
 import { CastFishingLine } from "./cast_fishing_line_reducer.ts";
 export { CastFishingLine };
+import { CheckAlkStationProximity } from "./check_alk_station_proximity_reducer.ts";
+export { CheckAlkStationProximity };
 import { CheckBrewCache } from "./check_brew_cache_reducer.ts";
 export { CheckBrewCache };
 import { CheckBuildingPrivilegeDistance } from "./check_building_privilege_distance_reducer.ts";
@@ -75,6 +81,10 @@ import { DamageGrass } from "./damage_grass_reducer.ts";
 export { DamageGrass };
 import { DamageWildAnimal } from "./damage_wild_animal_reducer.ts";
 export { DamageWildAnimal };
+import { DebugGrantShards } from "./debug_grant_shards_reducer.ts";
+export { DebugGrantShards };
+import { DebugRefreshAlkContracts } from "./debug_refresh_alk_contracts_reducer.ts";
+export { DebugRefreshAlkContracts };
 import { DebugSetSeason } from "./debug_set_season_reducer.ts";
 export { DebugSetSeason };
 import { DebugSetTime } from "./debug_set_time_reducer.ts";
@@ -83,6 +93,8 @@ import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
 export { DebugSetWeather };
 import { DebugUpdateCloudIntensity } from "./debug_update_cloud_intensity_reducer.ts";
 export { DebugUpdateCloudIntensity };
+import { DeliverAlkContract } from "./deliver_alk_contract_reducer.ts";
+export { DeliverAlkContract };
 import { DespawnExpiredItems } from "./despawn_expired_items_reducer.ts";
 export { DespawnExpiredItems };
 import { DestroyFoundation } from "./destroy_foundation_reducer.ts";
@@ -135,10 +147,14 @@ import { GenerateMinimapData } from "./generate_minimap_data_reducer.ts";
 export { GenerateMinimapData };
 import { GenerateWorld } from "./generate_world_reducer.ts";
 export { GenerateWorld };
+import { GetAvailableContracts } from "./get_available_contracts_reducer.ts";
+export { GetAvailableContracts };
 import { GetKnockedOutStatus } from "./get_knocked_out_status_reducer.ts";
 export { GetKnockedOutStatus };
 import { GetMinimapData } from "./get_minimap_data_reducer.ts";
 export { GetMinimapData };
+import { GetShardBalance } from "./get_shard_balance_reducer.ts";
+export { GetShardBalance };
 import { GrantBuildingPrivilegeFromHearth } from "./grant_building_privilege_from_hearth_reducer.ts";
 export { GrantBuildingPrivilegeFromHearth };
 import { IdentityConnected } from "./identity_connected_reducer.ts";
@@ -291,6 +307,8 @@ import { PlantSeed } from "./plant_seed_reducer.ts";
 export { PlantSeed };
 import { ProcessActiveConsumableEffectsTick } from "./process_active_consumable_effects_tick_reducer.ts";
 export { ProcessActiveConsumableEffectsTick };
+import { ProcessAlkContractRefresh } from "./process_alk_contract_refresh_reducer.ts";
+export { ProcessAlkContractRefresh };
 import { ProcessBrothPotLogicScheduled } from "./process_broth_pot_logic_scheduled_reducer.ts";
 export { ProcessBrothPotLogicScheduled };
 import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
@@ -559,6 +577,16 @@ import { ActiveConsumableEffectTableHandle } from "./active_consumable_effect_ta
 export { ActiveConsumableEffectTableHandle };
 import { ActiveEquipmentTableHandle } from "./active_equipment_table.ts";
 export { ActiveEquipmentTableHandle };
+import { AlkContractTableHandle } from "./alk_contract_table.ts";
+export { AlkContractTableHandle };
+import { AlkContractRefreshScheduleTableHandle } from "./alk_contract_refresh_schedule_table.ts";
+export { AlkContractRefreshScheduleTableHandle };
+import { AlkPlayerContractTableHandle } from "./alk_player_contract_table.ts";
+export { AlkPlayerContractTableHandle };
+import { AlkStateTableHandle } from "./alk_state_table.ts";
+export { AlkStateTableHandle };
+import { AlkStationTableHandle } from "./alk_station_table.ts";
+export { AlkStationTableHandle };
 import { AnimalCorpseTableHandle } from "./animal_corpse_table.ts";
 export { AnimalCorpseTableHandle };
 import { ArrowBreakEventTableHandle } from "./arrow_break_event_table.ts";
@@ -645,6 +673,8 @@ import { HomesteadHearthTableHandle } from "./homestead_hearth_table.ts";
 export { HomesteadHearthTableHandle };
 import { InventoryItemTableHandle } from "./inventory_item_table.ts";
 export { InventoryItemTableHandle };
+import { ItemAlkTagTableHandle } from "./item_alk_tag_table.ts";
+export { ItemAlkTagTableHandle };
 import { ItemDefinitionTableHandle } from "./item_definition_table.ts";
 export { ItemDefinitionTableHandle };
 import { KnockedOutRecoveryScheduleTableHandle } from "./knocked_out_recovery_schedule_table.ts";
@@ -685,6 +715,8 @@ import { PlayerLastAttackTimestampTableHandle } from "./player_last_attack_times
 export { PlayerLastAttackTimestampTableHandle };
 import { PlayerPinTableHandle } from "./player_pin_table.ts";
 export { PlayerPinTableHandle };
+import { PlayerShardBalanceTableHandle } from "./player_shard_balance_table.ts";
+export { PlayerShardBalanceTableHandle };
 import { PlayerStatScheduleTableHandle } from "./player_stat_schedule_table.ts";
 export { PlayerStatScheduleTableHandle };
 import { PlayerWalkingSoundStateTableHandle } from "./player_walking_sound_state_table.ts";
@@ -767,6 +799,24 @@ import { ActiveEquipment } from "./active_equipment_type.ts";
 export { ActiveEquipment };
 import { AgrarianEffectConfig } from "./agrarian_effect_config_type.ts";
 export { AgrarianEffectConfig };
+import { AlkContract } from "./alk_contract_type.ts";
+export { AlkContract };
+import { AlkContractKind } from "./alk_contract_kind_type.ts";
+export { AlkContractKind };
+import { AlkContractRefreshSchedule } from "./alk_contract_refresh_schedule_type.ts";
+export { AlkContractRefreshSchedule };
+import { AlkContractStatus } from "./alk_contract_status_type.ts";
+export { AlkContractStatus };
+import { AlkItemTag } from "./alk_item_tag_type.ts";
+export { AlkItemTag };
+import { AlkPlayerContract } from "./alk_player_contract_type.ts";
+export { AlkPlayerContract };
+import { AlkState } from "./alk_state_type.ts";
+export { AlkState };
+import { AlkStation } from "./alk_station_type.ts";
+export { AlkStation };
+import { AlkStationAllowance } from "./alk_station_allowance_type.ts";
+export { AlkStationAllowance };
 import { AmmoType } from "./ammo_type_type.ts";
 export { AmmoType };
 import { AnimalCorpse } from "./animal_corpse_type.ts";
@@ -893,6 +943,8 @@ import { InventoryItem } from "./inventory_item_type.ts";
 export { InventoryItem };
 import { InventoryLocationData } from "./inventory_location_data_type.ts";
 export { InventoryLocationData };
+import { ItemAlkTag } from "./item_alk_tag_type.ts";
+export { ItemAlkTag };
 import { ItemCategory } from "./item_category_type.ts";
 export { ItemCategory };
 import { ItemDefinition } from "./item_definition_type.ts";
@@ -945,6 +997,8 @@ import { PlayerLastAttackTimestamp } from "./player_last_attack_timestamp_type.t
 export { PlayerLastAttackTimestamp };
 import { PlayerPin } from "./player_pin_type.ts";
 export { PlayerPin };
+import { PlayerShardBalance } from "./player_shard_balance_type.ts";
+export { PlayerShardBalance };
 import { PlayerStatSchedule } from "./player_stat_schedule_type.ts";
 export { PlayerStatSchedule };
 import { PlayerWalkingSoundState } from "./player_walking_sound_state_type.ts";
@@ -1069,6 +1123,51 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "playerIdentity",
         colType: (ActiveEquipment.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    alk_contract: {
+      tableName: "alk_contract" as const,
+      rowType: AlkContract.getTypeScriptAlgebraicType(),
+      primaryKey: "contractId",
+      primaryKeyInfo: {
+        colName: "contractId",
+        colType: (AlkContract.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    alk_contract_refresh_schedule: {
+      tableName: "alk_contract_refresh_schedule" as const,
+      rowType: AlkContractRefreshSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (AlkContractRefreshSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    alk_player_contract: {
+      tableName: "alk_player_contract" as const,
+      rowType: AlkPlayerContract.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (AlkPlayerContract.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    alk_state: {
+      tableName: "alk_state" as const,
+      rowType: AlkState.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (AlkState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    alk_station: {
+      tableName: "alk_station" as const,
+      rowType: AlkStation.getTypeScriptAlgebraicType(),
+      primaryKey: "stationId",
+      primaryKeyInfo: {
+        colName: "stationId",
+        colType: (AlkStation.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     animal_corpse: {
@@ -1458,6 +1557,15 @@ const REMOTE_MODULE = {
         colType: (InventoryItem.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    item_alk_tag: {
+      tableName: "item_alk_tag" as const,
+      rowType: ItemAlkTag.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ItemAlkTag.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     item_definition: {
       tableName: "item_definition" as const,
       rowType: ItemDefinition.getTypeScriptAlgebraicType(),
@@ -1636,6 +1744,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "playerId",
         colType: (PlayerPin.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    player_shard_balance: {
+      tableName: "player_shard_balance" as const,
+      rowType: PlayerShardBalance.getTypeScriptAlgebraicType(),
+      primaryKey: "playerId",
+      primaryKeyInfo: {
+        colName: "playerId",
+        colType: (PlayerShardBalance.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     player_stat_schedule: {
@@ -1964,6 +2081,14 @@ const REMOTE_MODULE = {
     },
   },
   reducers: {
+    accept_alk_contract: {
+      reducerName: "accept_alk_contract",
+      argsType: AcceptAlkContract.getTypeScriptAlgebraicType(),
+    },
+    cancel_alk_contract: {
+      reducerName: "cancel_alk_contract",
+      argsType: CancelAlkContract.getTypeScriptAlgebraicType(),
+    },
     cancel_all_crafting: {
       reducerName: "cancel_all_crafting",
       argsType: CancelAllCrafting.getTypeScriptAlgebraicType(),
@@ -1979,6 +2104,10 @@ const REMOTE_MODULE = {
     cast_fishing_line: {
       reducerName: "cast_fishing_line",
       argsType: CastFishingLine.getTypeScriptAlgebraicType(),
+    },
+    check_alk_station_proximity: {
+      reducerName: "check_alk_station_proximity",
+      argsType: CheckAlkStationProximity.getTypeScriptAlgebraicType(),
     },
     check_brew_cache: {
       reducerName: "check_brew_cache",
@@ -2052,6 +2181,14 @@ const REMOTE_MODULE = {
       reducerName: "damage_wild_animal",
       argsType: DamageWildAnimal.getTypeScriptAlgebraicType(),
     },
+    debug_grant_shards: {
+      reducerName: "debug_grant_shards",
+      argsType: DebugGrantShards.getTypeScriptAlgebraicType(),
+    },
+    debug_refresh_alk_contracts: {
+      reducerName: "debug_refresh_alk_contracts",
+      argsType: DebugRefreshAlkContracts.getTypeScriptAlgebraicType(),
+    },
     debug_set_season: {
       reducerName: "debug_set_season",
       argsType: DebugSetSeason.getTypeScriptAlgebraicType(),
@@ -2067,6 +2204,10 @@ const REMOTE_MODULE = {
     debug_update_cloud_intensity: {
       reducerName: "debug_update_cloud_intensity",
       argsType: DebugUpdateCloudIntensity.getTypeScriptAlgebraicType(),
+    },
+    deliver_alk_contract: {
+      reducerName: "deliver_alk_contract",
+      argsType: DeliverAlkContract.getTypeScriptAlgebraicType(),
     },
     despawn_expired_items: {
       reducerName: "despawn_expired_items",
@@ -2172,6 +2313,10 @@ const REMOTE_MODULE = {
       reducerName: "generate_world",
       argsType: GenerateWorld.getTypeScriptAlgebraicType(),
     },
+    get_available_contracts: {
+      reducerName: "get_available_contracts",
+      argsType: GetAvailableContracts.getTypeScriptAlgebraicType(),
+    },
     get_knocked_out_status: {
       reducerName: "get_knocked_out_status",
       argsType: GetKnockedOutStatus.getTypeScriptAlgebraicType(),
@@ -2179,6 +2324,10 @@ const REMOTE_MODULE = {
     get_minimap_data: {
       reducerName: "get_minimap_data",
       argsType: GetMinimapData.getTypeScriptAlgebraicType(),
+    },
+    get_shard_balance: {
+      reducerName: "get_shard_balance",
+      argsType: GetShardBalance.getTypeScriptAlgebraicType(),
     },
     grant_building_privilege_from_hearth: {
       reducerName: "grant_building_privilege_from_hearth",
@@ -2483,6 +2632,10 @@ const REMOTE_MODULE = {
     process_active_consumable_effects_tick: {
       reducerName: "process_active_consumable_effects_tick",
       argsType: ProcessActiveConsumableEffectsTick.getTypeScriptAlgebraicType(),
+    },
+    process_alk_contract_refresh: {
+      reducerName: "process_alk_contract_refresh",
+      argsType: ProcessAlkContractRefresh.getTypeScriptAlgebraicType(),
     },
     process_broth_pot_logic_scheduled: {
       reducerName: "process_broth_pot_logic_scheduled",
@@ -3034,10 +3187,13 @@ const REMOTE_MODULE = {
 
 // A type representing all the possible variants of a reducer.
 export type Reducer = never
+| { name: "AcceptAlkContract", args: AcceptAlkContract }
+| { name: "CancelAlkContract", args: CancelAlkContract }
 | { name: "CancelAllCrafting", args: CancelAllCrafting }
 | { name: "CancelCraftingItem", args: CancelCraftingItem }
 | { name: "CancelFishing", args: CancelFishing }
 | { name: "CastFishingLine", args: CastFishingLine }
+| { name: "CheckAlkStationProximity", args: CheckAlkStationProximity }
 | { name: "CheckBrewCache", args: CheckBrewCache }
 | { name: "CheckBuildingPrivilegeDistance", args: CheckBuildingPrivilegeDistance }
 | { name: "CheckFinishedCrafting", args: CheckFinishedCrafting }
@@ -3056,10 +3212,13 @@ export type Reducer = never
 | { name: "CrushBoneItem", args: CrushBoneItem }
 | { name: "DamageGrass", args: DamageGrass }
 | { name: "DamageWildAnimal", args: DamageWildAnimal }
+| { name: "DebugGrantShards", args: DebugGrantShards }
+| { name: "DebugRefreshAlkContracts", args: DebugRefreshAlkContracts }
 | { name: "DebugSetSeason", args: DebugSetSeason }
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
+| { name: "DeliverAlkContract", args: DeliverAlkContract }
 | { name: "DespawnExpiredItems", args: DespawnExpiredItems }
 | { name: "DestroyFoundation", args: DestroyFoundation }
 | { name: "DestroyWall", args: DestroyWall }
@@ -3086,8 +3245,10 @@ export type Reducer = never
 | { name: "FireProjectile", args: FireProjectile }
 | { name: "GenerateMinimapData", args: GenerateMinimapData }
 | { name: "GenerateWorld", args: GenerateWorld }
+| { name: "GetAvailableContracts", args: GetAvailableContracts }
 | { name: "GetKnockedOutStatus", args: GetKnockedOutStatus }
 | { name: "GetMinimapData", args: GetMinimapData }
+| { name: "GetShardBalance", args: GetShardBalance }
 | { name: "GrantBuildingPrivilegeFromHearth", args: GrantBuildingPrivilegeFromHearth }
 | { name: "IdentityConnected", args: IdentityConnected }
 | { name: "IdentityDisconnected", args: IdentityDisconnected }
@@ -3164,6 +3325,7 @@ export type Reducer = never
 | { name: "PlaceWoodenStorageBox", args: PlaceWoodenStorageBox }
 | { name: "PlantSeed", args: PlantSeed }
 | { name: "ProcessActiveConsumableEffectsTick", args: ProcessActiveConsumableEffectsTick }
+| { name: "ProcessAlkContractRefresh", args: ProcessAlkContractRefresh }
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
@@ -3299,6 +3461,38 @@ export type Reducer = never
 export class RemoteReducers {
   constructor(private connection: __DbConnectionImpl, private setCallReducerFlags: SetReducerFlags) {}
 
+  acceptAlkContract(contractId: bigint, targetQuantity: number, preferredStationId: number | undefined) {
+    const __args = { contractId, targetQuantity, preferredStationId };
+    let __writer = new __BinaryWriter(1024);
+    AcceptAlkContract.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("accept_alk_contract", __argsBuffer, this.setCallReducerFlags.acceptAlkContractFlags);
+  }
+
+  onAcceptAlkContract(callback: (ctx: ReducerEventContext, contractId: bigint, targetQuantity: number, preferredStationId: number | undefined) => void) {
+    this.connection.onReducer("accept_alk_contract", callback);
+  }
+
+  removeOnAcceptAlkContract(callback: (ctx: ReducerEventContext, contractId: bigint, targetQuantity: number, preferredStationId: number | undefined) => void) {
+    this.connection.offReducer("accept_alk_contract", callback);
+  }
+
+  cancelAlkContract(playerContractId: bigint) {
+    const __args = { playerContractId };
+    let __writer = new __BinaryWriter(1024);
+    CancelAlkContract.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("cancel_alk_contract", __argsBuffer, this.setCallReducerFlags.cancelAlkContractFlags);
+  }
+
+  onCancelAlkContract(callback: (ctx: ReducerEventContext, playerContractId: bigint) => void) {
+    this.connection.onReducer("cancel_alk_contract", callback);
+  }
+
+  removeOnCancelAlkContract(callback: (ctx: ReducerEventContext, playerContractId: bigint) => void) {
+    this.connection.offReducer("cancel_alk_contract", callback);
+  }
+
   cancelAllCrafting() {
     this.connection.callReducer("cancel_all_crafting", new Uint8Array(0), this.setCallReducerFlags.cancelAllCraftingFlags);
   }
@@ -3353,6 +3547,18 @@ export class RemoteReducers {
 
   removeOnCastFishingLine(callback: (ctx: ReducerEventContext, targetX: number, targetY: number) => void) {
     this.connection.offReducer("cast_fishing_line", callback);
+  }
+
+  checkAlkStationProximity() {
+    this.connection.callReducer("check_alk_station_proximity", new Uint8Array(0), this.setCallReducerFlags.checkAlkStationProximityFlags);
+  }
+
+  onCheckAlkStationProximity(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("check_alk_station_proximity", callback);
+  }
+
+  removeOnCheckAlkStationProximity(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("check_alk_station_proximity", callback);
   }
 
   checkBrewCache(recipeHash: bigint) {
@@ -3635,6 +3841,34 @@ export class RemoteReducers {
     this.connection.offReducer("damage_wild_animal", callback);
   }
 
+  debugGrantShards(amount: bigint) {
+    const __args = { amount };
+    let __writer = new __BinaryWriter(1024);
+    DebugGrantShards.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("debug_grant_shards", __argsBuffer, this.setCallReducerFlags.debugGrantShardsFlags);
+  }
+
+  onDebugGrantShards(callback: (ctx: ReducerEventContext, amount: bigint) => void) {
+    this.connection.onReducer("debug_grant_shards", callback);
+  }
+
+  removeOnDebugGrantShards(callback: (ctx: ReducerEventContext, amount: bigint) => void) {
+    this.connection.offReducer("debug_grant_shards", callback);
+  }
+
+  debugRefreshAlkContracts() {
+    this.connection.callReducer("debug_refresh_alk_contracts", new Uint8Array(0), this.setCallReducerFlags.debugRefreshAlkContractsFlags);
+  }
+
+  onDebugRefreshAlkContracts(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("debug_refresh_alk_contracts", callback);
+  }
+
+  removeOnDebugRefreshAlkContracts(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("debug_refresh_alk_contracts", callback);
+  }
+
   debugSetSeason(seasonStr: string) {
     const __args = { seasonStr };
     let __writer = new __BinaryWriter(1024);
@@ -3693,6 +3927,22 @@ export class RemoteReducers {
 
   removeOnDebugUpdateCloudIntensity(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("debug_update_cloud_intensity", callback);
+  }
+
+  deliverAlkContract(playerContractId: bigint, stationId: number) {
+    const __args = { playerContractId, stationId };
+    let __writer = new __BinaryWriter(1024);
+    DeliverAlkContract.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("deliver_alk_contract", __argsBuffer, this.setCallReducerFlags.deliverAlkContractFlags);
+  }
+
+  onDeliverAlkContract(callback: (ctx: ReducerEventContext, playerContractId: bigint, stationId: number) => void) {
+    this.connection.onReducer("deliver_alk_contract", callback);
+  }
+
+  removeOnDeliverAlkContract(callback: (ctx: ReducerEventContext, playerContractId: bigint, stationId: number) => void) {
+    this.connection.offReducer("deliver_alk_contract", callback);
   }
 
   despawnExpiredItems(schedule: DroppedItemDespawnSchedule) {
@@ -4107,6 +4357,18 @@ export class RemoteReducers {
     this.connection.offReducer("generate_world", callback);
   }
 
+  getAvailableContracts() {
+    this.connection.callReducer("get_available_contracts", new Uint8Array(0), this.setCallReducerFlags.getAvailableContractsFlags);
+  }
+
+  onGetAvailableContracts(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("get_available_contracts", callback);
+  }
+
+  removeOnGetAvailableContracts(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("get_available_contracts", callback);
+  }
+
   getKnockedOutStatus() {
     this.connection.callReducer("get_knocked_out_status", new Uint8Array(0), this.setCallReducerFlags.getKnockedOutStatusFlags);
   }
@@ -4129,6 +4391,18 @@ export class RemoteReducers {
 
   removeOnGetMinimapData(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("get_minimap_data", callback);
+  }
+
+  getShardBalance() {
+    this.connection.callReducer("get_shard_balance", new Uint8Array(0), this.setCallReducerFlags.getShardBalanceFlags);
+  }
+
+  onGetShardBalance(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("get_shard_balance", callback);
+  }
+
+  removeOnGetShardBalance(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("get_shard_balance", callback);
   }
 
   grantBuildingPrivilegeFromHearth(hearthId: number) {
@@ -5309,6 +5583,22 @@ export class RemoteReducers {
 
   removeOnProcessActiveConsumableEffectsTick(callback: (ctx: ReducerEventContext, args: ProcessEffectsSchedule) => void) {
     this.connection.offReducer("process_active_consumable_effects_tick", callback);
+  }
+
+  processAlkContractRefresh(args: AlkContractRefreshSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessAlkContractRefresh.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_alk_contract_refresh", __argsBuffer, this.setCallReducerFlags.processAlkContractRefreshFlags);
+  }
+
+  onProcessAlkContractRefresh(callback: (ctx: ReducerEventContext, args: AlkContractRefreshSchedule) => void) {
+    this.connection.onReducer("process_alk_contract_refresh", callback);
+  }
+
+  removeOnProcessAlkContractRefresh(callback: (ctx: ReducerEventContext, args: AlkContractRefreshSchedule) => void) {
+    this.connection.offReducer("process_alk_contract_refresh", callback);
   }
 
   processBrothPotLogicScheduled(scheduleArgs: BrothPotProcessingSchedule) {
@@ -7330,6 +7620,16 @@ export class RemoteReducers {
 }
 
 export class SetReducerFlags {
+  acceptAlkContractFlags: __CallReducerFlags = 'FullUpdate';
+  acceptAlkContract(flags: __CallReducerFlags) {
+    this.acceptAlkContractFlags = flags;
+  }
+
+  cancelAlkContractFlags: __CallReducerFlags = 'FullUpdate';
+  cancelAlkContract(flags: __CallReducerFlags) {
+    this.cancelAlkContractFlags = flags;
+  }
+
   cancelAllCraftingFlags: __CallReducerFlags = 'FullUpdate';
   cancelAllCrafting(flags: __CallReducerFlags) {
     this.cancelAllCraftingFlags = flags;
@@ -7348,6 +7648,11 @@ export class SetReducerFlags {
   castFishingLineFlags: __CallReducerFlags = 'FullUpdate';
   castFishingLine(flags: __CallReducerFlags) {
     this.castFishingLineFlags = flags;
+  }
+
+  checkAlkStationProximityFlags: __CallReducerFlags = 'FullUpdate';
+  checkAlkStationProximity(flags: __CallReducerFlags) {
+    this.checkAlkStationProximityFlags = flags;
   }
 
   checkBrewCacheFlags: __CallReducerFlags = 'FullUpdate';
@@ -7440,6 +7745,16 @@ export class SetReducerFlags {
     this.damageWildAnimalFlags = flags;
   }
 
+  debugGrantShardsFlags: __CallReducerFlags = 'FullUpdate';
+  debugGrantShards(flags: __CallReducerFlags) {
+    this.debugGrantShardsFlags = flags;
+  }
+
+  debugRefreshAlkContractsFlags: __CallReducerFlags = 'FullUpdate';
+  debugRefreshAlkContracts(flags: __CallReducerFlags) {
+    this.debugRefreshAlkContractsFlags = flags;
+  }
+
   debugSetSeasonFlags: __CallReducerFlags = 'FullUpdate';
   debugSetSeason(flags: __CallReducerFlags) {
     this.debugSetSeasonFlags = flags;
@@ -7458,6 +7773,11 @@ export class SetReducerFlags {
   debugUpdateCloudIntensityFlags: __CallReducerFlags = 'FullUpdate';
   debugUpdateCloudIntensity(flags: __CallReducerFlags) {
     this.debugUpdateCloudIntensityFlags = flags;
+  }
+
+  deliverAlkContractFlags: __CallReducerFlags = 'FullUpdate';
+  deliverAlkContract(flags: __CallReducerFlags) {
+    this.deliverAlkContractFlags = flags;
   }
 
   despawnExpiredItemsFlags: __CallReducerFlags = 'FullUpdate';
@@ -7590,6 +7910,11 @@ export class SetReducerFlags {
     this.generateWorldFlags = flags;
   }
 
+  getAvailableContractsFlags: __CallReducerFlags = 'FullUpdate';
+  getAvailableContracts(flags: __CallReducerFlags) {
+    this.getAvailableContractsFlags = flags;
+  }
+
   getKnockedOutStatusFlags: __CallReducerFlags = 'FullUpdate';
   getKnockedOutStatus(flags: __CallReducerFlags) {
     this.getKnockedOutStatusFlags = flags;
@@ -7598,6 +7923,11 @@ export class SetReducerFlags {
   getMinimapDataFlags: __CallReducerFlags = 'FullUpdate';
   getMinimapData(flags: __CallReducerFlags) {
     this.getMinimapDataFlags = flags;
+  }
+
+  getShardBalanceFlags: __CallReducerFlags = 'FullUpdate';
+  getShardBalance(flags: __CallReducerFlags) {
+    this.getShardBalanceFlags = flags;
   }
 
   grantBuildingPrivilegeFromHearthFlags: __CallReducerFlags = 'FullUpdate';
@@ -7968,6 +8298,11 @@ export class SetReducerFlags {
   processActiveConsumableEffectsTickFlags: __CallReducerFlags = 'FullUpdate';
   processActiveConsumableEffectsTick(flags: __CallReducerFlags) {
     this.processActiveConsumableEffectsTickFlags = flags;
+  }
+
+  processAlkContractRefreshFlags: __CallReducerFlags = 'FullUpdate';
+  processAlkContractRefresh(flags: __CallReducerFlags) {
+    this.processAlkContractRefreshFlags = flags;
   }
 
   processBrothPotLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
@@ -8640,6 +8975,31 @@ export class RemoteTables {
     return new ActiveEquipmentTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ActiveEquipment>(REMOTE_MODULE.tables.active_equipment));
   }
 
+  get alkContract(): AlkContractTableHandle<'alk_contract'> {
+    // clientCache is a private property
+    return new AlkContractTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AlkContract>(REMOTE_MODULE.tables.alk_contract));
+  }
+
+  get alkContractRefreshSchedule(): AlkContractRefreshScheduleTableHandle<'alk_contract_refresh_schedule'> {
+    // clientCache is a private property
+    return new AlkContractRefreshScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AlkContractRefreshSchedule>(REMOTE_MODULE.tables.alk_contract_refresh_schedule));
+  }
+
+  get alkPlayerContract(): AlkPlayerContractTableHandle<'alk_player_contract'> {
+    // clientCache is a private property
+    return new AlkPlayerContractTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AlkPlayerContract>(REMOTE_MODULE.tables.alk_player_contract));
+  }
+
+  get alkState(): AlkStateTableHandle<'alk_state'> {
+    // clientCache is a private property
+    return new AlkStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AlkState>(REMOTE_MODULE.tables.alk_state));
+  }
+
+  get alkStation(): AlkStationTableHandle<'alk_station'> {
+    // clientCache is a private property
+    return new AlkStationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AlkStation>(REMOTE_MODULE.tables.alk_station));
+  }
+
   get animalCorpse(): AnimalCorpseTableHandle<'animal_corpse'> {
     // clientCache is a private property
     return new AnimalCorpseTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AnimalCorpse>(REMOTE_MODULE.tables.animal_corpse));
@@ -8855,6 +9215,11 @@ export class RemoteTables {
     return new InventoryItemTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<InventoryItem>(REMOTE_MODULE.tables.inventory_item));
   }
 
+  get itemAlkTag(): ItemAlkTagTableHandle<'item_alk_tag'> {
+    // clientCache is a private property
+    return new ItemAlkTagTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ItemAlkTag>(REMOTE_MODULE.tables.item_alk_tag));
+  }
+
   get itemDefinition(): ItemDefinitionTableHandle<'item_definition'> {
     // clientCache is a private property
     return new ItemDefinitionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ItemDefinition>(REMOTE_MODULE.tables.item_definition));
@@ -8953,6 +9318,11 @@ export class RemoteTables {
   get playerPin(): PlayerPinTableHandle<'player_pin'> {
     // clientCache is a private property
     return new PlayerPinTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerPin>(REMOTE_MODULE.tables.player_pin));
+  }
+
+  get playerShardBalance(): PlayerShardBalanceTableHandle<'player_shard_balance'> {
+    // clientCache is a private property
+    return new PlayerShardBalanceTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerShardBalance>(REMOTE_MODULE.tables.player_shard_balance));
   }
 
   get playerStatSchedule(): PlayerStatScheduleTableHandle<'player_stat_schedule'> {

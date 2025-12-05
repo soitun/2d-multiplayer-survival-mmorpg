@@ -29,6 +29,7 @@ import {
   Door as SpacetimeDBDoor, // ADDED: Building doors
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumaroles (geothermal vents)
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt columns (decorative obstacles)
+  AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
 } from '../generated';
 import {
@@ -111,6 +112,8 @@ interface EntityFilteringResult {
   visibleBasaltColumnsMap: Map<string, SpacetimeDBBasaltColumn>; // ADDED
   visibleSeaStacks: any[]; // ADDED
   visibleSeaStacksMap: Map<string, any>; // ADDED
+  visibleAlkStations: SpacetimeDBAlkStation[]; // ADDED: ALK delivery stations
+  visibleAlkStationsMap: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK delivery stations map
   visibleFoundationCells: SpacetimeDBFoundationCell[]; // ADDED: Building foundations
   visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>; // ADDED: Building foundations map
   visibleWallCells: SpacetimeDBWallCell[]; // ADDED: Building walls
@@ -152,7 +155,8 @@ export type YSortedEntityType =
   | { type: 'door'; entity: SpacetimeDBDoor } // ADDED: Building doors
   | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } } // ADDED: Fog of war overlay (renders above placeables, below walls)
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
-  | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn }; // ADDED: Basalt columns (decorative obstacles in quarries)
+  | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn } // ADDED: Basalt columns (decorative obstacles in quarries)
+  | { type: 'alk_station'; entity: SpacetimeDBAlkStation }; // ADDED: ALK delivery stations
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
@@ -206,6 +210,12 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'alk_station': {
+      // ALK stations use worldPosY for their position (the building's base/foot)
+      // Use raw position like trees/stones/basalt_columns - NO offset
+      const alkStation = entity as SpacetimeDBAlkStation;
+      return alkStation.worldPosY;
+    }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
       // Use top edge of tile (cellY * 48) to ensure foundations render below players
@@ -304,6 +314,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'barrel': return 15;
     case 'fumarole': return 14; // ADDED: Fumaroles render slightly before barrels (ground vents)
     case 'basalt_column': return 16; // ADDED: Basalt columns render after barrels (tall obstacles)
+    case 'alk_station': return 2; // ALK stations Y-sort like trees (tall structures with base at worldPosY)
     case 'rain_collector': return 18;
     case 'broth_pot': return 18; // Same as rain collector (similar placeable container)
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
@@ -583,7 +594,8 @@ export function useEntityFiltering(
   doors: Map<string, SpacetimeDBDoor>, // ADDED: Building doors
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
-  worldChunkData?: Map<string, any> // ADDED: World chunk data for tile type lookups
+  worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
+  alkStations?: Map<string, SpacetimeDBAlkStation> // ADDED: ALK delivery stations
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -1083,6 +1095,22 @@ export function useEntityFiltering(
     return visible;
   }, [basaltColumns, isEntityInView, viewBounds, stableTimestamp]);
 
+  // ALK delivery stations filtering - use worldPosX/worldPosY instead of posX/posY
+  const visibleAlkStations = useMemo(() => {
+    if (!alkStations) return [];
+    return Array.from(alkStations.values()).filter(station => {
+      if (!station.isActive) return false;
+      // ALK stations use worldPosX/worldPosY - manually check viewport bounds
+      const x = station.worldPosX;
+      const y = station.worldPosY;
+      const buffer = 1200; // Very large buffer for tall industrial landmarks (960px tall, 768px wide at 6x scale)
+      return x >= viewBounds.viewMinX - buffer &&
+             x <= viewBounds.viewMaxX + buffer &&
+             y >= viewBounds.viewMinY - buffer &&
+             y <= viewBounds.viewMaxY + buffer;
+    });
+  }, [alkStations, viewBounds]);
+
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
     : [],
@@ -1324,6 +1352,11 @@ export function useEntityFiltering(
     [visibleBasaltColumns]
   );
 
+  const visibleAlkStationsMap = useMemo(() =>
+    new Map(visibleAlkStations.map(s => [s.stationId.toString(), s])),
+    [visibleAlkStations]
+  );
+
   // ADDED: Map for visible sea stacks
   const visibleSeaStacksMap = useMemo(() =>
     new Map(visibleSeaStacks.map(s => [s.id.toString(), s])),
@@ -1524,6 +1557,7 @@ export function useEntityFiltering(
     visibleBarrels.forEach(e => allEntities[index++] = { type: 'barrel', entity: e });
     visibleFumaroles.forEach(e => allEntities[index++] = { type: 'fumarole', entity: e }); // ADDED: Fumaroles
     visibleBasaltColumns.forEach(e => allEntities[index++] = { type: 'basalt_column', entity: e }); // ADDED: Basalt columns
+    visibleAlkStations.forEach(e => allEntities[index++] = { type: 'alk_station', entity: e }); // ADDED: ALK delivery stations
     visibleSleepingBags.forEach(e => allEntities[index++] = { type: 'sleeping_bag', entity: e }); // ADDED: Sleeping bags
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
@@ -1620,7 +1654,28 @@ export function useEntityFiltering(
     // than the old method, but it avoids massive memory allocation, which is the
     // likely cause of the garbage-collection lag spikes.
     allEntities.sort((a, b) => {
-      // ABSOLUTE FIRST CHECK: Flying birds MUST render above everything (trees, stones, players, etc.)
+      // ABSOLUTE FIRST CHECK: Player vs ALK Station - tall structure Y-sorting
+      // This MUST be first to ensure correct rendering for large structures
+      // Player north of station base (lower Y) = player behind = station renders on top
+      if (a.type === 'player' && b.type === 'alk_station') {
+        const player = a.entity as SpacetimeDBPlayer;
+        const station = b.entity as SpacetimeDBAlkStation;
+        // Use RAW positionY (no offset) vs worldPosY for correct comparison
+        if (player.positionY >= station.worldPosY) {
+          return 1; // Player south of/at station base - player in front
+        }
+        return -1; // Player north of station base - player behind (station on top)
+      }
+      if (a.type === 'alk_station' && b.type === 'player') {
+        const player = b.entity as SpacetimeDBPlayer;
+        const station = a.entity as SpacetimeDBAlkStation;
+        if (player.positionY >= station.worldPosY) {
+          return -1; // Player south of/at station base - player in front (inverted)
+        }
+        return 1; // Player north of station base - player behind (inverted)
+      }
+      
+      // Flying birds MUST render above everything (trees, stones, players, etc.)
       // This ensures birds in flight are always visible above ground entities
       const aAnimal = a.type === 'wild_animal' ? (a.entity as SpacetimeDBWildAnimal) : null;
       const bAnimal = b.type === 'wild_animal' ? (b.entity as SpacetimeDBWildAnimal) : null;
@@ -1647,6 +1702,7 @@ export function useEntityFiltering(
       if (bIsFlyingBird && !aIsFlyingBird) {
         return -1; // Flying bird renders after (above) non-flying entities
       }
+      
       
       // ABSOLUTE SECOND CHECK: Broth pot MUST render above campfires and fumaroles
       // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
@@ -1969,6 +2025,7 @@ export function useEntityFiltering(
         }
       }
       
+      
       // CRITICAL FIX: Placeable objects should ALWAYS render above north walls (edge 0)
       // North walls extend upward visually, so placeables should always render on top
       // Simple rule: if it's a north wall and a placeable object, placeable always wins
@@ -2008,7 +2065,7 @@ export function useEntityFiltering(
       const groundObjectTypes = ['tree', 'stone', 'rune_stone', 'basalt_column', 'fumarole', 
         'wooden_storage_box', 'stash', 'campfire', 'furnace', 'lantern', 'homestead_hearth',
         'planted_seed', 'dropped_item', 'harvestable_resource', 'barrel', 'rain_collector',
-        'broth_pot', 'sleeping_bag', 'animal_corpse', 'player_corpse', 'foundation_cell'];
+        'broth_pot', 'sleeping_bag', 'animal_corpse', 'player_corpse', 'foundation_cell', 'alk_station'];
       
       if (aIsFlyingBird && groundObjectTypes.includes(b.type)) {
         return 1; // Flying bird renders after (above) ground object
@@ -2067,6 +2124,7 @@ export function useEntityFiltering(
     visibleBarrels,
     visibleFumaroles,
     visibleBasaltColumns,
+    visibleAlkStations, // ADDED: ALK stations dependency
     visibleSeaStacks,
     visibleHarvestableResources,
     visibleFoundationCells, // ADDED: Foundations dependency
@@ -2148,5 +2206,7 @@ export function useEntityFiltering(
     visibleDoorsMap, // ADDED: Building doors map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
+    visibleAlkStations, // ADDED: ALK delivery stations
+    visibleAlkStationsMap, // ADDED: ALK delivery stations map
   };
 } 

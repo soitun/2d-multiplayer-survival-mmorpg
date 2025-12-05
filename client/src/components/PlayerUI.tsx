@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats } from '../generated';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats, MemoryGridProgress as SpacetimeDBMemoryGridProgress } from '../generated';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -55,6 +55,7 @@ interface PlayerUIProps {
   worldState: WorldState | null;
   isGameMenuOpen?: boolean;
   chunkWeather: Map<string, any>; // ADDED: Chunk-based weather
+  memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>; // ADDED: Memory Grid unlocks
 }
 
 const PlayerUI: React.FC<PlayerUIProps> = ({
@@ -93,7 +94,8 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     knockedOutStatus,
     worldState,
     isGameMenuOpen,
-    chunkWeather
+    chunkWeather,
+    memoryGridProgress
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
@@ -505,9 +507,14 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
 
     // --- Open Inventory when Interaction Starts --- 
     // CRITICAL: Don't open inventory for combo menu - only open after selection
+    // CRITICAL: Don't open inventory for ALK stations - they have their own dedicated panel
     useEffect(() => {
         // console.log('[PlayerUI] interactingWith changed:', interactingWith);
         if (interactingWith) {
+            // ALK stations have their own dedicated panel, don't open inventory
+            if (interactingWith.type === 'alk_station') {
+                return;
+            }
             // console.log('[PlayerUI] Opening inventory for interaction:', interactingWith);
             if (!showInventory) {
                 onToggleInventory();
@@ -528,6 +535,16 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
         if (!identity) return null;
         return activeEquipments.get(identity.toHexString()) || null;
     }, [identity, activeEquipments]);
+
+    // Parse Memory Grid purchased nodes into a Set<string> for CraftingUI
+    const purchasedMemoryNodes = useMemo(() => {
+        if (!identity || !memoryGridProgress) return new Set(['center']);
+        const progress = memoryGridProgress.get(identity.toHexString());
+        if (!progress || !progress.purchasedNodes) return new Set(['center']);
+        // Parse the comma-separated string into a Set
+        const nodes = progress.purchasedNodes.split(',').map(node => node.trim()).filter(node => node.length > 0);
+        return new Set(nodes.length > 0 ? nodes : ['center']);
+    }, [identity, memoryGridProgress]);
 
     // Helper to determine if there's an active crafting item for positioning
     const hasActiveCrafting = React.useMemo(() => {
@@ -1137,6 +1154,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     players={players}
                     activeConsumableEffects={activeConsumableEffects}
                     chunkWeather={chunkWeather}
+                    purchasedMemoryNodes={purchasedMemoryNodes}
                  />
              )}
 

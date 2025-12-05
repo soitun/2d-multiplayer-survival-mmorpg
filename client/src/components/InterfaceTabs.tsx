@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './InterfaceTabs.css';
 
 interface InterfaceTabsProps {
-  currentView: 'minimap' | 'encyclopedia' | 'memory-grid';
-  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid') => void;
+  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk';
+  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk') => void;
   className?: string;
   hideEncyclopedia?: boolean;
 }
@@ -19,6 +19,7 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
   const isMinimapActive = currentView === 'minimap';
   const isEncyclopediaActive = currentView === 'encyclopedia';
   const isMemoryGridActive = currentView === 'memory-grid';
+  const isAlkActive = currentView === 'alk';
 
   return (
     <div className={`interface-tabs ${className}`}>
@@ -52,6 +53,16 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         onMouseLeave={() => setHoveredTab(null)}
       >
         MEMORY GRID
+      </button>
+      
+      {/* ALK Provisioning Tab */}
+      <button
+        className={`tab alk-tab ${isAlkActive ? 'active' : 'inactive'} ${hoveredTab === 'alk' ? 'hovered' : ''}`}
+        onClick={() => onViewChange('alk')}
+        onMouseEnter={() => setHoveredTab('alk')}
+        onMouseLeave={() => setHoveredTab(null)}
+      >
+        ALK BOARD
       </button>
     </div>
   );

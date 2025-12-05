@@ -42,6 +42,12 @@ import {
   HarvestableResource as SpacetimeDBHarvestableResource,
   FoundationCell, // ADDED: Foundation cell type
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth type
+  AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations
+  AlkContract as SpacetimeDBAlkContract, // ADDED: ALK contracts
+  AlkPlayerContract as SpacetimeDBAlkPlayerContract, // ADDED: ALK player contracts
+  AlkState as SpacetimeDBAlkState, // ADDED: ALK state
+  PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED: Player shard balances
+  MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED: Memory Grid progress
 } from '../generated';
 
 // --- Core Hooks ---
@@ -219,6 +225,18 @@ interface GameCanvasProps {
   treeShadowsEnabled?: boolean;
   // Chunk-based weather data
   chunkWeather: Map<string, any>;
+  // ALK delivery stations for minimap
+  alkStations?: Map<string, SpacetimeDBAlkStation>;
+  // ALK contracts for provisioning board
+  alkContracts?: Map<string, SpacetimeDBAlkContract>;
+  // Player's accepted ALK contracts
+  alkPlayerContracts?: Map<string, SpacetimeDBAlkPlayerContract>;
+  // ALK system state
+  alkState?: SpacetimeDBAlkState | null;
+  // Player shard balances
+  playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
+  // Memory Grid progress for crafting unlocks
+  memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
   // Weather overlay toggle for main game canvas atmospheric effects
   showWeatherOverlay?: boolean;
   // Status overlays toggle for cold/low health screen effects
@@ -304,6 +322,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
   chunkWeather, // Chunk-based weather data
+  alkStations, // ALK delivery stations for minimap
+  alkContracts, // ALK contracts for provisioning board
+  alkPlayerContracts, // Player's accepted ALK contracts
+  alkState, // ALK system state
+  playerShardBalance, // Player shard balances
+  memoryGridProgress, // Memory Grid progress for crafting unlocks
   showWeatherOverlay, // Weather overlay toggle for main game canvas atmospheric effects (managed internally if not provided)
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
 }) => {
@@ -557,6 +581,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleDoorsMap, // ADDED: Building doors map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
+    visibleAlkStations, // ADDED: ALK delivery stations
+    visibleAlkStationsMap, // ADDED: ALK delivery stations map
   } = useEntityFiltering(
     players,
     trees,
@@ -595,6 +621,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
+    alkStations, // ADDED: ALK delivery stations for rendering and interaction
   );
 
   // --- Day/Night Cycle with Indoor Light Containment ---
@@ -840,6 +867,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableStashId,
     closestInteractableSleepingBagId,
     closestInteractableDoorId, // ADDED: Door support
+    closestInteractableAlkStationId, // ADDED: ALK station support
     closestInteractableKnockedOutPlayerId,
     closestInteractableWaterPosition,
   } = useInteractionFinder({
@@ -863,6 +891,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     rainCollectors,
     brothPots,
     doors, // ADDED: Doors to useInteractionFinder
+    alkStations: visibleAlkStationsMap, // ADDED: ALK stations to useInteractionFinder
     harvestableResources,
     worldTiles: visibleWorldTiles,
   });
@@ -1997,6 +2026,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const getEntityYSort = (entity: typeof nonSwimmingEntities[number]): number => {
       if ('positionY' in entity.entity && entity.entity.positionY !== undefined) {
         return entity.entity.positionY + 48; // Player foot position
+      } else if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
+        // ALK stations use worldPosY for their base position
+        return (entity.entity as any).worldPosY;
       } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
         return entity.entity.posY;
       }
@@ -2012,16 +2044,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ...nonSwimmingEntities.map(e => ({ ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const })),
       ...swimmingPlayerTopHalves.map(e => ({ ...e, _ySort: e.yPosition, _isSwimmingTop: true as const }))
     ].sort((a, b) => {
-      // CRITICAL: Broth pot MUST render above campfires and fumaroles
-      // This check must be here because this sort can undo the useEntityFiltering sort
+      // CRITICAL: This sort can undo the useEntityFiltering sort, so we must duplicate key checks here
       const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
       const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
-      
-      // CRITICAL: Flying birds MUST render above everything (trees, stones, players, etc.)
-      // This check must be here because this sort can undo the useEntityFiltering sort
       const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
       const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
       
+      // CRITICAL: Player vs ALK Station - tall structure Y-sorting
+      // Player north of station base (lower Y) = player behind = station renders on top
+      if (aType === 'player' && bType === 'alk_station') {
+        const playerY = (aEntity as any)?.positionY ?? 0;
+        const stationY = (bEntity as any)?.worldPosY ?? 0;
+        if (playerY >= stationY) {
+          return 1; // Player south of/at station base - player in front
+        }
+        return -1; // Player north of station base - player behind (station on top)
+      }
+      if (aType === 'alk_station' && bType === 'player') {
+        const playerY = (bEntity as any)?.positionY ?? 0;
+        const stationY = (aEntity as any)?.worldPosY ?? 0;
+        if (playerY >= stationY) {
+          return -1; // Player south of/at station base - player in front (inverted)
+        }
+        return 1; // Player north of station base - player behind (inverted)
+      }
+      
+      // Flying birds MUST render above everything (trees, stones, players, etc.)
       const aIsFlyingBird = aType === 'wild_animal' && aEntity && 
         'species' in aEntity && 'isFlying' in aEntity &&
         (aEntity.species?.tag === 'Tern' || aEntity.species?.tag === 'Crow') &&
@@ -2039,6 +2087,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         return -1; // Flying bird renders after (above) non-flying entities
       }
       
+      // Broth pot MUST render above campfires and fumaroles
       if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
         return 1; // Broth pot renders after (above) campfire/fumarole
       }
@@ -2317,6 +2366,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
       doors: visibleDoorsMap, // ADDED: Doors
+      alkStations: alkStations || new Map(), // ADDED: ALK Stations for E label rendering
     });
     renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
@@ -3010,6 +3060,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Add minimap weather overlay props (separate from game canvas weather overlay)
       showWeatherOverlay: minimapShowWeatherOverlay,
       chunkWeatherData: chunkWeatherForMinimap,
+      // ALK delivery stations for minimap
+      alkStations: alkStations,
     });
   }, [
     isMinimapOpen,
@@ -3038,6 +3090,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Add minimap weather overlay dependencies (separate from game canvas)
     minimapShowWeatherOverlay,
     chunkWeather,
+    // ALK stations for minimap
+    alkStations,
   ]);
 
   // Game loop for processing actions
@@ -3132,6 +3186,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
               setMinimapShowWeatherOverlay(checked);
               localStorage.setItem('minimap_show_weather_overlay', checked.toString());
             }}
+            // ALK Panel data props
+            alkContracts={alkContracts}
+            alkPlayerContracts={alkPlayerContracts}
+            alkStations={alkStations}
+            alkState={alkState}
+            playerShardBalance={playerShardBalance && localPlayerId ? playerShardBalance.get(localPlayerId) || null : null}
+            worldState={worldState}
+            itemDefinitions={itemDefinitions}
+            inventoryItems={inventoryItems}
           >
             <canvas
               ref={minimapCanvasRef}

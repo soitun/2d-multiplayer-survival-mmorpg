@@ -147,6 +147,12 @@ export interface SpacetimeTableStates {
     wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
     doors: Map<string, SpacetimeDB.Door>; // ADDED: Building doors
     chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
+    alkStations: Map<string, SpacetimeDB.AlkStation>; // ADDED: ALK delivery stations for minimap
+    alkContracts: Map<string, SpacetimeDB.AlkContract>; // ADDED: ALK contracts
+    alkPlayerContracts: Map<string, SpacetimeDB.AlkPlayerContract>; // ADDED: Player's ALK contracts
+    alkState: SpacetimeDB.AlkState | null; // ADDED: ALK system state
+    playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>; // ADDED: Player shard balances
+    memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
 }
 
 // Define the props the hook accepts
@@ -222,6 +228,12 @@ export const useSpacetimeTables = ({
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
+    const [alkStations, setAlkStations] = useState<Map<string, SpacetimeDB.AlkStation>>(() => new Map()); // ADDED: ALK delivery stations
+    const [alkContracts, setAlkContracts] = useState<Map<string, SpacetimeDB.AlkContract>>(() => new Map()); // ADDED: ALK contracts
+    const [alkPlayerContracts, setAlkPlayerContracts] = useState<Map<string, SpacetimeDB.AlkPlayerContract>>(() => new Map()); // ADDED: Player's ALK contracts
+    const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null); // ADDED: ALK system state
+    const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map()); // ADDED: Player shard balances
+    const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1493,6 +1505,72 @@ export const useSpacetimeTables = ({
                 scheduleChunkWeatherUpdate();
             };
 
+            // ALK Station handlers - for minimap delivery points
+            const handleAlkStationInsert = (ctx: any, station: SpacetimeDB.AlkStation) => {
+                setAlkStations(prev => new Map(prev).set(station.stationId.toString(), station));
+            };
+            const handleAlkStationUpdate = (ctx: any, oldStation: SpacetimeDB.AlkStation, newStation: SpacetimeDB.AlkStation) => {
+                setAlkStations(prev => new Map(prev).set(newStation.stationId.toString(), newStation));
+            };
+            const handleAlkStationDelete = (ctx: any, station: SpacetimeDB.AlkStation) => {
+                setAlkStations(prev => { const newMap = new Map(prev); newMap.delete(station.stationId.toString()); return newMap; });
+            };
+
+            // ALK Contract handlers
+            const handleAlkContractInsert = (ctx: any, contract: SpacetimeDB.AlkContract) => {
+                setAlkContracts(prev => new Map(prev).set(contract.contractId.toString(), contract));
+            };
+            const handleAlkContractUpdate = (ctx: any, oldContract: SpacetimeDB.AlkContract, newContract: SpacetimeDB.AlkContract) => {
+                setAlkContracts(prev => new Map(prev).set(newContract.contractId.toString(), newContract));
+            };
+            const handleAlkContractDelete = (ctx: any, contract: SpacetimeDB.AlkContract) => {
+                setAlkContracts(prev => { const newMap = new Map(prev); newMap.delete(contract.contractId.toString()); return newMap; });
+            };
+
+            // ALK Player Contract handlers
+            const handleAlkPlayerContractInsert = (ctx: any, contract: SpacetimeDB.AlkPlayerContract) => {
+                setAlkPlayerContracts(prev => new Map(prev).set(contract.id.toString(), contract));
+            };
+            const handleAlkPlayerContractUpdate = (ctx: any, oldContract: SpacetimeDB.AlkPlayerContract, newContract: SpacetimeDB.AlkPlayerContract) => {
+                setAlkPlayerContracts(prev => new Map(prev).set(newContract.id.toString(), newContract));
+            };
+            const handleAlkPlayerContractDelete = (ctx: any, contract: SpacetimeDB.AlkPlayerContract) => {
+                setAlkPlayerContracts(prev => { const newMap = new Map(prev); newMap.delete(contract.id.toString()); return newMap; });
+            };
+
+            // ALK State handlers (single row table)
+            const handleAlkStateInsert = (ctx: any, state: SpacetimeDB.AlkState) => {
+                setAlkState(state);
+            };
+            const handleAlkStateUpdate = (ctx: any, oldState: SpacetimeDB.AlkState, newState: SpacetimeDB.AlkState) => {
+                setAlkState(newState);
+            };
+            const handleAlkStateDelete = (ctx: any, state: SpacetimeDB.AlkState) => {
+                setAlkState(null);
+            };
+
+            // Player Shard Balance handlers
+            const handlePlayerShardBalanceInsert = (ctx: any, balance: SpacetimeDB.PlayerShardBalance) => {
+                setPlayerShardBalance(prev => new Map(prev).set(balance.playerId.toString(), balance));
+            };
+            const handlePlayerShardBalanceUpdate = (ctx: any, oldBalance: SpacetimeDB.PlayerShardBalance, newBalance: SpacetimeDB.PlayerShardBalance) => {
+                setPlayerShardBalance(prev => new Map(prev).set(newBalance.playerId.toString(), newBalance));
+            };
+            const handlePlayerShardBalanceDelete = (ctx: any, balance: SpacetimeDB.PlayerShardBalance) => {
+                setPlayerShardBalance(prev => { const newMap = new Map(prev); newMap.delete(balance.playerId.toString()); return newMap; });
+            };
+
+            // Memory Grid Progress handlers
+            const handleMemoryGridProgressInsert = (ctx: any, progress: SpacetimeDB.MemoryGridProgress) => {
+                setMemoryGridProgress(prev => new Map(prev).set(progress.playerId.toString(), progress));
+            };
+            const handleMemoryGridProgressUpdate = (ctx: any, oldProgress: SpacetimeDB.MemoryGridProgress, newProgress: SpacetimeDB.MemoryGridProgress) => {
+                setMemoryGridProgress(prev => new Map(prev).set(newProgress.playerId.toString(), newProgress));
+            };
+            const handleMemoryGridProgressDelete = (ctx: any, progress: SpacetimeDB.MemoryGridProgress) => {
+                setMemoryGridProgress(prev => { const newMap = new Map(prev); newMap.delete(progress.playerId.toString()); return newMap; });
+            };
+
             // --- Register Callbacks ---
             connection.db.player.onInsert(handlePlayerInsert); connection.db.player.onUpdate(handlePlayerUpdate); connection.db.player.onDelete(handlePlayerDelete);
             connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
@@ -1681,7 +1759,35 @@ export const useSpacetimeTables = ({
             connection.db.chunkWeather.onUpdate(handleChunkWeatherUpdate);
             connection.db.chunkWeather.onDelete(handleChunkWeatherDelete);
 
+            // Register ALK Station callbacks - for minimap delivery points
+            connection.db.alkStation.onInsert(handleAlkStationInsert);
+            connection.db.alkStation.onUpdate(handleAlkStationUpdate);
+            connection.db.alkStation.onDelete(handleAlkStationDelete);
 
+            // Register ALK Contract callbacks
+            connection.db.alkContract.onInsert(handleAlkContractInsert);
+            connection.db.alkContract.onUpdate(handleAlkContractUpdate);
+            connection.db.alkContract.onDelete(handleAlkContractDelete);
+
+            // Register ALK Player Contract callbacks
+            connection.db.alkPlayerContract.onInsert(handleAlkPlayerContractInsert);
+            connection.db.alkPlayerContract.onUpdate(handleAlkPlayerContractUpdate);
+            connection.db.alkPlayerContract.onDelete(handleAlkPlayerContractDelete);
+
+            // Register ALK State callbacks
+            connection.db.alkState.onInsert(handleAlkStateInsert);
+            connection.db.alkState.onUpdate(handleAlkStateUpdate);
+            connection.db.alkState.onDelete(handleAlkStateDelete);
+
+            // Register Player Shard Balance callbacks
+            connection.db.playerShardBalance.onInsert(handlePlayerShardBalanceInsert);
+            connection.db.playerShardBalance.onUpdate(handlePlayerShardBalanceUpdate);
+            connection.db.playerShardBalance.onDelete(handlePlayerShardBalanceDelete);
+
+            // Register Memory Grid Progress callbacks
+            connection.db.memoryGridProgress.onInsert(handleMemoryGridProgressInsert);
+            connection.db.memoryGridProgress.onUpdate(handleMemoryGridProgressUpdate);
+            connection.db.memoryGridProgress.onDelete(handleMemoryGridProgressDelete);
 
             isSubscribingRef.current = true;
 
@@ -1786,6 +1892,26 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[CHUNK_WEATHER Sub Error]:", err))
                     .subscribe('SELECT * FROM chunk_weather'),
+                // ADDED ALK Station subscription - NON-SPATIAL (subscribe to all stations for minimap)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ALK_STATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM alk_station'),
+                // ADDED ALK Contract subscription - NON-SPATIAL (subscribe to all contracts)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ALK_CONTRACT Sub Error]:", err))
+                    .subscribe('SELECT * FROM alk_contract'),
+                // ADDED ALK Player Contract subscription - NON-SPATIAL (subscribe to all player contracts)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ALK_PLAYER_CONTRACT Sub Error]:", err))
+                    .subscribe('SELECT * FROM alk_player_contract'),
+                // ADDED ALK State subscription - NON-SPATIAL (single row table)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ALK_STATE Sub Error]:", err))
+                    .subscribe('SELECT * FROM alk_state'),
+                // ADDED Player Shard Balance subscription - NON-SPATIAL
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_SHARD_BALANCE Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_shard_balance'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2145,5 +2271,11 @@ export const useSpacetimeTables = ({
         chunkWeather, // ADDED: Chunk-based weather
         fumaroles, // ADDED fumaroles
         basaltColumns, // ADDED basalt columns
+        alkStations, // ADDED: ALK delivery stations for minimap
+        alkContracts, // ADDED: ALK contracts
+        alkPlayerContracts, // ADDED: Player's ALK contracts
+        alkState, // ADDED: ALK system state
+        playerShardBalance, // ADDED: Player shard balances
+        memoryGridProgress, // ADDED: Memory Grid unlocks
     };
 }; 

@@ -841,6 +841,16 @@ const Hotbar: React.FC<HotbarProps> = ({
     const inventoryPanel = document.querySelector('.inventoryPanel');
     if (inventoryPanel) return;
 
+    // Check if focus is on an input field - don't capture number keys when typing
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.tagName === 'SELECT' ||
+      (activeElement as HTMLElement).isContentEditable
+    );
+    if (isInputFocused) return;
+
     // Use event.code to reliably detect number keys regardless of Shift state
     let keyNum = -1;
     if (event.code.startsWith('Digit')) {

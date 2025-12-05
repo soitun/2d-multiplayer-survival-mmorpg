@@ -29,6 +29,7 @@ import {
     BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
     BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
+    AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery station
 } from '../../generated';
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { gameConfig } from '../../config/gameConfig';
@@ -72,6 +73,8 @@ import { renderBarrel } from './barrelRenderingUtils';
 import { renderFumarole } from './fumaroleRenderingUtils';
 // Import basalt column renderer
 import { renderBasaltColumn } from './basaltColumnRenderingUtils';
+// Import ALK station renderer
+import { renderAlkStation } from './alkStationRenderingUtils';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
 // Import hearth renderer
@@ -1100,6 +1103,23 @@ export const renderYSortedEntities = ({
             const basaltColumn = entity as SpacetimeDBBasaltColumn;
             // console.log('🗿 [RENDER] Rendering basalt column', basaltColumn.id, 'at', basaltColumn.posX, basaltColumn.posY);
             renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress, localPlayerPosition);
+        } else if (type === 'alk_station') {
+            const alkStation = entity as SpacetimeDBAlkStation;
+            const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;
+            // console.log('🏭 [RENDER] Rendering ALK station', alkStation.stationId, 'at', alkStation.worldPosX, alkStation.worldPosY);
+            renderAlkStation(ctx, alkStation, cycleProgress, isTheClosestTarget, undefined, localPlayerPosition);
+            
+            // Draw outline only if this is THE closest interactable target
+            // Position outline around the actual building content (bottom portion of sprite)
+            if (isTheClosestTarget) {
+                const outlineColor = getInteractionOutlineColor('open');
+                // The building occupies roughly the bottom 60% of the sprite
+                // ALK_STATION_OUTLINE_WIDTH = 400, ALK_STATION_OUTLINE_HEIGHT = 500, ALK_STATION_OUTLINE_Y_OFFSET = 200
+                const outlineWidth = 400;
+                const outlineHeight = 500;
+                const outlineY = alkStation.worldPosY - 200; // Centered on the actual building
+                drawInteractionOutline(ctx, alkStation.worldPosX, outlineY, outlineWidth, outlineHeight, cycleProgress, outlineColor);
+            }
         } else if (type === 'foundation_cell') {
             const foundation = entity as SpacetimeDBFoundationCell;
             // Foundations use cell coordinates directly - renderFoundation handles conversion

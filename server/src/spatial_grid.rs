@@ -43,6 +43,8 @@ use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 // Import basalt column table trait
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
+// Import ALK station table trait
+use crate::alk::alk_station as AlkStationTableTrait;
 
 // Cell size should be larger than the largest collision radius to ensure
 // we only need to check adjacent cells. We use 8x the player radius for better performance with larger worlds.
@@ -81,6 +83,7 @@ pub enum EntityType {
     HomesteadHearth(u32), // ADDED HomesteadHearth entity type
     RuneStone(u64), // ADDED RuneStone entity type
     BasaltColumn(u64), // ADDED BasaltColumn entity type (decorative obstacle with collision)
+    AlkStation(u32), // ADDED ALK delivery station entity type (large industrial structure with collision)
     // EXCLUDED: Grass - removed for performance to fix rubber-banding issues
 }
 
@@ -132,7 +135,8 @@ impl SpatialGrid {
                             + WildAnimalTableTrait
                             + HomesteadHearthTableTrait
                             + RuneStoneTableTrait
-                            + BasaltColumnTableTrait>
+                            + BasaltColumnTableTrait
+                            + AlkStationTableTrait>
                            (db: &DB, current_time: spacetimedb::Timestamp) -> Self {
         let mut grid = Self::new();
         grid.populate_from_world(db, current_time);
@@ -219,7 +223,8 @@ impl SpatialGrid {
                             + WildAnimalTableTrait
                             + HomesteadHearthTableTrait
                             + RuneStoneTableTrait
-                            + BasaltColumnTableTrait> // ADDED BasaltColumnTableTrait to bounds
+                            + BasaltColumnTableTrait
+                            + AlkStationTableTrait>
                                  (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -344,6 +349,13 @@ impl SpatialGrid {
         for basalt in db.basalt_column().iter() {
             self.add_entity(EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y);
         }
+        
+        // Add ALK delivery stations (large industrial structures with collision)
+        for station in db.alk_station().iter() {
+            if station.is_active {
+                self.add_entity(EntityType::AlkStation(station.station_id), station.world_pos_x, station.world_pos_y);
+            }
+        }
     }
     
     // PERFORMANCE OPTIMIZED: Faster population method for high-density areas
@@ -357,7 +369,8 @@ impl SpatialGrid {
                                             + WildAnimalTableTrait
                                             + HomesteadHearthTableTrait
                                             + RuneStoneTableTrait
-                                            + BasaltColumnTableTrait>
+                                            + BasaltColumnTableTrait
+                                            + AlkStationTableTrait>
                                            (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -470,6 +483,13 @@ impl SpatialGrid {
             entities_to_add.push((EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y));
         }
         
+        // Add ALK delivery stations (large industrial structures with collision)
+        for station in db.alk_station().iter() {
+            if station.is_active {
+                entities_to_add.push((EntityType::AlkStation(station.station_id), station.world_pos_x, station.world_pos_y));
+            }
+        }
+        
         // Batch add all simple entities
         for (entity_type, x, y) in entities_to_add {
             self.add_entity(entity_type, x, y);
@@ -527,7 +547,8 @@ pub fn get_cached_spatial_grid<DB: PlayerTableTrait + TreeTableTrait + StoneTabl
                                  + WildAnimalTableTrait
                                  + HomesteadHearthTableTrait
                                  + RuneStoneTableTrait
-                                 + BasaltColumnTableTrait>
+                                 + BasaltColumnTableTrait
+                                 + AlkStationTableTrait>
                               (db: &DB, current_time: spacetimedb::Timestamp) -> &'static SpatialGrid {
     unsafe {
         // Check if we need to refresh the cache
