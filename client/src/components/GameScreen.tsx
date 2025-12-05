@@ -522,7 +522,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         }
         
         // Get player position
-        const playerPos = predictedPosition || (localPlayer ? { x: localPlayer.posX, y: localPlayer.posY } : null);
+        const playerPos = predictedPosition || (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
         if (!playerPos) return;
         
         // Check distance to station (using same threshold as interaction finder)
