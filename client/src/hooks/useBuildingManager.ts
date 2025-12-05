@@ -738,6 +738,29 @@ export const useBuildingManager = (
           return;
         }
 
+        // Check if position has grass (foundations cannot be placed on grass - must clear first)
+        const FOUNDATION_SIZE = 96; // Foundation is 96x96 pixels
+        const foundationMinX = foundationCenterX - FOUNDATION_SIZE / 2;
+        const foundationMaxX = foundationCenterX + FOUNDATION_SIZE / 2;
+        const foundationMinY = foundationCenterY - FOUNDATION_SIZE / 2;
+        const foundationMaxY = foundationCenterY + FOUNDATION_SIZE / 2;
+        
+        let hasGrassBlockingPlacement = false;
+        for (const grass of connection.db.grass.iter()) {
+          if (grass.health > 0 &&
+              grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
+              grass.posY >= foundationMinY && grass.posY <= foundationMaxY) {
+            hasGrassBlockingPlacement = true;
+            break;
+          }
+        }
+        
+        if (hasGrassBlockingPlacement) {
+          setPlacementError('Cannot place foundation on grass. Clear the grass first.');
+          playImmediateSound('construction_placement_error', 1.0);
+          return;
+        }
+
         if (isFoundationPositionOccupied(connection, cellX, cellY, foundationShape)) {
           console.log('[BuildingManager] Client-side validation: Position already occupied at', { cellX, cellY });
           setPlacementError('Position already occupied');

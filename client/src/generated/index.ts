@@ -71,6 +71,8 @@ import { CreateGeneratedBrew } from "./create_generated_brew_reducer.ts";
 export { CreateGeneratedBrew };
 import { CrushBoneItem } from "./crush_bone_item_reducer.ts";
 export { CrushBoneItem };
+import { DamageGrass } from "./damage_grass_reducer.ts";
+export { DamageGrass };
 import { DamageWildAnimal } from "./damage_wild_animal_reducer.ts";
 export { DamageWildAnimal };
 import { DebugSetSeason } from "./debug_set_season_reducer.ts";
@@ -2042,6 +2044,10 @@ const REMOTE_MODULE = {
       reducerName: "crush_bone_item",
       argsType: CrushBoneItem.getTypeScriptAlgebraicType(),
     },
+    damage_grass: {
+      reducerName: "damage_grass",
+      argsType: DamageGrass.getTypeScriptAlgebraicType(),
+    },
     damage_wild_animal: {
       reducerName: "damage_wild_animal",
       argsType: DamageWildAnimal.getTypeScriptAlgebraicType(),
@@ -3048,6 +3054,7 @@ export type Reducer = never
 | { name: "ConsumeItem", args: ConsumeItem }
 | { name: "CreateGeneratedBrew", args: CreateGeneratedBrew }
 | { name: "CrushBoneItem", args: CrushBoneItem }
+| { name: "DamageGrass", args: DamageGrass }
 | { name: "DamageWildAnimal", args: DamageWildAnimal }
 | { name: "DebugSetSeason", args: DebugSetSeason }
 | { name: "DebugSetTime", args: DebugSetTime }
@@ -3594,6 +3601,22 @@ export class RemoteReducers {
 
   removeOnCrushBoneItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
     this.connection.offReducer("crush_bone_item", callback);
+  }
+
+  damageGrass(grassId: bigint) {
+    const __args = { grassId };
+    let __writer = new __BinaryWriter(1024);
+    DamageGrass.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("damage_grass", __argsBuffer, this.setCallReducerFlags.damageGrassFlags);
+  }
+
+  onDamageGrass(callback: (ctx: ReducerEventContext, grassId: bigint) => void) {
+    this.connection.onReducer("damage_grass", callback);
+  }
+
+  removeOnDamageGrass(callback: (ctx: ReducerEventContext, grassId: bigint) => void) {
+    this.connection.offReducer("damage_grass", callback);
   }
 
   damageWildAnimal(animalId: bigint, damage: number, attackerId: __Identity) {
@@ -7405,6 +7428,11 @@ export class SetReducerFlags {
   crushBoneItemFlags: __CallReducerFlags = 'FullUpdate';
   crushBoneItem(flags: __CallReducerFlags) {
     this.crushBoneItemFlags = flags;
+  }
+
+  damageGrassFlags: __CallReducerFlags = 'FullUpdate';
+  damageGrass(flags: __CallReducerFlags) {
+    this.damageGrassFlags = flags;
   }
 
   damageWildAnimalFlags: __CallReducerFlags = 'FullUpdate';

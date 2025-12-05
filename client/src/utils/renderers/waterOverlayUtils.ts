@@ -3,90 +3,105 @@ import { TILE_SIZE } from '../../config/gameConfig';
 /**
  * Water Overlay Rendering Utilities
  * 
- * Renders bright teal horizontal lines that oscillate up and down to simulate
- * water surface reflections and light patterns on water tiles.
+ * AAA pixel art studio style water surface effects with crisp, deliberate lines,
+ * subtle color variations, and sparkle highlights. Optimized for high performance.
  */
 
+// Line visual type for varied aesthetics
+type LineVisualType = 'highlight' | 'reflection' | 'deep';
+
 interface WaterLine {
-  startX: number; // Starting point of the line
-  y: number; // Base Y position (wave movement will be added to this)
-  angle: number; // Slight rotation for natural look
-  targetLength: number; // Final length when fully grown
-  currentLength: number; // Current animated length
+  startX: number;
+  y: number;
+  targetLength: number;
+  currentLength: number;
   opacity: number;
   thickness: number;
-  growthSpeed: number; // How fast the line grows
-  growthPhase: number; // Current growth animation phase
-  growthPattern: 'center' | 'left-to-right' | 'right-to-left' | 'random'; // How line appears
-  isMainLine: boolean; // Whether this is the main line or a parallel line
-  parentId?: number; // ID of the parent line group for parallel lines
-  lifetime: number; // How long this line should exist (in seconds)
-  age: number; // How long this line has existed (in seconds)
-  baseOpacity: number; // Original opacity before fading
-  isGrowing: boolean; // Whether line is still in growth phase
-  flickerPhase: number; // For subtle opacity variation
-  wavePhase: number; // Phase offset for wave movement (matches sea stack system)
-  shimmerPhase: number; // Phase offset for shimmer intensity
+  growthSpeed: number;
+  growthPhase: number;
+  lifetime: number;
+  age: number;
+  baseOpacity: number;
+  isGrowing: boolean;
+  wavePhase: number;
+  visualType: LineVisualType; // Different line styles for visual depth
+  colorShift: number; // Subtle hue variation along line
+}
+
+// Sparkle effect for that extra polish
+interface WaterSparkle {
+  x: number;
+  y: number;
+  lifetime: number;
+  age: number;
+  size: number;
+  brightness: number;
+  pulsePhase: number;
 }
 
 interface WaterOverlayState {
   lines: WaterLine[];
+  sparkles: WaterSparkle[];
   lastUpdate: number;
   globalPhaseOffset: number;
   worldTiles: Map<string, any> | null;
 }
 
-// Water overlay configuration constants - synchronized with sea stack water effects
+// AAA Pixel Art Style Water Configuration - crisp, deliberate, polished
 const WATER_CONFIG = {
-  // Line density - very subtle for cozy atmosphere
-  LINES_PER_SCREEN_AREA: 0.3, // Further reduced for more atmospheric feel
+  // Line density - increased for better coverage
+  LINES_PER_SCREEN_AREA: 0.4, // Increased from 0.25
   
-  // Line properties - enhanced visibility above underwater shadows
-  MIN_LENGTH: 12,   // Longer for better wave visibility
-  MAX_LENGTH: 40,  // Longer lines for better wave effect
-  MIN_OPACITY: 0.6, // Increased for better visibility above shadows
-  MAX_OPACITY: 0.9,  // Higher opacity to stand out above underwater shadows
-  MIN_THICKNESS: 1,
-  MAX_THICKNESS: 1.5, // Slight thickness variation
+  // Line properties - crisp pixel art style
+  MIN_LENGTH: 8,
+  MAX_LENGTH: 32,
+  MIN_OPACITY: 0.5,
+  MAX_OPACITY: 0.85,
+  LINE_THICKNESS: 1, // Crisp 1px lines for pixel art
   
-  // Growth animation properties - much slower for cozy feel
-  MIN_GROWTH_SPEED: 1.5, // Much slower growth
-  MAX_GROWTH_SPEED: 4.0, // Much slower growth
-  GROWTH_DURATION: 0.4, // Longer growth phase for smoother appearance
+  // Growth animation - smooth and deliberate
+  MIN_GROWTH_SPEED: 2.0,
+  MAX_GROWTH_SPEED: 3.5,
   
-  // Line lifetime properties - longer lasting for atmospheric feel
-  MIN_LIFETIME: 2.0, // Much longer lifetime
-  MAX_LIFETIME: 4.0, // Longer maximum lifetime
-  FADE_DURATION: 1.0, // Slower, gentler fade
+  // Line lifetime - longer for a calmer feel
+  MIN_LIFETIME: 2.5,
+  MAX_LIFETIME: 5.0,
+  FADE_DURATION: 0.8,
   
-  // Wave movement properties - synchronized with sea stacks
-  WAVE_AMPLITUDE: 1.5, // Match sea stack amplitude
-  WAVE_FREQUENCY: 0.0008, // Match sea stack frequency for consistency
-  SHIMMER_FREQUENCY: 0.002, // Match sea stack shimmer frequency
+  // Wave movement - subtle and organic
+  WAVE_AMPLITUDE: 1.0, // Subtle vertical movement
+  WAVE_FREQUENCY: 0.0006, // Slow, deliberate waves
   
-  // Visual variety for natural look
-  MAX_ANGLE_DEVIATION: 0.05, // Less rotation for cleaner horizontal lines
-  FLICKER_SPEED: 0.8, // Slower, more gentle opacity variation
+  // Sparkle settings for that AAA polish
+  SPARKLE_DENSITY: 0.12, // Increased from 0.08 for better coverage
+  SPARKLE_SIZE_MIN: 1,
+  SPARKLE_SIZE_MAX: 2,
+  SPARKLE_LIFETIME_MIN: 0.3,
+  SPARKLE_LIFETIME_MAX: 0.8,
+  SPARKLE_PULSE_SPEED: 0.008,
   
-  // Multi-line cluster properties
-  MIN_LINES_PER_GROUP: 1,
-  MAX_LINES_PER_GROUP: 2,
-  LINE_SPACING: 2, // Slightly more spacing for cleaner look
-  HORIZONTAL_OFFSET_RANGE: 8,
+  // Color palette - sophisticated water tones
+  // Primary: Crisp cyan highlight
+  PRIMARY_COLOR: { r: 140, g: 230, b: 255 },
+  // Secondary: Deeper teal for reflections  
+  SECONDARY_COLOR: { r: 100, g: 200, b: 240 },
+  // Deep: Subtle blue for depth
+  DEEP_COLOR: { r: 80, g: 170, b: 220 },
+  // Sparkle: Bright white-cyan
+  SPARKLE_COLOR: { r: 220, g: 250, b: 255 },
   
-  // Visual properties - enhanced colors for visibility above shadows
-  WATER_LINE_COLOR: 'rgba(120, 220, 255, 0.9)', // Brighter light blue for visibility above shadows
-  WATER_LINE_GLOW_COLOR: 'rgba(180, 240, 255, 0.5)', // Brighter blue glow
+  // Screen margins - expanded for better coverage
+  SPAWN_MARGIN: 1200, // Increased from 600 - spawn effects further out
+  RENDER_MARGIN: 400, // Margin for rendering (keep effects visible longer)
   
-  // Screen margins
-  SPAWN_MARGIN: 800,
-  
-  // Global wave effect - match sea stack speed for consistency
-  GLOBAL_WAVE_SPEED: 0.0008, // Match sea stack wave frequency
+  // Global timing
+  GLOBAL_WAVE_SPEED: 0.0006,
+  BREATHING_SPEED: 0.001, // Subtle opacity breathing
 };
 
 let waterSystem: WaterOverlayState = {
   lines: [],
+  sparkles: [],
   lastUpdate: 0,
   globalPhaseOffset: 0,
   worldTiles: null,
@@ -122,7 +137,7 @@ function isPositionOnWaterTile(worldTiles: Map<string, any>, worldX: number, wor
 }
 
 /**
- * Get all water tiles in the visible camera area for more efficient spawning
+ * Get all water tiles in the visible camera area for efficient spawning
  */
 function getVisibleWaterTiles(
   worldTiles: Map<string, any>,
@@ -139,25 +154,17 @@ function getVisibleWaterTiles(
   const topBound = cameraY - canvasHeight / 2 - WATER_CONFIG.SPAWN_MARGIN;
   const bottomBound = cameraY + canvasHeight / 2 + WATER_CONFIG.SPAWN_MARGIN;
   
-  let seaTileCount = 0;
-  let visibleSeaTileCount = 0;
-  let sampleSeaTiles = 0;
-  
-  // Check all tiles in the area using the correct coordinate system
+  // Check all tiles in the area
   for (const tile of worldTiles.values()) {
     if (tile.tileType && tile.tileType.tag === 'Sea') {
-      seaTileCount++;
-      
-      // Calculate world position of this tile using correct coordinate system
-      // worldX and worldY are already in tile coordinates, convert to world pixels
-      const worldX = tile.worldX * TILE_SIZE + TILE_SIZE / 2; // Center of tile
+      // Convert tile coordinates to world pixels (center of tile)
+      const worldX = tile.worldX * TILE_SIZE + TILE_SIZE / 2;
       const worldY = tile.worldY * TILE_SIZE + TILE_SIZE / 2;
       
       // Check if tile is in visible area
       if (worldX >= leftBound && worldX <= rightBound && 
           worldY >= topBound && worldY <= bottomBound) {
         waterTiles.push({x: worldX, y: worldY});
-        visibleSeaTileCount++;
       }
     }
   }
@@ -166,130 +173,122 @@ function getVisibleWaterTiles(
 }
 
 /**
- * Creates a group of water lines (main line + parallel lines) with random properties in world space
+ * Creates a single water line with AAA pixel art styling
  * Only spawns lines on water tiles
  */
-function createWaterLineGroup(
+function createWaterLine(
   cameraX: number,
   cameraY: number,
   canvasWidth: number,
   canvasHeight: number,
   worldTiles: Map<string, any>
-): WaterLine[] {
+): WaterLine | null {
   // Get all visible water tiles for spawning
   const visibleWaterTiles = getVisibleWaterTiles(worldTiles, cameraX, cameraY, canvasWidth, canvasHeight);
   
-  // If no water tiles visible, don't spawn any lines
-  if (visibleWaterTiles.length === 0) {
-    return [];
-  }
+  if (visibleWaterTiles.length === 0) return null;
   
   // Pick a random water tile to spawn on
   const randomWaterTile = visibleWaterTiles[Math.floor(Math.random() * visibleWaterTiles.length)];
-  const mainSpawnX = randomWaterTile.x + (Math.random() - 0.5) * TILE_SIZE * 0.8; // Small random offset within tile
-  const mainSpawnY = randomWaterTile.y + (Math.random() - 0.5) * TILE_SIZE * 0.8;
+  const startX = randomWaterTile.x + (Math.random() - 0.5) * TILE_SIZE * 0.7;
+  const y = randomWaterTile.y + (Math.random() - 0.5) * TILE_SIZE * 0.7;
   
-  // Shared properties for the group
-  const baseLength = WATER_CONFIG.MIN_LENGTH + Math.random() * (WATER_CONFIG.MAX_LENGTH - WATER_CONFIG.MIN_LENGTH);
-  const baseOpacity = WATER_CONFIG.MIN_OPACITY + Math.random() * (WATER_CONFIG.MAX_OPACITY - WATER_CONFIG.MIN_OPACITY);
-  const thickness = WATER_CONFIG.MIN_THICKNESS + Math.random() * (WATER_CONFIG.MAX_THICKNESS - WATER_CONFIG.MIN_THICKNESS);
+  // Determine visual type for variety (weighted distribution)
+  const typeRoll = Math.random();
+  let visualType: LineVisualType;
+  if (typeRoll < 0.5) {
+    visualType = 'highlight'; // Most common - bright surface highlights
+  } else if (typeRoll < 0.8) {
+    visualType = 'reflection'; // Medium - teal reflections
+  } else {
+    visualType = 'deep'; // Rare - subtle deep water hints
+  }
   
-  // Shared growth properties for synchronized animation
+  // Properties based on visual type
+  let targetLength: number;
+  let baseOpacity: number;
+  
+  switch (visualType) {
+    case 'highlight':
+      targetLength = WATER_CONFIG.MIN_LENGTH + Math.random() * (WATER_CONFIG.MAX_LENGTH - WATER_CONFIG.MIN_LENGTH) * 0.7;
+      baseOpacity = WATER_CONFIG.MIN_OPACITY + Math.random() * (WATER_CONFIG.MAX_OPACITY - WATER_CONFIG.MIN_OPACITY);
+      break;
+    case 'reflection':
+      targetLength = WATER_CONFIG.MIN_LENGTH * 1.5 + Math.random() * (WATER_CONFIG.MAX_LENGTH - WATER_CONFIG.MIN_LENGTH);
+      baseOpacity = (WATER_CONFIG.MIN_OPACITY + WATER_CONFIG.MAX_OPACITY) * 0.4 + Math.random() * 0.2;
+      break;
+    case 'deep':
+      targetLength = WATER_CONFIG.MIN_LENGTH + Math.random() * WATER_CONFIG.MAX_LENGTH * 0.5;
+      baseOpacity = WATER_CONFIG.MIN_OPACITY * 0.7 + Math.random() * 0.2;
+      break;
+  }
+  
+  // Validate line end is on water
+  const endX = startX + targetLength;
+  if (!isPositionOnWaterTile(worldTiles, endX, y)) {
+    // Try shorter length
+    targetLength = targetLength * 0.5;
+    if (targetLength < WATER_CONFIG.MIN_LENGTH) return null;
+  }
+  
   const growthSpeed = WATER_CONFIG.MIN_GROWTH_SPEED + 
     Math.random() * (WATER_CONFIG.MAX_GROWTH_SPEED - WATER_CONFIG.MIN_GROWTH_SPEED);
   
-  const parentId = Math.floor(Math.random() * 1000000); // Random ID for the group
-  const lines: WaterLine[] = [];
+  const lifetime = WATER_CONFIG.MIN_LIFETIME + 
+    Math.random() * (WATER_CONFIG.MAX_LIFETIME - WATER_CONFIG.MIN_LIFETIME);
   
-  // Randomly determine how many lines in this group (1 to 2)
-  const linesInGroup = WATER_CONFIG.MIN_LINES_PER_GROUP + 
-    Math.floor(Math.random() * (WATER_CONFIG.MAX_LINES_PER_GROUP - WATER_CONFIG.MIN_LINES_PER_GROUP + 1));
-  
-  // Create the main line and parallel lines
-  for (let i = 0; i < linesInGroup; i++) {
-    const isMainLine = i === 0;
-    
-    // Calculate starting position for this line
-    let startX = mainSpawnX;
-    let lineY = mainSpawnY + (i * WATER_CONFIG.LINE_SPACING);
-    
-    // Add horizontal offset for non-main lines to create staggered effect
-    if (!isMainLine) {
-      startX += (Math.random() - 0.5) * WATER_CONFIG.HORIZONTAL_OFFSET_RANGE;
-      
-      // Validate that the offset position is still on water
-      if (!isPositionOnWaterTile(worldTiles, startX, lineY)) {
-        continue; // Skip this line if it's not on water
-      }
-    }
-    
-    // Vary target length slightly for each line
-    const lengthVariation = 0.8 + Math.random() * 0.4; // 80% to 120% of base length
-    let targetLength = baseLength * lengthVariation;
-    
-    // Validate that the line end is still on water
-    const endX = startX + targetLength;
-    if (!isPositionOnWaterTile(worldTiles, endX, lineY)) {
-      // Try shorter lengths until we find one that ends on water
-      for (let len = targetLength * 0.5; len >= WATER_CONFIG.MIN_LENGTH; len *= 0.8) {
-        if (isPositionOnWaterTile(worldTiles, startX + len, lineY)) {
-          targetLength = len;
-          break;
-        }
-      }
-      // If even short lines don't work, skip this line
-      if (targetLength < WATER_CONFIG.MIN_LENGTH) {
-        continue;
-      }
-    }
-    
-    // Vary opacity slightly for each line  
-    const opacityVariation = 0.7 + Math.random() * 0.6; // 70% to 130% of base opacity
-    const opacity = Math.min(WATER_CONFIG.MAX_OPACITY, baseOpacity * opacityVariation);
-    
-    // Slightly vary the growth speed for each line
-    const speedVariation = 0.8 + Math.random() * 0.4; // 80% to 120% of base speed
-    const lineGrowthSpeed = growthSpeed * speedVariation;
-    
-    // Random lifetime for this line - lines in a group will fade at different times
-    const lifetime = WATER_CONFIG.MIN_LIFETIME + Math.random() * (WATER_CONFIG.MAX_LIFETIME - WATER_CONFIG.MIN_LIFETIME);
-    
-    // Add organic visual variety
-    const angle = (Math.random() - 0.5) * WATER_CONFIG.MAX_ANGLE_DEVIATION;
-    const growthPatterns: Array<'center' | 'left-to-right' | 'right-to-left' | 'random'> = 
-      ['center', 'left-to-right', 'right-to-left', 'random'];
-    const growthPattern = growthPatterns[Math.floor(Math.random() * growthPatterns.length)];
-    
-    lines.push({
-      startX,
-      y: lineY,
-      angle,
-      targetLength,
-      currentLength: 0, // Start with length 0 and grow
-      opacity,
-      thickness,
-      growthSpeed: lineGrowthSpeed,
-      growthPhase: 0, // Start at beginning of growth
-      growthPattern,
-      isMainLine,
-      parentId,
-      lifetime,
-      age: 0, // Start with age 0
-      baseOpacity: opacity, // Store original opacity
-      isGrowing: true, // Start in growing state
-      flickerPhase: Math.random() * Math.PI * 2, // Random flicker start
-      wavePhase: Math.random() * Math.PI * 2, // Random wave phase offset for natural variation
-      shimmerPhase: Math.random() * Math.PI * 2, // Random shimmer phase offset
-    });
-  }
-  
-  return lines;
+  return {
+    startX,
+    y,
+    targetLength,
+    currentLength: 0,
+    opacity: baseOpacity,
+    thickness: WATER_CONFIG.LINE_THICKNESS,
+    growthSpeed,
+    growthPhase: 0,
+    lifetime,
+    age: 0,
+    baseOpacity,
+    isGrowing: true,
+    wavePhase: Math.random() * Math.PI * 2,
+    visualType,
+    colorShift: Math.random() * 0.15 - 0.075, // -7.5% to +7.5% hue shift
+  };
 }
 
 /**
- * Updates water line positions and oscillations
+ * Creates a sparkle effect at a random water position
  */
-function updateWaterLines(
+function createSparkle(
+  cameraX: number,
+  cameraY: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  worldTiles: Map<string, any>
+): WaterSparkle | null {
+  const visibleWaterTiles = getVisibleWaterTiles(worldTiles, cameraX, cameraY, canvasWidth, canvasHeight);
+  
+  if (visibleWaterTiles.length === 0) return null;
+  
+  const randomTile = visibleWaterTiles[Math.floor(Math.random() * visibleWaterTiles.length)];
+  
+  return {
+    x: randomTile.x + (Math.random() - 0.5) * TILE_SIZE * 0.8,
+    y: randomTile.y + (Math.random() - 0.5) * TILE_SIZE * 0.8,
+    lifetime: WATER_CONFIG.SPARKLE_LIFETIME_MIN + 
+      Math.random() * (WATER_CONFIG.SPARKLE_LIFETIME_MAX - WATER_CONFIG.SPARKLE_LIFETIME_MIN),
+    age: 0,
+    size: WATER_CONFIG.SPARKLE_SIZE_MIN + 
+      Math.random() * (WATER_CONFIG.SPARKLE_SIZE_MAX - WATER_CONFIG.SPARKLE_SIZE_MIN),
+    brightness: 0.7 + Math.random() * 0.3,
+    pulsePhase: Math.random() * Math.PI * 2,
+  };
+}
+
+/**
+ * Updates water lines and sparkles with smooth animations
+ */
+function updateWaterSystem(
   deltaTime: number,
   cameraX: number,
   cameraY: number,
@@ -297,299 +296,273 @@ function updateWaterLines(
   canvasHeight: number,
   worldTiles: Map<string, any> | null
 ): void {
-  // Store worldTiles in water system for later use in rendering
   waterSystem.worldTiles = worldTiles;
-  
-  // Update global wave phase for subtle synchronized movement
   waterSystem.globalPhaseOffset += deltaTime * WATER_CONFIG.GLOBAL_WAVE_SPEED;
   
-  // Calculate world space bounds for culling
+  // Culling bounds
   const cullMargin = WATER_CONFIG.SPAWN_MARGIN;
   const leftBound = cameraX - canvasWidth / 2 - cullMargin;
   const rightBound = cameraX + canvasWidth / 2 + cullMargin;
   const topBound = cameraY - canvasHeight / 2 - cullMargin;
   const bottomBound = cameraY + canvasHeight / 2 + cullMargin;
   
-  // Update existing lines
+  // Update lines (iterate backwards for safe removal)
   for (let i = waterSystem.lines.length - 1; i >= 0; i--) {
     const line = waterSystem.lines[i];
-    
-    // Update age
     line.age += deltaTime;
     
-    // Update growth animation
+    // Growth animation with smooth ease-out
     if (line.isGrowing) {
       line.growthPhase += line.growthSpeed * deltaTime;
       if (line.growthPhase >= 1.0) {
         line.growthPhase = 1.0;
         line.isGrowing = false;
       }
-      // Smooth growth using ease-out curve
-      const easedGrowth = 1.0 - Math.pow(1.0 - line.growthPhase, 3);
+      // Cubic ease-out for smooth appearance
+      const t = line.growthPhase;
+      const easedGrowth = 1 - (1 - t) * (1 - t) * (1 - t);
       line.currentLength = line.targetLength * easedGrowth;
     }
     
-    // Handle fading based on age with smooth easing
+    // Fade out at end of lifetime
     if (line.age > line.lifetime) {
-      // Start fading
       const fadeProgress = (line.age - line.lifetime) / WATER_CONFIG.FADE_DURATION;
       if (fadeProgress >= 1.0) {
-        // Completely faded, remove the line
         waterSystem.lines.splice(i, 1);
         continue;
-      } else {
-        // Smooth fade-out using ease-in-out curve
-        const easedProgress = fadeProgress * fadeProgress * (3.0 - 2.0 * fadeProgress); // Smoothstep
-        line.opacity = line.baseOpacity * (1.0 - easedProgress);
       }
+      // Smooth fade with cubic ease
+      const easedFade = fadeProgress * fadeProgress * (3.0 - 2.0 * fadeProgress);
+      line.opacity = line.baseOpacity * (1.0 - easedFade);
     }
     
-    // Remove lines that have moved too far from camera (world space culling)
-    const lineLeft = line.startX;
-    const lineRight = line.startX + line.currentLength;
-    if (lineRight < leftBound || 
-        lineLeft > rightBound ||
-        line.y < topBound ||
-        line.y > bottomBound) {
+    // Cull off-screen lines
+    if (line.startX + line.currentLength < leftBound || 
+        line.startX > rightBound ||
+        line.y < topBound || line.y > bottomBound) {
       waterSystem.lines.splice(i, 1);
     }
   }
   
-  // Calculate target line count based on visible area
+  // Update sparkles
+  for (let i = waterSystem.sparkles.length - 1; i >= 0; i--) {
+    const sparkle = waterSystem.sparkles[i];
+    sparkle.age += deltaTime;
+    
+    if (sparkle.age >= sparkle.lifetime) {
+      waterSystem.sparkles.splice(i, 1);
+      continue;
+    }
+    
+    // Cull off-screen sparkles
+    if (sparkle.x < leftBound || sparkle.x > rightBound ||
+        sparkle.y < topBound || sparkle.y > bottomBound) {
+      waterSystem.sparkles.splice(i, 1);
+    }
+  }
+  
+  // Calculate target counts
   const visibleArea = canvasWidth * canvasHeight;
-  const targetLineCount = Math.floor((visibleArea / 1000000) * WATER_CONFIG.LINES_PER_SCREEN_AREA * 1000);
+  const targetLineCount = Math.floor((visibleArea / 1000000) * WATER_CONFIG.LINES_PER_SCREEN_AREA * 800);
+  const targetSparkleCount = Math.floor((visibleArea / 1000000) * WATER_CONFIG.SPARKLE_DENSITY * 200);
   
-  // Spawn new line groups if needed
-  const currentLineCount = waterSystem.lines.length;
-  if (currentLineCount < targetLineCount) {
-    const groupsToSpawn = Math.min(10, Math.ceil((targetLineCount - currentLineCount) / WATER_CONFIG.MAX_LINES_PER_GROUP)); // Spawn max 10 groups per frame for faster coverage
-    
-    for (let i = 0; i < groupsToSpawn; i++) {
-      if (worldTiles && worldTiles.size > 0) {
-        const newLineGroup = createWaterLineGroup(cameraX, cameraY, canvasWidth, canvasHeight, worldTiles);
-        if (newLineGroup.length > 0) { // Only add if we successfully created lines on water
-          waterSystem.lines.push(...newLineGroup);
-        }
-      }
+  // Spawn new lines - increased spawn rate for better coverage
+  if (waterSystem.lines.length < targetLineCount && worldTiles && worldTiles.size > 0) {
+    const linesToSpawn = Math.min(8, targetLineCount - waterSystem.lines.length); // Increased from 5
+    for (let i = 0; i < linesToSpawn; i++) {
+      const newLine = createWaterLine(cameraX, cameraY, canvasWidth, canvasHeight, worldTiles);
+      if (newLine) waterSystem.lines.push(newLine);
     }
   }
   
-  // Remove excess lines if we have too many
-  while (waterSystem.lines.length > targetLineCount * 1.2) {
-    waterSystem.lines.pop();
-  }
-}
-
-/**
- * Checks if a point is in a sea stack underwater zone
- */
-function isPointInSeaStackUnderwaterZone(
-  x: number,
-  y: number,
-  seaStacks?: any[]
-): boolean {
-  if (!seaStacks || seaStacks.length === 0) return false;
-  
-  for (const seaStack of seaStacks) {
-    if (!seaStack || typeof seaStack.posX !== 'number' || typeof seaStack.posY !== 'number') continue;
-    
-    // Sea stack underwater zone parameters (matching seaStackRenderingUtils.ts)
-    const WATER_LINE_HEIGHT_OFFSET = 55; // Height up from base where water line is
-    const BASE_WIDTH = 400; // Base sea stack width
-    const scale = seaStack.scale || 1.0;
-    const width = BASE_WIDTH * scale;
-    
-    // Calculate underwater zone bounds
-    const seaStackCenterX = seaStack.posX;
-    const seaStackBaseY = seaStack.posY;
-    const waterLineY = seaStackBaseY - WATER_LINE_HEIGHT_OFFSET;
-    
-    // Check if point is horizontally within sea stack width
-    const leftBound = seaStackCenterX - width / 2;
-    const rightBound = seaStackCenterX + width / 2;
-    
-    // Check if point is vertically in the underwater zone (below water line)
-    if (x >= leftBound && x <= rightBound && y >= waterLineY) {
-      return true;
+  // Spawn new sparkles - increased spawn rate for better coverage
+  if (waterSystem.sparkles.length < targetSparkleCount && worldTiles && worldTiles.size > 0) {
+    const sparklesToSpawn = Math.min(5, targetSparkleCount - waterSystem.sparkles.length); // Increased from 3
+    for (let i = 0; i < sparklesToSpawn; i++) {
+      const newSparkle = createSparkle(cameraX, cameraY, canvasWidth, canvasHeight, worldTiles);
+      if (newSparkle) waterSystem.sparkles.push(newSparkle);
     }
   }
   
-  return false;
+  // Cap maximums for performance
+  while (waterSystem.lines.length > targetLineCount * 1.3) waterSystem.lines.pop();
+  while (waterSystem.sparkles.length > targetSparkleCount * 1.3) waterSystem.sparkles.pop();
 }
 
 /**
- * Checks if a point is in a swimming player underwater zone (bottom 50% of sprite)
+ * Gets the color for a line based on its visual type with subtle variation
  */
-function isPointInSwimmingPlayerUnderwaterZone(
-  x: number,
-  y: number,
-  swimmingPlayers?: SwimmingPlayerData[]
-): boolean {
-  if (!swimmingPlayers || swimmingPlayers.length === 0) return false;
+function getLineColor(line: WaterLine, breathingFactor: number): { r: number; g: number; b: number } {
+  let baseColor: { r: number; g: number; b: number };
   
-  for (const player of swimmingPlayers) {
-    if (!player.isSwimming) continue;
-    
-    // Player sprite bounds
-    const playerLeft = player.x - player.width / 2;
-    const playerRight = player.x + player.width / 2;
-    const playerTop = player.y - player.height / 2;
-    const playerBottom = player.y + player.height / 2;
-    
-    // Check if point is within player bounds
-    if (x >= playerLeft && x <= playerRight && y >= playerTop && y <= playerBottom) {
-      // Check if point is in the underwater portion (bottom 50% of sprite)
-      const waterLineY = playerTop + player.height * 0.5; // 50% down from top
-      if (y >= waterLineY) {
-        return true; // Point is in underwater zone
-      }
-    }
+  switch (line.visualType) {
+    case 'highlight':
+      baseColor = WATER_CONFIG.PRIMARY_COLOR;
+      break;
+    case 'reflection':
+      baseColor = WATER_CONFIG.SECONDARY_COLOR;
+      break;
+    case 'deep':
+      baseColor = WATER_CONFIG.DEEP_COLOR;
+      break;
   }
   
-  return false;
+  // Apply subtle color shift for variation
+  const shift = line.colorShift;
+  return {
+    r: Math.min(255, Math.max(0, baseColor.r + baseColor.r * shift)),
+    g: Math.min(255, Math.max(0, baseColor.g + baseColor.g * shift * 0.5)),
+    b: Math.min(255, Math.max(0, baseColor.b + baseColor.b * shift * 0.3)),
+  };
 }
 
 /**
- * Renders water lines on the canvas with wave movement and shimmer effects
+ * Renders water effects with AAA pixel art style - crisp lines and sparkles
  */
-function renderWaterLines(
+function renderWaterEffects(
   ctx: CanvasRenderingContext2D,
   cameraX: number,
   cameraY: number,
   canvasWidth: number,
   canvasHeight: number
 ): void {
-  if (waterSystem.lines.length === 0) return;
+  if (waterSystem.lines.length === 0 && waterSystem.sparkles.length === 0) return;
   
   ctx.save();
-  
-  // Ensure water lines render on top with proper blending
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1.0;
-  
-  // Set line cap for smoother lines
-  ctx.lineCap = 'round';
   
   const currentTime = Date.now();
   
-  // Render lines with wave movement and glow effect
-  waterSystem.lines.forEach((line, index) => {
-    // Calculate base wave movement (synchronized with sea stacks)
-    const baseWaveOffset = Math.sin(currentTime * WATER_CONFIG.WAVE_FREQUENCY + line.wavePhase + line.startX * 0.01) * WATER_CONFIG.WAVE_AMPLITUDE;
-    
-    // Calculate shimmer intensity (synchronized with sea stacks)
-    const shimmerIntensity = (Math.sin(currentTime * WATER_CONFIG.SHIMMER_FREQUENCY + line.shimmerPhase) + 1) * 0.5;
-    
-    // In world space, calculate line positions
-    const lineStartX = line.startX;
-    const lineEndX = line.startX + line.currentLength;
-    const baseY = line.y;
-    
-    // Check if line is visible in the camera view (world space culling)
-    const cullMargin = 800;
-    const cameraLeft = cameraX - canvasWidth / 2 - cullMargin;
-    const cameraRight = cameraX + canvasWidth / 2 + cullMargin;
-    const cameraTop = cameraY - canvasHeight / 2 - cullMargin;
-    const cameraBottom = cameraY + canvasHeight / 2 + cullMargin;
-    
-    if (lineEndX < cameraLeft || lineStartX > cameraRight || 
-        baseY < cameraTop - 10 || baseY > cameraBottom + 10) {
-      return; // Skip this line
+  // Global breathing effect for subtle life
+  const breathingFactor = (Math.sin(currentTime * WATER_CONFIG.BREATHING_SPEED) + 1) * 0.5;
+  
+  // Camera bounds for rendering - expanded margin to keep effects visible longer
+  const renderMargin = WATER_CONFIG.RENDER_MARGIN;
+  const cameraLeft = cameraX - canvasWidth - renderMargin;
+  const cameraRight = cameraX + canvasWidth + renderMargin;
+  const cameraTop = cameraY - canvasHeight - renderMargin;
+  const cameraBottom = cameraY + canvasHeight + renderMargin;
+  
+  // === RENDER LINES ===
+  // Set up for crisp pixel art lines
+  ctx.lineCap = 'butt'; // Crisp ends for pixel art
+  ctx.lineJoin = 'miter';
+  
+  for (const line of waterSystem.lines) {
+    // Quick culling check
+    if (line.startX + line.currentLength < cameraLeft || 
+        line.startX > cameraRight ||
+        line.y < cameraTop || line.y > cameraBottom) {
+      continue;
     }
     
-    // Check if line is on a water tile
-    const lineMidX = (lineStartX + lineEndX) / 2;
-    const lineMidY = baseY;
-    const isOnWaterTile = waterSystem.worldTiles ? 
-      isPositionOnWaterTile(waterSystem.worldTiles, lineMidX, lineMidY) : false;
-    
-    // Only render if line is on a water tile
-    if (!isOnWaterTile) {
-      return; // Skip this line - not on water
+    // Verify still on water
+    const midX = line.startX + line.currentLength * 0.5;
+    if (waterSystem.worldTiles && !isPositionOnWaterTile(waterSystem.worldTiles, midX, line.y)) {
+      continue;
     }
     
-    // Create wavy line points (exactly like sea stacks)
-    const wavePoints: Array<{x: number, y: number}> = [];
-    const pointSpacing = 4; // Distance between wave points
-    const numPoints = Math.floor(line.currentLength / pointSpacing) + 1;
+    // Calculate wave offset - subtle and smooth
+    const waveOffset = Math.sin(
+      currentTime * WATER_CONFIG.WAVE_FREQUENCY + 
+      line.wavePhase + 
+      line.startX * 0.005
+    ) * WATER_CONFIG.WAVE_AMPLITUDE;
     
-    for (let i = 0; i < numPoints; i++) {
-      const x = lineStartX + (i * pointSpacing);
-      if (x > lineEndX) break;
+    // Calculate final opacity with breathing
+    const breathingMod = 0.85 + breathingFactor * 0.15;
+    const finalOpacity = line.opacity * breathingMod;
+    
+    // Get color for this line type
+    const color = getLineColor(line, breathingFactor);
+    
+    // Calculate line position with wave
+    const y = line.y + waveOffset;
+    const startX = line.startX;
+    const endX = line.startX + line.currentLength;
+    
+    // For pixel art: Draw main crisp line
+    ctx.globalAlpha = finalOpacity;
+    ctx.strokeStyle = `rgb(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)})`;
+    ctx.lineWidth = line.thickness;
+    
+    ctx.beginPath();
+    ctx.moveTo(Math.round(startX), Math.round(y));
+    ctx.lineTo(Math.round(endX), Math.round(y));
+    ctx.stroke();
+    
+    // Add subtle highlight above for depth (only for highlight type)
+    if (line.visualType === 'highlight' && finalOpacity > 0.5) {
+      ctx.globalAlpha = finalOpacity * 0.3;
+      ctx.strokeStyle = `rgb(${Math.min(255, color.r + 40)}, ${Math.min(255, color.g + 20)}, ${Math.min(255, color.b + 10)})`;
+      ctx.lineWidth = 1;
       
-      // Apply wave exactly like sea stacks: baseWaveOffset + local variation
-      const localWaveOffset = baseWaveOffset + Math.sin(currentTime * WATER_CONFIG.WAVE_FREQUENCY * 3 + i * 0.3) * 1;
-      const y = baseY + localWaveOffset;
-      
-      wavePoints.push({x, y});
-    }
-    
-    // Ensure we have the end point
-    if (wavePoints.length > 0 && wavePoints[wavePoints.length - 1].x < lineEndX) {
-      const lastIndex = wavePoints.length;
-      const localWaveOffset = baseWaveOffset + Math.sin(currentTime * WATER_CONFIG.WAVE_FREQUENCY * 3 + lastIndex * 0.3) * 1;
-      wavePoints.push({x: lineEndX, y: baseY + localWaveOffset});
-    }
-    
-    // Create glow effect (like sea stacks)
-    const glowPasses = [
-      { 
-        color: WATER_CONFIG.WATER_LINE_GLOW_COLOR, 
-        width: line.thickness + 1, 
-        alpha: line.opacity * 0.3 
-      },
-      { 
-        color: WATER_CONFIG.WATER_LINE_COLOR, 
-        width: line.thickness, 
-        alpha: line.opacity * (0.6 + shimmerIntensity * 0.3) 
-      }
-    ];
-    
-    // Add shimmer highlights (like sea stacks)
-    if (shimmerIntensity > 0.7) {
-      glowPasses.push({
-        color: 'rgba(255, 255, 255, ' + ((shimmerIntensity - 0.7) * 2) + ')',
-        width: 1,
-        alpha: 1
-      });
-    }
-    
-    glowPasses.forEach(pass => {
-      ctx.strokeStyle = pass.color;
-      ctx.globalAlpha = pass.alpha;
-      ctx.lineWidth = pass.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
-      // Draw the wavy line following the points (exactly like sea stacks)
       ctx.beginPath();
-      wavePoints.forEach((point, index) => {
-        if (index === 0) {
-          ctx.moveTo(point.x, point.y);
-        } else {
-          ctx.lineTo(point.x, point.y);
-        }
-      });
+      ctx.moveTo(Math.round(startX + 1), Math.round(y - 1));
+      ctx.lineTo(Math.round(endX - 1), Math.round(y - 1));
       ctx.stroke();
-    });
-  });
+    }
+  }
+  
+  // === RENDER SPARKLES ===
+  for (const sparkle of waterSystem.sparkles) {
+    // Quick culling
+    if (sparkle.x < cameraLeft || sparkle.x > cameraRight ||
+        sparkle.y < cameraTop || sparkle.y > cameraBottom) {
+      continue;
+    }
+    
+    // Verify on water
+    if (waterSystem.worldTiles && !isPositionOnWaterTile(waterSystem.worldTiles, sparkle.x, sparkle.y)) {
+      continue;
+    }
+    
+    // Calculate sparkle opacity with pulse and lifetime
+    const lifeProgress = sparkle.age / sparkle.lifetime;
+    // Quick fade in, hold, quick fade out
+    let lifeFade: number;
+    if (lifeProgress < 0.15) {
+      lifeFade = lifeProgress / 0.15; // Fade in
+    } else if (lifeProgress > 0.7) {
+      lifeFade = 1 - (lifeProgress - 0.7) / 0.3; // Fade out
+    } else {
+      lifeFade = 1.0; // Full brightness
+    }
+    
+    // Pulse effect
+    const pulseIntensity = (Math.sin(currentTime * WATER_CONFIG.SPARKLE_PULSE_SPEED + sparkle.pulsePhase) + 1) * 0.5;
+    const finalSparkleOpacity = sparkle.brightness * lifeFade * (0.7 + pulseIntensity * 0.3);
+    
+    if (finalSparkleOpacity < 0.1) continue;
+    
+    const { SPARKLE_COLOR } = WATER_CONFIG;
+    const x = Math.round(sparkle.x);
+    const y = Math.round(sparkle.y);
+    const size = Math.round(sparkle.size);
+    
+    // Draw sparkle as crisp pixel art cross/diamond
+    ctx.globalAlpha = finalSparkleOpacity;
+    ctx.fillStyle = `rgb(${SPARKLE_COLOR.r}, ${SPARKLE_COLOR.g}, ${SPARKLE_COLOR.b})`;
+    
+    // Center pixel (always)
+    ctx.fillRect(x, y, 1, 1);
+    
+    // Extended sparkle for larger sizes
+    if (size >= 2) {
+      ctx.globalAlpha = finalSparkleOpacity * 0.6;
+      ctx.fillRect(x - 1, y, 1, 1); // Left
+      ctx.fillRect(x + 1, y, 1, 1); // Right
+      ctx.fillRect(x, y - 1, 1, 1); // Top
+      ctx.fillRect(x, y + 1, 1, 1); // Bottom
+    }
+  }
   
   ctx.restore();
 }
 
 /**
- * Interface for swimming player data used in water line clipping
- */
-interface SwimmingPlayerData {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  isSwimming: boolean;
-}
-
-/**
  * Main water overlay rendering function to be called from the game loop
+ * AAA pixel art style water surface effects
  */
 export function renderWaterOverlay(
   ctx: CanvasRenderingContext2D,
@@ -597,42 +570,49 @@ export function renderWaterOverlay(
   cameraY: number,
   canvasWidth: number,
   canvasHeight: number,
-  deltaTime: number, // in seconds
-  worldTiles?: Map<string, any> // World tiles data for water detection
+  deltaTime: number,
+  worldTiles?: Map<string, any>
 ): void {
-  // Update water system with worldTiles
-  updateWaterLines(deltaTime, cameraX, cameraY, canvasWidth, canvasHeight, worldTiles || null);
+  // Update water system state
+  updateWaterSystem(deltaTime, cameraX, cameraY, canvasWidth, canvasHeight, worldTiles || null);
   
-  // Render water lines with consistent timing - simple water tile only rendering
-  renderWaterLines(ctx, cameraX, cameraY, canvasWidth, canvasHeight);
+  // Render with AAA pixel art style
+  renderWaterEffects(ctx, cameraX, cameraY, canvasWidth, canvasHeight);
 }
 
 /**
- * Clears all water lines (useful for immediate scene changes)
+ * Clears all water effects (useful for scene transitions)
  */
 export function clearWaterOverlay(): void {
   waterSystem.lines = [];
+  waterSystem.sparkles = [];
 }
 
 /**
- * Gets current water line count (for debugging)
+ * Gets current effect counts (for debugging)
  */
 export function getWaterLineCount(): number {
   return waterSystem.lines.length;
 }
 
+export function getWaterSparkleCount(): number {
+  return waterSystem.sparkles.length;
+}
+
 /**
- * Sets water overlay intensity (for future use with dynamic water effects)
+ * Sets water overlay intensity (0-1)
+ * Affects opacity and sparkle frequency
  */
 export function setWaterOverlayIntensity(intensity: number): void {
-  // Clamp intensity between 0 and 1
   const clampedIntensity = Math.max(0, Math.min(1, intensity));
   
-  // Adjust line density based on intensity
-  // This could be expanded to modify other properties like opacity, oscillation speed, etc.
-  waterSystem.lines.forEach(line => {
-    line.opacity = (WATER_CONFIG.MIN_OPACITY + 
-      (WATER_CONFIG.MAX_OPACITY - WATER_CONFIG.MIN_OPACITY) * clampedIntensity) * 
-      (0.8 + Math.random() * 0.4); // Add some variation
-  });
+  // Adjust existing line opacities
+  for (const line of waterSystem.lines) {
+    line.opacity = line.baseOpacity * clampedIntensity;
+  }
+  
+  // Adjust sparkle brightness
+  for (const sparkle of waterSystem.sparkles) {
+    sparkle.brightness = (0.7 + Math.random() * 0.3) * clampedIntensity;
+  }
 } 

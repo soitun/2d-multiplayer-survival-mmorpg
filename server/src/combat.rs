@@ -28,14 +28,14 @@ use crate::rune_stone;
 use crate::wooden_storage_box;
 use crate::player_corpse;
 use crate::broth_pot::{broth_pot, broth_pot_processing_schedule};
-// REMOVED: grass module import - grass collision detection removed for performance
+use crate::grass; // RE-ADDED: grass module for destroyable grass
 
 // Specific constants needed
 use crate::tree::{MIN_TREE_RESPAWN_TIME_SECS, MAX_TREE_RESPAWN_TIME_SECS, TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED, TREE_INITIAL_HEALTH};
 use crate::stone::{MIN_STONE_RESPAWN_TIME_SECS, MAX_STONE_RESPAWN_TIME_SECS, STONE_COLLISION_Y_OFFSET, PLAYER_STONE_COLLISION_DISTANCE_SQUARED};
 use crate::rune_stone::{RUNE_STONE_COLLISION_Y_OFFSET, PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED};
 use crate::wooden_storage_box::{WoodenStorageBox, BOX_COLLISION_RADIUS, BOX_COLLISION_Y_OFFSET, wooden_storage_box as WoodenStorageBoxTableTrait};
-// REMOVED: grass table trait import - grass collision detection removed for performance
+use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for destroyable grass
 
 // Table trait imports for database access
 use crate::tree::tree as TreeTableTrait;
@@ -106,7 +106,7 @@ pub enum TargetId {
     Stash(u32),
     SleepingBag(u32),
     PlayerCorpse(u32),
-    // REMOVED: Grass(u64) - grass collision detection removed for performance
+    Grass(u64), // RE-ADDED: Grass target for destroyable grass
     Shelter(u32),
     RainCollector(u32), // ADDED: Rain collector target
     Furnace(u32), // ADDED: Furnace target
@@ -584,8 +584,57 @@ pub fn find_targets_in_cone(
         }
     }
 
-    // REMOVED: Grass collision detection to fix rubber-banding performance issues
-    // Grass entities are no longer processed for combat targeting
+    // RE-ADDED: Grass collision detection using chunk-based querying for efficiency
+    // Only check grass in player's chunk and adjacent chunks for performance
+    let player_chunk_index = crate::environment::calculate_chunk_index(player.position_x, player.position_y);
+    let chunks_per_row = crate::environment::WORLD_WIDTH_CHUNKS;
+    
+    // Calculate adjacent chunk indices (handling boundaries)
+    let mut chunk_indices_to_check = vec![player_chunk_index];
+    
+    // Add adjacent chunks (left, right, top, bottom, and diagonals)
+    if player_chunk_index > 0 && player_chunk_index % chunks_per_row > 0 {
+        chunk_indices_to_check.push(player_chunk_index - 1); // Left
+    }
+    if (player_chunk_index + 1) % chunks_per_row > 0 {
+        chunk_indices_to_check.push(player_chunk_index + 1); // Right
+    }
+    if player_chunk_index >= chunks_per_row {
+        chunk_indices_to_check.push(player_chunk_index - chunks_per_row); // Top
+    }
+    chunk_indices_to_check.push(player_chunk_index + chunks_per_row); // Bottom (always safe - array bounds checked later)
+    
+    // Check grass only in nearby chunks (efficient chunk-based query)
+    for chunk_idx in chunk_indices_to_check {
+        for grass_entity in ctx.db.grass().chunk_index().filter(chunk_idx) {
+            // Skip dead grass or brambles (indestructible)
+            if grass_entity.health == 0 || grass_entity.appearance_type.is_bramble() {
+                continue;
+            }
+            
+            let dx = grass_entity.pos_x - player.position_x;
+            let dy = grass_entity.pos_y - player.position_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            // Use grass interaction distance from grass module
+            if dist_sq < grass::GRASS_INTERACTION_DISTANCE_SQ && dist_sq > 0.0 {
+                let distance = dist_sq.sqrt();
+                let target_vec_x = dx / distance;
+                let target_vec_y = dy / distance;
+                
+                let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
+                let angle_rad = dot_product.acos();
+                
+                if angle_rad <= half_attack_angle_rad {
+                    targets.push(Target {
+                        target_type: TargetType::Tree, // Grass uses Tree target type (resource)
+                        id: TargetId::Grass(grass_entity.id),
+                        distance_sq: dist_sq,
+                    });
+                }
+            }
+        }
+    }
     
     // Check rain collectors
     for rain_collector_entity in ctx.db.rain_collector().iter() {
@@ -2709,7 +2758,13 @@ pub fn process_attack(
                 return Err("Target corpse not found".to_string());
             }
         },
-        // REMOVED: Grass position lookup - grass collision detection removed for performance
+        TargetId::Grass(grass_id) => {
+            if let Some(grass_entity) = ctx.db.grass().id().find(grass_id) {
+                (grass_entity.pos_x, grass_entity.pos_y, None) // Grass has no associated player
+            } else {
+                return Err("Target grass not found".to_string());
+            }
+        },
         TargetId::Shelter(shelter_id) => {
             if let Some(shelter) = ctx.db.shelter().id().find(shelter_id) {
                 // Use shelter module function to get target coordinates
@@ -2920,7 +2975,21 @@ pub fn process_attack(
             // Removed harvest_power from the call, pass item_def instead
             damage_player_corpse(ctx, attacker_id, *corpse_id, damage, item_def, timestamp, rng)
         },
-        // REMOVED: Grass damage routing - grass collision detection removed for performance
+        TargetId::Grass(grass_id) => {
+            // Route grass damage through the grass module's damage_grass reducer
+            // We call the inner function directly since we're already in a reducer context
+            match grass::damage_grass(ctx, *grass_id) {
+                Ok(_) => Ok(AttackResult {
+                    hit: true,
+                    target_type: Some(TargetType::Tree), // Grass uses Tree type
+                    resource_granted: None, // Drops handled by damage_grass reducer
+                }),
+                Err(e) => {
+                    log::warn!("Failed to damage grass {}: {}", grass_id, e);
+                    Err(e)
+                }
+            }
+        },
         TargetId::Shelter(shelter_id) => {
             crate::shelter::damage_shelter(ctx, attacker_id, *shelter_id, damage, timestamp, rng)
         },

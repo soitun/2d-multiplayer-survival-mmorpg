@@ -450,6 +450,21 @@ function isFoundationPlacementValid(
         return false;
     }
 
+    // Check if position has grass (foundations cannot be placed on grass - must clear first)
+    const FOUNDATION_SIZE = 96; // Foundation is 96x96 pixels
+    const foundationMinX = worldX - FOUNDATION_SIZE / 2;
+    const foundationMaxX = worldX + FOUNDATION_SIZE / 2;
+    const foundationMinY = worldY - FOUNDATION_SIZE / 2;
+    const foundationMaxY = worldY + FOUNDATION_SIZE / 2;
+    
+    for (const grass of connection.db.grass.iter()) {
+        if (grass.health > 0 &&
+            grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
+            grass.posY >= foundationMinY && grass.posY <= foundationMaxY) {
+            return false; // Grass is blocking placement
+        }
+    }
+
     // Check if position is near monuments (rune stones, hot springs, quarries) - 800px radius
     const MONUMENT_RESTRICTION_RADIUS = 800.0;
     const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;

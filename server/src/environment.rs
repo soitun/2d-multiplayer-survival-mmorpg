@@ -2336,12 +2336,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_wild_animal_count, target_wild_animal_count, wild_animal_attempts
     );
 
-    // --- Seed Grass --- OPTIMIZED: No grass-to-grass distance check, biome-filtered (Grass/Forest only)
-    // REMOVED O(n²) grass distance check - grass can overlap, it's decorative
-    // ADDED biome filtering - only spawn on Grass and Forest tiles (no Tundra/Alpine)
+    // --- Seed Grass --- OPTIMIZED: Simple noise-based spawning on Grass/Forest tiles
+    // REVERTED from plains detection (too intensive) back to efficient random sampling
     log::info!("Seeding Grass (optimized - Grass/Forest tiles only)...");
     
-    // Get world tiles handle for biome checking (reuse from earlier scope)
+    // Get world tiles handle for biome checking
     let world_tiles_for_biome = ctx.db.world_tile();
     
     while spawned_grass_count < target_grass_count && grass_attempts < max_grass_attempts {
@@ -2383,9 +2382,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             continue;
         }
 
-        // REMOVED: Grass-to-grass distance check (was O(n²) - main performance killer)
-        // Grass is small decorative elements, overlapping is fine and looks natural
-
         // Distance check from trees (O(n) where n = tree count, reasonable)
         let too_close_to_tree = spawned_tree_positions.iter().any(|(tx, ty)| {
             let dx = pos_x - tx;
@@ -2411,7 +2407,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         let sway_speed = rng.gen_range(0.5..2.0);
         
         // Choose grass appearance type with weighted distribution
-        // Updated to include PatchD and PatchE
         let appearance_roll: f64 = rng.gen_range(0.0..1.0);
         let appearance_type = if appearance_roll < 0.2 {
             GrassAppearanceType::PatchA
@@ -2461,21 +2456,27 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_grass_count, target_grass_count, grass_attempts
     );
 
-    // --- Seed Water Foliage (Lily Pads, Algae Mats, Bulrushes) on Inland Sea Tiles ---
+    // --- Seed Water Foliage (Lily Pads, Algae Mats, Bulrushes, ReedBedsA, SeaweedForest) on Inland Sea Tiles ---
     log::info!("Seeding Water Foliage (inland sea tiles only)...");
     
     // Count inland water tiles (Sea tiles that are inland, not coastal)
+    // Use the same pattern as grass spawning - iterate through all tiles
     let mut inland_water_tile_count = 0u32;
-    for tile in world_tiles_for_biome.iter() {
+    let world_tiles_for_water = ctx.db.world_tile();
+    for tile in world_tiles_for_water.iter() {
         if tile.tile_type == TileType::Sea && is_tile_inland_water(ctx, tile.world_x, tile.world_y) {
             inland_water_tile_count += 1;
         }
     }
     
+    log::info!("Found {} inland water tiles for water foliage spawning", inland_water_tile_count);
+    
     // Target ~8% of inland water tiles for water foliage
     const WATER_FOLIAGE_DENSITY_PERCENT: f32 = 0.08;
     let target_water_foliage_count = (inland_water_tile_count as f32 * WATER_FOLIAGE_DENSITY_PERCENT) as u32;
-    let max_water_foliage_attempts = target_water_foliage_count * 4; // 4x attempts factor
+    let max_water_foliage_attempts = target_water_foliage_count.max(100) * 4; // At least 100 attempts, or 4x target
+    
+    log::info!("Target: {} water foliage entities (max attempts: {})", target_water_foliage_count, max_water_foliage_attempts);
     
     let mut spawned_water_foliage_count = 0u32;
     let mut water_foliage_attempts = 0u32;
@@ -2489,7 +2490,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         
         // Check if this is an inland Sea tile
         let mut is_inland_sea = false;
-        for tile in world_tiles_for_biome.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+        for tile in world_tiles_for_water.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
             if tile.tile_type == TileType::Sea && is_tile_inland_water(ctx, tile_x as i32, tile_y as i32) {
                 is_inland_sea = true;
             }

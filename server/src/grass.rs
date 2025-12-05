@@ -1,6 +1,21 @@
-use spacetimedb::{SpacetimeType, Timestamp, Table};
+use spacetimedb::{SpacetimeType, Timestamp, Table, ReducerContext, Identity, TimeDuration};
+use rand::Rng;
+
+// Import table traits
+use crate::player as PlayerTableTrait;
+use crate::items::item_definition as ItemDefinitionTableTrait;
+use crate::tree::tree as TreeTableTrait;
+use crate::stone::stone as StoneTableTrait;
+use crate::building::foundation_cell as FoundationCellTableTrait;
 
 // --- Grass-Specific Constants ---
+
+// Plant Fiber Drop Constants
+pub(crate) const PLANT_FIBER_DROP_CHANCE: f32 = 0.005; // 0.5% chance to drop fiber
+pub(crate) const PLANT_FIBER_MIN_DROP: u32 = 10; // Minimum fiber dropped
+pub(crate) const PLANT_FIBER_MAX_DROP: u32 = 15; // Maximum fiber dropped
+pub(crate) const GRASS_INTERACTION_DISTANCE: f32 = 80.0; // Max distance to interact with grass
+pub(crate) const GRASS_INTERACTION_DISTANCE_SQ: f32 = GRASS_INTERACTION_DISTANCE * GRASS_INTERACTION_DISTANCE;
 
 // Grass Spawning Parameters - Optimized for dense "seas" of grass
 pub(crate) const GRASS_DENSITY_PERCENT: f32 = 0.18; // Used for noise-based density calculation
@@ -138,6 +153,54 @@ pub fn process_grass_respawn(ctx: &spacetimedb::ReducerContext, schedule_entry: 
 
     let data = schedule_entry.respawn_data;
     
+    // Check for collision with entities and foundations before respawning
+    // Check proximity to trees
+    let trees = ctx.db.tree();
+    for tree in trees.iter() {
+        if tree.health > 0 {
+            let dx = data.pos_x - tree.pos_x;
+            let dy = data.pos_y - tree.pos_y;
+            if dx * dx + dy * dy < MIN_GRASS_TREE_DISTANCE_SQ {
+                log::info!("Grass respawn at ({}, {}) blocked by tree, skipping", data.pos_x, data.pos_y);
+                return Ok(()); // Skip respawn - blocked by tree
+            }
+        }
+    }
+    
+    // Check proximity to stones
+    let stones = ctx.db.stone();
+    for stone in stones.iter() {
+        if stone.health > 0 {
+            let dx = data.pos_x - stone.pos_x;
+            let dy = data.pos_y - stone.pos_y;
+            if dx * dx + dy * dy < MIN_GRASS_STONE_DISTANCE_SQ {
+                log::info!("Grass respawn at ({}, {}) blocked by stone, skipping", data.pos_x, data.pos_y);
+                return Ok(()); // Skip respawn - blocked by stone
+            }
+        }
+    }
+    
+    // Check proximity to foundations (48px buffer)
+    const MIN_GRASS_FOUNDATION_DISTANCE_SQ: f32 = 48.0 * 48.0;
+    let foundations = ctx.db.foundation_cell();
+    let grass_tile_x = (data.pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let grass_tile_y = (data.pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check nearby foundation cells (2 cell radius)
+    for offset_x in -2..=2 {
+        for offset_y in -2..=2 {
+            let check_x = grass_tile_x + offset_x;
+            let check_y = grass_tile_y + offset_y;
+            
+            for foundation in foundations.idx_cell_coords().filter((check_x, check_y)) {
+                if !foundation.is_destroyed {
+                    log::info!("Grass respawn at ({}, {}) blocked by foundation, skipping", data.pos_x, data.pos_y);
+                    return Ok(()); // Skip respawn - blocked by foundation
+                }
+            }
+        }
+    }
+    
     // Re-insert the grass entity into the main Grass table
     // The new grass entity will get a new `id` due to `#[auto_inc]` on Grass.id
     match ctx.db.grass().try_insert(crate::grass::Grass {
@@ -164,5 +227,120 @@ pub fn process_grass_respawn(ctx: &spacetimedb::ReducerContext, schedule_entry: 
             // but for now, just log the error.
         }
     }
+    Ok(())
+}
+
+/// Damage grass entity - called when player attacks grass
+/// Destroys grass (1 HP), schedules respawn, and has 0.5% chance to drop 10-15 Plant Fiber
+#[spacetimedb::reducer]
+pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let grass_table = ctx.db.grass();
+    let players = ctx.db.player();
+    
+    // 1. Validate player
+    let player = players.identity().find(&sender_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    if player.is_dead {
+        return Err("Cannot interact with grass while dead.".to_string());
+    }
+    
+    if player.is_knocked_out {
+        return Err("Cannot interact with grass while knocked out.".to_string());
+    }
+    
+    // 2. Find the grass entity
+    let mut grass = grass_table.id().find(grass_id)
+        .ok_or_else(|| format!("Grass entity {} not found", grass_id))?;
+    
+    // 3. Check if grass is alive
+    if grass.health == 0 {
+        return Err("Grass is already destroyed.".to_string());
+    }
+    
+    // 4. Check if grass is a bramble (indestructible)
+    if grass.appearance_type.is_bramble() {
+        return Err("Brambles cannot be destroyed.".to_string());
+    }
+    
+    // 5. Check proximity to player
+    let dx = player.position_x - grass.pos_x;
+    let dy = player.position_y - grass.pos_y;
+    let dist_sq = dx * dx + dy * dy;
+    
+    if dist_sq > GRASS_INTERACTION_DISTANCE_SQ {
+        return Err("Too far from grass to interact.".to_string());
+    }
+    
+    // 6. Damage the grass (1 HP = instant destroy)
+    grass.health = 0;
+    grass.last_hit_time = Some(ctx.timestamp);
+    
+    // 7. Schedule respawn
+    let respawn_secs = ctx.rng().gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
+    let respawn_time = ctx.timestamp + TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
+    
+    // Store respawn data
+    let respawn_data = GrassRespawnData {
+        pos_x: grass.pos_x,
+        pos_y: grass.pos_y,
+        appearance_type: grass.appearance_type.clone(),
+        chunk_index: grass.chunk_index,
+        sway_offset_seed: grass.sway_offset_seed,
+        sway_speed: grass.sway_speed,
+    };
+    
+    // Schedule the respawn
+    match ctx.db.grass_respawn_schedule().try_insert(GrassRespawnSchedule {
+        schedule_id: 0, // Auto-inc
+        respawn_data,
+        scheduled_at: spacetimedb::ScheduleAt::Time(respawn_time),
+    }) {
+        Ok(_) => {
+            log::info!("Scheduled grass {} respawn in {} seconds", grass_id, respawn_secs);
+        }
+        Err(e) => {
+            log::error!("Failed to schedule grass respawn: {}", e);
+        }
+    }
+    
+    // 8. Delete the grass entity (it's destroyed)
+    let grass_pos_x = grass.pos_x;
+    let grass_pos_y = grass.pos_y;
+    grass_table.id().delete(grass_id);
+    
+    log::info!("Player {:?} destroyed grass {} at ({:.1}, {:.1})", sender_id, grass_id, grass_pos_x, grass_pos_y);
+    
+    // 9. Roll for Plant Fiber drop (0.5% chance)
+    let drop_roll: f32 = ctx.rng().gen();
+    if drop_roll < PLANT_FIBER_DROP_CHANCE {
+        // Find Plant Fiber item definition
+        let item_defs = ctx.db.item_definition();
+        if let Some(fiber_def) = item_defs.iter().find(|def| def.name == "Plant Fiber") {
+            // Random quantity between 10-15
+            let fiber_quantity = ctx.rng().gen_range(PLANT_FIBER_MIN_DROP..=PLANT_FIBER_MAX_DROP);
+            
+            // Drop the fiber at grass position
+            match crate::dropped_item::create_dropped_item_entity(
+                ctx,
+                fiber_def.id,
+                fiber_quantity,
+                grass_pos_x,
+                grass_pos_y,
+            ) {
+                Ok(_) => {
+                    log::info!("Lucky! Dropped {} Plant Fiber from grass at ({:.1}, {:.1})", 
+                             fiber_quantity, grass_pos_x, grass_pos_y);
+                }
+                Err(e) => {
+                    log::error!("Failed to drop Plant Fiber: {}", e);
+                }
+            }
+        } else {
+            log::warn!("Plant Fiber item definition not found, cannot drop fiber");
+        }
+    }
+    
     Ok(())
 } 

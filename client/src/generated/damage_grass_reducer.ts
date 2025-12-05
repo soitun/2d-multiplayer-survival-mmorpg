@@ -28,21 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type PatchA = { tag: "PatchA" };
-export type PatchB = { tag: "PatchB" };
-export type PatchC = { tag: "PatchC" };
-export type PatchD = { tag: "PatchD" };
-export type PatchE = { tag: "PatchE" };
-export type TallGrassA = { tag: "TallGrassA" };
-export type TallGrassB = { tag: "TallGrassB" };
-export type BushRounded = { tag: "BushRounded" };
-export type BushSpiky = { tag: "BushSpiky" };
-export type BushFlowering = { tag: "BushFlowering" };
-export type BramblesA = { tag: "BramblesA" };
-export type BramblesB = { tag: "BramblesB" };
-export type ReedBedsA = { tag: "ReedBedsA" };
-export type Bulrushes = { tag: "Bulrushes" };
-export type LilyPads = { tag: "LilyPads" };
-export type SeaweedForest = { tag: "SeaweedForest" };
-export type AlgaeMats = { tag: "AlgaeMats" };
+export type DamageGrass = {
+  grassId: bigint,
+};
+let _cached_DamageGrass_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const DamageGrass = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_DamageGrass_type_value) return _cached_DamageGrass_type_value;
+    _cached_DamageGrass_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_DamageGrass_type_value.value.elements.push(
+      { name: "grassId", algebraicType: __AlgebraicTypeValue.U64 },
+    );
+    return _cached_DamageGrass_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: DamageGrass): void {
+    __AlgebraicTypeValue.serializeValue(writer, DamageGrass.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): DamageGrass {
+    return __AlgebraicTypeValue.deserializeValue(reader, DamageGrass.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default DamageGrass;
 
