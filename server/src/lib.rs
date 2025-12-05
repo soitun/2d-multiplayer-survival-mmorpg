@@ -665,8 +665,7 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     // ADD: Initialize WorldState for scheduled systems
     crate::world_state::seed_world_state(ctx)?;
     
-    // ADD: Initialize ALK (Automated Logistics Kompound) system
-    crate::alk::init_alk_system(ctx)?;
+    // NOTE: ALK system initialization moved to AFTER world generation (needs tiles to exist for asphalt spawning)
     
     // ADD: Initialize dodge roll cleanup system
     crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;
@@ -695,18 +694,12 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
             Ok(_) => {
                 log::info!("Initial world generation completed successfully");
                 
-                // NEW: Generate compressed chunk data for efficient network transmission
-                log::info!("Generating compressed chunk data for efficient network transmission...");
-                match crate::world_generation::generate_compressed_chunk_data(ctx) {
-                    Ok(_) => log::info!("Compressed chunk data generated successfully"),
-                    Err(e) => log::error!("Failed to generate compressed chunk data: {}", e),
-                }
-                
-                // Generate minimap cache after world generation
-                log::info!("Generating minimap cache...");
-                match crate::world_generation::generate_minimap_data(ctx, 300, 300) {
-                    Ok(_) => log::info!("Minimap cache generated successfully"),
-                    Err(e) => log::error!("Failed to generate minimap cache: {}", e),
+                // CRITICAL: Initialize ALK system FIRST (spawns asphalt pads around stations)
+                // This MUST happen before compressed chunk data generation so asphalt is included
+                log::info!("Initializing ALK system (substations with asphalt pads)...");
+                match crate::alk::init_alk_system(ctx) {
+                    Ok(_) => log::info!("ALK system initialized successfully"),
+                    Err(e) => log::error!("Failed to initialize ALK system: {}", e),
                 }
                 
                 // CRITICAL: Seed environment AFTER world tiles exist
@@ -715,11 +708,33 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
                     Ok(_) => log::info!("Environment seeding completed successfully"),
                     Err(e) => log::error!("Failed to seed environment: {}", e),
                 }
+                
+                // Generate compressed chunk data AFTER all tile modifications (ALK asphalt, etc.)
+                log::info!("Generating compressed chunk data for efficient network transmission...");
+                match crate::world_generation::generate_compressed_chunk_data(ctx) {
+                    Ok(_) => log::info!("Compressed chunk data generated successfully"),
+                    Err(e) => log::error!("Failed to generate compressed chunk data: {}", e),
+                }
+                
+                // Generate minimap cache LAST (after all tile modifications)
+                log::info!("Generating minimap cache...");
+                match crate::world_generation::generate_minimap_data(ctx, 300, 300) {
+                    Ok(_) => log::info!("Minimap cache generated successfully"),
+                    Err(e) => log::error!("Failed to generate minimap cache: {}", e),
+                }
             },
             Err(e) => log::error!("Failed to generate initial world: {}", e),
         }
     } else {
         log::info!("World tiles already exist ({}), skipping world generation", existing_tiles_count);
+        
+        // Initialize ALK system FIRST (may fix missing asphalt around stations)
+        // This needs to happen BEFORE compressed chunk data generation
+        log::info!("Initializing ALK system (checking for missing asphalt)...");
+        match crate::alk::init_alk_system(ctx) {
+            Ok(_) => log::info!("ALK system initialized successfully"),
+            Err(e) => log::error!("Failed to initialize ALK system: {}", e),
+        }
         
         // Check if minimap cache exists, generate if missing
         let existing_minimap_count = ctx.db.minimap_cache().iter().count();
@@ -733,7 +748,7 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
             log::info!("Minimap cache already exists ({}), skipping generation", existing_minimap_count);
         }
         
-        // NEW: Check if compressed chunk data exists, generate if missing
+        // Check if compressed chunk data exists, generate if missing
         let existing_chunk_data_count = ctx.db.world_chunk_data().iter().count();
         if existing_chunk_data_count == 0 {
             log::info!("No compressed chunk data found, generating...");

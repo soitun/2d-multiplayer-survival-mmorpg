@@ -423,6 +423,10 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
     let center_tile_y = (center_y / tile_size).floor() as i32;
     
     let mut tiles_converted = 0;
+    let mut tiles_already_asphalt = 0;
+    
+    log::info!("🛤️ Spawning asphalt around station at pixel ({:.0}, {:.0}), tile ({}, {}), radius {} tiles", 
+               center_x, center_y, center_tile_x, center_tile_y, radius_tiles);
     
     // Convert tiles in a square area around the station to asphalt
     for dy in -radius_tiles..=radius_tiles {
@@ -441,17 +445,14 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
             // Find and update the tile at this position
             let world_tiles = ctx.db.world_tile();
             for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
-                // Don't convert water tiles
-                if tile.tile_type == crate::TileType::Sea || tile.tile_type == crate::TileType::HotSpringWater {
-                    continue;
-                }
-                
                 // Skip if already asphalt
                 if tile.tile_type == crate::TileType::Asphalt {
+                    tiles_already_asphalt += 1;
                     continue;
                 }
                 
-                // Update the tile to asphalt
+                // FORCE convert ANY tile type to asphalt (including water!)
+                // ALK stations MUST have asphalt pads regardless of terrain
                 let mut updated_tile = tile.clone();
                 updated_tile.tile_type = crate::TileType::Asphalt;
                 ctx.db.world_tile().id().update(updated_tile);
@@ -460,8 +461,8 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
         }
     }
     
-    log::info!("🛤️ Spawned {} asphalt tiles around station at ({:.0}, {:.0})", 
-               tiles_converted, center_x, center_y);
+    log::info!("🛤️ Asphalt spawning complete: {} tiles converted, {} already asphalt, station at ({:.0}, {:.0})", 
+               tiles_converted, tiles_already_asphalt, center_x, center_y);
 }
 
 /// Seed ALK delivery stations
@@ -469,8 +470,18 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
 fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
     let stations_table = ctx.db.alk_station();
     
-    if stations_table.iter().count() > 0 {
-        log::info!("ALK stations already seeded, skipping");
+    // Check if stations already exist
+    let existing_stations: Vec<_> = stations_table.iter().collect();
+    if !existing_stations.is_empty() {
+        log::info!("ALK stations already seeded ({}), checking for missing asphalt...", existing_stations.len());
+        
+        // Fix asphalt for existing stations (in case they were created before world tiles existed)
+        for station in existing_stations {
+            let is_central = station.station_id == 0;
+            let asphalt_radius = if is_central { 10 } else { 6 };
+            spawn_asphalt_around_station(ctx, station.world_pos_x, station.world_pos_y, asphalt_radius, is_central);
+        }
+        
         return Ok(());
     }
     
