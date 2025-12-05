@@ -45,6 +45,9 @@ pub(crate) const GRASS_DISTURBANCE_STRENGTH: f32 = 2.0; // Multiplier for distur
 // PERFORMANCE FLAG: Disable grass disturbance entirely for testing
 pub(crate) const DISABLE_GRASS_DISTURBANCE: bool = true; // TESTING: Completely disable grass disturbance to isolate lag source
 
+// FEATURE FLAG: Disable water foliage spawning (sea grasses not ready yet)
+pub(crate) const DISABLE_WATER_FOLIAGE_SPAWNING: bool = true; // Disables ReedBedsA, Bulrushes, LilyPads, SeaweedForest, AlgaeMats spawning
+
 // --- Grass Enums and Structs ---
 
 // Define different types/visuals of grass if needed later
