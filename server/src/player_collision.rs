@@ -30,11 +30,20 @@ use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 use crate::basalt_column::{BasaltColumn, BASALT_COLUMN_RADIUS, BASALT_COLUMN_COLLISION_Y_OFFSET};
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 // Import ALK station types for collision detection
-use crate::alk::{AlkStation, ALK_STATION_COLLISION_RADIUS, ALK_STATION_COLLISION_Y_OFFSET};
+use crate::alk::{
+    AlkStation, 
+    ALK_STATION_COLLISION_RADIUS, 
+    ALK_STATION_COLLISION_Y_OFFSET,
+    ALK_STATION_AABB_HALF_WIDTH,
+    ALK_STATION_AABB_HALF_HEIGHT,
+    ALK_STATION_COLLISION_HEIGHT
+};
 use crate::alk::alk_station as AlkStationTableTrait;
 // Import wall cell table trait for collision detection
 use crate::building::wall_cell as WallCellTableTrait;
 use crate::TILE_SIZE_PX;
+// Import compound building collision system
+use crate::compound_buildings;
 
 /// Calculates initial collision and applies sliding.
 /// Returns the new (x, y) position after potential sliding.
@@ -300,18 +309,26 @@ pub fn calculate_slide_collision_with_grid(
            spatial_grid::EntityType::AlkStation(station_id) => {
                 if let Some(station) = alk_stations.station_id().find(station_id) {
                     if station.is_active {
-                        let station_collision_y = station.world_pos_y - ALK_STATION_COLLISION_Y_OFFSET;
-                        let dx = final_x - station.world_pos_x;
-                        let dy = final_y - station_collision_y;
-                        let dist_sq = dx * dx + dy * dy;
-                        let min_dist = current_player_radius + ALK_STATION_COLLISION_RADIUS + SLIDE_SEPARATION_DISTANCE;
-                        let min_dist_sq = min_dist * min_dist;
+                        // AABB collision - bottom 1/3 height, 1/2 width (matches compound buildings)
+                        let station_aabb_center_x = station.world_pos_x;
+                        let sprite_bottom = station.world_pos_y + 0.0; // ALK_STATION_Y_OFFSET is 0
+                        let station_aabb_center_y = sprite_bottom - ALK_STATION_AABB_HALF_HEIGHT;
                         
-                        if dist_sq < min_dist_sq {
-                            log::debug!("Player-AlkStation collision for slide: {:?} vs station {}", sender_id, station.station_id);
-                            let collision_normal_x = dx;
-                            let collision_normal_y = dy;
-                            let normal_mag_sq = dist_sq;
+                        // AABB collision detection
+                        let closest_x = final_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
+                        let closest_y = final_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                        
+                        let dx_aabb = final_x - closest_x;
+                        let dy_aabb = final_y - closest_y;
+                        let dist_sq_aabb = dx_aabb * dx_aabb + dy_aabb * dy_aabb;
+                        let player_radius_sq = current_player_radius * current_player_radius;
+                        
+                        if dist_sq_aabb < player_radius_sq {
+                            log::debug!("Player-AlkStation AABB collision for slide: {:?} vs station {}", sender_id, station.station_id);
+                            let collision_normal_x = dx_aabb;
+                            let collision_normal_y = dy_aabb;
+                            let normal_mag_sq = dist_sq_aabb;
+                            
                             if normal_mag_sq > 0.0 {
                                 let normal_mag = normal_mag_sq.sqrt();
                                 let norm_x = collision_normal_x / normal_mag;
@@ -328,17 +345,21 @@ pub fn calculate_slide_collision_with_grid(
                                     final_y = current_player_pos_y + slide_dy;
                                     
                                     // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
-                                    let final_dx = final_x - station.world_pos_x;
-                                    let final_dy = final_y - station_collision_y;
-                                    let final_dist = (final_dx * final_dx + final_dy * final_dy).sqrt();
-                                    if final_dist < min_dist {
+                                    let final_closest_x = final_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
+                                    let final_closest_y = final_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                                    let final_dx = final_x - final_closest_x;
+                                    let final_dy = final_y - final_closest_y;
+                                    let final_dist_sq = final_dx * final_dx + final_dy * final_dy;
+                                    let min_separation_sq = current_player_radius * current_player_radius;
+                                    if final_dist_sq < min_separation_sq {
+                                        let final_dist = final_dist_sq.sqrt();
                                         let separation_direction = if final_dist > 0.001 {
                                             (final_dx / final_dist, final_dy / final_dist)
                                         } else {
                                             (1.0, 0.0) // Default direction
                                         };
-                                        final_x = station.world_pos_x + separation_direction.0 * min_dist;
-                                        final_y = station_collision_y + separation_direction.1 * min_dist;
+                                        final_x = final_closest_x + separation_direction.0 * (current_player_radius + SLIDE_SEPARATION_DISTANCE);
+                                        final_y = final_closest_y + separation_direction.1 * (current_player_radius + SLIDE_SEPARATION_DISTANCE);
                                     }
                                 }
                                 final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
@@ -833,6 +854,15 @@ pub fn calculate_slide_collision_with_grid(
         log::debug!("[SlideCollision] Player {:?} pushed back by door: ({:.1}, {:.1})", sender_id, pushback_x, pushback_y);
     }
     
+    // Check compound building collisions (static buildings in central compound)
+    if let Some((resolved_x, resolved_y)) = compound_buildings::resolve_compound_building_collision(final_x, final_y, current_player_radius) {
+        final_x = resolved_x;
+        final_y = resolved_y;
+        final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+        final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+        log::debug!("[SlideCollision] Player {:?} pushed back by compound building", sender_id);
+    }
+    
     (final_x, final_y)
 }
 
@@ -997,23 +1027,56 @@ pub fn resolve_push_out_collision_with_grid(
                     log::debug!("[PushOutEntityType] Found AlkStation: {}", station_id);
                     if let Some(station) = alk_stations.station_id().find(station_id) {
                         if !station.is_active { continue; }
-                        let station_collision_y = station.world_pos_y - ALK_STATION_COLLISION_Y_OFFSET;
-                        let dx = resolved_x - station.world_pos_x;
-                        let dy = resolved_y - station_collision_y;
-                        let dist_sq = dx * dx + dy * dy;
-                        let min_dist = current_player_radius + ALK_STATION_COLLISION_RADIUS + separation_distance;
-                        let min_dist_sq = min_dist * min_dist;
+                        
+                        // AABB collision - bottom 1/3 height, 1/2 width (matches compound buildings)
+                        let station_aabb_center_x = station.world_pos_x;
+                        let sprite_bottom = station.world_pos_y + 0.0; // ALK_STATION_Y_OFFSET is 0
+                        let station_aabb_center_y = sprite_bottom - ALK_STATION_AABB_HALF_HEIGHT;
+                        
+                        // AABB collision detection for push-out
+                        let closest_x = resolved_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
+                        let closest_y = resolved_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                        
+                        let dx_resolve = resolved_x - closest_x;
+                        let dy_resolve = resolved_y - closest_y;
+                        let dist_sq_resolve = dx_resolve * dx_resolve + dy_resolve * dy_resolve;
+                        let player_radius_sq = current_player_radius * current_player_radius;
                         
                         // OPTIMIZATION: Early exit with exact distance check
-                        if dist_sq >= min_dist_sq || dist_sq <= 0.0 {
+                        if dist_sq_resolve >= player_radius_sq {
                             continue;
                         }
                         
                         overlap_found_in_iter = true;
-                        let distance = dist_sq.sqrt();
-                        let overlap = (min_dist - distance) + separation_distance;
-                        resolved_x += (dx / distance) * overlap;
-                        resolved_y += (dy / distance) * overlap;
+                        if dist_sq_resolve > 0.0 {
+                            let distance = dist_sq_resolve.sqrt();
+                            let overlap = (current_player_radius - distance) + separation_distance;
+                            resolved_x += (dx_resolve / distance) * overlap;
+                            resolved_y += (dy_resolve / distance) * overlap;
+                        } else {
+                            // Player center is inside the AABB - push to nearest face
+                            let aabb_left = station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH;
+                            let aabb_right = station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH;
+                            let aabb_top = station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT;
+                            let aabb_bottom = station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT;
+                            
+                            let dist_to_left = resolved_x - aabb_left;
+                            let dist_to_right = aabb_right - resolved_x;
+                            let dist_to_top = resolved_y - aabb_top;
+                            let dist_to_bottom = aabb_bottom - resolved_y;
+                            
+                            let min_dist = dist_to_left.min(dist_to_right).min(dist_to_top).min(dist_to_bottom);
+                            
+                            if min_dist == dist_to_left {
+                                resolved_x = aabb_left - current_player_radius - separation_distance;
+                            } else if min_dist == dist_to_right {
+                                resolved_x = aabb_right + current_player_radius + separation_distance;
+                            } else if min_dist == dist_to_top {
+                                resolved_y = aabb_top - current_player_radius - separation_distance;
+                            } else {
+                                resolved_y = aabb_bottom + current_player_radius + separation_distance;
+                            }
+                        }
                     }
                 },
                  spatial_grid::EntityType::WoodenStorageBox(box_id) => {
@@ -1244,6 +1307,13 @@ pub fn resolve_push_out_collision_with_grid(
         if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, resolved_x, resolved_y, current_player_radius) {
             resolved_x += pushback_x;
             resolved_y += pushback_y;
+            overlap_found_in_iter = true;
+        }
+        
+        // Check compound building collisions (static buildings in central compound - not in spatial grid)
+        if let Some((new_x, new_y)) = compound_buildings::resolve_compound_building_collision(resolved_x, resolved_y, current_player_radius) {
+            resolved_x = new_x;
+            resolved_y = new_y;
             overlap_found_in_iter = true;
         }
 

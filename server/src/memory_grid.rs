@@ -145,9 +145,27 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
     }
     
     // Special case: Faction unlock nodes need ANY ONE tier 5 node
+    // AND the player must NOT have already unlocked a different faction
     if node_id.starts_with("unlock-") {
-        let tier5_nodes = ["makarov-pm", "broth-cauldron", "shelter", "metal-armor", "combat-drone", "rain-collector"];
-        return tier5_nodes.iter().any(|tier5_node| has_node(purchased_nodes, tier5_node));
+        // First check: Has any tier 5 node been purchased?
+        let tier5_nodes = ["makarov-pm", "broth-mastery", "shelter", "metal-armor", "combat-drone", "rain-collector", "armor-mastery", "movement-speed-2"];
+        let has_tier5 = tier5_nodes.iter().any(|tier5_node| has_node(purchased_nodes, tier5_node));
+        
+        if !has_tier5 {
+            return false; // No tier 5 node yet
+        }
+        
+        // Second check: Has the player already unlocked a DIFFERENT faction?
+        // If so, this faction unlock is NOT available (must reset first)
+        for faction in &FACTION_UNLOCK_NODES {
+            if has_node(purchased_nodes, faction) {
+                // Player already has a faction unlocked
+                // Only return true if they're checking the SAME faction (but that's caught above as "already purchased")
+                return false;
+            }
+        }
+        
+        return true; // Has tier 5 and no faction unlocked yet
     }
     
     // FFX-style logic: Need ANY ONE prerequisite (OR logic)

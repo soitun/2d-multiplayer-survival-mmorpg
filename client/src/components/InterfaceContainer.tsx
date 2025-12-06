@@ -238,6 +238,26 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     }
   }, [connection, updateMemoryGridData]);
 
+  // Handle faction reset through server
+  const handleFactionReset = useCallback(async () => {
+    if (!connection.connection) {
+      console.error('❌ No connection to server');
+      return;
+    }
+    
+    try {
+      // Call server reducer to reset faction
+      connection.connection.reducers.resetFaction();
+      console.log('✅ Attempting to reset faction on server');
+      
+      // The state will be updated automatically through SpacetimeDB subscriptions
+      // Trigger an update manually for immediate feedback
+      setTimeout(() => updateMemoryGridData(), 100);
+    } catch (error) {
+      console.error('❌ Failed to reset faction:', error);
+    }
+  }, [connection, updateMemoryGridData]);
+
   // Update memory grid data when connection changes or data updates
   useEffect(() => {
     updateMemoryGridData();
@@ -648,6 +668,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               playerShards={playerShards}
               purchasedNodes={purchasedNodes}
               onNodePurchase={handleNodePurchase}
+              onFactionReset={handleFactionReset}
             />
             {/* Show loading overlay when fetching memory data */}
             {isLoadingMemoryData && (

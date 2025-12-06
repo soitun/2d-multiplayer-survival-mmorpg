@@ -387,6 +387,8 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
+    align-items: flex-start;
+    text-align: left;
 }
 
 .contract-item-name {
@@ -394,6 +396,7 @@
     font-weight: bold;
     color: #fff;
     letter-spacing: 0.3px;
+    text-align: left;
 }
 
 .contract-kind {
@@ -401,6 +404,7 @@
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    text-align: left;
 }
 
 /* Shard icons */

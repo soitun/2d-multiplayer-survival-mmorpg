@@ -55,6 +55,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.TorchHitLit |
   SoundTypeVariants.LightTorch |
   SoundTypeVariants.ExtinguishTorch |
+  SoundTypeVariants.FlashlightOn |
+  SoundTypeVariants.FlashlightOff |
   SoundTypeVariants.MeleeHitBlunt |
   SoundTypeVariants.WeaponSwing |
   SoundTypeVariants.ArrowHit |
@@ -124,6 +126,8 @@ export const SoundType = {
   TorchHitLit: { tag: "TorchHitLit" } as const,
   LightTorch: { tag: "LightTorch" } as const,
   ExtinguishTorch: { tag: "ExtinguishTorch" } as const,
+  FlashlightOn: { tag: "FlashlightOn" } as const,
+  FlashlightOff: { tag: "FlashlightOff" } as const,
   MeleeHitBlunt: { tag: "MeleeHitBlunt" } as const,
   WeaponSwing: { tag: "WeaponSwing" } as const,
   ArrowHit: { tag: "ArrowHit" } as const,
@@ -187,6 +191,8 @@ export const SoundType = {
       { name: "TorchHitLit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LightTorch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ExtinguishTorch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FlashlightOn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FlashlightOff", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "MeleeHitBlunt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WeaponSwing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ArrowHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

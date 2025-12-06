@@ -750,13 +750,39 @@ export const getNodesByFaction = (factionId?: string): MemoryGridNode[] => {
   return MEMORY_GRID_NODES.filter(node => (node as any).faction === factionId) as MemoryGridNode[];
 };
 
+// All faction unlock node IDs
+const FACTION_UNLOCK_NODES = [
+  'unlock-black-wolves',
+  'unlock-hive',
+  'unlock-university',
+  'unlock-data-angels',
+  'unlock-battalion',
+  'unlock-admiralty'
+];
+
 export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>): boolean => {
   const node = MEMORY_GRID_NODES.find(n => n.id === nodeId);
   if (!node) return false;
   
   if (nodeId.includes('unlock-')) {
+    // First check: Has any tier 5 node been purchased?
     const tier5Nodes = ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'];
-    return tier5Nodes.some((tier5Id: string) => purchasedNodes.has(tier5Id));
+    const hasTier5 = tier5Nodes.some((tier5Id: string) => purchasedNodes.has(tier5Id));
+    
+    if (!hasTier5) {
+      return false; // No tier 5 node yet
+    }
+    
+    // Second check: Has the player already unlocked a DIFFERENT faction?
+    // If so, this faction unlock is NOT available (must reset first)
+    for (const factionId of FACTION_UNLOCK_NODES) {
+      if (purchasedNodes.has(factionId)) {
+        // Player already has a faction unlocked - other factions are NOT available
+        return false;
+      }
+    }
+    
+    return true; // Has tier 5 and no faction unlocked yet
   }
   
   return node.prerequisites.some((prereqId: string) => purchasedNodes.has(prereqId));

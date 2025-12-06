@@ -45,16 +45,25 @@ use crate::models::ItemLocation;
 // COLLISION CONSTANTS
 // ============================================================================
 
-/// ALK station collision radius - circular collision for easier navigation
-pub const ALK_STATION_COLLISION_RADIUS: f32 = 120.0;
+/// ALK station sprite dimensions (matches client-side rendering)
+pub const ALK_STATION_WIDTH: f32 = 480.0;
+pub const ALK_STATION_HEIGHT: f32 = 480.0;
+pub const ALK_STATION_Y_OFFSET: f32 = 0.0; // Anchor point offset (worldPosY is the anchor)
 
-/// Y-offset for ALK station collision - collision center is offset UP from worldPosY
-/// to center on the actual building structure (not the sprite anchor point)
+/// AABB collision dimensions - bottom 1/3 height, 1/2 width (matches compound buildings)
+pub const ALK_STATION_COLLISION_WIDTH: f32 = ALK_STATION_WIDTH * 0.5;  // 50% of building width
+pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height
+pub const ALK_STATION_AABB_HALF_WIDTH: f32 = ALK_STATION_COLLISION_WIDTH / 2.0;
+pub const ALK_STATION_AABB_HALF_HEIGHT: f32 = ALK_STATION_COLLISION_HEIGHT / 2.0;
+
+/// Legacy circular collision constants (kept for compatibility, but AABB is used instead)
+pub const ALK_STATION_COLLISION_RADIUS: f32 = 120.0;
 pub const ALK_STATION_COLLISION_Y_OFFSET: f32 = 170.0;
 
-/// Squared collision distance for player-ALK station collision checks
+/// Squared collision distance for player-ALK station collision checks (using AABB bounds)
 pub const PLAYER_ALK_STATION_COLLISION_DISTANCE_SQUARED: f32 = 
-    (PLAYER_RADIUS + ALK_STATION_COLLISION_RADIUS) * (PLAYER_RADIUS + ALK_STATION_COLLISION_RADIUS);
+    (PLAYER_RADIUS + ALK_STATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT)) * 
+    (PLAYER_RADIUS + ALK_STATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT));
 
 // ============================================================================
 // GAMEPLAY CONSTANTS
@@ -922,6 +931,9 @@ fn generate_materials_contracts(ctx: &ReducerContext, world_day: u32) -> Result<
         let item_def = item_defs.iter().find(|d| d.name == *material_name);
         
         if let Some(item_def) = item_def {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" { continue; }
+            
             let (bundle_size, reward) = get_material_contract_params(&item_def.name);
             if reward == 0 { continue; }
             
@@ -998,6 +1010,9 @@ fn generate_seasonal_arms_contracts(ctx: &ReducerContext, world_day: u32, season
     let mut created = 0;
     for item_id in selected {
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" { continue; }
+            
             let (bundle_size, reward) = get_arms_contract_params(&item_def.name);
             
             let contract = AlkContract {
@@ -1068,6 +1083,9 @@ fn generate_seasonal_armor_contracts(ctx: &ReducerContext, world_day: u32, seaso
     let mut created = 0;
     for item_id in selected {
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" { continue; }
+            
             let (bundle_size, reward) = get_armor_contract_params(&item_def.name);
             
             let contract = AlkContract {
@@ -1138,6 +1156,9 @@ fn generate_seasonal_tools_contracts(ctx: &ReducerContext, world_day: u32, seaso
     let mut created = 0;
     for item_id in selected {
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" { continue; }
+            
             let (bundle_size, reward) = get_tools_contract_params(&item_def.name);
             
             let contract = AlkContract {
@@ -1211,6 +1232,9 @@ fn generate_seasonal_provisions_contracts(ctx: &ReducerContext, world_day: u32, 
     let mut created = 0;
     for item_id in selected {
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" { continue; }
+            
             let (bundle_size, reward) = get_provisions_contract_params(&item_def.name, &item_def);
             
             let contract = AlkContract {
@@ -1270,6 +1294,11 @@ fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, sea
         let is_seasonal = seasonal_item_ids.contains(&item_id);
         
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" {
+                continue;
+            }
+            
             let (bundle_size, reward) = get_seasonal_harvest_params(&item_def.name);
             if reward == 0 { continue; }
             
@@ -1334,6 +1363,11 @@ fn generate_bonus_contracts(ctx: &ReducerContext, world_day: u32, _season_index:
     let mut created = 0;
     for item_id in selected_ids {
         if let Some(item_def) = item_defs.id().find(&item_id) {
+            // SECURITY: Never create contracts for Memory Shard (base currency)
+            if item_def.name == "Memory Shard" {
+                continue;
+            }
+            
             // Bonus contracts have SIGNIFICANTLY higher rewards but limited pool
             // Pool quantity determines total items that can be delivered across ALL players
             let (bundle_size, base_reward) = get_bonus_contract_params(&item_def.name);
@@ -1862,6 +1896,13 @@ pub fn accept_alk_contract(
     let contracts_table = ctx.db.alk_contract();
     let contract = contracts_table.contract_id().find(&contract_id)
         .ok_or("Contract not found")?;
+    
+    // SECURITY: Memory Shard is the base currency - cannot have contracts for it
+    // This prevents infinite currency exploits
+    if contract.item_name.trim() == "Memory Shard" {
+        log::warn!("🚫 Player {:?} attempted to accept Memory Shard contract - rejected (currency exploit prevention)", player_id);
+        return Err("Memory Shard contracts are not allowed - it is the base currency".to_string());
+    }
     
     // Validate contract is active
     if !contract.is_active {

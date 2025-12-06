@@ -225,6 +225,206 @@ export const renderPlayerTorchLight = ({
     }
 }; 
 
+// --- Flashlight Light Constants (AAA pixel art style - narrow, long beam) ---
+export const FLASHLIGHT_BEAM_LENGTH = 650; // Very long reach for exploration
+export const FLASHLIGHT_BEAM_ANGLE = Math.PI / 7; // ~25 degrees - narrow focused beam
+export const FLASHLIGHT_START_OFFSET = 18; // Start beam slightly ahead of player
+
+interface RenderPlayerFlashlightLightProps {
+    ctx: CanvasRenderingContext2D;
+    player: SpacetimeDBPlayer;
+    activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
+    itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    renderPositionX?: number;
+    renderPositionY?: number;
+    // Indoor light containment - prevents light from spilling outside enclosed buildings
+    buildingClusters?: Map<string, BuildingCluster>;
+}
+
+export const renderPlayerFlashlightLight = ({
+    ctx,
+    player,
+    activeEquipments,
+    itemDefinitions,
+    cameraOffsetX,
+    cameraOffsetY,
+    renderPositionX,
+    renderPositionY,
+    buildingClusters,
+}: RenderPlayerFlashlightLightProps) => {
+    if (!player.isFlashlightOn || !player.identity) {
+        return; // Not on or no identity, nothing to render
+    }
+
+    const playerIdentityStr = player.identity.toHexString();
+    const equipment = activeEquipments.get(playerIdentityStr);
+
+    if (equipment && equipment.equippedItemDefId) {
+        const itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString());
+        if (itemDef && itemDef.name === "Flashlight") {
+            const lightCenterX = renderPositionX ?? player.positionX;
+            const lightCenterY = renderPositionY ?? player.positionY;
+            
+            // Apply indoor clipping if player is inside an enclosed building
+            const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
+
+            // Determine beam direction based on player direction
+            let beamAngle = 0; // Default to right (0 radians)
+            switch (player.direction) {
+                case 'up':
+                    beamAngle = -Math.PI / 2; // -90 degrees
+                    break;
+                case 'down':
+                    beamAngle = Math.PI / 2; // 90 degrees
+                    break;
+                case 'left':
+                    beamAngle = Math.PI; // 180 degrees
+                    break;
+                case 'right':
+                default:
+                    beamAngle = 0; // 0 degrees
+                    break;
+            }
+
+            // Offset the beam start position slightly ahead of the player
+            const offsetX = Math.cos(beamAngle) * FLASHLIGHT_START_OFFSET;
+            const offsetY = Math.sin(beamAngle) * FLASHLIGHT_START_OFFSET;
+            
+            const lightScreenX = lightCenterX + cameraOffsetX + offsetX;
+            const lightScreenY = lightCenterY + cameraOffsetY + offsetY;
+
+            // Calculate cone vertices - narrow, long beam
+            const startX = lightScreenX;
+            const startY = lightScreenY;
+            const endX = startX + Math.cos(beamAngle) * FLASHLIGHT_BEAM_LENGTH;
+            const endY = startY + Math.sin(beamAngle) * FLASHLIGHT_BEAM_LENGTH;
+            
+            // Calculate cone width at the end (half-width) - narrow cone
+            const halfWidth = FLASHLIGHT_BEAM_LENGTH * Math.tan(FLASHLIGHT_BEAM_ANGLE / 2);
+            
+            // Perpendicular vector for cone width
+            const perpX = -Math.sin(beamAngle) * halfWidth;
+            const perpY = Math.cos(beamAngle) * halfWidth;
+            
+            const leftX = endX + perpX;
+            const leftY = endY + perpY;
+            const rightX = endX - perpX;
+            const rightY = endY - perpY;
+
+            // === LAYER 1: Outer soft glow (widest, most transparent) ===
+            const outerGlowLength = FLASHLIGHT_BEAM_LENGTH * 1.1;
+            const outerGlowWidth = halfWidth * 1.4;
+            const outerEndX = startX + Math.cos(beamAngle) * outerGlowLength;
+            const outerEndY = startY + Math.sin(beamAngle) * outerGlowLength;
+            const outerLeftX = outerEndX + (-Math.sin(beamAngle) * outerGlowWidth);
+            const outerLeftY = outerEndY + (Math.cos(beamAngle) * outerGlowWidth);
+            const outerRightX = outerEndX - (-Math.sin(beamAngle) * outerGlowWidth);
+            const outerRightY = outerEndY - (Math.cos(beamAngle) * outerGlowWidth);
+
+            const outerGradient = ctx.createLinearGradient(startX, startY, outerEndX, outerEndY);
+            outerGradient.addColorStop(0, 'rgba(220, 235, 255, 0.08)'); // Soft blue-white
+            outerGradient.addColorStop(0.3, 'rgba(200, 220, 255, 0.06)');
+            outerGradient.addColorStop(0.7, 'rgba(180, 200, 240, 0.03)');
+            outerGradient.addColorStop(1, 'rgba(160, 180, 220, 0)');
+
+            ctx.fillStyle = outerGradient;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(outerLeftX, outerLeftY);
+            ctx.lineTo(outerRightX, outerRightY);
+            ctx.closePath();
+            ctx.fill();
+
+            // === LAYER 2: Main beam cone (primary light) ===
+            const mainGradient = ctx.createLinearGradient(startX, startY, endX, endY);
+            mainGradient.addColorStop(0, 'rgba(255, 252, 245, 0.32)'); // Warm white at source
+            mainGradient.addColorStop(0.15, 'rgba(255, 250, 240, 0.28)');
+            mainGradient.addColorStop(0.35, 'rgba(250, 248, 235, 0.20)');
+            mainGradient.addColorStop(0.55, 'rgba(245, 243, 230, 0.12)');
+            mainGradient.addColorStop(0.75, 'rgba(240, 238, 225, 0.06)');
+            mainGradient.addColorStop(0.9, 'rgba(235, 233, 220, 0.02)');
+            mainGradient.addColorStop(1, 'rgba(230, 228, 215, 0)');
+
+            ctx.fillStyle = mainGradient;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+            ctx.fill();
+
+            // === LAYER 3: Hot core beam (brightest, narrowest) ===
+            const coreLength = FLASHLIGHT_BEAM_LENGTH * 0.75;
+            const coreWidth = halfWidth * 0.35;
+            const coreEndX = startX + Math.cos(beamAngle) * coreLength;
+            const coreEndY = startY + Math.sin(beamAngle) * coreLength;
+            const coreLeftX = coreEndX + (-Math.sin(beamAngle) * coreWidth);
+            const coreLeftY = coreEndY + (Math.cos(beamAngle) * coreWidth);
+            const coreRightX = coreEndX - (-Math.sin(beamAngle) * coreWidth);
+            const coreRightY = coreEndY - (Math.cos(beamAngle) * coreWidth);
+
+            const coreGradient = ctx.createLinearGradient(startX, startY, coreEndX, coreEndY);
+            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.55)'); // Pure white hotspot
+            coreGradient.addColorStop(0.2, 'rgba(255, 254, 250, 0.40)');
+            coreGradient.addColorStop(0.5, 'rgba(255, 252, 245, 0.22)');
+            coreGradient.addColorStop(0.8, 'rgba(250, 248, 240, 0.08)');
+            coreGradient.addColorStop(1, 'rgba(245, 243, 235, 0)');
+
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(coreLeftX, coreLeftY);
+            ctx.lineTo(coreRightX, coreRightY);
+            ctx.closePath();
+            ctx.fill();
+
+            // === LAYER 4: Intense hotspot at source ===
+            const hotspotRadius = 12;
+            const hotspotGradient = ctx.createRadialGradient(
+                startX, startY, 0,
+                startX, startY, hotspotRadius
+            );
+            hotspotGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+            hotspotGradient.addColorStop(0.4, 'rgba(255, 252, 245, 0.35)');
+            hotspotGradient.addColorStop(0.7, 'rgba(250, 248, 240, 0.15)');
+            hotspotGradient.addColorStop(1, 'rgba(245, 243, 235, 0)');
+
+            ctx.fillStyle = hotspotGradient;
+            ctx.beginPath();
+            ctx.arc(startX, startY, hotspotRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // === LAYER 5: Subtle beam edge highlights (volumetric feel) ===
+            const edgeLength = FLASHLIGHT_BEAM_LENGTH * 0.6;
+            const edgeEndX = startX + Math.cos(beamAngle) * edgeLength;
+            const edgeEndY = startY + Math.sin(beamAngle) * edgeLength;
+            
+            // Left edge line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            const edgeLeftX = edgeEndX + (-Math.sin(beamAngle) * halfWidth * 0.9);
+            const edgeLeftY = edgeEndY + (Math.cos(beamAngle) * halfWidth * 0.9);
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(edgeLeftX, edgeLeftY);
+            ctx.stroke();
+            
+            // Right edge line
+            ctx.beginPath();
+            const edgeRightX = edgeEndX - (-Math.sin(beamAngle) * halfWidth * 0.9);
+            const edgeRightY = edgeEndY - (Math.cos(beamAngle) * halfWidth * 0.9);
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(edgeRightX, edgeRightY);
+            ctx.stroke();
+            
+            // Restore context if we applied a clip
+            if (restoreClip) restoreClip();
+        }
+    }
+}; 
+
 // --- Campfire Light Rendering ---
 interface RenderCampfireLightProps {
     ctx: CanvasRenderingContext2D;

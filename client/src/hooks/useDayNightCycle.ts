@@ -745,6 +745,174 @@ export function useDayNightCycle({
             }
         });
 
+        // Render flashlight beam cutouts (AAA pixel art style - narrow, long beam)
+        players.forEach((player, playerId) => {
+            if (!player || player.isDead || !player.isFlashlightOn) return;
+
+            // Player has flashlight on - render the beam cutout
+            // Use the same interpolated position logic as torch light rendering for smooth cutouts
+            let renderPositionX = player.positionX;
+            let renderPositionY = player.positionY;
+            
+            if (playerId === localPlayerId && predictedPosition) {
+                // For local player, use predicted position
+                renderPositionX = predictedPosition.x;
+                renderPositionY = predictedPosition.y;
+            } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
+                // For remote players, use interpolated position
+                const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+                if (interpolatedPos) {
+                    renderPositionX = interpolatedPos.x;
+                    renderPositionY = interpolatedPos.y;
+                }
+            }
+            
+            // Check if player with flashlight is inside an enclosed building
+            const enclosingCluster = buildingClusters 
+                ? findEnclosingCluster(renderPositionX, renderPositionY, buildingClusters)
+                : null;
+
+            // FLASHLIGHT BEAM - Narrow, long cone cutout (matches lightRenderingUtils constants)
+            const FLASHLIGHT_BEAM_LENGTH = 650; // Very long reach for exploration
+            const FLASHLIGHT_BEAM_ANGLE = Math.PI / 7; // ~25 degrees - narrow focused beam
+            const FLASHLIGHT_START_OFFSET = 18; // Start beam slightly ahead of player
+            
+            // Determine beam direction based on player direction
+            let beamAngle = 0; // Default to right (0 radians)
+            switch (player.direction) {
+                case 'up':
+                    beamAngle = -Math.PI / 2; // -90 degrees
+                    break;
+                case 'down':
+                    beamAngle = Math.PI / 2; // 90 degrees
+                    break;
+                case 'left':
+                    beamAngle = Math.PI; // 180 degrees
+                    break;
+                case 'right':
+                default:
+                    beamAngle = 0; // 0 degrees
+                    break;
+            }
+
+            // Offset the beam start position slightly ahead of the player
+            const offsetX = Math.cos(beamAngle) * FLASHLIGHT_START_OFFSET;
+            const offsetY = Math.sin(beamAngle) * FLASHLIGHT_START_OFFSET;
+            
+            const lightScreenX = renderPositionX + cameraOffsetX + offsetX;
+            const lightScreenY = renderPositionY + cameraOffsetY + offsetY;
+
+            // Calculate cone vertices - narrow, long beam
+            const startX = lightScreenX;
+            const startY = lightScreenY;
+            const endX = startX + Math.cos(beamAngle) * FLASHLIGHT_BEAM_LENGTH;
+            const endY = startY + Math.sin(beamAngle) * FLASHLIGHT_BEAM_LENGTH;
+            
+            // Calculate cone width at the end (half-width) - narrow cone
+            const halfWidth = FLASHLIGHT_BEAM_LENGTH * Math.tan(FLASHLIGHT_BEAM_ANGLE / 2);
+            
+            // Perpendicular vector for cone width
+            const perpX = -Math.sin(beamAngle) * halfWidth;
+            const perpY = Math.cos(beamAngle) * halfWidth;
+            
+            const leftX = endX + perpX;
+            const leftY = endY + perpY;
+            const rightX = endX - perpX;
+            const rightY = endY - perpY;
+
+            // Apply clipping if inside a building (same pattern as torch/campfire)
+            if (enclosingCluster) {
+                maskCtx.save();
+                const clipPath = createClusterClipPath(enclosingCluster.cluster, cameraOffsetX, cameraOffsetY);
+                maskCtx.clip(clipPath);
+            }
+
+            // === LAYER 1: Wide outer glow cutout (soft ambient light) ===
+            const outerGlowLength = FLASHLIGHT_BEAM_LENGTH * 1.15;
+            const outerGlowWidth = halfWidth * 1.5;
+            const outerEndX = startX + Math.cos(beamAngle) * outerGlowLength;
+            const outerEndY = startY + Math.sin(beamAngle) * outerGlowLength;
+            const outerLeftX = outerEndX + (-Math.sin(beamAngle) * outerGlowWidth);
+            const outerLeftY = outerEndY + (Math.cos(beamAngle) * outerGlowWidth);
+            const outerRightX = outerEndX - (-Math.sin(beamAngle) * outerGlowWidth);
+            const outerRightY = outerEndY - (Math.cos(beamAngle) * outerGlowWidth);
+
+            const outerGradient = maskCtx.createLinearGradient(startX, startY, outerEndX, outerEndY);
+            outerGradient.addColorStop(0, 'rgba(0,0,0,0.5)');
+            outerGradient.addColorStop(0.4, 'rgba(0,0,0,0.3)');
+            outerGradient.addColorStop(0.7, 'rgba(0,0,0,0.12)');
+            outerGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+            maskCtx.fillStyle = outerGradient;
+            maskCtx.beginPath();
+            maskCtx.moveTo(startX, startY);
+            maskCtx.lineTo(outerLeftX, outerLeftY);
+            maskCtx.lineTo(outerRightX, outerRightY);
+            maskCtx.closePath();
+            maskCtx.fill();
+
+            // === LAYER 2: Main beam cutout ===
+            const mainGradient = maskCtx.createLinearGradient(startX, startY, endX, endY);
+            mainGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at start
+            mainGradient.addColorStop(0.2, 'rgba(0,0,0,0.95)');
+            mainGradient.addColorStop(0.45, 'rgba(0,0,0,0.75)');
+            mainGradient.addColorStop(0.65, 'rgba(0,0,0,0.45)');
+            mainGradient.addColorStop(0.85, 'rgba(0,0,0,0.15)');
+            mainGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+            maskCtx.fillStyle = mainGradient;
+            maskCtx.beginPath();
+            maskCtx.moveTo(startX, startY);
+            maskCtx.lineTo(leftX, leftY);
+            maskCtx.lineTo(rightX, rightY);
+            maskCtx.closePath();
+            maskCtx.fill();
+
+            // === LAYER 3: Hot core beam cutout (brightest center) ===
+            const coreLength = FLASHLIGHT_BEAM_LENGTH * 0.7;
+            const coreWidth = halfWidth * 0.4;
+            const coreEndX = startX + Math.cos(beamAngle) * coreLength;
+            const coreEndY = startY + Math.sin(beamAngle) * coreLength;
+            const coreLeftX = coreEndX + (-Math.sin(beamAngle) * coreWidth);
+            const coreLeftY = coreEndY + (Math.cos(beamAngle) * coreWidth);
+            const coreRightX = coreEndX - (-Math.sin(beamAngle) * coreWidth);
+            const coreRightY = coreEndY - (Math.cos(beamAngle) * coreWidth);
+
+            const coreGradient = maskCtx.createLinearGradient(startX, startY, coreEndX, coreEndY);
+            coreGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout
+            coreGradient.addColorStop(0.35, 'rgba(0,0,0,0.95)');
+            coreGradient.addColorStop(0.7, 'rgba(0,0,0,0.6)');
+            coreGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+            maskCtx.fillStyle = coreGradient;
+            maskCtx.beginPath();
+            maskCtx.moveTo(startX, startY);
+            maskCtx.lineTo(coreLeftX, coreLeftY);
+            maskCtx.lineTo(coreRightX, coreRightY);
+            maskCtx.closePath();
+            maskCtx.fill();
+
+            // === LAYER 4: Bright hotspot at source ===
+            const hotspotRadius = 20;
+            const hotspotGradient = maskCtx.createRadialGradient(
+                startX, startY, 0,
+                startX, startY, hotspotRadius
+            );
+            hotspotGradient.addColorStop(0, 'rgba(0,0,0,1)');
+            hotspotGradient.addColorStop(0.5, 'rgba(0,0,0,0.7)');
+            hotspotGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+            maskCtx.fillStyle = hotspotGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(startX, startY, hotspotRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+
+            // Restore context if we applied a clip
+            if (enclosingCluster) {
+                maskCtx.restore();
+            }
+        });
+
         // Render fire patch light cutouts (smaller than campfires, same size as the patch)
         firePatches.forEach(firePatch => {
             // Fire patches are always burning (no isBurning check needed)

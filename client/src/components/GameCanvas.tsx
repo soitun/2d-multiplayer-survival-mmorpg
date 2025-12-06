@@ -84,6 +84,7 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
+import { preloadCompoundBuildingImages } from '../utils/renderers/compoundBuildingRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
 import { renderInteractionLabels } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
@@ -99,7 +100,7 @@ import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderPlayerTorchLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
+import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
@@ -1207,6 +1208,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
   }, [itemImagesRef]); // itemIcons is effectively constant from import, so run once on mount based on itemImagesRef
 
+  // Load compound building images
+  useEffect(() => {
+    preloadCompoundBuildingImages();
+  }, []);
+
   // Load doodad images
   useEffect(() => {
     import('../assets/doodads/planted_seed.png').then((module) => {
@@ -1264,6 +1270,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.onerror = () => console.error('Failed to load metal_door_north.png');
       img.src = module.default;
     });
+
+    // Compound building images are now loaded via static imports in compoundBuildingRenderingUtils.ts
+    // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
 
     // Load foundation tile images
     import('../assets/tiles/foundation_wood.png').then((module) => {
@@ -2051,22 +2060,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
       
       // CRITICAL: Player vs ALK Station - tall structure Y-sorting
-      // Player north of station base (lower Y) = player behind = station renders on top
+      // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
+      // (where players walk) is about 170px ABOVE worldPosY. Must use offset for correct sorting.
       if (aType === 'player' && bType === 'alk_station') {
         const playerY = (aEntity as any)?.positionY ?? 0;
         const stationY = (bEntity as any)?.worldPosY ?? 0;
-        if (playerY >= stationY) {
-          return 1; // Player south of/at station base - player in front
+        const ALK_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset - where building visually sits
+        // Player renders in front if at or south of the building's visual foot level
+        if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
+          return 1; // Player at/near/south of building's visual base - player in front
         }
-        return -1; // Player north of station base - player behind (station on top)
+        return -1; // Player clearly north of building - player behind (station on top)
       }
       if (aType === 'alk_station' && bType === 'player') {
         const playerY = (bEntity as any)?.positionY ?? 0;
         const stationY = (aEntity as any)?.worldPosY ?? 0;
-        if (playerY >= stationY) {
-          return -1; // Player south of/at station base - player in front (inverted)
+        const ALK_VISUAL_FOOT_OFFSET = 170;
+        if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
+          return -1; // Player at/near/south of building's visual base - player in front (inverted)
         }
-        return 1; // Player north of station base - player behind (inverted)
+        return 1; // Player clearly north of building - player behind (inverted)
       }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)
@@ -2788,7 +2801,43 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     // --- End Torch Light ---
 
-
+    // --- Flashlight Light ---
+    // Render flashlight beams for all players with flashlights turned on
+    players.forEach(player => {
+      const playerId = player.identity?.toHexString();
+      if (!playerId || !player.isFlashlightOn) return;
+      
+      // Use the same position logic as player sprites
+      let renderPositionX = player.positionX;
+      let renderPositionY = player.positionY;
+      
+      if (playerId === localPlayerId && currentPredictedPosition) {
+        // For local player, use predicted position
+        renderPositionX = currentPredictedPosition.x;
+        renderPositionY = currentPredictedPosition.y;
+      } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
+        // For remote players, use interpolated position
+        const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+        if (interpolatedPos) {
+          renderPositionX = interpolatedPos.x;
+          renderPositionY = interpolatedPos.y;
+        }
+      }
+      
+      renderPlayerFlashlightLight({
+        ctx,
+        player,
+        activeEquipments,
+        itemDefinitions,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        renderPositionX,
+        renderPositionY,
+        // Indoor light containment - clip light to building interior
+        buildingClusters,
+      });
+    });
+    // --- End Flashlight Light ---
 
     ctx.restore();
 

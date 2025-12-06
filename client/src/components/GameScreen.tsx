@@ -434,7 +434,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Handler for auto-action state changes from GameCanvas
     const handleAutoActionStatesChange = useCallback((isAutoAttacking: boolean) => {
-        console.log('[GameScreen] Auto-action states changed:', { isAutoAttacking });
+        // console.log('[GameScreen] Auto-action states changed:', { isAutoAttacking });
         setAutoActionStates({ isAutoAttacking });
     }, []);
 

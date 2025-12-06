@@ -1,0 +1,122 @@
+# Y-Sorting for Tall Structures (ALK Stations, Shelters, etc.)
+
+This guide documents how to properly Y-sort tall structures so players render correctly when approaching from any direction.
+
+## The Problem
+
+When a player approaches a tall structure (like an ALK station) from below (south), their head/body gets "cut off" - the structure renders ON TOP of the player even though the player should be in front.
+
+## Root Causes
+
+### 1. Transparent Sprite Space
+- Large sprites often have transparent padding (e.g., a 1024x1024 image with only 775px of actual building content)
+- The visual "foot level" of the building is NOT at `worldPosY` - it's higher up (lower Y value)
+- When scaled down (e.g., 1024 → 480px), proportions matter for calculating the visual base
+
+### 2. Duplicate Y-Sort Logic
+- Y-sorting happens in **TWO places**:
+  1. `useEntityFiltering.ts` - initial entity sorting
+  2. `GameCanvas.tsx` - secondary sort during render preparation
+- **BOTH must be updated** or the second sort overrides the first!
+
+### 3. Sort Transitivity
+- JavaScript's sort doesn't compare every pair directly
+- It uses transitivity: if A < B and B < C, it assumes A < C
+- Special comparison overrides may be bypassed if other entities create indirect relationships
+
+## The Fix
+
+### Step 1: Identify the Visual Foot Offset
+For ALK stations:
+- Sprite: 1024x1024 source, rendered at 480x480
+- Actual content: ~775px (bottom 75.7%), top ~24.3% is transparent
+- Collision Y offset: 170px (where interactions happen)
+- **Visual foot offset: 170px** (use collision offset as reference)
+
+### Step 2: Update Y-Sort Position in `useEntityFiltering.ts`
+
+```typescript
+case 'alk_station': {
+  const alkStation = entity as SpacetimeDBAlkStation;
+  const ALK_STATION_VISUAL_FOOT_OFFSET = 170;
+  return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
+}
+```
+
+### Step 3: Update Y-Sort Comparison in `useEntityFiltering.ts`
+
+```typescript
+if (a.type === 'player' && b.type === 'alk_station') {
+  const player = a.entity as SpacetimeDBPlayer;
+  const station = b.entity as SpacetimeDBAlkStation;
+  const ALK_STATION_YSORT_BUFFER = 170;
+  if (player.positionY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
+    return 1; // Player in front
+  }
+  return -1; // Player behind
+}
+```
+
+### Step 4: Update DUPLICATE Comparison in `GameCanvas.tsx`
+
+**CRITICAL: Search for duplicate logic!**
+
+```typescript
+if (aType === 'player' && bType === 'alk_station') {
+  const playerY = (aEntity as any)?.positionY ?? 0;
+  const stationY = (bEntity as any)?.worldPosY ?? 0;
+  const ALK_VISUAL_FOOT_OFFSET = 170;
+  if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
+    return 1; // Player in front
+  }
+  return -1; // Player behind
+}
+```
+
+## Key Files to Check
+
+When debugging Y-sort issues for any tall structure:
+
+1. **`client/src/hooks/useEntityFiltering.ts`**
+   - `getYSortPosition()` switch case for the entity type
+   - Special comparison logic in `allEntities.sort()` 
+
+2. **`client/src/components/GameCanvas.tsx`**
+   - Search for entity type in sort comparator (around line 2050+)
+   - Look for `aType === 'your_entity'` or `bType === 'your_entity'`
+
+3. **Rendering utils** (e.g., `alkStationRenderingUtils.ts`)
+   - Check `*_COLLISION_Y_OFFSET` constants
+   - These indicate where the "functional center" of the building is
+
+## Formula for Calculating Visual Foot Offset
+
+```
+visual_foot_offset = collision_y_offset  // Usually a good starting point
+
+// Or calculate from sprite data:
+transparent_ratio = (source_height - content_height) / source_height
+transparent_pixels = rendered_height * transparent_ratio
+visual_foot_offset = transparent_pixels + player_height + safety_margin
+```
+
+## Debugging Checklist
+
+- [ ] Check if Y-sort position uses raw `worldPosY` or has an offset
+- [ ] Search for DUPLICATE sort logic in GameCanvas.tsx
+- [ ] Verify both useEntityFiltering.ts AND GameCanvas.tsx use the same offset
+- [ ] Check if collision Y offset exists (good reference for visual foot level)
+- [ ] Consider transparent space in the sprite
+- [ ] Test approaching from ALL directions (north, south, east, west)
+
+## Related Constants (ALK Station)
+
+```typescript
+// In alkStationRenderingUtils.ts
+export const ALK_STATION_WIDTH = 480;
+export const ALK_STATION_HEIGHT = 480;
+export const ALK_STATION_COLLISION_Y_OFFSET = 170.0;
+
+// In alk.rs (server)
+pub const ALK_STATION_COLLISION_Y_OFFSET: f32 = 170.0;
+```

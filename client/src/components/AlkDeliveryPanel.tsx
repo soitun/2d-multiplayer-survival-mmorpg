@@ -173,16 +173,22 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
     const deliverableSummary = useMemo(() => {
         let totalGross = 0;
         let totalFee = 0;
-        let deliverableCount = 0;
+        let totalBundleCount = 0;
+        let deliverableContractCount = 0;
 
         activeContracts.forEach(({ playerContract, contract, canDeliver }) => {
             if (canDeliver) {
-                // shardRewardPerBundle is reward for delivering the full bundle
-                const gross = Number(contract.shardRewardPerBundle);
+                // Calculate total bundles for this contract
+                const targetQty = Number(playerContract.targetQuantity);
+                const bundleSize = Number(contract.bundleSize);
+                const bundles = Math.floor(targetQty / bundleSize);
+                // Total reward = bundles × reward per bundle
+                const gross = bundles * Number(contract.shardRewardPerBundle);
                 const fee = station ? Math.floor(gross * station.deliveryFeeRate) : 0;
                 totalGross += gross;
                 totalFee += fee;
-                deliverableCount++;
+                totalBundleCount += bundles;
+                deliverableContractCount++;
             }
         });
 
@@ -190,7 +196,8 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
             totalGross,
             totalFee,
             totalNet: totalGross - totalFee,
-            deliverableCount,
+            totalBundleCount,
+            deliverableContractCount,
         };
     }, [activeContracts, station]);
 
@@ -215,7 +222,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
 
     // Handle delivering all ready contracts
     const handleDeliverAll = useCallback(async () => {
-        if (!connection?.reducers || isDelivering || deliverableSummary.deliverableCount === 0) return;
+        if (!connection?.reducers || isDelivering || deliverableSummary.deliverableContractCount === 0) return;
 
         setIsDelivering(true);
         setDeliveryStatus('Processing deliveries...');
@@ -242,11 +249,11 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
 
         setTimeout(() => setDeliveryStatus(null), 3000);
         setIsDelivering(false);
-    }, [connection, stationId, isDelivering, activeContracts, deliverableSummary.deliverableCount]);
+    }, [connection, stationId, isDelivering, activeContracts, deliverableSummary.deliverableContractCount]);
 
     // Handle E key to close the panel (toggle behavior)
     // Uses a module-level flag to prevent the input handler from immediately reopening
-    // Also blocks arrow keys from moving the player while panel is open
+    // NOTE: Player movement is ALLOWED while this delivery panel is open (unlike AlkPanel)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Handle Escape on keydown (feels more responsive)
@@ -266,22 +273,8 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                     onClose();
                 }
             }
-            // Block arrow keys from moving the player while panel is open
-            // but allow them to work within the panel UI (e.g., input fields, scrolling)
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                // Don't block if user is in an input field - let arrows work for text navigation
-                if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
-                    e.stopPropagation();
-                    // Don't preventDefault - allow scrolling within the panel
-                }
-            }
-            // Also block WASD movement keys while panel is open
-            if (e.key === 'w' || e.key === 'W' || e.key === 'a' || e.key === 'A' || 
-                e.key === 's' || e.key === 'S' || e.key === 'd' || e.key === 'D') {
-                if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
-                    e.stopPropagation();
-                }
-            }
+            // Player movement (arrows, WASD) is intentionally NOT blocked here
+            // This is a lightweight delivery panel - player should be able to move
         };
 
         // Use capture phase to intercept BEFORE the input handler's bubble phase listeners
@@ -347,8 +340,11 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                     <div className="contract-list">
                         {activeContracts.map(({ playerContract, contract, itemDef, inventoryQty, canDeliver }) => {
                             const targetQty = Number(playerContract.targetQuantity);
-                            // shardRewardPerBundle is the reward for the entire bundle
-                            const grossReward = Number(contract.shardRewardPerBundle);
+                            const bundleSize = Number(contract.bundleSize);
+                            // Calculate total bundles purchased for this contract
+                            const totalBundles = Math.floor(targetQty / bundleSize);
+                            // Total reward = bundles × reward per bundle
+                            const grossReward = totalBundles * Number(contract.shardRewardPerBundle);
                             const fee = station ? Math.floor(grossReward * station.deliveryFeeRate) : 0;
                             const netReward = grossReward - fee;
                             const progress = Math.min(100, (inventoryQty / targetQty) * 100);
@@ -419,14 +415,18 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
             </div>
 
             {/* Deliver All Button */}
-            {deliverableSummary.deliverableCount > 0 && (
+            {deliverableSummary.deliverableContractCount > 0 && (
                 <div className="alk-delivery-footer">
                     <div className="delivery-summary">
-                        <span>{deliverableSummary.deliverableCount} contract(s) ready</span>
+                        <span>
+                            {deliverableSummary.deliverableContractCount} contract{deliverableSummary.deliverableContractCount !== 1 ? 's' : ''} ready
+                            {deliverableSummary.totalBundleCount > deliverableSummary.deliverableContractCount && 
+                                ` (${deliverableSummary.totalBundleCount} bundles)`}
+                        </span>
                         <span className="summary-reward">
                             Total: <img src={memoryShardIcon} alt="" className="shard-icon" />
-                            {deliverableSummary.totalNet.toLocaleString()} 
-                            {deliverableSummary.totalFee > 0 && ` (after ${deliverableSummary.totalFee} fee)`}
+                            {deliverableSummary.totalNet.toLocaleString()}
+                            {deliverableSummary.totalFee > 0 && ' (after fee)'}
                         </span>
                     </div>
                     <button

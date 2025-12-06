@@ -47,6 +47,7 @@ import {
   isSeaStack // ADDED SeaStack type guard import
 } from '../utils/typeGuards';
 import { InterpolatedGrassData } from './useGrassInterpolation'; // Import InterpolatedGrassData
+import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition } from '../config/compoundBuildings'; // Import compound buildings config
 
 export interface ViewportBounds {
   viewMinX: number;
@@ -156,7 +157,19 @@ export type YSortedEntityType =
   | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } } // ADDED: Fog of war overlay (renders above placeables, below walls)
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
   | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn } // ADDED: Basalt columns (decorative obstacles in quarries)
-  | { type: 'alk_station'; entity: SpacetimeDBAlkStation }; // ADDED: ALK delivery stations
+  | { type: 'alk_station'; entity: SpacetimeDBAlkStation } // ADDED: ALK delivery stations
+  | { type: 'compound_building'; entity: CompoundBuildingEntity }; // ADDED: Static compound buildings
+
+// Type for compound buildings in Y-sorted system
+export interface CompoundBuildingEntity {
+  id: string;
+  worldX: number;
+  worldY: number;
+  width: number;
+  height: number;
+  imagePath: string;
+  anchorYOffset: number;
+}
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
@@ -211,10 +224,23 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
     case 'alk_station': {
-      // ALK stations use worldPosY for their position (the building's base/foot)
-      // Use raw position like trees/stones/basalt_columns - NO offset
+      // ALK stations: worldPosY is the sprite's BOTTOM, but the visual "foot level" 
+      // (where players walk) is much HIGHER due to:
+      // 1. ~24% transparent space at top of 1024px source image
+      // 2. Building's architectural base/stairs extending above ground level
+      // The collision center is offset 170px up from worldPosY, so the visual foot
+      // is roughly there. Use this for Y-sorting so players in front render correctly.
       const alkStation = entity as SpacetimeDBAlkStation;
-      return alkStation.worldPosY;
+      const ALK_STATION_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset
+      return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
+    }
+    case 'compound_building': {
+      // Compound buildings: worldY is the anchor point (building "feet" - where players walk)
+      // Similar to ALK stations: worldPosY is sprite bottom, visual foot is offset upward
+      // For compound buildings: worldY IS the visual foot (anchor point), sprite bottom is below
+      // Use anchor point directly for Y-sorting (same as ALK station visual foot)
+      const building = entity as CompoundBuildingEntity;
+      return building.worldY; // Anchor point = visual foot = where players walk
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -1111,6 +1137,36 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
+  // ADDED: Compound buildings filtering - static buildings defined in config
+  // These don't come from server, so we compute world positions from config and filter by viewport
+  const visibleCompoundBuildings = useMemo(() => {
+    // Convert config buildings to entity format with world positions
+    return COMPOUND_BUILDINGS.map(building => {
+      const worldPos = getBuildingWorldPosition(building);
+      return {
+        id: building.id,
+        worldX: worldPos.x,
+        worldY: worldPos.y,
+        width: building.width,
+        height: building.height,
+        imagePath: building.imagePath,
+        anchorYOffset: building.anchorYOffset,
+      };
+    }).filter(building => {
+      // Check if building is in viewport (with buffer for tall buildings)
+      const buffer = 500; // Large buffer for tall buildings
+      const left = building.worldX - building.width / 2;
+      const right = building.worldX + building.width / 2;
+      const top = building.worldY - building.height + building.anchorYOffset;
+      const bottom = building.worldY;
+      
+      return right + buffer >= viewBounds.viewMinX &&
+             left - buffer <= viewBounds.viewMaxX &&
+             bottom + buffer >= viewBounds.viewMinY &&
+             top - buffer <= viewBounds.viewMaxY;
+    });
+  }, [viewBounds]);
+
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
     : [],
@@ -1436,7 +1492,8 @@ export function useEntityFiltering(
       harvestableResources: visibleHarvestableResources.length,
       playerCorpses: visiblePlayerCorpses.length,
       stashes: visibleStashes.length,
-      wallCells: visibleWallCells.length
+      wallCells: visibleWallCells.length,
+      compoundBuildings: visibleCompoundBuildings.length, // ADDED: Static compound buildings
     };
     
     // Calculate fog overlay count (building clusters that should be masked)
@@ -1558,6 +1615,7 @@ export function useEntityFiltering(
     visibleFumaroles.forEach(e => allEntities[index++] = { type: 'fumarole', entity: e }); // ADDED: Fumaroles
     visibleBasaltColumns.forEach(e => allEntities[index++] = { type: 'basalt_column', entity: e }); // ADDED: Basalt columns
     visibleAlkStations.forEach(e => allEntities[index++] = { type: 'alk_station', entity: e }); // ADDED: ALK delivery stations
+    visibleCompoundBuildings.forEach(e => allEntities[index++] = { type: 'compound_building', entity: e }); // ADDED: Static compound buildings
     visibleSleepingBags.forEach(e => allEntities[index++] = { type: 'sleeping_bag', entity: e }); // ADDED: Sleeping bags
     visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
     visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
@@ -1656,23 +1714,56 @@ export function useEntityFiltering(
     allEntities.sort((a, b) => {
       // ABSOLUTE FIRST CHECK: Player vs ALK Station - tall structure Y-sorting
       // This MUST be first to ensure correct rendering for large structures
-      // Player north of station base (lower Y) = player behind = station renders on top
+      // CRITICAL: The ALK station sprite is 1024x1024 but only ~775px has actual building content
+      // The top ~24% is transparent PNG. When rendered at 480px, ~115px is transparent at top.
+      // The visual "foot" of the building is NOT at worldPosY - it's higher up.
+      // We need a large buffer to account for: transparent sprite top (~115px) + player height (48px)
       if (a.type === 'player' && b.type === 'alk_station') {
         const player = a.entity as SpacetimeDBPlayer;
         const station = b.entity as SpacetimeDBAlkStation;
-        // Use RAW positionY (no offset) vs worldPosY for correct comparison
-        if (player.positionY >= station.worldPosY) {
-          return 1; // Player south of/at station base - player in front
+        // Buffer accounts for: transparent top of sprite (~115px) + player height (48px) + safety margin
+        const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
+        // Player renders in front if their feet are at or south of the building's visual base
+        if (player.positionY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
+          return 1; // Player at/near/south of building's visual base - player in front
         }
-        return -1; // Player north of station base - player behind (station on top)
+        return -1; // Player clearly north of building - player behind (station on top)
       }
       if (a.type === 'alk_station' && b.type === 'player') {
         const player = b.entity as SpacetimeDBPlayer;
         const station = a.entity as SpacetimeDBAlkStation;
-        if (player.positionY >= station.worldPosY) {
-          return -1; // Player south of/at station base - player in front (inverted)
+        const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
+        if (player.positionY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
+          return -1; // Player at/near/south of building's visual base - player in front (inverted)
         }
-        return 1; // Player north of station base - player behind (inverted)
+        return 1; // Player clearly north of building - player behind (inverted)
+      }
+      
+      // ABSOLUTE SECOND CHECK: Player vs Compound Building - tall structure Y-sorting
+      // Similar to ALK stations - compound buildings need special handling
+      // worldY is the anchor point (visual foot), sprite extends upward from there
+      if (a.type === 'player' && b.type === 'compound_building') {
+        const player = a.entity as SpacetimeDBPlayer;
+        const building = b.entity as CompoundBuildingEntity;
+        // Building anchor point (visual foot) is at worldY
+        // Account for building height - player must be significantly south to render in front
+        // Similar to ALK stations: use a buffer to account for building height
+        const BUILDING_YSORT_BUFFER = building.height * 0.3; // 30% of building height as buffer
+        const buildingVisualFoot = building.worldY;
+        if (player.positionY >= buildingVisualFoot - BUILDING_YSORT_BUFFER) {
+          return 1; // Player at/near/south of building's visual foot - player in front
+        }
+        return -1; // Player clearly north of building - player behind (building on top)
+      }
+      if (a.type === 'compound_building' && b.type === 'player') {
+        const building = a.entity as CompoundBuildingEntity;
+        const player = b.entity as SpacetimeDBPlayer;
+        const BUILDING_YSORT_BUFFER = building.height * 0.3; // 30% of building height as buffer
+        const buildingVisualFoot = building.worldY;
+        if (player.positionY >= buildingVisualFoot - BUILDING_YSORT_BUFFER) {
+          return -1; // Player at/near/south of building's visual foot - player in front (inverted)
+        }
+        return 1; // Player clearly north of building - player behind (inverted)
       }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)
@@ -2125,6 +2216,7 @@ export function useEntityFiltering(
     visibleFumaroles,
     visibleBasaltColumns,
     visibleAlkStations, // ADDED: ALK stations dependency
+    visibleCompoundBuildings, // ADDED: Static compound buildings dependency
     visibleSeaStacks,
     visibleHarvestableResources,
     visibleFoundationCells, // ADDED: Foundations dependency

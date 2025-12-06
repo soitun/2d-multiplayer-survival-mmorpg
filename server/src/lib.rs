@@ -109,6 +109,7 @@ mod ranged_weapon_stats; // Add this line
 mod projectile; // Add this line
 mod death_marker; // <<< ADDED death marker module
 mod torch; // <<< ADDED torch module
+mod flashlight; // <<< ADDED flashlight module
 mod respawn; // <<< ADDED respawn module
 mod player_collision; // <<< ADDED player_collision module
 mod shelter; // <<< ADDED shelter module
@@ -138,6 +139,7 @@ mod recipes; // <<< ADDED: Recipe system for broth pot cooking
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
+pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -334,6 +336,9 @@ pub use bones::crush_bone_item;
 
 // ADD: Re-export torch reducer for client bindings
 pub use torch::toggle_torch;
+
+// ADD: Re-export flashlight reducer for client bindings
+pub use flashlight::toggle_flashlight;
 
 // Import Table Traits needed in this module
 use crate::tree::tree as TreeTableTrait;
@@ -559,6 +564,7 @@ pub struct Player {
     pub last_hit_time: Option<Timestamp>,
     pub is_online: bool, // <<< ADDED
     pub is_torch_lit: bool, // <<< ADDED: Tracks if the player's torch is currently lit
+    pub is_flashlight_on: bool, // <<< ADDED: Tracks if the player's flashlight is currently on
     pub last_consumed_at: Option<Timestamp>, // <<< ADDED: Tracks when a player last consumed an item
     pub is_crouching: bool, // RENAMED: For crouching speed control
     pub is_knocked_out: bool, // NEW: Tracks if the player is in knocked out state
@@ -1309,6 +1315,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         last_hit_time: None,
         is_online: true, // <<< Keep this for BRAND NEW players
         is_torch_lit: false, // Initialize to false
+        is_flashlight_on: false, // Initialize to false
         last_consumed_at: None, // Initialize last_consumed_at
         is_crouching: false, // Initialize is_crouching
         is_knocked_out: false, // NEW: Initialize knocked out state

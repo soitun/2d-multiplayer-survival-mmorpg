@@ -135,6 +135,10 @@ interface ContractCardProps {
     isAccepted: boolean;
     currentSeason: number;
     onQuantityInputFocusChange?: (isFocused: boolean) => void;
+    // For MAX button - calculate from inventory/hotbar
+    inventoryItems?: Map<string, any>;
+    itemDefinitions?: Map<string, ItemDefinition>;
+    playerIdentity?: Identity | null;
 }
 
 const ContractCard: React.FC<ContractCardProps> = ({
@@ -144,14 +148,52 @@ const ContractCard: React.FC<ContractCardProps> = ({
     isAccepted,
     currentSeason,
     onQuantityInputFocusChange,
+    inventoryItems,
+    itemDefinitions,
+    playerIdentity,
 }) => {
     // Contract count = how many contracts (each contract = 1 bundle worth of items)
     const [contractCount, setContractCount] = useState(1);
     
-    // Each contract requires bundleSize items and pays shardRewardPerBundle
-    const maxContracts = contract.currentPoolRemaining 
+    // Calculate how many of this item the player has in inventory/hotbar (not storage)
+    const playerItemCount = useMemo(() => {
+        if (!playerIdentity || !inventoryItems || !itemDefinitions) return 0;
+        
+        let total = 0;
+        inventoryItems.forEach((item) => {
+            // Check if owned by player (inventory or hotbar only, not storage)
+            const loc = item.location;
+            if (!loc) return;
+            
+            let isOwned = false;
+            if (loc.tag === 'Inventory' && loc.value?.ownerId?.isEqual(playerIdentity)) {
+                isOwned = true;
+            } else if (loc.tag === 'Hotbar' && loc.value?.ownerId?.isEqual(playerIdentity)) {
+                isOwned = true;
+            }
+            
+            if (!isOwned) return;
+            
+            // Check if this is the contract's item
+            if (item.itemDefId === contract.itemDefId) {
+                total += Number(item.quantity);
+            }
+        });
+        
+        return total;
+    }, [playerIdentity, inventoryItems, contract.itemDefId]);
+    
+    // Max contracts from pool (if limited)
+    const maxFromPool = contract.currentPoolRemaining 
         ? Math.ceil(Number(contract.currentPoolRemaining) / contract.bundleSize) 
         : 99;
+    
+    // Max contracts from inventory (how many bundles can player deliver)
+    const maxFromInventory = Math.floor(playerItemCount / contract.bundleSize);
+    
+    // Each contract requires bundleSize items and pays shardRewardPerBundle
+    // Use the lower of pool limit and arbitrary max (99)
+    const maxContracts = Math.min(maxFromPool, 99);
     const totalItemsRequired = contractCount * contract.bundleSize;
     const totalReward = contractCount * contract.shardRewardPerBundle;
     
@@ -293,7 +335,7 @@ const ContractCard: React.FC<ContractCardProps> = ({
                                     background: contractCount < maxContracts ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
                                     color: contractCount < maxContracts ? '#00aaff' : '#666',
                                     border: contractCount < maxContracts ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
-                                    borderRadius: '0 3px 3px 0',
+                                    borderRadius: '0',
                                     cursor: contractCount < maxContracts ? 'pointer' : 'not-allowed',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -304,12 +346,50 @@ const ContractCard: React.FC<ContractCardProps> = ({
                             >
                                 +
                             </button>
+                            
+                            {/* MAX Button - Set to max contracts fulfillable from inventory */}
+                            <button 
+                                onClick={() => setContractCount(Math.min(maxContracts, Math.max(1, maxFromInventory)))}
+                                disabled={maxFromInventory <= 0}
+                                title={maxFromInventory > 0 
+                                    ? `Set to ${Math.min(maxContracts, maxFromInventory)} contracts (you have ${playerItemCount} ${contract.itemName.trim()} in inventory)` 
+                                    : `No ${contract.itemName.trim()} in inventory/hotbar`}
+                                style={{
+                                    width: '36px',
+                                    height: '24px',
+                                    padding: '0 4px',
+                                    fontSize: '10px',
+                                    fontWeight: 'bold',
+                                    background: maxFromInventory > 0 
+                                        ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' 
+                                        : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                    color: maxFromInventory > 0 ? '#00ff88' : '#666',
+                                    border: maxFromInventory > 0 
+                                        ? '2px solid rgba(0, 255, 136, 0.4)' 
+                                        : '2px solid rgba(100, 100, 120, 0.3)',
+                                    borderRadius: '0 3px 3px 0',
+                                    cursor: maxFromInventory > 0 ? 'pointer' : 'not-allowed',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: maxFromInventory > 0 ? '0 0 8px rgba(0, 255, 136, 0.2)' : 'none',
+                                    transition: 'all 0.2s ease',
+                                    letterSpacing: '0.5px'
+                                }}
+                            >
+                                MAX
+                            </button>
                         </div>
                         <span className="bundle-info" style={{ fontSize: '12px', color: '#00ff88' }}>
                             ({contractCount} {contractCount === 1 ? 'contract' : 'contracts'} = {totalReward}
                             <img src={memoryShardIcon} alt="shards" className="shard-icon-small" style={{ marginLeft: '2px', marginRight: '2px' }} />
-                            Memory Shards)
+                            )
                         </span>
+                        {playerItemCount > 0 && (
+                            <span style={{ fontSize: '11px', color: '#ffaa00', marginLeft: '8px' }}>
+                                📦 {playerItemCount} in bag
+                            </span>
+                        )}
                     </div>
                     <button 
                         className="accept-button"
@@ -564,39 +644,42 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     const getKindTag = (kind: AlkContractKind | undefined | null): string => 
         kind && 'tag' in kind ? (kind.tag as string) : '';
     
+    // Helper to filter out Memory Shard contracts (base currency cannot be traded for itself)
+    const isNotMemoryShard = (c: AlkContract) => c.itemName.trim() !== 'Memory Shard';
+    
     const seasonalContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => (getKindTag(c.kind) === 'SeasonalHarvest' || getKindTag(c.kind) === 'BaseFood') && c.isActive);
+            .filter(c => (getKindTag(c.kind) === 'SeasonalHarvest' || getKindTag(c.kind) === 'BaseFood') && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const materialsContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => (getKindTag(c.kind) === 'Materials' || getKindTag(c.kind) === 'BaseIndustrial') && c.isActive);
+            .filter(c => (getKindTag(c.kind) === 'Materials' || getKindTag(c.kind) === 'BaseIndustrial') && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const armsContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => getKindTag(c.kind) === 'Arms' && c.isActive);
+            .filter(c => getKindTag(c.kind) === 'Arms' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const armorContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => getKindTag(c.kind) === 'Armor' && c.isActive);
+            .filter(c => getKindTag(c.kind) === 'Armor' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const toolsContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => getKindTag(c.kind) === 'Tools' && c.isActive);
+            .filter(c => getKindTag(c.kind) === 'Tools' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const provisionsContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => getKindTag(c.kind) === 'Provisions' && c.isActive);
+            .filter(c => getKindTag(c.kind) === 'Provisions' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     const bonusContracts = useMemo(() => {
         return Array.from(alkContracts.values())
-            .filter(c => getKindTag(c.kind) === 'DailyBonus' && c.isActive);
+            .filter(c => getKindTag(c.kind) === 'DailyBonus' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
     // Get player's contracts - sorted by date submitted (most recent first)
@@ -718,6 +801,9 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
                         isAccepted={acceptedContractIds.has(contract.contractId.toString())}
                         currentSeason={currentSeason}
                         onQuantityInputFocusChange={setIsQuantityInputFocused}
+                        inventoryItems={inventoryItems}
+                        itemDefinitions={itemDefinitions}
+                        playerIdentity={playerIdentity}
                     />
                 ))}
             </div>
@@ -878,7 +964,7 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
                     </div>
                 ) : (
                     <div className="footer-tip">
-                        💡 Deliver at Central Compound (no fee) or Substations (15% fee)
+                        💡 Deliver at Central Compound (no fee) or Substations (10% fee)
                     </div>
                 )}
             </div>

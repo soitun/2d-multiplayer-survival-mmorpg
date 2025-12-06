@@ -30,9 +30,7 @@ export class ProceduralWorldRenderer {
             // Load base texture - wrap in catch to handle missing files gracefully
             promises.push(
                 this.loadImage(config.baseTexture, `${tileType}_base`)
-                    .catch(err => {
-                        console.warn(`[ProceduralWorldRenderer] Failed to load base texture for ${tileType}:`, err);
-                    })
+                    .catch(() => {})
             );
             
             // Load variants if they exist
@@ -65,16 +63,8 @@ export class ProceduralWorldRenderer {
         try {
             await Promise.all(promises);
             this.isInitialized = true;
-            // Log which base textures were loaded
-            const loadedBases = Object.keys(TILE_ASSETS).filter(t => this.tileCache.images.has(`${t}_base`));
-            const missingBases = Object.keys(TILE_ASSETS).filter(t => !this.tileCache.images.has(`${t}_base`));
-            console.log('[ProceduralWorldRenderer] Loaded base textures:', loadedBases.join(', '));
-            if (missingBases.length > 0) {
-                console.error('[ProceduralWorldRenderer] MISSING base textures:', missingBases.join(', '));
-            }
-            console.log('[ProceduralWorldRenderer] Loaded transition autotiles:', Object.keys(AUTOTILE_CONFIGS).join(', '));
         } catch (error) {
-            console.error('[ProceduralWorldRenderer] Failed to preload tile assets:', error);
+            // Silently handle errors - missing assets will show fallback colors
         }
     }
     
@@ -85,9 +75,8 @@ export class ProceduralWorldRenderer {
                 this.tileCache.images.set(key, img);
                 resolve();
             };
-            img.onerror = (error) => {
-                // console.error(`[ProceduralWorldRenderer] Failed to load image ${key} from ${src}:`, error);
-                reject(error);
+            img.onerror = () => {
+                reject(new Error(`Failed to load image ${key}`));
             };
             img.src = src;
         });
@@ -395,7 +384,6 @@ export class ProceduralWorldRenderer {
         const config = TILE_ASSETS[tileTypeName];
         
         if (!config) {
-            console.warn(`[ProceduralWorldRenderer] No asset config for tile type: ${tileTypeName}`);
             return null;
         }
         

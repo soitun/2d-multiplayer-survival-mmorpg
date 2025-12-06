@@ -743,6 +743,7 @@ export const useInputHandler = ({
                 return;
             }
 
+
             // Interaction key ('e')
             if (key === 'e' && !event.repeat && !isEHeldDownRef.current) {
                 isEHeldDownRef.current = true;
@@ -1512,6 +1513,16 @@ export const useInputHandler = ({
                             connectionRef.current.reducers.toggleTorch();
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleTorch.");
+                        }
+                        return;
+                    } else if (equippedItemDef.name === "Flashlight") {
+                        // Flashlight right-click to toggle on/off (same as torch)
+                        event.preventDefault();
+                        if (connectionRef.current?.reducers) {
+                            console.log("[InputHandler CTXMENU] Calling toggleFlashlight reducer.");
+                            connectionRef.current.reducers.toggleFlashlight();
+                        } else {
+                            console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleFlashlight.");
                         }
                         return;
                     } else if (equippedItemDef.name === "Blueprint") {

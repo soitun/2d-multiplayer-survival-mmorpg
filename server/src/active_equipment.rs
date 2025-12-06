@@ -245,12 +245,31 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
                 players_table.identity().update(player);
             }
         }
+    } else if item_def.name == "Flashlight" {
+        equipment.icon_asset_name = Some("flashlight.png".to_string()); // Default to off
+        if let Some(mut player) = players_table.identity().find(&sender_id) {
+            // Ensure flashlight starts off, even if it was somehow on with a previous flashlight
+            if player.is_flashlight_on { 
+                player.is_flashlight_on = false;
+                player.last_update = ctx.timestamp; // Update timestamp
+                players_table.identity().update(player);
+            }
+        }
     } else {
         equipment.icon_asset_name = Some(item_def.icon_asset_name.clone());
-        // If equipping something else and a torch was lit, turn it off
+        // If equipping something else and a torch was lit or flashlight was on, turn them off
         if let Some(mut player) = players_table.identity().find(&sender_id) {
+            let mut needs_update = false;
             if player.is_torch_lit {
                 player.is_torch_lit = false;
+                needs_update = true;
+            }
+            // If equipping something else and a flashlight was on, turn it off
+            if player.is_flashlight_on {
+                player.is_flashlight_on = false;
+                needs_update = true;
+            }
+            if needs_update {
                 player.last_update = ctx.timestamp; // Update timestamp
                 players_table.identity().update(player);
             }
@@ -304,6 +323,15 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
                                 player.last_update = ctx.timestamp;
                                 players_table.identity().update(player);
                                 log::info!("Player {:?} unequipped a lit torch, extinguishing it.", player_identity);
+                            }
+                        }
+                    } else if item_def.name == "Flashlight" {
+                        if let Some(mut player) = players_table.identity().find(&player_identity) {
+                            if player.is_flashlight_on {
+                                player.is_flashlight_on = false;
+                                player.last_update = ctx.timestamp;
+                                players_table.identity().update(player);
+                                log::info!("Player {:?} unequipped a flashlight that was on, turning it off.", player_identity);
                             }
                         }
                     }

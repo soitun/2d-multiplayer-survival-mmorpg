@@ -75,6 +75,10 @@ import { renderFumarole } from './fumaroleRenderingUtils';
 import { renderBasaltColumn } from './basaltColumnRenderingUtils';
 // Import ALK station renderer
 import { renderAlkStation } from './alkStationRenderingUtils';
+// Import compound building renderer
+import { renderCompoundBuilding, getBuildingImage } from './compoundBuildingRenderingUtils';
+import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
+import { COMPOUND_BUILDINGS } from '../../config/compoundBuildings';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
 // Import hearth renderer
@@ -1119,6 +1123,15 @@ export const renderYSortedEntities = ({
                 const outlineHeight = 500;
                 const outlineY = alkStation.worldPosY - 200; // Centered on the actual building
                 drawInteractionOutline(ctx, alkStation.worldPosX, outlineY, outlineWidth, outlineHeight, cycleProgress, outlineColor);
+            }
+        } else if (type === 'compound_building') {
+            // Static compound buildings - render from config-defined positions
+            const buildingEntity = entity as CompoundBuildingEntity;
+            
+            // Find the full building config to get all properties needed for rendering
+            const buildingConfig = COMPOUND_BUILDINGS.find(b => b.id === buildingEntity.id);
+            if (buildingConfig) {
+                renderCompoundBuilding(ctx, buildingConfig, cycleProgress, localPlayerPosition, doodadImagesRef);
             }
         } else if (type === 'foundation_cell') {
             const foundation = entity as SpacetimeDBFoundationCell;

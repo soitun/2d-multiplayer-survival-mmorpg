@@ -751,7 +751,37 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                 </div>
                 
                 {/* Show prerequisites for locked nodes */}
-                {displayNode.status === 'locked' && displayNode.prerequisites.length > 0 && (
+                {displayNode.status === 'locked' && displayNode.prerequisites.length > 0 && (() => {
+                  // Special case: Faction unlock node locked because another faction is already chosen
+                  const isFactionUnlockNode = displayNode.id.includes('unlock-');
+                  const tier5Nodes = ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'];
+                  const hasTier5 = tier5Nodes.some(id => purchasedNodes.has(id));
+                  const isLockedDueToFaction = isFactionUnlockNode && hasTier5 && unlockedFaction;
+                  
+                  if (isLockedDueToFaction) {
+                    return (
+                      <div style={{ 
+                        marginTop: '8px', 
+                        padding: '6px 8px', 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        border: '1px solid #ef4444',
+                        borderRadius: '4px',
+                        fontSize: '11px'
+                      }}>
+                        <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: '4px' }}>
+                          ⚔ Faction Locked
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '4px' }}>
+                          You have already joined <span style={{ color: unlockedFaction.color, fontWeight: 'bold' }}>{unlockedFaction.name}</span>.
+                        </div>
+                        <div style={{ color: '#f59e0b', fontSize: '10px' }}>
+                          Reset your faction (2000 shards) to choose a different path.
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
                   <div style={{ 
                     marginTop: '8px', 
                     padding: '6px 8px', 
@@ -780,7 +810,8 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                       );
                     })}
                   </div>
-                )}
+                  );
+                })()}
                 
                 {displayNode.status === 'available' && canAfford && onNodePurchase && (
                   <button

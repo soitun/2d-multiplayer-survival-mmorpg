@@ -1163,12 +1163,7 @@ export function shouldUseAutotiling(
         }
     }
     
-    // REMOVED: The mapping code below should NEVER execute now that we return null above
-    // If you see this log, something is wrong!
     const mappedTileType = autotileTileType;
-    if (['Asphalt'].includes(autotileTileType)) {
-        console.error(`[AUTOTILE] BUG! Reached mapping code for ${autotileTileType} - should have returned null earlier!`);
-    }
     
     // Sort configs to prioritize road overlay transitions FIRST (they're visually on top)
     // Priority: *_DirtRoad (highest - road overlays) > Quarry_* (for interior Quarry tiles) > Grass_Dirt > Grass_Beach > Dirt_Beach

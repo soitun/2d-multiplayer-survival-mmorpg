@@ -31,6 +31,8 @@ pub enum SoundType {
     TorchHitLit,    // torch_hit_lit.mp3 (1 variation - for lit torch hits on players/corpses, plays with TorchHit)
     LightTorch,     // light_torch.mp3 (1 variation - when lighting a torch)
     ExtinguishTorch, // extinguish_torch.mp3 (1 variation - when extinguishing a torch)
+    FlashlightOn,   // flashlight_on.mp3 (1 variation - when turning on a flashlight)
+    FlashlightOff,  // flashlight_off.mp3 (1 variation - when turning off a flashlight)
     MeleeHitBlunt,  // melee_hit_blunt.mp3 (1 variation - for blunt weapon hits on players/corpses)
     WeaponSwing,    // weapon_swing.mp3 (1 variation - for all weapon swings)
     ArrowHit,       // arrow_hit.mp3 (1 variation - when arrows hit players/corpses)
@@ -98,6 +100,8 @@ impl SoundType {
             SoundType::TorchHitLit => "torch_hit_lit",
             SoundType::LightTorch => "light_torch",
             SoundType::ExtinguishTorch => "extinguish_torch",
+            SoundType::FlashlightOn => "flashlight_on",
+            SoundType::FlashlightOff => "flashlight_off",
             SoundType::MeleeHitBlunt => "melee_hit_blunt",
             SoundType::WeaponSwing => "weapon_swing",
             SoundType::ArrowHit => "arrow_hit",
@@ -162,6 +166,8 @@ impl SoundType {
             SoundType::TorchHitLit => 1,
             SoundType::LightTorch => 1,
             SoundType::ExtinguishTorch => 1,
+            SoundType::FlashlightOn => 1,
+            SoundType::FlashlightOff => 1,
             SoundType::MeleeHitBlunt => 1,
             SoundType::WeaponSwing => 1,
             SoundType::ArrowHit => 1,
@@ -543,6 +549,16 @@ pub fn emit_light_torch_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, play
 /// Emit a torch extinguishing sound
 pub fn emit_extinguish_torch_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::ExtinguishTorch, pos_x, pos_y, 0.9, 450.0, player_id);
+}
+
+/// Emit a flashlight turning on sound
+pub fn emit_flashlight_on_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FlashlightOn, pos_x, pos_y, 1.0, 500.0, player_id);
+}
+
+/// Emit a flashlight turning off sound
+pub fn emit_flashlight_off_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::FlashlightOff, pos_x, pos_y, 0.9, 450.0, player_id);
 }
 
 /// Emit a blunt melee hit sound (for blunt weapons hitting players/corpses)

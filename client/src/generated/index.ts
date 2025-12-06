@@ -535,6 +535,8 @@ import { ToggleCampfireBurning } from "./toggle_campfire_burning_reducer.ts";
 export { ToggleCampfireBurning };
 import { ToggleCrouch } from "./toggle_crouch_reducer.ts";
 export { ToggleCrouch };
+import { ToggleFlashlight } from "./toggle_flashlight_reducer.ts";
+export { ToggleFlashlight };
 import { ToggleFurnaceBurning } from "./toggle_furnace_burning_reducer.ts";
 export { ToggleFurnaceBurning };
 import { ToggleLantern } from "./toggle_lantern_reducer.ts";
@@ -3089,6 +3091,10 @@ const REMOTE_MODULE = {
       reducerName: "toggle_crouch",
       argsType: ToggleCrouch.getTypeScriptAlgebraicType(),
     },
+    toggle_flashlight: {
+      reducerName: "toggle_flashlight",
+      argsType: ToggleFlashlight.getTypeScriptAlgebraicType(),
+    },
     toggle_furnace_burning: {
       reducerName: "toggle_furnace_burning",
       argsType: ToggleFurnaceBurning.getTypeScriptAlgebraicType(),
@@ -3439,6 +3445,7 @@ export type Reducer = never
 | { name: "TickWorldState", args: TickWorldState }
 | { name: "ToggleCampfireBurning", args: ToggleCampfireBurning }
 | { name: "ToggleCrouch", args: ToggleCrouch }
+| { name: "ToggleFlashlight", args: ToggleFlashlight }
 | { name: "ToggleFurnaceBurning", args: ToggleFurnaceBurning }
 | { name: "ToggleLantern", args: ToggleLantern }
 | { name: "ToggleStashVisibility", args: ToggleStashVisibility }
@@ -7353,6 +7360,18 @@ export class RemoteReducers {
     this.connection.offReducer("toggle_crouch", callback);
   }
 
+  toggleFlashlight() {
+    this.connection.callReducer("toggle_flashlight", new Uint8Array(0), this.setCallReducerFlags.toggleFlashlightFlags);
+  }
+
+  onToggleFlashlight(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("toggle_flashlight", callback);
+  }
+
+  removeOnToggleFlashlight(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("toggle_flashlight", callback);
+  }
+
   toggleFurnaceBurning(furnaceId: number) {
     const __args = { furnaceId };
     let __writer = new __BinaryWriter(1024);
@@ -8868,6 +8887,11 @@ export class SetReducerFlags {
   toggleCrouchFlags: __CallReducerFlags = 'FullUpdate';
   toggleCrouch(flags: __CallReducerFlags) {
     this.toggleCrouchFlags = flags;
+  }
+
+  toggleFlashlightFlags: __CallReducerFlags = 'FullUpdate';
+  toggleFlashlight(flags: __CallReducerFlags) {
+    this.toggleFlashlightFlags = flags;
   }
 
   toggleFurnaceBurningFlags: __CallReducerFlags = 'FullUpdate';

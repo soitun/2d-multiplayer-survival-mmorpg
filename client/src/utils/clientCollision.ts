@@ -1,6 +1,7 @@
 // AAA-Quality Client-side Collision Detection System
 import { Player, Tree, Stone, RuneStone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
+import { COMPOUND_BUILDINGS, CompoundBuilding, getBuildingWorldPosition } from '../config/compoundBuildings';
 
 // Add at top after imports:
 // Spatial filtering constants
@@ -387,8 +388,13 @@ function getCollisionCandidates(
   }
   
   // Filter ALK delivery stations (large industrial structures)
+  // Use AABB (rectangular) collision at the building base, same as compound buildings
   if (entities.alkStations && entities.alkStations.size > 0) {
     // ALK stations use worldPosX/worldPosY, filter manually
+    const ALK_STATION_WIDTH = 480;  // Sprite width
+    const ALK_STATION_HEIGHT = 480;  // Sprite height
+    const ALK_STATION_Y_OFFSET = 0;  // Anchor point offset (worldPosY is the anchor)
+    
     for (const station of entities.alkStations.values()) {
       if (!station.isActive) continue;
       
@@ -399,12 +405,21 @@ function getCollisionCandidates(
       // Larger cull distance for large structure
       if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
       
+      // AABB collision at the building base (bottom 1/3 height, 1/2 width)
+      // Similar to compound buildings
+      const collisionWidth = ALK_STATION_WIDTH * 0.5;  // 50% of building width
+      const collisionHeight = ALK_STATION_HEIGHT / 3;   // Bottom 1/3 of building height
+      const spriteBottom = station.worldPosY + ALK_STATION_Y_OFFSET;  // Anchor point = sprite bottom
+      const collisionCenterX = station.worldPosX;  // Centered horizontally
+      const collisionCenterY = spriteBottom - collisionHeight / 2;  // Center of bottom 1/3
+      
       shapes.push({
         id: `alk_station-${station.stationId.toString()}`,
         type: `alk_station-${station.stationId.toString()}`,
-        x: station.worldPosX + COLLISION_OFFSETS.ALK_STATION.x,
-        y: station.worldPosY + COLLISION_OFFSETS.ALK_STATION.y,
-        radius: COLLISION_RADII.ALK_STATION
+        x: collisionCenterX,
+        y: collisionCenterY,
+        width: collisionWidth,
+        height: collisionHeight
       });
     }
   }
@@ -430,6 +445,44 @@ function getCollisionCandidates(
       x: seaStack.posX + COLLISION_OFFSETS.SEA_STACK.x,
       y: seaStack.posY + COLLISION_OFFSETS.SEA_STACK.y,
       radius: scaledRadius // Circular collision for smooth sliding
+    });
+  }
+  
+  // Filter compound buildings (static buildings in central compound)
+  // These are always at fixed positions relative to world center
+  // Use AABB (rectangular) collision at the building base
+  for (const building of COMPOUND_BUILDINGS) {
+    const worldPos = getBuildingWorldPosition(building);
+    const buildingX = worldPos.x;
+    const buildingY = worldPos.y;
+    
+    // Distance-based culling
+    const dx = buildingX - playerX;
+    const dy = buildingY - playerY;
+    const distSq = dx * dx + dy * dy;
+    
+    // Larger cull distance for large structures (similar to ALK stations)
+    if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
+    
+    // Calculate sprite bounds:
+    // - Sprite is drawn at (worldX - width/2, worldY - height + anchorYOffset)
+    // - Sprite bottom is at worldY + anchorYOffset
+    // - Sprite top is at worldY - height + anchorYOffset
+    
+    // AABB collision at the building base (bottom 1/3 height, 1/2 width)
+    const collisionWidth = building.width * 0.5;  // 50% of building width
+    const collisionHeight = building.height / 3;   // Bottom 1/3 of building height
+    const spriteBottom = buildingY + building.anchorYOffset;
+    const collisionCenterX = buildingX;  // Centered horizontally
+    const collisionCenterY = spriteBottom - collisionHeight / 2;  // Center of bottom 1/3
+    
+    shapes.push({
+      id: `compound_building-${building.id}`,
+      type: `compound_building-${building.id}`,
+      x: collisionCenterX,
+      y: collisionCenterY,
+      width: collisionWidth,
+      height: collisionHeight
     });
   }
   
