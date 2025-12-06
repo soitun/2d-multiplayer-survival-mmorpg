@@ -43,7 +43,7 @@ use crate::alk::alk_station as AlkStationTableTrait;
 use crate::building::wall_cell as WallCellTableTrait;
 use crate::TILE_SIZE_PX;
 // Import compound building collision system
-use crate::compound_buildings;
+// compound_buildings import removed - collision handled client-side only
 
 /// Calculates initial collision and applies sliding.
 /// Returns the new (x, y) position after potential sliding.
@@ -854,14 +854,7 @@ pub fn calculate_slide_collision_with_grid(
         log::debug!("[SlideCollision] Player {:?} pushed back by door: ({:.1}, {:.1})", sender_id, pushback_x, pushback_y);
     }
     
-    // Check compound building collisions (static buildings in central compound)
-    if let Some((resolved_x, resolved_y)) = compound_buildings::resolve_compound_building_collision(final_x, final_y, current_player_radius) {
-        final_x = resolved_x;
-        final_y = resolved_y;
-        final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
-        final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
-        log::debug!("[SlideCollision] Player {:?} pushed back by compound building", sender_id);
-    }
+    // Compound building collision REMOVED - buildings are purely decorative
     
     (final_x, final_y)
 }
@@ -1310,12 +1303,7 @@ pub fn resolve_push_out_collision_with_grid(
             overlap_found_in_iter = true;
         }
         
-        // Check compound building collisions (static buildings in central compound - not in spatial grid)
-        if let Some((new_x, new_y)) = compound_buildings::resolve_compound_building_collision(resolved_x, resolved_y, current_player_radius) {
-            resolved_x = new_x;
-            resolved_y = new_y;
-            overlap_found_in_iter = true;
-        }
+        // Compound building collision REMOVED - handled client-side only
 
         resolved_x = resolved_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
         resolved_y = resolved_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);

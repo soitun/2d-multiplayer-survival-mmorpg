@@ -151,12 +151,14 @@ function renderPlaceholder(
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Draw collision radius circle
+    // Draw collision radius circle at the ACTUAL collision position
+    // collisionCenterY = worldY - collisionYOffset
+    // With negative collisionYOffset, this moves collision DOWN (south) towards sprite bottom
     ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    const collisionY = worldY - building.collisionYOffset;
+    const collisionY = worldY - building.collisionYOffset; // Negative offset = positive result = further south
     ctx.arc(worldX, collisionY, building.collisionRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);

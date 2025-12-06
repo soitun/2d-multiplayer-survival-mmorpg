@@ -2038,6 +2038,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       } else if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
         // ALK stations use worldPosY for their base position
         return (entity.entity as any).worldPosY;
+      } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
+        // Compound buildings use worldY for their anchor/foot position
+        return (entity.entity as any).worldY;
       } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
         return entity.entity.posY;
       }
@@ -2080,6 +2083,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return -1; // Player at/near/south of building's visual base - player in front (inverted)
         }
         return 1; // Player clearly north of building - player behind (inverted)
+      }
+      
+      // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)
+      // Compound buildings use worldY as their visual foot/anchor point (no offset needed)
+      if (aType === 'player' && bType === 'compound_building') {
+        const playerY = (aEntity as any)?.positionY ?? 0;
+        const buildingY = (bEntity as any)?.worldY ?? 0;
+        // Player renders in front if at or south of the building's visual foot level
+        if (playerY >= buildingY) {
+          return 1; // Player at/south of building's visual base - player in front
+        }
+        return -1; // Player north of building - player behind (building on top)
+      }
+      if (aType === 'compound_building' && bType === 'player') {
+        const playerY = (bEntity as any)?.positionY ?? 0;
+        const buildingY = (aEntity as any)?.worldY ?? 0;
+        if (playerY >= buildingY) {
+          return -1; // Player at/south of building's visual base - player in front (inverted)
+        }
+        return 1; // Player north of building - player behind (inverted)
       }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)

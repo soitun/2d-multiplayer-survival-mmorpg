@@ -1740,30 +1740,25 @@ export function useEntityFiltering(
       }
       
       // ABSOLUTE SECOND CHECK: Player vs Compound Building - tall structure Y-sorting
-      // Similar to ALK stations - compound buildings need special handling
-      // worldY is the anchor point (visual foot), sprite extends upward from there
+      // EXACT SAME PATTERN as ALK station - use worldY directly (the visual foot/anchor point)
+      // Just like ALK station uses worldPosY, compound building uses worldY
+      // Player renders in front when their Y >= building's worldY
       if (a.type === 'player' && b.type === 'compound_building') {
         const player = a.entity as SpacetimeDBPlayer;
         const building = b.entity as CompoundBuildingEntity;
-        // Building anchor point (visual foot) is at worldY
-        // Account for building height - player must be significantly south to render in front
-        // Similar to ALK stations: use a buffer to account for building height
-        const BUILDING_YSORT_BUFFER = building.height * 0.3; // 30% of building height as buffer
-        const buildingVisualFoot = building.worldY;
-        if (player.positionY >= buildingVisualFoot - BUILDING_YSORT_BUFFER) {
-          return 1; // Player at/near/south of building's visual foot - player in front
+        // worldY is the visual foot (anchor point) - same as ALK station's worldPosY
+        if (player.positionY >= building.worldY) {
+          return 1; // Player at/past building's visual foot - player in front
         }
-        return -1; // Player clearly north of building - player behind (building on top)
+        return -1; // Player is north of building - player behind (building on top)
       }
       if (a.type === 'compound_building' && b.type === 'player') {
         const building = a.entity as CompoundBuildingEntity;
         const player = b.entity as SpacetimeDBPlayer;
-        const BUILDING_YSORT_BUFFER = building.height * 0.3; // 30% of building height as buffer
-        const buildingVisualFoot = building.worldY;
-        if (player.positionY >= buildingVisualFoot - BUILDING_YSORT_BUFFER) {
-          return -1; // Player at/near/south of building's visual foot - player in front (inverted)
+        if (player.positionY >= building.worldY) {
+          return -1; // Player at/past building's visual foot - player in front (inverted)
         }
-        return 1; // Player clearly north of building - player behind (inverted)
+        return 1; // Player is north of building - player behind (inverted)
       }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)

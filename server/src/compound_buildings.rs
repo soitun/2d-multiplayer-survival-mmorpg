@@ -28,81 +28,24 @@ pub struct CompoundBuildingCollision {
 /// 1. Copy offsetX, offsetY, collisionRadius, collisionYOffset from client config
 /// 2. Keep the order consistent for easier maintenance
 pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
-    // ===== GUARD POSTS (4 corners - symmetrically positioned) =====
-    // Scaled to match ALK compound resolution (480x480 base)
-    // Top-left corner guard post - guardpost_nw
-    CompoundBuildingCollision {
-        offset_x: -600.0,
-        offset_y: -600.0,
-        collision_radius: 60.0,  // Reduced collision size
-        collision_y_offset: 45.0,  // Scaled from 15.0 (3x)
-    },
-    // Top-right corner guard post - guardpost_ne
-    CompoundBuildingCollision {
-        offset_x: 600.0,
-        offset_y: -600.0,
-        collision_radius: 60.0,  // Reduced collision size
-        collision_y_offset: 45.0,
-    },
-    // Bottom-left corner guard post - guardpost_sw
-    CompoundBuildingCollision {
-        offset_x: -600.0,
-        offset_y: 650.0,
-        collision_radius: 60.0,  // Reduced collision size
-        collision_y_offset: 45.0,
-    },
-    // Bottom-right corner guard post - guardpost_se
-    CompoundBuildingCollision {
-        offset_x: 600.0,
-        offset_y: 650.0,
-        collision_radius: 60.0,  // Reduced collision size
-        collision_y_offset: 45.0,
-    },
+    // ===== GUARD POSTS (4 corners) =====
+    // NOTE: Server collision DISABLED - this is just for reference/consistency with client
+    CompoundBuildingCollision { offset_x: -600.0, offset_y: -600.0, collision_radius: 30.0, collision_y_offset: 0.0 },
+    CompoundBuildingCollision { offset_x: 600.0, offset_y: -600.0, collision_radius: 30.0, collision_y_offset: 0.0 },
+    CompoundBuildingCollision { offset_x: -600.0, offset_y: 650.0, collision_radius: 30.0, collision_y_offset: 0.0 },
+    CompoundBuildingCollision { offset_x: 600.0, offset_y: 650.0, collision_radius: 30.0, collision_y_offset: 0.0 },
     
-    // ===== LARGE WAREHOUSE (Northwest - pushed into corner) - warehouse =====
-    // Scaled to match ALK compound size
-    CompoundBuildingCollision {
-        offset_x: -450.0,
-        offset_y: -300.0,
-        collision_radius: 240.0,  // Scaled up for large building
-        collision_y_offset: 48.0,  // Scaled proportionally
-    },
-    
-    // ===== BARRACKS (Northeast - pushed into corner) - barracks =====
-    // Scaled to match ALK compound size
-    CompoundBuildingCollision {
-        offset_x: 450.0,
-        offset_y: -300.0,
-        collision_radius: 240.0,  // Scaled up for large building
-        collision_y_offset: 48.0,  // Scaled proportionally
-    },
-    
-    // ===== FUEL DEPOT (Southeast - pushed into corner) - fuel_depot =====
-    // Scaled proportionally
-    CompoundBuildingCollision {
-        offset_x: 450.0,
-        offset_y: 400.0,
-        collision_radius: 192.0,  // Scaled from 80.0 (2.4x)
-        collision_y_offset: 72.0,  // Scaled from 30.0 (2.4x)
-    },
-    
-    // ===== GARAGE (Southwest - pushed into corner) - garage =====
-    // Scaled proportionally
-    CompoundBuildingCollision {
-        offset_x: -450.0,
-        offset_y: 400.0,
-        collision_radius: 192.0,  // Scaled from 80.0 (2.4x)
-        collision_y_offset: 72.0,  // Scaled from 30.0 (2.4x)
-    },
-    
-    // ===== UTILITY SHED (South Center - filling empty space) - shed =====
-    // Scaled proportionally
-    CompoundBuildingCollision {
-        offset_x: 0.0,
-        offset_y: 500.0,
-        collision_radius: 120.0,  // Scaled from 40.0 (3x)
-        collision_y_offset: 54.0,  // Scaled from 18.0 (3x)
-    },
+    // ===== MAIN BUILDINGS =====
+    // Warehouse
+    CompoundBuildingCollision { offset_x: -450.0, offset_y: -300.0, collision_radius: 150.0, collision_y_offset: 0.0 },
+    // Barracks
+    CompoundBuildingCollision { offset_x: 450.0, offset_y: -300.0, collision_radius: 150.0, collision_y_offset: 0.0 },
+    // Fuel Depot
+    CompoundBuildingCollision { offset_x: 450.0, offset_y: 400.0, collision_radius: 140.0, collision_y_offset: 0.0 },
+    // Garage
+    CompoundBuildingCollision { offset_x: -450.0, offset_y: 400.0, collision_radius: 140.0, collision_y_offset: 0.0 },
+    // Shed
+    CompoundBuildingCollision { offset_x: 0.0, offset_y: 500.0, collision_radius: 100.0, collision_y_offset: 0.0 },
     
     // ===== PERIMETER WALLS =====
     // Walls use multiple collision circles to approximate rectangular collision

@@ -102,21 +102,18 @@ export function getBuildingYSortPosition(building: CompoundBuilding): number {
  */
 export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
   // ===== GUARD POSTS (4 corners - symmetrically positioned) =====
-  // Scaled to match ALK compound resolution (480x480 base)
-  // Top-left corner guard post
+  // Collision at anchor point (worldY) - where building visually touches ground
   {
     id: 'guardpost_nw',
     offsetX: -600,
     offsetY: -600,
     imagePath: 'guardpost.png',
-    width: 288,  // Scaled up from 96 (3x) to match ALK scale
-    height: 384, // Scaled up from 128 (3x)
-    anchorYOffset: 72,  // Scaled proportionally
-    collisionRadius: 60, // Reduced collision size
-    collisionYOffset: 45, // Scaled proportionally (15 * 3)
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0, // Collision at anchor point
   },
-  
-  // Top-right corner guard post
   {
     id: 'guardpost_ne',
     offsetX: 600,
@@ -125,11 +122,9 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     width: 288,
     height: 384,
     anchorYOffset: 72,
-    collisionRadius: 60, // Reduced collision size
-    collisionYOffset: 45,
+    collisionRadius: 30,
+    collisionYOffset: 0,
   },
-  
-  // Bottom-left corner guard post
   {
     id: 'guardpost_sw',
     offsetX: -600,
@@ -138,11 +133,9 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     width: 288,
     height: 384,
     anchorYOffset: 72,
-    collisionRadius: 60, // Reduced collision size
-    collisionYOffset: 45,
+    collisionRadius: 30,
+    collisionYOffset: 0,
   },
-  
-  // Bottom-right corner guard post
   {
     id: 'guardpost_se',
     offsetX: 600,
@@ -151,78 +144,73 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     width: 288,
     height: 384,
     anchorYOffset: 72,
-    collisionRadius: 60, // Reduced collision size
-    collisionYOffset: 45,
+    collisionRadius: 30,
+    collisionYOffset: 0,
   },
   
-  // ===== LARGE WAREHOUSE (Northwest - pushed into corner) =====
-  // Large building, scaled to match ALK compound size
+  // ===== LARGE WAREHOUSE =====
   {
     id: 'warehouse',
     offsetX: -450,
     offsetY: -300,
     imagePath: 'warehouse.png',
-    width: 480,  // Scaled to match ALK compound width
-    height: 480, // Scaled to match ALK compound height
-    anchorYOffset: 96,  // Scaled proportionally
-    collisionRadius: 240, // Scaled proportionally (larger for big building)
-    collisionYOffset: 48, // Scaled proportionally
+    width: 480,
+    height: 480,
+    anchorYOffset: 96,
+    collisionRadius: 150,
+    collisionYOffset: 0,
   },
   
-  // ===== BARRACKS (Northeast - pushed into corner) =====
-  // Large building, scaled to match ALK compound size
+  // ===== BARRACKS =====
   {
     id: 'barracks',
     offsetX: 450,
     offsetY: -300,
     imagePath: 'barracks.png',
-    width: 480,  // Scaled to match ALK compound width
-    height: 480, // Scaled to match ALK compound height
-    anchorYOffset: 96,  // Scaled proportionally
-    collisionRadius: 240, // Scaled proportionally (larger for big building)
-    collisionYOffset: 48, // Scaled proportionally
+    width: 480,
+    height: 480,
+    anchorYOffset: 96,
+    collisionRadius: 150,
+    collisionYOffset: 0,
   },
   
-  // ===== FUEL DEPOT (Southeast - pushed into corner) =====
-  // Medium building, scaled proportionally
+  // ===== FUEL DEPOT =====
   {
     id: 'fuel_depot',
     offsetX: 450,
     offsetY: 400,
     imagePath: 'fuel_depot.png',
-    width: 480,  // Scaled up from 300 (1.6x) to match ALK scale
-    height: 480, // Scaled up from 300 (1.6x)
-    anchorYOffset: 96,  // Scaled proportionally
-    collisionRadius: 192, // Scaled proportionally (80 * 2.4)
-    collisionYOffset: 72, // Scaled proportionally (30 * 2.4)
+    width: 480,
+    height: 480,
+    anchorYOffset: 96,
+    collisionRadius: 140,
+    collisionYOffset: 0,
   },
   
-  // ===== GARAGE (Southwest - pushed into corner) =====
-  // Medium building, scaled proportionally
+  // ===== GARAGE =====
   {
     id: 'garage',
     offsetX: -450,
     offsetY: 400,
     imagePath: 'garage.png',
-    width: 480,  // Scaled up from 300 (1.6x) to match ALK scale
-    height: 480, // Scaled up from 300 (1.6x)
-    anchorYOffset: 96,  // Scaled proportionally
-    collisionRadius: 192, // Scaled proportionally (80 * 2.4)
-    collisionYOffset: 72, // Scaled proportionally (30 * 2.4)
+    width: 480,
+    height: 480,
+    anchorYOffset: 96,
+    collisionRadius: 140,
+    collisionYOffset: 0,
   },
   
-  // ===== UTILITY SHED (South Center - filling empty space) =====
-  // Small utility building, scaled proportionally
+  // ===== UTILITY SHED =====
   {
     id: 'shed',
     offsetX: 0,
-    offsetY: 500,  // South center
+    offsetY: 500,
     imagePath: 'shed.png',
-    width: 384,  // Scaled up from 128 (3x) to match ALK scale
-    height: 480, // Scaled up from 160 (3x)
-    anchorYOffset: 84,  // Scaled proportionally
-    collisionRadius: 120, // Scaled proportionally (40 * 3)
-    collisionYOffset: 54, // Scaled proportionally (18 * 3)
+    width: 384,
+    height: 480,
+    anchorYOffset: 84,
+    collisionRadius: 100,
+    collisionYOffset: 0,
   },
   
   // ===== PERIMETER WALLS =====

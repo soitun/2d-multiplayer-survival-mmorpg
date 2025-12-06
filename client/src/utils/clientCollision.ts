@@ -1,7 +1,7 @@
 // AAA-Quality Client-side Collision Detection System
 import { Player, Tree, Stone, RuneStone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
-import { COMPOUND_BUILDINGS, CompoundBuilding, getBuildingWorldPosition } from '../config/compoundBuildings';
+import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
 
 // Add at top after imports:
 // Spatial filtering constants
@@ -448,9 +448,8 @@ function getCollisionCandidates(
     });
   }
   
-  // Filter compound buildings (static buildings in central compound)
-  // These are always at fixed positions relative to world center
-  // Use AABB (rectangular) collision at the building base
+  // COMPOUND BUILDINGS - collision at visual base (like trees/stones)
+  // Use negative Y offset to position collision UP at the building's visual base
   for (const building of COMPOUND_BUILDINGS) {
     const worldPos = getBuildingWorldPosition(building);
     const buildingX = worldPos.x;
@@ -460,29 +459,26 @@ function getCollisionCandidates(
     const dx = buildingX - playerX;
     const dy = buildingY - playerY;
     const distSq = dx * dx + dy * dy;
+    if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 4) continue;
     
-    // Larger cull distance for large structures (similar to ALK stations)
-    if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
+    // Skip walls - they need AABB collision which we don't support yet
+    if (building.id.startsWith('wall_')) continue;
     
-    // Calculate sprite bounds:
-    // - Sprite is drawn at (worldX - width/2, worldY - height + anchorYOffset)
-    // - Sprite bottom is at worldY + anchorYOffset
-    // - Sprite top is at worldY - height + anchorYOffset
+    // Position collision at visual base of building
+    const collisionOffsetY = 0; // Collision at anchor point (building base)
     
-    // AABB collision at the building base (bottom 1/3 height, 1/2 width)
-    const collisionWidth = building.width * 0.5;  // 50% of building width
-    const collisionHeight = building.height / 3;   // Bottom 1/3 of building height
-    const spriteBottom = buildingY + building.anchorYOffset;
-    const collisionCenterX = buildingX;  // Centered horizontally
-    const collisionCenterY = spriteBottom - collisionHeight / 2;  // Center of bottom 1/3
+    // Special case for guardposts - they're thin poles, need tiny collision
+    const isGuardpost = building.id.startsWith('guardpost');
+    const collisionRadius = isGuardpost 
+      ? 15  // Tiny radius for thin pole
+      : Math.min(building.width * 0.2, 60); // Normal buildings
     
     shapes.push({
       id: `compound_building-${building.id}`,
       type: `compound_building-${building.id}`,
-      x: collisionCenterX,
-      y: collisionCenterY,
-      width: collisionWidth,
-      height: collisionHeight
+      x: buildingX,
+      y: buildingY + collisionOffsetY,
+      radius: collisionRadius
     });
   }
   
