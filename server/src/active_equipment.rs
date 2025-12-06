@@ -313,31 +313,29 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
             equipment.is_ready_to_fire = false;
             active_equipments.player_identity().update(equipment);
 
-            // --- Handle Torch Lit State on Unequip ---
-            if let Some(old_item_def_id) = old_item_def_id_opt {
-                if let Some(item_def) = item_defs.id().find(old_item_def_id) {
-                    if item_def.name == "Torch" {
-                        if let Some(mut player) = players_table.identity().find(&player_identity) {
-                            if player.is_torch_lit {
-                                player.is_torch_lit = false;
-                                player.last_update = ctx.timestamp;
-                                players_table.identity().update(player);
-                                log::info!("Player {:?} unequipped a lit torch, extinguishing it.", player_identity);
-                            }
-                        }
-                    } else if item_def.name == "Flashlight" {
-                        if let Some(mut player) = players_table.identity().find(&player_identity) {
-                            if player.is_flashlight_on {
-                                player.is_flashlight_on = false;
-                                player.last_update = ctx.timestamp;
-                                players_table.identity().update(player);
-                                log::info!("Player {:?} unequipped a flashlight that was on, turning it off.", player_identity);
-                            }
-                        }
-                    }
+            // --- Handle Torch/Flashlight State on Unequip ---
+            // Always turn off torch/flashlight when unequipping, regardless of which item was equipped
+            if let Some(mut player) = players_table.identity().find(&player_identity) {
+                let mut needs_update = false;
+                
+                if player.is_torch_lit {
+                    player.is_torch_lit = false;
+                    needs_update = true;
+                    log::info!("Player {:?} unequipped item, extinguishing torch.", player_identity);
+                }
+                
+                if player.is_flashlight_on {
+                    player.is_flashlight_on = false;
+                    needs_update = true;
+                    log::info!("Player {:?} unequipped item, turning off flashlight.", player_identity);
+                }
+                
+                if needs_update {
+                    player.last_update = ctx.timestamp;
+                    players_table.identity().update(player);
                 }
             }
-            // --- End Handle Torch Lit State on Unequip ---
+            // --- End Handle Torch/Flashlight State on Unequip ---
         } else {
             log::debug!("Player {:?} called clear_active_item_reducer, but no item was active.", player_identity);
         }
