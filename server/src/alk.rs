@@ -774,10 +774,10 @@ fn seed_item_alk_tags(ctx: &ReducerContext) -> Result<(), String> {
         // 5. Tag high-value items for bonus contracts
         // High value = craftable OR rare drops OR cooked foods OR valuable resources
         let is_high_value = 
-            // Craftable weapons, armor, tools
+            // Craftable weapons, armor, tools, AND ammunition
             (item.crafting_cost.is_some() && matches!(item.category, 
                 ItemCategory::Weapon | ItemCategory::RangedWeapon | 
-                ItemCategory::Armor | ItemCategory::Tool)) ||
+                ItemCategory::Armor | ItemCategory::Tool | ItemCategory::Ammunition)) ||
             // Cooked foods (name starts with "Cooked")
             item_name.starts_with("Cooked") ||
             // Rare animal drops
@@ -968,16 +968,18 @@ fn generate_materials_contracts(ctx: &ReducerContext, world_day: u32) -> Result<
 /// How many items to select for seasonal categories (subset)
 const SEASONAL_CATEGORY_SIZE: usize = 5;
 
-/// Generate seasonal arms contracts - random subset of weapons for this season
+/// Generate seasonal arms contracts - random subset of weapons AND ammunition for this season
 fn generate_seasonal_arms_contracts(ctx: &ReducerContext, world_day: u32, season_index: u32) -> Result<(), String> {
     let contracts_table = ctx.db.alk_contract();
     let item_defs = ctx.db.item_definition();
     let tags_table = ctx.db.item_alk_tag();
     let mut rng = ctx.rng();
     
-    // Find craftable weapons and ranged weapons
+    // Find craftable weapons, ranged weapons, AND ammunition
     let weapon_ids: Vec<u64> = tags_table.iter()
-        .filter(|t| t.tag == AlkItemTag::CategoryWeapon || t.tag == AlkItemTag::CategoryRangedWeapon)
+        .filter(|t| t.tag == AlkItemTag::CategoryWeapon || 
+                    t.tag == AlkItemTag::CategoryRangedWeapon ||
+                    t.tag == AlkItemTag::CategoryAmmunition)
         .map(|t| t.item_def_id)
         .collect();
     
@@ -986,8 +988,8 @@ fn generate_seasonal_arms_contracts(ctx: &ReducerContext, world_day: u32, season
         .map(|t| t.item_def_id)
         .collect();
     
-    // Filter to craftable weapons with valid params
-    let mut valid_weapons: Vec<u64> = weapon_ids.iter()
+    // Filter to craftable weapons and ammunition with valid params
+    let mut valid_arms: Vec<u64> = weapon_ids.iter()
         .filter(|id| craftable_ids.contains(id))
         .filter(|id| {
             if let Some(item_def) = item_defs.id().find(*id) {
@@ -998,13 +1000,13 @@ fn generate_seasonal_arms_contracts(ctx: &ReducerContext, world_day: u32, season
         .cloned()
         .collect();
     
-    // Select random subset for this season
-    let num_to_select = SEASONAL_CATEGORY_SIZE.min(valid_weapons.len());
+    // Select random subset for this season (arms includes weapons + ammo)
+    let num_to_select = SEASONAL_CATEGORY_SIZE.min(valid_arms.len());
     let mut selected: Vec<u64> = Vec::new();
     for _ in 0..num_to_select {
-        if valid_weapons.is_empty() { break; }
-        let idx = rng.gen_range(0..valid_weapons.len());
-        selected.push(valid_weapons.remove(idx));
+        if valid_arms.is_empty() { break; }
+        let idx = rng.gen_range(0..valid_arms.len());
+        selected.push(valid_arms.remove(idx));
     }
     
     let mut created = 0;
@@ -1206,13 +1208,17 @@ fn generate_seasonal_provisions_contracts(ctx: &ReducerContext, world_day: u32, 
         .map(|t| t.item_def_id)
         .collect();
     
-    // Filter to valid consumables (not plants, not currency, has value)
+    // Filter to valid consumables (not plants, not currency, not burnt/raw, has value)
     let mut valid_provisions: Vec<u64> = consumable_ids.iter()
         .filter(|id| !plant_ids.contains(id))
         .filter(|id| {
             if let Some(item_def) = item_defs.id().find(*id) {
                 // Exclude Memory Shard (it's the currency!)
                 if item_def.name == "Memory Shard" { return false; }
+                // Exclude burnt foods - only accept properly cooked variants
+                if item_def.name.starts_with("Burnt") { return false; }
+                // Exclude raw foods - only accept cooked variants for provisions
+                if item_def.name.starts_with("Raw") { return false; }
                 let (_, reward) = get_provisions_contract_params(&item_def.name, &item_def);
                 reward > 0
             } else { false }
@@ -1263,11 +1269,21 @@ fn generate_seasonal_provisions_contracts(ctx: &ReducerContext, world_day: u32, 
     Ok(())
 }
 
-/// Generate seasonal harvest contracts - plant-based items (seasonal)
+/// Generate seasonal harvest contracts - plant-based items ONLY (seasonal)
+/// NOTE: This is for raw foraged/farmed plants only - NOT materials like wood, stone, ore
 fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, season_index: u32) -> Result<(), String> {
     let contracts_table = ctx.db.alk_contract();
     let item_defs = ctx.db.item_definition();
     let tags_table = ctx.db.item_alk_tag();
+    
+    // Items that belong in MATERIALS category, NOT harvest
+    // These are already covered by Materials contracts
+    const MATERIAL_EXCLUSIONS: &[&str] = &[
+        "Wood", "Stone", "Metal Ore", "Metal Fragments", "Sulfur", "Sulfur Ore", 
+        "Charcoal", "Coal", "Plant Fiber", "Cloth", "Rope", "Bone", "Bone Fragments",
+        "Animal Leather", "Animal Fat", "Wolf Fur", "Fox Fur", "Bear Pelt",
+        "Tin Can", "Scrap Batteries", "Gunpowder", "Memory Shard" // These are lichen/moss, not edible plants
+    ];
     
     // Find all plant-based items
     let plant_item_ids: Vec<u64> = tags_table.iter()
@@ -1294,8 +1310,8 @@ fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, sea
         let is_seasonal = seasonal_item_ids.contains(&item_id);
         
         if let Some(item_def) = item_defs.id().find(&item_id) {
-            // SECURITY: Never create contracts for Memory Shard (base currency)
-            if item_def.name == "Memory Shard" {
+            // Skip items that belong in Materials category
+            if MATERIAL_EXCLUSIONS.contains(&item_def.name.as_str()) {
                 continue;
             }
             
@@ -1453,7 +1469,7 @@ fn get_material_contract_params(item_name: &str) -> (u32, u32) {
     }
 }
 
-/// Get bundle size and reward for arms (weapons)
+/// Get bundle size and reward for arms (weapons AND ammunition)
 fn get_arms_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
         // === MELEE - BASIC ===
@@ -1479,7 +1495,16 @@ fn get_arms_contract_params(item_name: &str) -> (u32, u32) {
         "Improvised Pistol" => (1, 200),
         "Hunting Rifle" => (1, 250),
         
-        _ => (3, 60), // Default for unlisted weapons
+        // === AMMUNITION - ARROWS ===
+        "Wooden Arrow" => (50, 35),      // Basic arrows - common materials
+        "Bone Arrow" => (40, 50),        // Higher damage arrows
+        "Fire Arrow" => (30, 65),        // Special effect arrows - premium
+        "Hollow Reed Arrow" => (60, 30), // Fast but light arrows
+        
+        // === AMMUNITION - BULLETS ===
+        "9x18mm Round" => (25, 80),      // Premium ammo - requires gunpowder
+        
+        _ => (3, 60), // Default for unlisted weapons/ammo
     }
 }
 
@@ -1551,7 +1576,13 @@ fn get_tools_contract_params(item_name: &str) -> (u32, u32) {
 }
 
 /// Get bundle size and reward for provisions (consumables, non-plant)
+/// NOTE: Only COOKED foods are accepted - raw and burnt items are excluded
 fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::ItemDefinition) -> (u32, u32) {
+    // EXCLUDE: Burnt and raw foods - ALK only accepts properly cooked variants
+    if item_name.starts_with("Burnt") || item_name.starts_with("Raw") {
+        return (0, 0);
+    }
+    
     // First check specific items
     match item_name {
         // === COOKED FISH ===
@@ -1559,22 +1590,15 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
         "Cooked Herring" | "Cooked Cod" | "Cooked Mackerel" => (30, 45),
         "Cooked Twigfish" => (50, 30),
         
-        // === RAW FISH ===
-        "Raw Salmon" => (25, 45),
-        "Raw Herring" | "Raw Cod" | "Raw Mackerel" => (40, 30),
-        "Raw Twigfish" => (60, 20),
-        
         // === COOKED MEAT ===
         "Cooked Wolf Meat" => (15, 75),
         "Cooked Fox Meat" => (20, 60),
         "Cooked Crab Meat" => (25, 50),
         "Cooked Crow Meat" | "Cooked Tern Meat" => (35, 40),
-        
-        // === RAW MEAT ===
-        "Wolf Meat" => (20, 50),
-        "Fox Meat" => (25, 40),
-        "Crab Meat" => (35, 35),
-        "Crow Meat" | "Tern Meat" => (45, 25),
+        "Cooked Seal Meat" => (20, 65),
+        "Cooked Caribou Meat" => (18, 70),
+        "Cooked Moose Meat" => (15, 80),
+        "Cooked Hare Meat" => (25, 55),
         
         // === COOKED VEGETABLES ===
         "Cooked Potato" => (50, 45),
@@ -1601,6 +1625,7 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
         
         _ => {
             // Dynamic fallback based on item stats
+            // Note: Raw/Burnt already filtered above
             let hunger = item_def.consumable_hunger_satiated.unwrap_or(0.0) as u32;
             let thirst = item_def.consumable_thirst_quenched.unwrap_or(0.0) as u32;
             let health = item_def.consumable_health_gain.unwrap_or(0.0).max(0.0) as u32;
@@ -1616,11 +1641,20 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
     }
 }
 
-/// Get bundle size and reward for seasonal harvest (plant-based items)
+/// Get bundle size and reward for seasonal harvest (plant-based items ONLY)
 /// SEASONAL ITEMS PAY MORE because they're time-limited!
-/// Rewards are ~50% higher than base materials
+/// NOTE: This is for raw foraged/farmed plants only - NOT materials
 fn get_seasonal_harvest_params(item_name: &str) -> (u32, u32) {
+    // EXCLUDE: Materials that belong in the Materials category, not Harvest
+    // Return (0, 0) to prevent contract creation for these items
     match item_name {
+        // These are MATERIALS, not harvest items
+        "Wood" | "Stone" | "Metal Ore" | "Metal Fragments" | "Sulfur" | "Sulfur Ore" |
+        "Charcoal" | "Coal" | "Plant Fiber" | "Cloth" | "Rope" | "Bone" | "Bone Fragments" |
+        "Animal Leather" | "Animal Fat" | "Wolf Fur" | "Fox Fur" | "Bear Pelt" |
+        "Tin Can" | "Scrap Batteries" | "Gunpowder" | "Memory Shard" |
+        "Arctic Lichen" | "Mountain Moss" | "Dogbane Fiber" => (0, 0),
+        
         // === RAW VEGETABLES (good rewards - farming takes effort) ===
         "Pumpkin" => (30, 65),
         "Potato" => (50, 55),
@@ -1660,10 +1694,7 @@ fn get_seasonal_harvest_params(item_name: &str) -> (u32, u32) {
         "Bear Garlic" => (40, 65),
         "Nettle Leaves" => (70, 45),
         
-        // === FIBER PLANTS ===
-        "Dogbane Fiber" => (50, 50),
-        
-        _ => (40, 50), // Default for unlisted plant items
+        _ => (40, 50), // Default for unlisted edible plant items
     }
 }
 
@@ -1701,6 +1732,11 @@ fn get_bonus_contract_params(item_name: &str) -> (u32, u32) {
         "Metal Chestplate" => (1, 380),
         "Metal Helmet" => (1, 320),
         "Hunting Rifle" => (1, 450),
+        
+        // === PREMIUM AMMUNITION (high-value ammo for bonus contracts) ===
+        "9x18mm Round" => (20, 200),     // Premium bullets - requires gunpowder
+        "Fire Arrow" => (25, 150),       // Special effect arrows
+        "Bone Arrow" => (35, 120),       // High-damage arrows
         
         // === STRATEGIC RESOURCES (sometimes in bonus) ===
         "Gunpowder" => (20, 170),

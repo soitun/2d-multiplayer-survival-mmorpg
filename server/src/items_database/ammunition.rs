@@ -83,8 +83,8 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .pvp_damage(0, 0) // Neutral modifier - weapon base damage only
             .ammo_type(AmmoType::Bullet)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 15 },
-                CostIngredient { item_name: "Sulfur".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Gunpowder".to_string(), quantity: 3 },
             ])
             .crafting_output(5, 3) // Makes 5 rounds, takes 3 seconds
             .respawn_time(180)

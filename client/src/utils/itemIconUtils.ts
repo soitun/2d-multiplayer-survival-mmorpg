@@ -22,6 +22,7 @@ import tinCanIcon from '../assets/items/tin_can.png';
 import scrapBatteriesIcon from '../assets/items/scrap_batteries.png';
 import sulfurIcon from '../assets/items/sulfur.png';
 import sulfurOreIcon from '../assets/items/sulfur_ore.png';
+import gunpowderIcon from '../assets/items/gunpowder.png';
 
 // Bone materials
 import boneIcon from '../assets/items/bone.png';
@@ -389,6 +390,7 @@ const iconMap: { [key: string]: string | undefined } = {
   // Sulfur materials
   'sulfur.png': sulfurIcon, // Used for both Sulfur Ore and refined Sulfur
   'sulfur_ore.png': sulfurOreIcon, // Alternative name if server uses this
+  'gunpowder.png': gunpowderIcon,
   
   // Bone materials
   'bone.png': boneIcon,

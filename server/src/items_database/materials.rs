@@ -108,6 +108,18 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
 
         // === ADVANCED CRAFTING MATERIALS ===
 
+        // Gunpowder - Made from charcoal and sulfur (essential for ammunition)
+        ItemBuilder::new("Gunpowder", "A volatile black powder made from charcoal and sulfur. Essential for crafting ammunition and explosives.", ItemCategory::Material)
+            .icon("gunpowder.png")
+            .stackable(500)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Charcoal".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Sulfur".to_string(), quantity: 5 },
+            ])
+            .crafting_output(5, 3) // Makes 5 gunpowder, takes 3 seconds
+            .respawn_time(300)
+            .build(),
+
         // Rope - Made from plant fiber
         ItemBuilder::new("Rope", "Strong rope made from twisted plant fibers. Essential for advanced crafting.", ItemCategory::Material)
             .icon("rope.png")

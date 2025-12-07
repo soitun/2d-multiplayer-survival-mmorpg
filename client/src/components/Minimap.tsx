@@ -25,7 +25,10 @@ const MINIMAP_GLOW_COLOR = '#00d4ff'; // Cyan glow effect
 
 // Tab and X button functionality now handled by React components
 const PLAYER_DOT_SIZE = 3;
-const LOCAL_PLAYER_DOT_COLOR = '#FFFF00';
+const LOCAL_PLAYER_DOT_COLOR = '#00FF88'; // Bright cyan-green for maximum visibility
+const LOCAL_PLAYER_PULSE_COLOR_1 = '#00FFFF'; // Cyan pulse ring
+const LOCAL_PLAYER_PULSE_COLOR_2 = '#00FF88'; // Green pulse ring
+const LOCAL_PLAYER_ICON_SIZE = 18; // Larger than other players
 // Player icon constants - Updated for directional triangular icons
 // PvP THREAT INDICATORS - Players are PRIMARY focus
 const PLAYER_ICON_SIZE = 14; // LARGER than resources - players are the main threat
@@ -1216,8 +1219,38 @@ export function drawMinimapOntoCanvas({
           
           ctx.save();
           
+          // === PULSING RING EFFECT (Orange for torch-lit threats) ===
+          const time = Date.now();
+          const torchColor = '#FF6600'; // Orange for torch
+          
+          // Outer pulsing ring
+          const pulsePhase1 = (time % 2000) / 2000;
+          const pulseRadius1 = size + pulsePhase1 * 20;
+          const pulseAlpha1 = 1 - pulsePhase1;
+          
+          ctx.strokeStyle = torchColor;
+          ctx.lineWidth = 2 - pulsePhase1 * 1.5;
+          ctx.globalAlpha = pulseAlpha1 * 0.6;
+          ctx.beginPath();
+          ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // Second pulsing ring (offset timing)
+          const pulsePhase2 = ((time + 1000) % 2000) / 2000;
+          const pulseRadius2 = size + pulsePhase2 * 20;
+          const pulseAlpha2 = 1 - pulsePhase2;
+          
+          ctx.lineWidth = 2 - pulsePhase2 * 1.5;
+          ctx.globalAlpha = pulseAlpha2 * 0.5;
+          ctx.beginPath();
+          ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // Reset alpha for main icon
+          ctx.globalAlpha = 1.0;
+          
           // Add THREAT GLOW for enemy players at night
-          ctx.shadowColor = '#FF6600'; // Orange glow for torch-lit threats
+          ctx.shadowColor = torchColor;
           ctx.shadowBlur = 12;
           
           // Use torch image if available, otherwise fallback to drawn player icon
@@ -1271,10 +1304,38 @@ export function drawMinimapOntoCanvas({
         
         ctx.save();
         
-        // Add PULSING THREAT GLOW for enemy players
-        const pulseIntensity = 0.5 + Math.sin(Date.now() / 500) * 0.5; // Pulse between 0.5-1.0
+        // === PULSING RING EFFECT (Same style as local player, but RED for threat) ===
+        const time = Date.now();
+        
+        // Outer pulsing ring (expands and fades)
+        const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
+        const pulseRadius1 = PLAYER_ICON_SIZE + pulsePhase1 * 20; // Slightly smaller than local player
+        const pulseAlpha1 = 1 - pulsePhase1;
+        
+        ctx.strokeStyle = REMOTE_PLAYER_DOT_COLOR;
+        ctx.lineWidth = 2 - pulsePhase1 * 1.5;
+        ctx.globalAlpha = pulseAlpha1 * 0.6;
+        ctx.beginPath();
+        ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Second pulsing ring (offset timing)
+        const pulsePhase2 = ((time + 1000) % 2000) / 2000;
+        const pulseRadius2 = PLAYER_ICON_SIZE + pulsePhase2 * 20;
+        const pulseAlpha2 = 1 - pulsePhase2;
+        
+        ctx.lineWidth = 2 - pulsePhase2 * 1.5;
+        ctx.globalAlpha = pulseAlpha2 * 0.5;
+        ctx.beginPath();
+        ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Reset alpha for main icon
+        ctx.globalAlpha = 1.0;
+        
+        // Add glow to the player icon
         ctx.shadowColor = REMOTE_PLAYER_DOT_COLOR;
-        ctx.shadowBlur = 10 + pulseIntensity * 5; // Pulsing glow
+        ctx.shadowBlur = 10;
         
         // Convert player direction to rotation angle (radians)
         let rotation = 0;
@@ -1424,11 +1485,47 @@ export function drawMinimapOntoCanvas({
     }
   });
 
-  // --- Draw Local Player --- 
-  // The local player should ideally always be drawn (usually near the center when zoomed)
+  // --- Draw Local Player (HIGHLY VISIBLE - "YOU ARE HERE" indicator) --- 
+  // The local player should IMMEDIATELY stand out - it's the most important marker on the map
   if (localPlayer) {
     const screenCoords = worldToMinimap(localPlayer.positionX, localPlayer.positionY);
     if (screenCoords) { // Should generally be true unless player is somehow off-world
+      const x = screenCoords.x;
+      const y = screenCoords.y;
+      
+      ctx.save();
+      
+      // === PULSING RING EFFECT (Radar-style "YOU ARE HERE") ===
+      const time = Date.now();
+      
+      // Outer pulsing ring (expands and fades)
+      const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
+      const pulseRadius1 = LOCAL_PLAYER_ICON_SIZE + pulsePhase1 * 25; // Expands from icon to 25px out
+      const pulseAlpha1 = 1 - pulsePhase1; // Fades as it expands
+      
+      ctx.strokeStyle = LOCAL_PLAYER_PULSE_COLOR_1;
+      ctx.lineWidth = 3 - pulsePhase1 * 2; // Gets thinner as it expands
+      ctx.globalAlpha = pulseAlpha1 * 0.8;
+      ctx.beginPath();
+      ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Second pulsing ring (offset timing for continuous effect)
+      const pulsePhase2 = ((time + 1000) % 2000) / 2000; // Offset by 1 second
+      const pulseRadius2 = LOCAL_PLAYER_ICON_SIZE + pulsePhase2 * 25;
+      const pulseAlpha2 = 1 - pulsePhase2;
+      
+      ctx.strokeStyle = LOCAL_PLAYER_PULSE_COLOR_2;
+      ctx.lineWidth = 3 - pulsePhase2 * 2;
+      ctx.globalAlpha = pulseAlpha2 * 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Reset alpha for main icon
+      ctx.globalAlpha = 1.0;
+      
+      // === DIRECTIONAL ARROW ===
       // Convert player direction to rotation angle (radians)
       let rotation = 0;
       switch (localPlayer.direction) {
@@ -1439,15 +1536,21 @@ export function drawMinimapOntoCanvas({
         default: rotation = 0; break;                // Default to right
       }
       
-      // Draw local player with directional triangular icon
+      // Add strong glow to the player icon
+      ctx.shadowColor = LOCAL_PLAYER_DOT_COLOR;
+      ctx.shadowBlur = 12;
+      
+      // Draw local player with directional triangular icon (LARGER than others)
       drawPlayerIcon(
         ctx, 
-        screenCoords.x, 
-        screenCoords.y, 
+        x, 
+        y, 
         rotation, 
         LOCAL_PLAYER_DOT_COLOR, 
-        PLAYER_ICON_SIZE
+        LOCAL_PLAYER_ICON_SIZE // Use the larger local player size
       );
+      
+      ctx.restore();
     }
   }
 
