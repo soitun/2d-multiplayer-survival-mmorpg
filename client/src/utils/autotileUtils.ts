@@ -26,6 +26,7 @@ import quarryTundraAutotile from '../assets/tiles/new/tileset_quarry_tundra_auto
 import quarryAlpineAutotile from '../assets/tiles/new/tileset_quarry_alpine_autotile.png';
 import quarryForestAutotile from '../assets/tiles/new/tileset_quarry_forest_autotile.png';
 import asphaltDirtRoadAutotile from '../assets/tiles/new/tileset_asphalt_dirtroad_autotile.png';
+import asphaltDirtAutotile from '../assets/tiles/new/tileset_asphalt_dirt_autotile.png';
 import asphaltBeachAutotile from '../assets/tiles/new/tileset_asphalt_beach_autotile.png';
 import asphaltAlpineAutotile from '../assets/tiles/new/tileset_asphalt_alpine_autotile.png';
 import asphaltTundraAutotile from '../assets/tiles/new/tileset_asphalt_tundra_autotile.png';
@@ -470,6 +471,16 @@ export const AUTOTILE_CONFIGS: { [key: string]: AutotileConfig } = {
         primaryType: 'Asphalt',
         secondaryType: 'DirtRoad',
         tilesetPath: asphaltDirtRoadAutotile,
+        tileSize: TILE_SIZE,
+        columns: TILESET_COLS,
+        rows: TILESET_ROWS,
+        primaryInterior: { row: 1, col: 2 },
+        secondaryInterior: { row: 0, col: 0 },
+    },
+    'Asphalt_Dirt': {
+        primaryType: 'Asphalt',
+        secondaryType: 'Dirt',
+        tilesetPath: asphaltDirtAutotile,
         tileSize: TILE_SIZE,
         columns: TILESET_COLS,
         rows: TILESET_ROWS,

@@ -838,7 +838,13 @@ export const useBuildingManager = (
     }
   }, [connection, isBuilding, mode, foundationShape, buildingTier, localPlayerX, localPlayerY]);
 
+  // PERFORMANCE FIX: Compute foundation cell coordinates with memoization
+  // The key insight: we only need to re-predict when the CELL changes, not on every pixel move
+  // Mouse moves ~60 times/sec but cell only changes every 96 pixels
+  const currentCellRef = useRef<{ cellX: number; cellY: number } | null>(null);
+  
   // ADDED: Auto-predict triangle shape based on surrounding foundations
+  // PERFORMANCE FIX: Use a ref-based approach to avoid running expensive prediction on every mouse pixel move
   useEffect(() => {
     // Only predict when:
     // 1. In building mode
@@ -853,6 +859,17 @@ export const useBuildingManager = (
     // Convert world pixel coordinates to foundation cell coordinates (96px grid)
     const { cellX, cellY } = worldPixelsToFoundationCell(worldMouseX, worldMouseY);
     
+    // PERFORMANCE FIX: Skip if we're still in the same cell - this is the key optimization!
+    // Mouse moves constantly but cells only change every 96 pixels
+    const currentCell = currentCellRef.current;
+    if (currentCell && currentCell.cellX === cellX && currentCell.cellY === cellY) {
+      // Same cell, no need to re-run expensive prediction logic
+      return;
+    }
+    
+    // Update current cell ref
+    currentCellRef.current = { cellX, cellY };
+    
     // Check if we've moved to a different foundation cell
     const lastTile = lastPredictedTileRef.current;
     const tileChanged = !lastTile || lastTile.tileX !== cellX || lastTile.tileY !== cellY;
@@ -865,7 +882,7 @@ export const useBuildingManager = (
     
     // If we moved to a new tile, clear manual override
     if (tileChanged && manuallySetShapeRef.current !== null) {
-      console.log('[BuildingManager] Moved to new tile, clearing manual override');
+      // PERFORMANCE FIX: Removed console.log that ran on cell change
       manuallySetShapeRef.current = null;
     }
     
@@ -888,7 +905,7 @@ export const useBuildingManager = (
     const predictedShape = predictTriangleShape(connection, cellX, cellY);
     
     if (predictedShape !== null) {
-      console.log('[BuildingManager] Auto-predicting triangle shape:', predictedShape, 'at foundation cell', { cellX, cellY }, 'current:', currentShape, 'tileChanged:', tileChanged);
+      // PERFORMANCE FIX: Removed console.log that ran on every prediction
       // Update if prediction is different from current shape OR if foundation cell changed
       if (predictedShape !== currentShape || tileChanged) {
         setFoundationShape(predictedShape);
@@ -898,7 +915,7 @@ export const useBuildingManager = (
     } else {
       // No clear pattern, but we're in triangle mode - default to TriNW if not already set
       if (currentShape !== FoundationShape.TriNW || tileChanged) {
-        console.log('[BuildingManager] No prediction, defaulting to TriNW at foundation cell', { cellX, cellY });
+        // PERFORMANCE FIX: Removed console.log that ran on every default assignment
         setFoundationShape(FoundationShape.TriNW);
         foundationShapeRef.current = FoundationShape.TriNW;
       }

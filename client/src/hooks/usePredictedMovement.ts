@@ -104,8 +104,12 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
   const lastFacingDirection = useRef<string>('down');
   const wasDeadRef = useRef(localPlayer?.isDead ?? true);
   
-  // Only use state for values that need to trigger re-renders
-  const [, forceUpdate] = useState({}); // For manual re-renders when needed
+  // PERFORMANCE FIX: Removed forceUpdate pattern that caused React render cascades
+  // The game canvas has its own RAF loop that reads refs directly
+  // We only need to update refs, not trigger React re-renders every frame
+  const lastForceUpdateTime = useRef<number>(0);
+  const FORCE_UPDATE_INTERVAL_MS = 500; // Only trigger React re-render every 500ms for sound system updates
+  const [, forceUpdate] = useState({});
   
   // Track dodge roll collision for smooth stopping
   const dodgeRollCollisionRef = useRef<{ hitAt: number; stopPosition: { x: number; y: number } } | null>(null);
@@ -134,8 +138,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       lastFacingDirection.current = localPlayer.direction || 'down';
       wasDeadRef.current = localPlayer.isDead;
       
-      // Force a re-render to update components that depend on position
-      forceUpdate({});
+      // Mark that we need to update components (but don't force React re-render frequently)
+      lastForceUpdateTime.current = 0; // Reset to trigger update on next interval check
     }
   }, [localPlayer?.identity]);
 
@@ -163,7 +167,12 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       clientSequenceRef.current = 0n;
       lastAckedSequenceRef.current = 0n;
 
-      forceUpdate({}); // Force a re-render for components that use position
+      // PERFORMANCE: Only trigger occasional React re-renders for non-canvas consumers (sound system)
+      const now = performance.now();
+      if (now - lastForceUpdateTime.current > FORCE_UPDATE_INTERVAL_MS) {
+        lastForceUpdateTime.current = now;
+        forceUpdate({});
+      }
     } else {
       if (receivedSequence > lastAckedSequenceRef.current) {
         lastAckedSequenceRef.current = receivedSequence;
@@ -286,11 +295,17 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
           }
         }
         
-        // Force re-render during dodge roll for smooth animation
+        // PERFORMANCE FIX: Removed per-frame forceUpdate during dodge roll
+        // The game canvas reads position from refs directly, no React re-render needed
+        // Only update React state occasionally for non-canvas consumers
+        const now = performance.now();
+        if (now - lastForceUpdateTime.current > FORCE_UPDATE_INTERVAL_MS) {
+          lastForceUpdateTime.current = now;
         forceUpdate({});
+        }
         
         // Skip normal movement processing during dodge roll
-        movementMonitor.logUpdate(performance.now() - updateStartTime, true);
+        movementMonitor.logUpdate(now - updateStartTime, true);
         return;
       } else {
         // Dodge roll ended - clear collision tracking
@@ -374,9 +389,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
         clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
         pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
         
-        // Only force re-render every few frames to reduce React overhead
-        const frameMod = Math.floor(now / 16) % 4; // Changed from % 2
-        if (frameMod === 0) {
+        // PERFORMANCE FIX: Only trigger React re-render every 500ms for non-canvas consumers
+        // The game canvas reads position from refs directly at 60fps
+        if (now - lastForceUpdateTime.current > FORCE_UPDATE_INTERVAL_MS) {
+          lastForceUpdateTime.current = now;
           forceUpdate({});
         }
       } else if (localPlayer.isKnockedOut && hasDirectionalInput) {

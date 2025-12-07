@@ -1438,9 +1438,13 @@ export function useEntityFiltering(
   );
 
   // ===== CACHED Y-SORTING WITH DIRTY FLAG SYSTEM =====
+  // PERFORMANCE: Cache includes pre-computed sort keys for faster comparisons
+  // Internal type extends YSortedEntityType with pre-computed _ySortKey and _priority
+  type YSortedEntityWithKey = YSortedEntityType & { _ySortKey: number; _priority: number };
+  
   // Cache for Y-sorted entities to avoid recalculating every frame
   const ySortedCache = useMemo(() => ({
-    entities: [] as YSortedEntityType[],
+    entities: [] as YSortedEntityWithKey[],
     lastUpdateFrame: -1,
     lastEntityCounts: {} as Record<string, number>,
     lastFoundationMapSize: 0, // Track foundation map size separately
@@ -1583,43 +1587,60 @@ export function useEntityFiltering(
     // Only use cache if we DON'T have both players and tiles AND nothing else requires resorting
     if (!needsResort && ySortedCache.entities.length > 0) {
       // Use cached result - huge performance gain!
-      return ySortedCache.entities;
+      // Cast to YSortedEntityType[] to hide internal _ySortKey and _priority from consumers
+      return ySortedCache.entities as YSortedEntityType[];
     }
     
+    // PERFORMANCE OPTIMIZATION: Pre-compute Y sort keys during entity aggregation
+    // This eliminates thousands of getEntityY() and getEntityPriority() calls during sorting
+    // Instead of calling these functions O(n log n) times in the comparator,
+    // we compute them once per entity (O(n)) and then compare simple numbers
+    // (YSortedEntityWithKey type is defined above near ySortedCache)
+    
     // PERFORMANCE: Pre-allocate array with known size to avoid dynamic resizing
-    const allEntities: YSortedEntityType[] = new Array(totalEntities);
+    const allEntities: YSortedEntityWithKey[] = new Array(totalEntities);
     let index = 0;
     
-    // Aggregate all entity types into a single arrays 
-    visiblePlayers.forEach(e => allEntities[index++] = { type: 'player', entity: e });
-    visibleTrees.forEach(e => allEntities[index++] = { type: 'tree', entity: e });
-    visibleStones.forEach(e => { if (e.health > 0) allEntities[index++] = { type: 'stone', entity: e }; });
-    visibleRuneStones.forEach(e => allEntities[index++] = { type: 'rune_stone', entity: e });
-    visibleWoodenStorageBoxes.forEach(e => allEntities[index++] = { type: 'wooden_storage_box', entity: e });
-    visibleStashes.forEach(e => allEntities[index++] = { type: 'stash', entity: e });
-    visibleCampfires.forEach(e => allEntities[index++] = { type: 'campfire', entity: e });
-    visibleFurnaces.forEach(e => allEntities[index++] = { type: 'furnace', entity: e });
-    visibleLanterns.forEach(e => allEntities[index++] = { type: 'lantern', entity: e });
-    visibleHomesteadHearths.forEach(e => allEntities[index++] = { type: 'homestead_hearth', entity: e }); // ADDED: Homestead Hearths
-    visibleGrass.forEach(e => allEntities[index++] = { type: 'grass', entity: e });
-    visiblePlantedSeeds.forEach(e => allEntities[index++] = { type: 'planted_seed', entity: e });
-    visibleDroppedItems.forEach(e => allEntities[index++] = { type: 'dropped_item', entity: e });
-    visibleHarvestableResources.forEach(e => allEntities[index++] = { type: 'harvestable_resource', entity: e });
-    visibleRainCollectors.forEach(e => allEntities[index++] = { type: 'rain_collector', entity: e });
-    visibleBrothPots.forEach(e => allEntities[index++] = { type: 'broth_pot', entity: e });
-    visibleProjectiles.forEach(e => allEntities[index++] = { type: 'projectile', entity: e });
-    visibleAnimalCorpses.forEach(e => allEntities[index++] = { type: 'animal_corpse', entity: e });
-    visiblePlayerCorpses.forEach(e => allEntities[index++] = { type: 'player_corpse', entity: e });
-    visibleWildAnimals.forEach(e => allEntities[index++] = { type: 'wild_animal', entity: e });
-    visibleBarrels.forEach(e => allEntities[index++] = { type: 'barrel', entity: e });
-    visibleFumaroles.forEach(e => allEntities[index++] = { type: 'fumarole', entity: e }); // ADDED: Fumaroles
-    visibleBasaltColumns.forEach(e => allEntities[index++] = { type: 'basalt_column', entity: e }); // ADDED: Basalt columns
-    visibleAlkStations.forEach(e => allEntities[index++] = { type: 'alk_station', entity: e }); // ADDED: ALK delivery stations
-    visibleCompoundBuildings.forEach(e => allEntities[index++] = { type: 'compound_building', entity: e }); // ADDED: Static compound buildings
-    visibleSleepingBags.forEach(e => allEntities[index++] = { type: 'sleeping_bag', entity: e }); // ADDED: Sleeping bags
-    visibleSeaStacks.forEach(e => allEntities[index++] = { type: 'sea_stack', entity: e });
-    visibleShelters.forEach(e => allEntities[index++] = { type: 'shelter', entity: e });
-    visibleFoundationCells.forEach(e => allEntities[index++] = { type: 'foundation_cell', entity: e }); // ADDED: Foundations
+    // Helper to add entity with pre-computed sort key
+    const addEntity = (type: YSortedEntityType['type'], entity: any) => {
+      const item = { type, entity } as YSortedEntityType;
+      allEntities[index++] = {
+        ...item,
+        _ySortKey: getEntityY(item, stableTimestamp),
+        _priority: getEntityPriority(item)
+      } as YSortedEntityWithKey;
+    };
+    
+    // Aggregate all entity types with pre-computed sort keys
+    visiblePlayers.forEach(e => addEntity('player', e));
+    visibleTrees.forEach(e => addEntity('tree', e));
+    visibleStones.forEach(e => { if (e.health > 0) addEntity('stone', e); });
+    visibleRuneStones.forEach(e => addEntity('rune_stone', e));
+    visibleWoodenStorageBoxes.forEach(e => addEntity('wooden_storage_box', e));
+    visibleStashes.forEach(e => addEntity('stash', e));
+    visibleCampfires.forEach(e => addEntity('campfire', e));
+    visibleFurnaces.forEach(e => addEntity('furnace', e));
+    visibleLanterns.forEach(e => addEntity('lantern', e));
+    visibleHomesteadHearths.forEach(e => addEntity('homestead_hearth', e)); // ADDED: Homestead Hearths
+    visibleGrass.forEach(e => addEntity('grass', e));
+    visiblePlantedSeeds.forEach(e => addEntity('planted_seed', e));
+    visibleDroppedItems.forEach(e => addEntity('dropped_item', e));
+    visibleHarvestableResources.forEach(e => addEntity('harvestable_resource', e));
+    visibleRainCollectors.forEach(e => addEntity('rain_collector', e));
+    visibleBrothPots.forEach(e => addEntity('broth_pot', e));
+    visibleProjectiles.forEach(e => addEntity('projectile', e));
+    visibleAnimalCorpses.forEach(e => addEntity('animal_corpse', e));
+    visiblePlayerCorpses.forEach(e => addEntity('player_corpse', e));
+    visibleWildAnimals.forEach(e => addEntity('wild_animal', e));
+    visibleBarrels.forEach(e => addEntity('barrel', e));
+    visibleFumaroles.forEach(e => addEntity('fumarole', e)); // ADDED: Fumaroles
+    visibleBasaltColumns.forEach(e => addEntity('basalt_column', e)); // ADDED: Basalt columns
+    visibleAlkStations.forEach(e => addEntity('alk_station', e)); // ADDED: ALK delivery stations
+    visibleCompoundBuildings.forEach(e => addEntity('compound_building', e)); // ADDED: Static compound buildings
+    visibleSleepingBags.forEach(e => addEntity('sleeping_bag', e)); // ADDED: Sleeping bags
+    visibleSeaStacks.forEach(e => addEntity('sea_stack', e));
+    visibleShelters.forEach(e => addEntity('shelter', e));
+    visibleFoundationCells.forEach(e => addEntity('foundation_cell', e)); // ADDED: Foundations
     
     // ADDED: Add fog overlays for building clusters that should be masked
     // These render above placeables but below walls
@@ -1682,17 +1703,14 @@ export function useEntityFiltering(
                 doors // Pass doors so south doors also prevent ceiling coverage
               );
 
-              allEntities[index++] = {
-                type: 'fog_overlay',
-                entity: {
+              addEntity('fog_overlay', {
                   clusterId,
                   bounds: { minX, minY, maxX, maxY },
                   entranceWayFoundations: Array.from(entranceWayFoundations), // Convert Set to Array for serialization
                   clusterFoundationCoords: Array.from(cluster.cellCoords), // Pass all foundation coords to prevent rendering outside building
                   northWallFoundations: Array.from(northWallFoundations), // Pass foundations with north walls for ceiling extension
                   southWallFoundations: Array.from(southWallFoundations) // Pass foundations with south walls to prevent covering them
-                }
-              };
+                });
               processedClusters.add(clusterId);
             }
             break; // Found the cluster, no need to check others
@@ -1701,16 +1719,16 @@ export function useEntityFiltering(
       });
     }
     
-    visibleWallCells.forEach(e => allEntities[index++] = { type: 'wall_cell', entity: e }); // ADDED: Walls
-    visibleDoors.forEach(e => allEntities[index++] = { type: 'door', entity: e }); // ADDED: Doors
+    visibleWallCells.forEach(e => addEntity('wall_cell', e)); // ADDED: Walls
+    visibleDoors.forEach(e => addEntity('door', e)); // ADDED: Doors
 
     // Trim array to actual size in case some entities were filtered out (e.g., stones with 0 health)
     allEntities.length = index;
     
-    // PERFORMANCE: Sort the array in-place.
-    // The comparator function will call helpers, which is computationally more expensive
-    // than the old method, but it avoids massive memory allocation, which is the
-    // likely cause of the garbage-collection lag spikes.
+    // PERFORMANCE OPTIMIZATION: Sort using pre-computed _ySortKey and _priority
+    // The Y sort key was computed once per entity during aggregation above,
+    // eliminating O(n log n) getEntityY() calls during sorting.
+    // Special case checks still run, but the final Y comparison uses simple numbers.
     allEntities.sort((a, b) => {
       // ABSOLUTE FIRST CHECK: Player vs ALK Station - tall structure Y-sorting
       // This MUST be first to ensure correct rendering for large structures
@@ -2160,8 +2178,10 @@ export function useEntityFiltering(
         return -1; // Flying bird renders after (above) ground object
       }
       
-      const yA = getEntityY(a, stableTimestamp);
-      const yB = getEntityY(b, stableTimestamp);
+      // PERFORMANCE OPTIMIZATION: Use pre-computed _ySortKey instead of calling getEntityY()
+      // This eliminates O(n log n) function calls during sorting
+      const yA = a._ySortKey;
+      const yB = b._ySortKey;
       
       // CRITICAL FIX: Handle NaN values that break sorting
       if (isNaN(yA) || isNaN(yB)) {
@@ -2171,8 +2191,8 @@ export function useEntityFiltering(
           entityA: a.entity,
           entityB: b.entity
         });
-        // Fallback: use priority sorting if Y values are invalid
-        return getEntityPriority(b) - getEntityPriority(a);
+        // Fallback: use pre-computed priority sorting if Y values are invalid
+        return b._priority - a._priority;
       }
       
       // Primary sort by Y position
@@ -2182,8 +2202,9 @@ export function useEntityFiltering(
         return yDiff;
       }
       
-      // Secondary sort by priority when Y positions are close
-      return getEntityPriority(b) - getEntityPriority(a);
+      // Secondary sort by pre-computed priority when Y positions are close
+      // PERFORMANCE: Uses pre-computed _priority instead of calling getEntityPriority()
+      return b._priority - a._priority;
     });
     
     // PERFORMANCE: Update cache with new sorted result
@@ -2194,7 +2215,8 @@ export function useEntityFiltering(
     ySortedCache.lastWallMapSize = wallCells?.size || 0;
     ySortedCache.isDirty = false;
     
-    return allEntities;
+    // Cast to YSortedEntityType[] to hide internal _ySortKey and _priority from consumers
+    return allEntities as YSortedEntityType[];
   },
     // Dependencies for cached Y-sorting
     [visiblePlayers, visibleTrees, visibleStones, visibleRuneStones, visibleWoodenStorageBoxes, 

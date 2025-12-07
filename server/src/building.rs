@@ -691,32 +691,43 @@ pub fn place_foundation(
         }
     }
     
-    // Check hot springs - iterate through all hot spring tiles
-    for tile in ctx.db.world_tile().iter() {
-        if tile.tile_type == crate::TileType::HotSpringWater {
-            let hot_spring_center_x = (tile.world_x as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
-            let hot_spring_center_y = (tile.world_y as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
-            let dx = world_x - hot_spring_center_x;
-            let dy = world_y - hot_spring_center_y;
-            let distance_sq = dx * dx + dy * dy;
-            
-            if distance_sq <= MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ {
-                return Err("Cannot place foundation near hot springs. These monuments must remain unobstructed.".to_string());
-            }
-        }
-    }
+    // PERFORMANCE FIX: Check hot springs and quarries using spatial filtering instead of full table iteration
+    // The old code iterated ALL tiles in the world (250,000+ tiles!) - this was causing 3+ second delays
+    // Now we only check tiles within the restriction radius using the world position index
+    let tile_size = crate::TILE_SIZE_PX as f32;
+    let check_radius_tiles = (MONUMENT_FOUNDATION_RESTRICTION_RADIUS / tile_size).ceil() as i32 + 1;
+    let center_tile_x = (world_x / tile_size).floor() as i32;
+    let center_tile_y = (world_y / tile_size).floor() as i32;
     
-    // Check quarries - iterate through all quarry tiles
-    for tile in ctx.db.world_tile().iter() {
-        if tile.tile_type == crate::TileType::Quarry {
-            let quarry_center_x = (tile.world_x as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
-            let quarry_center_y = (tile.world_y as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
-            let dx = world_x - quarry_center_x;
-            let dy = world_y - quarry_center_y;
-            let distance_sq = dx * dx + dy * dy;
+    // Check tiles in a square around the placement position
+    // This is O(radius^2) = ~289 tiles instead of O(world_size^2) = 250,000+ tiles
+    let world_tiles = ctx.db.world_tile();
+    'monument_check: for dy in -check_radius_tiles..=check_radius_tiles {
+        for dx in -check_radius_tiles..=check_radius_tiles {
+            let check_tile_x = center_tile_x + dx;
+            let check_tile_y = center_tile_y + dy;
             
-            if distance_sq <= MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ {
-                return Err("Cannot place foundation near quarries. These monuments must remain unobstructed.".to_string());
+            // Use indexed lookup for this specific tile
+            for tile in world_tiles.idx_world_position().filter((check_tile_x, check_tile_y)) {
+                // Check if it's a monument tile type
+                if tile.tile_type != crate::TileType::HotSpringWater && tile.tile_type != crate::TileType::Quarry {
+                    continue;
+                }
+                
+                let tile_center_x = (tile.world_x as f32 * tile_size) + (tile_size / 2.0);
+                let tile_center_y = (tile.world_y as f32 * tile_size) + (tile_size / 2.0);
+                let tdx = world_x - tile_center_x;
+                let tdy = world_y - tile_center_y;
+                let distance_sq = tdx * tdx + tdy * tdy;
+                
+                if distance_sq <= MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ {
+                    let monument_type = if tile.tile_type == crate::TileType::HotSpringWater { 
+                        "hot springs" 
+                    } else { 
+                        "quarries" 
+                    };
+                    return Err(format!("Cannot place foundation near {}. These monuments must remain unobstructed.", monument_type));
+                }
             }
         }
     }
@@ -2015,13 +2026,9 @@ pub fn is_position_on_foundation(
     let cell_x = (world_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
     let cell_y = (world_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
     
-    // Check if there's a foundation at this cell
-    for foundation in ctx.db.foundation_cell().iter() {
-        if foundation.is_destroyed {
-            continue;
-        }
-        
-        if foundation.cell_x == cell_x && foundation.cell_y == cell_y {
+    // PERFORMANCE FIX: Use idx_cell_coords index for O(1) lookup instead of iterating all foundations
+    for foundation in ctx.db.foundation_cell().idx_cell_coords().filter((cell_x, cell_y)) {
+        if !foundation.is_destroyed {
             return true;
         }
     }

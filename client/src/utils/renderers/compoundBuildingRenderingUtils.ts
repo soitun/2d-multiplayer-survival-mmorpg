@@ -16,16 +16,17 @@ import {
 // Image cache for compound buildings (same pattern as alkStationRenderingUtils.ts)
 const buildingImages: Map<string, HTMLImageElement> = new Map();
 const loadingImages: Set<string> = new Set();
+// Track images that failed to load or don't have loaders to prevent infinite retry loops
+const failedImages: Set<string> = new Set();
 
 /**
  * Load a single building image with explicit dynamic import
  */
 function loadImage(imageName: string, importPromise: Promise<{ default: string }>): void {
-    if (buildingImages.has(imageName) || loadingImages.has(imageName)) return;
+    if (buildingImages.has(imageName) || loadingImages.has(imageName) || failedImages.has(imageName)) return;
     
     loadingImages.add(imageName);
     importPromise.then((module) => {
-        console.log(`[CompoundBuilding] Import resolved for ${imageName}, module.default:`, module.default);
         const img = new Image();
         img.onload = () => {
             buildingImages.set(imageName, img);
@@ -34,11 +35,13 @@ function loadImage(imageName: string, importPromise: Promise<{ default: string }
         };
         img.onerror = (e) => {
             loadingImages.delete(imageName);
+            failedImages.add(imageName); // Mark as failed to prevent retry loops
             console.error(`[CompoundBuilding] ❌ Failed to load: ${imageName}, URL was: ${module.default}`, e);
         };
         img.src = module.default;
     }).catch((err) => {
         loadingImages.delete(imageName);
+        failedImages.add(imageName); // Mark as failed to prevent retry loops
         console.error(`[CompoundBuilding] ❌ Import failed for: ${imageName}`, err);
     });
 }
@@ -61,13 +64,19 @@ export function preloadCompoundBuildingImages(): void {
 
 /**
  * Get a building's image, triggering load if needed
+ * PERFORMANCE FIX: Prevents infinite retry loops for missing/unknown images
  */
 export function getBuildingImage(imagePath: string): HTMLImageElement | null {
+    // Fast path: already loaded
     const img = buildingImages.get(imagePath);
-    if (!img && !loadingImages.has(imagePath)) {
-        // Image not loaded and not loading - trigger load
-        console.log(`[CompoundBuilding] Triggering load for: ${imagePath}`);
-        // Re-trigger preload for this specific image
+    if (img) return img;
+    
+    // Skip if already loading or known to have failed
+    if (loadingImages.has(imagePath) || failedImages.has(imagePath)) {
+        return null;
+    }
+    
+    // Image not loaded and not loading - try to trigger load
         const imageMap: Record<string, () => Promise<{ default: string }>> = {
             'guardpost.png': () => import('../../assets/doodads/guardpost.png?url'),
             'shed.png': () => import('../../assets/doodads/shed.png?url'),
@@ -76,12 +85,20 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'barracks.png': () => import('../../assets/doodads/barracks.png?url'),
             'fuel_depot.png': () => import('../../assets/doodads/fuel_depot.png?url'),
         };
+    
         const loader = imageMap[imagePath];
         if (loader) {
+        // Log only once when actually starting to load
+        console.log(`[CompoundBuilding] Starting load for: ${imagePath}`);
             loadImage(imagePath, loader());
-        }
+    } else {
+        // No loader for this image - mark as failed to prevent retry spam
+        // Log only once to notify developers
+        console.warn(`[CompoundBuilding] No loader configured for: ${imagePath} - skipping`);
+        failedImages.add(imagePath);
     }
-    return img || null;
+    
+    return null;
 }
 
 // Color palette for placeholder buildings (cycles through these)
@@ -212,15 +229,7 @@ export function renderCompoundBuilding(
         img = getBuildingImage(building.imagePath);
     }
     
-    // Debug logging for specific images
-    if (building.imagePath === 'guardpost.png' || building.imagePath === 'shed.png') {
-        console.log(`[CompoundBuilding] Rendering ${building.id} (${building.imagePath}):`, {
-            fromRef: !!doodadImagesRef?.current?.get(building.imagePath),
-            fromCache: !!buildingImages.get(building.imagePath),
-            loading: loadingImages.has(building.imagePath),
-            hasImg: !!img
-        });
-    }
+    // PERFORMANCE FIX: Removed debug logging that was running every frame
     
     if (!img) {
         renderPlaceholder(ctx, building, worldX, worldY);

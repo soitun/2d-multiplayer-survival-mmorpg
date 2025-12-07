@@ -2985,14 +2985,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       deltaTimeRef.current = 16.667; // 60fps fallback
     }
 
+    // PERFORMANCE FIX: Process inputs in the same RAF cycle as rendering
+    // Previously this was a separate useGameLoop call, effectively running 2 RAF loops
+    processInputsAndActions();
+    
     renderGame();
-  }, [renderGame]);
+  }, [renderGame, processInputsAndActions]);
 
   // Use the updated hook with optimized performance settings
+  // PERFORMANCE: Enable profiling temporarily to identify hot paths
   useGameLoop(gameLoopCallback, {
     targetFPS: 60,
     maxFrameTime: 33, // More lenient threshold to reduce console spam
-    enableProfiling: false // Disable profiling in production for maximum performance
+    enableProfiling: true // TEMP: Enable profiling to identify performance bottlenecks
   });
 
   // Convert sleepingBags map key from string to number for DeathScreen
@@ -3207,8 +3212,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     alkStations,
   ]);
 
-  // Game loop for processing actions
-  useGameLoop(processInputsAndActions);
+  // PERFORMANCE FIX: Removed duplicate useGameLoop(processInputsAndActions)
+  // Input processing now happens in the main gameLoopCallback above
+  // This eliminates running 2 separate RAF cycles
 
   // Performance tracking (emergency mode removed)
   const performanceMode = useRef({ 

@@ -288,12 +288,7 @@ export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
   // Destroy option (only for Twig tier)
   // Always show the option - server will validate ownership
   if (currentTier === BuildingTier.Twig && onDestroy) {
-    // Debug logging for ownership check
-    if (tile?.owner && connection?.identity) {
-      console.log('[UpgradeRadialMenu] Destroy option - tile owner:', tile.owner, 'local identity:', connection.identity, 'owns:', playerOwnsTile);
-    } else {
-      console.log('[UpgradeRadialMenu] Destroy option - missing owner or connection:', { hasOwner: !!tile?.owner, hasConnection: !!connection, hasIdentity: !!connection?.identity });
-    }
+    // PERFORMANCE FIX: Removed debug logging that ran every render frame
     
     upgradeOptions.push({
       tier: BuildingTier.Twig, // Not used for destroy

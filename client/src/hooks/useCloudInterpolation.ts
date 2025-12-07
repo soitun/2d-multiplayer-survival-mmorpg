@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Cloud as SpacetimeDBCloud, CloudShapeType } from '../generated'; // Assuming generated types
 
 const SERVER_UPDATE_INTERVAL_MS = 5000; // Cloud position updates from server every 5 seconds
@@ -40,25 +40,26 @@ const lerp = (start: number, end: number, t: number): number => {
   return start * (1 - t) + end * t;
 };
 
+// PERFORMANCE FIX: Shared ref for renderable clouds - avoids React re-renders every frame
+// The interpolation happens in the game loop, not via React state
+const renderableCloudsRef: { current: Map<string, InterpolatedCloudData> } = { current: new Map() };
+const interpolatedStatesRef: { current: Map<string, CloudInterpolationState> } = { current: new Map() };
+
 export const useCloudInterpolation = ({
   serverClouds,
   deltaTime,
 }: UseCloudInterpolationProps): Map<string, InterpolatedCloudData> => {
-  const [interpolatedCloudStates, setInterpolatedCloudStates] = useState<Map<string, CloudInterpolationState>>(() => new Map());
-  const [renderableClouds, setRenderableClouds] = useState<Map<string, InterpolatedCloudData>>(() => new Map());
-
-  // Ref to store the previous serverClouds to detect actual data changes
+  // PERFORMANCE FIX: Use refs instead of state to avoid React re-render cascades
+  // The cloud interpolation is read directly in the game loop, not by React components
   const prevServerCloudsRef = useRef<Map<string, SpacetimeDBCloud>>(new Map());
 
   // Effect to update interpolation targets when server data changes
   useEffect(() => {
-    const newStates = new Map(interpolatedCloudStates);
     const now = performance.now();
-    let changed = false;
 
     // Update existing or add new clouds
     serverClouds.forEach((serverCloud, id) => {
-      const prevState = newStates.get(id);
+      const prevState = interpolatedStatesRef.current.get(id);
       const prevServerCloud = prevServerCloudsRef.current.get(id);
 
       // Check if the server position for this cloud has actually changed
@@ -68,11 +69,10 @@ export const useCloudInterpolation = ({
                                     prevServerCloud.posY !== serverCloud.posY;
 
       if (!prevState || serverPositionChanged) { // New cloud or server sent an update
-        changed = true;
         const currentRenderX = prevState?.targetPosX ?? serverCloud.posX;
         const currentRenderY = prevState?.targetPosY ?? serverCloud.posY;
 
-        newStates.set(id, {
+        interpolatedStatesRef.current.set(id, {
           id,
           serverPosX: serverCloud.posX,
           serverPosY: serverCloud.posY,
@@ -92,17 +92,15 @@ export const useCloudInterpolation = ({
         });
       } else if (prevState) {
         // If server position hasn't changed, ensure other visual props are up-to-date
-        // (though clouds are unlikely to change these without moving)
         if (prevState.width !== serverCloud.width ||
             prevState.height !== serverCloud.height ||
             prevState.rotationDegrees !== serverCloud.rotationDegrees ||
             prevState.baseOpacity !== serverCloud.baseOpacity ||
             prevState.currentOpacity !== serverCloud.currentOpacity ||
             prevState.blurStrength !== serverCloud.blurStrength ||
-            !Object.is(prevState.shape, serverCloud.shape) // For object comparison
+            !Object.is(prevState.shape, serverCloud.shape)
         ) {
-            changed = true;
-            newStates.set(id, {
+            interpolatedStatesRef.current.set(id, {
                 ...prevState,
                 width: serverCloud.width,
                 height: serverCloud.height,
@@ -117,45 +115,43 @@ export const useCloudInterpolation = ({
     });
 
     // Remove clouds that are no longer in serverClouds
-    interpolatedCloudStates.forEach((_, id) => {
+    interpolatedStatesRef.current.forEach((_, id) => {
       if (!serverClouds.has(id)) {
-        changed = true;
-        newStates.delete(id);
+        interpolatedStatesRef.current.delete(id);
       }
     });
 
-    if (changed) {
-      setInterpolatedCloudStates(newStates);
-    }
     // Update the ref for the next comparison
     prevServerCloudsRef.current = new Map(serverClouds.entries());
 
   }, [serverClouds]); // Only re-run when serverClouds prop itself changes identity
 
-  // Effect to perform interpolation each frame using deltaTime
-  useEffect(() => {
-    if (deltaTime === 0) return; // No time has passed
+  // PERFORMANCE FIX: Compute interpolated positions directly without triggering React re-renders
+  // This function is called by the return value, which is read each frame
+  // The interpolation happens lazily when the data is accessed
+  const now = performance.now();
+  
+  // Update renderable clouds with current interpolated positions
+  interpolatedStatesRef.current.forEach((state, id) => {
+    const timeSinceLastServerUpdate = now - state.lastServerUpdateTimeMs;
+    const interpolationFactor = Math.min(1.0, timeSinceLastServerUpdate / SERVER_UPDATE_INTERVAL_MS);
+    
+    const currentRenderPosX = lerp(state.lastKnownPosX, state.targetPosX, interpolationFactor);
+    const currentRenderPosY = lerp(state.lastKnownPosY, state.targetPosY, interpolationFactor);
 
-    const newRenderables = new Map<string, InterpolatedCloudData>();
-    const now = performance.now();
-
-    interpolatedCloudStates.forEach((state, id) => {
-      const timeSinceLastServerUpdate = now - state.lastServerUpdateTimeMs;
-      // Ensure interpolationFactor does not exceed 1 if client frame rate is very low
-      // or server update is very recent.
-      const interpolationFactor = Math.min(1.0, timeSinceLastServerUpdate / SERVER_UPDATE_INTERVAL_MS);
-      
-      const currentRenderPosX = lerp(state.lastKnownPosX, state.targetPosX, interpolationFactor);
-      const currentRenderPosY = lerp(state.lastKnownPosY, state.targetPosY, interpolationFactor);
-
-      newRenderables.set(id, {
-        ...state,
-        currentRenderPosX,
-        currentRenderPosY,
-      });
+    renderableCloudsRef.current.set(id, {
+      ...state,
+      currentRenderPosX,
+      currentRenderPosY,
     });
-    setRenderableClouds(newRenderables);
-  }, [interpolatedCloudStates, deltaTime]); // Re-run when states or deltaTime change
+  });
+  
+  // Clean up clouds that were removed
+  renderableCloudsRef.current.forEach((_, id) => {
+    if (!interpolatedStatesRef.current.has(id)) {
+      renderableCloudsRef.current.delete(id);
+    }
+  });
 
-  return renderableClouds;
+  return renderableCloudsRef.current;
 }; 

@@ -4,9 +4,12 @@
  * Finds and targets nearby building tiles when Repair Hammer is equipped.
  * Works with any building tile type (foundations, walls, doorframes, etc.).
  * Snaps to the closest tile within range.
+ * 
+ * PERFORMANCE FIX: Removed redundant useState + useEffect pattern that caused
+ * infinite re-render loops. Now returns useMemo result directly.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { DbConnection } from '../generated';
 import { FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
@@ -48,14 +51,12 @@ export function useBuildingTileTargeting<T extends TargetableBuildingTile>(
   worldMouseY: number | null,
   hasRepairHammer: boolean
 ): BuildingTileTargetingState<T> {
-  const [targetedTile, setTargetedTile] = useState<T | null>(null);
-  const [targetTileX, setTargetTileX] = useState<number | null>(null);
-  const [targetTileY, setTargetTileY] = useState<number | null>(null);
-
   // Find closest tile to mouse position
-  const targetingResult = useMemo(() => {
+  // PERFORMANCE: Return useMemo result directly - no need for useState + useEffect
+  // which was causing infinite re-render loops due to object reference comparison
+  return useMemo(() => {
     if (!connection || !hasRepairHammer || worldMouseX === null || worldMouseY === null) {
-      return { tile: null, tileX: null, tileY: null };
+      return { targetedTile: null, targetTileX: null, targetTileY: null };
     }
 
     // Convert mouse position to foundation cell coordinates (96px grid)
@@ -100,27 +101,14 @@ export function useBuildingTileTargeting<T extends TargetableBuildingTile>(
     const SNAP_THRESHOLD_SQUARED = (FOUNDATION_TILE_SIZE * 1.5) * (FOUNDATION_TILE_SIZE * 1.5); // 1.5 foundation cells
     if (closestTile && closestDistanceSq <= SNAP_THRESHOLD_SQUARED) {
       return {
-        tile: closestTile,
-        tileX: closestTileX,
-        tileY: closestTileY,
+        targetedTile: closestTile,
+        targetTileX: closestTileX,
+        targetTileY: closestTileY,
       };
     }
 
-    return { tile: null, tileX: null, tileY: null };
+    return { targetedTile: null, targetTileX: null, targetTileY: null };
   }, [getTiles, connection, hasRepairHammer, worldMouseX, worldMouseY, localPlayerX, localPlayerY]);
-
-  // Update state when targeting result changes
-  useEffect(() => {
-    setTargetedTile(targetingResult.tile);
-    setTargetTileX(targetingResult.tileX);
-    setTargetTileY(targetingResult.tileY);
-  }, [targetingResult]);
-
-  return {
-    targetedTile,
-    targetTileX,
-    targetTileY,
-  };
 }
 
 /**
@@ -152,4 +140,3 @@ export const useFoundationTargeting = (
     targetTileY: result.targetTileY,
   };
 };
-
