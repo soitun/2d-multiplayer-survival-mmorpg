@@ -51,7 +51,7 @@ import {
 } from '../generated';
 
 // --- Core Hooks ---
-import { useAnimationCycle, useWalkingAnimationCycle, useSprintAnimationCycle, useIdleAnimationCycle } from '../hooks/useAnimationCycle';
+import { useWalkingAnimationCycle, useSprintAnimationCycle, useIdleAnimationCycle, walkingAnimationFrameRef, sprintAnimationFrameRef, idleAnimationFrameRef } from '../hooks/useAnimationCycle';
 import { useAssetLoader } from '../hooks/useAssetLoader';
 import { useGameViewport } from '../hooks/useGameViewport';
 import { useMousePosition } from '../hooks/useMousePosition';
@@ -375,9 +375,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const torchParticlesRef = useRef<Particle[]>([]);
 
   // High-frequency value refs (to avoid renderGame dependency array churn)
-  const animationFrameRef = useRef<number>(0);
-  const sprintAnimationFrameRef = useRef<number>(0);
-  const idleAnimationFrameRef = useRef<number>(0);
+  // NOTE: Animation frame refs are now imported directly from useAnimationCycle.ts
+  // walkingAnimationFrameRef, sprintAnimationFrameRef, idleAnimationFrameRef are module-level exports
   const worldMousePosRef = useRef<{ x: number | null; y: number | null }>({ x: 0, y: 0 });
   const cameraOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const predictedPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -540,9 +539,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const deltaTimeRef = useRef<number>(0);
 
   // Sync high-frequency values to refs (reduces renderGame dependency array churn)
-  useEffect(() => { animationFrameRef.current = animationFrame; }, [animationFrame]);
-  useEffect(() => { sprintAnimationFrameRef.current = sprintAnimationFrame; }, [sprintAnimationFrame]);
-  useEffect(() => { idleAnimationFrameRef.current = idleAnimationFrame; }, [idleAnimationFrame]);
+  // NOTE: Animation frame refs are now directly exported from useAnimationCycle.ts - no syncing needed
   useEffect(() => { worldMousePosRef.current = worldMousePos; }, [worldMousePos]);
   useEffect(() => { cameraOffsetRef.current = { x: cameraOffsetX, y: cameraOffsetY }; }, [cameraOffsetX, cameraOffsetY]);
   useEffect(() => { predictedPositionRef.current = predictedPosition; }, [predictedPosition]);
@@ -1824,7 +1821,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentCameraOffsetX = cameraOffsetRef.current.x;
     const currentCameraOffsetY = cameraOffsetRef.current.y;
     const currentPredictedPosition = predictedPositionRef.current;
-    const currentAnimationFrame = animationFrameRef.current;
+    // Read animation frames directly from module-level exported refs (updated by single RAF loop)
+    const currentAnimationFrame = walkingAnimationFrameRef.current;
     const currentSprintAnimationFrame = sprintAnimationFrameRef.current;
     const currentIdleAnimationFrame = idleAnimationFrameRef.current;
     const currentInterpolatedClouds = interpolatedCloudsRef.current;
@@ -2128,7 +2126,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const { sx, sy } = getSpriteCoordinates(
           playerForRendering,
           isPlayerMoving,
-          idleAnimationFrame, // Swimming uses idle animation frames, same as main player rendering!
+          currentIdleAnimationFrame, // Swimming uses idle animation frames, same as main player rendering!
           false, // isUsingItem
           totalSwimmingFrames,
           false, // isIdle
@@ -2447,8 +2445,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           worldMouseY: currentWorldMouseY,
           localPlayerId: localPlayerId,
           animationFrame: currentAnimationFrame,
-          sprintAnimationFrame,
-          idleAnimationFrame,
+          sprintAnimationFrame: currentSprintAnimationFrame,
+          idleAnimationFrame: currentIdleAnimationFrame,
           nowMs: now_ms,
           hoveredPlayerIds,
           onPlayerHover: handlePlayerHover,

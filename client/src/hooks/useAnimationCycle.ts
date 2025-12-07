@@ -1,158 +1,153 @@
-// PERFORMANCE FIX: Use refs instead of state to avoid React re-render cascades
-// The animation frame value is read via refs in the game loop, not via React state
-// This eliminates ~60 React re-renders per second per animation hook
+// PERFORMANCE FIX: Single unified animation loop with directly exported refs
+// - ONE RAF loop updates all animation frames (not 3 separate loops)
+// - Refs are exported directly so game loop can read .current without re-renders
+// - Hooks just ensure the loop is started, they don't return values
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
-// Shared animation frame refs - accessible from outside the hooks
-// These are updated by RAF without triggering React re-renders
-const walkingFrameRef = { current: 0 };
-const sprintFrameRef = { current: 0 };
-const idleFrameRef = { current: 0 };
+// === EXPORTED REFS - Read these directly in the game loop ===
+// These are updated by a single RAF loop without triggering React re-renders
+export const walkingAnimationFrameRef = { current: 0 };
+export const sprintAnimationFrameRef = { current: 0 };
+export const idleAnimationFrameRef = { current: 0 };
 
-// Track if animation loops are already running (singleton pattern)
-let walkingLoopRunning = false;
-let sprintLoopRunning = false;
-let idleLoopRunning = false;
+// Animation timing configuration
+const WALKING_FRAME_DURATION = 150; // ms per frame
+const SPRINT_FRAME_DURATION = 100;  // ms per frame (faster)
+const IDLE_FRAME_DURATION = 500;    // ms per frame (slower)
+const NUM_FRAMES = 4;
 
-// Start a single shared animation loop for a given animation type
-function startAnimationLoop(
-  frameRef: { current: number },
-  frameDuration: number,
-  numFrames: number,
-  runningFlagSetter: (v: boolean) => void
-): () => void {
-  let rafId: number | null = null;
-  let lastFrameTime = 0;
+// Track timing for each animation type
+let walkingLastUpdate = 0;
+let sprintLastUpdate = 0;
+let idleLastUpdate = 0;
 
-  const animate = (time: number) => {
-    if (lastFrameTime === 0) {
-      lastFrameTime = time;
-    }
+// Singleton: is the unified loop running?
+let unifiedLoopRunning = false;
+let unifiedRafId: number | null = null;
+let loopRefCount = 0; // Track how many components need the loop
 
-    const deltaTime = time - lastFrameTime;
-    if (deltaTime >= frameDuration) {
-      frameRef.current = (frameRef.current + 1) % numFrames;
-      lastFrameTime = time;
-    }
+// Single unified animation loop - updates all animation types
+function unifiedAnimationLoop(time: number) {
+  // Update walking animation
+  if (time - walkingLastUpdate >= WALKING_FRAME_DURATION) {
+    walkingAnimationFrameRef.current = (walkingAnimationFrameRef.current + 1) % NUM_FRAMES;
+    walkingLastUpdate = time;
+  }
 
-    rafId = requestAnimationFrame(animate);
-  };
+  // Update sprint animation
+  if (time - sprintLastUpdate >= SPRINT_FRAME_DURATION) {
+    sprintAnimationFrameRef.current = (sprintAnimationFrameRef.current + 1) % NUM_FRAMES;
+    sprintLastUpdate = time;
+  }
 
-  rafId = requestAnimationFrame(animate);
+  // Update idle animation
+  if (time - idleLastUpdate >= IDLE_FRAME_DURATION) {
+    idleAnimationFrameRef.current = (idleAnimationFrameRef.current + 1) % NUM_FRAMES;
+    idleLastUpdate = time;
+  }
 
-  return () => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-    runningFlagSetter(false);
-  };
+  unifiedRafId = requestAnimationFrame(unifiedAnimationLoop);
 }
 
-// Walking animation: 150ms per frame, 4 frames
+function startUnifiedLoop() {
+  if (unifiedLoopRunning) return;
+  unifiedLoopRunning = true;
+  
+  // Initialize timing
+  const now = performance.now();
+  walkingLastUpdate = now;
+  sprintLastUpdate = now;
+  idleLastUpdate = now;
+  
+  unifiedRafId = requestAnimationFrame(unifiedAnimationLoop);
+}
+
+function stopUnifiedLoop() {
+  if (unifiedRafId !== null) {
+    cancelAnimationFrame(unifiedRafId);
+    unifiedRafId = null;
+  }
+  unifiedLoopRunning = false;
+}
+
+// Hook to ensure animation loop is running
+// Returns the current frame value for backwards compatibility, but prefer reading ref directly
 export function useWalkingAnimationCycle(): number {
-  const frameRef = useRef(walkingFrameRef);
-
   useEffect(() => {
-    if (walkingLoopRunning) {
-      // Loop already running, just return current value
-      return;
-    }
-    walkingLoopRunning = true;
+    loopRefCount++;
+    startUnifiedLoop();
     
-    const cleanup = startAnimationLoop(
-      walkingFrameRef,
-      150, // 150ms per frame
-      4,   // 4 frames
-      (v) => { walkingLoopRunning = v; }
-    );
-
-    return cleanup;
+    return () => {
+      loopRefCount--;
+      if (loopRefCount <= 0) {
+        stopUnifiedLoop();
+        loopRefCount = 0;
+      }
+    };
   }, []);
 
-  // Return current frame value (read from shared ref)
-  // Note: This won't cause re-renders - the game loop reads frameRef.current directly
-  return frameRef.current.current;
+  // Return current value for backwards compatibility
+  // NOTE: This won't update during renders - read walkingAnimationFrameRef.current directly in game loop
+  return walkingAnimationFrameRef.current;
 }
 
-// Sprint animation: 100ms per frame, 4 frames (faster)
+// Sprint animation hook - same pattern
 export function useSprintAnimationCycle(): number {
-  const frameRef = useRef(sprintFrameRef);
-
   useEffect(() => {
-    if (sprintLoopRunning) {
-      return;
-    }
-    sprintLoopRunning = true;
+    loopRefCount++;
+    startUnifiedLoop();
     
-    const cleanup = startAnimationLoop(
-      sprintFrameRef,
-      100, // 100ms per frame
-      4,   // 4 frames
-      (v) => { sprintLoopRunning = v; }
-    );
-
-    return cleanup;
+    return () => {
+      loopRefCount--;
+      if (loopRefCount <= 0) {
+        stopUnifiedLoop();
+        loopRefCount = 0;
+      }
+    };
   }, []);
 
-  return frameRef.current.current;
+  return sprintAnimationFrameRef.current;
 }
 
-// Idle animation: 500ms per frame, 4 frames (slower)
+// Idle animation hook - same pattern
 export function useIdleAnimationCycle(): number {
-  const frameRef = useRef(idleFrameRef);
-
   useEffect(() => {
-    if (idleLoopRunning) {
-      return;
-    }
-    idleLoopRunning = true;
+    loopRefCount++;
+    startUnifiedLoop();
     
-    const cleanup = startAnimationLoop(
-      idleFrameRef,
-      500, // 500ms per frame
-      4,   // 4 frames
-      (v) => { idleLoopRunning = v; }
-    );
-
-    return cleanup;
+    return () => {
+      loopRefCount--;
+      if (loopRefCount <= 0) {
+        stopUnifiedLoop();
+        loopRefCount = 0;
+      }
+    };
   }, []);
 
-  return frameRef.current.current;
+  return idleAnimationFrameRef.current;
 }
 
 // Legacy base hook (kept for compatibility but NOT recommended)
-// Uses the same ref-based pattern
+// Creates its own RAF loop - avoid using this, prefer the specialized hooks above
 export function useAnimationCycle(frameDuration: number, numFrames: number): number {
-  const frameRef = useRef(0);
-  const rafRef = useRef<number | null>(null);
-  const lastFrameTimeRef = useRef<number>(0);
-
+  // This hook is deprecated - it creates separate RAF loops
+  // For new code, use useWalkingAnimationCycle/useSprintAnimationCycle/useIdleAnimationCycle
+  // and read directly from the exported refs
+  
   useEffect(() => {
-    const animate = (time: number) => {
-    if (lastFrameTimeRef.current === 0) {
-      lastFrameTimeRef.current = time;
-    }
-
-    const deltaTime = time - lastFrameTimeRef.current;
-    if (deltaTime >= frameDuration) {
-        frameRef.current = (frameRef.current + 1) % numFrames;
-      lastFrameTimeRef.current = time;
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-    };
-
-    rafRef.current = requestAnimationFrame(animate);
+    loopRefCount++;
+    startUnifiedLoop();
     
     return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+      loopRefCount--;
+      if (loopRefCount <= 0) {
+        stopUnifiedLoop();
+        loopRefCount = 0;
       }
     };
-  }, [frameDuration, numFrames]);
+  }, []);
 
-  return frameRef.current;
+  // Return walking frame as default - legacy compatibility
+  return walkingAnimationFrameRef.current;
 }
