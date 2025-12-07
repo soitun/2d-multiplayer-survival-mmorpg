@@ -241,6 +241,9 @@ interface RenderPlayerFlashlightLightProps {
     renderPositionY?: number;
     // Indoor light containment - prevents light from spilling outside enclosed buildings
     buildingClusters?: Map<string, BuildingCluster>;
+    // Mouse target position for smooth 360° aiming (local player only)
+    targetWorldX?: number | null;
+    targetWorldY?: number | null;
 }
 
 export const renderPlayerFlashlightLight = ({
@@ -253,6 +256,8 @@ export const renderPlayerFlashlightLight = ({
     renderPositionX,
     renderPositionY,
     buildingClusters,
+    targetWorldX,
+    targetWorldY,
 }: RenderPlayerFlashlightLightProps) => {
     if (!player.isFlashlightOn || !player.identity) {
         return; // Not on or no identity, nothing to render
@@ -270,22 +275,17 @@ export const renderPlayerFlashlightLight = ({
             // Apply indoor clipping if player is inside an enclosed building
             const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
 
-            // Determine beam direction based on player direction
-            let beamAngle = 0; // Default to right (0 radians)
-            switch (player.direction) {
-                case 'up':
-                    beamAngle = -Math.PI / 2; // -90 degrees
-                    break;
-                case 'down':
-                    beamAngle = Math.PI / 2; // 90 degrees
-                    break;
-                case 'left':
-                    beamAngle = Math.PI; // 180 degrees
-                    break;
-                case 'right':
-                default:
-                    beamAngle = 0; // 0 degrees
-                    break;
+            // Determine beam direction - use mouse target for local player, synced angle for remote players
+            let beamAngle = 0;
+            if (targetWorldX !== undefined && targetWorldX !== null && 
+                targetWorldY !== undefined && targetWorldY !== null) {
+                // Calculate angle from player to mouse for smooth 360° aiming (local player)
+                const dx = targetWorldX - lightCenterX;
+                const dy = targetWorldY - lightCenterY;
+                beamAngle = Math.atan2(dy, dx);
+            } else {
+                // Use synced flashlight aim angle for remote players
+                beamAngle = player.flashlightAimAngle ?? 0;
             }
 
             // Offset the beam start position slightly ahead of the player

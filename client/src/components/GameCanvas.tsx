@@ -647,6 +647,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     remotePlayerInterpolation,
     // Indoor light containment - clip light cutouts to building interiors
     buildingClusters,
+    // Mouse position for local player's flashlight aiming (smooth 360° tracking)
+    worldMouseX: worldMousePos.x,
+    worldMouseY: worldMousePos.y,
   });
 
   // Sync ySortedEntities to ref (reduces renderGame dependency array churn)
@@ -1031,6 +1034,38 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // });
 
   // --- Effects ---
+  
+  // Sync flashlight aim angle to server when flashlight is on
+  const lastSentFlashlightAngleRef = useRef<number>(0);
+  const lastFlashlightSyncTimeRef = useRef<number>(0);
+  
+  useEffect(() => {
+    if (!connection || !localPlayer?.isFlashlightOn) return;
+    if (worldMousePos.x === null || worldMousePos.y === null) return;
+    
+    // Calculate aim angle from player to mouse
+    const playerX = predictedPosition?.x ?? localPlayer.positionX;
+    const playerY = predictedPosition?.y ?? localPlayer.positionY;
+    const dx = worldMousePos.x - playerX;
+    const dy = worldMousePos.y - playerY;
+    const aimAngle = Math.atan2(dy, dx);
+    
+    // Only send update if angle changed significantly (>5 degrees) or enough time passed (100ms)
+    const angleDiff = Math.abs(aimAngle - lastSentFlashlightAngleRef.current);
+    const timeSinceLastSync = Date.now() - lastFlashlightSyncTimeRef.current;
+    const angleThreshold = 0.087; // ~5 degrees in radians
+    
+    if (angleDiff > angleThreshold || timeSinceLastSync > 100) {
+      lastSentFlashlightAngleRef.current = aimAngle;
+      lastFlashlightSyncTimeRef.current = Date.now();
+      
+      try {
+        connection.reducers.updateFlashlightAim(aimAngle);
+      } catch (e) {
+        // Silently ignore errors (reducer might not exist during hot reload)
+      }
+    }
+  }, [connection, localPlayer?.isFlashlightOn, worldMousePos.x, worldMousePos.y, predictedPosition, localPlayer?.positionX, localPlayer?.positionY]);
   
   // Register error handlers for destroy reducers
   useEffect(() => {
@@ -2834,11 +2869,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let renderPositionX = player.positionX;
       let renderPositionY = player.positionY;
       
-      if (playerId === localPlayerId && currentPredictedPosition) {
+      // Track if this is the local player for mouse-based aiming
+      const isLocalPlayerFlashlight = playerId === localPlayerId;
+      
+      if (isLocalPlayerFlashlight && currentPredictedPosition) {
         // For local player, use predicted position
         renderPositionX = currentPredictedPosition.x;
         renderPositionY = currentPredictedPosition.y;
-      } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
+      } else if (!isLocalPlayerFlashlight && remotePlayerInterpolation) {
         // For remote players, use interpolated position
         const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
         if (interpolatedPos) {
@@ -2858,6 +2896,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderPositionY,
         // Indoor light containment - clip light to building interior
         buildingClusters,
+        // Pass mouse position for local player's smooth 360° aiming
+        targetWorldX: isLocalPlayerFlashlight ? currentWorldMouseX : null,
+        targetWorldY: isLocalPlayerFlashlight ? currentWorldMouseY : null,
       });
     });
     // --- End Flashlight Light ---

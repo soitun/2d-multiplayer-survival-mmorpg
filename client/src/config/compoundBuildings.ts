@@ -8,6 +8,36 @@
 import { gameConfig } from './gameConfig';
 
 /**
+ * Light source definition for buildings that emit light at night.
+ * Light punches through the day/night overlay like a street lamp.
+ */
+export interface BuildingLightSource {
+  /** Light radius in pixels */
+  radius: number;
+  /** 
+   * X-offset from building center (default 0 = centered).
+   * Positive = east, negative = west.
+   */
+  offsetX?: number;
+  /** 
+   * Y-offset from building anchor point.
+   * Positive values move the light UP (toward top of sprite).
+   */
+  offsetY: number;
+  /** 
+   * Light color for atmospheric tint (optional).
+   * Format: { r, g, b } with values 0-255.
+   * If not provided, creates a pure cutout (white/neutral light).
+   */
+  color?: { r: number; g: number; b: number };
+  /** 
+   * Light intensity multiplier (default 1.0).
+   * Higher values = brighter light that cuts through more darkness.
+   */
+  intensity?: number;
+}
+
+/**
  * Definition for a static compound building.
  * Each building has unique visual and collision properties.
  */
@@ -43,6 +73,13 @@ export interface CompoundBuilding {
    * Adjusts where the collision circle is positioned relative to the building.
    */
   collisionYOffset: number;
+  
+  // === LIGHT SOURCE (optional) ===
+  /** 
+   * Light source for buildings that emit light at night.
+   * Only buildings with this property will have light cutouts rendered.
+   */
+  lightSource?: BuildingLightSource;
 }
 
 /**
@@ -103,6 +140,11 @@ export function getBuildingYSortPosition(building: CompoundBuilding): number {
 export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
   // ===== GUARD POSTS (4 corners - symmetrically positioned) =====
   // Collision at anchor point (worldY) - where building visually touches ground
+  // Light source at 70% up from sprite bottom (like a street lamp)
+  // Light Y offset calculation: spriteBottom - (0.7 * height) relative to anchor
+  // = (anchorYOffset) - (0.7 * height) = 72 - 268.8 = -196.8 (below anchor)
+  // Since positive offsetY moves UP, and we want 70% up from bottom:
+  // offsetY = height * 0.7 - anchorYOffset = 268.8 - 72 = ~197 pixels above anchor
   {
     id: 'guardpost_nw',
     offsetX: -600,
@@ -113,6 +155,13 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     anchorYOffset: 72,
     collisionRadius: 30,
     collisionYOffset: 0, // Collision at anchor point
+    lightSource: {
+      radius: 250,     // Street lamp light radius
+      offsetX: 0,      // Centered horizontally
+      offsetY: 100,    // 70% up from bottom of sprite (384 * 0.7 - 72)
+      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
+      intensity: 1.0,
+    },
   },
   {
     id: 'guardpost_ne',
@@ -124,6 +173,13 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     anchorYOffset: 72,
     collisionRadius: 30,
     collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
   },
   {
     id: 'guardpost_sw',
@@ -135,6 +191,13 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     anchorYOffset: 72,
     collisionRadius: 30,
     collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
   },
   {
     id: 'guardpost_se',
@@ -146,6 +209,175 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     anchorYOffset: 72,
     collisionRadius: 30,
     collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // ===== ADDITIONAL GUARD POSTS (near center and strategic locations) =====
+  // Guardpost near center building (shed) - west side
+  {
+    id: 'guardpost_center_west',
+    offsetX: -200,
+    offsetY: 450,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost near center building (shed) - east side
+  {
+    id: 'guardpost_center_east',
+    offsetX: 200,
+    offsetY: 450,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost between warehouse and garage (west side, mid-south)
+  {
+    id: 'guardpost_west_mid',
+    offsetX: -450,
+    offsetY: 50,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost between barracks and fuel depot (east side, mid-south)
+  {
+    id: 'guardpost_east_mid',
+    offsetX: 450,
+    offsetY: 50,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost near north entrance area (center-north)
+  {
+    id: 'guardpost_north_center',
+    offsetX: 0,
+    offsetY: -650,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost near warehouse (northwest area)
+  {
+    id: 'guardpost_northwest_inner',
+    offsetX: -300,
+    offsetY: -400,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  // Guardpost near barracks (northeast area)
+  {
+    id: 'guardpost_northeast_inner',
+    offsetX: 300,
+    offsetY: -400,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
+  },
+  
+  
+  // Guardpost in middle of south wall, just north of it
+  {
+    id: 'guardpost_south_wall_center',
+    offsetX: 0,
+    offsetY: 700,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 },
+      intensity: 1.0,
+    },
   },
   
   // ===== LARGE WAREHOUSE =====
@@ -283,5 +515,34 @@ export function getCompoundBuildingsWithPositions(): Array<CompoundBuilding & { 
       ySortY: getBuildingYSortPosition(building),
     };
   });
+}
+
+/**
+ * Get compound buildings that have light sources.
+ * Returns buildings with their world positions and light source info.
+ * Used by the day/night cycle to render light cutouts.
+ */
+export function getCompoundBuildingsWithLights(): Array<{
+  building: CompoundBuilding;
+  worldX: number;
+  worldY: number;
+  lightWorldX: number;
+  lightWorldY: number;
+}> {
+  return COMPOUND_BUILDINGS
+    .filter(building => building.lightSource !== undefined)
+    .map(building => {
+      const worldPos = getBuildingWorldPosition(building);
+      const lightSource = building.lightSource!;
+      return {
+        building,
+        worldX: worldPos.x,
+        worldY: worldPos.y,
+        // Light position: centered by default, offset by lightSource offsets
+        lightWorldX: worldPos.x + (lightSource.offsetX ?? 0),
+        // Light Y: anchor Y minus offsetY (positive offsetY = higher on screen = lower Y value)
+        lightWorldY: worldPos.y - lightSource.offsetY,
+      };
+    });
 }
 

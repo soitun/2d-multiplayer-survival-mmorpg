@@ -555,6 +555,8 @@ import { UpdateCloudIntensities } from "./update_cloud_intensities_reducer.ts";
 export { UpdateCloudIntensities };
 import { UpdateCloudPositions } from "./update_cloud_positions_reducer.ts";
 export { UpdateCloudPositions };
+import { UpdateFlashlightAim } from "./update_flashlight_aim_reducer.ts";
+export { UpdateFlashlightAim };
 import { UpdatePlayerPositionSimple } from "./update_player_position_simple_reducer.ts";
 export { UpdatePlayerPositionSimple };
 import { UpdateProjectiles } from "./update_projectiles_reducer.ts";
@@ -3131,6 +3133,10 @@ const REMOTE_MODULE = {
       reducerName: "update_cloud_positions",
       argsType: UpdateCloudPositions.getTypeScriptAlgebraicType(),
     },
+    update_flashlight_aim: {
+      reducerName: "update_flashlight_aim",
+      argsType: UpdateFlashlightAim.getTypeScriptAlgebraicType(),
+    },
     update_player_position_simple: {
       reducerName: "update_player_position_simple",
       argsType: UpdatePlayerPositionSimple.getTypeScriptAlgebraicType(),
@@ -3455,6 +3461,7 @@ export type Reducer = never
 | { name: "TransferWaterFromPotToContainer", args: TransferWaterFromPotToContainer }
 | { name: "UpdateCloudIntensities", args: UpdateCloudIntensities }
 | { name: "UpdateCloudPositions", args: UpdateCloudPositions }
+| { name: "UpdateFlashlightAim", args: UpdateFlashlightAim }
 | { name: "UpdatePlayerPositionSimple", args: UpdatePlayerPositionSimple }
 | { name: "UpdateProjectiles", args: UpdateProjectiles }
 | { name: "UpdateViewport", args: UpdateViewport }
@@ -7512,6 +7519,22 @@ export class RemoteReducers {
     this.connection.offReducer("update_cloud_positions", callback);
   }
 
+  updateFlashlightAim(aimAngle: number) {
+    const __args = { aimAngle };
+    let __writer = new __BinaryWriter(1024);
+    UpdateFlashlightAim.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("update_flashlight_aim", __argsBuffer, this.setCallReducerFlags.updateFlashlightAimFlags);
+  }
+
+  onUpdateFlashlightAim(callback: (ctx: ReducerEventContext, aimAngle: number) => void) {
+    this.connection.onReducer("update_flashlight_aim", callback);
+  }
+
+  removeOnUpdateFlashlightAim(callback: (ctx: ReducerEventContext, aimAngle: number) => void) {
+    this.connection.offReducer("update_flashlight_aim", callback);
+  }
+
   updatePlayerPositionSimple(newX: number, newY: number, clientTimestampMs: bigint, isSprinting: boolean, facingDirection: string, clientSequence: bigint) {
     const __args = { newX, newY, clientTimestampMs, isSprinting, facingDirection, clientSequence };
     let __writer = new __BinaryWriter(1024);
@@ -8937,6 +8960,11 @@ export class SetReducerFlags {
   updateCloudPositionsFlags: __CallReducerFlags = 'FullUpdate';
   updateCloudPositions(flags: __CallReducerFlags) {
     this.updateCloudPositionsFlags = flags;
+  }
+
+  updateFlashlightAimFlags: __CallReducerFlags = 'FullUpdate';
+  updateFlashlightAim(flags: __CallReducerFlags) {
+    this.updateFlashlightAimFlags = flags;
   }
 
   updatePlayerPositionSimpleFlags: __CallReducerFlags = 'FullUpdate';

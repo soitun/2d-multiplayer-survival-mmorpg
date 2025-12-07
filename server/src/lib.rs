@@ -565,6 +565,7 @@ pub struct Player {
     pub is_online: bool, // <<< ADDED
     pub is_torch_lit: bool, // <<< ADDED: Tracks if the player's torch is currently lit
     pub is_flashlight_on: bool, // <<< ADDED: Tracks if the player's flashlight is currently on
+    pub flashlight_aim_angle: f32, // Angle in radians for flashlight direction (synced for all players)
     pub last_consumed_at: Option<Timestamp>, // <<< ADDED: Tracks when a player last consumed an item
     pub is_crouching: bool, // RENAMED: For crouching speed control
     pub is_knocked_out: bool, // NEW: Tracks if the player is in knocked out state
@@ -1316,6 +1317,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         is_online: true, // <<< Keep this for BRAND NEW players
         is_torch_lit: false, // Initialize to false
         is_flashlight_on: false, // Initialize to false
+        flashlight_aim_angle: 0.0, // Initialize to 0 radians (pointing right)
         last_consumed_at: None, // Initialize last_consumed_at
         is_crouching: false, // Initialize is_crouching
         is_knocked_out: false, // NEW: Initialize knocked out state

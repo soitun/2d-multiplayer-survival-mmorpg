@@ -18,6 +18,7 @@ import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furn
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 import { BuildingCluster } from '../utils/buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
+import { getCompoundBuildingsWithLights } from '../config/compoundBuildings';
 
 export interface ColorPoint {
   r: number; g: number; b: number; a: number;
@@ -429,6 +430,9 @@ interface UseDayNightCycleProps {
     remotePlayerInterpolation?: any; // Type matches GameCanvas
     // Indoor light containment - prevents light from spilling outside enclosed buildings
     buildingClusters?: Map<string, BuildingCluster>;
+    // Mouse position for local player's flashlight aiming (smooth 360° tracking)
+    worldMouseX?: number | null;
+    worldMouseY?: number | null;
 }
 
 interface UseDayNightCycleResult {
@@ -454,6 +458,8 @@ export function useDayNightCycle({
     predictedPosition,
     remotePlayerInterpolation,
     buildingClusters, // Indoor light containment
+    worldMouseX, // Mouse position for local player's flashlight
+    worldMouseY,
 }: UseDayNightCycleProps): UseDayNightCycleResult {
     const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const [overlayRgba, setOverlayRgba] = useState<string>('transparent');
@@ -777,22 +783,20 @@ export function useDayNightCycle({
             const FLASHLIGHT_BEAM_ANGLE = Math.PI / 7; // ~25 degrees - narrow focused beam
             const FLASHLIGHT_START_OFFSET = 18; // Start beam slightly ahead of player
             
-            // Determine beam direction based on player direction
-            let beamAngle = 0; // Default to right (0 radians)
-            switch (player.direction) {
-                case 'up':
-                    beamAngle = -Math.PI / 2; // -90 degrees
-                    break;
-                case 'down':
-                    beamAngle = Math.PI / 2; // 90 degrees
-                    break;
-                case 'left':
-                    beamAngle = Math.PI; // 180 degrees
-                    break;
-                case 'right':
-                default:
-                    beamAngle = 0; // 0 degrees
-                    break;
+            // Determine beam direction - use mouse target for local player, synced angle for remote players
+            let beamAngle = 0;
+            const isLocalPlayerFlashlight = playerId === localPlayerId;
+            
+            if (isLocalPlayerFlashlight && 
+                worldMouseX !== undefined && worldMouseX !== null && 
+                worldMouseY !== undefined && worldMouseY !== null) {
+                // Calculate angle from player to mouse for smooth 360° aiming (local player)
+                const dx = worldMouseX - renderPositionX;
+                const dy = worldMouseY - renderPositionY;
+                beamAngle = Math.atan2(dy, dx);
+            } else {
+                // Use synced flashlight aim angle for remote players
+                beamAngle = player.flashlightAimAngle ?? 0;
             }
 
             // Offset the beam start position slightly ahead of the player
@@ -910,6 +914,69 @@ export function useDayNightCycle({
             // Restore context if we applied a clip
             if (enclosingCluster) {
                 maskCtx.restore();
+            }
+        });
+
+        // Render compound building light cutouts (guardpost street lamps)
+        // These are static lights that are always on at night
+        const buildingsWithLights = getCompoundBuildingsWithLights();
+        buildingsWithLights.forEach(({ building, lightWorldX, lightWorldY }) => {
+            const lightSource = building.lightSource!;
+            const screenX = lightWorldX + cameraOffsetX;
+            const screenY = lightWorldY + cameraOffsetY;
+            
+            // Calculate effective light radius with intensity
+            const intensity = lightSource.intensity ?? 1.0;
+            const lightRadius = lightSource.radius * intensity;
+            
+            // FIRST: Create the transparent cutout hole for visibility
+            const maskGradient = maskCtx.createRadialGradient(
+                screenX, screenY, lightRadius * 0.05, // Inner radius (5% of total)
+                screenX, screenY, lightRadius // Outer radius
+            );
+            
+            // Street lamp style cutout - strong center, gradual fade (cone-like illumination)
+            maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+            maskGradient.addColorStop(0.15, 'rgba(0,0,0,0.95)'); // Strong cutout zone
+            maskGradient.addColorStop(0.35, 'rgba(0,0,0,0.8)'); // Gradual transition
+            maskGradient.addColorStop(0.55, 'rgba(0,0,0,0.5)'); // Mid fade
+            maskGradient.addColorStop(0.75, 'rgba(0,0,0,0.25)'); // Gentle fade
+            maskGradient.addColorStop(0.9, 'rgba(0,0,0,0.08)'); // Very soft edge
+            maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+            
+            maskCtx.fillStyle = maskGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+            
+            // SECOND: Add warm street lamp glow tint if color is specified
+            if (lightSource.color) {
+                maskCtx.globalCompositeOperation = 'source-over';
+                
+                const { r, g, b } = lightSource.color;
+                const glowRadius = lightRadius * 0.9; // Slightly smaller than cutout
+                
+                // Warm street lamp glow gradient
+                const glowGradient = maskCtx.createRadialGradient(
+                    screenX, screenY, 0,
+                    screenX, screenY, glowRadius
+                );
+                
+                // Subtle warm tint that doesn't overpower the cutout
+                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.18)`); // Soft warm center
+                glowGradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.14)`); // Gradual fade
+                glowGradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.10)`); // Mid transition
+                glowGradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.06)`); // Gentle fade
+                glowGradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, 0.02)`); // Very soft edge
+                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`); // Fade to transparent
+                
+                maskCtx.fillStyle = glowGradient;
+                maskCtx.beginPath();
+                maskCtx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+                
+                // Switch back to cutout mode for other lights
+                maskCtx.globalCompositeOperation = 'destination-out';
             }
         });
 
