@@ -412,7 +412,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const { canvasSize, cameraOffsetX, cameraOffsetY } = useGameViewport(localPlayer, predictedPosition);
   // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
   
-  const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, grassImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
+  const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
   const doodadImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map()); // ADDED: Foundation tile images
   const { worldMousePos, canvasMousePos } = useMousePosition({ canvasRef: gameCanvasRef, cameraOffsetX, cameraOffsetY, canvasSize });
@@ -1864,7 +1864,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     
     // Pass the necessary viewport parameters to the optimized background renderer
     // console.log('[GameCanvas DEBUG] Rendering world background at camera offset:', currentCameraOffsetX, currentCameraOffsetY, 'worldTiles size:', worldTiles?.size || 0);
-    renderWorldBackground(ctx, grassImageRef, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug);
+    renderWorldBackground(ctx, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug);
 
     // MOVED: Swimming shadows now render after water overlay to appear above sea stack underwater zones
 
@@ -3150,7 +3150,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleCampfiresMap, visibleDroppedItemsMap, visibleBoxesMap,
     players, itemDefinitions, inventoryItems, trees, stones,
     worldState, localPlayerId, localPlayer, activeEquipments, localPlayerPin, viewCenterOffset,
-    itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, grassImageRef, cloudImagesRef,
+    itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, cloudImagesRef,
     canvasSize.width, canvasSize.height,
     placementInfo, placementError, overlayRgba, maskCanvasRef,
     closestInteractableHarvestableResourceId,

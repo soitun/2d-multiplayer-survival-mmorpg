@@ -1,7 +1,28 @@
 import { gameConfig } from '../../config/gameConfig';
-import { TILE_ASSETS, hasAutotileSupport } from './tileRenderingUtils';
 import { WorldTile } from '../../generated/world_tile_type';
 import { shouldUseAutotiling, getAutotileSpriteCoords, getDebugTileInfo, AutotileConfig, AUTOTILE_CONFIGS } from '../autotileUtils';
+
+// Helper to get tile base texture path from tile type name
+function getTileBaseTexturePath(tileTypeName: string): string {
+    const tileNameMap: { [key: string]: string } = {
+        'Grass': 'grass.png',
+        'Dirt': 'dirt.png',
+        'DirtRoad': 'dirtroad.png',
+        'Sea': 'sea.png',
+        'Beach': 'beach.png',
+        'Sand': 'beach.png', // Use beach texture for sand
+        'HotSpringWater': 'hotspringwater.png',
+        'Quarry': 'quarry.png',
+        'Asphalt': 'asphalt.png',
+        'Forest': 'forest.png',
+        'Tundra': 'tundra.png',
+        'Alpine': 'alpine.png',
+        'TundraGrass': 'tundragrass.png',
+    };
+    
+    const fileName = tileNameMap[tileTypeName] || 'grass.png';
+    return new URL(`../../assets/tiles/new/${fileName}`, import.meta.url).href;
+}
 
 interface TileCache {
     tiles: Map<string, WorldTile>;
@@ -26,27 +47,16 @@ export class ProceduralWorldRenderer {
     private async preloadTileAssets() {
         const promises: Promise<void>[] = [];
         
-        Object.entries(TILE_ASSETS).forEach(([tileType, config]) => {
-            // Load base texture - wrap in catch to handle missing files gracefully
+        // Load base textures for all tile types
+        const tileTypes = ['Grass', 'Dirt', 'DirtRoad', 'Sea', 'Beach', 'Sand', 'HotSpringWater', 
+                          'Quarry', 'Asphalt', 'Forest', 'Tundra', 'Alpine', 'TundraGrass'];
+        
+        tileTypes.forEach((tileType) => {
+            const texturePath = getTileBaseTexturePath(tileType);
             promises.push(
-                this.loadImage(config.baseTexture, `${tileType}_base`)
+                this.loadImage(texturePath, `${tileType}_base`)
                     .catch(() => {})
             );
-            
-            // Load variants if they exist
-            config.variants?.forEach((variant, index) => {
-                promises.push(this.loadImage(variant, `${tileType}_variant${index}`).catch(() => {}));
-            });
-            
-            // Load animation frames if they exist
-            config.animationFrames?.forEach((frame, index) => {
-                promises.push(this.loadImage(frame, `${tileType}_frame${index}`).catch(() => {}));
-            });
-            
-            // Load autotile sheets if they exist
-            if (config.autotileSheet) {
-                promises.push(this.loadImage(config.autotileSheet, `${tileType}_autotile`).catch(() => {}));
-            }
         });
 
         // Load specific autotile transition images
@@ -381,28 +391,8 @@ export class ProceduralWorldRenderer {
     private getTileImage(tile: WorldTile): HTMLImageElement | null {
         // Handle the tile type (it's a tagged union with a .tag property)
         const tileTypeName = tile.tileType.tag;
-        const config = TILE_ASSETS[tileTypeName];
         
-        if (!config) {
-            return null;
-        }
-        
-        // Handle animated tiles (like water)
-        if (config.animationFrames && config.animationFrames.length > 0) {
-            const animSpeed = config.animationSpeed || 1000;
-            const frameIndex = Math.floor(this.animationTime / animSpeed) % config.animationFrames.length;
-            const frameImg = this.tileCache.images.get(`${tileTypeName}_frame${frameIndex}`);
-            if (frameImg) return frameImg;
-        }
-        
-        // Handle tile variants
-        if (config.variants && config.variants.length > 0 && tile.variant > 128) {
-            const variantIndex = tile.variant % config.variants.length;
-            const variantImg = this.tileCache.images.get(`${tileTypeName}_variant${variantIndex}`);
-            if (variantImg) return variantImg;
-        }
-        
-        // Return base texture
+        // Return base texture (loaded dynamically based on tile type name)
         return this.tileCache.images.get(`${tileTypeName}_base`) || null;
     }
     

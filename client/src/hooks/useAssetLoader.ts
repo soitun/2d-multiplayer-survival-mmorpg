@@ -9,7 +9,6 @@ import heroIdleSpriteSheet from '../assets/hero_idle.png';
 import heroWaterSpriteSheet from '../assets/hero_swim.png';
 import heroCrouchSpriteSheet from '../assets/hero_crouch.png';
 import heroDodgeSpriteSheet from '../assets/hero_dodge.png';
-import grassTexture from '../assets/tiles/grass_new.png';
 import campfireSprite from '../assets/doodads/campfire.png';
 import burlapSackUrl from '../assets/items/burlap_sack.png';
 import deathMarkerUrl from '../assets/items/death_marker.png';
@@ -30,7 +29,6 @@ interface AssetLoaderResult {
   heroWaterImageRef: React.RefObject<HTMLImageElement | null>;
   heroCrouchImageRef: React.RefObject<HTMLImageElement | null>;
   heroDodgeImageRef: React.RefObject<HTMLImageElement | null>;
-  grassImageRef: React.RefObject<HTMLImageElement | null>;
   campfireImageRef: React.RefObject<HTMLImageElement | null>;
   itemImagesRef: React.RefObject<Map<string, HTMLImageElement>>;
   burlapSackImageRef: React.RefObject<HTMLImageElement | null>;
@@ -49,7 +47,6 @@ export function useAssetLoader(): AssetLoaderResult {
   const heroWaterImageRef = useRef<HTMLImageElement | null>(null);
   const heroCrouchImageRef = useRef<HTMLImageElement | null>(null);
   const heroDodgeImageRef = useRef<HTMLImageElement | null>(null);
-  const grassImageRef = useRef<HTMLImageElement | null>(null);
   const campfireImageRef = useRef<HTMLImageElement | null>(null);
   const burlapSackImageRef = useRef<HTMLImageElement | null>(null);
   const itemImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
@@ -58,7 +55,7 @@ export function useAssetLoader(): AssetLoaderResult {
 
     useEffect(() => {
     let loadedCount = 0;
-    const totalStaticAssets = 6 + 5 + 1 + 1 + 1 + 2; // hero images (6) + clouds (5) + shelter (1) + grass (1) + campfire (1) + burlap/death (2) = 16 total
+    const totalStaticAssets = 6 + 5 + 1 + 1 + 2; // hero images (6) + clouds (5) + shelter (1) + campfire (1) + burlap/death (2) = 15 total
     
     // Count total item icons to preload
     const itemIconEntries = Object.entries(itemIcons).filter(([key, iconPath]) => iconPath);
@@ -100,7 +97,6 @@ export function useAssetLoader(): AssetLoaderResult {
     loadImage(heroWaterSpriteSheet, heroWaterImageRef);
     loadImage(heroCrouchSpriteSheet, heroCrouchImageRef);
     loadImage(heroDodgeSpriteSheet, heroDodgeImageRef);
-    loadImage(grassTexture, grassImageRef);
     loadImage(campfireSprite, campfireImageRef);
     loadImage(burlapSackUrl, burlapSackImageRef, itemImagesRef, 'burlap_sack.png');
     loadImage(deathMarkerUrl, undefined, itemImagesRef, 'death_marker.png');
@@ -158,7 +154,6 @@ export function useAssetLoader(): AssetLoaderResult {
     heroWaterImageRef,
     heroCrouchImageRef,
     heroDodgeImageRef,
-    grassImageRef,
     campfireImageRef,
     burlapSackImageRef,
     itemImagesRef, 

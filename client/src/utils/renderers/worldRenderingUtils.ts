@@ -9,7 +9,6 @@ let globalProceduralRenderer: ProceduralWorldRenderer | null = null;
  */
 export function renderWorldBackground(
     ctx: CanvasRenderingContext2D,
-    _grassImageRef: React.RefObject<HTMLImageElement | null>,
     cameraOffsetX: number,
     cameraOffsetY: number,  
     canvasWidth: number,
