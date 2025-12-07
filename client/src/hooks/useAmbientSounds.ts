@@ -450,6 +450,7 @@ const loadingSeamlessSounds = new Set<AmbientSoundType>(); // Track sounds curre
 // Global update loop safety net - ensures update loop never permanently dies
 let globalUpdateIntervalId: number | undefined;
 let lastUpdateLoopActivity = 0;
+let updateLoopRestartCallback: (() => void) | null = null;
 
 const ensureUpdateLoopIsRunning = () => {
     // Clear any existing global interval
@@ -462,10 +463,16 @@ const ensureUpdateLoopIsRunning = () => {
         const now = Date.now();
         const timeSinceLastUpdate = now - lastUpdateLoopActivity;
         
-        // If the main update loop hasn't run in over 5 seconds, and we have seamless sounds, restart it
+        // If the main update loop hasn't run in over 5 seconds, and we have seamless sounds, try to restart it
         if (timeSinceLastUpdate > 5000 && activeSeamlessLoopingSounds.size > 0) {
-            console.warn(`🌊 ⚠️ SAFETY NET: Main update loop inactive for ${(timeSinceLastUpdate/1000).toFixed(1)}s with ${activeSeamlessLoopingSounds.size} sounds. Restarting...`);
-            updateSeamlessLoopingSounds(); // Call manually
+            console.warn(`🌊 ⚠️ SAFETY NET: Main update loop inactive for ${(timeSinceLastUpdate/1000).toFixed(1)}s with ${activeSeamlessLoopingSounds.size} sounds. Attempting restart...`);
+            // Try to restart via callback if available
+            if (updateLoopRestartCallback) {
+                updateLoopRestartCallback();
+            } else {
+                // Fallback: manually call update function
+                updateSeamlessLoopingSounds();
+            }
         }
     }, 1000); // Check every second
 };
@@ -483,12 +490,15 @@ const fadeInAudio = (audio: HTMLAudioElement, targetVolume: number, duration: nu
     audio.volume = 0;
     const steps = 20;
     const stepTime = duration / steps;
-    const volumeStep = targetVolume / steps;
+    // Clamp targetVolume to valid range [0, 1]
+    const clampedTargetVolume = Math.max(0, Math.min(1.0, targetVolume));
+    const volumeStep = clampedTargetVolume / steps;
     
     let currentStep = 0;
     const fadeInterval = setInterval(() => {
         currentStep++;
-        audio.volume = Math.min(targetVolume, volumeStep * currentStep);
+        // Clamp volume to [0, 1] to prevent IndexSizeError
+        audio.volume = Math.max(0, Math.min(1.0, volumeStep * currentStep));
         
         if (currentStep >= steps) {
             clearInterval(fadeInterval);
@@ -719,7 +729,7 @@ const updateSeamlessLoopingSounds = () => {
                 if (currentAudio.paused || currentAudio.ended) {
                     // console.warn(`🌊 Current audio stopped unexpectedly for ${soundType}, restarting...`);
                     currentAudio.currentTime = 0;
-                    currentAudio.volume = volume;
+                    currentAudio.volume = Math.max(0, Math.min(1.0, volume));
                     currentAudio.play().catch(e => console.warn(`🌊 Failed to restart current audio: ${e}`));
                     
                     // Reschedule next swap
@@ -757,7 +767,8 @@ const updateSeamlessLoopingSounds = () => {
                             // Fade in next audio
                             nextAudio.volume = Math.min(targetVolume, targetVolume * progress);
                             // Fade out current audio
-                            currentAudio.volume = Math.max(0, volume * (1 - progress));
+                            const clampedVolume = Math.max(0, Math.min(1.0, volume));
+                            currentAudio.volume = Math.max(0, clampedVolume * (1 - progress));
                         }
                         
                         if (step >= steps) {
@@ -798,7 +809,7 @@ const updateSeamlessLoopingSounds = () => {
                 try {
                     const currentAudio = isPrimaryActive ? primary : secondary;
                     currentAudio.currentTime = 0;
-                    currentAudio.volume = volume;
+                    currentAudio.volume = Math.max(0, Math.min(1.0, volume));
                     currentAudio.play().catch(e => console.warn(`🌊 Recovery play failed: ${e}`));
                     
                     // Reschedule further out
@@ -823,7 +834,7 @@ const updateSeamlessLoopingSounds = () => {
                 // Don't restart if being cleaned up
                 if (!(activeAudio as any)._isBeingCleaned) {
                     activeAudio.currentTime = 0;
-                    activeAudio.volume = volume;
+                    activeAudio.volume = Math.max(0, Math.min(1.0, volume));
                     activeAudio.play().then(() => {
                         // console.log(`🌊 ✅ Health check restart successful for ${soundType}`);
                         // Reschedule next swap
@@ -836,7 +847,7 @@ const updateSeamlessLoopingSounds = () => {
                         const backupAudio = isPrimaryActive ? secondary : primary;
                         if (!(backupAudio as any)._isBeingCleaned) {
                             backupAudio.currentTime = 0;
-                            backupAudio.volume = volume;
+                            backupAudio.volume = Math.max(0, Math.min(1.0, volume));
                             backupAudio.play().then(() => {
                                 seamlessSound.isPrimaryActive = !isPrimaryActive;
                                 // console.log(`🌊 ✅ Health check switched to backup audio for ${soundType}`);
@@ -1149,6 +1160,11 @@ export const useAmbientSounds = ({
 
         // ALWAYS start/restart the seamless sound update loop (critical for hot reload)
         const startUpdateLoop = () => {
+            // Clear any existing interval first
+            if (updateIntervalRef.current) {
+                window.clearInterval(updateIntervalRef.current);
+            }
+            
             updateIntervalRef.current = window.setInterval(() => {
                 updateSeamlessLoopingSounds();
             }, 50); // Update every 50ms
@@ -1162,11 +1178,16 @@ export const useAmbientSounds = ({
                 // console.log(`🌊 [VERIFICATION] Update loop active: ${isStillActive}, seamless sounds: ${mapSize}, interval ID: ${updateIntervalRef.current}`);
                 
                 if (mapSize > 0 && !isStillActive) {
-                    console.error('🌊 ❌ CRITICAL: Have seamless sounds but no update loop! This will cause sounds to stop after first loop.');
+                    console.warn('🌊 ⚠️ CRITICAL: Have seamless sounds but no update loop! Restarting update loop...');
+                    // Restart the update loop immediately
+                    startUpdateLoop();
                 }
             }, 2000); // Check after 2 seconds
         };
 
+        // Register restart callback for safety net
+        updateLoopRestartCallback = startUpdateLoop;
+        
         startUpdateLoop();
         
         // Activate global safety net to prevent update loop from ever dying permanently
@@ -1180,6 +1201,9 @@ export const useAmbientSounds = ({
                 window.clearInterval(updateIntervalRef.current);
                 updateIntervalRef.current = undefined;
             }
+            
+            // Clear restart callback
+            updateLoopRestartCallback = null;
             
             // Clean up global safety net
             if (globalUpdateIntervalId) {
@@ -1338,9 +1362,10 @@ export const useAmbientSounds = ({
             const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume;
             
             // Update volume for both audio instances
-            seamlessSound.primary.volume = Math.min(1.0, targetVolume);
-            seamlessSound.secondary.volume = Math.min(1.0, targetVolume);
-            seamlessSound.volume = targetVolume;
+            const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
+            seamlessSound.primary.volume = clampedVolume;
+            seamlessSound.secondary.volume = clampedVolume;
+            seamlessSound.volume = clampedVolume;
             
             // console.log(`🌊 [VOLUME UPDATE] Updated seamless sound ${soundType}: ${targetVolume.toFixed(3)}`);
         });
@@ -1359,7 +1384,7 @@ export const useAmbientSounds = ({
             if (soundType) {
                 const definition = AMBIENT_SOUND_DEFINITIONS[soundType];
                 const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume;
-                audio.volume = Math.min(1.0, targetVolume);
+                audio.volume = Math.max(0, Math.min(1.0, targetVolume));
                 // console.log(`🌊 [VOLUME UPDATE] Updated random sound ${soundType}: ${targetVolume.toFixed(3)}`);
             }
         });
@@ -1370,7 +1395,7 @@ export const useAmbientSounds = ({
             simpleLoopingSounds.forEach((audio: HTMLAudioElement, soundType: AmbientSoundType) => {
                 const definition = AMBIENT_SOUND_DEFINITIONS[soundType];
                 const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume;
-                audio.volume = Math.min(1.0, targetVolume);
+                audio.volume = Math.max(0, Math.min(1.0, targetVolume));
                 // console.log(`🌊 [VOLUME UPDATE] Updated simple loop sound ${soundType}: ${targetVolume.toFixed(3)}`);
             });
         }

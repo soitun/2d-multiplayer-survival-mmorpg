@@ -31,6 +31,7 @@ import GameSettingsMenu from './GameSettingsMenu';
 import GameVisualSettingsMenu from './GameVisualSettingsMenu';
 import type { MenuType } from './GameMenu';
 import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
+import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
 
 // Import types used by props
 import {
@@ -265,6 +266,13 @@ interface GameScreenProps {
     playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
     // Memory Grid progress for crafting unlocks
     memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
+    
+    // Mobile controls
+    isMobile?: boolean;
+    onMobileTap?: (worldX: number, worldY: number) => void;
+    tapAnimation?: { x: number; y: number; startTime: number } | null;
+    onMobileSprintToggle?: (enabled: boolean | undefined) => void;
+    mobileSprintOverride?: boolean;
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
@@ -286,6 +294,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // 🎣 FISHING INPUT FIX: Track fishing state to disable input
     const [isFishing, setIsFishing] = useState(false);
+
+    // Mobile interact state
+    const [mobileInteractInfo, setMobileInteractInfo] = useState<{ hasTarget: boolean; label?: string } | null>(null);
+    const [mobileInteractTrigger, setMobileInteractTrigger] = useState(0);
 
     // Debug logging for SOVA message adder
     useEffect(() => {
@@ -381,6 +393,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         isGameMenuOpen: currentMenu !== null,
         isInventoryOpen: showInventoryState,
     });
+
+    // Mobile chat visibility state (separate from isChatting which controls input focus)
+    const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
 
     // SOVA loading bar state
     const [sovaLoadingState, setSOVALoadingState] = useState({
@@ -555,9 +570,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             {/* Game Menu Button */}
             <GameMenuButton onClick={handleMenuOpen} />
 
-            {/* Auto-Action Status Indicators */}
-            {/* Debug: {JSON.stringify(autoActionStates)} */}
-            {autoActionStates.isAutoAttacking && (
+            {/* Auto-Action Status Indicators - Hidden on mobile */}
+            {!props.isMobile && autoActionStates.isAutoAttacking && (
                 <div style={{
                     position: 'fixed',
                     top: '70px', // Position below DayNightCycleTracker (which is at 15px)
@@ -589,8 +603,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 </div>
             )}
 
-            {/* Debug Panel */}
-            {process.env.NODE_ENV === 'development' && localPlayer && (
+            {/* Debug Panel - Hidden on mobile */}
+            {!props.isMobile && process.env.NODE_ENV === 'development' && localPlayer && (
                 <DebugPanel 
                     localPlayer={localPlayer}
                     worldState={worldState}
@@ -855,6 +869,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 alkState={props.alkState}
                 playerShardBalance={props.playerShardBalance}
                 memoryGridProgress={props.memoryGridProgress}
+                // Mobile controls
+                isMobile={props.isMobile}
+                onMobileTap={props.onMobileTap}
+                tapAnimation={props.tapAnimation}
+                onMobileInteractInfoChange={setMobileInteractInfo}
+                mobileInteractTrigger={mobileInteractTrigger}
             />
 
             {/* Use our camera offsets for SpeechBubbleManager */}
@@ -866,6 +886,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 localPlayerId={localPlayerId}
             />
 
+            {/* PlayerUI - Always render for status bars, but inventory only when opened on mobile */}
             <PlayerUI
                 identity={playerIdentity}
                 players={players}
@@ -903,23 +924,29 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 activeConsumableEffects={activeConsumableEffects}
                 onCraftingSearchFocusChange={setIsCraftingSearchFocused}
                 onToggleInventory={() => setShowInventoryState(prev => !prev)}
-                showInventory={showInventoryState}
+                showInventory={props.isMobile ? showInventoryState : showInventoryState}
                 knockedOutStatus={knockedOutStatus}
                 worldState={worldState}
                 isGameMenuOpen={currentMenu !== null}
                 memoryGridProgress={props.memoryGridProgress}
+                isMobile={props.isMobile}
             />
+            {/* DayNightCycleTracker - Mobile version is compact and positioned below status bars */}
             <DayNightCycleTracker
                 worldState={worldState}
                 chunkWeather={chunkWeather}
                 localPlayer={localPlayer}
+                isMobile={props.isMobile}
             />
-            <MusicControlPanel
-                musicSystem={musicSystem}
-                musicVolume={musicVolume}
-                onMusicVolumeChange={onMusicVolumeChange}
-                isVisible={isMusicPanelVisible}
-            />
+            {/* MusicControlPanel - Hidden on mobile */}
+            {!props.isMobile && (
+                <MusicControlPanel
+                    musicSystem={musicSystem}
+                    musicVolume={musicVolume}
+                    onMusicVolumeChange={onMusicVolumeChange}
+                    isVisible={isMusicPanelVisible}
+                />
+            )}
             <Chat
                 connection={connection}
                 messages={messages}
@@ -933,121 +960,136 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 itemDefinitions={itemDefinitions}
                 activeEquipments={activeEquipments}
                 inventoryItems={inventoryItems}
+                isMobile={props.isMobile}
+                isMobileChatOpen={isMobileChatOpen}
             />
 
-            <TargetingReticle
-                localPlayer={localPlayer || null}
-                playerIdentity={playerIdentity}
-                activeItemDef={activeItemDef}
-                activeEquipment={localPlayerActiveEquipment || null}
-                rangedWeaponStats={rangedWeaponStats || new Map()}
-                gameCanvasRef={canvasRef}
-                cameraOffsetX={cameraOffsetX}
-                cameraOffsetY={cameraOffsetY}
-                isInventoryOpen={showInventoryState}
-                isGameMenuOpen={currentMenu !== null}
-            />
+            {/* TargetingReticle - Hidden on mobile */}
+            {!props.isMobile && (
+                <TargetingReticle
+                    localPlayer={localPlayer || null}
+                    playerIdentity={playerIdentity}
+                    activeItemDef={activeItemDef}
+                    activeEquipment={localPlayerActiveEquipment || null}
+                    rangedWeaponStats={rangedWeaponStats || new Map()}
+                    gameCanvasRef={canvasRef}
+                    cameraOffsetX={cameraOffsetX}
+                    cameraOffsetY={cameraOffsetY}
+                    isInventoryOpen={showInventoryState}
+                    isGameMenuOpen={currentMenu !== null}
+                />
+            )}
 
-            <FishingManager
-                localPlayer={localPlayer || null}
-                playerIdentity={playerIdentity}
-                activeItemDef={activeItemDef}
-                gameCanvasRef={canvasRef}
-                cameraOffsetX={cameraOffsetX}
-                cameraOffsetY={cameraOffsetY}
-                connection={connection}
-                // 🎣 FISHING INPUT FIX: Add callback to track fishing state
-                onFishingStateChange={setIsFishing}
-                // Add fishing sessions and players for rendering other players' fishing
-                fishingSessions={fishingSessions}
-                players={players}
-                // Add worldState for weather information
-                worldState={worldState}
-                isWaterTile={(worldX: number, worldY: number) => {
-                    if (!connection) return false;
+            {/* FishingManager - Hidden on mobile */}
+            {!props.isMobile && (
+                <FishingManager
+                    localPlayer={localPlayer || null}
+                    playerIdentity={playerIdentity}
+                    activeItemDef={activeItemDef}
+                    gameCanvasRef={canvasRef}
+                    cameraOffsetX={cameraOffsetX}
+                    cameraOffsetY={cameraOffsetY}
+                    connection={connection}
+                    // 🎣 FISHING INPUT FIX: Add callback to track fishing state
+                    onFishingStateChange={setIsFishing}
+                    // Add fishing sessions and players for rendering other players' fishing
+                    fishingSessions={fishingSessions}
+                    players={players}
+                    // Add worldState for weather information
+                    worldState={worldState}
+                    isWaterTile={(worldX: number, worldY: number) => {
+                        if (!connection) return false;
 
-                    // Convert world position to tile coordinates
-                    const tileX = Math.floor(worldX / 48); // TILE_SIZE is 48
-                    const tileY = Math.floor(worldY / 48);
+                        // Convert world position to tile coordinates
+                        const tileX = Math.floor(worldX / 48); // TILE_SIZE is 48
+                        const tileY = Math.floor(worldY / 48);
 
-                    // Use compressed chunk data (same as GameCanvas)
-                    const chunkSize = 16; // Standard chunk size
-                    const chunkX = Math.floor(tileX / chunkSize);
-                    const chunkY = Math.floor(tileY / chunkSize);
+                        // Use compressed chunk data (same as GameCanvas)
+                        const chunkSize = 16; // Standard chunk size
+                        const chunkX = Math.floor(tileX / chunkSize);
+                        const chunkY = Math.floor(tileY / chunkSize);
 
-                    // Find the chunk containing this tile
-                    for (const chunk of connection.db.worldChunkData.iter()) {
-                        if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
-                            // Calculate local tile position within chunk
-                            const localX = tileX % chunkSize;
-                            const localY = tileY % chunkSize;
-                            const localTileX = localX < 0 ? localX + chunkSize : localX;
-                            const localTileY = localY < 0 ? localY + chunkSize : localY;
-                            const tileIndex = localTileY * chunkSize + localTileX;
+                        // Find the chunk containing this tile
+                        for (const chunk of connection.db.worldChunkData.iter()) {
+                            if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
+                                // Calculate local tile position within chunk
+                                const localX = tileX % chunkSize;
+                                const localY = tileY % chunkSize;
+                                const localTileX = localX < 0 ? localX + chunkSize : localX;
+                                const localTileY = localY < 0 ? localY + chunkSize : localY;
+                                const tileIndex = localTileY * chunkSize + localTileX;
 
-                            // Check if index is valid
-                            if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
-                                const tileTypeU8 = chunk.tileTypes[tileIndex];
-                                // Check if it's water: Sea (3) or HotSpringWater (6)
-                                return tileTypeU8 === 3 || tileTypeU8 === 6;
+                                // Check if index is valid
+                                if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
+                                    const tileTypeU8 = chunk.tileTypes[tileIndex];
+                                    // Check if it's water: Sea (3) or HotSpringWater (6)
+                                    return tileTypeU8 === 3 || tileTypeU8 === 6;
+                                }
+                                break;
                             }
-                            break;
                         }
-                    }
 
-                    // No chunk found or invalid index, assume not water
-                    return false;
-                }}
-            />
+                        // No chunk found or invalid index, assume not water
+                        return false;
+                    }}
+                />
+            )}
 
-            {/* SOVA Loading Bar - positioned above hotbar */}
-            <SOVALoadingBar
-                isRecording={sovaLoadingState.isRecording}
-                isTranscribing={sovaLoadingState.isTranscribing}
-                isGeneratingResponse={sovaLoadingState.isGeneratingResponse}
-                isSynthesizingVoice={sovaLoadingState.isSynthesizingVoice}
-                isPlayingAudio={sovaLoadingState.isPlayingAudio}
-                currentPhase={sovaLoadingState.currentPhase}
-            />
+            {/* SOVA Loading Bar - Hidden on mobile */}
+            {!props.isMobile && (
+                <SOVALoadingBar
+                    isRecording={sovaLoadingState.isRecording}
+                    isTranscribing={sovaLoadingState.isTranscribing}
+                    isGeneratingResponse={sovaLoadingState.isGeneratingResponse}
+                    isSynthesizingVoice={sovaLoadingState.isSynthesizingVoice}
+                    isPlayingAudio={sovaLoadingState.isPlayingAudio}
+                    currentPhase={sovaLoadingState.currentPhase}
+                />
+            )}
 
-            {/* Voice Interface - SOVA Voice Commands */}
-            <VoiceInterface
-                isVisible={voiceState.isVisible}
-                onTranscriptionComplete={handleTranscriptionComplete}
-                onError={handleVoiceError}
-                onAddSOVAMessage={sovaMessageAdder}
-                localPlayerIdentity={localPlayerId}
-                worldState={worldState}
-                localPlayer={localPlayer}
-                itemDefinitions={itemDefinitions}
-                activeEquipments={activeEquipments}
-                inventoryItems={inventoryItems}
-                onLoadingStateChange={handleSOVALoadingStateChange}
-            />
+            {/* Voice Interface - Hidden on mobile */}
+            {!props.isMobile && (
+                <VoiceInterface
+                    isVisible={voiceState.isVisible}
+                    onTranscriptionComplete={handleTranscriptionComplete}
+                    onError={handleVoiceError}
+                    onAddSOVAMessage={sovaMessageAdder}
+                    localPlayerIdentity={localPlayerId}
+                    worldState={worldState}
+                    localPlayer={localPlayer}
+                    itemDefinitions={itemDefinitions}
+                    activeEquipments={activeEquipments}
+                    inventoryItems={inventoryItems}
+                    onLoadingStateChange={handleSOVALoadingStateChange}
+                />
+            )}
 
-            {/* Hotbar - Player's quick-access item slots */}
-            <Hotbar
-                playerIdentity={playerIdentity}
-                localPlayer={localPlayer || null}
-                itemDefinitions={itemDefinitions}
-                inventoryItems={inventoryItems}
-                rangedWeaponStats={rangedWeaponStats}
-                connection={connection}
-                onItemDragStart={onItemDragStart}
-                onItemDrop={onItemDrop}
-                draggedItemInfo={draggedItemInfo}
-                interactingWith={interactingWith}
-                campfires={campfires}
-                fumaroles={props.fumaroles}
-                stashes={stashes}
-                brothPots={brothPots}
-                startPlacement={startPlacement}
-                cancelPlacement={cancelPlacement}
-                activeConsumableEffects={activeConsumableEffects}
-                activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity.toHexString()) || null : null}
-                isGameMenuOpen={currentMenu !== null}
-                placementInfo={placementInfo}
-            />
+            {/* Hotbar - Desktop only. Mobile uses simplified UI without inventory hotbar */}
+            {!props.isMobile && (
+                <Hotbar
+                    playerIdentity={playerIdentity}
+                    localPlayer={localPlayer || null}
+                    itemDefinitions={itemDefinitions}
+                    inventoryItems={inventoryItems}
+                    rangedWeaponStats={rangedWeaponStats}
+                    connection={connection}
+                    onItemDragStart={onItemDragStart}
+                    onItemDrop={onItemDrop}
+                    draggedItemInfo={draggedItemInfo}
+                    interactingWith={interactingWith}
+                    campfires={campfires}
+                    fumaroles={props.fumaroles}
+                    stashes={stashes}
+                    brothPots={brothPots}
+                    startPlacement={startPlacement}
+                    cancelPlacement={cancelPlacement}
+                    activeConsumableEffects={activeConsumableEffects}
+                    activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity.toHexString()) || null : null}
+                    isGameMenuOpen={currentMenu !== null}
+                    placementInfo={placementInfo}
+                    isMobile={false}
+                />
+            )}
 
             {/* ALK Delivery Panel - Shows when interacting with an ALK station */}
             {interactingWith?.type === 'alk_station' && props.alkStations && (
@@ -1065,6 +1107,61 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     }
                     itemDefinitions={itemDefinitions}
                     inventoryItems={inventoryItems}
+                />
+            )}
+
+            {/* Mobile Control Bar - Only shown on mobile */}
+            {props.isMobile && (
+                <MobileControlBar
+                    onMapToggle={() => setIsMinimapOpen(prev => !prev)}
+                    onChatToggle={() => setIsMobileChatOpen(prev => !prev)}
+                    onInteract={() => setMobileInteractTrigger(prev => prev + 1)}
+                    onSprintToggle={() => {
+                        if (!connection) {
+                            console.warn('[MobileControls] No connection available for sprint toggle');
+                            return;
+                        }
+                        if (!connection.reducers) {
+                            console.warn('[MobileControls] No reducers available for sprint toggle');
+                            return;
+                        }
+                        try {
+                            // Use mobileSprintOverride for immediate toggle (bypasses server round-trip)
+                            const currentSprintState = props.mobileSprintOverride ?? localPlayer?.isSprinting ?? false;
+                            const newSprintState = !currentSprintState;
+                            console.log(`[MobileControls] Toggling sprint from ${currentSprintState} to ${newSprintState}`);
+                            
+                            // CRITICAL: Set local override FIRST for immediate effect
+                            props.onMobileSprintToggle?.(newSprintState);
+                            
+                            // Also update server state for persistence (but this has a round-trip delay)
+                            connection.reducers.setSprinting(newSprintState);
+                        } catch (error) {
+                            console.error('[MobileControls] Error toggling sprint:', error);
+                        }
+                    }}
+                    onCrouchToggle={() => {
+                        if (!connection) {
+                            console.warn('[MobileControls] No connection available for crouch toggle');
+                            return;
+                        }
+                        if (!connection.reducers) {
+                            console.warn('[MobileControls] No reducers available for crouch toggle');
+                            return;
+                        }
+                        try {
+                            console.log(`[MobileControls] Toggling crouch from ${localPlayer?.isCrouching || false}`);
+                            connection.reducers.toggleCrouch();
+                        } catch (error) {
+                            console.error('[MobileControls] Error toggling crouch:', error);
+                        }
+                    }}
+                    isMapOpen={isMinimapOpen}
+                    isChatOpen={isMobileChatOpen}
+                    isSprinting={props.mobileSprintOverride ?? localPlayer?.isSprinting ?? false}
+                    isCrouching={localPlayer?.isCrouching || false}
+                    hasInteractable={mobileInteractInfo?.hasTarget || false}
+                    interactableLabel={mobileInteractInfo?.label}
                 />
             )}
 

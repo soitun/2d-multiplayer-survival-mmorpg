@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './CyberpunkLoadingScreen.css';
 import sovaImage from '../assets/ui/sova.png';
+import { useMobileDetection } from '../hooks/useMobileDetection';
 
 interface CyberpunkErrorBarProps {
     message: string;
@@ -192,6 +193,9 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
     const [currentLogIndex, setCurrentLogIndex] = useState(0);
     const [isSequenceComplete, setIsSequenceComplete] = useState(false);
     
+    // Mobile detection
+    const isMobile = useMobileDetection();
+    
     // Audio state
     const [audioContextUnlocked, setAudioContextUnlocked] = useState(false);
     const [isSovaSpeaking, setIsSovaSpeaking] = useState(false);
@@ -205,6 +209,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
     const audioPreloadStarted = useRef(false);
     const isAttemptingAutoPlay = useRef(false); // Prevent multiple simultaneous auto-play attempts
     const consoleLogsRef = useRef<HTMLDivElement>(null);
+    const sovaAvatarRef = useRef<HTMLImageElement>(null);
 
     const logs = React.useMemo(() => {
         const baseLogs = authLoading ? [
@@ -469,6 +474,24 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
         }
     }, [audioPreloaded, attemptToPlayRandomSovaSound]); // Include memoized function
 
+    // Add non-passive touch listener to prevent double-tap zoom on mobile
+    useEffect(() => {
+        if (!isMobile || !sovaAvatarRef.current) return;
+        
+        const img = sovaAvatarRef.current;
+        const handleTouchStart = (e: TouchEvent) => {
+            if (e.touches.length === 1) {
+                e.preventDefault();
+            }
+        };
+        
+        img.addEventListener('touchstart', handleTouchStart, { passive: false });
+        
+        return () => {
+            img.removeEventListener('touchstart', handleTouchStart);
+        };
+    }, [isMobile]);
+
     // Cleanup effect: Stop any playing audio when component unmounts
     // BUT: Don't stop audio on HMR (Hot Module Reload) - let it keep playing!
     useEffect(() => {
@@ -607,83 +630,143 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
         }
     };
 
+    // SOVA Avatar Component (reusable)
+    const SovaAvatarElement = (
+        <img 
+            ref={sovaAvatarRef}
+            src={sovaImage} 
+            alt="Sova Avatar" 
+            className={`sova-avatar ${
+                isSovaSpeaking ? 'speaking' : ''
+            } ${
+                showAudioPrompt ? 'needs-interaction' : ''
+            } ${
+                isSovaSpeaking && isHoveringOverSova ? 'red-glow' : ''
+            }`}
+            onClick={handleSovaClick}
+            style={{ 
+                cursor: 'pointer',
+                transition: 'filter 0.2s ease',
+                opacity: isSovaSpeaking ? 1 : 0.9,
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                touchAction: 'manipulation',
+            }}
+            onMouseEnter={() => {
+                if (!isMobile) {
+                    setIsHoveringOverSova(true);
+                    const tooltip = isSovaSpeaking 
+                        ? "TERMINATE SOVA AUDIO STREAM" 
+                        : showAudioPrompt
+                        ? "ENABLE SOVA AUDIO INTERFACE"
+                        : "ACTIVATE SOVA COMMUNICATION";
+                    setTooltipText(tooltip);
+                    setShowTooltip(true);
+                }
+            }}
+            onMouseLeave={() => {
+                if (!isMobile) {
+                    setIsHoveringOverSova(false);
+                    setShowTooltip(false);
+                }
+            }}
+            onTouchEnd={() => {
+                if (isMobile) {
+                    const tooltip = isSovaSpeaking 
+                        ? "TAP TO STOP" 
+                        : showAudioPrompt
+                        ? "TAP TO ENABLE AUDIO"
+                        : "TAP TO HEAR SOVA";
+                    setTooltipText(tooltip);
+                    setShowTooltip(true);
+                    setTimeout(() => setShowTooltip(false), 1500);
+                }
+            }}
+        />
+    );
+
+    // Audio Prompt Component (reusable)
+    const AudioPromptElement = showAudioPrompt && (
+        <div className={`audio-prompt ${hasUserEnabledAudio() ? 'returning-user' : 'new-user'}`}>
+            <div className="audio-prompt-content">
+                {hasUserEnabledAudio() ? (
+                    <>
+                        <div className="audio-icon">🔊</div>
+                        <div className="audio-prompt-text">
+                            <div className="audio-prompt-title">RESUME SOVA AUDIO</div>
+                            <div className="audio-prompt-subtitle">{isMobile ? 'Tap SOVA to enable' : 'Tap SOVA or click anywhere'}</div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="audio-icon">🔊</div>
+                        <div className="audio-prompt-text">
+                            <div className="audio-prompt-title">AUDIO AVAILABLE</div>
+                            <div className="audio-prompt-subtitle">{isMobile ? 'Tap button to enable SOVA' : 'Click anywhere to enable SOVA audio'}</div>
+                        </div>
+                        <button 
+                            className="enable-audio-button" 
+                            onClick={handleEnableAudioClick}
+                            style={{
+                                userSelect: 'none',
+                                WebkitUserSelect: 'none',
+                                touchAction: 'manipulation',
+                            }}
+                        >
+                            ENABLE AUDIO
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+
+    // Tooltip Element (reusable)
+    const TooltipElement = showTooltip && tooltipText && (
+        <div className="cyberpunk-tooltip">
+            <div className="cyberpunk-tooltip-content">
+                <span className="cyberpunk-tooltip-text">{tooltipText}</span>
+                <div className="cyberpunk-tooltip-glow"></div>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="cyberpunk-loading">
+        <div 
+            className="cyberpunk-loading"
+            style={{
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                overscrollBehavior: 'none',
+            }}
+        >
             <div className="grid-background"></div>
             
+            {/* Mobile Layout: SOVA and prompts ABOVE the console container */}
+            {isMobile && (
+                <div style={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                }}>
+                    {SovaAvatarElement}
+                    {TooltipElement}
+                </div>
+            )}
+            
             <div className="console-container">
-                {/* Custom Cyberpunk Tooltip */}
-                {showTooltip && tooltipText && (
-                    <div className="cyberpunk-tooltip">
-                        <div className="cyberpunk-tooltip-content">
-                            <span className="cyberpunk-tooltip-text">{tooltipText}</span>
-                            <div className="cyberpunk-tooltip-glow"></div>
-                        </div>
-                    </div>
+                {/* Desktop: SOVA inside console-container with absolute positioning */}
+                {!isMobile && (
+                    <>
+                        {TooltipElement}
+                        {SovaAvatarElement}
+                    </>
                 )}
                 
-                <img 
-                    src={sovaImage} 
-                    alt="Sova Avatar" 
-                    className={`sova-avatar ${
-                        isSovaSpeaking ? 'speaking' : ''
-                    } ${
-                        showAudioPrompt ? 'needs-interaction' : ''
-                    } ${
-                        isSovaSpeaking && isHoveringOverSova ? 'red-glow' : ''
-                    }`}
-                    onClick={handleSovaClick}
-                    style={{ 
-                        cursor: 'pointer',
-                        transition: 'filter 0.2s ease',
-                        opacity: isSovaSpeaking ? 1 : 0.9
-                    }}
-                    onMouseEnter={() => {
-                        console.log(`SOVA: Mouse entered - isSovaSpeaking=${isSovaSpeaking}, setting hover=true`);
-                        setIsHoveringOverSova(true);
-                        const tooltip = isSovaSpeaking 
-                            ? "TERMINATE SOVA AUDIO STREAM" 
-                            : showAudioPrompt
-                            ? "ENABLE SOVA AUDIO INTERFACE"
-                            : "ACTIVATE SOVA COMMUNICATION";
-                        setTooltipText(tooltip);
-                        setShowTooltip(true);
-                    }}
-                    onMouseLeave={() => {
-                        console.log(`SOVA: Mouse left - isSovaSpeaking=${isSovaSpeaking}, setting hover=false`);
-                        setIsHoveringOverSova(false);
-                        setShowTooltip(false);
-                    }}
-                />
-                
-                {showAudioPrompt && (
-                    <div className={`audio-prompt ${hasUserEnabledAudio() ? 'returning-user' : 'new-user'}`}>
-                        <div className="audio-prompt-content">
-                            {hasUserEnabledAudio() ? (
-                                // Streamlined prompt for returning users
-                                <>
-                                    <div className="audio-icon">🔊</div>
-                                    <div className="audio-prompt-text">
-                                        <div className="audio-prompt-title">RESUME SOVA AUDIO</div>
-                                        <div className="audio-prompt-subtitle">Tap SOVA or click anywhere</div>
-                                    </div>
-                                </>
-                            ) : (
-                                // Full prompt for new users
-                                <>
-                                    <div className="audio-icon">🔊</div>
-                                    <div className="audio-prompt-text">
-                                        <div className="audio-prompt-title">AUDIO AVAILABLE</div>
-                                        <div className="audio-prompt-subtitle">Click anywhere to enable SOVA audio</div>
-                                    </div>
-                                    <button className="enable-audio-button" onClick={handleEnableAudioClick}>
-                                        ENABLE AUDIO
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                )}
+                {/* Audio Prompt - inside console on mobile for proper flow */}
+                {AudioPromptElement}
                 
                 <div className="console-header">
                     <div className="console-title">
@@ -716,9 +799,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
                             <button 
                                 className="continue-button"
                                 onClick={handleContinueClick}
+                                style={{
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none',
+                                    touchAction: 'manipulation',
+                                }}
                             >
                                 <span className="continue-text">ENTER BABACHAIN NETWORK</span>
-                                <span className="continue-subtitle">Click to access reality</span>
+                                <span className="continue-subtitle">{isMobile ? 'Tap to access reality' : 'Click to access reality'}</span>
                             </button>
                         </div>
                     )}

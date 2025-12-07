@@ -19,8 +19,10 @@ const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10
 const UI_BORDER_COLOR = '#00aaff';
 const UI_SHADOW = '0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1)';
 const UI_FONT_FAMILY = '"Press Start 2P", cursive';
-const SLOT_SIZE = 60; // Size of each hotbar slot in pixels
+const SLOT_SIZE = 60; // Size of each hotbar slot in pixels (desktop)
+const MOBILE_SLOT_SIZE = 48; // Size of each hotbar slot in pixels (mobile)
 const SLOT_MARGIN = 6;
+const MOBILE_SLOT_MARGIN = 4;
 const SELECTED_BORDER_COLOR = '#00ffff';
 const CONSUMPTION_COOLDOWN_MICROS = 1_000_000; // 1 second, matches server
 const DEFAULT_CLIENT_ANIMATION_DURATION_MS = CONSUMPTION_COOLDOWN_MICROS / 1000; // Duration for client animation
@@ -59,6 +61,7 @@ interface HotbarProps {
   activeEquipment: ActiveEquipment | null;
   isGameMenuOpen?: boolean;
   placementInfo: PlacementItemInfo | null; // Add placement state info
+  isMobile?: boolean; // Mobile layout flag
 }
 
 // Add tooltip interface
@@ -127,6 +130,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     activeEquipment,
     isGameMenuOpen,
     placementInfo,
+    isMobile = false,
 }) => {
   // console.log('[Hotbar] Rendering. CLIENT_ANIMATION_DURATION_MS:', CLIENT_ANIMATION_DURATION_MS); // Added log
   const [selectedSlot, setSelectedSlot] = useState<number>(-1);
@@ -1278,16 +1282,21 @@ const Hotbar: React.FC<HotbarProps> = ({
     };
   }, [handleWheel]); // Removed handleKeyDown - now using stable ref pattern above
 
+  // Mobile-aware sizing
+  const slotSize = isMobile ? MOBILE_SLOT_SIZE : SLOT_SIZE;
+  const slotMargin = isMobile ? MOBILE_SLOT_MARGIN : SLOT_MARGIN;
+  const hotbarBottom = isMobile ? 90 : 15; // Mobile: above controls (20px + 56px height + 14px gap), Desktop: 15px
+
   // Calculate overlay position for server-triggered effects
   const getSlotPosition = (slotIndex: number) => {
     const BORDER_WIDTH = 2; // Each slot has a 2px border
-    const hotbarLeft = window.innerWidth / 2 - ((numSlots * (SLOT_SIZE + SLOT_MARGIN) - SLOT_MARGIN) / 2) - SLOT_MARGIN;
-    const slotLeft = hotbarLeft + slotIndex * (SLOT_SIZE + SLOT_MARGIN) + SLOT_MARGIN;
+    const hotbarLeft = window.innerWidth / 2 - ((numSlots * (slotSize + slotMargin) - slotMargin) / 2) - slotMargin;
+    const slotLeft = hotbarLeft + slotIndex * (slotSize + slotMargin) + slotMargin;
     return {
       left: slotLeft + BORDER_WIDTH, // Offset by border width
-      bottom: 15 + SLOT_MARGIN + BORDER_WIDTH, // Offset by border width
-      width: SLOT_SIZE - (BORDER_WIDTH * 2), // Reduce by border on both sides
-      height: SLOT_SIZE - (BORDER_WIDTH * 2), // Reduce by border on both sides
+      bottom: hotbarBottom + slotMargin + BORDER_WIDTH, // Offset by border width
+      width: slotSize - (BORDER_WIDTH * 2), // Reduce by border on both sides
+      height: slotSize - (BORDER_WIDTH * 2), // Reduce by border on both sides
     };
   };
 
@@ -1295,17 +1304,17 @@ const Hotbar: React.FC<HotbarProps> = ({
     <>
       <div style={{
         position: 'fixed',
-        bottom: '15px',
+        bottom: `${hotbarBottom}px`,
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
         background: UI_BG_COLOR,
-        padding: `${SLOT_MARGIN}px`,
-        borderRadius: '8px',
-        border: `2px solid ${UI_BORDER_COLOR}`,
-        boxShadow: UI_SHADOW,
+        padding: `${slotMargin}px`,
+        borderRadius: isMobile ? '6px' : '8px',
+        border: `${isMobile ? 1 : 2}px solid ${UI_BORDER_COLOR}`,
+        boxShadow: isMobile ? '0 0 15px rgba(0, 170, 255, 0.2)' : UI_SHADOW,
         fontFamily: UI_FONT_FAMILY,
-        zIndex: 100,
+        zIndex: isMobile ? 9997 : 100, // Below mobile controls and status bars
         backdropFilter: 'blur(10px)',
       }}>
       {Array.from({ length: numSlots }).map((_, index) => {
@@ -1316,8 +1325,8 @@ const Hotbar: React.FC<HotbarProps> = ({
         return (
           <div
             key={`hotbar-wrapper-${index}`}
-            onMouseEnter={(event) => handleSlotMouseEnter(index, event)}
-            onMouseLeave={handleSlotMouseLeave}
+            onMouseEnter={isMobile ? undefined : (event) => handleSlotMouseEnter(index, event)}
+            onMouseLeave={isMobile ? undefined : handleSlotMouseLeave}
           >
             <DroppableSlot
               key={`hotbar-${index}`}
@@ -1330,21 +1339,21 @@ const Hotbar: React.FC<HotbarProps> = ({
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  width: `${SLOT_SIZE}px`,
-                  height: `${SLOT_SIZE}px`,
-                  border: `2px solid ${index === selectedSlot ? SELECTED_BORDER_COLOR : 'rgba(0, 170, 255, 0.4)'}`,
+                  width: `${slotSize}px`,
+                  height: `${slotSize}px`,
+                  border: `${isMobile ? 1 : 2}px solid ${index === selectedSlot ? SELECTED_BORDER_COLOR : 'rgba(0, 170, 255, 0.4)'}`,
                   background: isDisabledByWater 
                     ? 'linear-gradient(135deg, rgba(100, 150, 255, 0.2), rgba(80, 130, 200, 0.3))' 
                     : 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
-                  borderRadius: '4px',
-                  marginLeft: index > 0 ? `${SLOT_MARGIN}px` : '0px',
+                  borderRadius: isMobile ? '3px' : '4px',
+                  marginLeft: index > 0 ? `${slotMargin}px` : '0px',
                   transition: 'all 0.2s ease',
                   boxSizing: 'border-box',
                   cursor: isDisabledByWater ? 'not-allowed' : 'pointer',
                   overflow: 'hidden',
                   opacity: isDisabledByWater ? 0.6 : 1.0,
                   boxShadow: index === selectedSlot 
-                    ? '0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2)' 
+                    ? (isMobile ? '0 0 10px rgba(0, 255, 255, 0.5)' : '0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2)')
                     : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
               }}
               isDraggingOver={false}

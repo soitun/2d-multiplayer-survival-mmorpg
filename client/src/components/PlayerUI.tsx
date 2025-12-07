@@ -18,6 +18,11 @@ import ActiveCraftingQueueUI from './ActiveCraftingQueueUI';
 import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 // --- END NEW IMPORTS ---
 
+// Import status icons for mobile UI
+import heartIcon from '../assets/ui/heart.png';
+import thirstIcon from '../assets/ui/thirst.png';
+import hungerIcon from '../assets/ui/hunger.png';
+
 interface PlayerUIProps {
   identity: Identity | null;
   players: Map<string, Player>;
@@ -56,6 +61,7 @@ interface PlayerUIProps {
   isGameMenuOpen?: boolean;
   chunkWeather: Map<string, any>; // ADDED: Chunk-based weather
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>; // ADDED: Memory Grid unlocks
+  isMobile?: boolean; // ADDED: Mobile detection for responsive layout
 }
 
 const PlayerUI: React.FC<PlayerUIProps> = ({
@@ -95,7 +101,8 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     worldState,
     isGameMenuOpen,
     chunkWeather,
-    memoryGridProgress
+    memoryGridProgress,
+    isMobile = false
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
@@ -1075,50 +1082,163 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             )}
             {/* --- END NEW: Cyberpunk Knocked Out Screen --- */}
 
-            {/* Status Effects Text - appears above status bars */}
-            {/* Status Effects Panel */}
-            <StatusEffectsPanel effects={getStatusEffectsForPanel()} />
+            {/* Status Effects Panel - positioned differently on mobile */}
+            {!isMobile && <StatusEffectsPanel effects={getStatusEffectsForPanel()} />}
 
-            {/* Status Bars UI */}
-            <div style={{
-                position: 'fixed',
-                bottom: '15px',
-                right: '15px',
-                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))',
-                color: '#00ffff',
-                padding: '15px 18px',
-                borderRadius: '10px',
-                border: '2px solid #00aaff',
-                fontFamily: '"Press Start 2P", cursive',
-                minWidth: '220px',
-                boxShadow: '0 0 25px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.1)',
-                zIndex: 50, // Keep below inventory/overlay
-                textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
-            }}>
-                {/* Status Bars mapping */}
-                <StatusBar 
-                    label="HP" 
-                    iconType="heart"
-                    value={localPlayer.health} 
-                    maxValue={100} 
-                    barColor="#ff4040" 
-                    hasActiveEffect={isHealthHealingOverTime}
-                    hasBleedEffect={isPlayerBleeding}
-                    hasSeawaterPoisoningEffect={isPlayerSeawaterPoisoned}
-                    hasFoodPoisoningEffect={isPlayerFoodPoisoned}
-                    pendingHealAmount={pendingBandageHealAmount}
-                    glow={localPlayer.health < lowNeedThreshold}
-                />
-                {/* <StatusBar label="SP" iconType="stamina" value={localPlayer.stamina} maxValue={100} barColor="#40ff40" /> */}
-                {/*
-                  Glow/pulse effect for Thirst, Hunger, Warmth when below LOW_NEED_THRESHOLD (20.0),
-                  matching server logic for stat penalties/health loss. This helps players realize
-                  why they're thirsty/hungry/cold and should take action soon.
-                */}
-                <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} />
-                <StatusBar label="Hunger" iconType="hunger" value={localPlayer.hunger} maxValue={250} barColor="#ffa040" glow={localPlayer.hunger < lowNeedThreshold} />
-                {/* <StatusBar label="Warmth" iconType="warmth" value={localPlayer.warmth} maxValue={100} barColor="#ffcc00" glow={localPlayer.warmth < lowNeedThreshold} /> */}
-            </div>
+            {/* Mobile Status Display - TOP RIGHT corner, compact horizontal pill */}
+            {isMobile ? (
+                <>
+                    {/* Status Bars - Fixed at top right */}
+                    <div style={{
+                        position: 'fixed',
+                        top: '10px',
+                        right: '10px',
+                        display: 'flex',
+                        gap: '6px',
+                        background: 'linear-gradient(135deg, rgba(10, 5, 20, 0.92), rgba(20, 10, 40, 0.95))',
+                        padding: '6px 10px',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(0, 170, 255, 0.5)',
+                        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+                        zIndex: 9996,
+                    }}>
+                        {/* HP Bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <img src={heartIcon} alt="HP" style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }} />
+                            <div style={{
+                                width: '36px',
+                                height: '6px',
+                                background: 'rgba(0,0,0,0.5)',
+                                borderRadius: '3px',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    width: `${(localPlayer.health / 100) * 100}%`,
+                                    height: '100%',
+                                    background: localPlayer.health < lowNeedThreshold 
+                                        ? 'linear-gradient(90deg, #ff2020, #ff4040)' 
+                                        : 'linear-gradient(90deg, #cc3030, #ff4040)',
+                                    boxShadow: localPlayer.health < lowNeedThreshold ? '0 0 4px #ff4040' : 'none',
+                                    transition: 'width 0.3s ease',
+                                }} />
+                            </div>
+                        </div>
+                        
+                        {/* Thirst Bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <img src={thirstIcon} alt="Thirst" style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }} />
+                            <div style={{
+                                width: '36px',
+                                height: '6px',
+                                background: 'rgba(0,0,0,0.5)',
+                                borderRadius: '3px',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    width: `${(localPlayer.thirst / 250) * 100}%`,
+                                    height: '100%',
+                                    background: localPlayer.thirst < lowNeedThreshold 
+                                        ? 'linear-gradient(90deg, #2080ff, #40a0ff)' 
+                                        : 'linear-gradient(90deg, #3080cc, #40a0ff)',
+                                    boxShadow: localPlayer.thirst < lowNeedThreshold ? '0 0 4px #40a0ff' : 'none',
+                                    transition: 'width 0.3s ease',
+                                }} />
+                            </div>
+                        </div>
+                        
+                        {/* Hunger Bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <img src={hungerIcon} alt="Hunger" style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }} />
+                            <div style={{
+                                width: '36px',
+                                height: '6px',
+                                background: 'rgba(0,0,0,0.5)',
+                                borderRadius: '3px',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    width: `${(localPlayer.hunger / 250) * 100}%`,
+                                    height: '100%',
+                                    background: localPlayer.hunger < lowNeedThreshold 
+                                        ? 'linear-gradient(90deg, #ff8020, #ffa040)' 
+                                        : 'linear-gradient(90deg, #cc7030, #ffa040)',
+                                    boxShadow: localPlayer.hunger < lowNeedThreshold ? '0 0 4px #ffa040' : 'none',
+                                    transition: 'width 0.3s ease',
+                                }} />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Status Effects - Positioned BELOW the Day/Night tracker with equal spacing */}
+                    {getStatusEffectsForPanel().length > 0 && (
+                        <div style={{
+                            position: 'fixed',
+                            top: '108px', // Below Day/Night tracker (~42px + ~56px) + 10px gap
+                            right: '10px',
+                            display: 'flex',
+                            gap: '3px',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            padding: '4px 8px',
+                            borderRadius: '10px',
+                            zIndex: 9994,
+                        }}>
+                            {getStatusEffectsForPanel().slice(0, 5).map((effect) => (
+                                <div
+                                    key={effect.id}
+                                    style={{
+                                        fontSize: '12px',
+                                        filter: `drop-shadow(0 0 2px ${effect.type === 'positive' ? '#00ff88' : effect.type === 'negative' ? '#ff4444' : '#ffaa00'})`,
+                                    }}
+                                    title={`${effect.name}${effect.duration ? ` - ${Math.ceil(effect.duration)}s` : ''}`}
+                                >
+                                    {effect.emoji}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            ) : (
+                /* Desktop Status Bars UI */
+                <div style={{
+                    position: 'fixed',
+                    bottom: '15px',
+                    right: '15px',
+                    background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))',
+                    color: '#00ffff',
+                    padding: '15px 18px',
+                    borderRadius: '10px',
+                    border: '2px solid #00aaff',
+                    fontFamily: '"Press Start 2P", cursive',
+                    minWidth: '220px',
+                    boxShadow: '0 0 25px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.1)',
+                    zIndex: 50, // Keep below inventory/overlay
+                    textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
+                }}>
+                    {/* Status Bars mapping */}
+                    <StatusBar 
+                        label="HP" 
+                        iconType="heart"
+                        value={localPlayer.health} 
+                        maxValue={100} 
+                        barColor="#ff4040" 
+                        hasActiveEffect={isHealthHealingOverTime}
+                        hasBleedEffect={isPlayerBleeding}
+                        hasSeawaterPoisoningEffect={isPlayerSeawaterPoisoned}
+                        hasFoodPoisoningEffect={isPlayerFoodPoisoned}
+                        pendingHealAmount={pendingBandageHealAmount}
+                        glow={localPlayer.health < lowNeedThreshold}
+                    />
+                    {/* <StatusBar label="SP" iconType="stamina" value={localPlayer.stamina} maxValue={100} barColor="#40ff40" /> */}
+                    {/*
+                      Glow/pulse effect for Thirst, Hunger, Warmth when below LOW_NEED_THRESHOLD (20.0),
+                      matching server logic for stat penalties/health loss. This helps players realize
+                      why they're thirsty/hungry/cold and should take action soon.
+                    */}
+                    <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} />
+                    <StatusBar label="Hunger" iconType="hunger" value={localPlayer.hunger} maxValue={250} barColor="#ffa040" glow={localPlayer.hunger < lowNeedThreshold} />
+                    {/* <StatusBar label="Warmth" iconType="warmth" value={localPlayer.warmth} maxValue={100} barColor="#ffcc00" glow={localPlayer.warmth < lowNeedThreshold} /> */}
+                </div>
+            )}
 
             {/* Render Inventory UI conditionally - Pass props down */}
             {showInventory && (
@@ -1158,29 +1278,31 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                  />
              )}
 
-            {/* Hotbar Area */}
-            <Hotbar
-                playerIdentity={identity}
-                localPlayer={localPlayer}
-                rangedWeaponStats={rangedWeaponStats}
-                itemDefinitions={itemDefinitions}
-                inventoryItems={inventoryItems}
-                connection={connection}
-                onItemDragStart={onItemDragStart}
-                onItemDrop={onItemDrop}
-                draggedItemInfo={draggedItemInfo}
-                interactingWith={interactingWith}
-                brothPots={brothPots}
-                campfires={campfires}
-                fumaroles={fumaroles}
-                stashes={stashes}
-                startPlacement={startPlacement}
-                cancelPlacement={cancelPlacement}
-                activeConsumableEffects={activeConsumableEffects}
-                activeEquipment={localPlayerActiveEquipment}
-                isGameMenuOpen={isGameMenuOpen}
-                placementInfo={placementInfo}
-            />
+            {/* Hotbar Area - Desktop only, hidden on mobile */}
+            {!isMobile && (
+                <Hotbar
+                    playerIdentity={identity}
+                    localPlayer={localPlayer}
+                    rangedWeaponStats={rangedWeaponStats}
+                    itemDefinitions={itemDefinitions}
+                    inventoryItems={inventoryItems}
+                    connection={connection}
+                    onItemDragStart={onItemDragStart}
+                    onItemDrop={onItemDrop}
+                    draggedItemInfo={draggedItemInfo}
+                    interactingWith={interactingWith}
+                    brothPots={brothPots}
+                    campfires={campfires}
+                    fumaroles={fumaroles}
+                    stashes={stashes}
+                    startPlacement={startPlacement}
+                    cancelPlacement={cancelPlacement}
+                    activeConsumableEffects={activeConsumableEffects}
+                    activeEquipment={localPlayerActiveEquipment}
+                    isGameMenuOpen={isGameMenuOpen}
+                    placementInfo={placementInfo}
+                />
+            )}
 
             {/* Drag Overlay is removed - ghost handled by DraggableItem */}
        </>

@@ -5,11 +5,21 @@
     width: 100vw;
     height: 100vh;
     background: linear-gradient(135deg, #1a0d2e 0%, #16213e 50%, #0f1419 100%);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Courier New', Consolas, Monaco, monospace;
+    /* Prevent text selection and pull-to-refresh on mobile */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+    /* Prevent zoom on double-tap */
+    touch-action: manipulation;
+    /* Ensure enough space for SOVA avatar on mobile */
+    padding-top: 0;
 }
 
 /* Animated grid background */
@@ -54,7 +64,7 @@
     transform: translateX(-50%);
     width: 120px;
     height: 120px;
-    z-index: 999;
+    z-index: 1000;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -65,11 +75,41 @@
     border-radius: 0 !important;
     border: none !important;
     outline: none !important;
+    /* Prevent text selection and double-tap zoom */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    /* Ensure avatar is never clipped */
+    pointer-events: auto;
 }
 
 .sova-avatar:hover {
     transform: translateX(-50%) scale(1.05);
     filter: drop-shadow(0 0 25px rgba(0, 221, 255, 0.8));
+}
+
+/* Touch-friendly hover states for mobile */
+@media (hover: none) and (pointer: coarse) {
+    .sova-avatar:active {
+        transform: translateX(-50%) scale(0.95);
+        filter: drop-shadow(0 0 20px rgba(0, 221, 255, 0.9));
+    }
+    
+    /* Ensure transform is maintained on mobile */
+    @media (max-width: 768px) {
+        .sova-avatar:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+    }
+    
+    .continue-button:active {
+        transform: translateY(0) scale(0.98);
+    }
+    
+    .enable-audio-button:active {
+        transform: scale(0.95);
+    }
 }
 
 .sova-avatar.speaking {
@@ -116,7 +156,12 @@
     position: relative;
     overflow: visible;
     margin-top: 100px;
+    margin-left: auto;
+    margin-right: auto;
     z-index: 1;
+    /* Prevent text selection on mobile */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .console-container::before {
@@ -268,42 +313,207 @@
     }
 }
 
-/* Responsive design */
+/* Responsive design - Tablet and Mobile */
 @media (max-width: 768px) {
+    .cyberpunk-loading {
+        /* Equal padding on all sides */
+        padding: 12px;
+        /* CENTER VERTICALLY AND HORIZONTALLY */
+        align-items: center;
+        justify-content: center;
+        /* Allow scrolling if content overflows */
+        overflow-y: auto;
+        overflow-x: hidden;
+        /* Use flexbox column layout */
+        flex-direction: column;
+        /* Prevent any horizontal overflow */
+        width: 100%;
+        max-width: 100vw;
+        box-sizing: border-box;
+    }
+    
     .sova-avatar {
-        top: -70px;
-        width: 80px;
-        height: 80px;
+        /* Static positioning within flow - ABOVE console */
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        /* Smaller size */
+        width: 64px;
+        height: 64px;
+        /* Center the avatar */
+        display: block;
+        margin: 0 auto 8px auto;
+        padding: 0;
+        box-sizing: border-box;
+        z-index: 10;
+    }
+    
+    /* Override all transform animations on mobile */
+    .sova-avatar,
+    .sova-avatar:hover,
+    .sova-avatar:active,
+    .sova-avatar.speaking,
+    .sova-avatar.needs-interaction,
+    .sova-avatar.red-glow {
+        transform: none !important;
     }
     
     .console-container {
-        width: 95%;
-        padding: 15px;
-        padding-top: 50px;
-        margin-top: 70px;
+        /* Prevent overflow - use calc to account for padding */
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
+        /* Reset margins */
+        margin: 0;
+        /* Compact internal padding */
+        padding: 12px;
+        /* Prevent overflow */
+        overflow-x: hidden;
+        overflow-y: visible;
+        /* Box sizing is critical */
+        box-sizing: border-box;
+    }
+    
+    .console-header {
+        padding-bottom: 12px;
+        margin-bottom: 12px;
     }
     
     .console-title {
         font-size: 16px;
+        letter-spacing: 1px;
+        line-height: 1.3;
+        padding: 0;
     }
     
     .console-subtitle {
         font-size: 10px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        padding: 0;
     }
     
     .console-logs {
+        font-size: 13px;
+        line-height: 1.6;
+        min-height: 120px;
+        max-height: 45vh;
+        /* Better scrolling on mobile */
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 0;
+        /* Prevent horizontal overflow */
+        overflow-x: hidden;
+    }
+    
+    .log-line {
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+    }
+    
+    .log-prefix {
+        margin-right: 8px;
         font-size: 12px;
-        min-height: 250px;
-        max-height: 300px;
+        flex-shrink: 0;
+    }
+    
+    .log-text {
+        font-size: 13px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        /* Allow text to wrap */
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .console-footer {
+        padding-top: 12px;
+        margin-top: 12px;
     }
     
     .status-indicators {
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
+        align-items: flex-start;
+    }
+    
+    .status-item {
+        font-size: 11px;
+        gap: 6px;
     }
     
     .grid-background {
         background-size: 30px 30px;
+    }
+    
+    .cursor {
+        font-size: 14px;
+    }
+}
+
+/* Small mobile devices (< 480px) */
+@media (max-width: 480px) {
+    .cyberpunk-loading {
+        padding: 10px;
+    }
+    
+    .sova-avatar {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 6px;
+    }
+    
+    .console-container {
+        width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
+        padding: 10px;
+    }
+    
+    .console-header {
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .console-title {
+        font-size: 14px;
+        letter-spacing: 0.5px;
+    }
+    
+    .console-subtitle {
+        font-size: 9px;
+    }
+    
+    .console-logs {
+        font-size: 12px;
+        min-height: 100px;
+        max-height: 42vh;
+        padding: 6px 0;
+    }
+    
+    .log-line {
+        margin-bottom: 5px;
+    }
+    
+    .log-prefix {
+        font-size: 11px;
+        margin-right: 6px;
+    }
+    
+    .log-text {
+        font-size: 12px;
+    }
+    
+    .console-footer {
+        padding-top: 10px;
+        margin-top: 10px;
+    }
+    
+    .status-item {
+        font-size: 10px;
+    }
+    
+    .grid-background {
+        background-size: 25px 25px;
     }
 }
 
@@ -324,6 +534,31 @@
 
 .console-logs::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 170, 255, 0.5);
+}
+
+/* Mobile scrollbar - wider for easier touch interaction */
+@media (max-width: 768px) {
+    .console-logs::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .console-logs::-webkit-scrollbar-thumb {
+        background: rgba(0, 170, 255, 0.4);
+    }
+    
+    .console-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .console-container::-webkit-scrollbar-track {
+        background: rgba(0, 170, 255, 0.1);
+        border-radius: 4px;
+    }
+    
+    .console-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 170, 255, 0.3);
+        border-radius: 4px;
+    }
 }
 
 /* Cyberpunk Error Bar */
@@ -447,28 +682,54 @@
 /* Mobile responsiveness for error bar */
 @media (max-width: 768px) {
     .cyberpunk-error-bar {
+        margin: 0 0 8px 0;
+    }
+    
+    .error-content {
+        padding: 4px 8px;
+    }
+    
+    .error-header {
+        margin-bottom: 4px;
+    }
+    
+    .error-icon {
+        font-size: 12px;
+        margin-right: 4px;
+    }
+    
+    .error-title {
+        font-size: 10px;
+        line-height: 1.3;
+    }
+    
+    .error-message {
+        font-size: 10px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+}
+
+@media (max-width: 480px) {
+    .cyberpunk-error-bar {
         margin: 0 0 6px 0;
     }
     
     .error-content {
-        padding: 1px 6px;
-    }
-    
-    .error-header {
-        margin-bottom: 0px;
+        padding: 3px 6px;
     }
     
     .error-icon {
-        font-size: 10px;
-        margin-right: 3px;
+        font-size: 11px;
     }
     
     .error-title {
-        font-size: 8px;
+        font-size: 9px;
     }
     
     .error-message {
-        font-size: 8px;
+        font-size: 9px;
     }
 }
 
@@ -502,6 +763,11 @@
     box-shadow: 
         0 0 20px rgba(0, 170, 255, 0.3),
         inset 0 0 10px rgba(0, 170, 255, 0.1);
+    /* Prevent text selection and double-tap zoom */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
 }
 
 .continue-button::before {
@@ -553,18 +819,58 @@
 
 /* Responsive continue button */
 @media (max-width: 768px) {
+    .continue-prompt {
+        margin-top: 12px;
+        padding-top: 12px;
+    }
+    
+    .continue-prompt .log-line {
+        margin-bottom: 10px;
+    }
+    
     .continue-button {
         font-size: 14px;
-        padding: 12px 20px;
-        margin: 12px auto 0;
+        padding: 14px 24px;
+        margin: 10px auto 0;
+        width: 100%;
+        max-width: 280px;
+        min-height: 52px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
     }
     
     .continue-text {
         font-size: 14px;
+        margin-bottom: 3px;
     }
     
     .continue-subtitle {
         font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .continue-prompt {
+        margin-top: 10px;
+        padding-top: 10px;
+    }
+    
+    .continue-button {
+        font-size: 13px;
+        padding: 12px 20px;
+        max-width: 260px;
+        min-height: 48px;
+    }
+    
+    .continue-text {
+        font-size: 13px;
+    }
+    
+    .continue-subtitle {
+        font-size: 9px;
     }
 }
 
@@ -629,6 +935,11 @@
     text-transform: uppercase;
     transition: all 0.2s ease;
     box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+    /* Prevent text selection and double-tap zoom */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
 }
 
 .enable-audio-button:hover {
@@ -687,15 +998,76 @@
 /* Mobile responsive audio prompt */
 @media (max-width: 768px) {
     .audio-prompt {
-        top: -90px;
-        padding: 10px 15px;
-        left: 10px;
-        right: 10px;
-        transform: none;
+        /* Position in document flow */
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        transform: none !important;
+        /* Full width within console */
+        width: 100%;
+        max-width: 100%;
+        /* Compact spacing */
+        margin: 0 0 8px 0;
+        padding: 8px 10px;
+        box-sizing: border-box;
     }
     
     .audio-prompt-content {
         gap: 8px;
+        flex-wrap: nowrap;
+        justify-content: center;
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .audio-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    
+    .audio-prompt-text {
+        text-align: left;
+        flex: 1;
+    }
+    
+    .audio-prompt-title {
+        font-size: 12px;
+        text-align: left;
+        margin-bottom: 2px;
+    }
+    
+    .audio-prompt-subtitle {
+        font-size: 10px;
+        text-align: left;
+    }
+    
+    .enable-audio-button {
+        font-size: 11px;
+        padding: 10px 14px;
+        min-height: 40px;
+        width: auto;
+        max-width: none;
+        margin-top: 0;
+        flex-shrink: 0;
+    }
+    
+    .audio-prompt.returning-user {
+        position: relative !important;
+        top: auto !important;
+        padding: 6px 10px;
+        margin-bottom: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .audio-prompt {
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .audio-prompt-content {
+        gap: 6px;
     }
     
     .audio-icon {
@@ -703,16 +1075,21 @@
     }
     
     .audio-prompt-title {
-        font-size: 10px;
+        font-size: 11px;
     }
     
     .audio-prompt-subtitle {
-        font-size: 8px;
+        font-size: 9px;
     }
     
     .enable-audio-button {
-        font-size: 8px;
-        padding: 6px 10px;
+        font-size: 10px;
+        padding: 8px 12px;
+        min-height: 36px;
+    }
+    
+    .audio-prompt.returning-user {
+        padding: 5px 8px;
     }
 }
 
@@ -742,10 +1119,7 @@
   font-size: 16px;
 }
 
-/* Keep full styling for new users */
-.audio-prompt.new-user {
-  /* Inherits existing .audio-prompt styles */
-}
+/* Note: .audio-prompt.new-user inherits existing .audio-prompt styles */
 
 /* Cyberpunk Tooltip Styles */
 .cyberpunk-tooltip {
@@ -813,13 +1187,41 @@
 /* Mobile responsive tooltip positioning */
 @media (max-width: 768px) {
     .cyberpunk-tooltip {
-        top: 60px;
-        left: calc(50% + 50px); /* Adjust for smaller SOVA on mobile (80px width + 10px margin) */
-        transform: translateY(-50%);
+        /* Position below SOVA, centered */
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        /* Full width */
+        width: 100%;
+        max-width: 100%;
+        /* Display as block for flow */
+        display: block;
+        margin: 4px 0;
+        text-align: center;
     }
     
     .cyberpunk-tooltip-content {
-        padding: 6px 12px;
+        padding: 4px 10px;
+        text-align: center;
+        display: inline-block;
+        margin: 0 auto;
+    }
+    
+    .cyberpunk-tooltip-text {
+        font-size: 11px;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+}
+
+@media (max-width: 480px) {
+    .cyberpunk-tooltip {
+        margin: 2px 0;
+    }
+    
+    .cyberpunk-tooltip-content {
+        padding: 4px 10px;
     }
     
     .cyberpunk-tooltip-text {

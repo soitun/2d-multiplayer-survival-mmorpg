@@ -93,6 +93,17 @@ pub(crate) const PLAYER_STARTING_THIRST: f32 = 100.0; // Start at 40% of max (10
 pub(crate) const HUNGER_DRAIN_MULTIPLIER_LOW_WARMTH: f32 = 1.5; // 50% faster hunger drain when cold
 pub(crate) const HUNGER_DRAIN_MULTIPLIER_ZERO_WARMTH: f32 = 2.0; // 100% faster hunger drain when freezing
 
+// Biome-based warmth decay multipliers (affects how fast you get cold in arctic biomes)
+// These multiply the base negative warmth change rate
+// BALANCE NOTES:
+// - Tundra: 50% faster cold drain - noticeable but manageable with basic gear
+// - Alpine: 100% faster cold drain - dangerous, needs good armor or fire
+// - These stack with rain (+1.5 warmth drain) and wetness (+0.5 warmth drain)
+// - Armor cold resistance helps mitigate the damage, not the decay rate
+// - Players need fur/warm armor to survive extended time in arctic regions
+pub(crate) const TUNDRA_WARMTH_DECAY_MULTIPLIER: f32 = 1.5;  // 50% faster cold drain in tundra
+pub(crate) const ALPINE_WARMTH_DECAY_MULTIPLIER: f32 = 2.0;  // 100% faster cold drain in alpine (harsh!)
+
 // Import necessary items from the main lib module or other modules
 use crate::{
     Player, // Player struct
@@ -135,6 +146,28 @@ fn player_has_damaging_effects(ctx: &ReducerContext, player_id: Identity) -> boo
         }
     }
     false
+}
+
+/// Get the biome-based warmth decay multiplier at a given position.
+/// Returns 1.0 for normal biomes, higher values for colder biomes (tundra/alpine).
+/// This multiplier is applied to negative warmth changes to make arctic regions more dangerous.
+pub fn get_biome_warmth_multiplier(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> f32 {
+    // Convert world position to tile coordinates
+    let (tile_x, tile_y) = crate::world_pos_to_tile_coords(pos_x, pos_y);
+    
+    // Get the tile type at this position
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        if tile_type.is_alpine() {
+            // Alpine is the harshest - 2x faster cold drain
+            return ALPINE_WARMTH_DECAY_MULTIPLIER;
+        } else if tile_type.is_tundra() {
+            // Tundra is moderately harsh - 1.5x faster cold drain
+            return TUNDRA_WARMTH_DECAY_MULTIPLIER;
+        }
+    }
+    
+    // Default: no multiplier for temperate biomes
+    1.0
 }
 
 // --- Player Stat Schedule Table (Reverted to scheduled pattern) ---
@@ -290,16 +323,32 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             TimeOfDay::Dawn => 0.2,         // Slight gain to offset rain (was 0.0)
         };
 
+        // <<< APPLY BIOME-BASED WARMTH DECAY MULTIPLIER >>>
+        // Tundra and Alpine biomes have faster warmth decay (get colder faster)
+        // This multiplier only affects NEGATIVE warmth changes - daytime warmth gain is unaffected
+        let biome_multiplier = get_biome_warmth_multiplier(ctx, player.position_x, player.position_y);
+        let biome_adjusted_warmth_change = if base_warmth_change_per_sec < 0.0 && biome_multiplier > 1.0 {
+            let adjusted = base_warmth_change_per_sec * biome_multiplier;
+            log::trace!(
+                "Player {:?} in cold biome - warmth decay multiplied by {:.1}x (from {:.3} to {:.3} warmth/sec)",
+                player_id, biome_multiplier, base_warmth_change_per_sec, adjusted
+            );
+            adjusted
+        } else {
+            base_warmth_change_per_sec
+        };
+        // <<< END BIOME-BASED WARMTH DECAY MULTIPLIER >>>
+
         // Apply indoor warmth protection to reduce cold drain (but not eliminate it)
-        let mut total_warmth_change_per_sec = base_warmth_change_per_sec;
-        if player.is_inside_building && base_warmth_change_per_sec < 0.0 {
-            // Reduce negative warmth drain by 35% when indoors
-            total_warmth_change_per_sec = base_warmth_change_per_sec * INDOOR_WARMTH_PROTECTION_MULTIPLIER;
+        let mut total_warmth_change_per_sec = biome_adjusted_warmth_change;
+        if player.is_inside_building && biome_adjusted_warmth_change < 0.0 {
+            // Reduce negative warmth drain by 35% when indoors (applies AFTER biome multiplier)
+            total_warmth_change_per_sec = biome_adjusted_warmth_change * INDOOR_WARMTH_PROTECTION_MULTIPLIER;
             log::trace!(
                 "Player {:?} is indoors - cold drain reduced by {:.0}% (from {:.2} to {:.2} warmth/sec)",
                 player_id,
                 (1.0 - INDOOR_WARMTH_PROTECTION_MULTIPLIER) * 100.0,
-                base_warmth_change_per_sec,
+                biome_adjusted_warmth_change,
                 total_warmth_change_per_sec
             );
         }

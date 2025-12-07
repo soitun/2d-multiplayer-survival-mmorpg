@@ -42,6 +42,7 @@ interface SimpleMovementProps {
   isUIFocused: boolean; // Added for key handling
   entities: GameEntities;
   playerDodgeRollStates?: Map<string, any>; // Add dodge roll states
+  mobileSprintOverride?: boolean; // Mobile sprint toggle override (immediate, bypasses server round-trip)
 }
 
 // Performance monitoring for simple movement
@@ -93,7 +94,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, isUIFocused, entities, playerDodgeRollStates }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -208,6 +209,16 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       lastUpdateTime.current = now;
 
       let { direction, sprinting } = inputState;
+      
+      // MOBILE FIX: Use mobileSprintOverride when set (immediate, no server round-trip)
+      // This allows mobile sprint toggle button to work correctly
+      // Falls back to player's database state, then to input state (desktop Shift key)
+      if (mobileSprintOverride !== undefined) {
+        sprinting = mobileSprintOverride; // Mobile toggle overrides all
+      } else if (localPlayer?.isSprinting === true) {
+        sprinting = true; // Database sprint state
+      }
+      // If neither override is set, use inputState.sprinting (already set above)
       
       // Check for active dodge roll and use server-authoritative interpolation
       const playerId = localPlayer.identity.toHexString();

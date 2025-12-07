@@ -44,6 +44,7 @@ import { useMovementInput } from './hooks/useMovementInput';
 import { usePredictedMovement } from './hooks/usePredictedMovement';
 import { useSoundSystem } from './hooks/useSoundSystem';
 import { useMusicSystem } from './hooks/useMusicSystem';
+import { useMobileDetection } from './hooks/useMobileDetection';
 
 
 // Assets & Styles
@@ -296,14 +297,91 @@ function AppContent() {
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
     const isDead = localPlayer?.isDead ?? false;
     
+    // --- Mobile Detection ---
+    const isMobile = useMobileDetection();
+    
+    // --- Mobile Tap-to-Walk State ---
+    const [tapTarget, setTapTarget] = useState<{ x: number; y: number } | null>(null);
+    const [tapAnimation, setTapAnimation] = useState<{ x: number; y: number; startTime: number } | null>(null);
+    const TAP_ARRIVAL_THRESHOLD = 16; // Stop when within 16px of destination
+    
+    // --- Mobile Sprint Override State ---
+    // This is set immediately when mobile sprint button is pressed (no server round-trip)
+    // Used to ensure sprint state is consistent in position updates
+    const [mobileSprintOverride, setMobileSprintOverride] = useState<boolean | undefined>(undefined);
+    
     // Simplified movement input - no complex processing
-    const { inputState, isAutoWalking } = useMovementInput({ 
+    const { inputState: keyboardInputState, isAutoWalking } = useMovementInput({ 
         isUIFocused: isUIFocused || isDead, // Disable input when dead
         localPlayer,
         onToggleAutoAttack: toggleAutoAttack, // Keep auto-attack functionality
         // 🎣 FISHING INPUT FIX: Pass fishing state to disable input during fishing
         isFishing,
     });
+    
+    // Calculate tap-to-walk direction if on mobile and has tap target
+    // Uses localPlayer position (server-authoritative) for calculation
+    const tapDirection = useMemo(() => {
+        if (!isMobile || !tapTarget || !localPlayer) {
+            return { x: 0, y: 0 };
+        }
+        
+        const playerX = localPlayer.positionX;
+        const playerY = localPlayer.positionY;
+        const dx = tapTarget.x - playerX;
+        const dy = tapTarget.y - playerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Arrived at destination
+        if (distance <= TAP_ARRIVAL_THRESHOLD) {
+            return { x: 0, y: 0 };
+        }
+        
+        // Normalize direction
+        return {
+            x: dx / distance,
+            y: dy / distance,
+        };
+    }, [isMobile, tapTarget, localPlayer, TAP_ARRIVAL_THRESHOLD]);
+    
+    // Clear tap target when arrived (checked after movement)
+    useEffect(() => {
+        if (!isMobile || !tapTarget || !localPlayer) return;
+        
+        const dx = tapTarget.x - localPlayer.positionX;
+        const dy = tapTarget.y - localPlayer.positionY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance <= TAP_ARRIVAL_THRESHOLD) {
+            setTapTarget(null);
+        }
+    }, [isMobile, tapTarget, localPlayer, TAP_ARRIVAL_THRESHOLD]);
+    
+    // Merge keyboard and tap-to-walk input (tap takes precedence when active)
+    const inputState = useMemo(() => {
+        // If on mobile and tap direction is active, use tap direction
+        if (isMobile && (tapDirection.x !== 0 || tapDirection.y !== 0)) {
+            return {
+                direction: tapDirection,
+                sprinting: keyboardInputState.sprinting, // Keep sprint from keyboard
+            };
+        }
+        // Otherwise use keyboard input
+        return keyboardInputState;
+    }, [isMobile, tapDirection, keyboardInputState]);
+    
+    // Handle mobile tap event from GameCanvas
+    const handleMobileTap = useCallback((worldX: number, worldY: number) => {
+        if (!isMobile) return;
+        
+        setTapTarget({ x: worldX, y: worldY });
+        setTapAnimation({ x: worldX, y: worldY, startTime: performance.now() });
+        
+        // Clear animation after duration
+        setTimeout(() => {
+            setTapAnimation(null);
+        }, 500);
+    }, [isMobile]);
     
     // Simplified predicted movement - minimal lag
     const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
@@ -312,6 +390,7 @@ function AppContent() {
         connection,
         isUIFocused,
         playerDodgeRollStates, // Add dodge roll states for speed calculation
+        mobileSprintOverride, // Mobile sprint toggle override (immediate, no server round-trip)
         entities: {
             trees: currentViewport ? new Map(filterVisibleTrees(trees, {
               viewMinX: currentViewport.minX,
@@ -1027,6 +1106,12 @@ function AppContent() {
                             alkState={alkState} // ADDED: ALK system state
                             playerShardBalance={playerShardBalance} // ADDED: Player shard balances
                             memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
+                            // Mobile controls
+                            isMobile={isMobile}
+                            onMobileTap={handleMobileTap}
+                            tapAnimation={tapAnimation}
+                            onMobileSprintToggle={setMobileSprintOverride}
+                            mobileSprintOverride={mobileSprintOverride}
                         />
                     );
                 })()

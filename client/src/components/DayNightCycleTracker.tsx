@@ -39,13 +39,12 @@ interface DayNightCycleTrackerProps {
   worldState: WorldState | null;
   chunkWeather: Map<string, any>;
   localPlayer: Player | undefined;
+  isMobile?: boolean;
 }
 
-const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState, chunkWeather, localPlayer }) => {
+const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState, chunkWeather, localPlayer, isMobile = false }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<'season' | 'timeOfDay' | null>(null);
-
-  if (!worldState) return null;
 
   // Calculate current chunk index and get chunk weather
   const currentChunkWeather = useMemo(() => {
@@ -153,6 +152,115 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
       ${COLORS.night}, 
       ${COLORS.midnight})`;
   };
+
+  // Early return if no worldState
+  if (!worldState) return null;
+  
+  // On mobile, render a readable horizontal bar below status bars
+  if (isMobile) {
+    const mobileWeather = displayWeather;
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        top: '42px', // Below status bars (~32px) + 10px gap
+        right: '10px',
+        background: 'linear-gradient(135deg, rgba(10, 5, 20, 0.92), rgba(20, 10, 40, 0.95))',
+        padding: '10px 14px',
+        borderRadius: '12px',
+        border: '1px solid rgba(0, 170, 255, 0.5)',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5)',
+        zIndex: 9995,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        fontFamily: 'monospace',
+        color: '#00ffff',
+      }}>
+        {/* Top Row: Season, Day, Weather */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}>
+          {/* Season with label */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <img 
+              src={getSeasonIcon(worldState.currentSeason)} 
+              alt={getSeasonDisplay(worldState.currentSeason)}
+              style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+            />
+            <span style={{ 
+              fontSize: '11px',
+              color: getSeasonColor(worldState.currentSeason),
+              fontWeight: 'bold',
+            }}>
+              {getSeasonDisplay(worldState.currentSeason)}
+            </span>
+          </div>
+          
+          {/* Divider */}
+          <span style={{ color: 'rgba(0, 170, 255, 0.5)' }}>|</span>
+          
+          {/* Day */}
+          <span style={{ 
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: '#fff',
+            textShadow: '0 0 4px rgba(0, 255, 255, 0.5)',
+          }}>
+            Day {worldState.cycleCount}
+          </span>
+          
+          {/* Divider */}
+          <span style={{ color: 'rgba(0, 170, 255, 0.5)' }}>|</span>
+          
+          {/* Weather */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '16px' }}>
+              {getWeatherEmoji(mobileWeather)}
+            </span>
+            <span style={{ fontSize: '10px', color: '#aabbcc' }}>
+              {getWeatherDisplay(mobileWeather)}
+            </span>
+          </div>
+        </div>
+        
+        {/* Bottom Row: Time of Day with Progress Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          {/* Time of Day Label */}
+          <span style={{
+            fontSize: '10px',
+            color: '#aabbcc',
+            minWidth: '60px',
+          }}>
+            {getTimeOfDayDisplay(worldState.timeOfDay)}
+          </span>
+          
+          {/* Day Cycle Progress Bar */}
+          <div style={{
+            flex: 1,
+            height: '6px',
+            background: 'rgba(0,0,0,0.5)',
+            borderRadius: '3px',
+            overflow: 'hidden',
+            minWidth: '80px',
+          }}>
+            <div style={{
+              width: `${worldState.cycleProgress * 100}%`,
+              height: '100%',
+              background: getBackgroundGradient(),
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate dial position based on cycle progress (0-1)
   const dialPosition = `${worldState.cycleProgress * 100}%`;

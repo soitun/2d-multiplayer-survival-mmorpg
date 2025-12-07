@@ -242,6 +242,13 @@ interface GameCanvasProps {
   showWeatherOverlay?: boolean;
   // Status overlays toggle for cold/low health screen effects
   showStatusOverlays?: boolean;
+  
+  // Mobile controls
+  isMobile?: boolean;
+  onMobileTap?: (worldX: number, worldY: number) => void;
+  tapAnimation?: { x: number; y: number; startTime: number } | null;
+  onMobileInteractInfoChange?: (info: { hasTarget: boolean; label?: string } | null) => void;
+  mobileInteractTrigger?: number;
 }
 
 /**
@@ -331,6 +338,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   memoryGridProgress, // Memory Grid progress for crafting unlocks
   showWeatherOverlay, // Weather overlay toggle for main game canvas atmospheric effects (managed internally if not provided)
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
+  // Mobile controls
+  isMobile = false,
+  onMobileTap,
+  tapAnimation,
+  onMobileInteractInfoChange,
+  mobileInteractTrigger,
 }) => {
   // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
 
@@ -346,6 +359,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   
   // Minimap canvas ref for the InterfaceContainer
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Track minimap canvas size for hook (must be declared before useMinimapInteraction)
+  const [minimapCanvasSizeState, setMinimapCanvasSizeState] = useState({ width: 650, height: 650 });
 
   // Minimap weather overlay state (separate from game canvas weather overlay)
   // This controls the informative weather display on the minimap (always available)
@@ -534,6 +550,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const interpolatedClouds = useCloudInterpolation({ serverClouds: clouds, deltaTime: deltaTimeRef.current });
   useEffect(() => { interpolatedCloudsRef.current = interpolatedClouds; }, [interpolatedClouds]);
   useEffect(() => { cycleProgressRef.current = worldState?.cycleProgress ?? 0.375; }, [worldState?.cycleProgress]);
+  
+  // Set up non-passive touch event listeners to allow preventDefault
+  useEffect(() => {
+    const canvas = gameCanvasRef.current;
+    if (!canvas || !isMobile) return;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!onMobileTap) return;
+      
+      // Only handle single touch for tap-to-walk
+      if (e.touches.length !== 1) return;
+      
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const screenX = touch.clientX - rect.left;
+      const screenY = touch.clientY - rect.top;
+      
+      // Convert screen position to world position (subtract camera offset)
+      const worldX = screenX - cameraOffsetX;
+      const worldY = screenY - cameraOffsetY;
+      
+      onMobileTap(worldX, worldY);
+      e.preventDefault();
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      // Prevent scrolling while touching the canvas
+      e.preventDefault();
+    };
+    
+    // Add event listeners with { passive: false } to allow preventDefault
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isMobile, onMobileTap, cameraOffsetX, cameraOffsetY]);
+  
   // Note: ySortedEntities sync is done after useEntityFiltering hook below
   const interpolatedGrass = useGrassInterpolation({ serverGrass: grass, deltaTime: deltaTimeRef.current });
 
@@ -680,7 +736,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection,
     playerPins,
     localPlayerId,
-    canvasSize: { width: 650, height: 650 }, // Use updated minimap dimensions
+    canvasSize: minimapCanvasSizeState, // Dynamic size based on mobile/desktop
     setIsMinimapOpen
   });
 
@@ -969,6 +1025,110 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     targetedWall, // ADDED: Pass targeted wall to input handler
     // Individual entity IDs for consistency and backward compatibility
   });
+
+  // --- Mobile Interaction Support ---
+  // Helper to get human-readable label for interaction targets
+  const getInteractableLabel = useCallback((target: any): string => {
+    if (!target) return '';
+    switch (target.type) {
+      case 'harvestable_resource': return 'PLANT';
+      case 'campfire': return 'FIRE';
+      case 'furnace': return 'SMELT';
+      case 'fumarole': return 'HEAT';
+      case 'lantern': return 'LAMP';
+      case 'homestead_hearth': return 'HOME';
+      case 'dropped_item': return 'ITEM';
+      case 'box': return 'BOX';
+      case 'corpse': return 'LOOT';
+      case 'stash': return 'STASH';
+      case 'sleeping_bag': return 'BED';
+      case 'knocked_out_player': return 'HELP';
+      case 'water': return 'DRINK';
+      case 'rain_collector': return 'WATER';
+      case 'broth_pot': return 'COOK';
+      case 'door': return 'DOOR';
+      case 'alk_station': return 'ALK';
+      default: return 'USE';
+    }
+  }, []);
+
+  // Update mobile interact info when target changes
+  useEffect(() => {
+    if (onMobileInteractInfoChange && isMobile) {
+      onMobileInteractInfoChange(
+        unifiedInteractableTarget 
+          ? { hasTarget: true, label: getInteractableLabel(unifiedInteractableTarget) }
+          : null
+      );
+    }
+  }, [unifiedInteractableTarget, isMobile, onMobileInteractInfoChange, getInteractableLabel]);
+
+  // Handle mobile interact button press - ref to track trigger value
+  const lastMobileInteractTriggerRef = useRef(mobileInteractTrigger || 0);
+  useEffect(() => {
+    if (!isMobile || !mobileInteractTrigger || mobileInteractTrigger === lastMobileInteractTriggerRef.current) return;
+    lastMobileInteractTriggerRef.current = mobileInteractTrigger;
+    
+    // Trigger interaction with current target
+    if (unifiedInteractableTarget && connection?.reducers) {
+      const target = unifiedInteractableTarget;
+      switch (target.type) {
+        case 'harvestable_resource':
+          connection.reducers.interactWithHarvestableResource(target.id as bigint);
+          break;
+        case 'dropped_item':
+          connection.reducers.pickupDroppedItem(target.id as bigint);
+          break;
+        case 'door':
+          connection.reducers.interactDoor(target.id as bigint);
+          break;
+        case 'campfire':
+          onSetInteractingWith({ type: 'campfire', id: target.id as number });
+          break;
+        case 'furnace':
+          onSetInteractingWith({ type: 'furnace', id: target.id as number });
+          break;
+        case 'lantern':
+          onSetInteractingWith({ type: 'lantern', id: target.id as number });
+          break;
+        case 'box':
+          onSetInteractingWith({ type: 'wooden_storage_box', id: target.id as bigint });
+          break;
+        case 'stash':
+          onSetInteractingWith({ type: 'stash', id: target.id as bigint });
+          break;
+        case 'corpse':
+          onSetInteractingWith({ type: 'player_corpse', id: target.id as bigint });
+          break;
+        case 'sleeping_bag':
+          onSetInteractingWith({ type: 'sleeping_bag', id: target.id as bigint });
+          break;
+        case 'rain_collector':
+          onSetInteractingWith({ type: 'rain_collector', id: target.id as bigint });
+          break;
+        case 'homestead_hearth':
+          onSetInteractingWith({ type: 'homestead_hearth', id: target.id as bigint });
+          break;
+        case 'fumarole':
+          onSetInteractingWith({ type: 'fumarole', id: target.id as number });
+          break;
+        case 'broth_pot':
+          onSetInteractingWith({ type: 'broth_pot', id: target.id as bigint });
+          break;
+        case 'alk_station':
+          onSetInteractingWith({ type: 'alk_station', id: target.id as bigint });
+          break;
+        case 'water':
+          // Water requires hold - for mobile just show a message or ignore
+          console.log('[Mobile] Water drinking requires hold action - not supported in tap');
+          break;
+        case 'knocked_out_player':
+          // Revive requires hold - for mobile just show a message or ignore  
+          console.log('[Mobile] Reviving requires hold action - not supported in tap');
+          break;
+      }
+    }
+  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith]);
 
   // Store the foundation/wall when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
@@ -2903,6 +3063,52 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     // --- End Flashlight Light ---
 
+    // --- Mobile Tap Animation ---
+    if (isMobile && tapAnimation) {
+      const TAP_ANIMATION_DURATION = 500; // ms
+      const elapsed = performance.now() - tapAnimation.startTime;
+      const progress = Math.min(elapsed / TAP_ANIMATION_DURATION, 1);
+      
+      if (progress < 1) {
+        // Convert world position to screen position (world + camera offset)
+        const tapScreenX = tapAnimation.x + currentCameraOffsetX;
+        const tapScreenY = tapAnimation.y + currentCameraOffsetY;
+        
+        // Expanding ring animation
+        const maxRadius = 30;
+        const radius = maxRadius * progress;
+        const opacity = 1 - progress;
+        
+        ctx.save();
+        ctx.strokeStyle = `rgba(0, 255, 255, ${opacity})`;
+        ctx.lineWidth = 3 * (1 - progress * 0.5); // Line gets thinner as it expands
+        ctx.beginPath();
+        ctx.arc(tapScreenX, tapScreenY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner dot that fades out
+        ctx.fillStyle = `rgba(0, 255, 255, ${opacity * 0.8})`;
+        ctx.beginPath();
+        ctx.arc(tapScreenX, tapScreenY, 4 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Second expanding ring (delayed)
+        if (progress > 0.2) {
+          const innerProgress = (progress - 0.2) / 0.8;
+          const innerRadius = maxRadius * innerProgress * 0.7;
+          const innerOpacity = (1 - innerProgress) * 0.6;
+          ctx.strokeStyle = `rgba(0, 255, 255, ${innerOpacity})`;
+          ctx.lineWidth = 2 * (1 - innerProgress * 0.5);
+          ctx.beginPath();
+          ctx.arc(tapScreenX, tapScreenY, innerRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        
+        ctx.restore();
+      }
+    }
+    // --- End Mobile Tap Animation ---
+
     ctx.restore();
 
     // === PERFORMANCE PROFILING - Frame time tracking ===
@@ -3113,6 +3319,53 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [connection]);
 
+  // --- Dynamically resize canvas on mobile to fill container ---
+  useEffect(() => {
+    if (!isMinimapOpen || !minimapCanvasRef.current) return;
+
+    const canvas = minimapCanvasRef.current;
+    
+    if (!isMobile) {
+      // Desktop: use fixed size
+      canvas.width = 650;
+      canvas.height = 650;
+      setMinimapCanvasSizeState({ width: 650, height: 650 });
+      return;
+    }
+
+    // Mobile: fill container
+    const container = canvas.parentElement;
+    if (!container) return;
+
+    const updateCanvasSize = () => {
+      // Get container dimensions
+      const rect = container.getBoundingClientRect();
+      const containerWidth = Math.floor(rect.width);
+      const containerHeight = Math.floor(rect.height);
+
+      // Update canvas resolution to match container size (for crisp rendering)
+      if (canvas.width !== containerWidth || canvas.height !== containerHeight) {
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+        setMinimapCanvasSizeState({ width: containerWidth, height: containerHeight });
+      }
+    };
+
+    // Initial size update
+    updateCanvasSize();
+
+    // Watch for container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateCanvasSize();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isMinimapOpen, isMobile]);
+
   // --- Minimap rendering effect ---
   useEffect(() => {
     if (!isMinimapOpen || !minimapCanvasRef.current) return;
@@ -3233,7 +3486,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           left: 0, 
           top: 0, 
           cursor: cursorStyle,
-          pointerEvents: isGameMenuOpen ? 'none' : 'auto' // Don't capture events when menu is open
+          pointerEvents: isGameMenuOpen ? 'none' : 'auto', // Don't capture events when menu is open
+          touchAction: isMobile ? 'none' : 'auto', // Prevent default touch behaviors on mobile
         }}
         onContextMenu={(e) => {
           if (placementInfo) {
@@ -3289,7 +3543,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
               width: '100%',
               height: '100%',
               backgroundColor: 'rgba(0, 0, 0, 0.2)',
-              zIndex: 999,
+              zIndex: 9997, // Below InterfaceContainer (9998) but above game canvas
               pointerEvents: 'none', // Don't block interface interactions
             }}
           />
@@ -3297,7 +3551,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             canvasWidth={canvasSize.width}
             canvasHeight={canvasSize.height}
             style={{
-              zIndex: 1000,
+              zIndex: 9998, // Just below MobileControlBar (9999) so it's clickable but stays below control bar
             }}
             onClose={() => setIsMinimapOpen(false)}
             showWeatherOverlay={minimapShowWeatherOverlay}
@@ -3317,9 +3571,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           >
             <canvas
               ref={minimapCanvasRef}
-              width={650}
-              height={650}
-              style={{ width: '100%', height: '100%' }}
+              width={isMobile ? 1 : 650} // Start with 1 on mobile, will be resized by useEffect
+              height={isMobile ? 1 : 650} // Start with 1 on mobile, will be resized by useEffect
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                display: 'block' // Remove inline spacing
+              }}
             />
           </InterfaceContainer>
         </>

@@ -122,6 +122,7 @@ pub fn set_sprinting(ctx: &ReducerContext, sprinting: bool) -> Result<(), String
             return Err("Cannot sprint while knocked out.".to_string());
         }
 
+        // Players can sprint while crouching (sprinting speed applies even when crouched)
         // Players can sprint in water (with speed penalty applied during movement calculation)
 
         // Only update if the state is actually changing

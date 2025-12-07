@@ -17,13 +17,20 @@ const GameMenuButton: React.FC<GameMenuButtonProps> = ({ onClick }) => {
                 color: '#00ffff',
                 border: '2px solid #00aaff',
                 borderRadius: '8px',
-                padding: '10px 15px',
+                padding: '10px 12px',
                 fontFamily: '"Press Start 2P", cursive',
                 fontSize: '12px',
                 cursor: 'pointer',
                 boxShadow: '0 0 15px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)',
                 transition: 'all 0.3s ease',
                 textShadow: '0 0 8px rgba(0, 255, 255, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                width: '44px',
+                height: '44px',
             }}
             onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30, 50, 100, 0.95), rgba(15, 40, 90, 1))';
@@ -37,10 +44,35 @@ const GameMenuButton: React.FC<GameMenuButtonProps> = ({ onClick }) => {
                 e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)';
                 e.currentTarget.style.textShadow = '0 0 8px rgba(0, 255, 255, 0.8)';
             }}
+            aria-label="Open game menu"
         >
-            Menu
+            {/* Hamburger icon - three horizontal lines */}
+            <span style={{
+                display: 'block',
+                width: '18px',
+                height: '2px',
+                backgroundColor: '#00ffff',
+                borderRadius: '1px',
+                boxShadow: '0 0 4px rgba(0, 255, 255, 0.8)',
+            }} />
+            <span style={{
+                display: 'block',
+                width: '18px',
+                height: '2px',
+                backgroundColor: '#00ffff',
+                borderRadius: '1px',
+                boxShadow: '0 0 4px rgba(0, 255, 255, 0.8)',
+            }} />
+            <span style={{
+                display: 'block',
+                width: '18px',
+                height: '2px',
+                backgroundColor: '#00ffff',
+                borderRadius: '1px',
+                boxShadow: '0 0 4px rgba(0, 255, 255, 0.8)',
+            }} />
         </button>
     );
 };
 
-export default GameMenuButton; 
+export default GameMenuButton;

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType } from '../generated';
 import styles from './PlantedSeedTooltip.module.css';
 import { calculateChunkIndex } from '../utils/chunkUtils';
+import { RESOURCE_IMAGE_SOURCES } from '../utils/renderers/resourceImageConfigs';
 
 interface PlantedSeedTooltipProps {
   seed: PlantedSeed;
@@ -266,6 +267,18 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
   
+  // Get plant image source from PlantType
+  const getPlantImageSource = (plantType: PlantType): string | null => {
+    const plantTypeTag = plantType.tag;
+    // Check if this plant type exists in RESOURCE_IMAGE_SOURCES
+    if (plantTypeTag in RESOURCE_IMAGE_SOURCES) {
+      return RESOURCE_IMAGE_SOURCES[plantTypeTag as keyof typeof RESOURCE_IMAGE_SOURCES];
+    }
+    return null;
+  };
+  
+  const plantImageSource = getPlantImageSource(seed.plantType);
+  
   // Determine growth stage for visual indicator (must match CSS class names)
   const getGrowthStage = () => {
     if (growthPercent >= 100) return 'mature';
@@ -287,7 +300,15 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     <div className={styles.tooltipContainer} style={tooltipStyle}>
       {/* Header with plant type */}
       <div className={`${styles.header} ${styles[growthStage]}`}>
-        <span className={styles.plantIcon}>🌱</span>
+        {plantImageSource ? (
+          <img 
+            src={plantImageSource} 
+            alt={plantTypeName}
+            className={styles.plantIcon}
+          />
+        ) : (
+          <span className={styles.plantIcon}>🌱</span>
+        )}
         <span className={styles.plantName}>{plantTypeName}</span>
       </div>
       

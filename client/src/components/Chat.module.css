@@ -464,14 +464,15 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .chatContainer {
-    width: 320px;
-    bottom: 10px;
+    width: calc(100vw - 20px);
+    max-width: 380px;
+    bottom: 100px; /* Move up to make room for mobile control bar */
     left: 10px;
-    max-height: 200px;
+    max-height: calc(100vh - 200px); /* Limit height on mobile */
   }
   
   .messageHistory {
-    max-height: 120px;
+    max-height: 150px;
     padding: 6px 10px;
   }
   
@@ -493,6 +494,43 @@
   .timestamp {
     font-size: 7px; /* Increased from 4px to maintain readability */
   }
+
+  /* Minimized SOVA button - move up on mobile */
+  .sovaButtonMinimized {
+    bottom: 100px;
+    width: 60px;
+    height: 60px;
+  }
+  
+  .sovaIcon {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* Mobile-specific chat styling when controlled by MobileControlBar */
+.mobileChat {
+  /* Position above the mobile control bar */
+  bottom: 100px;
+  left: 10px;
+  right: 10px;
+  width: auto;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 200px);
+  z-index: 9998; /* Below MobileControlBar's 9999 */
+}
+
+.mobileChat .messageHistory {
+  max-height: calc(100vh - 320px);
+}
+
+.mobileChat .tabContainer {
+  padding: 8px 10px;
+}
+
+.mobileChat .tab {
+  padding: 8px 12px;
+  font-size: 10px;
 }
 
 /* Tab Navigation */

@@ -1195,6 +1195,134 @@
   text-shadow: none;
 }
 
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+@media (max-width: 768px) {
+  .inventoryPanel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 110px; /* Increased to 110px to ensure no overlap with mobile control bar (height ~80px + 20px padding + 10px margin) */
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    transform: none;
+    padding: 10px;
+    padding-top: 50px;
+    padding-bottom: 20px; /* Extra padding at bottom for scroll content */
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    border-radius: 0;
+    z-index: 9998; /* Just below mobile control bar (9999) */
+  }
+
+  .closeButton {
+    top: 8px;
+    right: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    z-index: 1010;
+  }
+
+  .leftPane,
+  .middlePane,
+  .rightPane {
+    flex-basis: auto;
+    width: 100%;
+    min-height: auto;
+  }
+
+  .leftPane {
+    order: 2; /* Equipment below inventory on mobile */
+    padding-bottom: 10px;
+  }
+
+  .middlePane {
+    order: 1; /* Inventory first on mobile */
+  }
+
+  .rightPane {
+    order: 3; /* Crafting/containers last */
+    min-height: 300px;
+  }
+
+  .sectionTitle {
+    font-size: 0.9em;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* Smaller slot sizes on mobile */
+  .slot {
+    width: 48px;
+    height: 48px;
+  }
+
+  .inventoryGrid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+    max-width: 100%;
+    justify-content: center;
+  }
+
+  .equipmentGrid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+  }
+
+  .slotLabel {
+    font-size: 0.6rem;
+    margin-top: 2px;
+  }
+
+  .craftableItemsSection {
+    height: 180px;
+    margin-bottom: 10px;
+  }
+
+  .craftingQueueSection {
+    height: 150px;
+  }
+
+  .craftableItemsGrid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    max-width: 100%;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 400px) {
+  .inventoryPanel {
+    padding: 8px;
+    padding-top: 45px;
+  }
+
+  .slot {
+    width: 42px;
+    height: 42px;
+  }
+
+  .inventoryGrid,
+  .equipmentGrid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+  }
+
+  .craftableItemsGrid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+  }
+
+  .sectionTitle {
+    font-size: 0.8em;
+  }
+}
+
 /* Styles for Crafting Search Bar */
 .craftingSearchBarContainer {
   margin-bottom: 10px; /* Space below the search bar */

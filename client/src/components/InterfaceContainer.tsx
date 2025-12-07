@@ -348,17 +348,28 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     };
   }, []);
 
-  // Click outside to close
+  // Click outside to close (but exclude MobileControlBar buttons)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      
+      // Don't close if clicking on MobileControlBar or its buttons
+      const mobileControlBar = (target as Element).closest('[data-mobile-control-bar]');
+      if (mobileControlBar) {
+        return; // Don't close when clicking mobile control bar buttons
+      }
+      
+      if (containerRef.current && !containerRef.current.contains(target)) {
         onClose();
       }
     };
 
+    // Support both mouse and touch events for mobile compatibility
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [onClose]);
 
@@ -411,10 +422,16 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     e.preventDefault(); // Safe to call preventDefault on context menu events
   };
 
+  // Detect mobile screen size
+  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   // Base content container style to maintain consistent dimensions
+  // On mobile, use full available space; on desktop, use fixed minimap dimensions
   const contentContainerStyle: React.CSSProperties = {
-    width: `${MINIMAP_DIMENSIONS.width}px`,
-    height: `${MINIMAP_DIMENSIONS.height}px`,
+    width: isMobileScreen ? '100%' : `${MINIMAP_DIMENSIONS.width}px`,
+    height: isMobileScreen ? '100%' : `${MINIMAP_DIMENSIONS.height}px`,
+    maxWidth: '100%',
+    maxHeight: '100%',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',

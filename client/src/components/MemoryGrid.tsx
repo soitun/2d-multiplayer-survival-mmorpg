@@ -380,7 +380,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     return connections;
   }, [updatedNodes, panOffset.x, panOffset.y, purchasedNodes, centerX, centerY]);
 
-  // Handle pan start
+  // Handle pan start (mouse)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0) { // Left mouse button
       setIsPanning(true);
@@ -392,7 +392,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     }
   }, []);
 
-  // Handle pan move
+  // Handle pan move (mouse)
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
       const deltaX = e.clientX - lastPanPoint.x;
@@ -412,10 +412,45 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     }
   }, [isPanning, lastPanPoint]);
 
-  // Handle pan end
+  // Handle pan end (mouse)
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
     // Don't reset hasPanned here - let the click handler use it
+  }, []);
+
+  // Touch event handlers for mobile panning
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsPanning(true);
+      setHasPanned(false);
+      setLastPanPoint({ x: touch.clientX, y: touch.clientY });
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (isPanning && e.touches.length === 1) {
+      e.preventDefault(); // Prevent page scroll while panning
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - lastPanPoint.x;
+      const deltaY = touch.clientY - lastPanPoint.y;
+      
+      // Track if we actually moved
+      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        setHasPanned(true);
+      }
+      
+      setPanOffset(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      
+      setLastPanPoint({ x: touch.clientX, y: touch.clientY });
+    }
+  }, [isPanning, lastPanPoint]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsPanning(false);
   }, []);
 
   // Add global mouse up listener
@@ -424,8 +459,15 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
       setIsPanning(false);
       // Don't reset hasPanned here either
     };
+    const handleGlobalTouchEnd = () => {
+      setIsPanning(false);
+    };
     document.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('touchend', handleGlobalTouchEnd);
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+    };
   }, []);
 
   // Reset view to center
@@ -860,10 +902,13 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         ref={svgRef}
         width={gridWidth}
         height={gridHeight}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onClick={handleBackgroundClick}
         onContextMenu={(e) => e.preventDefault()} // Prevent context menu on middle click
       >
@@ -924,7 +969,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           fontFamily: 'monospace'
         }}
       >
-        Mouse: Pan • Middle Click: Reset • Click: Select/Purchase
+        Drag: Pan • Tap: Select • Double-tap: Purchase
       </div>
     </div>
   );

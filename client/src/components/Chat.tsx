@@ -24,6 +24,9 @@ interface ChatProps {
   itemDefinitions?: Map<string, any>;
   activeEquipments?: Map<string, any>;
   inventoryItems?: Map<string, any>;
+  // Mobile support - when true, chat visibility is controlled externally
+  isMobile?: boolean;
+  isMobileChatOpen?: boolean; // Controls visibility on mobile instead of internal isMinimized
 }
 
 type ChatTab = 'global' | 'sova';
@@ -45,7 +48,7 @@ const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean
   </div>
 ));
 
-const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems }) => {
+const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false }) => {
   // console.log("[Chat Component Render] Props - Connection:", !!connection, "LocalPlayerIdentity:", localPlayerIdentity);
   const [inputValue, setInputValue] = useState('');
   const [privateMessages, setPrivateMessages] = useState<Map<string, SpacetimeDBPrivateMessage>>(new Map());
@@ -550,7 +553,15 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     };
   }, [handleGlobalKeyDown]);
 
-  // Minimized view - just a chat icon
+  // Mobile mode: visibility controlled by parent via isMobileChatOpen
+  if (isMobile) {
+    // On mobile, if chat is not open, don't render anything (handled by MobileControlBar)
+    if (!isMobileChatOpen) {
+      return null;
+    }
+    // On mobile when open, always show full chat (skip minimized state)
+  } else {
+    // Desktop: Minimized view - just a chat icon
   if (isMinimized) {
     return (
       <div 
@@ -565,6 +576,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         />
       </div>
     );
+    }
   }
 
   // Create class for container with slide animation states
@@ -573,16 +585,18 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
 
   return (
     <div 
-      className={`${containerClass} ${animationClass}`} 
+      className={`${containerClass} ${animationClass} ${isMobile ? styles.mobileChat : ''}`} 
       data-chat-container="true"
     >
-      {/* Minimize button */}
+      {/* Minimize button - only show on desktop */}
+      {!isMobile && (
       <div 
         className={styles.minimizeButton}
         onClick={toggleMinimized}
       >
         −
       </div>
+      )}
 
       {/* Tab Navigation */}
       <div className={styles.tabContainer}>

@@ -594,15 +594,17 @@ export function drawMinimapOntoCanvas({
   showWeatherOverlay = false, // Default to false (hidden by default)
   chunkWeatherData, // Weather data map
 }: MinimapProps) {
-  const minimapWidth = MINIMAP_WIDTH;
-  const minimapHeight = MINIMAP_HEIGHT;
+  // On mobile (smaller canvas), use full canvas dimensions; on desktop, use fixed dimensions
+  const isMobile = canvasWidth <= 768 || canvasHeight <= 768;
+  const minimapWidth = isMobile ? canvasWidth : MINIMAP_WIDTH;
+  const minimapHeight = isMobile ? canvasHeight : MINIMAP_HEIGHT;
   
   // Log the received localPlayerDeathMarker prop at the beginning of the function
   // console.log('[Minimap.tsx] drawMinimapOntoCanvas called. Received localPlayerDeathMarker:', JSON.stringify(localPlayerDeathMarker, (key, value) => typeof value === 'bigint' ? value.toString() : value));
 
-  // Calculate top-left corner for centering the minimap UI element
-  const minimapX = (canvasWidth - minimapWidth) / 2;
-  const minimapY = (canvasHeight - minimapHeight) / 2;
+  // On mobile, fill the canvas (start at 0,0); on desktop, center the minimap
+  const minimapX = isMobile ? 0 : (canvasWidth - minimapWidth) / 2;
+  const minimapY = isMobile ? 0 : (canvasHeight - minimapHeight) / 2;
   
   // DEBUG: Log drawing coordinate calculation values (commented out for performance)
   // console.log(`[Minimap] Drawing coordinate calculation:

@@ -49,12 +49,10 @@ export function useMinimapInteraction({
     const worldPixelWidth = gameConfig.worldWidth * gameConfig.tileSize;
     const worldPixelHeight = gameConfig.worldHeight * gameConfig.tileSize;
     
-    // Calculate minimap dimensions the EXACT same way as Minimap.tsx
-    const worldAspectRatio = worldPixelHeight / worldPixelWidth;
-    const BASE_MINIMAP_WIDTH = 600; // Same as Minimap.tsx
-    const calculatedMinimapHeight = BASE_MINIMAP_WIDTH * worldAspectRatio;
-    const MINIMAP_WIDTH = BASE_MINIMAP_WIDTH;
-    const MINIMAP_HEIGHT = Math.round(calculatedMinimapHeight);
+    // On mobile, use full canvas dimensions; on desktop, use fixed dimensions
+    const isMobile = canvasSize.width <= 768 || canvasSize.height <= 768;
+    const MINIMAP_WIDTH = isMobile ? canvasSize.width : 600;
+    const MINIMAP_HEIGHT = isMobile ? canvasSize.height : Math.round(600 * (worldPixelHeight / worldPixelWidth));
 
     // --- Base Scale Calculation ---
     const baseScale = useMemo(() => {
@@ -202,8 +200,9 @@ export function useMinimapInteraction({
         const mouseYLogical = mouseYCanvas * scaleY;
 
         // Use the EXACT same minimap positioning as the drawing code (in logical space)
-        const minimapX = (logicalWidth - MINIMAP_WIDTH) / 2;  // CENTERED - same as drawing
-        const minimapY = (logicalHeight - MINIMAP_HEIGHT) / 2; // CENTERED - same as drawing
+        // On mobile, fill canvas (0,0); on desktop, center
+        const minimapX = isMobile ? 0 : (logicalWidth - MINIMAP_WIDTH) / 2;
+        const minimapY = isMobile ? 0 : (logicalHeight - MINIMAP_HEIGHT) / 2;
 
         // Determine the CURRENT view center (player + offset, or world center)
         let currentViewCenterXWorld: number;
@@ -303,8 +302,9 @@ export function useMinimapInteraction({
         const clickYLogical = clickYCanvas * scaleY;
 
         // Use the EXACT same minimap positioning as the drawing code (in logical space)
-        const minimapX = (logicalWidth - MINIMAP_WIDTH) / 2;  // CENTERED - same as drawing
-        const minimapY = (logicalHeight - MINIMAP_HEIGHT) / 2; // CENTERED - same as drawing
+        // On mobile, fill canvas (0,0); on desktop, center
+        const minimapX = isMobile ? 0 : (logicalWidth - MINIMAP_WIDTH) / 2;
+        const minimapY = isMobile ? 0 : (logicalHeight - MINIMAP_HEIGHT) / 2;
 
         let worldX: number | undefined; // Initialize as undefined
         let worldY: number | undefined;
@@ -380,6 +380,117 @@ export function useMinimapInteraction({
         minimapZoom, localPlayer, baseScale, viewCenterOffset.x, viewCenterOffset.y, 
         worldPixelWidth, worldPixelHeight 
     ]);
+
+    // Handle Touch Start for Panning on Mobile
+    const handleTouchStart = useCallback((event: TouchEvent) => {
+        if (!canvasRef.current || !isMinimapOpen) return;
+        
+        // Only handle single touch for panning
+        if (event.touches.length !== 1) return;
+        
+        const touch = event.touches[0];
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touchX = touch.clientX - rect.left;
+        const touchY = touch.clientY - rect.top;
+        
+        // Check if touch is over minimap
+        const isOver = touchX >= 0 && touchX <= rect.width && touchY >= 0 && touchY <= rect.height;
+        
+        if (isOver && minimapZoom > MINIMAP_MIN_ZOOM) {
+            // Check if touching interactive controls
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const isInteractiveControl = target && (
+                target.tagName === 'INPUT' || 
+                target.tagName === 'LABEL' || 
+                target.closest('label') !== null ||
+                target.closest('button') !== null
+            );
+            
+            if (!isInteractiveControl) {
+                event.preventDefault(); // Prevent scrolling
+                setIsPanning(true);
+                setPanStartCoords({ screenX: touch.screenX, screenY: touch.screenY });
+            }
+        }
+    }, [isMinimapOpen, minimapZoom, canvasRef]);
+
+    // Handle Touch Move for Panning on Mobile
+    const handleTouchMove = useCallback((event: TouchEvent) => {
+        if (!isPanning || !panStartCoords || event.touches.length !== 1) return;
+        
+        const touch = event.touches[0];
+        event.preventDefault(); // Prevent scrolling while panning
+        
+        const currentScale = baseScale * minimapZoom;
+        if (currentScale <= 0) return;
+
+        const deltaXScreen = touch.screenX - panStartCoords.screenX;
+        const deltaYScreen = touch.screenY - panStartCoords.screenY;
+
+        // Convert screen delta to world delta
+        const deltaXWorld = deltaXScreen / currentScale;
+        const deltaYWorld = deltaYScreen / currentScale;
+
+        // Calculate potential new offset
+        const potentialNewOffsetX = viewCenterOffset.x - deltaXWorld;
+        const potentialNewOffsetY = viewCenterOffset.y - deltaYWorld;
+
+        // --- Panning Limits (same as mouse) --- 
+        let targetDefaultCenterXWorld = worldPixelWidth / 2;
+        let targetDefaultCenterYWorld = worldPixelHeight / 2;
+        if (localPlayer && minimapZoom > MINIMAP_MIN_ZOOM) { 
+            targetDefaultCenterXWorld = localPlayer.positionX;
+            targetDefaultCenterYWorld = localPlayer.positionY;
+        }
+
+        const potentialViewCenterX = targetDefaultCenterXWorld + potentialNewOffsetX;
+        const potentialViewCenterY = targetDefaultCenterYWorld + potentialNewOffsetY;
+
+        const viewWidthWorld = MINIMAP_WIDTH / currentScale;
+        const viewHeightWorld = MINIMAP_HEIGHT / currentScale;
+        
+        const potentialViewMinX = potentialViewCenterX - viewWidthWorld / 2;
+        const potentialViewMaxX = potentialViewCenterX + viewWidthWorld / 2;
+        const potentialViewMinY = potentialViewCenterY - viewHeightWorld / 2;
+        const potentialViewMaxY = potentialViewCenterY + viewHeightWorld / 2;
+
+        // Clamp the offset
+        let clampedNewOffsetX = potentialNewOffsetX;
+        let clampedNewOffsetY = potentialNewOffsetY;
+
+        const minOverlap = 50;
+
+        if (potentialViewMaxX < minOverlap) {
+            const requiredCenterShiftX = minOverlap - potentialViewMaxX;
+            clampedNewOffsetX += requiredCenterShiftX;
+        } else if (potentialViewMinX > worldPixelWidth - minOverlap) {
+            const requiredCenterShiftX = (worldPixelWidth - minOverlap) - potentialViewMinX;
+            clampedNewOffsetX += requiredCenterShiftX;
+        }
+
+        if (potentialViewMaxY < minOverlap) {
+            const requiredCenterShiftY = minOverlap - potentialViewMaxY;
+            clampedNewOffsetY += requiredCenterShiftY;
+        } else if (potentialViewMinY > worldPixelHeight - minOverlap) {
+            const requiredCenterShiftY = (worldPixelHeight - minOverlap) - potentialViewMinY;
+            clampedNewOffsetY += requiredCenterShiftY;
+        }
+
+        setViewCenterOffset({ 
+            x: clampedNewOffsetX,
+            y: clampedNewOffsetY,
+        });
+
+        setPanStartCoords({ screenX: touch.screenX, screenY: touch.screenY });
+    }, [isPanning, panStartCoords, baseScale, minimapZoom, viewCenterOffset, localPlayer, worldPixelWidth, worldPixelHeight]);
+
+    // Handle Touch End for Panning on Mobile
+    const handleTouchEnd = useCallback(() => {
+        if (isPanning) {
+            setIsPanning(false);
+            setPanStartCoords(null);
+        }
+    }, [isPanning]);
 
     // Handle Mouse Down for Panning and UI interactions
     const handleMouseDown = useCallback((event: MouseEvent) => {
@@ -487,6 +598,12 @@ export function useMinimapInteraction({
         canvas.addEventListener('mouseup', handleMouseUp); // Add canvas mouseup
         canvas.addEventListener('mouseleave', handleMouseLeave);
         
+        // Touch events for mobile panning
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd);
+        canvas.addEventListener('touchcancel', handleTouchEnd);
+        
         // Add mouseup listener to window to catch panning ending outside canvas
         window.addEventListener('mouseup', handleMouseUp);
         // Add a more aggressive global mouseup handler with capture
@@ -501,11 +618,18 @@ export function useMinimapInteraction({
             canvas.removeEventListener('mousedown', handleMouseDown);
             canvas.removeEventListener('mouseup', handleMouseUp); // Remove canvas mouseup
             canvas.removeEventListener('mouseleave', handleMouseLeave);
+            
+            // Remove touch event listeners
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+            canvas.removeEventListener('touchcancel', handleTouchEnd);
+            
             window.removeEventListener('mouseup', handleMouseUp);
             document.removeEventListener('mouseup', handleGlobalMouseUp, true);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [canvasRef, handleMouseMove, handleWheel, handleContextMenu, handleMouseDown, handleMouseUp, handleMouseLeave, handleVisibilityChange, handleGlobalMouseUp]); // Add global handler
+    }, [canvasRef, handleMouseMove, handleWheel, handleContextMenu, handleMouseDown, handleMouseUp, handleMouseLeave, handleVisibilityChange, handleGlobalMouseUp, handleTouchStart, handleTouchMove, handleTouchEnd]); // Add touch handlers
 
     // Effect to manage cursor style
     useEffect(() => {
