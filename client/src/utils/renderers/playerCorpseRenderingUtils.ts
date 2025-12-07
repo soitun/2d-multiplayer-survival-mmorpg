@@ -88,6 +88,7 @@ export function renderPlayerCorpse({
     isOnline: false,
     isTorchLit: false,
     isFlashlightOn: false,
+    flashlightAimAngle: 0, // Corpses don't have flashlight aim
     lastRespawnTime: defaultTimestamp,
     lastConsumedAt: defaultTimestamp,
     isCrouching: false,
