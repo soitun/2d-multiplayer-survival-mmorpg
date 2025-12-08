@@ -241,6 +241,8 @@ import { MoveItemToLantern } from "./move_item_to_lantern_reducer.ts";
 export { MoveItemToLantern };
 import { MoveItemToRainCollector } from "./move_item_to_rain_collector_reducer.ts";
 export { MoveItemToRainCollector };
+import { MoveItemToRefrigerator } from "./move_item_to_refrigerator_reducer.ts";
+export { MoveItemToRefrigerator };
 import { MoveItemToStash } from "./move_item_to_stash_reducer.ts";
 export { MoveItemToStash };
 import { MoveItemWithinBox } from "./move_item_within_box_reducer.ts";
@@ -389,6 +391,8 @@ import { QuickMoveToHearth } from "./quick_move_to_hearth_reducer.ts";
 export { QuickMoveToHearth };
 import { QuickMoveToLantern } from "./quick_move_to_lantern_reducer.ts";
 export { QuickMoveToLantern };
+import { QuickMoveToRefrigerator } from "./quick_move_to_refrigerator_reducer.ts";
+export { QuickMoveToRefrigerator };
 import { QuickMoveToStash } from "./quick_move_to_stash_reducer.ts";
 export { QuickMoveToStash };
 import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reducer.ts";
@@ -499,6 +503,8 @@ import { SplitStackIntoHearth } from "./split_stack_into_hearth_reducer.ts";
 export { SplitStackIntoHearth };
 import { SplitStackIntoLantern } from "./split_stack_into_lantern_reducer.ts";
 export { SplitStackIntoLantern };
+import { SplitStackIntoRefrigerator } from "./split_stack_into_refrigerator_reducer.ts";
+export { SplitStackIntoRefrigerator };
 import { SplitStackIntoStash } from "./split_stack_into_stash_reducer.ts";
 export { SplitStackIntoStash };
 import { SplitStackWithinBox } from "./split_stack_within_box_reducer.ts";
@@ -2535,6 +2541,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_to_rain_collector",
       argsType: MoveItemToRainCollector.getTypeScriptAlgebraicType(),
     },
+    move_item_to_refrigerator: {
+      reducerName: "move_item_to_refrigerator",
+      argsType: MoveItemToRefrigerator.getTypeScriptAlgebraicType(),
+    },
     move_item_to_stash: {
       reducerName: "move_item_to_stash",
       argsType: MoveItemToStash.getTypeScriptAlgebraicType(),
@@ -2831,6 +2841,10 @@ const REMOTE_MODULE = {
       reducerName: "quick_move_to_lantern",
       argsType: QuickMoveToLantern.getTypeScriptAlgebraicType(),
     },
+    quick_move_to_refrigerator: {
+      reducerName: "quick_move_to_refrigerator",
+      argsType: QuickMoveToRefrigerator.getTypeScriptAlgebraicType(),
+    },
     quick_move_to_stash: {
       reducerName: "quick_move_to_stash",
       argsType: QuickMoveToStash.getTypeScriptAlgebraicType(),
@@ -3050,6 +3064,10 @@ const REMOTE_MODULE = {
     split_stack_into_lantern: {
       reducerName: "split_stack_into_lantern",
       argsType: SplitStackIntoLantern.getTypeScriptAlgebraicType(),
+    },
+    split_stack_into_refrigerator: {
+      reducerName: "split_stack_into_refrigerator",
+      argsType: SplitStackIntoRefrigerator.getTypeScriptAlgebraicType(),
     },
     split_stack_into_stash: {
       reducerName: "split_stack_into_stash",
@@ -3342,6 +3360,7 @@ export type Reducer = never
 | { name: "MoveItemToInventory", args: MoveItemToInventory }
 | { name: "MoveItemToLantern", args: MoveItemToLantern }
 | { name: "MoveItemToRainCollector", args: MoveItemToRainCollector }
+| { name: "MoveItemToRefrigerator", args: MoveItemToRefrigerator }
 | { name: "MoveItemToStash", args: MoveItemToStash }
 | { name: "MoveItemWithinBox", args: MoveItemWithinBox }
 | { name: "MoveItemWithinBrothPot", args: MoveItemWithinBrothPot }
@@ -3416,6 +3435,7 @@ export type Reducer = never
 | { name: "QuickMoveToFurnace", args: QuickMoveToFurnace }
 | { name: "QuickMoveToHearth", args: QuickMoveToHearth }
 | { name: "QuickMoveToLantern", args: QuickMoveToLantern }
+| { name: "QuickMoveToRefrigerator", args: QuickMoveToRefrigerator }
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
@@ -3471,6 +3491,7 @@ export type Reducer = never
 | { name: "SplitStackIntoFurnace", args: SplitStackIntoFurnace }
 | { name: "SplitStackIntoHearth", args: SplitStackIntoHearth }
 | { name: "SplitStackIntoLantern", args: SplitStackIntoLantern }
+| { name: "SplitStackIntoRefrigerator", args: SplitStackIntoRefrigerator }
 | { name: "SplitStackIntoStash", args: SplitStackIntoStash }
 | { name: "SplitStackWithinBox", args: SplitStackWithinBox }
 | { name: "SplitStackWithinBrothPot", args: SplitStackWithinBrothPot }
@@ -5111,6 +5132,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_rain_collector", callback);
   }
 
+  moveItemToRefrigerator(boxId: number, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { boxId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToRefrigerator.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_refrigerator", __argsBuffer, this.setCallReducerFlags.moveItemToRefrigeratorFlags);
+  }
+
+  onMoveItemToRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_refrigerator", callback);
+  }
+
+  removeOnMoveItemToRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_refrigerator", callback);
+  }
+
   moveItemToStash(stashId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { stashId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -6295,6 +6332,22 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_to_lantern", callback);
   }
 
+  quickMoveToRefrigerator(boxId: number, itemInstanceId: bigint) {
+    const __args = { boxId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToRefrigerator.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_refrigerator", __argsBuffer, this.setCallReducerFlags.quickMoveToRefrigeratorFlags);
+  }
+
+  onQuickMoveToRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_refrigerator", callback);
+  }
+
+  removeOnQuickMoveToRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_refrigerator", callback);
+  }
+
   quickMoveToStash(stashId: number, itemInstanceId: bigint) {
     const __args = { stashId, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -7137,6 +7190,22 @@ export class RemoteReducers {
 
   removeOnSplitStackIntoLantern(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetLanternId: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_into_lantern", callback);
+  }
+
+  splitStackIntoRefrigerator(boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
+    const __args = { boxId, targetSlotIndex, sourceItemInstanceId, quantityToSplit };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoRefrigerator.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_refrigerator", __argsBuffer, this.setCallReducerFlags.splitStackIntoRefrigeratorFlags);
+  }
+
+  onSplitStackIntoRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.onReducer("split_stack_into_refrigerator", callback);
+  }
+
+  removeOnSplitStackIntoRefrigerator(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.offReducer("split_stack_into_refrigerator", callback);
   }
 
   splitStackIntoStash(stashId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
@@ -8249,6 +8318,11 @@ export class SetReducerFlags {
     this.moveItemToRainCollectorFlags = flags;
   }
 
+  moveItemToRefrigeratorFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToRefrigerator(flags: __CallReducerFlags) {
+    this.moveItemToRefrigeratorFlags = flags;
+  }
+
   moveItemToStashFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToStash(flags: __CallReducerFlags) {
     this.moveItemToStashFlags = flags;
@@ -8619,6 +8693,11 @@ export class SetReducerFlags {
     this.quickMoveToLanternFlags = flags;
   }
 
+  quickMoveToRefrigeratorFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToRefrigerator(flags: __CallReducerFlags) {
+    this.quickMoveToRefrigeratorFlags = flags;
+  }
+
   quickMoveToStashFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToStash(flags: __CallReducerFlags) {
     this.quickMoveToStashFlags = flags;
@@ -8892,6 +8971,11 @@ export class SetReducerFlags {
   splitStackIntoLanternFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoLantern(flags: __CallReducerFlags) {
     this.splitStackIntoLanternFlags = flags;
+  }
+
+  splitStackIntoRefrigeratorFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoRefrigerator(flags: __CallReducerFlags) {
+    this.splitStackIntoRefrigeratorFlags = flags;
   }
 
   splitStackIntoStashFlags: __CallReducerFlags = 'FullUpdate';
