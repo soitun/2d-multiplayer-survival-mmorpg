@@ -13,6 +13,7 @@ use crate::items::{
 };
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait; // Needed for clearing equip slot
 use crate::models::{ItemLocation, EquipmentSlotType}; // <<< ADDED IMPORT
+use crate::durability::{is_food_item, merge_food_durability}; // For food durability merging
 
 // Placeholder for future content 
 
@@ -173,6 +174,13 @@ pub fn move_item_to_inventory(ctx: &ReducerContext, item_instance_id: u64, targe
             Ok((qty_transfer, source_new_qty, target_new_qty, delete_source)) => {
                 log::info!("[MoveInv Merge] Merging {} from item {} onto {} in inv slot {}. Target new qty: {}. Delete source: {}", 
                          qty_transfer, item_instance_id, target_item.instance_id, target_inventory_slot, target_new_qty, delete_source);
+                
+                // If merging food items, calculate weighted average durability
+                if is_food_item(&item_def_to_move) {
+                    let target_original_qty = target_item.quantity;
+                    merge_food_durability(&mut target_item, &item_to_move, qty_transfer, target_original_qty);
+                }
+                
                 target_item.quantity = target_new_qty;
                 inventory_items.instance_id().update(target_item.clone());
                 if delete_source {
@@ -314,6 +322,13 @@ pub fn move_item_to_hotbar(ctx: &ReducerContext, item_instance_id: u64, target_h
             Ok((qty_transfer, source_new_qty, target_new_qty, delete_source)) => {
                 log::info!("[MoveHotbar Merge] Merging {} from item {} onto {} in hotbar slot {}. Target new qty: {}. Delete source: {}", 
                          qty_transfer, item_instance_id, target_item.instance_id, target_hotbar_slot, target_new_qty, delete_source);
+                
+                // If merging food items, calculate weighted average durability
+                if is_food_item(&item_def_to_move) {
+                    let target_original_qty = target_item.quantity;
+                    merge_food_durability(&mut target_item, &item_to_move, qty_transfer, target_original_qty);
+                }
+                
                 target_item.quantity = target_new_qty;
                 inventory_items.instance_id().update(target_item.clone());
                 if delete_source {
@@ -461,6 +476,13 @@ pub fn split_stack(
             }
 
             // Perform the merge
+            let target_original_qty = item_that_was_in_target_slot.quantity;
+            
+            // If merging food items, calculate weighted average durability
+            if is_food_item(&item_def) {
+                merge_food_durability(&mut item_that_was_in_target_slot, &source_item_being_split, quantity_to_split, target_original_qty);
+            }
+            
             source_item_being_split.quantity -= quantity_to_split;
             item_that_was_in_target_slot.quantity += quantity_to_split;
 

@@ -123,8 +123,10 @@ interface UseInteractionFinderResult {
     closestInteractableAlkStationId: number | null; // ADDED: ALK station support
 }
 
-// Constants for box slots (should match server if possible, or keep fixed)
+// Constants for box slots (should match server)
 const NUM_BOX_SLOTS = 18;
+const NUM_LARGE_BOX_SLOTS = 48;
+const BOX_TYPE_LARGE = 1;
 
 const INTERACTION_CHECK_INTERVAL = 16; // ms - Reduced for immediate responsiveness (was 100ms)
 
@@ -504,9 +506,10 @@ export function useInteractionFinder({
                         )) {
                             closestBoxDistSq = distSq;
                             closestBoxId = box.id;
-                            // Check if this closest box is empty
+                            // Check if this closest box is empty (slot count depends on boxType)
                             let isEmpty = true;
-                            for (let i = 0; i < NUM_BOX_SLOTS; i++) {
+                            const slotCount = box.boxType === BOX_TYPE_LARGE ? NUM_LARGE_BOX_SLOTS : NUM_BOX_SLOTS;
+                            for (let i = 0; i < slotCount; i++) {
                                 const slotKey = `slotInstanceId${i}` as keyof SpacetimeDBWoodenStorageBox;
                                 if (box[slotKey] !== null && box[slotKey] !== undefined) {
                                     isEmpty = false;

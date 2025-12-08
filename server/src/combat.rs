@@ -1503,6 +1503,14 @@ pub fn damage_player(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
     }
 
+    // <<< SAFE ZONE CHECK - Players in safe zones are immune to player weapon damage >>>
+    if crate::active_effects::player_has_safe_zone_effect(ctx, target_id) {
+        log::info!("Player {:?} attack blocked - Target player {:?} is in a safe zone", 
+            attacker_id, target_id);
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
+    }
+    // <<< END SAFE ZONE CHECK >>>
+
     let mut final_damage = damage; // Start with the damage passed in (already calculated from weapon stats)
 
     // <<< APPLY LOW HEALTH DAMAGE BONUS (WOLF FUR ARMOR) >>>

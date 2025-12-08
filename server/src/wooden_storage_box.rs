@@ -16,11 +16,22 @@ pub(crate) const BOX_COLLISION_Y_OFFSET: f32 = 52.0; // Match the placement offs
 pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS);
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
 pub const NUM_BOX_SLOTS: usize = 18;
+pub const NUM_LARGE_BOX_SLOTS: usize = 48;
+pub const NUM_REFRIGERATOR_SLOTS: usize = 30;
 pub(crate) const BOX_BOX_COLLISION_DISTANCE_SQUARED: f32 = (BOX_COLLISION_RADIUS * 2.0) * (BOX_COLLISION_RADIUS * 2.0);
 
 // --- Health constants ---
 pub const WOODEN_STORAGE_BOX_INITIAL_HEALTH: f32 = 750.0;
 pub const WOODEN_STORAGE_BOX_MAX_HEALTH: f32 = 750.0;
+pub const LARGE_WOODEN_STORAGE_BOX_INITIAL_HEALTH: f32 = 1200.0;
+pub const LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH: f32 = 1200.0;
+pub const REFRIGERATOR_INITIAL_HEALTH: f32 = 1000.0;
+pub const REFRIGERATOR_MAX_HEALTH: f32 = 1000.0;
+
+// --- Box Types ---
+pub const BOX_TYPE_NORMAL: u8 = 0;
+pub const BOX_TYPE_LARGE: u8 = 1;
+pub const BOX_TYPE_REFRIGERATOR: u8 = 2;
 
 // --- Import Table Traits and Concrete Types ---
 // Import necessary table traits and concrete types for working with players,
@@ -38,6 +49,33 @@ use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::environment::calculate_chunk_index;
 use crate::models::{ContainerType, ItemLocation, InventoryLocationData, HotbarLocationData, DroppedLocationData, EquippedLocationData, ContainerLocationData};
 use crate::player_inventory::{find_first_empty_player_slot, move_item_to_inventory, move_item_to_hotbar, get_player_item};
+use crate::items::ItemCategory;
+use crate::durability::is_food_item;
+
+/// Checks if an item is allowed to be stored in the refrigerator
+/// Allowed items: food (hunger/thirst items), seeds, water containers
+pub fn is_item_allowed_in_refrigerator(item_def: &ItemDefinition) -> bool {
+    // Food items (items with hunger or thirst stats)
+    if is_food_item(item_def) {
+        return true;
+    }
+    
+    // Seeds (items with "Seeds" or "Seed" in name, typically Placeable category)
+    if item_def.name.contains("Seeds") || item_def.name.contains("Seed") || item_def.name == "Seed Potato" {
+        return true;
+    }
+    
+    // Water containers (identified by name)
+    if item_def.name == "Reed Water Bottle" || 
+       item_def.name == "Plastic Water Jug" ||
+       item_def.name == "Water Jug" ||
+       item_def.name == "Field Cauldron" ||
+       item_def.name == "Cerametal Field Cauldron Mk. II" {
+        return true;
+    }
+    
+    false
+}
 
 /// --- Wooden Storage Box Data Structure ---
 /// Represents a storage box in the game world with position, owner, and
@@ -55,8 +93,10 @@ pub struct WoodenStorageBox {
     pub chunk_index: u32, // <<< ADDED chunk_index
 
     pub placed_by: Identity, // Who placed this storage box
+    pub box_type: u8, // 0 = normal (18 slots), 1 = large (48 slots)
 
-    // --- Inventory Slots (0-17) --- 
+    // --- Inventory Slots (0-47) --- 
+    // Normal box uses 0-17, Large box uses 0-47
     pub slot_instance_id_0: Option<u64>,
     pub slot_def_id_0: Option<u64>,
     pub slot_instance_id_1: Option<u64>,
@@ -93,6 +133,67 @@ pub struct WoodenStorageBox {
     pub slot_def_id_16: Option<u64>,
     pub slot_instance_id_17: Option<u64>,
     pub slot_def_id_17: Option<u64>,
+    // --- Large Box Additional Slots (18-47) ---
+    pub slot_instance_id_18: Option<u64>,
+    pub slot_def_id_18: Option<u64>,
+    pub slot_instance_id_19: Option<u64>,
+    pub slot_def_id_19: Option<u64>,
+    pub slot_instance_id_20: Option<u64>,
+    pub slot_def_id_20: Option<u64>,
+    pub slot_instance_id_21: Option<u64>,
+    pub slot_def_id_21: Option<u64>,
+    pub slot_instance_id_22: Option<u64>,
+    pub slot_def_id_22: Option<u64>,
+    pub slot_instance_id_23: Option<u64>,
+    pub slot_def_id_23: Option<u64>,
+    pub slot_instance_id_24: Option<u64>,
+    pub slot_def_id_24: Option<u64>,
+    pub slot_instance_id_25: Option<u64>,
+    pub slot_def_id_25: Option<u64>,
+    pub slot_instance_id_26: Option<u64>,
+    pub slot_def_id_26: Option<u64>,
+    pub slot_instance_id_27: Option<u64>,
+    pub slot_def_id_27: Option<u64>,
+    pub slot_instance_id_28: Option<u64>,
+    pub slot_def_id_28: Option<u64>,
+    pub slot_instance_id_29: Option<u64>,
+    pub slot_def_id_29: Option<u64>,
+    pub slot_instance_id_30: Option<u64>,
+    pub slot_def_id_30: Option<u64>,
+    pub slot_instance_id_31: Option<u64>,
+    pub slot_def_id_31: Option<u64>,
+    pub slot_instance_id_32: Option<u64>,
+    pub slot_def_id_32: Option<u64>,
+    pub slot_instance_id_33: Option<u64>,
+    pub slot_def_id_33: Option<u64>,
+    pub slot_instance_id_34: Option<u64>,
+    pub slot_def_id_34: Option<u64>,
+    pub slot_instance_id_35: Option<u64>,
+    pub slot_def_id_35: Option<u64>,
+    pub slot_instance_id_36: Option<u64>,
+    pub slot_def_id_36: Option<u64>,
+    pub slot_instance_id_37: Option<u64>,
+    pub slot_def_id_37: Option<u64>,
+    pub slot_instance_id_38: Option<u64>,
+    pub slot_def_id_38: Option<u64>,
+    pub slot_instance_id_39: Option<u64>,
+    pub slot_def_id_39: Option<u64>,
+    pub slot_instance_id_40: Option<u64>,
+    pub slot_def_id_40: Option<u64>,
+    pub slot_instance_id_41: Option<u64>,
+    pub slot_def_id_41: Option<u64>,
+    pub slot_instance_id_42: Option<u64>,
+    pub slot_def_id_42: Option<u64>,
+    pub slot_instance_id_43: Option<u64>,
+    pub slot_def_id_43: Option<u64>,
+    pub slot_instance_id_44: Option<u64>,
+    pub slot_def_id_44: Option<u64>,
+    pub slot_instance_id_45: Option<u64>,
+    pub slot_def_id_45: Option<u64>,
+    pub slot_instance_id_46: Option<u64>,
+    pub slot_def_id_46: Option<u64>,
+    pub slot_instance_id_47: Option<u64>,
+    pub slot_def_id_47: Option<u64>,
     pub health: f32,
     pub max_health: f32,
     pub is_destroyed: bool,
@@ -118,12 +219,30 @@ pub fn move_item_to_box(
 ) -> Result<(), String> {
     // Get mutable box table handle
     let mut boxes = ctx.db.wooden_storage_box();
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
     // NOTE: Other tables (inventory, item_defs) are accessed within the handler via ctx
 
     // --- Basic Validations --- 
     let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
     // REMOVED: Item fetching/validation moved to handler
     // REMOVED: Target slot index validation moved to handler (using container.num_slots())
+
+    // --- Refrigerator Item Validation ---
+    // If the target is a refrigerator, validate that the item is allowed
+    if storage_box.box_type == BOX_TYPE_REFRIGERATOR {
+        let item = inventory_items.instance_id().find(item_instance_id)
+            .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+        let item_def = item_defs.id().find(item.item_def_id)
+            .ok_or_else(|| format!("Item definition {} not found", item.item_def_id))?;
+        
+        if !is_item_allowed_in_refrigerator(&item_def) {
+            return Err(format!(
+                "Cannot store '{}' in refrigerator. Only food, seeds, and water containers are allowed.", 
+                item_def.name
+            ));
+        }
+    }
 
     // --- Call GENERIC Handler --- 
     inventory_management::handle_move_to_container_slot(
@@ -383,10 +502,16 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     let item_def = item_defs.id().find(item_to_place.item_def_id)
         .ok_or_else(|| format!("Item definition {} not found for item instance {}.", item_to_place.item_def_id, item_instance_id))?;
 
-    // Check if the item is a Wooden Storage Box and is in player's inventory/hotbar
-    if item_def.name != "Wooden Storage Box" {
-        return Err("Item is not a Wooden Storage Box.".to_string());
-    }
+    // Check if the item is a Wooden Storage Box (regular or large) and is in player's inventory/hotbar
+    let box_type = if item_def.name == "Wooden Storage Box" {
+        BOX_TYPE_NORMAL
+    } else if item_def.name == "Large Wooden Storage Box" {
+        BOX_TYPE_LARGE
+    } else if item_def.name == "Refrigerator" {
+        BOX_TYPE_REFRIGERATOR
+    } else {
+        return Err("Item is not a storage container.".to_string());
+    };
 
     match &item_to_place.location { 
         ItemLocation::Inventory(data) => {
@@ -421,12 +546,21 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     // Add other collision checks as needed (e.g., with players, other entities)
 
     // 4. Create the WoodenStorageBox entity
+    // Determine health based on box type
+    let (initial_health, max_health) = match box_type {
+        BOX_TYPE_LARGE => (LARGE_WOODEN_STORAGE_BOX_INITIAL_HEALTH, LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH),
+        BOX_TYPE_REFRIGERATOR => (REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH),
+        _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
+    };
+    
     let new_box = WoodenStorageBox {
         id: 0, // Auto-incremented
         pos_x: world_x,
         pos_y: world_y + BOX_COLLISION_Y_OFFSET, // Compensate for bottom-anchoring + render offset
         chunk_index: new_chunk_index,
         placed_by: sender_id,
+        box_type,
+        // Slots 0-17 (used by both normal and large boxes)
         slot_instance_id_0: None, slot_def_id_0: None,
         slot_instance_id_1: None, slot_def_id_1: None,
         slot_instance_id_2: None, slot_def_id_2: None,
@@ -445,15 +579,51 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         slot_instance_id_15: None, slot_def_id_15: None,
         slot_instance_id_16: None, slot_def_id_16: None,
         slot_instance_id_17: None, slot_def_id_17: None,
-        health: WOODEN_STORAGE_BOX_INITIAL_HEALTH,
-        max_health: WOODEN_STORAGE_BOX_MAX_HEALTH,
+        // Slots 18-47 (only used by large boxes, but always present in table)
+        slot_instance_id_18: None, slot_def_id_18: None,
+        slot_instance_id_19: None, slot_def_id_19: None,
+        slot_instance_id_20: None, slot_def_id_20: None,
+        slot_instance_id_21: None, slot_def_id_21: None,
+        slot_instance_id_22: None, slot_def_id_22: None,
+        slot_instance_id_23: None, slot_def_id_23: None,
+        slot_instance_id_24: None, slot_def_id_24: None,
+        slot_instance_id_25: None, slot_def_id_25: None,
+        slot_instance_id_26: None, slot_def_id_26: None,
+        slot_instance_id_27: None, slot_def_id_27: None,
+        slot_instance_id_28: None, slot_def_id_28: None,
+        slot_instance_id_29: None, slot_def_id_29: None,
+        slot_instance_id_30: None, slot_def_id_30: None,
+        slot_instance_id_31: None, slot_def_id_31: None,
+        slot_instance_id_32: None, slot_def_id_32: None,
+        slot_instance_id_33: None, slot_def_id_33: None,
+        slot_instance_id_34: None, slot_def_id_34: None,
+        slot_instance_id_35: None, slot_def_id_35: None,
+        slot_instance_id_36: None, slot_def_id_36: None,
+        slot_instance_id_37: None, slot_def_id_37: None,
+        slot_instance_id_38: None, slot_def_id_38: None,
+        slot_instance_id_39: None, slot_def_id_39: None,
+        slot_instance_id_40: None, slot_def_id_40: None,
+        slot_instance_id_41: None, slot_def_id_41: None,
+        slot_instance_id_42: None, slot_def_id_42: None,
+        slot_instance_id_43: None, slot_def_id_43: None,
+        slot_instance_id_44: None, slot_def_id_44: None,
+        slot_instance_id_45: None, slot_def_id_45: None,
+        slot_instance_id_46: None, slot_def_id_46: None,
+        slot_instance_id_47: None, slot_def_id_47: None,
+        health: initial_health,
+        max_health,
         is_destroyed: false,
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
     };
     let inserted_box = boxes.insert(new_box);
-    log::info!("Player {:?} placed new Wooden Storage Box with ID {}.\nLocation: {:?}", sender_id, inserted_box.id, item_to_place.location);
+    let box_type_name = match box_type {
+        BOX_TYPE_LARGE => "Large Wooden Storage Box",
+        BOX_TYPE_REFRIGERATOR => "Refrigerator",
+        _ => "Wooden Storage Box",
+    };
+    log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
 
 
     // 5. Consume the item from player's inventory
@@ -497,24 +667,29 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
     //     return Err("You did not place this storage box.".to_string());
     // }
 
-    // 2. Check if the box is empty
-    for i in 0..NUM_BOX_SLOTS {
+    // 2. Check if the box is empty (check all slots based on box type)
+    for i in 0..storage_box_to_pickup.num_slots() {
         if storage_box_to_pickup.get_slot_instance_id(i as u8).is_some() {
             return Err("Cannot pick up storage box: It is not empty.".to_string());
         }
     }
 
-    // 3. Find the ItemDefinition for "Wooden Storage Box"
+    // 3. Find the correct ItemDefinition based on box type
+    let item_name = match storage_box_to_pickup.box_type {
+        BOX_TYPE_LARGE => "Large Wooden Storage Box",
+        BOX_TYPE_REFRIGERATOR => "Refrigerator",
+        _ => "Wooden Storage Box",
+    };
     let box_item_def = item_defs_table.iter()
-        .find(|def| def.name == "Wooden Storage Box")
-        .ok_or_else(|| "ItemDefinition for 'Wooden Storage Box' not found. Cannot give item back.".to_string())?;
+        .find(|def| def.name == item_name)
+        .ok_or_else(|| format!("ItemDefinition for '{}' not found. Cannot give item back.", item_name))?;
 
-    // 4. Give the player back one "Wooden Storage Box" item
+    // 4. Give the player back one storage box item
     // The add_item_to_player_inventory function will handle finding a slot or stacking.
     match add_item_to_player_inventory(ctx, sender_id, box_item_def.id, 1) {
-        Ok(_) => log::info!("Added 'Wooden Storage Box' item to player {:?} inventory.", sender_id),
+        Ok(_) => log::info!("Added '{}' item to player {:?} inventory.", item_name, sender_id),
         Err(e) => {
-            log::error!("Failed to give 'Wooden Storage Box' item to player {:?}: {}. Box not deleted.", sender_id, e);
+            log::error!("Failed to give '{}' item to player {:?}: {}. Box not deleted.", item_name, sender_id, e);
             return Err(format!("Could not add Wooden Storage Box to your inventory: {}", e));
         }
     }
@@ -603,13 +778,22 @@ pub fn split_and_drop_item_from_box_slot_to_world(
 /// Provides methods to get the number of slots and access individual slots.
 impl ItemContainer for WoodenStorageBox {
     fn num_slots(&self) -> usize {
-        NUM_BOX_SLOTS
+        // Return slot count based on box_type
+        match self.box_type {
+            BOX_TYPE_LARGE => NUM_LARGE_BOX_SLOTS,
+            BOX_TYPE_REFRIGERATOR => NUM_REFRIGERATOR_SLOTS,
+            _ => NUM_BOX_SLOTS,
+        }
     }
 
     /// --- Get Slot Instance ID ---
     /// Returns the instance ID for a given slot index.
-    /// Returns None if the slot index is out of bounds.
+    /// Returns None if the slot index is out of bounds for this box type.
     fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
+        // Check bounds based on box type
+        if slot_index as usize >= self.num_slots() {
+            return None;
+        }
         match slot_index {
             0 => self.slot_instance_id_0,
             1 => self.slot_instance_id_1,
@@ -629,14 +813,49 @@ impl ItemContainer for WoodenStorageBox {
             15 => self.slot_instance_id_15,
             16 => self.slot_instance_id_16,
             17 => self.slot_instance_id_17,
+            // Large box additional slots (18-47)
+            18 => self.slot_instance_id_18,
+            19 => self.slot_instance_id_19,
+            20 => self.slot_instance_id_20,
+            21 => self.slot_instance_id_21,
+            22 => self.slot_instance_id_22,
+            23 => self.slot_instance_id_23,
+            24 => self.slot_instance_id_24,
+            25 => self.slot_instance_id_25,
+            26 => self.slot_instance_id_26,
+            27 => self.slot_instance_id_27,
+            28 => self.slot_instance_id_28,
+            29 => self.slot_instance_id_29,
+            30 => self.slot_instance_id_30,
+            31 => self.slot_instance_id_31,
+            32 => self.slot_instance_id_32,
+            33 => self.slot_instance_id_33,
+            34 => self.slot_instance_id_34,
+            35 => self.slot_instance_id_35,
+            36 => self.slot_instance_id_36,
+            37 => self.slot_instance_id_37,
+            38 => self.slot_instance_id_38,
+            39 => self.slot_instance_id_39,
+            40 => self.slot_instance_id_40,
+            41 => self.slot_instance_id_41,
+            42 => self.slot_instance_id_42,
+            43 => self.slot_instance_id_43,
+            44 => self.slot_instance_id_44,
+            45 => self.slot_instance_id_45,
+            46 => self.slot_instance_id_46,
+            47 => self.slot_instance_id_47,
             _ => None,
         }
     }
 
     /// --- Get Slot Definition ID ---
     /// Returns the definition ID for a given slot index.
-    /// Returns None if the slot index is out of bounds.
+    /// Returns None if the slot index is out of bounds for this box type.
     fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
+        // Check bounds based on box type
+        if slot_index as usize >= self.num_slots() {
+            return None;
+        }
         match slot_index {
             0 => self.slot_def_id_0,
             1 => self.slot_def_id_1,
@@ -656,14 +875,51 @@ impl ItemContainer for WoodenStorageBox {
             15 => self.slot_def_id_15,
             16 => self.slot_def_id_16,
             17 => self.slot_def_id_17,
+            // Large box additional slots (18-47)
+            18 => self.slot_def_id_18,
+            19 => self.slot_def_id_19,
+            20 => self.slot_def_id_20,
+            21 => self.slot_def_id_21,
+            22 => self.slot_def_id_22,
+            23 => self.slot_def_id_23,
+            24 => self.slot_def_id_24,
+            25 => self.slot_def_id_25,
+            26 => self.slot_def_id_26,
+            27 => self.slot_def_id_27,
+            28 => self.slot_def_id_28,
+            29 => self.slot_def_id_29,
+            30 => self.slot_def_id_30,
+            31 => self.slot_def_id_31,
+            32 => self.slot_def_id_32,
+            33 => self.slot_def_id_33,
+            34 => self.slot_def_id_34,
+            35 => self.slot_def_id_35,
+            36 => self.slot_def_id_36,
+            37 => self.slot_def_id_37,
+            38 => self.slot_def_id_38,
+            39 => self.slot_def_id_39,
+            40 => self.slot_def_id_40,
+            41 => self.slot_def_id_41,
+            42 => self.slot_def_id_42,
+            43 => self.slot_def_id_43,
+            44 => self.slot_def_id_44,
+            45 => self.slot_def_id_45,
+            46 => self.slot_def_id_46,
+            47 => self.slot_def_id_47,
             _ => None,
         }
     }
 
     /// --- Set Slot ---
     /// Sets the item instance ID and definition ID for a given slot index. 
-    /// Returns None if the slot index is out of bounds.
+    /// Returns None if the slot index is out of bounds for this box type.
     fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
+        // Check bounds based on box type
+        if slot_index as usize >= self.num_slots() {
+            log::error!("[WoodenStorageBox] Attempted to set slot {} on box_type {} (max slots: {})", 
+                slot_index, self.box_type, self.num_slots());
+            return;
+        }
         match slot_index {
             0 => { self.slot_instance_id_0 = instance_id; self.slot_def_id_0 = def_id; }
             1 => { self.slot_instance_id_1 = instance_id; self.slot_def_id_1 = def_id; }
@@ -683,6 +939,37 @@ impl ItemContainer for WoodenStorageBox {
             15 => { self.slot_instance_id_15 = instance_id; self.slot_def_id_15 = def_id; }
             16 => { self.slot_instance_id_16 = instance_id; self.slot_def_id_16 = def_id; }
             17 => { self.slot_instance_id_17 = instance_id; self.slot_def_id_17 = def_id; }
+            // Large box additional slots (18-47)
+            18 => { self.slot_instance_id_18 = instance_id; self.slot_def_id_18 = def_id; }
+            19 => { self.slot_instance_id_19 = instance_id; self.slot_def_id_19 = def_id; }
+            20 => { self.slot_instance_id_20 = instance_id; self.slot_def_id_20 = def_id; }
+            21 => { self.slot_instance_id_21 = instance_id; self.slot_def_id_21 = def_id; }
+            22 => { self.slot_instance_id_22 = instance_id; self.slot_def_id_22 = def_id; }
+            23 => { self.slot_instance_id_23 = instance_id; self.slot_def_id_23 = def_id; }
+            24 => { self.slot_instance_id_24 = instance_id; self.slot_def_id_24 = def_id; }
+            25 => { self.slot_instance_id_25 = instance_id; self.slot_def_id_25 = def_id; }
+            26 => { self.slot_instance_id_26 = instance_id; self.slot_def_id_26 = def_id; }
+            27 => { self.slot_instance_id_27 = instance_id; self.slot_def_id_27 = def_id; }
+            28 => { self.slot_instance_id_28 = instance_id; self.slot_def_id_28 = def_id; }
+            29 => { self.slot_instance_id_29 = instance_id; self.slot_def_id_29 = def_id; }
+            30 => { self.slot_instance_id_30 = instance_id; self.slot_def_id_30 = def_id; }
+            31 => { self.slot_instance_id_31 = instance_id; self.slot_def_id_31 = def_id; }
+            32 => { self.slot_instance_id_32 = instance_id; self.slot_def_id_32 = def_id; }
+            33 => { self.slot_instance_id_33 = instance_id; self.slot_def_id_33 = def_id; }
+            34 => { self.slot_instance_id_34 = instance_id; self.slot_def_id_34 = def_id; }
+            35 => { self.slot_instance_id_35 = instance_id; self.slot_def_id_35 = def_id; }
+            36 => { self.slot_instance_id_36 = instance_id; self.slot_def_id_36 = def_id; }
+            37 => { self.slot_instance_id_37 = instance_id; self.slot_def_id_37 = def_id; }
+            38 => { self.slot_instance_id_38 = instance_id; self.slot_def_id_38 = def_id; }
+            39 => { self.slot_instance_id_39 = instance_id; self.slot_def_id_39 = def_id; }
+            40 => { self.slot_instance_id_40 = instance_id; self.slot_def_id_40 = def_id; }
+            41 => { self.slot_instance_id_41 = instance_id; self.slot_def_id_41 = def_id; }
+            42 => { self.slot_instance_id_42 = instance_id; self.slot_def_id_42 = def_id; }
+            43 => { self.slot_instance_id_43 = instance_id; self.slot_def_id_43 = def_id; }
+            44 => { self.slot_instance_id_44 = instance_id; self.slot_def_id_44 = def_id; }
+            45 => { self.slot_instance_id_45 = instance_id; self.slot_def_id_45 = def_id; }
+            46 => { self.slot_instance_id_46 = instance_id; self.slot_def_id_46 = def_id; }
+            47 => { self.slot_instance_id_47 = instance_id; self.slot_def_id_47 = def_id; }
             _ => { log::error!("[WoodenStorageBox] Attempted to set invalid slot index: {}", slot_index); }
         }
     }

@@ -5,6 +5,7 @@ import monumentGreenImage from '../../assets/doodads/monument_green.png';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
+import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 
 // Configuration constants
 const TARGET_RUNE_STONE_WIDTH_PX = 300; // Target width on screen (doubled from 150)
@@ -600,6 +601,21 @@ imageManager.preloadImage(monumentBlueImage);
 imageManager.preloadImage(monumentRedImage);
 imageManager.preloadImage(monumentGreenImage);
 
+// Building restriction radius for rune stones (must match server-side value)
+const RUNE_STONE_BUILDING_RESTRICTION_RADIUS = 800.0; // 800px = ~16 tiles
+
+/**
+ * Get the building restriction zone configuration for a rune stone
+ * Returns the zone config that can be used with renderBuildingRestrictionOverlay
+ */
+export function getRuneStoneRestrictionZone(runeStone: RuneStone): BuildingRestrictionZoneConfig {
+    return {
+        centerX: runeStone.posX,
+        centerY: runeStone.posY,
+        radius: RUNE_STONE_BUILDING_RESTRICTION_RADIUS,
+    };
+}
+
 /**
  * Renders a single rune stone entity onto the canvas.
  */
@@ -610,7 +626,8 @@ export function renderRuneStone(
     cycleProgress: number,
     onlyDrawShadow?: boolean,
     skipDrawingShadow?: boolean,
-    localPlayerPosition?: { x: number; y: number } | null // Player position for transparency logic
+    localPlayerPosition?: { x: number; y: number } | null, // Player position for transparency logic
+    showBuildingRestriction?: boolean // Show building restriction overlay when Blueprint is equipped
 ): void {
     // Calculate if rune stone visually overlaps and occludes the player (same logic as trees/stones)
     const MIN_ALPHA = 0.3; // Minimum opacity when blocking player
@@ -682,6 +699,12 @@ export function renderRuneStone(
     // Restore context if transparency was applied
     if (needsTransparency) {
         ctx.restore();
+    }
+    
+    // Draw building restriction overlay if Blueprint is equipped
+    if (showBuildingRestriction && !onlyDrawShadow) {
+        const zoneConfig = getRuneStoneRestrictionZone(runeStone);
+        renderBuildingRestrictionOverlay(ctx, zoneConfig);
     }
 }
 

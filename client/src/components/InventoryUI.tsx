@@ -61,7 +61,7 @@ import ItemInteractionPanel from './ItemInteractionPanel';
 // Import water container helpers
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 // Import durability helpers
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
 // Import arrow damage calculation helpers
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
 // Import InventorySearchBar component
@@ -463,10 +463,18 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             // Durability Stats
             if (hasDurabilitySystem(def)) {
                 const durabilityDisplay = formatDurability(item.instance);
-                const durabilityColor = getDurabilityColor(item.instance);
+                const durabilityColor = getDurabilityColor(item.instance, def);
+                const isFood = isFoodItem(def);
+                const spoilageTime = isFood ? formatFoodSpoilageTimeRemaining(item.instance, def) : null;
+                
+                let durabilityValue = durabilityDisplay;
+                if (spoilageTime) {
+                    durabilityValue += ` (${spoilageTime})`;
+                }
+                
                 stats.push({ 
-                    label: 'Durability', 
-                    value: durabilityDisplay, 
+                    label: isFood ? 'Spoilage' : 'Durability', 
+                    value: durabilityValue, 
                     color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
                 });
             }
@@ -872,10 +880,18 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             // Durability Stats
             if (hasDurabilitySystem(def)) {
                 const durabilityDisplay = formatDurability(item.instance);
-                const durabilityColor = getDurabilityColor(item.instance);
+                const durabilityColor = getDurabilityColor(item.instance, def);
+                const isFood = isFoodItem(def);
+                const spoilageTime = isFood ? formatFoodSpoilageTimeRemaining(item.instance, def) : null;
+                
+                let durabilityValue = durabilityDisplay;
+                if (spoilageTime) {
+                    durabilityValue += ` (${spoilageTime})`;
+                }
+                
                 stats.push({ 
-                    label: 'Durability', 
-                    value: durabilityDisplay, 
+                    label: isFood ? 'Spoilage' : 'Durability', 
+                    value: durabilityValue, 
                     color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
                 });
             }
@@ -1055,11 +1071,11 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                             );
                                         })()}
                                         
-                                        {/* Durability bar indicator for weapons, tools, torches in equipment slots (RIGHT side, GREEN) */}
+                                        {/* Durability bar indicator for weapons, tools, torches, food in equipment slots (RIGHT side, GREEN) */}
                                         {item && hasDurabilitySystem(item.definition) && (() => {
                                             const durabilityPercentage = getDurabilityPercentage(item.instance);
                                             const hasDurability = durabilityPercentage > 0;
-                                            const durabilityColor = getDurabilityColor(item.instance);
+                                            const durabilityColor = getDurabilityColor(item.instance, item.definition);
                                             
                                             return (
                                                 <div
@@ -1093,7 +1109,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                             );
                                         })()}
                                         
-                                        {/* Broken item overlay for equipment slots */}
+                                        {/* Broken item overlay for equipment slots or Spoiled food overlay */}
                                         {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (
                                             <div style={{
                                                 position: 'absolute',
@@ -1101,7 +1117,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                                 left: '0px',
                                                 width: '100%',
                                                 height: '100%',
-                                                backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                                                backgroundColor: isFoodItem(item.definition)
+                                                    ? 'rgba(139, 69, 19, 0.6)' // Brownish overlay for spoiled food
+                                                    : 'rgba(80, 80, 80, 0.6)', // Gray overlay for broken items
                                                 display: 'flex',
                                                 justifyContent: 'center',
                                                 alignItems: 'center',
@@ -1111,11 +1129,13 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                             }}>
                                                 <span style={{
                                                     fontSize: '16px',
-                                                    color: 'rgba(255, 100, 100, 0.9)',
+                                                    color: isFoodItem(item.definition)
+                                                        ? 'rgba(255, 200, 100, 0.9)' // Yellowish for spoiled food
+                                                        : 'rgba(255, 100, 100, 0.9)', // Red for broken items
                                                     textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                                                     userSelect: 'none'
                                                 }}>
-                                                    ✖
+                                                    {isFoodItem(item.definition) ? '🦠' : '✖'}
                                                 </span>
                                             </div>
                                         )}
@@ -1215,11 +1235,11 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                     );
                                 })()}
                                 
-                                {/* Durability bar indicator for weapons, tools, torches (RIGHT side, GREEN) */}
+                                {/* Durability bar indicator for weapons, tools, torches, food (RIGHT side, GREEN) */}
                                 {item && hasDurabilitySystem(item.definition) && (() => {
                                     const durabilityPercentage = getDurabilityPercentage(item.instance);
                                     const hasDurability = durabilityPercentage > 0;
-                                    const durabilityColor = getDurabilityColor(item.instance);
+                                    const durabilityColor = getDurabilityColor(item.instance, item.definition);
                                     
                                     return (
                                         <div
@@ -1253,7 +1273,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                     );
                                 })()}
                                 
-                                {/* Broken item overlay */}
+                                {/* Broken item overlay or Spoiled food overlay */}
                                 {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (
                                     <div style={{
                                         position: 'absolute',
@@ -1261,7 +1281,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                         left: '0px',
                                         width: '100%',
                                         height: '100%',
-                                        backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                                        backgroundColor: isFoodItem(item.definition)
+                                            ? 'rgba(139, 69, 19, 0.6)' // Brownish overlay for spoiled food
+                                            : 'rgba(80, 80, 80, 0.6)', // Gray overlay for broken items
                                         display: 'flex',
                                         justifyContent: 'center',
                                         alignItems: 'center',
@@ -1271,11 +1293,13 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                     }}>
                                         <span style={{
                                             fontSize: '16px',
-                                            color: 'rgba(255, 100, 100, 0.9)',
+                                            color: isFoodItem(item.definition)
+                                                ? 'rgba(255, 200, 100, 0.9)' // Yellowish for spoiled food
+                                                : 'rgba(255, 100, 100, 0.9)', // Red for broken items
                                             textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                                             userSelect: 'none'
                                         }}>
-                                            ✖
+                                            {isFoodItem(item.definition) ? '🦠' : '✖'}
                                         </span>
                                     </div>
                                 )}

@@ -868,7 +868,21 @@ export const renderYSortedEntities = ({
             renderStone(ctx, entity as SpacetimeDBStone, nowMs, cycleProgress, false, false);
         } else if (type === 'rune_stone') {
             // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
-            renderRuneStone(ctx, entity as SpacetimeDBRuneStone, nowMs, cycleProgress, false, false, localPlayerPosition);
+            const runeStone = entity as SpacetimeDBRuneStone;
+            
+            // Check if local player has Blueprint equipped to show building restriction overlay
+            let showBuildingRestriction = false;
+            if (localPlayerId && activeEquipments && itemDefinitions) {
+                const localEquipment = activeEquipments.get(localPlayerId);
+                if (localEquipment?.equippedItemDefId) {
+                    const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+                    if (equippedItemDef?.name === 'Blueprint') {
+                        showBuildingRestriction = true;
+                    }
+                }
+            }
+            
+            renderRuneStone(ctx, runeStone, nowMs, cycleProgress, false, false, localPlayerPosition, showBuildingRestriction);
         } else if (type === 'shelter') {
             const shelter = entity as SpacetimeDBShelter;
             if (shelterImage) { 
@@ -1110,8 +1124,21 @@ export const renderYSortedEntities = ({
         } else if (type === 'alk_station') {
             const alkStation = entity as SpacetimeDBAlkStation;
             const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;
+            
+            // Check if local player has Blueprint equipped to show safe zone overlay
+            let showSafeZone = false;
+            if (localPlayerId && activeEquipments && itemDefinitions) {
+                const localEquipment = activeEquipments.get(localPlayerId);
+                if (localEquipment?.equippedItemDefId) {
+                    const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+                    if (equippedItemDef?.name === 'Blueprint') {
+                        showSafeZone = true;
+                    }
+                }
+            }
+            
             // console.log('🏭 [RENDER] Rendering ALK station', alkStation.stationId, 'at', alkStation.worldPosX, alkStation.worldPosY);
-            renderAlkStation(ctx, alkStation, cycleProgress, isTheClosestTarget, undefined, localPlayerPosition);
+            renderAlkStation(ctx, alkStation, cycleProgress, isTheClosestTarget, undefined, localPlayerPosition, showSafeZone);
             
             // Draw outline only if this is THE closest interactable target
             // Position outline around the actual building content (bottom portion of sprite)

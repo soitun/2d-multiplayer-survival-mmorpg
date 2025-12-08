@@ -1,5 +1,7 @@
 import { WoodenStorageBox } from '../../generated'; // Import generated type
 import boxImage from '../../assets/doodads/wooden_storage_box.png'; // Direct import
+import largeBoxImage from '../../assets/doodads/large_wood_box.png'; // Large box image
+import refrigeratorImage from '../../assets/doodads/refrigerator.png'; // Refrigerator image
 import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
@@ -7,6 +9,15 @@ import { imageManager } from './imageManager'; // Import image manager
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BOX_WIDTH = 64; 
 export const BOX_HEIGHT = 64;
+export const LARGE_BOX_WIDTH = 96;  // Larger dimensions for large box
+export const LARGE_BOX_HEIGHT = 96;
+export const REFRIGERATOR_WIDTH = 64;  // Refrigerator dimensions
+export const REFRIGERATOR_HEIGHT = 96;
+
+// Box type constants (must match server)
+export const BOX_TYPE_NORMAL = 0;
+export const BOX_TYPE_LARGE = 1;
+export const BOX_TYPE_REFRIGERATOR = 2;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -25,13 +36,28 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
         if (entity.isDestroyed) {
             return null; // Don't render if destroyed (handled by drawOverlay)
         }
-        return boxImage;
+        // Return different image based on box type
+        switch (entity.boxType) {
+            case BOX_TYPE_LARGE:
+                return largeBoxImage;
+            case BOX_TYPE_REFRIGERATOR:
+                return refrigeratorImage;
+            default:
+                return boxImage;
+        }
     },
 
-    getTargetDimensions: (img, _entity) => ({
-        width: BOX_WIDTH,
-        height: BOX_HEIGHT,
-    }),
+    getTargetDimensions: (img, entity) => {
+        // Return different dimensions based on box type
+        switch (entity.boxType) {
+            case BOX_TYPE_LARGE:
+                return { width: LARGE_BOX_WIDTH, height: LARGE_BOX_HEIGHT };
+            case BOX_TYPE_REFRIGERATOR:
+                return { width: REFRIGERATOR_WIDTH, height: REFRIGERATOR_HEIGHT };
+            default:
+                return { width: BOX_WIDTH, height: BOX_HEIGHT };
+        }
+    },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
@@ -137,8 +163,10 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
     fallbackColor: '#A0522D', // Sienna for wooden box
 };
 
-// Preload using imported URL
+// Preload using imported URLs
 imageManager.preloadImage(boxImage);
+imageManager.preloadImage(largeBoxImage);
+imageManager.preloadImage(refrigeratorImage);
 
 // --- Rendering Function (Refactored) ---
 export function renderWoodenStorageBox(

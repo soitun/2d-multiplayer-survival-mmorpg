@@ -1,6 +1,7 @@
 // server/src/consumables.rs
 use spacetimedb::{ReducerContext, Identity, Table, Timestamp, TimeDuration};
 use log;
+use rand::Rng;
 
 // Import table traits needed for ctx.db access
 // use crate::player::{player as PlayerTableTrait, Player}; // Old import
@@ -19,6 +20,9 @@ use crate::ai_brewing::{brew_recipe_cache as BrewRecipeCacheTableTrait, parse_ef
 
 // Import sound system for eating food sound and drinking water sound
 use crate::sound_events::{emit_eating_food_sound, emit_drinking_water_sound, emit_throwing_up_sound};
+
+// Import plants database for seed granting on consumption
+use crate::plants_database::{PlantType, PLANT_CONFIGS, has_seed_drops, get_seed_type_for_plant};
 
 // --- Max Stat Value ---
 pub const MAX_HEALTH_VALUE: f32 = 100.0; // Max value for health
@@ -84,6 +88,13 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     
     if item_def.category != ItemCategory::Consumable && !has_consumable_stats {
         return Err(format!("Item '{}' cannot be consumed.", item_def.name));
+    }
+
+    // Check if food is spoiled (durability <= 0)
+    if crate::durability::is_food_item(&item_def) {
+        if crate::durability::is_item_broken(&item_to_consume) {
+            return Err(format!("This {} has spoiled and cannot be consumed.", item_def.name));
+        }
     }
 
     // POISON BREW BLOCK: Check if this is a poison category brew (weapon coating only)
@@ -277,6 +288,13 @@ pub fn apply_item_effects_and_consume(
         // Don't fail the entire consumption - food poisoning is a "side effect"
     }
     
+    // Check for seed drop from consuming plant-based food (60% chance)
+    if let Err(seed_error) = try_grant_seed_from_consumption(ctx, player_id, &item_def.name) {
+        log::warn!("[EffectsHelper] Failed to grant seed from consumption for player {:?}, item '{}': {}", 
+            player_id, item_def.name, seed_error);
+        // Don't fail the entire consumption - seed drop is optional
+    }
+    
     // The caller of this helper will be responsible for updating the player table.
 
     Ok(())
@@ -463,6 +481,75 @@ fn apply_brewing_recipe_effect(
         // Not a generated brew - no special effects to apply
         Ok(())
     }
+}
+
+/// Helper function to find plant type from item name (by checking primary yield)
+/// Returns Some(PlantType) if the item is produced by a plant, None otherwise
+fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
+    PLANT_CONFIGS.iter()
+        .find(|(_, config)| config.primary_yield.0 == item_name)
+        .map(|(plant_type, _)| *plant_type)
+}
+
+/// Attempts to grant a seed when consuming a plant-based food item
+/// 60% chance to grant exactly 1 seed of the plant that produces this item
+fn try_grant_seed_from_consumption(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    item_name: &str,
+) -> Result<(), String> {
+    // Find which plant type produces this item
+    let plant_type = match get_plant_type_from_item_name(item_name) {
+        Some(pt) => pt,
+        None => {
+            // Not a plant-based item, that's fine
+            return Ok(());
+        }
+    };
+    
+    // Check if this plant has seeds configured
+    if !has_seed_drops(&plant_type) {
+        // This plant doesn't have seeds, that's fine
+        return Ok(());
+    }
+    
+    // Get the seed type for this plant
+    let seed_type = match get_seed_type_for_plant(&plant_type) {
+        Some(st) => st,
+        None => {
+            // No seed type configured, that's fine
+            return Ok(());
+        }
+    };
+    
+    // 60% chance to grant one seed
+    if ctx.rng().gen::<f32>() < 0.60 {
+        let item_defs = ctx.db.item_definition();
+        
+        // Find the seed item definition
+        let seed_item_def = item_defs.iter()
+            .find(|def| def.name == seed_type)
+            .ok_or_else(|| format!("Seed item definition '{}' not found", seed_type))?;
+        
+        // Grant exactly 1 seed
+        match crate::dropped_item::try_give_item_to_player(ctx, player_id, seed_item_def.id, 1) {
+            Ok(added_to_inventory) => {
+                if added_to_inventory {
+                    log::info!("Player {:?} received 1 seed: {} (added to inventory) from consuming {}.", 
+                              player_id, seed_type, item_name);
+                } else {
+                    log::info!("Player {:?} received 1 seed: {} (dropped near player - inventory full) from consuming {}.", 
+                              player_id, seed_type, item_name);
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to give seed {} to player {:?}: {}", seed_type, player_id, e);
+                return Err(format!("Failed to give seed: {}", e));
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 /// Consume a filled water container (bottles/jugs) to replenish thirst

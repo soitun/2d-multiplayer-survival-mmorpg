@@ -683,6 +683,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize torch durability system
     crate::durability::init_torch_durability_schedule(ctx)?;
+    
+    // ADD: Initialize food spoilage system
+    crate::durability::init_food_spoilage_schedule(ctx)?;
 
     // ADD: Generate world automatically on first startup
     let existing_tiles_count = ctx.db.world_tile().iter().count();

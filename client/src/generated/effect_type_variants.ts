@@ -47,6 +47,7 @@ export type AgrarianRune = { tag: "AgrarianRune" };
 export type MemoryRune = { tag: "MemoryRune" };
 export type HotSpring = { tag: "HotSpring" };
 export type Fumarole = { tag: "Fumarole" };
+export type SafeZone = { tag: "SafeZone" };
 export type Intoxicated = { tag: "Intoxicated" };
 export type Poisoned = { tag: "Poisoned" };
 export type SpeedBoost = { tag: "SpeedBoost" };

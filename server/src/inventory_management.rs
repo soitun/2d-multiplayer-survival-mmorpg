@@ -25,6 +25,8 @@ use crate::player_inventory::{move_item_to_inventory, move_item_to_hotbar, find_
 use crate::active_equipment;
 // Import for active_equipment table trait
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
+// Import for food durability merging
+use crate::durability::{is_food_item, merge_food_durability};
 // Import for broth_pot table trait (needed for validation)
 use crate::broth_pot::broth_pot as BrothPotTableTrait;
 
@@ -212,9 +214,16 @@ pub(crate) fn handle_move_to_container_slot<C: ItemContainer>(
                                 .ok_or_else(|| format!("Target item instance {} in container slot {} not found!", target_instance_id, target_slot_index))?;
         
         match calculate_merge_result(&item_to_move, &target_item, &item_def_to_move) {
-            Ok((_, source_new_qty, target_new_qty, delete_source)) => {
+            Ok((qty_transfer, source_new_qty, target_new_qty, delete_source)) => {
                 // Merge successful
                 log::info!("[InvManager MergeToContainer] Merging item {} onto item {}. Target new qty: {}", item_instance_id, target_instance_id, target_new_qty);
+                
+                // If merging food items, calculate weighted average durability
+                if is_food_item(&item_def_to_move) {
+                    let target_original_qty = target_item.quantity;
+                    merge_food_durability(&mut target_item, &item_to_move, qty_transfer, target_original_qty);
+                }
+                
                 target_item.quantity = target_new_qty;
                 // Target item's location remains the same container slot
                 inventory_table.instance_id().update(target_item);
@@ -391,6 +400,12 @@ pub(crate) fn handle_move_from_container_slot<C: ItemContainer>(
                 log::info!("[InvManager FromContainer MERGE] Merging {} from item {} (container) onto {} (player). Player item new qty: {}. Delete source from container: {}",
                          qty_transfer, item_from_container_id, item_in_player_slot.instance_id, target_new_qty, delete_source);
 
+                // If merging food items, calculate weighted average durability
+                if is_food_item(&item_def_from_container) {
+                    let target_original_qty = item_in_player_slot.quantity;
+                    merge_food_durability(&mut item_in_player_slot, &item_from_container, qty_transfer, target_original_qty);
+                }
+
                 item_in_player_slot.quantity = target_new_qty;
                 inventory_table.instance_id().update(item_in_player_slot.clone());
 
@@ -490,10 +505,16 @@ pub(crate) fn handle_move_within_container<C: ItemContainer>(
                      source_id, source_slot_index, target_id, target_slot_index);
 
             match calculate_merge_result(&source_item, &target_item, &source_item_def) { // Pass &source_item_def
-                Ok((_, source_new_qty, target_new_qty, delete_source)) => {
+                Ok((qty_transfer, source_new_qty, target_new_qty, delete_source)) => {
                     // Merge successful
                     log::info!("[InvManager WithinContainer Merge] Merge successful. Target new qty: {}, Source new qty: {}, Delete source: {}", 
                              target_new_qty, source_new_qty, delete_source);
+                    
+                    // If merging food items, calculate weighted average durability
+                    if is_food_item(&source_item_def) {
+                        let target_original_qty = target_item.quantity;
+                        merge_food_durability(&mut target_item, &source_item, qty_transfer, target_original_qty);
+                    }
                     
                     target_item.quantity = target_new_qty;
                     inventory_table.instance_id().update(target_item.clone());
@@ -615,11 +636,18 @@ pub(crate) fn merge_or_place_into_container_slot<C: ItemContainer>(
                  item_to_place.instance_id, item_to_place.item_def_id);
         
         match calculate_merge_result(item_to_place, &target_item_in_slot, item_def_for_item_to_place) {
-            Ok((_, source_new_qty, target_new_qty, delete_source)) => {
+            Ok((qty_transfer, source_new_qty, target_new_qty, delete_source)) => {
                 log::info!(
                     "[InvManager MergeOrPlace] Merging item {} (new qty {}) onto item {} in slot {} (new qty {}). Delete source: {}", 
                     item_to_place.instance_id, source_new_qty, target_instance_id, target_slot_index, target_new_qty, delete_source
                 );
+                
+                // If merging food items, calculate weighted average durability
+                if is_food_item(item_def_for_item_to_place) {
+                    let target_original_qty = target_item_in_slot.quantity;
+                    merge_food_durability(&mut target_item_in_slot, item_to_place, qty_transfer, target_original_qty);
+                }
+                
                 target_item_in_slot.quantity = target_new_qty;
                 inventory_table.instance_id().update(target_item_in_slot.clone());
 
@@ -862,6 +890,12 @@ pub(crate) fn handle_split_from_container<C: ItemContainer>(
                     // MERGE Successful (newly_split_item into actual_item_in_player_slot)
                     log::info!("[SplitFromContainer MERGE] Merging {} from new split item {} onto player item {}. Player item new qty: {}. Delete new split item: {}",
                              qty_transfer, newly_split_item_id, actual_item_in_player_slot.instance_id, target_new_qty, delete_source_of_merge);
+
+                    // If merging food items, calculate weighted average durability
+                    if is_food_item(&newly_split_item_def) {
+                        let target_original_qty = actual_item_in_player_slot.quantity;
+                        merge_food_durability(&mut actual_item_in_player_slot, &newly_split_item, qty_transfer, target_original_qty);
+                    }
 
                     actual_item_in_player_slot.quantity = target_new_qty;
                     inventory_table.instance_id().update(actual_item_in_player_slot.clone());

@@ -885,6 +885,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent while near fumarole
                         };
                         break;
+                    case 'SafeZone':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'safe_zone',
+                            name: 'Safe Zone',
+                            emoji: '🛡️',
+                            type: 'positive' as const,
+                            description: 'Protected from player, animal, and projectile damage while near ALK stations.',
+                            // No duration - permanent while in safe zone
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)
@@ -1044,7 +1055,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 }
             }
             
-            if (effectApplies && effectData && (bufferedRemainingTime > 0 || effectData.id === 'cozy' || effectData.id === 'tree_cover' || effectData.id === 'exhausted' || effectData.id === 'building_privilege' || effectData.id === 'production_rune' || effectData.id === 'agrarian_rune')) {
+            if (effectApplies && effectData && (bufferedRemainingTime > 0 || effectData.id === 'cozy' || effectData.id === 'tree_cover' || effectData.id === 'exhausted' || effectData.id === 'building_privilege' || effectData.id === 'production_rune' || effectData.id === 'agrarian_rune' || effectData.id === 'safe_zone' || effectData.id === 'fumarole' || effectData.id === 'hot_spring' || effectData.id === 'blue_runestone')) {
                 effects.push(effectData);
             }
         });

@@ -159,8 +159,8 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
     
     // Get container configuration
     const config = useMemo(() => {
-        return containerType ? getContainerConfig(containerType) : null;
-    }, [containerType]);
+        return containerType ? getContainerConfig(containerType, containerEntity) : null;
+    }, [containerType, containerEntity]);
     
     // Extract items using pattern-based utility
     const items = useMemo(() => {
@@ -222,7 +222,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             return stash.isHidden ? 'HIDDEN STASH (NEARBY)' : 'STASH';
         }
         
-        return getContainerDisplayName(containerType);
+        return getContainerDisplayName(containerType, containerEntity);
     }, [containerType, containerEntity]);
     
     // State helpers

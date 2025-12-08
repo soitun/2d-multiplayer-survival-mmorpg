@@ -351,6 +351,8 @@ import campFireIcon from '../assets/items/campfire.png';
 import furnaceIcon from '../assets/items/furnace_simple.png';
 import stashIcon from '../assets/items/stash.png';
 import woodenStorageBoxIcon from '../assets/items/wooden_storage_box.png';
+import largeWoodenStorageBoxIcon from '../assets/items/large_wood_box.png';
+import refrigeratorIcon from '../assets/items/refrigerator.png';
 import sleepingBagIcon from '../assets/items/sleeping_bag.png';
 import shelterIcon from '../assets/items/shelter.png';
 import tallowLampIcon from '../assets/items/lantern_off.png';
@@ -704,6 +706,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'furnace_simple.png': furnaceIcon,
   'stash.png': stashIcon,
   'wooden_storage_box.png': woodenStorageBoxIcon,
+  'large_wood_box.png': largeWoodenStorageBoxIcon,
+  'refrigerator.png': refrigeratorIcon,
   'sleeping_bag.png': sleepingBagIcon,
   'shelter.png': shelterIcon,
   'lantern_off.png': tallowLampIcon,

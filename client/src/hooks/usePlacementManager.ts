@@ -274,7 +274,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest"]; // ADDED: Furnace, Matron's Chest
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest"]; // ADDED: Furnace, Matron's Chest, Large Wooden Storage Box, Refrigerator
   
   // Seeds that don't require water or beach (most seeds) cannot be planted on water
   const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -567,6 +567,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // App.tsx's handleLanternInsert callback will call it upon success.
           break;
         case 'Wooden Storage Box':
+        case 'Large Wooden Storage Box':
+        case 'Refrigerator':
           // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire

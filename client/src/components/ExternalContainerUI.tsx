@@ -41,7 +41,7 @@ import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability } from '../utils/durabilityHelpers';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Import AI Brewing Service
@@ -823,7 +823,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         return null;
     }
 
-    const config = getContainerConfig(container.containerType);
+    const config = getContainerConfig(container.containerType, container.containerEntity);
 
     // Check if heat source (campfire or fumarole) has attached broth pot
     const attachedBrothPot = useMemo(() => {
@@ -1148,6 +1148,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             {/* Generic Container Slots - handles all slot rendering */}
             <ContainerSlots
                 containerType={container.containerType}
+                containerEntity={container.containerEntity}
                 items={container.items}
                 createSlotInfo={container.createSlotInfo}
                 getSlotKey={container.getSlotKey}

@@ -7,6 +7,7 @@
 
 import { AlkStation as SpacetimeDBAlkStation } from '../../generated';
 import { drawDynamicGroundShadow } from './shadowUtils';
+import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 
 // ALK Station visual constants - Large industrial structures (square sprite for proper proportions)
 export const ALK_STATION_WIDTH = 480;  // Sprite width (square - matches height)
@@ -121,6 +122,27 @@ export function getAlkStationImage(stationId: number): HTMLImageElement | null {
 }
 
 /**
+ * Get the building restriction zone configuration for an ALK station
+ * Returns the zone config that can be used with renderBuildingRestrictionOverlay
+ */
+function getAlkStationRestrictionZone(station: SpacetimeDBAlkStation): BuildingRestrictionZoneConfig {
+    const isCentralCompound = station.stationId === 0;
+    
+    // Safe zone radius multipliers (must match server-side values)
+    const SAFE_ZONE_MULTIPLIER_CENTRAL = 7.0; // Central compound: 7x interaction_radius
+    const SAFE_ZONE_MULTIPLIER_SUBSTATION = 3.0; // Substations: 3x interaction_radius
+    
+    const multiplier = isCentralCompound ? SAFE_ZONE_MULTIPLIER_CENTRAL : SAFE_ZONE_MULTIPLIER_SUBSTATION;
+    const safeZoneRadius = station.interactionRadius * multiplier;
+    
+    return {
+        centerX: station.worldPosX,
+        centerY: station.worldPosY,
+        radius: safeZoneRadius,
+    };
+}
+
+/**
  * Render an ALK delivery station
  */
 export function renderAlkStation(
@@ -129,7 +151,8 @@ export function renderAlkStation(
     cycleProgress: number,
     isHighlighted: boolean = false,
     doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>,
-    localPlayerPosition?: { x: number; y: number } | null
+    localPlayerPosition?: { x: number; y: number } | null,
+    showSafeZone: boolean = false
 ): void {
     if (!station.isActive) return;
     
@@ -239,6 +262,12 @@ export function renderAlkStation(
         ALK_STATION_WIDTH,
         ALK_STATION_HEIGHT
     );
+    
+    // Draw safe zone overlay if Blueprint is equipped
+    if (showSafeZone) {
+        const zoneConfig = getAlkStationRestrictionZone(station);
+        renderBuildingRestrictionOverlay(ctx, zoneConfig);
+    }
     
     // NO label drawn - the "E" interaction label from the unified system is sufficient
     // Station name is shown in the delivery panel when interacting

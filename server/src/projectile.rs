@@ -2061,6 +2061,17 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                 };
 
+                // <<< SAFE ZONE CHECK - Players in safe zones are immune to projectile damage >>>
+                if crate::active_effects::player_has_safe_zone_effect(ctx, player_to_check.identity) {
+                    log::info!("Projectile from {:?} blocked - Target player {:?} is in a safe zone", 
+                        projectile.owner_id, player_to_check.identity);
+                    // Still delete the projectile since it hit (but didn't damage)
+                    projectiles_to_delete.push(projectile.id);
+                    hit_player_this_tick = true;
+                    break; // Stop checking other players for this projectile
+                }
+                // <<< END SAFE ZONE CHECK >>>
+
                 // Calculate damage using the centralized helper function
                 let final_damage = calculate_projectile_damage(&weapon_item_def, &ammo_item_def, &projectile, &mut rng);
 

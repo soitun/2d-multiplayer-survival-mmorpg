@@ -62,6 +62,7 @@ pub enum EffectType {
     MemoryRune, // Near a blue memory rune stone (spawns memory shards at night)
     HotSpring, // Healing effect from standing in a hot spring
     Fumarole, // Warmth protection from standing near a fumarole (nullifies warmth decay)
+    SafeZone, // Protection from player/animal/projectile damage when near ALK monuments (shield emoji)
     
     // === BREWING SYSTEM EFFECTS (stub implementations - logic to be added later) ===
     Intoxicated,       // Drunk effect from alcoholic brews - blurred vision, movement wobble
@@ -131,9 +132,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             continue;
         }
 
-    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, and fumarole - they are managed by other systems, not the effect tick system
+    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, and safe zone - they are managed by other systems, not the effect tick system
     // These effects are permanent until removed by other systems, so skip them entirely
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone {
         continue;
     }
     
@@ -179,7 +180,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -329,13 +330,22 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             log::trace!("[EffectTick] {:?} Pre-Damage for Player {:?}: Health {:.2}, AmountThisTick {:.2}",
                                 effect.effect_type, effect.player_id, player_to_update.health, amount_this_tick);
                             
+                            // --- SAFE ZONE CHECK - Players in safe zones are immune to burn damage ---
+                            if effect.effect_type == EffectType::Burn && player_has_safe_zone_effect(ctx, effect.player_id) {
+                                amount_this_tick = 0.0; // No burn damage applied in safe zones
+                                log::info!("[EffectTick] Player {:?} is in a safe zone - burn damage blocked.",
+                                    effect.player_id);
+                            }
+                            // --- END SAFE ZONE CHECK ---
+                            
                             // --- KNOCKED OUT PLAYERS ARE IMMUNE TO BLEED, BURN, AND VENOM DAMAGE ---
                             if player_to_update.is_knocked_out && (effect.effect_type == EffectType::Bleed || effect.effect_type == EffectType::Burn || effect.effect_type == EffectType::Venom) {
                                 // Knocked out players are completely immune to DOT damage
                                 amount_this_tick = 0.0; // No damage applied
                                 log::info!("[EffectTick] Knocked out player {:?} is immune to {:?} damage. No damage applied.",
                                     effect.player_id, effect.effect_type);
-                            } else {
+                            } else if amount_this_tick > 0.0 {
+                                // Only process damage if amount_this_tick is still > 0 (not blocked by safe zone)
                                 // Special handling for Venom: fixed damage per tick like SeawaterPoisoning
                                 if effect.effect_type == EffectType::Venom {
                                     amount_this_tick = 1.0; // Fixed 1 damage per tick for persistent venom
@@ -529,6 +539,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         EffectType::MemoryRune => {
                             // MemoryRune spawns memory shards at night in blue rune stone zones
                             // The spawning is handled in rune stone scheduled reducers
+                            // This effect doesn't consume amount_applied_so_far
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::SafeZone => {
+                            // SafeZone provides protection from player/animal/projectile damage
+                            // The protection is checked in damage application functions
                             // This effect doesn't consume amount_applied_so_far
                             amount_this_tick = 0.0;
                         },
@@ -1557,6 +1573,13 @@ pub fn apply_burn_effect(
     }
     // <<< END BURN IMMUNITY CHECK >>>
     
+    // <<< SAFE ZONE CHECK - Players in safe zones are immune to burn effects >>>
+    if player_has_safe_zone_effect(ctx, player_id) {
+        log::info!("Player {:?} is in a safe zone - burn effect blocked", player_id);
+        return Ok(()); // Silently ignore burn effect application
+    }
+    // <<< END SAFE ZONE CHECK >>>
+    
     // Check if player already has a burn effect from the same source type
     let existing_burn_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
         .filter(|e| e.player_id == player_id && 
@@ -2092,5 +2115,132 @@ fn remove_fumarole_effect(ctx: &ReducerContext, player_id: Identity) {
     for effect_id in effects_to_remove {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed fumarole warmth protection effect {} from player {:?}", effect_id, player_id);
+    }
+}
+
+// Safe Zone Effect Management
+// ============================
+
+/// Safe zone radius multipliers - safe zone extends beyond interaction radius
+/// Central compound gets larger protection, substations get standard protection
+/// These MUST match the building restriction radii to prevent abuse
+pub const SAFE_ZONE_RADIUS_MULTIPLIER_CENTRAL: f32 = 7.0; // 7x for central compound (station_id = 0) - ~1/3 of original 20x
+pub const SAFE_ZONE_RADIUS_MULTIPLIER_SUBSTATION: f32 = 3.0; // 3x for substations (station_id 1-4) - 1/3 of original 10x
+
+/// Checks if a player is currently within a safe zone (near ALK monuments)
+/// Safe zones protect from player/animal/projectile damage but NOT environmental damage (except burn)
+/// Safe zone radius matches building restriction radius to prevent abuse
+pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
+    use crate::alk::alk_station as AlkStationTableTrait;
+    
+    // Check all ALK stations (central compound + 4 substations)
+    for station in ctx.db.alk_station().iter() {
+        // Skip inactive stations
+        if !station.is_active {
+            continue;
+        }
+        
+        // Calculate distance squared between player and station
+        let dx = player_x - station.world_pos_x;
+        let dy = player_y - station.world_pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        // Safe zone radius matches building restriction radius
+        // Central compound (station_id = 0): 7x interaction_radius (~1750px)
+        // Substations (station_id 1-4): 3x interaction_radius (~600px)
+        let multiplier = if station.station_id == 0 {
+            SAFE_ZONE_RADIUS_MULTIPLIER_CENTRAL
+        } else {
+            SAFE_ZONE_RADIUS_MULTIPLIER_SUBSTATION
+        };
+        let safe_zone_radius = station.interaction_radius * multiplier;
+        let safe_zone_radius_sq = safe_zone_radius * safe_zone_radius;
+        
+        // Check if player is within safe zone radius
+        if distance_sq <= safe_zone_radius_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Updates safe zone effect for a player based on their position
+/// Safe zones protect from player/animal/projectile damage but NOT environmental damage (except burn)
+pub fn update_player_safe_zone_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    let is_in_safe_zone = is_player_in_safe_zone(ctx, player_x, player_y);
+    let has_safe_zone_effect = player_has_safe_zone_effect(ctx, player_id);
+    
+    log::debug!("Safe zone status check for player {:?}: in_safe_zone={}, has_safe_zone_effect={}", 
+        player_id, is_in_safe_zone, has_safe_zone_effect);
+    
+    if is_in_safe_zone {
+        // Apply safe zone effect if not present
+        if !has_safe_zone_effect {
+            log::info!("Applying safe zone effect to player {:?} (protection from player/animal/projectile damage)", player_id);
+            apply_safe_zone_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove safe zone effect when player leaves
+        if has_safe_zone_effect {
+            log::info!("Removing safe zone effect from player {:?}", player_id);
+            remove_safe_zone_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the safe zone effect active
+pub fn player_has_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::SafeZone)
+}
+
+/// Applies safe zone effect to a player
+fn apply_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent while in zone
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let safe_zone_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future, // Effectively permanent while in zone
+        total_amount: None, // No accumulation for safe zone effect
+        amount_applied_so_far: None,
+        effect_type: EffectType::SafeZone,
+        tick_interval_micros: 1_000_000, // 1 second ticks (not really used)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(safe_zone_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied safe zone effect {} to player {:?}", inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply safe zone effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply safe zone effect".to_string())
+        }
+    }
+}
+
+/// Removes safe zone effect from a player
+fn remove_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::SafeZone {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed safe zone effect {} from player {:?}", effect_id, player_id);
     }
 }

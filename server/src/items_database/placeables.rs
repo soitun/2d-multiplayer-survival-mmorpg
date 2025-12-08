@@ -41,14 +41,37 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
-        // Wooden Storage Box - Large storage container
-        ItemBuilder::new("Wooden Storage Box", "A simple container for storing items.", ItemCategory::Placeable)
+        // Wooden Storage Box - Storage container (18 slots)
+        ItemBuilder::new("Wooden Storage Box", "A simple container for storing items. Holds 18 stacks.", ItemCategory::Placeable)
             .icon("wooden_storage_box.png")
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
             ])
             .crafting_output(1, 15)
             .respawn_time(300)
+            .build(),
+
+        // Large Wooden Storage Box - Large storage container (48 slots)
+        ItemBuilder::new("Large Wooden Storage Box", "A large container for storing many items. Holds 48 stacks.", ItemCategory::Placeable)
+            .icon("large_wood_box.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 25)
+            .respawn_time(450)
+            .build(),
+
+        // Refrigerator - Food preservation container (30 slots, stops spoilage)
+        ItemBuilder::new("Refrigerator", "A refrigerated container that preserves food. Holds 30 stacks of food, seeds, and water containers.", ItemCategory::Placeable)
+            .icon("refrigerator.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Scrap Batteries".to_string(), quantity: 3 },
+            ])
+            .crafting_output(1, 30)
+            .respawn_time(600)
             .build(),
 
         // === SHELTER & RESPAWN ===

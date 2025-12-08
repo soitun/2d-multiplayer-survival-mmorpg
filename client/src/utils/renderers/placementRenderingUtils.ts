@@ -637,16 +637,27 @@ function isFoundationPlacementValid(
         return false; // Cannot build on asphalt/compound areas
     }
     
-    // Check if position is within ALK station monument bounds (2000px radius)
-    const ALK_STATION_MONUMENT_RADIUS = 2000.0;
-    const ALK_STATION_MONUMENT_RADIUS_SQ = ALK_STATION_MONUMENT_RADIUS * ALK_STATION_MONUMENT_RADIUS;
+    // Check if position is within ALK station monument bounds
+    // Building restriction radius MUST match safe zone radius to prevent abuse
+    // Central compound (stationId = 0): 7x interactionRadius = ~1750px (~1/3 of original)
+    // Substations (stationId 1-4): 3x interactionRadius = ~600px (1/3 of original)
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
     
     for (const station of connection.db.alkStation.iter()) {
         if (!station.isActive) continue;
         const stationDx = worldX - station.worldPosX;
         const stationDy = worldY - station.worldPosY;
         const stationDistSq = stationDx * stationDx + stationDy * stationDy;
-        if (stationDistSq <= ALK_STATION_MONUMENT_RADIUS_SQ) {
+        
+        // Calculate building restriction radius (matches safe zone radius)
+        const multiplier = station.stationId === 0 
+            ? ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL 
+            : ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION;
+        const restrictionRadius = station.interactionRadius * multiplier;
+        const restrictionRadiusSq = restrictionRadius * restrictionRadius;
+        
+        if (stationDistSq <= restrictionRadiusSq) {
             placementValidationCache.set(cacheKey, { isValid: false, timestamp: now });
             return false; // Too close to ALK station
         }

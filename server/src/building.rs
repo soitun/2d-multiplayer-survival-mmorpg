@@ -583,8 +583,11 @@ pub fn place_foundation(
     
     // 5.2. Check if position is within ALK station monument bounds
     // ALK stations have protected zones where building is prohibited
-    const ALK_STATION_MONUMENT_RADIUS: f32 = 2000.0; // 2000px radius around station center
-    const ALK_STATION_MONUMENT_RADIUS_SQ: f32 = ALK_STATION_MONUMENT_RADIUS * ALK_STATION_MONUMENT_RADIUS;
+    // Building restriction radius MUST match safe zone radius to prevent abuse
+    // Central compound (station_id = 0): 7x interaction_radius = ~1750px (~1/3 of original)
+    // Substations (station_id 1-4): 3x interaction_radius = ~600px (1/3 of original)
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL: f32 = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION: f32 = 3.0;
     
     let alk_stations = ctx.db.alk_station();
     for station in alk_stations.iter() {
@@ -595,7 +598,16 @@ pub fn place_foundation(
         let dy = world_y - station.world_pos_y;
         let distance_sq = dx * dx + dy * dy;
         
-        if distance_sq <= ALK_STATION_MONUMENT_RADIUS_SQ {
+        // Calculate building restriction radius (matches safe zone radius)
+        let multiplier = if station.station_id == 0 {
+            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL
+        } else {
+            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION
+        };
+        let restriction_radius = station.interaction_radius * multiplier;
+        let restriction_radius_sq = restriction_radius * restriction_radius;
+        
+        if distance_sq <= restriction_radius_sq {
             return Err("Cannot place foundation within ALK station compound. These areas are protected.".to_string());
         }
     }

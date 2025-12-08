@@ -32,6 +32,7 @@ export const CONTAINER_CONFIGS = {
     fumarole: { slots: 6, slotType: 'fumarole', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, special: false, gridCols: 1 },
     
     // Storage containers (hold items without consuming them)
+    // Note: wooden_storage_box.slots is default; use getContainerConfig with entity for dynamic slot count based on boxType
     wooden_storage_box: { slots: 18, slotType: 'wooden_storage_box', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
     player_corpse: { slots: 30, slotType: 'player_corpse', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
     stash: { slots: 6, slotType: 'stash', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
@@ -458,8 +459,9 @@ export function handleWithinContainerMove(
 /**
  * Get field names for container slots
  */
-export function getSlotFieldNames(containerType: ContainerType): string[] {
-    const config = CONTAINER_CONFIGS[containerType];
+export function getSlotFieldNames(containerType: ContainerType, entity?: ContainerEntity): string[] {
+    // Use dynamic config to get correct slot count
+    const config = getContainerConfig(containerType, entity);
     
     // Special case for rain collector
     if (config.special) {
@@ -479,14 +481,16 @@ export function extractContainerItems(
     inventoryItems: Map<string, InventoryItem>,
     itemDefinitions: Map<string, ItemDefinition>
 ): (PopulatedItem | null)[] {
-    const config = CONTAINER_CONFIGS[containerType];
+    // Use dynamic config to get correct slot count for wooden storage boxes
+    const config = getContainerConfig(containerType, entity || undefined);
     const items: (PopulatedItem | null)[] = Array(config.slots).fill(null);
     
     if (!entity) {
         return items;
     }
     
-    const fieldNames = getSlotFieldNames(containerType);
+    // Get slot field names dynamically based on container type and entity
+    const fieldNames = getSlotFieldNames(containerType, entity);
     
     fieldNames.forEach((fieldName, index) => {
         const instanceIdOpt = (entity as any)[fieldName] as bigint | null | undefined;
@@ -638,17 +642,62 @@ export function isStorageContainer(containerType: ContainerType): boolean {
     return ['wooden_storage_box', 'player_corpse', 'stash', 'rain_collector', 'homestead_hearth', 'broth_pot', 'fumarole'].includes(containerType);
 }
 
+// Box type constants (must match server)
+export const BOX_TYPE_NORMAL = 0;
+export const BOX_TYPE_LARGE = 1;
+export const BOX_TYPE_REFRIGERATOR = 2;
+export const NUM_BOX_SLOTS = 18;
+export const NUM_LARGE_BOX_SLOTS = 48;
+export const NUM_REFRIGERATOR_SLOTS = 30;
+
 /**
  * Get container configuration
+ * @param containerType - The type of container
+ * @param entity - Optional entity for dynamic slot count (e.g., WoodenStorageBox with boxType)
  */
-export function getContainerConfig(containerType: ContainerType) {
-    return CONTAINER_CONFIGS[containerType];
+export function getContainerConfig(containerType: ContainerType, entity?: ContainerEntity) {
+    const baseConfig = CONTAINER_CONFIGS[containerType];
+    
+    // Handle dynamic slot count for wooden storage boxes based on boxType
+    if (containerType === 'wooden_storage_box' && entity) {
+        const box = entity as WoodenStorageBox;
+        let slots: number;
+        let gridCols = 6; // Default 6 columns for all box types
+        
+        switch (box.boxType) {
+            case BOX_TYPE_LARGE:
+                slots = NUM_LARGE_BOX_SLOTS;
+                break;
+            case BOX_TYPE_REFRIGERATOR:
+                slots = NUM_REFRIGERATOR_SLOTS;
+                break;
+            default:
+                slots = NUM_BOX_SLOTS;
+        }
+        
+        return { ...baseConfig, slots, gridCols };
+    }
+    
+    return baseConfig;
 }
 
 /**
  * Helper to capitalize container type for display
  */
-export function getContainerDisplayName(containerType: ContainerType): string {
+export function getContainerDisplayName(containerType: ContainerType, entity?: ContainerEntity): string {
+    // Handle dynamic names for wooden storage boxes
+    if (containerType === 'wooden_storage_box' && entity) {
+        const box = entity as WoodenStorageBox;
+        switch (box.boxType) {
+            case BOX_TYPE_LARGE:
+                return 'LARGE WOODEN STORAGE BOX';
+            case BOX_TYPE_REFRIGERATOR:
+                return 'REFRIGERATOR';
+            default:
+                return 'WOODEN STORAGE BOX';
+        }
+    }
+    
     const nameMap = {
         campfire: 'CAMPFIRE',
         furnace: 'FURNACE',

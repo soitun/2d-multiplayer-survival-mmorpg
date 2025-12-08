@@ -319,6 +319,8 @@ import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
+import { ProcessFoodSpoilage } from "./process_food_spoilage_reducer.ts";
+export { ProcessFoodSpoilage };
 import { ProcessFumaroleLogicScheduled } from "./process_fumarole_logic_scheduled_reducer.ts";
 export { ProcessFumaroleLogicScheduled };
 import { ProcessFurnaceLogicScheduled } from "./process_furnace_logic_scheduled_reducer.ts";
@@ -653,6 +655,8 @@ import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
+import { FoodSpoilageScheduleTableHandle } from "./food_spoilage_schedule_table.ts";
+export { FoodSpoilageScheduleTableHandle };
 import { FoundationCellTableHandle } from "./foundation_cell_table.ts";
 export { FoundationCellTableHandle };
 import { FumaroleTableHandle } from "./fumarole_table.ts";
@@ -917,6 +921,8 @@ import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
+import { FoodSpoilageSchedule } from "./food_spoilage_schedule_type.ts";
+export { FoodSpoilageSchedule };
 import { FoundationCell } from "./foundation_cell_type.ts";
 export { FoundationCell };
 import { Fumarole } from "./fumarole_type.ts";
@@ -1448,6 +1454,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "itemDefId",
         colType: (FoodPoisoningRisk.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    food_spoilage_schedule: {
+      tableName: "food_spoilage_schedule" as const,
+      rowType: FoodSpoilageSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (FoodSpoilageSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     foundation_cell: {
@@ -2676,6 +2691,10 @@ const REMOTE_MODULE = {
       reducerName: "process_fire_patch_damage",
       argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
     },
+    process_food_spoilage: {
+      reducerName: "process_food_spoilage",
+      argsType: ProcessFoodSpoilage.getTypeScriptAlgebraicType(),
+    },
     process_fumarole_logic_scheduled: {
       reducerName: "process_fumarole_logic_scheduled",
       argsType: ProcessFumaroleLogicScheduled.getTypeScriptAlgebraicType(),
@@ -3362,6 +3381,7 @@ export type Reducer = never
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
+| { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
 | { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
@@ -5713,6 +5733,22 @@ export class RemoteReducers {
 
   removeOnProcessFirePatchDamage(callback: (ctx: ReducerEventContext, args: FirePatchDamageSchedule) => void) {
     this.connection.offReducer("process_fire_patch_damage", callback);
+  }
+
+  processFoodSpoilage(args: FoodSpoilageSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessFoodSpoilage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_food_spoilage", __argsBuffer, this.setCallReducerFlags.processFoodSpoilageFlags);
+  }
+
+  onProcessFoodSpoilage(callback: (ctx: ReducerEventContext, args: FoodSpoilageSchedule) => void) {
+    this.connection.onReducer("process_food_spoilage", callback);
+  }
+
+  removeOnProcessFoodSpoilage(callback: (ctx: ReducerEventContext, args: FoodSpoilageSchedule) => void) {
+    this.connection.offReducer("process_food_spoilage", callback);
   }
 
   processFumaroleLogicScheduled(scheduleArgs: FumaroleProcessingSchedule) {
@@ -8408,6 +8444,11 @@ export class SetReducerFlags {
     this.processFirePatchDamageFlags = flags;
   }
 
+  processFoodSpoilageFlags: __CallReducerFlags = 'FullUpdate';
+  processFoodSpoilage(flags: __CallReducerFlags) {
+    this.processFoodSpoilageFlags = flags;
+  }
+
   processFumaroleLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processFumaroleLogicScheduled(flags: __CallReducerFlags) {
     this.processFumaroleLogicScheduledFlags = flags;
@@ -9241,6 +9282,11 @@ export class RemoteTables {
   get foodPoisoningRisk(): FoodPoisoningRiskTableHandle<'food_poisoning_risk'> {
     // clientCache is a private property
     return new FoodPoisoningRiskTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoodPoisoningRisk>(REMOTE_MODULE.tables.food_poisoning_risk));
+  }
+
+  get foodSpoilageSchedule(): FoodSpoilageScheduleTableHandle<'food_spoilage_schedule'> {
+    // clientCache is a private property
+    return new FoodSpoilageScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoodSpoilageSchedule>(REMOTE_MODULE.tables.food_spoilage_schedule));
   }
 
   get foundationCell(): FoundationCellTableHandle<'foundation_cell'> {

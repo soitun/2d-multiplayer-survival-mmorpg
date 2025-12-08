@@ -10,7 +10,7 @@ import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
 import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
-import { ContainerType, getContainerConfig } from '../utils/containerUtils';
+import { ContainerType, ContainerEntity, getContainerConfig } from '../utils/containerUtils';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor } from '../utils/durabilityHelpers';
 import styles from './InventoryUI.module.css';
@@ -39,6 +39,9 @@ interface ContainerSlotsProps {
     
     // Optional disabled slots (for campfire with broth pot)
     disabledSlots?: Set<number>;
+    
+    // Optional container entity for dynamic config (e.g., WoodenStorageBox with boxType)
+    containerEntity?: ContainerEntity;
 }
 
 const ContainerSlots: React.FC<ContainerSlotsProps> = ({
@@ -54,9 +57,10 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     onItemMouseMove,
     className,
     style,
-    disabledSlots
+    disabledSlots,
+    containerEntity
 }) => {
-    const config = getContainerConfig(containerType);
+    const config = getContainerConfig(containerType, containerEntity);
     
     // Determine if this should render as a grid
     const isGridLayout = config.gridCols && config.gridCols > 1;

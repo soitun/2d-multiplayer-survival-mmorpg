@@ -146,7 +146,7 @@ lazy_static! {
             primary_yield: ("Scurvy Grass".to_string(), 1, 3),
             secondary_yield: None,
             seed_type: "Scurvy Grass Seeds".to_string(),
-            seed_drop_chance: 0.60, // 60% chance - important vitamin C source
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 480,  // 8 minutes
             max_respawn_time_secs: 720,  // 12 minutes
             spawn_condition: SpawnCondition::Coastal, // Grows near shores
@@ -163,7 +163,7 @@ lazy_static! {
             primary_yield: ("Plant Fiber".to_string(), 40, 50),
             secondary_yield: Some(("Nettle Leaves".to_string(), 1, 3, 0.80)),
             seed_type: "Nettle Seeds".to_string(),
-            seed_drop_chance: 0.65, // 65% chance - important fiber crop should be sustainable
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -198,7 +198,7 @@ lazy_static! {
             primary_yield: ("Pumpkin".to_string(), 1, 1),
             secondary_yield: Some(("Plant Fiber".to_string(), 3, 5, 0.85)),
             seed_type: "Pumpkin Seeds".to_string(),
-            seed_drop_chance: 0.70, // Increased from 0.20 for farming sustainability
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Coastal,
@@ -215,7 +215,7 @@ lazy_static! {
             primary_yield: ("Common Reed Stalk".to_string(), 2, 4),
             secondary_yield: Some(("Plant Fiber".to_string(), 1, 3, 0.75)),
             seed_type: "Reed Rhizome".to_string(),
-            seed_drop_chance: 0.65, // Increased from 0.14 for farming sustainability
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
             spawn_condition: SpawnCondition::InlandWater,
@@ -232,7 +232,7 @@ lazy_static! {
             primary_yield: ("Plant Fiber".to_string(), 15, 15), // Fixed 15 fiber
             secondary_yield: None,
             seed_type: "Beach Lyme Grass Seeds".to_string(), // Can be planted from seeds
-            seed_drop_chance: 0.53, // 60% chance - coastal grass should be sustainable
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 480,  // 8 minutes
             max_respawn_time_secs: 720,  // 12 minutes
             spawn_condition: SpawnCondition::Coastal, // Spawns on beach tiles
@@ -249,7 +249,7 @@ lazy_static! {
             primary_yield: ("Crowberry".to_string(), 3, 6),
             secondary_yield: None,
             seed_type: "Crowberry Seeds".to_string(),
-            seed_drop_chance: 0.60, // Increased from 0.45 for farming sustainability
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Tundra, // Low-growing arctic shrub - TUNDRA ONLY
@@ -267,7 +267,7 @@ lazy_static! {
             primary_yield: ("Arctic Lichen".to_string(), 1, 2),
             secondary_yield: Some(("Plant Fiber".to_string(), 1, 2, 0.60)), // 60% chance for fiber (lichen is fibrous)
             seed_type: "Lichen Spores".to_string(),
-            seed_drop_chance: 0.40, // 40% chance - slow-growing alpine plant
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
             min_respawn_time_secs: 1800, // 30 minutes (slow-growing)
             max_respawn_time_secs: 2700, // 45 minutes
             spawn_condition: SpawnCondition::Alpine, // Alpine biome only
@@ -284,7 +284,7 @@ lazy_static! {
             primary_yield: ("Mountain Moss".to_string(), 2, 4),
             secondary_yield: Some(("Plant Fiber".to_string(), 2, 3, 0.70)), // 70% chance for fiber (moss is fibrous)
             seed_type: "Moss Spores".to_string(),
-            seed_drop_chance: 0.45, // 45% chance - alpine moss
+            seed_drop_chance: 0.80, // 45% chance - alpine moss
             min_respawn_time_secs: 1500, // 25 minutes
             max_respawn_time_secs: 2400, // 40 minutes
             spawn_condition: SpawnCondition::Alpine, // Alpine biome only
@@ -301,7 +301,7 @@ lazy_static! {
             primary_yield: ("Arctic Poppy".to_string(), 1, 2),
             secondary_yield: None,
             seed_type: "Arctic Poppy Seeds".to_string(),
-            seed_drop_chance: 0.50, // 50% chance - alpine flower
+            seed_drop_chance: 0.80, // 50% chance - alpine flower
             min_respawn_time_secs: 2000, // 33 minutes
             max_respawn_time_secs: 3000, // 50 minutes
             spawn_condition: SpawnCondition::Alpine, // Alpine biome only
@@ -320,7 +320,7 @@ lazy_static! {
             primary_yield: ("Carrot".to_string(), 1, 3),
             secondary_yield: None,
             seed_type: "Carrot Seeds".to_string(),
-            seed_drop_chance: 0.75, // 75% chance - common food crop must be sustainable
+            seed_drop_chance: 0.80, // 75% chance - common food crop must be sustainable
             min_respawn_time_secs: 900,  // 15 minutes
             max_respawn_time_secs: 1500, // 25 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -337,7 +337,7 @@ lazy_static! {
             primary_yield: ("Sea Plantain".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Sea Plantain Seeds".to_string(),
-            seed_drop_chance: 0.55, // 55% chance - maritime plant
+            seed_drop_chance: 0.80, // 80% chance - maritime plant must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
             spawn_condition: SpawnCondition::Coastal, // Maritime plant grows near shores
@@ -354,7 +354,7 @@ lazy_static! {
             primary_yield: ("Glasswort".to_string(), 2, 5),
             secondary_yield: None,
             seed_type: "Glasswort Seeds".to_string(),
-            seed_drop_chance: 0.53, // 53% chance - salt-tolerant succulent
+            seed_drop_chance: 0.80, // 80% chance - salt-tolerant succulent must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::Coastal, // Salt-tolerant, grows in maritime areas
@@ -371,7 +371,7 @@ lazy_static! {
             primary_yield: ("Plant Fiber".to_string(), 3, 5), // Provides fiber directly
             secondary_yield: None,
             seed_type: "Arctic Hairgrass Seeds".to_string(),
-            seed_drop_chance: 0.60, // 60% chance - important fiber source should be sustainable
+            seed_drop_chance: 0.80, // 60% chance - important fiber source should be sustainable
             min_respawn_time_secs: 900,  // 15 minutes
             max_respawn_time_secs: 1400, // 23 minutes
             spawn_condition: SpawnCondition::Alpine, // Arctic grass grows in alpine biome (high altitude)
@@ -388,7 +388,7 @@ lazy_static! {
             primary_yield: ("Beet".to_string(), 1, 2),
             secondary_yield: None,
             seed_type: "Beet Seeds".to_string(),
-            seed_drop_chance: 0.70, // Increased from 0.15 for farming sustainability
+            seed_drop_chance: 0.80, // 70% chance - important food crop must be sustainable
             min_respawn_time_secs: 1000, // 16 minutes
             max_respawn_time_secs: 1400, // 23 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -405,7 +405,7 @@ lazy_static! {
             primary_yield: ("Horseradish Root".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Horseradish Root".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.08 for farming sustainability - important cold-hardy food crop
+            seed_drop_chance: 0.80, // 55% chance - important cold-hardy food crop must be sustainable
             min_respawn_time_secs: 2000, // 33 minutes
             max_respawn_time_secs: 3000, // 50 minutes
             spawn_condition: SpawnCondition::NearWater,
@@ -422,7 +422,7 @@ lazy_static! {
             primary_yield: ("Raw Corn".to_string(), 1, 3), // 1-3 corn per harvest
             secondary_yield: Some(("Plant Fiber".to_string(), 2, 4, 0.70)), // 70% chance for fiber from stalks
             seed_type: "Corn Seeds".to_string(),
-            seed_drop_chance: 0.70, // 70% chance - important food crop must be sustainable
+            seed_drop_chance: 0.80, // 70% chance - important food crop must be sustainable
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::NearWater, // Corn needs water nearby
@@ -440,7 +440,7 @@ lazy_static! {
             primary_yield: ("Chicory".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Chicory Seeds".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.14 for farming sustainability
+            seed_drop_chance: 0.80, // 55% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 1000, // 16 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -457,7 +457,7 @@ lazy_static! {
             primary_yield: ("Yarrow".to_string(), 1, 3),
             secondary_yield: None,
             seed_type: "Yarrow Seeds".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.12 for farming sustainability
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -474,7 +474,7 @@ lazy_static! {
             primary_yield: ("Chamomile".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Chamomile Seeds".to_string(),
-            seed_drop_chance: 0.60, // Increased from 0.15 for farming sustainability
+            seed_drop_chance: 0.80, // 60% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -491,7 +491,7 @@ lazy_static! {
             primary_yield: ("Mint Leaves".to_string(), 3, 5),
             secondary_yield: None,
             seed_type: "Mint Cuttings".to_string(),
-            seed_drop_chance: 0.75, // 75% chance - sustainable for farming
+            seed_drop_chance: 0.80, // 75% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 400,  // 6 minutes (fast spreading)
             max_respawn_time_secs: 700,  // 11 minutes
             spawn_condition: SpawnCondition::NearWater,
@@ -508,7 +508,7 @@ lazy_static! {
             primary_yield: ("Valerian Root".to_string(), 1, 2),
             secondary_yield: Some(("Valerian Leaves".to_string(), 2, 3, 0.75)),
             seed_type: "Valerian Seeds".to_string(),
-            seed_drop_chance: 0.70, // 70% chance - medicinal herb should be farmable
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::NearWater,
@@ -525,7 +525,7 @@ lazy_static! {
             primary_yield: ("Mugwort".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Mugwort Seeds".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.13 for farming sustainability
+            seed_drop_chance: 0.80, // 55% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 700,  // 11 minutes
             max_respawn_time_secs: 1100, // 18 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -542,7 +542,7 @@ lazy_static! {
             primary_yield: ("Plant Fiber".to_string(), 25, 30), // Balanced between Nettle (40-50) and Beach Lyme (15)
             secondary_yield: None,
             seed_type: "Flax Seeds".to_string(),
-            seed_drop_chance: 0.65, // Increased from 0.18 for farming sustainability
+            seed_drop_chance: 0.80, // 65% chance - important fiber crop must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes - between Nettle (10-15) and Beach Lyme (8-12)
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -559,7 +559,7 @@ lazy_static! {
             primary_yield: ("Bear Garlic".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Bear Garlic Bulbs".to_string(),
-            seed_drop_chance: 0.60, // 60% chance - sustainable for farming
+            seed_drop_chance: 0.80, // 60% chance - important food crop must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -576,7 +576,7 @@ lazy_static! {
             primary_yield: ("Siberian Ginseng".to_string(), 1, 1),
             secondary_yield: Some(("Ginseng Leaves".to_string(), 1, 2, 0.60)),
             seed_type: "Ginseng Seeds".to_string(),
-            seed_drop_chance: 0.50, // Increased from 0.40 - just at sustainability threshold for rare plant
+            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
             min_respawn_time_secs: 3600, // 60 minutes (very rare)
             max_respawn_time_secs: 5400, // 90 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -594,7 +594,7 @@ lazy_static! {
             primary_yield: ("Dogbane Fiber".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Dogbane Seeds".to_string(),
-            seed_drop_chance: 0.60, // Increased from 0.12 for farming sustainability
+            seed_drop_chance: 0.80, // 60% chance - important fiber crop must be sustainable
             min_respawn_time_secs: 1000, // 16 minutes
             max_respawn_time_secs: 1500, // 25 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -611,7 +611,7 @@ lazy_static! {
             primary_yield: ("Plant Fiber".to_string(), 3, 5),
             secondary_yield: None,
             seed_type: "Bog Cotton Seeds".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.10 for farming sustainability
+            seed_drop_chance: 0.80, // 55% chance - important fiber crop must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::InlandWater,
@@ -629,7 +629,7 @@ lazy_static! {
             primary_yield: ("Chanterelle".to_string(), 1, 2),
             secondary_yield: None,
             seed_type: "Chanterelle Spores".to_string(),
-            seed_drop_chance: 0.50, // 50% chance - mushrooms should be farmable
+            seed_drop_chance: 0.80, // 50% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -646,7 +646,7 @@ lazy_static! {
             primary_yield: ("Porcini".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Porcini Spores".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.45 for farming sustainability 
+            seed_drop_chance: 0.80, // 55% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 1500, // 25 minutes
             max_respawn_time_secs: 2200, // 36 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -663,7 +663,7 @@ lazy_static! {
             primary_yield: ("Fly Agaric".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Fly Agaric Spores".to_string(),
-            seed_drop_chance: 0.10,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 1000, // 16 minutes
             max_respawn_time_secs: 1600, // 26 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -680,7 +680,7 @@ lazy_static! {
             primary_yield: ("Shaggy Ink Cap".to_string(), 1, 2),
             secondary_yield: None,
             seed_type: "Shaggy Ink Cap Spores".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.12 for farming sustainability - edible mushroom
+            seed_drop_chance: 0.80, // 55% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 1000, // 16 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -697,7 +697,7 @@ lazy_static! {
             primary_yield: ("Deadly Webcap".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Deadly Webcap Spores".to_string(),
-            seed_drop_chance: 0.05,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 2400, // 40 minutes
             max_respawn_time_secs: 3600, // 60 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -714,7 +714,7 @@ lazy_static! {
             primary_yield: ("Destroying Angel".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Destroying Angel Spores".to_string(),
-            seed_drop_chance: 0.03,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 3600, // 60 minutes
             max_respawn_time_secs: 5400, // 90 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -732,7 +732,7 @@ lazy_static! {
             primary_yield: ("Lingonberries".to_string(), 3, 6),
             secondary_yield: None,
             seed_type: "Lingonberry Seeds".to_string(),
-            seed_drop_chance: 0.55, // Increased from 0.08 for farming sustainability
+            seed_drop_chance: 0.80, // 55% chance - important food crop must be sustainable
             min_respawn_time_secs: 1800, // 30 minutes
             max_respawn_time_secs: 2600, // 43 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -749,7 +749,7 @@ lazy_static! {
             primary_yield: ("Cloudberries".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Cloudberry Seeds".to_string(),
-            seed_drop_chance: 0.06,
+            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
             min_respawn_time_secs: 2000, // 33 minutes
             max_respawn_time_secs: 3000, // 50 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -766,7 +766,7 @@ lazy_static! {
             primary_yield: ("Bilberries".to_string(), 4, 8),
             secondary_yield: None,
             seed_type: "Bilberry Seeds".to_string(),
-            seed_drop_chance: 0.60, // Increased from 0.10 for farming sustainability
+            seed_drop_chance: 0.80, // 60% chance - important food crop must be sustainable
             min_respawn_time_secs: 1200, // 20 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -783,7 +783,7 @@ lazy_static! {
             primary_yield: ("Wild Strawberries".to_string(), 2, 5),
             secondary_yield: None,
             seed_type: "Wild Strawberry Seeds".to_string(),
-            seed_drop_chance: 0.65, // Increased from 0.12 for farming sustainability
+            seed_drop_chance: 0.80, // 65% chance - important food crop must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1300, // 21 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -800,7 +800,7 @@ lazy_static! {
             primary_yield: ("Rowan Berries".to_string(), 5, 10),
             secondary_yield: None,
             seed_type: "Rowan Seeds".to_string(),
-            seed_drop_chance: 0.05,
+            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
             min_respawn_time_secs: 2400, // 40 minutes
             max_respawn_time_secs: 3600, // 60 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -817,7 +817,7 @@ lazy_static! {
             primary_yield: ("Cranberries".to_string(), 3, 7),
             secondary_yield: None,
             seed_type: "Cranberry Seeds".to_string(),
-            seed_drop_chance: 0.07,
+            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
             min_respawn_time_secs: 1600, // 26 minutes
             max_respawn_time_secs: 2400, // 40 minutes
             spawn_condition: SpawnCondition::InlandWater,
@@ -835,7 +835,7 @@ lazy_static! {
             primary_yield: ("Mandrake Root".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Mandrake Seeds".to_string(),
-            seed_drop_chance: 0.02,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 5400, // 90 minutes
             max_respawn_time_secs: 7200, // 120 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -852,7 +852,7 @@ lazy_static! {
             primary_yield: ("Belladonna".to_string(), 1, 3),
             secondary_yield: None,
             seed_type: "Belladonna Seeds".to_string(),
-            seed_drop_chance: 0.04,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 3000, // 50 minutes
             max_respawn_time_secs: 4500, // 75 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -869,7 +869,7 @@ lazy_static! {
             primary_yield: ("Henbane".to_string(), 2, 4),
             secondary_yield: None,
             seed_type: "Henbane Seeds".to_string(),
-            seed_drop_chance: 0.06,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 2400, // 40 minutes
             max_respawn_time_secs: 3600, // 60 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -886,7 +886,7 @@ lazy_static! {
             primary_yield: ("Datura".to_string(), 3, 6),
             secondary_yield: None,
             seed_type: "Datura Seeds".to_string(),
-            seed_drop_chance: 0.08,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 2700, // 45 minutes
             max_respawn_time_secs: 4000, // 66 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -903,7 +903,7 @@ lazy_static! {
             primary_yield: ("Wolfsbane".to_string(), 1, 1),
             secondary_yield: None,
             seed_type: "Wolfsbane Seeds".to_string(),
-            seed_drop_chance: 0.03,
+            seed_drop_chance: 0.80, // 80% chance - important medicinal herb must be sustainable
             min_respawn_time_secs: 4500, // 75 minutes
             max_respawn_time_secs: 6300, // 105 minutes
             spawn_condition: SpawnCondition::Forest,
@@ -913,15 +913,15 @@ lazy_static! {
         // === OTHER ===
         configs.insert(PlantType::Sunflowers, PlantConfig {
             entity_name: "Sunflowers".to_string(),
-            density_percent: 0.0008, // DOUBLED for plains visibility: ~200 plants (tall, visible landmark)
+            density_percent: 0.0008,
             min_distance_sq: 35.0 * 35.0, // Reduced spacing
             min_tree_distance_sq: 30.0 * 30.0,
             min_stone_distance_sq: 25.0 * 25.0,
-            noise_threshold: 0.63, // LOWERED for easier spawning
+            noise_threshold: 0.63,
             primary_yield: ("Sunflower".to_string(), 1, 2),
             secondary_yield: None, // Seeds come from seed drop system
             seed_type: "Sunflower Seeds".to_string(),
-            seed_drop_chance: 0.75, // Increased from 0.30 - seeds are main harvest so should be sustainable
+            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
             min_respawn_time_secs: 2000, // 33 minutes
             max_respawn_time_secs: 3000, // 50 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -938,7 +938,7 @@ lazy_static! {
             primary_yield: ("Salsify Root".to_string(), 1, 2),
             secondary_yield: None,
             seed_type: "Salsify Seeds".to_string(),
-            seed_drop_chance: 0.60, // Increased from 0.11 for farming sustainability
+            seed_drop_chance: 0.80, // 60% chance - important food crop must be sustainable
             min_respawn_time_secs: 1400, // 23 minutes
             max_respawn_time_secs: 2000, // 33 minutes
             spawn_condition: SpawnCondition::Plains,
@@ -946,15 +946,13 @@ lazy_static! {
         });
         
         // === TECHNOLOGICAL DEBRIS ===
-        // BOOSTED for "power rush" early game feel
-        // Beach exploration should reward players with quick Memory Grid unlocks
         configs.insert(PlantType::MemoryShard, PlantConfig {
             entity_name: "Memory Shard".to_string(),
-            density_percent: 0.0015, // 2.5x increase: ~300-400 beach finds across coastline
-            min_distance_sq: 80.0 * 80.0, // Closer together - more frequent discoveries
+            density_percent: 0.0015,
+            min_distance_sq: 80.0 * 80.0,
             min_tree_distance_sq: 60.0 * 60.0,
             min_stone_distance_sq: 70.0 * 70.0,
-            noise_threshold: 0.75, // Easier to find - reward beach exploration
+            noise_threshold: 0.75,
             primary_yield: ("Memory Shard".to_string(), 3, 8), // BOOSTED: 3-8 shards per pickup = 1 Tier 1 unlock per 2-5 finds
             secondary_yield: None,
             seed_type: "".to_string(), // No seeds - technological debris

@@ -4,7 +4,7 @@ import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCam
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater, getWaterCapacity } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, MAX_DURABILITY } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, MAX_DURABILITY, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
 
 // Import Custom Components
 import DraggableItem from './DraggableItem';
@@ -81,8 +81,9 @@ interface TooltipState {
     isSaltWater?: boolean; // Whether the water container has salt water
     ammoLoaded?: number; // Current ammo loaded in magazine (for firearms)
     ammoCapacity?: number; // Magazine capacity (for firearms)
-    durability?: number; // Current durability (0-100) for weapons/tools/torches
+    durability?: number; // Current durability (0-100) for weapons/tools/torches/food
     maxDurability?: number; // Max durability (always 100)
+    spoilageTimeRemaining?: string; // Time remaining until food spoils (e.g., "12h 30m" or "Spoiled")
   } | null;
   position: {
     x: number;
@@ -1174,14 +1175,20 @@ const Hotbar: React.FC<HotbarProps> = ({
       }
     }
 
-    // Calculate durability for weapons, tools, torches, etc.
+    // Calculate durability for weapons, tools, torches, food, etc.
     let durability: number | undefined = undefined;
     let maxDurability: number | undefined = undefined;
+    let spoilageTimeRemaining: string | undefined = undefined;
     if (hasDurabilitySystem(item.definition)) {
       const currentDurability = getDurability(item.instance);
       // Show durability as current value (null means full/unused)
       durability = currentDurability !== null ? Math.round(currentDurability) : MAX_DURABILITY;
       maxDurability = MAX_DURABILITY;
+      
+      // For food items, also show time remaining until spoilage
+      if (isFoodItem(item.definition)) {
+        spoilageTimeRemaining = formatFoodSpoilageTimeRemaining(item.instance, item.definition);
+      }
     }
 
     // Update tracking ref if requested
@@ -1196,18 +1203,19 @@ const Hotbar: React.FC<HotbarProps> = ({
 
     setTooltip(prev => ({
       visible: true,
-      content: {
-        name: item.definition.name,
-        quantity: item.instance.quantity,
-        consumableStats,
-        waterContentMl,
-        waterCapacityMl,
-        isSaltWater: isSaltWaterValue,
-        ammoLoaded,
-        ammoCapacity,
-        durability,
-        maxDurability
-      },
+        content: {
+          name: item.definition.name,
+          quantity: item.instance.quantity,
+          consumableStats,
+          waterContentMl,
+          waterCapacityMl,
+          isSaltWater: isSaltWaterValue,
+          ammoLoaded,
+          ammoCapacity,
+          durability,
+          maxDurability,
+          spoilageTimeRemaining
+        },
       position: position || prev.position
     }));
   }, [findItemForSlot, rangedWeaponStats, activeEquipment]);
@@ -1507,13 +1515,13 @@ const Hotbar: React.FC<HotbarProps> = ({
                 );
               })()}
               
-              {/* Durability bar indicator for weapons, tools, torches, etc. (RIGHT side, GREEN) */}
+              {/* Durability bar indicator for weapons, tools, torches, food, etc. (RIGHT side, GREEN) */}
               {/* Positioned to avoid covering the hotbar slot number in bottom-right corner */}
               {populatedItem && hasDurabilitySystem(populatedItem.definition) && (() => {
                 const durabilityPercentage = getDurabilityPercentage(populatedItem.instance);
                 const hasDurability = durabilityPercentage > 0;
                 const isBroken = isItemBroken(populatedItem.instance);
-                const durabilityColor = getDurabilityColor(populatedItem.instance);
+                const durabilityColor = getDurabilityColor(populatedItem.instance, populatedItem.definition);
                 
                 return (
                   <div
@@ -1547,7 +1555,7 @@ const Hotbar: React.FC<HotbarProps> = ({
                 );
               })()}
               
-              {/* Broken item overlay */}
+              {/* Broken item overlay (weapons/tools) or Spoiled food overlay */}
               {populatedItem && hasDurabilitySystem(populatedItem.definition) && isItemBroken(populatedItem.instance) && (
                 <div style={{
                   position: 'absolute',
@@ -1555,7 +1563,9 @@ const Hotbar: React.FC<HotbarProps> = ({
                   left: '0px',
                   width: '100%',
                   height: '100%',
-                  backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                  backgroundColor: isFoodItem(populatedItem.definition) 
+                    ? 'rgba(139, 69, 19, 0.6)' // Brownish overlay for spoiled food
+                    : 'rgba(80, 80, 80, 0.6)', // Gray overlay for broken items
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -1565,11 +1575,13 @@ const Hotbar: React.FC<HotbarProps> = ({
                 }}>
                   <span style={{
                     fontSize: '18px',
-                    color: 'rgba(255, 100, 100, 0.9)',
+                    color: isFoodItem(populatedItem.definition)
+                      ? 'rgba(255, 200, 100, 0.9)' // Yellowish for spoiled food
+                      : 'rgba(255, 100, 100, 0.9)', // Red for broken items
                     textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                     userSelect: 'none'
                   }}>
-                    ✖
+                    {isFoodItem(populatedItem.definition) ? '🦠' : '✖'}
                   </span>
                 </div>
               )}
@@ -1762,7 +1774,7 @@ const Hotbar: React.FC<HotbarProps> = ({
             <div style={{ 
               fontSize: '10px', 
               color: tooltip.content.durability <= 0 
-                ? 'rgba(128, 128, 128, 0.9)'  // Gray for broken
+                ? 'rgba(128, 128, 128, 0.9)'  // Gray for broken/spoiled
                 : tooltip.content.durability < 25 
                   ? 'rgba(255, 80, 80, 0.9)'  // Red for low
                   : tooltip.content.durability < 50 
@@ -1770,7 +1782,12 @@ const Hotbar: React.FC<HotbarProps> = ({
                     : 'rgba(50, 205, 50, 0.9)',  // Green for good
               marginBottom: '2px' 
             }}>
-              🔧 Durability: {tooltip.content.durability} / {tooltip.content.maxDurability}
+              {tooltip.content.spoilageTimeRemaining ? '🍖' : '🔧'} Durability: {tooltip.content.durability} / {tooltip.content.maxDurability}
+              {tooltip.content.spoilageTimeRemaining && (
+                <span style={{ marginLeft: '8px', color: tooltip.content.spoilageTimeRemaining === 'Spoiled' ? 'rgba(255, 100, 100, 0.9)' : 'rgba(255, 200, 100, 0.9)' }}>
+                  ({tooltip.content.spoilageTimeRemaining})
+                </span>
+              )}
             </div>
           )}
           <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}>

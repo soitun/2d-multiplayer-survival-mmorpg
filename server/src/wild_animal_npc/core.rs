@@ -994,6 +994,14 @@ fn execute_attack(
 ) -> Result<(), String> {
     // Apply damage to player
     if let Some(mut target) = ctx.db.player().identity().find(&target_player.identity) {
+        // <<< SAFE ZONE CHECK - Players in safe zones are immune to animal damage >>>
+        if crate::active_effects::player_has_safe_zone_effect(ctx, target.identity) {
+            log::info!("Animal {:?} {} attack blocked - Player {:?} is in a safe zone", 
+                animal.species, animal.id, target.identity);
+            return Ok(()); // No damage applied
+        }
+        // <<< END SAFE ZONE CHECK >>>
+        
         // Get species-specific damage and effects
         let raw_damage = behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng)?;
         

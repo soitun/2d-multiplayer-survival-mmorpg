@@ -422,6 +422,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         }
         // <<< END FUMAROLE WARMTH PROTECTION EFFECT MANAGEMENT >>>
 
+        // <<< ADD SAFE ZONE EFFECT MANAGEMENT >>>
+        // Update safe zone status based on player position (near ALK monuments)
+        if let Err(e) = crate::active_effects::update_player_safe_zone_status(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update safe zone status for player {:?}: {}", player_id, e);
+        }
+        // <<< END SAFE ZONE EFFECT MANAGEMENT >>>
+
         // <<< HOT SPRING COLD IMMUNITY & WARMTH RECOVERY >>>
         // Players in hot springs are immune to ALL cold effects AND gain warmth rapidly
         let is_in_hot_spring = crate::active_effects::player_has_hot_spring_effect(ctx, player_id);
