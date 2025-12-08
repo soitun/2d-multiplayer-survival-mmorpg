@@ -1166,6 +1166,47 @@ pub fn equip_armor_from_inventory(ctx: &ReducerContext, item_instance_id: u64) -
 
 // --- Helper functions for item data management ---
 
+/// Get the maximum water capacity (in liters) for a water container item definition.
+/// Returns Some(capacity) if the item is a portable water container, None otherwise.
+/// 
+/// This function identifies portable water containers by checking if an item instance
+/// has `water_liters` in its `item_data`. This is the definitive property-based check:
+/// if an item has been used as a water container (has water_liters), it IS a water container.
+/// 
+/// The presence of `water_liters` in `item_data` is the definitive property that makes
+/// something a portable water container - no name or description checking needed.
+/// 
+/// For items that haven't been used yet, pass None for item_instance and this will return None.
+/// Once an item is filled with water, it will be automatically detected.
+pub fn get_water_container_capacity(item_def: &ItemDefinition, item_instance: Option<&InventoryItem>) -> Option<f32> {
+    // Check if this item instance has water_liters in its item_data
+    // This is the definitive property-based check - if it has water_liters, it's a water container
+    if let Some(item) = item_instance {
+        if let Some(_current_water) = get_water_content(item) {
+            // Item has been used as a water container, so it IS a water container
+            // Try to extract capacity from description for max capacity
+            let desc_lower = item_def.description.to_lowercase();
+            if let Some(capacity_pos) = desc_lower.find("capacity:") {
+                let after_capacity = &desc_lower[capacity_pos + "capacity:".len()..];
+                let capacity_str: String = after_capacity
+                    .chars()
+                    .skip_while(|c| c.is_whitespace())
+                    .take_while(|c| c.is_ascii_digit() || *c == '.')
+                    .collect();
+                
+                if let Ok(capacity) = capacity_str.parse::<f32>() {
+                    return Some(capacity);
+                }
+            }
+            // If we can't parse capacity but item has water_liters, it's still a water container
+            // Return a reasonable default capacity
+            return Some(5.0); // Default capacity for containers without parsed capacity
+        }
+    }
+    
+    None
+}
+
 /// Get water content from a water container item
 pub fn get_water_content(item: &InventoryItem) -> Option<f32> {
     if let Some(data_str) = &item.item_data {

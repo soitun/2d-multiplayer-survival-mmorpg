@@ -76,6 +76,7 @@ mod consumables;
 mod utils; // Declare utils module
 mod dropped_item; // Declare dropped_item module
 mod wooden_storage_box; // Add the new module
+mod refrigerator; // Refrigerator-specific container logic
 
 mod items_database; // <<< NEW: Modular items database
 mod starting_items; // <<< ADDED module declaration

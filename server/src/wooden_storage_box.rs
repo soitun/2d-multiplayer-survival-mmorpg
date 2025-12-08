@@ -17,7 +17,6 @@ pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RAD
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
 pub const NUM_BOX_SLOTS: usize = 18;
 pub const NUM_LARGE_BOX_SLOTS: usize = 48;
-pub const NUM_REFRIGERATOR_SLOTS: usize = 30;
 pub(crate) const BOX_BOX_COLLISION_DISTANCE_SQUARED: f32 = (BOX_COLLISION_RADIUS * 2.0) * (BOX_COLLISION_RADIUS * 2.0);
 
 // --- Health constants ---
@@ -25,13 +24,14 @@ pub const WOODEN_STORAGE_BOX_INITIAL_HEALTH: f32 = 750.0;
 pub const WOODEN_STORAGE_BOX_MAX_HEALTH: f32 = 750.0;
 pub const LARGE_WOODEN_STORAGE_BOX_INITIAL_HEALTH: f32 = 1200.0;
 pub const LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH: f32 = 1200.0;
-pub const REFRIGERATOR_INITIAL_HEALTH: f32 = 1000.0;
-pub const REFRIGERATOR_MAX_HEALTH: f32 = 1000.0;
 
 // --- Box Types ---
 pub const BOX_TYPE_NORMAL: u8 = 0;
 pub const BOX_TYPE_LARGE: u8 = 1;
 pub const BOX_TYPE_REFRIGERATOR: u8 = 2;
+
+// Re-export refrigerator constants for backward compatibility
+pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
 // --- Import Table Traits and Concrete Types ---
 // Import necessary table traits and concrete types for working with players,
@@ -50,32 +50,8 @@ use crate::environment::calculate_chunk_index;
 use crate::models::{ContainerType, ItemLocation, InventoryLocationData, HotbarLocationData, DroppedLocationData, EquippedLocationData, ContainerLocationData};
 use crate::player_inventory::{find_first_empty_player_slot, move_item_to_inventory, move_item_to_hotbar, get_player_item};
 use crate::items::ItemCategory;
-use crate::durability::is_food_item;
-
-/// Checks if an item is allowed to be stored in the refrigerator
-/// Allowed items: food (hunger/thirst items), seeds, water containers
-pub fn is_item_allowed_in_refrigerator(item_def: &ItemDefinition) -> bool {
-    // Food items (items with hunger or thirst stats)
-    if is_food_item(item_def) {
-        return true;
-    }
-    
-    // Seeds (items with "Seeds" or "Seed" in name, typically Placeable category)
-    if item_def.name.contains("Seeds") || item_def.name.contains("Seed") || item_def.name == "Seed Potato" {
-        return true;
-    }
-    
-    // Water containers (identified by name)
-    if item_def.name == "Reed Water Bottle" || 
-       item_def.name == "Plastic Water Jug" ||
-       item_def.name == "Water Jug" ||
-       item_def.name == "Field Cauldron" ||
-       item_def.name == "Cerametal Field Cauldron Mk. II" {
-        return true;
-    }
-    
-    false
-}
+// Re-export refrigerator validation function for backward compatibility
+pub use crate::refrigerator::is_item_allowed_in_refrigerator;
 
 /// --- Wooden Storage Box Data Structure ---
 /// Represents a storage box in the game world with position, owner, and
@@ -227,22 +203,7 @@ pub fn move_item_to_box(
     let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
     // REMOVED: Item fetching/validation moved to handler
     // REMOVED: Target slot index validation moved to handler (using container.num_slots())
-
-    // --- Refrigerator Item Validation ---
-    // If the target is a refrigerator, validate that the item is allowed
-    if storage_box.box_type == BOX_TYPE_REFRIGERATOR {
-        let item = inventory_items.instance_id().find(item_instance_id)
-            .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-        let item_def = item_defs.id().find(item.item_def_id)
-            .ok_or_else(|| format!("Item definition {} not found", item.item_def_id))?;
-        
-        if !is_item_allowed_in_refrigerator(&item_def) {
-            return Err(format!(
-                "Cannot store '{}' in refrigerator. Only food, seeds, and water containers are allowed.", 
-                item_def.name
-            ));
-        }
-    }
+    // NOTE: Refrigerator-specific validation is now handled by refrigerator.rs reducers
 
     // --- Call GENERIC Handler --- 
     inventory_management::handle_move_to_container_slot(
@@ -549,7 +510,10 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     // Determine health based on box type
     let (initial_health, max_health) = match box_type {
         BOX_TYPE_LARGE => (LARGE_WOODEN_STORAGE_BOX_INITIAL_HEALTH, LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH),
-        BOX_TYPE_REFRIGERATOR => (REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH),
+        BOX_TYPE_REFRIGERATOR => {
+            use crate::refrigerator::{REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
+            (REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH)
+        },
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
@@ -781,7 +745,10 @@ impl ItemContainer for WoodenStorageBox {
         // Return slot count based on box_type
         match self.box_type {
             BOX_TYPE_LARGE => NUM_LARGE_BOX_SLOTS,
-            BOX_TYPE_REFRIGERATOR => NUM_REFRIGERATOR_SLOTS,
+            BOX_TYPE_REFRIGERATOR => {
+                use crate::refrigerator::NUM_REFRIGERATOR_SLOTS;
+                NUM_REFRIGERATOR_SLOTS
+            },
             _ => NUM_BOX_SLOTS,
         }
     }
@@ -1034,7 +1001,7 @@ impl ContainerItemClearer for WoodenStorageBoxClearer {
 /// Validates if a player can interact with a specific box (checks existence and distance).
 /// Returns Ok((Player struct instance, WoodenStorageBox struct instance)) on success, or Err(String) on failure.
 /// Does NOT check ownership.
-fn validate_box_interaction(
+pub fn validate_box_interaction(
     ctx: &ReducerContext,
     box_id: u32,
 ) -> Result<(Player, WoodenStorageBox), String> { // Use corrected Player type
