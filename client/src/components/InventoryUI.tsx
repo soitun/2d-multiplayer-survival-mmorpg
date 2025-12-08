@@ -60,6 +60,8 @@ import { formatStatDisplay } from '../utils/formatUtils';
 import ItemInteractionPanel from './ItemInteractionPanel';
 // Import water container helpers
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+// Import durability helpers
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability } from '../utils/durabilityHelpers';
 // Import arrow damage calculation helpers
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
 // Import InventorySearchBar component
@@ -455,6 +457,17 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                     label: 'Water', 
                     value: waterDisplay, 
                     color: waterContent !== null ? '#5bc0de' : '#999' 
+                });
+            }
+
+            // Durability Stats
+            if (hasDurabilitySystem(def)) {
+                const durabilityDisplay = formatDurability(item.instance);
+                const durabilityColor = getDurabilityColor(item.instance);
+                stats.push({ 
+                    label: 'Durability', 
+                    value: durabilityDisplay, 
+                    color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
                 });
             }
 
@@ -856,6 +869,17 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 });
             }
 
+            // Durability Stats
+            if (hasDurabilitySystem(def)) {
+                const durabilityDisplay = formatDurability(item.instance);
+                const durabilityColor = getDurabilityColor(item.instance);
+                stats.push({ 
+                    label: 'Durability', 
+                    value: durabilityDisplay, 
+                    color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
+                });
+            }
+
             const content: TooltipContent = {
                 name: def.name,
                 description: def.description,
@@ -1030,6 +1054,71 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                                 </div>
                                             );
                                         })()}
+                                        
+                                        {/* Durability bar indicator for weapons, tools, torches in equipment slots (RIGHT side, GREEN) */}
+                                        {item && hasDurabilitySystem(item.definition) && (() => {
+                                            const durabilityPercentage = getDurabilityPercentage(item.instance);
+                                            const hasDurability = durabilityPercentage > 0;
+                                            const durabilityColor = getDurabilityColor(item.instance);
+                                            
+                                            return (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        right: '4px',
+                                                        top: '4px',
+                                                        bottom: '14px', // Raised to avoid covering any slot indicators
+                                                        width: '3px',
+                                                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                        borderRadius: '1px',
+                                                        zIndex: 4,
+                                                        pointerEvents: 'none',
+                                                    }}
+                                                >
+                                                    {hasDurability && (
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: '0px',
+                                                                left: '0px',
+                                                                right: '0px',
+                                                                height: `${durabilityPercentage * 100}%`,
+                                                                backgroundColor: durabilityColor,
+                                                                borderRadius: '1px',
+                                                                transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
+                                                            }}
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                        
+                                        {/* Broken item overlay for equipment slots */}
+                                        {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '0px',
+                                                left: '0px',
+                                                width: '100%',
+                                                height: '100%',
+                                                backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                borderRadius: '2px',
+                                                pointerEvents: 'none',
+                                                zIndex: 5
+                                            }}>
+                                                <span style={{
+                                                    fontSize: '16px',
+                                                    color: 'rgba(255, 100, 100, 0.9)',
+                                                    textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                                    userSelect: 'none'
+                                                }}>
+                                                    ✖
+                                                </span>
+                                            </div>
+                                        )}
                                 </DroppableSlot>
                                 <div className={styles.slotLabel}>{slotInfo.name}</div>
                             </div>
@@ -1125,6 +1214,71 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                         </div>
                                     );
                                 })()}
+                                
+                                {/* Durability bar indicator for weapons, tools, torches (RIGHT side, GREEN) */}
+                                {item && hasDurabilitySystem(item.definition) && (() => {
+                                    const durabilityPercentage = getDurabilityPercentage(item.instance);
+                                    const hasDurability = durabilityPercentage > 0;
+                                    const durabilityColor = getDurabilityColor(item.instance);
+                                    
+                                    return (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                right: '4px',
+                                                top: '4px',
+                                                bottom: '14px', // Raised to avoid covering any slot indicators
+                                                width: '3px',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                borderRadius: '1px',
+                                                zIndex: 4,
+                                                pointerEvents: 'none',
+                                            }}
+                                        >
+                                            {hasDurability && (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        bottom: '0px',
+                                                        left: '0px',
+                                                        right: '0px',
+                                                        height: `${durabilityPercentage * 100}%`,
+                                                        backgroundColor: durabilityColor,
+                                                        borderRadius: '1px',
+                                                        transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                                
+                                {/* Broken item overlay */}
+                                {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '0px',
+                                        left: '0px',
+                                        width: '100%',
+                                        height: '100%',
+                                        backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        borderRadius: '2px',
+                                        pointerEvents: 'none',
+                                        zIndex: 5
+                                    }}>
+                                        <span style={{
+                                            fontSize: '16px',
+                                            color: 'rgba(255, 100, 100, 0.9)',
+                                            textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                            userSelect: 'none'
+                                        }}>
+                                            ✖
+                                        </span>
+                                    </div>
+                                )}
                             </DroppableSlot>
                         );
                     })}

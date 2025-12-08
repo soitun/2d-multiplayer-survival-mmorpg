@@ -364,6 +364,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks
                 ];
                 newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
 
@@ -407,6 +408,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // MOVED: Now spatial
 
                 if (ENABLE_CLOUDS) {
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
@@ -512,6 +514,8 @@ export const useSpacetimeTables = ({
                     ? Math.max(...metrics.subscriptionCreationTimes)
                     : 0;
 
+                // DISABLED: Performance logging for production
+                /*
                 console.log(`[CHUNK_PERF] 📊 Performance Metrics (${(timeSinceLastLog / 1000).toFixed(1)}s):`, {
                     chunkSize: `${gameConfig.chunkSizeTiles}×${gameConfig.chunkSizeTiles} tiles (${gameConfig.chunkSizePx}px)`,
                     totalCrossings: metrics.totalChunkCrossings,
@@ -522,6 +526,7 @@ export const useSpacetimeTables = ({
                     totalSubscriptionTime: `${metrics.totalSubscriptionTime.toFixed(2)}ms`,
                     crossingsPerSecond: (metrics.totalChunkCrossings / (timeSinceLastLog / 1000)).toFixed(2)
                 });
+                */
 
                 // Reset metrics for next interval
                 metrics.totalChunkCrossings = 0;
@@ -676,7 +681,7 @@ export const useSpacetimeTables = ({
             const counts = subUpdateCountsRef.current;
             const total = Object.values(counts).reduce((a, b) => a + b, 0);
             const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-            console.log(`[SUB_UPDATES] Total: ${total} updates in 5s. Top tables:`, sorted.slice(0, 5).map(([k, v]) => `${k}:${v}`).join(', '));
+            // DISABLED: console.log(`[SUB_UPDATES] Total: ${total} updates in 5s. Top tables:`, sorted.slice(0, 5).map(([k, v]) => `${k}:${v}`).join(', '));
             subUpdateCountsRef.current = {};
             subUpdateLastLogRef.current = Date.now();
         }
@@ -1300,17 +1305,14 @@ export const useSpacetimeTables = ({
                 setFirePatches(prev => { const newMap = new Map(prev); newMap.delete(firePatch.id.toString()); return newMap; });
             };
 
-            // Wild Animal handlers - SIMPLE THROTTLE for performance
+            // Wild Animal handlers - NOW USES SPATIAL SUBSCRIPTIONS (not global)
+            // Performance fix: only receive updates for animals in nearby chunks (~5-15)
+            // instead of all ~100 animals on the entire map
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                // Always update immediately for new animals
                 setWildAnimals(prev => new Map(prev).set(animal.id.toString(), animal));
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
                 trackSubUpdate('wildAnimal_update');
-
-                // Simple approach: always update state, let viewport filtering handle the rest
-                // The expensive filtering happens in useEntityFiltering's useMemo, which only
-                // recalculates when wildAnimals map reference changes
                 setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
@@ -1882,12 +1884,8 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[ANIMAL_CORPSE Sub Error]:", err))
                     .subscribe('SELECT * FROM animal_corpse'),
-                // CRITICAL FIX: Subscribe to wild_animal globally (like players) to prevent disappearing
-                // Animals are relatively few in number, so global subscription is fine and prevents
-                // chunk-boundary disappearing issues
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[WILD_ANIMAL Sub Error]:", err))
-                    .subscribe('SELECT * FROM wild_animal'),
+                // PERFORMANCE FIX: wild_animal REMOVED from global - now uses spatial chunk subscriptions
+                // This dramatically reduces updates from ~800/sec (all animals everywhere) to only nearby animals
                 // ADDED ChunkWeather subscription - NON-SPATIAL (subscribe to all chunks for weather)
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[CHUNK_WEATHER Sub Error]:", err))
@@ -2017,7 +2015,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
-                                    // REMOVED: wild_animal - now subscribed globally like players to prevent disappearing
+                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance (was causing 800+ updates/sec globally)
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription

@@ -1315,7 +1315,8 @@ fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, sea
                 continue;
             }
             
-            let (bundle_size, reward) = get_seasonal_harvest_params(&item_def.name);
+            // Data-driven contract params from ItemDefinition properties
+            let (bundle_size, reward) = calculate_harvest_contract_params(&item_def);
             if reward == 0 { continue; }
             
             // Non-seasonal items get reduced rewards
@@ -1386,7 +1387,8 @@ fn generate_bonus_contracts(ctx: &ReducerContext, world_day: u32, _season_index:
             
             // Bonus contracts have SIGNIFICANTLY higher rewards but limited pool
             // Pool quantity determines total items that can be delivered across ALL players
-            let (bundle_size, base_reward) = get_bonus_contract_params(&item_def.name);
+            // Data-driven contract params from ItemDefinition properties
+            let (bundle_size, base_reward) = calculate_bonus_contract_params(&item_def);
             // Bonus reward is already high, no additional multiplier needed
             let bonus_reward = base_reward;
             // Pool is much larger to allow multiple players to participate
@@ -1641,109 +1643,193 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
     }
 }
 
-/// Get bundle size and reward for seasonal harvest (plant-based items ONLY)
+/// Calculate bundle size and reward for seasonal harvest based on ItemDefinition properties
 /// SEASONAL ITEMS PAY MORE because they're time-limited!
 /// NOTE: This is for raw foraged/farmed plants only - NOT materials
-fn get_seasonal_harvest_params(item_name: &str) -> (u32, u32) {
-    // EXCLUDE: Materials that belong in the Materials category, not Harvest
-    // Return (0, 0) to prevent contract creation for these items
-    match item_name {
-        // These are MATERIALS, not harvest items
-        "Wood" | "Stone" | "Metal Ore" | "Metal Fragments" | "Sulfur" | "Sulfur Ore" |
-        "Charcoal" | "Coal" | "Plant Fiber" | "Cloth" | "Rope" | "Bone" | "Bone Fragments" |
-        "Animal Leather" | "Animal Fat" | "Wolf Fur" | "Fox Fur" | "Bear Pelt" |
-        "Tin Can" | "Scrap Batteries" | "Gunpowder" | "Memory Shard" |
-        "Arctic Lichen" | "Mountain Moss" | "Dogbane Fiber" => (0, 0),
-        
-        // === RAW VEGETABLES (good rewards - farming takes effort) ===
-        "Pumpkin" => (30, 65),
-        "Potato" => (50, 55),
-        "Carrot" => (60, 50),
-        "Raw Corn" => (50, 55),
-        "Beet" => (50, 55),
-        "Horseradish Root" => (35, 70),
-        "Salsify Root" => (40, 65),
-        
-        // === WILD EDIBLES (foraging rewards) ===
-        "Scurvy Grass" => (60, 50),
-        "Crowberry" | "Crowberries" => (50, 55),
-        "Sea Plantain" => (60, 50),
-        "Glasswort" => (60, 50),
-        "Arctic Poppy" => (35, 70),
-        
-        // === BERRIES (high value - seasonal foraging) ===
-        "Lingonberries" => (50, 65),
-        "Cloudberries" => (40, 80),
-        "Bilberries" => (50, 55),
-        "Wild Strawberries" => (40, 75),
-        "Rowanberries" => (50, 55),
-        "Cranberries" => (50, 65),
-        
-        // === MUSHROOMS (premium - knowledge required) ===
-        "Porcini" => (20, 95),
-        "Chanterelle" => (25, 85),
-        "Shaggy Ink Cap" => (35, 65),
-        
-        // === HERBS (medicinal value) ===
-        "Chamomile" => (50, 60),
-        "Yarrow" => (60, 50),
-        "Chicory" => (60, 50),
-        "Mint Leaves" => (40, 65),
-        "Valerian Root" => (30, 80),
-        "Mugwort" => (60, 50),
-        "Bear Garlic" => (40, 65),
-        "Nettle Leaves" => (70, 45),
-        
-        _ => (40, 50), // Default for unlisted edible plant items
+/// 
+/// Data-driven approach using ItemDefinition fields:
+/// - respawn_time_seconds: Rarer items (longer respawn) = higher value
+/// - consumable stats: Better nutrition = higher value  
+/// - stack_size: Higher stack = more common = smaller per-unit value
+fn calculate_harvest_contract_params(item_def: &crate::items::ItemDefinition) -> (u32, u32) {
+    use crate::items::ItemCategory;
+    
+    let item_name = &item_def.name;
+    
+    // EXCLUDE: Materials category items don't belong in harvest
+    if matches!(item_def.category, ItemCategory::Material) {
+        return (0, 0);
     }
+    
+    // EXCLUDE: Burnt items (waste products)
+    if item_name.starts_with("Burnt") {
+        return (0, 0);
+    }
+    
+    // EXCLUDE: Cooked items belong in provisions
+    if item_name.starts_with("Cooked") || item_name.starts_with("Roasted") || item_name.starts_with("Toasted") {
+        return (0, 0);
+    }
+    
+    // === Calculate value from item properties ===
+    
+    // Base value from consumable stats (for edible plants)
+    let hunger = item_def.consumable_hunger_satiated.unwrap_or(0.0).max(0.0);
+    let thirst = item_def.consumable_thirst_quenched.unwrap_or(0.0).max(0.0);
+    let health = item_def.consumable_health_gain.unwrap_or(0.0).max(0.0);
+    let nutrition_value = (hunger + thirst + health * 1.5) as u32;
+    
+    // Rarity factor from respawn time (0-600+ seconds)
+    // Longer respawn = rarer = higher value
+    let respawn_secs = item_def.respawn_time_seconds.unwrap_or(300);
+    let rarity_factor = match respawn_secs {
+        0..=180 => 0.8,        // Very common (≤3 min)
+        181..=300 => 1.0,      // Common (3-5 min)
+        301..=480 => 1.2,      // Uncommon (5-8 min)
+        481..=720 => 1.4,      // Rare (8-12 min)
+        _ => 1.6,              // Very rare (>12 min)
+    };
+    
+    // Stack size factor - items that stack higher are more common/less valuable
+    let stack_size = item_def.stack_size.max(1);
+    let stack_factor = match stack_size {
+        1..=10 => 1.4,         // Low stack = valuable
+        11..=25 => 1.2,        // Medium-low
+        26..=50 => 1.0,        // Normal
+        _ => 0.8,              // High stack = common
+    };
+    
+    // Calculate base reward (40-100 range typically)
+    let base_reward = if nutrition_value > 0 {
+        // Edible items: value from nutrition
+        ((nutrition_value as f32 * rarity_factor * stack_factor * 2.0) as u32).clamp(40, 100)
+    } else {
+        // Non-edible plants (seeds, etc): value from rarity alone
+        ((rarity_factor * stack_factor * 50.0) as u32).clamp(35, 80)
+    };
+    
+    // Calculate bundle size (inversely related to value)
+    // Higher value = smaller bundles, lower value = larger bundles
+    let bundle_size = match base_reward {
+        0..=45 => (80.0 / stack_factor) as u32,
+        46..=55 => (60.0 / stack_factor) as u32,
+        56..=70 => (45.0 / stack_factor) as u32,
+        71..=85 => (35.0 / stack_factor) as u32,
+        _ => (25.0 / stack_factor) as u32,
+    }.clamp(15, 100);
+    
+    (bundle_size, base_reward)
 }
 
-/// Get bundle size and reward for bonus items (high value, rotating)
-/// These are SPECIAL items not in regular categories - furs, rare drops, premium goods
-fn get_bonus_contract_params(item_name: &str) -> (u32, u32) {
-    // Design: Bonus rewards are 2-3x normal rates, pools are limited
-    match item_name {
-        // === RARE FURS & PELTS (not in base materials!) ===
-        "Wolf Fur" => (8, 180),
-        "Fox Fur" => (10, 150),
-        "Bear Pelt" => (5, 250),
-        
-        // === RARE ANIMAL DROPS ===
-        "Cable Viper Gland" => (6, 220),
-        "Viper Scale" => (10, 190),
-        "Crab Carapace" => (15, 130),
-        "Wolf Fang" => (20, 100),
-        "Bear Claw" => (8, 180),
-        
-        // === PREMIUM COOKED FOODS ===
-        "Cooked Salmon" => (15, 120),
-        "Cooked Wolf Meat" => (12, 140),
-        "Meat Stew" => (8, 160),
-        "Fish Broth" => (10, 130),
-        
-        // === MEDICAL SUPPLIES ===
-        "First Aid Kit" => (3, 200),
-        "Antidote" => (8, 140),
-        "Painkillers" => (10, 120),
-        
-        // === PREMIUM CRAFTED ITEMS ===
-        "Metal Sword" => (1, 280),
-        "Compound Bow" => (1, 300),
-        "Metal Chestplate" => (1, 380),
-        "Metal Helmet" => (1, 320),
-        "Hunting Rifle" => (1, 450),
-        
-        // === PREMIUM AMMUNITION (high-value ammo for bonus contracts) ===
-        "9x18mm Round" => (20, 200),     // Premium bullets - requires gunpowder
-        "Fire Arrow" => (25, 150),       // Special effect arrows
-        "Bone Arrow" => (35, 120),       // High-damage arrows
-        
-        // === STRATEGIC RESOURCES (sometimes in bonus) ===
-        "Gunpowder" => (20, 170),
-        "Metal Ore" => (60, 90),
-        
-        _ => (15, 110), // Default for high-value items
+/// Calculate bundle size and reward for bonus items based on ItemDefinition properties
+/// Bonus contracts are HIGH VALUE items - rewards are 2-3x normal rates
+/// 
+/// Data-driven approach using ItemDefinition fields:
+/// - crafting_cost: More complex recipes = higher value
+/// - category: Weapons/Armor worth more than consumables
+/// - respawn_time_seconds: Rarer items = higher value
+/// - pvp_damage: Combat effectiveness increases value
+/// - armor_resistances: Better protection = higher value
+fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (u32, u32) {
+    use crate::items::ItemCategory;
+    
+    let item_name = &item_def.name;
+    
+    // SECURITY: Never allow Memory Shard in contracts
+    if item_name == "Memory Shard" {
+        return (0, 0);
     }
+    
+    // EXCLUDE: Burnt items (waste products)
+    if item_name.starts_with("Burnt") {
+        return (0, 0);
+    }
+    
+    // EXCLUDE: Raw items (should be cooked first for bonus)
+    if item_name.starts_with("Raw ") && !item_name.contains("Human") {
+        return (0, 0);
+    }
+    
+    // === Calculate crafting complexity value ===
+    let crafting_value: u32 = if let Some(ref cost) = item_def.crafting_cost {
+        // Sum of all ingredient quantities + 10 per unique ingredient
+        let ingredient_complexity: u32 = cost.iter()
+            .map(|c| c.quantity + 10)
+            .sum();
+        (ingredient_complexity / 5).min(100)
+    } else {
+        // Non-craftable items: value from rarity (drops, loot)
+        let respawn = item_def.respawn_time_seconds.unwrap_or(300);
+        (respawn / 10).min(80)
+    };
+    
+    // === Calculate combat effectiveness value ===
+    let combat_value: u32 = {
+        let pvp_min = item_def.pvp_damage_min.unwrap_or(0);
+        let pvp_max = item_def.pvp_damage_max.unwrap_or(0);
+        let avg_damage = (pvp_min + pvp_max) / 2;
+        
+        // Check armor resistances
+        let armor_value = if let Some(ref resistances) = item_def.armor_resistances {
+            let total_resist = (resistances.melee_resistance + 
+                               resistances.projectile_resistance + 
+                               resistances.fire_resistance.max(0.0) +
+                               resistances.cold_resistance) * 100.0;
+            total_resist as u32
+        } else {
+            0
+        };
+        
+        avg_damage + armor_value
+    };
+    
+    // === Calculate consumable value (for cooked foods, medicine) ===
+    let consumable_value: u32 = {
+        let hunger = item_def.consumable_hunger_satiated.unwrap_or(0.0).max(0.0);
+        let thirst = item_def.consumable_thirst_quenched.unwrap_or(0.0).max(0.0);
+        let health = item_def.consumable_health_gain.unwrap_or(0.0).max(0.0);
+        ((hunger + thirst + health * 2.0) / 3.0) as u32
+    };
+    
+    // === Category multiplier (bonus contracts favor rare/valuable categories) ===
+    let category_multiplier: f32 = match &item_def.category {
+        ItemCategory::RangedWeapon => 2.5,  // Guns/bows are premium
+        ItemCategory::Weapon => 2.0,         // Melee weapons
+        ItemCategory::Armor => 1.8,          // Armor pieces  
+        ItemCategory::Ammunition => 1.5,     // Ammo is valuable
+        ItemCategory::Tool => 1.4,           // Tools
+        ItemCategory::Material => 1.2,       // Raw materials (furs, glands)
+        ItemCategory::Consumable => 1.3,     // Cooked foods, medicine
+        ItemCategory::Placeable => 1.0,      // Structures (less common in bonus)
+    };
+    
+    // === Rarity multiplier from stack size ===
+    let stack_size = item_def.stack_size.max(1);
+    let rarity_multiplier: f32 = match stack_size {
+        1 => 2.0,              // Non-stackable = unique/valuable
+        2..=5 => 1.5,          // Very low stack
+        6..=15 => 1.2,         // Low stack
+        16..=30 => 1.0,        // Normal
+        _ => 0.8,              // High stack = common
+    };
+    
+    // === Combine all values into final reward ===
+    let raw_value = crafting_value + combat_value + consumable_value;
+    let adjusted_value = (raw_value as f32 * category_multiplier * rarity_multiplier) as u32;
+    
+    // Bonus contracts have high rewards (100-450 range)
+    let base_reward = adjusted_value.clamp(100, 450);
+    
+    // Bundle size inversely proportional to value
+    let bundle_size = match base_reward {
+        100..=150 => (25.0 * rarity_multiplier) as u32,
+        151..=200 => (15.0 * rarity_multiplier) as u32,
+        201..=280 => (8.0 * rarity_multiplier) as u32,
+        281..=350 => (4.0 * rarity_multiplier) as u32,
+        _ => (2.0 * rarity_multiplier) as u32,
+    }.clamp(1, 50);
+    
+    (bundle_size, base_reward)
 }
 
 // ============================================================================

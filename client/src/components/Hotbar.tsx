@@ -4,6 +4,7 @@ import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCam
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater, getWaterCapacity } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, MAX_DURABILITY } from '../utils/durabilityHelpers';
 
 // Import Custom Components
 import DraggableItem from './DraggableItem';
@@ -80,6 +81,8 @@ interface TooltipState {
     isSaltWater?: boolean; // Whether the water container has salt water
     ammoLoaded?: number; // Current ammo loaded in magazine (for firearms)
     ammoCapacity?: number; // Magazine capacity (for firearms)
+    durability?: number; // Current durability (0-100) for weapons/tools/torches
+    maxDurability?: number; // Max durability (always 100)
   } | null;
   position: {
     x: number;
@@ -1171,6 +1174,16 @@ const Hotbar: React.FC<HotbarProps> = ({
       }
     }
 
+    // Calculate durability for weapons, tools, torches, etc.
+    let durability: number | undefined = undefined;
+    let maxDurability: number | undefined = undefined;
+    if (hasDurabilitySystem(item.definition)) {
+      const currentDurability = getDurability(item.instance);
+      // Show durability as current value (null means full/unused)
+      durability = currentDurability !== null ? Math.round(currentDurability) : MAX_DURABILITY;
+      maxDurability = MAX_DURABILITY;
+    }
+
     // Update tracking ref if requested
     if (updateRef) {
       lastTooltipItemRef.current = {
@@ -1191,7 +1204,9 @@ const Hotbar: React.FC<HotbarProps> = ({
         waterCapacityMl,
         isSaltWater: isSaltWaterValue,
         ammoLoaded,
-        ammoCapacity
+        ammoCapacity,
+        durability,
+        maxDurability
       },
       position: position || prev.position
     }));
@@ -1491,6 +1506,73 @@ const Hotbar: React.FC<HotbarProps> = ({
                   </div>
                 );
               })()}
+              
+              {/* Durability bar indicator for weapons, tools, torches, etc. (RIGHT side, GREEN) */}
+              {/* Positioned to avoid covering the hotbar slot number in bottom-right corner */}
+              {populatedItem && hasDurabilitySystem(populatedItem.definition) && (() => {
+                const durabilityPercentage = getDurabilityPercentage(populatedItem.instance);
+                const hasDurability = durabilityPercentage > 0;
+                const isBroken = isItemBroken(populatedItem.instance);
+                const durabilityColor = getDurabilityColor(populatedItem.instance);
+                
+                return (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '4px',
+                      top: '4px',
+                      bottom: '14px', // Raised to avoid hotbar number
+                      width: '3px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      borderRadius: '1px',
+                      zIndex: 4,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {hasDurability && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '0px',
+                          left: '0px',
+                          right: '0px',
+                          height: `${durabilityPercentage * 100}%`,
+                          backgroundColor: durabilityColor,
+                          borderRadius: '1px',
+                          transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })()}
+              
+              {/* Broken item overlay */}
+              {populatedItem && hasDurabilitySystem(populatedItem.definition) && isItemBroken(populatedItem.instance) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '0px',
+                  left: '0px',
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: '2px',
+                  pointerEvents: 'none',
+                  zIndex: 5
+                }}>
+                  <span style={{
+                    fontSize: '18px',
+                    color: 'rgba(255, 100, 100, 0.9)',
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                    userSelect: 'none'
+                  }}>
+                    ✖
+                  </span>
+                </div>
+              )}
               {/* Debug info for consumable cooldowns */}
               {cooldownSlot === index && (
                 <div style={{
@@ -1674,6 +1756,21 @@ const Hotbar: React.FC<HotbarProps> = ({
           {tooltip.content.ammoCapacity !== undefined && (
             <div style={{ fontSize: '10px', color: 'rgba(255, 200, 100, 0.9)', marginBottom: '2px' }}>
               🔫 Ammo: {tooltip.content.ammoLoaded ?? 0} / {tooltip.content.ammoCapacity}
+            </div>
+          )}
+          {tooltip.content.durability !== undefined && tooltip.content.maxDurability !== undefined && (
+            <div style={{ 
+              fontSize: '10px', 
+              color: tooltip.content.durability <= 0 
+                ? 'rgba(128, 128, 128, 0.9)'  // Gray for broken
+                : tooltip.content.durability < 25 
+                  ? 'rgba(255, 80, 80, 0.9)'  // Red for low
+                  : tooltip.content.durability < 50 
+                    ? 'rgba(255, 200, 50, 0.9)'  // Yellow for medium
+                    : 'rgba(50, 205, 50, 0.9)',  // Green for good
+              marginBottom: '2px' 
+            }}>
+              🔧 Durability: {tooltip.content.durability} / {tooltip.content.maxDurability}
             </div>
           )}
           <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}>

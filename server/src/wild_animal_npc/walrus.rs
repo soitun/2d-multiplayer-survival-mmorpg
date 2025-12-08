@@ -8,8 +8,8 @@
  * Strong but slow with equal movement and sprint speeds.                    *
  *                                                                            *
  * UNIQUE TRAIT: Walruses are CURIOUS about light sources (campfires,        *
- * lanterns). Instead of fearing fire like other animals, they will          *
- * investigate and slowly circle around warm glowing lights, watching        *
+ * lanterns, lit torches). Instead of fearing fire like other animals, they  *
+ * will investigate and slowly circle around warm glowing lights, watching   *
  * with fascination while keeping a safe distance.                           *
  *                                                                            *
  ******************************************************************************/
@@ -26,6 +26,8 @@ use crate::utils::get_distance_squared;
 use crate::player as PlayerTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
+use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
+use crate::items::item_definition as ItemDefinitionTableTrait;
 use super::core::{
     AnimalBehavior, AnimalStats, AnimalState, MovementPattern, WildAnimal, AnimalSpecies,
     move_towards_target, can_attack, transition_to_state, emit_species_sound,
@@ -577,7 +579,7 @@ fn find_nearby_walrus_group_center(ctx: &ReducerContext, current_walrus: &WildAn
  * around player campfires - watching the warm glow with interest.           *
  ******************************************************************************/
 
-/// Find the closest active light source (burning campfire or lit lantern) within detection range
+/// Find the closest active light source (burning campfire, lit lantern, or lit torch) within detection range
 fn find_nearest_light_source(ctx: &ReducerContext, walrus_x: f32, walrus_y: f32) -> Option<(f32, f32, f32)> {
     let mut closest_light: Option<(f32, f32, f32)> = None; // (x, y, distance_sq)
     let mut closest_distance_sq = LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED;
@@ -611,6 +613,41 @@ fn find_nearest_light_source(ctx: &ReducerContext, walrus_x: f32, walrus_y: f32)
         if distance_sq <= LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED && distance_sq < closest_distance_sq {
             closest_distance_sq = distance_sq;
             closest_light = Some((lantern.pos_x, lantern.pos_y, distance_sq));
+        }
+    }
+    
+    // Check players with lit torches (optimized: distance check first, then database lookups)
+    for player in ctx.db.player().iter() {
+        // Early exit: Skip dead or knocked out players
+        if player.is_dead || player.is_knocked_out {
+            continue;
+        }
+        
+        // Early exit: Quick distance check BEFORE expensive database lookups
+        let dx = walrus_x - player.position_x;
+        let dy = walrus_y - player.position_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        // Skip players outside detection radius or further than current closest
+        if distance_sq > LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED || distance_sq >= closest_distance_sq {
+            continue;
+        }
+        
+        // Early exit: Check torch lit status (cheap field check)
+        if !player.is_torch_lit {
+            continue;
+        }
+        
+        // Only do expensive database lookups if player is close and has lit torch
+        if let Some(equipment) = ctx.db.active_equipment().player_identity().find(&player.identity) {
+            if let Some(item_def_id) = equipment.equipped_item_def_id {
+                if let Some(item_def) = ctx.db.item_definition().id().find(item_def_id) {
+                    if item_def.name == "Torch" {
+                        closest_distance_sq = distance_sq;
+                        closest_light = Some((player.position_x, player.position_y, distance_sq));
+                    }
+                }
+            }
         }
     }
     

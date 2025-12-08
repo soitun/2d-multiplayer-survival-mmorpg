@@ -987,8 +987,8 @@ export const renderYSortedEntities = ({
         } else if (type === 'projectile') {
             const projectile = entity as SpacetimeDBProjectile;
             
-            // Reduced debug logging - only log when projectiles are found
-            console.log(`🏹 [RENDER] Projectile ${projectile.id} found in render queue`);
+            // Debug logging disabled for performance - uncomment to debug projectile rendering
+            // console.log(`🏹 [RENDER] Projectile ${projectile.id} found in render queue`);
             
             // Check if this is a thrown weapon (ammo_def_id == item_def_id)
             const isThrown = projectile.ammoDefId === projectile.itemDefId;

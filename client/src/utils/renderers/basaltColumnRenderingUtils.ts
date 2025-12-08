@@ -152,7 +152,9 @@ export function renderBasaltColumn(
  * Pre-loads basalt column images into the image manager cache.
  */
 export function preloadBasaltColumnImages(): void {
-    // Preloading is handled automatically by imageManager when images are first used
-    // This function exists for consistency with other rendering utils
+    // Preload all basalt column variant images
+    BASALT_COLUMN_VARIANT_IMAGES.forEach(imageSrc => {
+        imageManager.preloadImage(imageSrc);
+    });
 }
 

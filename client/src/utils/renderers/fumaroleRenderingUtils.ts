@@ -203,7 +203,7 @@ export function renderFumarole(
  * Pre-loads fumarole images into the image manager cache.
  */
 export function preloadFumaroleImages(): void {
-    // Preloading is handled automatically by imageManager when images are first used
-    // This function exists for consistency with other rendering utils
+    // Preload fumarole image
+    imageManager.preloadImage(fumaroleImage);
 }
 

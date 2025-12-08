@@ -337,6 +337,8 @@ import { ProcessPlayerStats } from "./process_player_stats_reducer.ts";
 export { ProcessPlayerStats };
 import { ProcessSleepingBagDeterioration } from "./process_sleeping_bag_deterioration_reducer.ts";
 export { ProcessSleepingBagDeterioration };
+import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
+export { ProcessTorchDurability };
 import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
 import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
@@ -771,6 +773,8 @@ import { ThunderEventTableHandle } from "./thunder_event_table.ts";
 export { ThunderEventTableHandle };
 import { ThunderEventCleanupScheduleTableHandle } from "./thunder_event_cleanup_schedule_table.ts";
 export { ThunderEventCleanupScheduleTableHandle };
+import { TorchDurabilityScheduleTableHandle } from "./torch_durability_schedule_table.ts";
+export { TorchDurabilityScheduleTableHandle };
 import { TreeTableHandle } from "./tree_table.ts";
 export { TreeTableHandle };
 import { WallCellTableHandle } from "./wall_cell_table.ts";
@@ -1071,6 +1075,8 @@ import { TileType } from "./tile_type_type.ts";
 export { TileType };
 import { TimeOfDay } from "./time_of_day_type.ts";
 export { TimeOfDay };
+import { TorchDurabilitySchedule } from "./torch_durability_schedule_type.ts";
+export { TorchDurabilitySchedule };
 import { Tree } from "./tree_type.ts";
 export { Tree };
 import { TreeType } from "./tree_type_type.ts";
@@ -1984,6 +1990,15 @@ const REMOTE_MODULE = {
         colType: (ThunderEventCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    torch_durability_schedule: {
+      tableName: "torch_durability_schedule" as const,
+      rowType: TorchDurabilitySchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (TorchDurabilitySchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     tree: {
       tableName: "tree" as const,
       rowType: Tree.getTypeScriptAlgebraicType(),
@@ -2697,6 +2712,10 @@ const REMOTE_MODULE = {
       reducerName: "process_sleeping_bag_deterioration",
       argsType: ProcessSleepingBagDeterioration.getTypeScriptAlgebraicType(),
     },
+    process_torch_durability: {
+      reducerName: "process_torch_durability",
+      argsType: ProcessTorchDurability.getTypeScriptAlgebraicType(),
+    },
     process_wild_animal_ai: {
       reducerName: "process_wild_animal_ai",
       argsType: ProcessWildAnimalAi.getTypeScriptAlgebraicType(),
@@ -3352,6 +3371,7 @@ export type Reducer = never
 | { name: "ProcessLanternLogicScheduled", args: ProcessLanternLogicScheduled }
 | { name: "ProcessPlayerStats", args: ProcessPlayerStats }
 | { name: "ProcessSleepingBagDeterioration", args: ProcessSleepingBagDeterioration }
+| { name: "ProcessTorchDurability", args: ProcessTorchDurability }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
@@ -5837,6 +5857,22 @@ export class RemoteReducers {
 
   removeOnProcessSleepingBagDeterioration(callback: (ctx: ReducerEventContext, scheduleArgs: SleepingBagDeteriorationSchedule) => void) {
     this.connection.offReducer("process_sleeping_bag_deterioration", callback);
+  }
+
+  processTorchDurability(args: TorchDurabilitySchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessTorchDurability.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_torch_durability", __argsBuffer, this.setCallReducerFlags.processTorchDurabilityFlags);
+  }
+
+  onProcessTorchDurability(callback: (ctx: ReducerEventContext, args: TorchDurabilitySchedule) => void) {
+    this.connection.onReducer("process_torch_durability", callback);
+  }
+
+  removeOnProcessTorchDurability(callback: (ctx: ReducerEventContext, args: TorchDurabilitySchedule) => void) {
+    this.connection.offReducer("process_torch_durability", callback);
   }
 
   processWildAnimalAi(schedule: WildAnimalAiSchedule) {
@@ -8417,6 +8453,11 @@ export class SetReducerFlags {
     this.processSleepingBagDeteriorationFlags = flags;
   }
 
+  processTorchDurabilityFlags: __CallReducerFlags = 'FullUpdate';
+  processTorchDurability(flags: __CallReducerFlags) {
+    this.processTorchDurabilityFlags = flags;
+  }
+
   processWildAnimalAiFlags: __CallReducerFlags = 'FullUpdate';
   processWildAnimalAi(flags: __CallReducerFlags) {
     this.processWildAnimalAiFlags = flags;
@@ -9500,6 +9541,11 @@ export class RemoteTables {
   get thunderEventCleanupSchedule(): ThunderEventCleanupScheduleTableHandle<'thunder_event_cleanup_schedule'> {
     // clientCache is a private property
     return new ThunderEventCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ThunderEventCleanupSchedule>(REMOTE_MODULE.tables.thunder_event_cleanup_schedule));
+  }
+
+  get torchDurabilitySchedule(): TorchDurabilityScheduleTableHandle<'torch_durability_schedule'> {
+    // clientCache is a private property
+    return new TorchDurabilityScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TorchDurabilitySchedule>(REMOTE_MODULE.tables.torch_durability_schedule));
   }
 
   get tree(): TreeTableHandle<'tree'> {

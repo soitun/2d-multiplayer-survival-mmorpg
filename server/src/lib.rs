@@ -140,6 +140,7 @@ mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
+mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -679,6 +680,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize water container fill system for rain collection
     crate::active_equipment::init_water_container_fill_schedule(ctx)?;
+    
+    // ADD: Initialize torch durability system
+    crate::durability::init_torch_durability_schedule(ctx)?;
 
     // ADD: Generate world automatically on first startup
     let existing_tiles_count = ctx.db.world_tile().iter().count();

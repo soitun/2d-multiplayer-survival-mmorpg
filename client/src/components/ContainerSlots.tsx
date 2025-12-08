@@ -12,6 +12,7 @@ import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { ContainerType, getContainerConfig } from '../utils/containerUtils';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor } from '../utils/durabilityHelpers';
 import styles from './InventoryUI.module.css';
 
 interface ContainerSlotsProps {
@@ -124,6 +125,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                             <WaterLevelIndicator item={itemInSlot} />
                         )}
                         
+                        {/* Durability indicator - for weapons, tools, torches (RIGHT side, GREEN) */}
+                        {itemInSlot && hasDurabilitySystem(itemInSlot.definition) && (
+                            <DurabilityIndicator item={itemInSlot} />
+                        )}
+                        
                         {/* Droplet icon for rain collector slot - always show in bottom left */}
                         {containerType === 'rain_collector' && index === 0 && (
                             <div style={{
@@ -179,6 +185,73 @@ const WaterLevelIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
                 />
             )}
         </div>
+    );
+};
+
+// Durability indicator component - for weapons, tools, torches (RIGHT side, GREEN)
+const DurabilityIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
+    const durabilityPercentage = getDurabilityPercentage(item.instance);
+    const hasDurability = durabilityPercentage > 0;
+    const durabilityColor = getDurabilityColor(item.instance);
+    const broken = isItemBroken(item.instance);
+    
+    return (
+        <>
+            <div
+                style={{
+                    position: 'absolute',
+                    right: '4px',
+                    top: '4px',
+                    bottom: '14px', // Raised to avoid covering any slot indicators
+                    width: '3px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    borderRadius: '1px',
+                    zIndex: 4,
+                    pointerEvents: 'none',
+                }}
+            >
+                {hasDurability && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            bottom: '0px',
+                            left: '0px',
+                            right: '0px',
+                            height: `${durabilityPercentage * 100}%`,
+                            backgroundColor: durabilityColor,
+                            borderRadius: '1px',
+                            transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
+                        }}
+                    />
+                )}
+            </div>
+            {/* Broken item overlay */}
+            {broken && (
+                <div style={{
+                    position: 'absolute',
+                    top: '0px',
+                    left: '0px',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderRadius: '2px',
+                    pointerEvents: 'none',
+                    zIndex: 5
+                }}>
+                    <span style={{
+                        fontSize: '16px',
+                        color: 'rgba(255, 100, 100, 0.9)',
+                        textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                        userSelect: 'none'
+                    }}>
+                        ✖
+                    </span>
+                </div>
+            )}
+        </>
     );
 };
 

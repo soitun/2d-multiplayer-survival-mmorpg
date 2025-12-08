@@ -201,6 +201,19 @@ pub fn fire_projectile(
     if item_def.category != crate::items::ItemCategory::RangedWeapon {
         return Err("Equipped item is not a ranged weapon.".to_string());
     }
+    
+    // Get the equipped item instance for durability check
+    let equipped_item_instance_id = equipment.equipped_item_instance_id
+        .ok_or("No item instance ID in active equipment.")?;
+    let equipped_item = ctx.db.inventory_item().instance_id().find(equipped_item_instance_id)
+        .ok_or("Equipped item instance not found.")?;
+    
+    // --- Check if weapon is broken (durability depleted) ---
+    if crate::durability::has_durability_system(&item_def) && crate::durability::is_item_broken(&equipped_item) {
+        log::warn!("[FireProjectile] Player {:?} tried to fire broken weapon {} (Instance: {})", 
+            player_id, item_def.name, equipped_item_instance_id);
+        return Err("This weapon is broken and cannot be used.".to_string());
+    }
 
     if !equipment.is_ready_to_fire {
         return Err("Weapon is not loaded. Right-click to load ammunition.".to_string());
@@ -561,6 +574,20 @@ pub fn fire_projectile(
         ctx.db.player_last_attack_timestamp().player_id().update(timestamp_record);
     } else {
         ctx.db.player_last_attack_timestamp().insert(timestamp_record);
+    }
+    
+    // --- Reduce durability on the ranged weapon after successful fire ---
+    if crate::durability::has_durability_system(&item_def) {
+        match crate::durability::reduce_durability_on_hit(ctx, equipped_item_instance_id) {
+            Ok(item_broke) => {
+                if item_broke {
+                    log::info!("[Projectile] Player {:?}'s {} broke after firing!", player_id, item_def.name);
+                }
+            }
+            Err(e) => {
+                log::error!("[Projectile] Failed to reduce durability for weapon {}: {}", equipped_item_instance_id, e);
+            }
+        }
     }
 
     log::info!("Projectile fired from player {} towards ({:.1}, {:.1}) with initial V_x={:.1}, V_y={:.1}", 

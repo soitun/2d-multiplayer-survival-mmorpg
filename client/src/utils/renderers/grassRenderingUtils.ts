@@ -32,6 +32,10 @@ const SCALE_VARIATION_MIN = 0.95;
 const SCALE_VARIATION_MAX = 1.05;
 const DEFAULT_FALLBACK_SWAY_SPEED = 0.1;
 
+// PERFORMANCE: Skip expensive transforms for minor visual effects
+const ENABLE_GRASS_SWAY_TRANSFORMS = true; // Set to true for full quality, false for performance
+const ENABLE_GRASS_SCALE_VARIATION = true; // Scale variation is barely noticeable, skip it
+
 // Disturbance effect constants (disabled by default for performance)
 const DISTURBANCE_DURATION_MS = 1500;
 const DISTURBANCE_SWAY_AMPLITUDE_DEG = 15;
@@ -301,6 +305,19 @@ export function renderGrass(
         return;
     }
 
+    // Calculate anchor point (bottom-center) - always needed
+    const anchorX = grass.serverPosX + offsetX;
+    const anchorY = grass.serverPosY + offsetY + Y_SORT_OFFSET_GRASS;
+    
+    // PERFORMANCE MODE: Skip all transforms for maximum performance
+    if (!ENABLE_GRASS_SWAY_TRANSFORMS) {
+        // Direct draw - fastest path, no transforms at all
+        ctx.drawImage(img, anchorX - targetWidth / 2, anchorY - targetHeight, targetWidth, targetHeight);
+        return;
+    }
+
+    // === FULL QUALITY MODE (only if ENABLE_GRASS_SWAY_TRANSFORMS is true) ===
+    
     // Calculate sway animation (only for near/mid LOD and swaying types)
     const canSway = shouldGrassSway(tag);
     const swayOffset = (seed % 1000) / 1000.0;
@@ -337,16 +354,12 @@ export function renderGrass(
     
     const totalRotationDeg = staticRotationDeg + swayAngleDeg;
     
-    // Scale variation (only for near LOD)
+    // Scale variation (only for near LOD, and only if enabled)
     let scale = 1;
-    if (lodLevel === 'near') {
+    if (ENABLE_GRASS_SCALE_VARIATION && lodLevel === 'near') {
         const scaleSeed = (seed >> 24) % 1000;
         scale = SCALE_VARIATION_MIN + (scaleSeed / 999.0) * (SCALE_VARIATION_MAX - SCALE_VARIATION_MIN);
     }
-
-    // Calculate anchor point (bottom-center)
-    const anchorX = grass.serverPosX + offsetX;
-    const anchorY = grass.serverPosY + offsetY + Y_SORT_OFFSET_GRASS;
     
     // Check if transforms are needed
     const needsTransform = Math.abs(totalRotationDeg) > 0.1 || Math.abs(scale - 1) > 0.01;

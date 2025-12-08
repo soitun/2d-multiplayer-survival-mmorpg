@@ -41,6 +41,7 @@ import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor } from '../utils/durabilityHelpers';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Import AI Brewing Service

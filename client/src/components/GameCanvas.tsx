@@ -1601,10 +1601,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [connection]);
 
-  // Preload wild animal images
+  // Preload images
   useEffect(() => {
     preloadWildAnimalImages();
     preloadAnimalCorpseImages();
+    preloadFumaroleImages();
+    preloadBasaltColumnImages();
   }, []);
 
   // Use arrow break effects hook
@@ -2187,6 +2189,67 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
     
+    // PERFORMANCE OPTIMIZATION: Skip complex merging when no swimming players
+    // This is the common case and saves significant object creation/sorting overhead
+    if (swimmingPlayersForBottomHalf.length === 0) {
+      // No swimming players - render Y-sorted entities directly (already sorted by useEntityFiltering)
+      renderYSortedEntities({
+        ctx,
+        ySortedEntities: currentYSortedEntities,
+        heroImageRef,
+        heroSprintImageRef,
+        heroIdleImageRef,
+        heroWaterImageRef,
+        heroCrouchImageRef,
+        heroDodgeImageRef,
+        lastPositionsRef,
+        activeConnections,
+        activeEquipments,
+        activeConsumableEffects,
+        itemDefinitions,
+        inventoryItems,
+        itemImagesRef,
+        doodadImagesRef,
+        shelterImage: shelterImageRef.current,
+        worldMouseX: currentWorldMouseX,
+        worldMouseY: currentWorldMouseY,
+        localPlayerId: localPlayerId,
+        animationFrame: currentAnimationFrame,
+        sprintAnimationFrame: currentSprintAnimationFrame,
+        idleAnimationFrame: currentIdleAnimationFrame,
+        nowMs: now_ms,
+        hoveredPlayerIds,
+        onPlayerHover: handlePlayerHover,
+        cycleProgress: currentCycleProgress,
+        renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
+        localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
+        playerDodgeRollStates,
+        remotePlayerInterpolation,
+        localPlayerIsCrouching,
+        closestInteractableCampfireId,
+        closestInteractableBoxId,
+        closestInteractableStashId,
+        closestInteractableSleepingBagId,
+        closestInteractableHarvestableResourceId,
+        closestInteractableDroppedItemId,
+        closestInteractableDoorId,
+        closestInteractableTarget,
+        shelterClippingData,
+        localFacingDirection,
+        treeShadowsEnabled,
+        isTreeFalling,
+        getFallProgress,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        foundationTileImagesRef,
+        allWalls: wallCells,
+        allFoundations: foundationCells,
+        buildingClusters,
+        playerBuildingClusterId,
+      });
+    } else {
+    // --- Swimming players exist, need full merge/sort ---
+    
     // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
     const nonSwimmingEntities = currentYSortedEntities.filter(entity => 
       !(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)
@@ -2496,6 +2559,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // Flush remaining batch
     flushBatch();
+    } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
     // --- Render sea stack water lines (ABOVE sea stacks) ---
@@ -3120,16 +3184,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       perfProfilingRef.current.slowFrames++;
     }
     
-    // Log every 5 seconds
+    // PERFORMANCE DEBUG: Uncomment to enable periodic frame time logging
+    // Log every 5 seconds (disabled by default to reduce console overhead)
+    /*
     if (Date.now() - perfProfilingRef.current.lastLogTime > 5000) {
       const p = perfProfilingRef.current;
       const avgFrameTime = p.totalFrameTime / p.frameCount;
       console.log(`[FRAME_PERF] Avg: ${avgFrameTime.toFixed(2)}ms, Max: ${p.maxFrameTime.toFixed(2)}ms, Slow(>16ms): ${p.slowFrames}/${p.frameCount} frames`);
       console.log(`[ENTITY_COUNTS] Players: ${players.size}, Trees: ${trees?.size || 0}, Stones: ${stones?.size || 0}, YSorted: ${currentYSortedEntities.length}`);
-      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}, BasaltCols: ${visibleBasaltColumnsMap.size}, Fumaroles: ${visibleFumerolesMap.size}, SeaStacks: ${visibleSeaStacksMap.size}`);
+      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}, BasaltCols: ${visibleBasaltColumnsMap.size}, Fumaroles: ${visibleFumerolesMap.size}, SeaStacks: ${visibleSeaStacksMap.size}, Grass: ${visibleGrassMap?.size || 0}`);
       // Reset
       perfProfilingRef.current = { lastLogTime: Date.now(), frameCount: 0, totalFrameTime: 0, maxFrameTime: 0, slowFrames: 0 };
     }
+    */
+    
     // === END PERFORMANCE PROFILING ===
 
     // Performance monitoring - check frame time at end
@@ -3197,11 +3265,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [renderGame, processInputsAndActions]);
 
   // Use the updated hook with optimized performance settings
-  // PERFORMANCE: Enable profiling temporarily to identify hot paths
+  // PERFORMANCE: Profiling disabled for production - enable temporarily to debug
   useGameLoop(gameLoopCallback, {
     targetFPS: 60,
-    maxFrameTime: 33, // More lenient threshold to reduce console spam
-    enableProfiling: true // TEMP: Enable profiling to identify performance bottlenecks
+    maxFrameTime: 33, // 30fps budget to avoid false alarms on lower-end devices
+    enableProfiling: false // Set to true temporarily for debugging performance issues
   });
 
   // Convert sleepingBags map key from string to number for DeathScreen

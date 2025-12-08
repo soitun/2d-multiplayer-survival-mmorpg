@@ -211,6 +211,13 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
     if item_def.category == ItemCategory::Armor {
         return Err(format!("Armor item '{}' (Instance ID: {}) cannot be set as active. Use equip_armor.", item_def.name, item_instance_id));
     }
+    
+    // --- Check if item is broken (durability depleted) ---
+    if crate::durability::has_durability_system(&item_def) && crate::durability::is_item_broken(&item_to_make_active) {
+        log::warn!("[SetActiveItem] Player {:?} tried to equip broken item {} (Instance: {})", 
+            sender_id, item_def.name, item_instance_id);
+        return Err(format!("Cannot equip '{}' - it is broken and needs to be repaired.", item_def.name));
+    }
 
     let mut equipment = get_or_create_active_equipment(ctx, sender_id)?;
 
@@ -617,21 +624,31 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     
     // Check if the equipped item instance still exists (it might have been consumed)
     let inventory_items = ctx.db.inventory_item();
-    if inventory_items.instance_id().find(equipped_item_instance_id).is_none() {
-        log::warn!("[UseEquippedItem] Equipped item instance {} no longer exists (probably consumed). Clearing from ActiveEquipment.", equipped_item_instance_id);
-        
-        // Clear the stale reference from ActiveEquipment
-        current_equipment.equipped_item_def_id = None;
-        current_equipment.equipped_item_instance_id = None;
-        current_equipment.swing_start_time_ms = 0;
-        current_equipment.icon_asset_name = None;
-        active_equipments.player_identity().update(current_equipment);
-        
-        return Err("Equipped item no longer exists.".to_string());
-    }
+    let equipped_item = match inventory_items.instance_id().find(equipped_item_instance_id) {
+        Some(item) => item,
+        None => {
+            log::warn!("[UseEquippedItem] Equipped item instance {} no longer exists (probably consumed). Clearing from ActiveEquipment.", equipped_item_instance_id);
+            
+            // Clear the stale reference from ActiveEquipment
+            current_equipment.equipped_item_def_id = None;
+            current_equipment.equipped_item_instance_id = None;
+            current_equipment.swing_start_time_ms = 0;
+            current_equipment.icon_asset_name = None;
+            active_equipments.player_identity().update(current_equipment);
+            
+            return Err("Equipped item no longer exists.".to_string());
+        }
+    };
     
     let item_def = item_defs.id().find(item_def_id)
         .ok_or_else(|| "Equipped item definition not found".to_string())?;
+    
+    // --- Check if item is broken (durability depleted) ---
+    if crate::durability::has_durability_system(&item_def) && crate::durability::is_item_broken(&equipped_item) {
+        log::warn!("[UseEquippedItem] Player {:?} tried to use broken item {} (Instance: {})", 
+            sender_id, item_def.name, equipped_item_instance_id);
+        return Err("This item is broken and cannot be used.".to_string());
+    }
 
     // --- Skip ranged weapons for melee use_equipped_item logic ---
     if item_def.category == crate::items::ItemCategory::RangedWeapon {
@@ -852,6 +869,22 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             Ok(result) => {
                 if result.hit {
                     log::debug!("Player {:?} hit a {:?} with {}.", sender_id, result.target_type, item_def.name);
+                    
+                    // --- Reduce durability on successful hit ---
+                    if crate::durability::has_durability_system(&item_def) {
+                        match crate::durability::reduce_durability_on_hit(ctx, equipped_item_instance_id) {
+                            Ok(item_broke) => {
+                                if item_broke {
+                                    log::info!("[UseEquippedItem] Player {:?}'s {} broke after hitting target!", 
+                                        sender_id, item_def.name);
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("[UseEquippedItem] Failed to reduce durability for item {}: {}", 
+                                    equipped_item_instance_id, e);
+                            }
+                        }
+                    }
                 }
             },
             Err(e) => log::error!("Error processing attack: {}", e),
