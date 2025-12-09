@@ -157,49 +157,15 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
             }
         }
         
-        // REQUIREMENT 1: Minimum total shard investment (2000 shards)
+        // REQUIREMENT: Minimum total shard investment (2000 shards)
+        // Simple requirement: Just need to have spent 2000 shards total
         // This ensures players have meaningful progression before committing to a faction
-        // Prevents rushing: cheapest path would be ~600 (Tier 5) + some Tier 1-4 = still need ~1400 more
         const MIN_TOTAL_SHARDS: u64 = 2000;
         if total_shards_spent < MIN_TOTAL_SHARDS {
             return false; // Not enough total investment
         }
         
-        // REQUIREMENT 2: At least 2 Tier 5+ nodes
-        // Forces exploration of different branches, can't just rush one path
-        let tier5_nodes = ["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"];
-        let tier5_count = tier5_nodes.iter()
-            .filter(|tier5_node| has_node(purchased_nodes, tier5_node))
-            .count();
-        if tier5_count < 2 {
-            return false; // Need at least 2 Tier 5+ nodes
-        }
-        
-        // REQUIREMENT 3: At least 1 node from 4 different branches (out of 6)
-        // Ensures well-rounded progression, explores different playstyles
-        // Branch mapping: Each Tier 1 node represents a branch
-        let branch_nodes: [&[&str]; 6] = [
-            &["crossbow", "bone-arrow", "fire-arrow", "hollow-reed-arrow", "9x18mm-round", "makarov-pm", "combat-drone"], // Branch 1: Ranged
-            &["metal-hatchet", "bush-knife", "large-wooden-storage-box", "metal-door", "shelter", "harvester-drone"], // Branch 2: Building
-            &["reed-harpoon", "bone-gaff-hook", "reed-fishing-rod", "reed-snorkel"], // Branch 3: Fishing/Water
-            &["lantern", "flashlight", "reed-rain-collector", "refrigerator", "broth-mastery"], // Branch 4: Food/Survival
-            &["metal-pickaxe", "reed-bellows", "mining-efficiency", "crafting-speed-1", "crafting-speed-2"], // Branch 5: Mining/Crafting
-            &["stone-spear", "movement-speed-1", "movement-speed-2", "armor-mastery"], // Branch 6: Movement/Armor
-        ];
-        
-        let mut branches_with_nodes = 0;
-        for branch in &branch_nodes {
-            let has_branch_node = branch.iter().any(|node| has_node(purchased_nodes, node));
-            if has_branch_node {
-                branches_with_nodes += 1;
-            }
-        }
-        
-        if branches_with_nodes < 4 {
-            return false; // Need nodes from at least 4 different branches
-        }
-        
-        return true; // All requirements met
+        return true; // Requirement met
     }
     
     // FFX-style logic: Need ANY ONE prerequisite (OR logic)
@@ -216,9 +182,7 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
 /// - TIER 5: Very expensive (600-900 shards) - first week of play
 /// - FACTION UNLOCK: Major milestone (400 shards) - requires:
 ///   * Minimum 2000 total shards spent (ensures meaningful progression)
-///   * At least 2 Tier 5+ nodes (forces exploration, prevents rushing one branch)
-///   * Nodes from at least 4 different branches (ensures well-rounded character)
-///   This makes faction unlock feel like a real achievement, not something you can rush
+///   Simple requirement: Just need to have invested 2000 shards total
 /// - FACTION BRANCHES: Long-term goals (400-2500 shards) - weeks to complete
 /// 
 /// For 60-120 day wipe cycles, full faction mastery should take 30-60 days
@@ -430,42 +394,12 @@ pub fn purchase_memory_grid_node(ctx: &spacetimedb::ReducerContext, node_id: Str
     if !is_node_available(&progress.purchased_nodes, &node_id, &prerequisites, progress.total_shards_spent) {
         // Provide helpful error message for faction unlocks
         if node_id.starts_with("unlock-") {
-            let tier5_nodes = ["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"];
-            let tier5_count = tier5_nodes.iter()
-                .filter(|tier5_node| has_node(&progress.purchased_nodes, tier5_node))
-                .count();
-            
-            let branch_nodes: [&[&str]; 6] = [
-                &["crossbow", "bone-arrow", "fire-arrow", "hollow-reed-arrow", "9x18mm-round", "makarov-pm", "combat-drone"],
-                &["metal-hatchet", "bush-knife", "large-wooden-storage-box", "metal-door", "shelter", "harvester-drone"],
-                &["reed-harpoon", "bone-gaff-hook", "reed-fishing-rod", "reed-snorkel"],
-                &["lantern", "flashlight", "reed-rain-collector", "refrigerator", "broth-mastery"],
-                &["metal-pickaxe", "reed-bellows", "mining-efficiency", "crafting-speed-1", "crafting-speed-2"],
-                &["stone-spear", "movement-speed-1", "movement-speed-2", "armor-mastery"],
-            ];
-            let mut branches_with_nodes = 0;
-            for branch in &branch_nodes {
-                let has_branch_node = branch.iter().any(|node| has_node(&progress.purchased_nodes, node));
-                if has_branch_node {
-                    branches_with_nodes += 1;
-                }
-            }
-            
-            let mut requirements = Vec::new();
             if progress.total_shards_spent < 2000 {
-                requirements.push(format!("Spend at least 2000 total shards (currently: {})", progress.total_shards_spent));
+                return Err(format!(
+                    "Faction unlock requires spending at least 2000 total shards. Currently spent: {}",
+                    progress.total_shards_spent
+                ));
             }
-            if tier5_count < 2 {
-                requirements.push(format!("Unlock at least 2 Tier 5+ nodes (currently: {})", tier5_count));
-            }
-            if branches_with_nodes < 4 {
-                requirements.push(format!("Unlock nodes from at least 4 different branches (currently: {})", branches_with_nodes));
-            }
-            
-            return Err(format!(
-                "Faction unlock requirements not met:\n{}",
-                requirements.join("\n")
-            ));
         }
         return Err("Node is not available for purchase. Check prerequisites.".to_string());
     }

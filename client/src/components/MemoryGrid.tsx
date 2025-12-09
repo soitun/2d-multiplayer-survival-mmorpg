@@ -797,31 +797,12 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                 {/* Show faction lock message for faction unlock nodes */}
                 {displayNode.status === 'locked' && displayNode.id.includes('unlock-') && (() => {
                   const tier5Nodes = ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'];
-                  const tier5Count = tier5Nodes.filter(id => purchasedNodes.has(id)).length;
-                  const hasTier5 = tier5Count > 0;
+                  const hasTier5 = tier5Nodes.some(id => purchasedNodes.has(id));
                   const isLockedDueToFaction = hasTier5 && unlockedFaction;
                   
-                  // Calculate branch coverage
-                  const branchNodes = [
-                    ['crossbow', 'bone-arrow', 'fire-arrow', 'hollow-reed-arrow', '9x18mm-round', 'makarov-pm', 'combat-drone'], // Branch 1: Ranged
-                    ['metal-hatchet', 'bush-knife', 'large-wooden-storage-box', 'metal-door', 'shelter', 'harvester-drone'], // Branch 2: Building
-                    ['reed-harpoon', 'bone-gaff-hook', 'reed-fishing-rod', 'reed-snorkel'], // Branch 3: Fishing/Water
-                    ['lantern', 'flashlight', 'reed-rain-collector', 'refrigerator', 'broth-mastery'], // Branch 4: Food/Survival
-                    ['metal-pickaxe', 'reed-bellows', 'mining-efficiency', 'crafting-speed-1', 'crafting-speed-2'], // Branch 5: Mining/Crafting
-                    ['stone-spear', 'movement-speed-1', 'movement-speed-2', 'armor-mastery'], // Branch 6: Movement/Armor
-                  ];
-                  const branchesWithNodes = branchNodes.filter(branch => 
-                    branch.some(node => purchasedNodes.has(node))
-                  ).length;
-                  
-                  // Check requirements
+                  // Check requirement
                   const MIN_TOTAL_SHARDS = 2000;
-                  const MIN_TIER5_COUNT = 2;
-                  const MIN_BRANCHES = 4;
-                  
                   const meetsShardRequirement = totalShardsSpent >= MIN_TOTAL_SHARDS;
-                  const meetsTier5Requirement = tier5Count >= MIN_TIER5_COUNT;
-                  const meetsBranchRequirement = branchesWithNodes >= MIN_BRANCHES;
                   
                   if (isLockedDueToFaction) {
                     return (
@@ -846,8 +827,8 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                     );
                   }
                   
-                  // Show requirements if not met
-                  if (!meetsShardRequirement || !meetsTier5Requirement || !meetsBranchRequirement) {
+                  // Show requirement if not met
+                  if (!meetsShardRequirement) {
                     return (
                       <div style={{ 
                         marginTop: '8px', 
@@ -858,36 +839,14 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                         fontSize: '11px'
                       }}>
                         <div style={{ color: '#3b82f6', fontWeight: 'bold', marginBottom: '6px' }}>
-                          🔒 Faction Unlock Requirements
+                          🔒 Faction Unlock Requirement
                         </div>
-                        <div style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.5' }}>
-                          <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ color: meetsShardRequirement ? '#22c55e' : '#ef4444' }}>
-                              {meetsShardRequirement ? '✓' : '✗'}
-                            </span>
-                            <span>Spend at least 2,000 total shards</span>
-                            <span style={{ color: '#6b7280', marginLeft: 'auto' }}>
-                              ({totalShardsSpent.toLocaleString()} / 2,000)
-                            </span>
-                          </div>
-                          <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ color: meetsTier5Requirement ? '#22c55e' : '#ef4444' }}>
-                              {meetsTier5Requirement ? '✓' : '✗'}
-                            </span>
-                            <span>Unlock at least 2 Tier 5+ nodes</span>
-                            <span style={{ color: '#6b7280', marginLeft: 'auto' }}>
-                              ({tier5Count} / 2)
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ color: meetsBranchRequirement ? '#22c55e' : '#ef4444' }}>
-                              {meetsBranchRequirement ? '✓' : '✗'}
-                            </span>
-                            <span>Unlock nodes from 4 different branches</span>
-                            <span style={{ color: '#6b7280', marginLeft: 'auto' }}>
-                              ({branchesWithNodes} / 4)
-                            </span>
-                          </div>
+                        <div style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#ef4444' }}>✗</span>
+                          <span>Spend at least 2,000 total shards</span>
+                          <span style={{ color: '#6b7280', marginLeft: 'auto' }}>
+                            ({totalShardsSpent.toLocaleString()} / 2,000)
+                          </span>
                         </div>
                       </div>
                     );
