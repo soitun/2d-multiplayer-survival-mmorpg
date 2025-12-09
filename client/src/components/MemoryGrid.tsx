@@ -197,7 +197,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     
     branchInfo.forEach(branch => {
       const factionColor = FACTIONS[branch.faction]?.color || '#7c3aed';
-      const labelRadius = 690; // Further from nodes for better visual spacing
+      const labelRadius = 800; // Positioned near first branch nodes (at radius 900) for clear labeling
       
       // Upper path label
       const upperX = Math.cos(branch.angle - 0.3) * labelRadius * scale + panOffset.x;
@@ -256,7 +256,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     const connections: React.ReactElement[] = [];
     
     // Add concentric circular connections for each tier (main grid only)
-    const tierRadii = [100, 180, 270, 370, 480]; // Tier 1-5 radii
+    const tierRadii = [120, 220, 320, 420, 520]; // Tier 1-5 radii (increased for better spacing)
     tierRadii.forEach((radius, tierIndex) => {
       const tier = tierIndex + 1;
       const tierNodes = updatedNodes.filter(n => n.tier === tier && !n.faction);
@@ -792,13 +792,11 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                   )}
                 </div>
                 
-                {/* Show prerequisites for locked nodes */}
-                {displayNode.status === 'locked' && displayNode.prerequisites.length > 0 && (() => {
-                  // Special case: Faction unlock node locked because another faction is already chosen
-                  const isFactionUnlockNode = displayNode.id.includes('unlock-');
-                  const tier5Nodes = ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'];
+                {/* Show faction lock message for faction unlock nodes */}
+                {displayNode.status === 'locked' && displayNode.id.includes('unlock-') && (() => {
+                  const tier5Nodes = ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'];
                   const hasTier5 = tier5Nodes.some(id => purchasedNodes.has(id));
-                  const isLockedDueToFaction = isFactionUnlockNode && hasTier5 && unlockedFaction;
+                  const isLockedDueToFaction = hasTier5 && unlockedFaction;
                   
                   if (isLockedDueToFaction) {
                     return (
@@ -823,36 +821,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                     );
                   }
                   
-                  return (
-                  <div style={{ 
-                    marginTop: '8px', 
-                    padding: '6px 8px', 
-                    background: 'rgba(239, 68, 68, 0.1)', 
-                    border: '1px solid #ef4444',
-                    borderRadius: '4px',
-                    fontSize: '11px'
-                  }}>
-                    <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: '4px' }}>
-                      {displayNode.id.includes('unlock-') 
-                                                    ? 'Requires any one Tier 5 node:'
-                        : displayNode.prerequisites.length === 1 
-                          ? 'Requires:' 
-                          : 'Requires any one of:'}
-                    </div>
-                    {displayNode.prerequisites.map(prereqId => {
-                      const prereqNode = updatedNodes.find(n => n.id === prereqId);
-                      return (
-                        <div key={prereqId} style={{ 
-                          color: purchasedNodes.has(prereqId) ? '#22c55e' : '#ef4444',
-                          marginBottom: '2px'
-                        }}>
-                          • {prereqNode?.name || prereqId}
-                          {purchasedNodes.has(prereqId) ? ' ✓' : ' ✗'}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  );
+                  return null;
                 })()}
                 
                 {displayNode.status === 'available' && canAfford && onNodePurchase && (

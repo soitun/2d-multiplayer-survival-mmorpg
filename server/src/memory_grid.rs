@@ -144,11 +144,11 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
         return false; // Already purchased
     }
     
-    // Special case: Faction unlock nodes need ANY ONE tier 5 node
+    // Special case: Faction unlock nodes need ANY ONE tier 5+ node
     // AND the player must NOT have already unlocked a different faction
     if node_id.starts_with("unlock-") {
-        // First check: Has any tier 5 node been purchased?
-        let tier5_nodes = ["makarov-pm", "broth-mastery", "shelter", "metal-armor", "combat-drone", "rain-collector", "armor-mastery", "movement-speed-2"];
+        // First check: Has any tier 5+ node been purchased?
+        let tier5_nodes = ["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"];
         let has_tier5 = tier5_nodes.iter().any(|tier5_node| has_node(purchased_nodes, tier5_node));
         
         if !has_tier5 {
@@ -191,68 +191,83 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "center" => Some((0, vec![])),
         
         // ============================================
-        // TIER 1 - First Upgrades (15-30 shards)
-        // "WOW! Power unlocked!" in first 15 minutes
+        // TIER 1 - Basic Improvements (15-30 shards)
+        // First 15 minutes - immediate power upgrades
+        // 6 nodes evenly distributed - clean radial layout
         // ============================================
-        "crossbow" => Some((25, vec!["center"])),           // Better ranged weapon
-        "metal-hatchet" => Some((15, vec!["center"])),      // Better wood gathering - CHEAPEST
-        "metal-pickaxe" => Some((15, vec!["center"])),      // Better stone gathering - CHEAPEST
-        "lantern" => Some((20, vec!["center"])),            // Better lighting than torch
-        "bush-knife" => Some((25, vec!["center"])),         // Combat/wood hybrid
-        "mining-efficiency" => Some((30, vec!["center"])),  // Passive: +30% yield
+        "crossbow" => Some((25, vec!["center"])),           // Branch 1: Ranged combat (arrows → ammo → gun → drone)
+        "metal-hatchet" => Some((15, vec!["center"])),      // Branch 2: Building (wood → storage → shelter → harvester)
+        "reed-harpoon" => Some((18, vec!["center"])),       // Branch 3: Fishing/Water
+        "lantern" => Some((20, vec!["center"])),            // Branch 4: Food/Survival (light → food → broth)
+        "metal-pickaxe" => Some((15, vec!["center"])),      // Branch 5: Mining/Crafting
+        "stone-spear" => Some((20, vec!["center"])),        // Branch 6: Movement/Armor
         
         // ============================================
-        // TIER 2 - Early-Mid Game (50-80 shards)
-        // Complete within first hour
+        // TIER 2 - Specialization (50-80 shards)
+        // First hour - LINEAR CHAINS, single prerequisite each
         // ============================================
-        "bone-arrow" => Some((50, vec!["crossbow", "bush-knife", "metal-hatchet"])),
-        "fire-arrow" => Some((60, vec!["crossbow", "lantern", "metal-hatchet"])),
-        "flashlight" => Some((55, vec!["lantern", "crossbow", "metal-pickaxe"])),
-        "reed-bellows" => Some((70, vec!["metal-pickaxe", "lantern", "mining-efficiency"])),
-        "crafting-speed-1" => Some((80, vec!["bush-knife", "mining-efficiency", "crossbow"])), // Passive: +15% craft speed
+        "bone-arrow" => Some((50, vec!["crossbow"])),           // Branch 1: Crossbow → bone-arrow
+        "bush-knife" => Some((55, vec!["metal-hatchet"])),      // Branch 2: Metal-hatchet → bush-knife
+        "bone-gaff-hook" => Some((65, vec!["reed-harpoon"])),   // Branch 3: Reed-harpoon → bone-gaff-hook
+        "flashlight" => Some((55, vec!["lantern"])),            // Branch 4: Lantern → flashlight
+        "reed-bellows" => Some((70, vec!["metal-pickaxe"])),    // Branch 5: Metal-pickaxe → reed-bellows
+        "movement-speed-1" => Some((80, vec!["stone-spear"])),  // Branch 6: Stone-spear → movement-speed-1
         
         // ============================================
-        // TIER 3 - Mid Game (120-200 shards)
-        // First few hours of play
+        // TIER 3 - Advanced Gear (120-200 shards)
+        // First few hours - LINEAR CHAINS continue
         // ============================================
-        "hollow-reed-arrow" => Some((120, vec!["bone-arrow", "crafting-speed-1", "fire-arrow"])),
-        "reed-snorkel" => Some((140, vec!["fire-arrow", "bone-arrow", "flashlight"])),
-        "reed-fishing-rod" => Some((130, vec!["flashlight", "fire-arrow", "reed-bellows"])),
-        "reed-rain-collector" => Some((180, vec!["reed-bellows", "flashlight", "crafting-speed-1"])),
-        "movement-speed-1" => Some((200, vec!["crafting-speed-1", "reed-bellows", "bone-arrow"])), // Passive: +10% move speed
+        "fire-arrow" => Some((120, vec!["bone-arrow"])),                // Branch 1: bone-arrow → fire-arrow
+        "large-wooden-storage-box" => Some((150, vec!["bush-knife"])),  // Branch 2: bush-knife → large-wooden-storage-box
+        "reed-fishing-rod" => Some((130, vec!["bone-gaff-hook"])),      // Branch 3: bone-gaff-hook → reed-fishing-rod
+        "reed-rain-collector" => Some((140, vec!["flashlight"])),       // Branch 4: flashlight → reed-rain-collector
+        "mining-efficiency" => Some((180, vec!["reed-bellows"])),       // Branch 5: reed-bellows → mining-efficiency
+        "movement-speed-2" => Some((200, vec!["movement-speed-1"])),    // Branch 6: movement-speed-1 → movement-speed-2
         
         // ============================================
-        // TIER 4 - Late Session (300-450 shards)
-        // End of first long session or second day
+        // TIER 4 - Late Game (300-450 shards)
+        // End of first session - LINEAR CHAINS continue
         // ============================================
-        "metal-door" => Some((300, vec!["hollow-reed-arrow", "movement-speed-1", "reed-snorkel"])),
-        "shelter" => Some((380, vec!["reed-snorkel", "hollow-reed-arrow", "reed-fishing-rod"])),
-        "9x18mm-round" => Some((350, vec!["reed-fishing-rod", "reed-snorkel", "hollow-reed-arrow"])),
-        "metal-armor" => Some((450, vec!["reed-rain-collector", "hollow-reed-arrow", "movement-speed-1"])),
-        "crafting-speed-2" => Some((400, vec!["movement-speed-1", "reed-rain-collector", "hollow-reed-arrow"])), // Passive: +25% craft speed
+        "hollow-reed-arrow" => Some((300, vec!["fire-arrow"])),         // Branch 1: fire-arrow → hollow-reed-arrow
+        "metal-door" => Some((320, vec!["large-wooden-storage-box"])),  // Branch 2: large-wooden-storage-box → metal-door
+        "reed-snorkel" => Some((350, vec!["reed-fishing-rod"])),        // Branch 3: reed-fishing-rod → reed-snorkel
+        "refrigerator" => Some((380, vec!["reed-rain-collector"])),     // Branch 4: reed-rain-collector → refrigerator
+        "crafting-speed-1" => Some((400, vec!["mining-efficiency"])),   // Branch 5: mining-efficiency → crafting-speed-1
+        "armor-mastery" => Some((420, vec!["movement-speed-2"])),       // Branch 6: movement-speed-2 → armor-mastery
         
         // ============================================
-        // TIER 5 - End-Game Items (600-900 shards)
-        // First week of play - major achievement
+        // TIER 5 - End Game (600-900 shards)
+        // First week - LINEAR CHAINS conclude
         // ============================================
-        "makarov-pm" => Some((750, vec!["metal-door", "crafting-speed-2", "shelter"])),
-        "combat-drone" => Some((800, vec!["shelter", "metal-door", "9x18mm-round"])),
-        "rain-collector" => Some((600, vec!["9x18mm-round", "shelter", "metal-armor"])), // Advanced rain collector upgrade
-        "broth-mastery" => Some((700, vec!["metal-armor", "9x18mm-round", "shelter"])), // Passive: broths last 50% longer
-        "armor-mastery" => Some((750, vec!["metal-armor", "shelter", "crafting-speed-2"])), // Passive: armor durability +30%
-        "movement-speed-2" => Some((900, vec!["crafting-speed-2", "metal-armor", "metal-door"])), // Passive: +20% move speed
+        "9x18mm-round" => Some((600, vec!["hollow-reed-arrow"])),       // Branch 1: hollow-reed-arrow → 9x18mm-round
+        "shelter" => Some((650, vec!["metal-door"])),                   // Branch 2: metal-door → shelter
+        "broth-mastery" => Some((700, vec!["refrigerator"])),           // Branch 4: refrigerator → broth-mastery
+        "crafting-speed-2" => Some((750, vec!["crafting-speed-1"])),    // Branch 5: crafting-speed-1 → crafting-speed-2
+        
+        // ============================================
+        // TIER 6 - Ultimate (800-1000 shards)
+        // Week 1-2 - Final upgrades before factions
+        // ============================================
+        "makarov-pm" => Some((800, vec!["9x18mm-round"])),              // Branch 1: 9x18mm-round → makarov-pm
+        "harvester-drone" => Some((850, vec!["shelter"])),              // Branch 2: shelter → harvester-drone
+        
+        // ============================================
+        // TIER 7 - Capstone (1000+ shards)
+        // Week 2-3 - Final node before factions
+        // ============================================
+        "combat-drone" => Some((1000, vec!["makarov-pm"])),             // Branch 1: makarov-pm → combat-drone
         
         // ============================================
         // FACTION UNLOCK NODES (400 shards each)
-        // Major milestone - requires ANY Tier 5 node
+        // Major milestone - requires ANY Tier 5+ node
         // Player commits to ONE faction (reset costs 2000 shards)
         // ============================================
-        "unlock-black-wolves" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-hive" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-university" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-data-angels" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-battalion" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
-        "unlock-admiralty" => Some((400, vec!["makarov-pm", "combat-drone", "rain-collector", "broth-mastery", "armor-mastery", "movement-speed-2"])),
+        "unlock-black-wolves" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
+        "unlock-hive" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
+        "unlock-university" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
+        "unlock-data-angels" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
+        "unlock-battalion" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
+        "unlock-admiralty" => Some((400, vec!["9x18mm-round", "shelter", "crafting-speed-2", "makarov-pm", "harvester-drone", "broth-mastery", "combat-drone"])),
         
         // ============================================
         // FACTION BRANCHES (400-2500 shards per node)
@@ -427,25 +442,29 @@ fn get_node_display_name(node_id: &str) -> String {
         "center" => "Neural Interface".to_string(),
         
         // Tier 1
-        "crossbow" => "Crossbow".to_string(),
         "metal-hatchet" => "Metal Hatchet".to_string(),
         "metal-pickaxe" => "Metal Pickaxe".to_string(),
-        "lantern" => "Lantern".to_string(),
-        "bush-knife" => "Bush Knife".to_string(),
         "mining-efficiency" => "Mining Efficiency".to_string(),
+        "crossbow" => "Crossbow".to_string(),
+        "stone-spear" => "Stone Spear".to_string(),
+        "reed-harpoon" => "Reed Harpoon".to_string(),
+        "lantern" => "Lantern".to_string(),
         
         // Tier 2
         "bone-arrow" => "Bone Arrow".to_string(),
         "fire-arrow" => "Fire Arrow".to_string(),
+        "bush-knife" => "Bush Knife".to_string(),
         "flashlight" => "Flashlight".to_string(),
         "reed-bellows" => "Reed Bellows".to_string(),
         "crafting-speed-1" => "Crafting Speed I".to_string(),
+        "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
         
         // Tier 3
         "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
         "reed-snorkel" => "Primitive Reed Snorkel".to_string(),
         "reed-fishing-rod" => "Primitive Reed Fishing Rod".to_string(),
         "reed-rain-collector" => "Reed Rain Collector".to_string(),
+        "large-wooden-storage-box" => "Large Wooden Storage Box".to_string(),
         "movement-speed-1" => "Movement Speed I".to_string(),
         
         // Tier 4
@@ -453,12 +472,12 @@ fn get_node_display_name(node_id: &str) -> String {
         "shelter" => "Shelter".to_string(),
         "9x18mm-round" => "9x18mm Round".to_string(),
         "metal-armor" => "Metal Armor".to_string(),
+        "refrigerator" => "Refrigerator".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
         // Tier 5
         "makarov-pm" => "Makarov PM".to_string(),
         "combat-drone" => "Combat Drone".to_string(),
-        "rain-collector" => "Advanced Rain Collector".to_string(),
         "broth-mastery" => "Broth Mastery".to_string(),
         "armor-mastery" => "Armor Mastery".to_string(),
         "movement-speed-2" => "Movement Speed II".to_string(),
@@ -503,36 +522,43 @@ pub fn player_has_node(ctx: &spacetimedb::ReducerContext, player_id: Identity, n
 pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
     match item_name {
         // Tier 1 items
-        "Crossbow" => Some("crossbow"),
         "Metal Hatchet" => Some("metal-hatchet"),
         "Metal Pickaxe" => Some("metal-pickaxe"),
+        "Crossbow" => Some("crossbow"),
+        "Stone Spear" => Some("stone-spear"),
+        "Reed Harpoon" => Some("reed-harpoon"),
         "Lantern" => Some("lantern"),
-        "Bush Knife" => Some("bush-knife"),
         
         // Tier 2 items
         "Bone Arrow" => Some("bone-arrow"),
         "Fire Arrow" => Some("fire-arrow"),
+        "Bush Knife" => Some("bush-knife"),
         "Flashlight" => Some("flashlight"),
         "Reed Bellows" => Some("reed-bellows"),
+        "Bone Gaff Hook" => Some("bone-gaff-hook"),
         
         // Tier 3 items
         "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
         "Primitive Reed Snorkel" => Some("reed-snorkel"),
         "Primitive Reed Fishing Rod" => Some("reed-fishing-rod"),
         "Reed Rain Collector" => Some("reed-rain-collector"),
+        "Large Wooden Storage Box" => Some("large-wooden-storage-box"),
         
         // Tier 4 items
         "Metal Door" => Some("metal-door"),
         "Shelter" => Some("shelter"),
         "9x18mm Round" => Some("9x18mm-round"),
+        "Refrigerator" => Some("refrigerator"),
         
         // Tier 5 items
         "Makarov PM" => Some("makarov-pm"),
         
         // ALWAYS CRAFTABLE - No Memory Grid requirement
         // Basic structures
-        "Camp Fire" | "Furnace" | "Sleeping Bag" | "Wooden Storage Box" | 
+        "Camp Fire" | "Furnace" | "Sleeping Bag" | "Wooden Storage Box" |
         "Stash" | "Matron's Chest" | "Cerametal Field Cauldron Mk. II" | "Wood Door" | "Reed Water Bottle" => None,
+        
+        // Note: Refrigerator requires memory grid unlock (Tier 4)
         
         // Basic weapons
         "Hunting Bow" | "Wooden Arrow" | "Wooden Spear" | "Stone Spear" => None,

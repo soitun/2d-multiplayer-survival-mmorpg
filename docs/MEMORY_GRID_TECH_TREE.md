@@ -196,7 +196,7 @@ Electronic warfare, hacking, and stealth technology specialists.
 | 5 | **Movement Speed** (Passive +3%) | 9,000 | 30,000 | Enhanced mobility systems |
 | 6 | **Memory Leech Implant** | 10,500 | 40,500 | Extract information from defeated enemies |
 | 7 | **Neurochef Decryptor** | 12,000 | 52,500 | Crack advanced security systems |
-| 8 | **Drone Hijack Pulse** | 13,500 | 66,000 | Take control of enemy automated systems |
+| 8 | **Drone Hijack Pulse** | 13,500 | 66,000 | Take control of enemy drones and turrets |
 | 9 | **Signal Scrubber Backpack** (Side) | 8,000 | 74,000 | Mobile electronic countermeasures |
 | 10 | **Overclock** (Ultimate) | 15,000 | 89,000 | 10s invisibility to turrets & drones, 60s cooldown |
 

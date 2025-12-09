@@ -758,13 +758,27 @@ const Hotbar: React.FC<HotbarProps> = ({
       if (isDoubleClick) {
         // Second click/press on already selected consumable - actually consume it
         if (isVisualCooldownActive && cooldownSlot === slotIndex) {
+          console.log(`[Hotbar] Consumption blocked - cooldown active for slot ${slotIndex}`);
           return; 
         }
         
+        const itemDefId = itemInSlot.definition.id;
+        const itemDef = itemDefinitions.get(itemDefId.toString());
+        console.log(`[Hotbar] 🍽️ Attempting to consume item:`, {
+          instanceId: instanceId.toString(),
+          itemName: itemDef?.name || 'Unknown',
+          itemDefId: itemDefId.toString(),
+          category: categoryTag,
+          slotIndex
+        });
+        
         try {
           connection.reducers.consumeItem(instanceId);
+          console.log(`[Hotbar] ✅ Successfully called consumeItem reducer for instance ${instanceId.toString()}`);
           triggerClientCooldownAnimation(false, slotIndex); 
-        } catch (err) { console.error(`Error consuming item ${instanceId}:`, err); }
+        } catch (err) { 
+          console.error(`[Hotbar] ❌ Error consuming item ${instanceId.toString()}:`, err); 
+        }
       }
     }
     

@@ -966,7 +966,8 @@ const shouldUseSeamlessLooping = (filename: string): boolean => {
         'campfire_looping.mp3',
         'lantern_looping.mp3',
         'rain_normal.mp3',
-        'rain_heavy_storm.mp3'
+        'rain_heavy_storm.mp3',
+        'soup_boiling.mp3' // Soup boiling needs seamless crossfade to prevent gaps
     ];
     return seamlessFilenames.includes(filename);
 };

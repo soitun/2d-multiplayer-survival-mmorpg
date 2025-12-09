@@ -79,6 +79,12 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     let item_def = item_defs.id().find(item_to_consume.item_def_id)
         .ok_or_else(|| format!("Definition for item ID {} not found.", item_to_consume.item_def_id))?;
 
+    log::info!("[ConsumeItem] Item definition found: '{}' (ID: {}, Category: {:?})", 
+               item_def.name, item_def.id, item_def.category);
+    log::info!("[ConsumeItem] Item stats - Health: {:?}, Hunger: {:?}, Thirst: {:?}, Warmth: {:?}, Duration: {:?}",
+               item_def.consumable_health_gain, item_def.consumable_hunger_satiated, 
+               item_def.consumable_thirst_quenched, item_def.warmth_bonus, item_def.consumable_duration_secs);
+
     // Allow consumption of items that are either Consumable category OR have consumable stats (e.g., seeds)
     // Seeds are Placeable but can be eaten for emergency nutrition
     let has_consumable_stats = item_def.consumable_health_gain.is_some() ||
@@ -86,9 +92,15 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
                               item_def.consumable_thirst_quenched.is_some() ||
                               item_def.warmth_bonus.is_some();
     
+    log::info!("[ConsumeItem] Category check - Category: {:?}, Has consumable stats: {}", 
+               item_def.category, has_consumable_stats);
+    
     if item_def.category != ItemCategory::Consumable && !has_consumable_stats {
+        log::error!("[ConsumeItem] Item '{}' cannot be consumed - not Consumable category and no consumable stats", item_def.name);
         return Err(format!("Item '{}' cannot be consumed.", item_def.name));
     }
+    
+    log::info!("[ConsumeItem] Item '{}' passed consumption validation", item_def.name);
 
     // Check if food is spoiled (durability <= 0)
     if crate::durability::is_food_item(&item_def) {
@@ -97,20 +109,21 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         }
     }
 
-    // POISON BREW BLOCK: Check if this is a poison category brew (weapon coating only)
-    // Check the BrewRecipeCache to see if this item was created by the AI brewing system
-    for cached_recipe in ctx.db.brew_recipe_cache().iter() {
-        if cached_recipe.output_item_def_id == item_def.id {
-            // This is an AI-generated brew - check if it's poison category
-            if cached_recipe.category == "poison" {
-                return Err("This vial is for coating weapons, not drinking! Use it on a weapon to apply poison.".to_string());
-            }
-            break; // Found the recipe, no need to continue searching
-        }
-    }
+    // Note: Poison brews are now consumable - they apply Poisoned DOT + PoisonCoating effect
+    // The PoisonCoating effect makes all weapon attacks inflict poison on targets
+    log::info!("[ConsumeItem] Item '{}' is consumable - proceeding with consumption", item_def.name);
 
     // Call the centralized helper function
-    apply_item_effects_and_consume(ctx, sender_id, &item_def, item_instance_id, &mut player_to_update)?;
+    log::info!("[ConsumeItem] Calling apply_item_effects_and_consume for item '{}'", item_def.name);
+    match apply_item_effects_and_consume(ctx, sender_id, &item_def, item_instance_id, &mut player_to_update) {
+        Ok(_) => {
+            log::info!("[ConsumeItem] Successfully applied effects for item '{}'", item_def.name);
+        }
+        Err(e) => {
+            log::error!("[ConsumeItem] Failed to apply effects for item '{}': {}", item_def.name, e);
+            return Err(e);
+        }
+    }
 
     // Emit appropriate sound based on item type
     // Check if this is an AI-generated brew (liquid) - should use drinking sound
@@ -132,27 +145,37 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     // Check if this item has no duration or a duration <= 0
     let has_instant_effect = item_def.consumable_duration_secs.map_or(true, |d| d <= 0.0);
     
+    log::info!("[ConsumeItem] Item '{}' has instant effect: {} (duration: {:?})", 
+               item_def.name, has_instant_effect, item_def.consumable_duration_secs);
+    
     if has_instant_effect {
         // Consume the item directly here since no timed effect will handle it
         let mut item_to_consume = ctx.db.inventory_item().instance_id().find(item_instance_id)
             .ok_or_else(|| format!("Item instance {} suddenly disappeared.", item_instance_id))?;
+        
+        log::info!("[ConsumeItem] Consuming instant-effect item - current quantity: {}", item_to_consume.quantity);
             
         // Decrease quantity
         if item_to_consume.quantity > 0 {
             item_to_consume.quantity -= 1;
+        } else {
+            log::warn!("[ConsumeItem] Item quantity is already 0, cannot consume");
         }
         
         // Remove item if quantity is 0
         if item_to_consume.quantity == 0 {
             ctx.db.inventory_item().instance_id().delete(&item_instance_id);
-            log::info!("[ConsumeItem] Instantly consumed and deleted item_instance_id: {} for player {:?}.", 
+            log::info!("[ConsumeItem] ✅ Instantly consumed and deleted item_instance_id: {} for player {:?}.", 
                 item_instance_id, sender_id);
         } else {
             // Update with decreased quantity
             ctx.db.inventory_item().instance_id().update(item_to_consume.clone());
-            log::info!("[ConsumeItem] Instantly consumed item_instance_id: {}, new quantity: {} for player {:?}.", 
+            log::info!("[ConsumeItem] ✅ Instantly consumed item_instance_id: {}, new quantity: {} for player {:?}.", 
                 item_instance_id, item_to_consume.quantity, sender_id);
         }
+    } else {
+        log::info!("[ConsumeItem] Item '{}' has timed effect (duration: {:?}), consumption handled by timed effect system", 
+                   item_def.name, item_def.consumable_duration_secs);
     }
 
     Ok(())
@@ -275,10 +298,17 @@ pub fn apply_item_effects_and_consume(
     
     // Check for brewing recipe effects (Intoxicated, Poisoned, SpeedBoost, etc.)
     // These effects are stored in the brew_recipe_cache and need to be applied
-    if let Err(brew_effect_error) = apply_brewing_recipe_effect(ctx, player_id, item_def, item_instance_id) {
-        log::warn!("[EffectsHelper] Failed to apply brewing recipe effect for player {:?}, item '{}': {}", 
-            player_id, item_def.name, brew_effect_error);
-        // Don't fail the entire consumption - brewing effects are optional
+    log::info!("[EffectsHelper] Attempting to apply brewing recipe effect for item '{}' (def_id: {})", 
+               item_def.name, item_def.id);
+    match apply_brewing_recipe_effect(ctx, player_id, item_def, item_instance_id) {
+        Ok(_) => {
+            log::info!("[EffectsHelper] Successfully applied brewing recipe effect for item '{}'", item_def.name);
+        }
+        Err(brew_effect_error) => {
+            log::warn!("[EffectsHelper] Failed to apply brewing recipe effect for player {:?}, item '{}': {}", 
+                player_id, item_def.name, brew_effect_error);
+            // Don't fail the entire consumption - brewing effects are optional
+        }
     }
     
     // Check for food poisoning after consuming the item
@@ -406,29 +436,53 @@ fn apply_brewing_recipe_effect(
     item_def: &ItemDefinition,
     _item_instance_id: u64, // Unused now - effects use item_def_id
 ) -> Result<(), String> {
+    log::info!("[BrewingEffect] Looking up brew recipe for item '{}' (def_id: {})", item_def.name, item_def.id);
+    
     // Check if this item is a generated brew by looking it up in the brew_recipe_cache
     let brew_cache = ctx.db.brew_recipe_cache();
+    let cache_size = brew_cache.iter().count();
+    log::info!("[BrewingEffect] Brew cache contains {} entries", cache_size);
+    
     let cached_recipe = brew_cache.iter()
         .find(|recipe| recipe.output_item_def_id == item_def.id);
     
     if let Some(recipe) = cached_recipe {
         log::info!(
-            "[BrewingEffect] Processing brew '{}' (category: {}, effect: {:?}) for player {:?}",
+            "[BrewingEffect] ✅ Found brew recipe! Processing brew '{}' (category: {}, effect: {:?}) for player {:?}",
             item_def.name, recipe.category, recipe.effect_type, player_id
         );
         
         // First try explicit effect_type if specified in the recipe
         if let Some(ref effect_type_str) = recipe.effect_type {
-            log::info!("[BrewingEffect] Applying explicit effect type: {}", effect_type_str);
-            return apply_broth_effect_from_type(ctx, player_id, effect_type_str, item_def.id);
+            log::info!("[BrewingEffect] Applying explicit effect type: '{}'", effect_type_str);
+            match apply_broth_effect_from_type(ctx, player_id, effect_type_str, item_def.id) {
+                Ok(_) => {
+                    log::info!("[BrewingEffect] ✅ Successfully applied effect type '{}'", effect_type_str);
+                    return Ok(());
+                }
+                Err(e) => {
+                    log::error!("[BrewingEffect] ❌ Failed to apply effect type '{}': {}", effect_type_str, e);
+                    return Err(e);
+                }
+            }
         }
         
         // Fall back to category-based effect mapping
-        log::info!("[BrewingEffect] Applying category-based effect for category: {}", recipe.category);
-        return apply_broth_effect_from_category(ctx, player_id, &recipe.category, item_def.id);
+        log::info!("[BrewingEffect] No explicit effect_type, applying category-based effect for category: '{}'", recipe.category);
+        match apply_broth_effect_from_category(ctx, player_id, &recipe.category, item_def.id) {
+            Ok(_) => {
+                log::info!("[BrewingEffect] ✅ Successfully applied category-based effect for '{}'", recipe.category);
+                return Ok(());
+            }
+            Err(e) => {
+                log::error!("[BrewingEffect] ❌ Failed to apply category-based effect for '{}': {}", recipe.category, e);
+                return Err(e);
+            }
+        }
     }
     
     // Not a generated brew - no special effects to apply
+    log::info!("[BrewingEffect] Item '{}' not found in brew cache - not an AI-generated brew (or cache miss)", item_def.name);
     Ok(())
 }
 

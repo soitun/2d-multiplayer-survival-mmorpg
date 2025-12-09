@@ -158,8 +158,11 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 1 - First Upgrades (15-30 shards)
-  // "WOW! Power unlocked!" in first 15 minutes
+  // TIER 1 - Basic Improvements (15-30 shards)
+  // First 15 minutes - immediate power upgrades
+  // 6 nodes - each starts a distinct progression branch
+  // Radius: 120
+  // BRANCH SECTORS: Each T1 node "owns" a 60° sector (2π/6)
   // ============================================
   { 
     id: 'crossbow', 
@@ -168,7 +171,7 @@ export const MEMORY_GRID_NODES = [
     cost: 25, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(0, 100), 
+    position: getRadialPosition(0, 120), // 0° - BRANCH 1: Arrows → Ammo → Gun → Drone
     category: 'weapon' as const, 
     status: 'available' as const,
     unlocksItems: ['Crossbow']
@@ -180,22 +183,22 @@ export const MEMORY_GRID_NODES = [
     cost: 15, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(Math.PI / 3, 100), 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 120), // 60° - BRANCH 2: Building → Storage → Shelter → Harvester
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Hatchet']
   },
   { 
-    id: 'metal-pickaxe', 
-    name: 'Metal Pickaxe', 
-    description: 'Unlocks crafting the Metal Pickaxe - gathers significantly more stone than stone tools.', 
-    cost: 15, 
+    id: 'reed-harpoon', 
+    name: 'Reed Harpoon', 
+    description: 'Unlocks crafting the Reed Harpoon - a fragile harpoon made from reeds and bone fragments. Light and buoyant, good for water combat.', 
+    cost: 18, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(2 * Math.PI / 3, 100), 
-    category: 'tool' as const, 
+    position: getRadialPosition(2 * 2 * Math.PI / 6, 120), // 120° - BRANCH 3: Fishing/Water
+    category: 'weapon' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Metal Pickaxe']
+    unlocksItems: ['Reed Harpoon']
   },
   { 
     id: 'lantern', 
@@ -204,38 +207,41 @@ export const MEMORY_GRID_NODES = [
     cost: 20, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(Math.PI, 100), 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 120), // 180° - BRANCH 4: Food/Survival → Broth
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Lantern']
   },
   { 
-    id: 'bush-knife', 
-    name: 'Bush Knife', 
-    description: 'Unlocks crafting the Bush Knife - a heavy-duty clearing blade for woodcutting and combat.', 
-    cost: 25, 
+    id: 'metal-pickaxe', 
+    name: 'Metal Pickaxe', 
+    description: 'Unlocks crafting the Metal Pickaxe - gathers significantly more stone than stone tools.', 
+    cost: 15, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(4 * Math.PI / 3, 100), 
-    category: 'weapon' as const, 
+    position: getRadialPosition(4 * 2 * Math.PI / 6, 120), // 240° - BRANCH 5: Mining/Crafting
+    category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Bush Knife']
+    unlocksItems: ['Metal Pickaxe']
   },
   { 
-    id: 'mining-efficiency', 
-    name: 'Mining Efficiency', 
-    description: 'Advanced mining techniques grant +30% resource yield from all gathering activities.', 
-    cost: 30, 
+    id: 'stone-spear', 
+    name: 'Stone Spear', 
+    description: 'Unlocks crafting the Stone Spear - a basic spear tipped with sharpened stone. Has longer reach and causes bleeding.', 
+    cost: 20, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(5 * Math.PI / 3, 100), 
-    category: 'passive' as const, 
-    status: 'locked' as const
+    position: getRadialPosition(5 * 2 * Math.PI / 6, 120), // 300° - BRANCH 6: Movement/Armor
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Stone Spear']
   },
 
   // ============================================
-  // TIER 2 - Early-Mid Game (50-80 shards)
-  // Complete within first hour
+  // TIER 2 - Specialization (50-80 shards)
+  // LINEAR CHAINS - single prerequisite, NO overlapping lines
+  // Each T1 node spawns its own progression branch
+  // Radius: 220
   // ============================================
   { 
     id: 'bone-arrow', 
@@ -243,23 +249,35 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Bone Arrows - larger arrowhead with higher damage.', 
     cost: 50, 
     tier: 2, 
-    prerequisites: ['crossbow', 'bush-knife', 'metal-hatchet'], 
-    position: getRadialPosition(0, 180), 
+    prerequisites: ['crossbow'], 
+    position: getRadialPosition(0, 220), // Branch 1: Straight from crossbow
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bone Arrow']
   },
   { 
-    id: 'fire-arrow', 
-    name: 'Fire Arrow', 
-    description: 'Unlocks crafting Fire Arrows - ignites on impact, causing burn damage over time.', 
-    cost: 60, 
+    id: 'bush-knife', 
+    name: 'Bush Knife', 
+    description: 'Unlocks crafting the Bush Knife - a heavy-duty clearing blade for woodcutting and combat.', 
+    cost: 55, 
     tier: 2, 
-    prerequisites: ['crossbow', 'lantern', 'metal-hatchet'], 
-    position: getRadialPosition(Math.PI / 3, 180), 
+    prerequisites: ['metal-hatchet'], 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 220), // Branch 2: Straight from metal-hatchet
     category: 'weapon' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Fire Arrow']
+    unlocksItems: ['Bush Knife']
+  },
+  { 
+    id: 'bone-gaff-hook', 
+    name: 'Bone Gaff Hook', 
+    description: 'Unlocks crafting Bone Gaff Hooks - a sharp, curved bone hook for fishing and combat. Component for crafting fishing rods.', 
+    cost: 65, 
+    tier: 2, 
+    prerequisites: ['reed-harpoon'], 
+    position: getRadialPosition(2 * 2 * Math.PI / 6, 220), // Branch 3: Straight from reed-harpoon
+    category: 'tool' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Bone Gaff Hook']
   },
   { 
     id: 'flashlight', 
@@ -267,8 +285,8 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Flashlights - bright, focused electric illumination.', 
     cost: 55, 
     tier: 2, 
-    prerequisites: ['lantern', 'crossbow', 'metal-pickaxe'], 
-    position: getRadialPosition(2 * Math.PI / 3, 180), 
+    prerequisites: ['lantern'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 220), // Branch 4: Straight from lantern
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Flashlight']
@@ -279,51 +297,53 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.', 
     cost: 70, 
     tier: 2, 
-    prerequisites: ['metal-pickaxe', 'lantern', 'mining-efficiency'], 
-    position: getRadialPosition(Math.PI, 180), 
+    prerequisites: ['metal-pickaxe'], 
+    position: getRadialPosition(4 * 2 * Math.PI / 6, 220), // Branch 5: Straight from metal-pickaxe
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Bellows']
   },
   { 
-    id: 'crafting-speed-1', 
-    name: 'Crafting Speed I', 
-    description: 'Improved crafting techniques. All crafting operations are 15% faster.', 
+    id: 'movement-speed-1', 
+    name: 'Movement Speed I', 
+    description: 'Enhanced mobility training. Move 10% faster.', 
     cost: 80, 
     tier: 2, 
-    prerequisites: ['bush-knife', 'mining-efficiency', 'crossbow'], 
-    position: getRadialPosition(5 * Math.PI / 3, 180), 
+    prerequisites: ['stone-spear'], 
+    position: getRadialPosition(5 * 2 * Math.PI / 6, 220), // Branch 6: Straight from stone-spear
     category: 'passive' as const, 
     status: 'locked' as const
   },
 
   // ============================================
-  // TIER 3 - Mid Game (120-200 shards)
-  // First few hours of play
+  // TIER 3 - Advanced Gear (120-200 shards)
+  // LINEAR CHAINS continue - single prerequisite each
+  // Each branch extends independently
+  // Radius: 320
   // ============================================
   { 
-    id: 'hollow-reed-arrow', 
-    name: 'Hollow Reed Arrow', 
-    description: 'Unlocks crafting Hollow Reed Arrows - lightweight, flies faster but deals less damage.', 
+    id: 'fire-arrow', 
+    name: 'Fire Arrow', 
+    description: 'Unlocks crafting Fire Arrows - ignites on impact, causing burn damage over time.', 
     cost: 120, 
     tier: 3, 
-    prerequisites: ['bone-arrow', 'crafting-speed-1', 'fire-arrow'], 
-    position: getRadialPosition(0, 270), 
+    prerequisites: ['bone-arrow'], 
+    position: getRadialPosition(0, 320), // Branch 1: Continues from bone-arrow
     category: 'weapon' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Hollow Reed Arrow']
+    unlocksItems: ['Fire Arrow']
   },
   { 
-    id: 'reed-snorkel', 
-    name: 'Reed Snorkel', 
-    description: 'Unlocks crafting the Primitive Reed Snorkel - allows limited underwater exploration.', 
-    cost: 140, 
+    id: 'large-wooden-storage-box', 
+    name: 'Large Wooden Storage Box', 
+    description: 'Unlocks crafting Large Wooden Storage Boxes - large containers for storing many items. Holds 48 stacks.', 
+    cost: 150, 
     tier: 3, 
-    prerequisites: ['fire-arrow', 'bone-arrow', 'flashlight'], 
-    position: getRadialPosition(Math.PI / 3, 270), 
-    category: 'tool' as const, 
+    prerequisites: ['bush-knife'], 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 320), // Branch 2: Continues from bush-knife
+    category: 'crafting' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Primitive Reed Snorkel']
+    unlocksItems: ['Large Wooden Storage Box']
   },
   { 
     id: 'reed-fishing-rod', 
@@ -331,145 +351,109 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting the Primitive Reed Fishing Rod - catch fish and aquatic resources.', 
     cost: 130, 
     tier: 3, 
-    prerequisites: ['flashlight', 'fire-arrow', 'reed-bellows'], 
-    position: getRadialPosition(2 * Math.PI / 3, 270), 
+    prerequisites: ['bone-gaff-hook'], 
+    position: getRadialPosition(2 * 2 * Math.PI / 6, 320), // Branch 3: Continues from bone-gaff-hook
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Primitive Reed Fishing Rod']
   },
   { 
     id: 'reed-rain-collector', 
-    name: 'Rain Collector', 
+    name: 'Reed Rain Collector', 
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
-    cost: 180, 
+    cost: 140, 
     tier: 3, 
-    prerequisites: ['reed-bellows', 'flashlight', 'crafting-speed-1'], 
-    position: getRadialPosition(4 * Math.PI / 3, 270), 
+    prerequisites: ['flashlight'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Rain Collector']
   },
   { 
-    id: 'movement-speed-1', 
-    name: 'Movement Speed I', 
-    description: 'Enhanced mobility training. Move 10% faster.', 
+    id: 'mining-efficiency', 
+    name: 'Mining Efficiency', 
+    description: 'Advanced mining techniques grant +30% resource yield from all gathering activities.', 
+    cost: 180, 
+    tier: 3, 
+    prerequisites: ['reed-bellows'], 
+    position: getRadialPosition(4 * 2 * Math.PI / 6, 320), // Branch 5: Continues from reed-bellows
+    category: 'passive' as const, 
+    status: 'locked' as const
+  },
+  { 
+    id: 'movement-speed-2', 
+    name: 'Movement Speed II', 
+    description: 'Advanced mobility training. Move 20% faster total.', 
     cost: 200, 
     tier: 3, 
-    prerequisites: ['crafting-speed-1', 'reed-bellows', 'bone-arrow'], 
-    position: getRadialPosition(5 * Math.PI / 3, 270), 
+    prerequisites: ['movement-speed-1'], 
+    position: getRadialPosition(5 * 2 * Math.PI / 6, 320), // Branch 6: Continues from movement-speed-1
     category: 'passive' as const, 
     status: 'locked' as const
   },
 
   // ============================================
-  // TIER 4 - Late Session (300-450 shards)
-  // End of first long session or second day
+  // TIER 4 - Late Game (300-450 shards)
+  // LINEAR CHAINS continue - single prerequisite each
+  // Each branch extends independently
+  // Radius: 420
   // ============================================
+  { 
+    id: 'hollow-reed-arrow', 
+    name: 'Hollow Reed Arrow', 
+    description: 'Unlocks crafting Hollow Reed Arrows - lightweight, flies faster but deals less damage.', 
+    cost: 300, 
+    tier: 4, 
+    prerequisites: ['fire-arrow'], 
+    position: getRadialPosition(0, 420), // Branch 1: Continues from fire-arrow
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Hollow Reed Arrow']
+  },
   { 
     id: 'metal-door', 
     name: 'Metal Door', 
     description: 'Unlocks crafting Metal Doors - reinforced security for your most valuable areas.', 
-    cost: 300, 
+    cost: 320, 
     tier: 4, 
-    prerequisites: ['hollow-reed-arrow', 'movement-speed-1', 'reed-snorkel'], 
-    position: getRadialPosition(0, 370), 
+    prerequisites: ['large-wooden-storage-box'], 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 420), // Branch 2: Continues from large-wooden-storage-box
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Door']
   },
   { 
-    id: 'shelter', 
-    name: 'Shelter', 
-    description: 'Unlocks crafting Shelters - sturdy structures that provide significant protection.', 
-    cost: 380, 
-    tier: 4, 
-    prerequisites: ['reed-snorkel', 'hollow-reed-arrow', 'reed-fishing-rod'], 
-    position: getRadialPosition(Math.PI / 3, 370), 
-    category: 'crafting' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Shelter']
-  },
-  { 
-    id: '9x18mm-round', 
-    name: '9x18mm Ammunition', 
-    description: 'Unlocks crafting 9x18mm Rounds - ammunition for the Makarov PM pistol.', 
+    id: 'reed-snorkel', 
+    name: 'Reed Snorkel', 
+    description: 'Unlocks crafting the Primitive Reed Snorkel - allows limited underwater exploration.', 
     cost: 350, 
     tier: 4, 
-    prerequisites: ['reed-fishing-rod', 'reed-snorkel', 'hollow-reed-arrow'], 
-    position: getRadialPosition(2 * Math.PI / 3, 370), 
-    category: 'weapon' as const, 
+    prerequisites: ['reed-fishing-rod'], 
+    position: getRadialPosition(2 * 2 * Math.PI / 6, 420), // Branch 3: Continues from reed-fishing-rod
+    category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['9x18mm Round']
+    unlocksItems: ['Primitive Reed Snorkel']
   },
   { 
-    id: 'metal-armor', 
-    name: 'Metal Armor', 
-    description: 'Unlocks crafting Metal Armor - superior protection for serious combat.', 
-    cost: 450, 
+    id: 'refrigerator', 
+    name: 'Refrigerator', 
+    description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks of food, seeds, and water containers.', 
+    cost: 380, 
     tier: 4, 
-    prerequisites: ['reed-rain-collector', 'hollow-reed-arrow', 'movement-speed-1'], 
-    position: getRadialPosition(Math.PI, 370), 
-    category: 'armor' as const, 
-    status: 'locked' as const
+    prerequisites: ['reed-rain-collector'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 420), // Branch 4: Continues from reed-rain-collector
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Refrigerator']
   },
   { 
-    id: 'crafting-speed-2', 
-    name: 'Crafting Speed II', 
-    description: 'Master crafting techniques. All crafting operations are 25% faster.', 
+    id: 'crafting-speed-1', 
+    name: 'Crafting Speed I', 
+    description: 'Improved crafting techniques. All crafting operations are 15% faster.', 
     cost: 400, 
     tier: 4, 
-    prerequisites: ['movement-speed-1', 'reed-rain-collector', 'hollow-reed-arrow'], 
-    position: getRadialPosition(5 * Math.PI / 3, 370), 
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
-
-  // ============================================
-  // TIER 5 - End-Game Items (600-900 shards)
-  // First week of play - major achievement
-  // ============================================
-  { 
-    id: 'makarov-pm', 
-    name: 'Makarov PM', 
-    description: 'Unlocks crafting the Makarov PM - a reliable Soviet-era semi-automatic pistol. Longest range, fastest fire rate.', 
-    cost: 750, 
-    tier: 5, 
-    prerequisites: ['metal-door', 'crafting-speed-2', 'shelter'], 
-    position: getRadialPosition(0, 480), 
-    category: 'weapon' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Makarov PM']
-  },
-  { 
-    id: 'combat-drone', 
-    name: 'Combat Drone', 
-    description: 'Unlocks autonomous combat drone technology - a robotic ally that assists in combat.', 
-    cost: 800, 
-    tier: 5, 
-    prerequisites: ['shelter', 'metal-door', '9x18mm-round'], 
-    position: getRadialPosition(Math.PI / 3, 480), 
-    category: 'technology' as const, 
-    status: 'locked' as const
-  },
-  { 
-    id: 'rain-collector', 
-    name: 'Advanced Rain Collector', 
-    description: 'Upgrade: Rain collectors have 2x capacity and collect water faster.', 
-    cost: 600, 
-    tier: 5, 
-    prerequisites: ['9x18mm-round', 'shelter', 'metal-armor'], 
-    position: getRadialPosition(2 * Math.PI / 3, 480), 
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
-  { 
-    id: 'broth-mastery', 
-    name: 'Broth Mastery', 
-    description: 'Master broth recipes. All broth effects last 50% longer.', 
-    cost: 700, 
-    tier: 5, 
-    prerequisites: ['metal-armor', '9x18mm-round', 'shelter'], 
-    position: getRadialPosition(Math.PI, 480), 
+    prerequisites: ['mining-efficiency'], 
+    position: getRadialPosition(4 * 2 * Math.PI / 6, 420), // Branch 5: Continues from mining-efficiency
     category: 'passive' as const, 
     status: 'locked' as const
   },
@@ -477,36 +461,124 @@ export const MEMORY_GRID_NODES = [
     id: 'armor-mastery', 
     name: 'Armor Mastery', 
     description: 'Master armor maintenance. All armor durability increased by 30%.', 
-    cost: 750, 
-    tier: 5, 
-    prerequisites: ['metal-armor', 'shelter', 'crafting-speed-2'], 
-    position: getRadialPosition(4 * Math.PI / 3, 480), 
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
-  { 
-    id: 'movement-speed-2', 
-    name: 'Movement Speed II', 
-    description: 'Advanced mobility training. Move 20% faster.', 
-    cost: 900, 
-    tier: 5, 
-    prerequisites: ['crafting-speed-2', 'metal-armor', 'metal-door'], 
-    position: getRadialPosition(5 * Math.PI / 3, 480), 
+    cost: 420, 
+    tier: 4, 
+    prerequisites: ['movement-speed-2'], 
+    position: getRadialPosition(5 * 2 * Math.PI / 6, 420), // Branch 6: Continues from movement-speed-2
     category: 'passive' as const, 
     status: 'locked' as const
   },
 
   // ============================================
-  // FACTION UNLOCK NODES (400 shards each)
-  // Major milestone - requires ANY Tier 5 node
-  // Player commits to ONE faction (reset costs 2000 shards)
+  // TIER 5 - End Game (600-900 shards)
+  // Week 1 - Major milestones
+  // Radius: 520
   // ============================================
-  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 400, tier: 6, faction: 'black-wolves', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(0, 680), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 400, tier: 6, faction: 'hive', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 400, tier: 6, faction: 'university', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(2 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 400, tier: 6, faction: 'data-angels', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(Math.PI, 680), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 400, tier: 6, faction: 'battalion', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(4 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 400, tier: 6, faction: 'admiralty', prerequisites: ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'], position: getRadialPosition(5 * Math.PI / 3, 680), category: 'technology' as const, status: 'locked' as const },
+  { 
+    id: '9x18mm-round', 
+    name: '9x18mm Ammunition', 
+    description: 'Unlocks crafting 9x18mm Rounds - ammunition for the Makarov PM pistol.', 
+    cost: 600, 
+    tier: 5, 
+    prerequisites: ['hollow-reed-arrow'], 
+    position: getRadialPosition(0, 520), // Branch 1: Continues from hollow-reed-arrow
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['9x18mm Round']
+  },
+  { 
+    id: 'shelter', 
+    name: 'Shelter', 
+    description: 'Unlocks crafting Shelters - sturdy structures that provide significant protection.', 
+    cost: 650, 
+    tier: 5, 
+    prerequisites: ['metal-door'], 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 520), // Branch 2: Continues from metal-door
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Shelter']
+  },
+  { 
+    id: 'broth-mastery', 
+    name: 'Broth Mastery', 
+    description: 'Master broth recipes. All broth effects last 50% longer.', 
+    cost: 700, 
+    tier: 5, 
+    prerequisites: ['refrigerator'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 520), // Branch 4: Continues from refrigerator
+    category: 'passive' as const, 
+    status: 'locked' as const
+  },
+  { 
+    id: 'crafting-speed-2', 
+    name: 'Crafting Speed II', 
+    description: 'Master crafting techniques. All crafting operations are 25% faster.', 
+    cost: 750, 
+    tier: 5, 
+    prerequisites: ['crafting-speed-1'], 
+    position: getRadialPosition(4 * 2 * Math.PI / 6, 520), // Branch 5: Continues from crafting-speed-1
+    category: 'passive' as const, 
+    status: 'locked' as const
+  },
+
+  // ============================================
+  // TIER 6 - Ultimate (800-1000 shards)
+  // Week 1-2 - Final upgrades before factions
+  // Radius: 620
+  // ============================================
+  { 
+    id: 'makarov-pm', 
+    name: 'Makarov PM', 
+    description: 'Unlocks crafting the Makarov PM - a reliable Soviet-era semi-automatic pistol. Longest range, fastest fire rate.', 
+    cost: 800, 
+    tier: 6, 
+    prerequisites: ['9x18mm-round'], 
+    position: getRadialPosition(0, 620), // Branch 1: Continues from 9x18mm-round
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Makarov PM']
+  },
+  { 
+    id: 'harvester-drone', 
+    name: 'Harvester Drone', 
+    description: 'Unlocks autonomous harvesting drone technology - automatically gathers nearby resources.', 
+    cost: 850, 
+    tier: 6, 
+    prerequisites: ['shelter'], 
+    position: getRadialPosition(1 * 2 * Math.PI / 6, 620), // Branch 2: Continues from shelter
+    category: 'technology' as const, 
+    status: 'locked' as const
+  },
+
+  // ============================================
+  // TIER 7 - Capstone (1000 shards)
+  // Week 2-3 - Final node before factions
+  // Radius: 720
+  // ============================================
+  { 
+    id: 'combat-drone', 
+    name: 'Combat Drone', 
+    description: 'Unlocks autonomous combat drone technology - a robotic ally that assists in combat.', 
+    cost: 1000, 
+    tier: 7, 
+    prerequisites: ['makarov-pm'], 
+    position: getRadialPosition(0, 720), // Branch 1: Continues from makarov-pm
+    category: 'technology' as const, 
+    status: 'locked' as const
+  },
+
+  // ============================================
+  // FACTION UNLOCK NODES (400 shards each)
+  // Major milestone - requires ANY Tier 5+ node
+  // Player commits to ONE faction (reset costs 2000 shards)
+  // Radius: 900 (increased spacing from core nodes)
+  // ============================================
+  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 400, tier: 8, faction: 'black-wolves', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(0, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 400, tier: 8, faction: 'hive', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 400, tier: 8, faction: 'university', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(2 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 400, tier: 8, faction: 'data-angels', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(Math.PI, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 400, tier: 8, faction: 'battalion', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(4 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 400, tier: 8, faction: 'admiralty', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(5 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
 
   // ============================================
   // FACTION BRANCHES (400-2500 shards per node)
@@ -527,7 +599,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'black-wolves',
       prerequisites: i === 0 ? ['unlock-black-wolves'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -546,7 +618,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'black-wolves',
       prerequisites: i === 0 ? ['unlock-black-wolves'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -565,7 +637,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'hive',
       prerequisites: i === 0 ? ['unlock-hive'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -584,7 +656,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'hive',
       prerequisites: i === 0 ? ['unlock-hive'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -603,7 +675,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'university',
       prerequisites: i === 0 ? ['unlock-university'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -622,7 +694,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'university',
       prerequisites: i === 0 ? ['unlock-university'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -634,14 +706,14 @@ export const MEMORY_GRID_NODES = [
       { id: 'jammer-tower', name: 'Jammer Tower', description: 'Disable electronic devices in area', cost: 400 },
       { id: 'ghost-uplink', name: 'Ghost Uplink', description: 'Remote access to electronic systems', cost: 600 },
       { id: 'neurochef-decryptor', name: 'Neurochef Decryptor', description: 'Crack advanced security systems', cost: 900 },
-      { id: 'drone-hijack', name: 'Drone Hijack Pulse', description: 'Take control of enemy systems', cost: 1400 },
+      { id: 'drone-hijack', name: 'Hijack Pulse', description: 'Take control of enemy drones and turrets', cost: 1400 },
       { id: 'hacking-speed', name: 'Hacking Speed', description: 'Faster infiltration (Passive +25% Speed)', cost: 2500 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'data-angels',
       prerequisites: i === 0 ? ['unlock-data-angels'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -660,7 +732,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'data-angels',
       prerequisites: i === 0 ? ['unlock-data-angels'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -679,7 +751,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'battalion',
       prerequisites: i === 0 ? ['unlock-battalion'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -698,7 +770,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'battalion',
       prerequisites: i === 0 ? ['unlock-battalion'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -717,7 +789,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'admiralty',
       prerequisites: i === 0 ? ['unlock-admiralty'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle - 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle - 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })(),
@@ -736,7 +808,7 @@ export const MEMORY_GRID_NODES = [
       id: node.id, name: node.name, description: node.description, cost: node.cost,
       tier: 7 + i, faction: 'admiralty',
       prerequisites: i === 0 ? ['unlock-admiralty'] : [path[i - 1].id],
-      position: getRadialPosition(baseAngle + 0.3, 780 + (i * 120)),
+      position: getRadialPosition(baseAngle + 0.3, 900 + (i * 120)),
       category: getCategoryFromId(node.id), status: 'locked' as const
     }));
   })()
@@ -766,7 +838,7 @@ export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>): bo
   
   if (nodeId.includes('unlock-')) {
     // First check: Has any tier 5 node been purchased?
-    const tier5Nodes = ['makarov-pm', 'combat-drone', 'rain-collector', 'broth-mastery', 'armor-mastery', 'movement-speed-2'];
+    const tier5Nodes = ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'];
     const hasTier5 = tier5Nodes.some((tier5Id: string) => purchasedNodes.has(tier5Id));
     
     if (!hasTier5) {
@@ -792,28 +864,33 @@ export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>): bo
 // Items NOT in this map are ALWAYS CRAFTABLE
 export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 1 items
-  'Crossbow': 'crossbow',
   'Metal Hatchet': 'metal-hatchet',
   'Metal Pickaxe': 'metal-pickaxe',
+  'Crossbow': 'crossbow',
+  'Stone Spear': 'stone-spear',
+  'Reed Harpoon': 'reed-harpoon',
   'Lantern': 'lantern',
-  'Bush Knife': 'bush-knife',
   
   // Tier 2 items
   'Bone Arrow': 'bone-arrow',
   'Fire Arrow': 'fire-arrow',
+  'Bush Knife': 'bush-knife',
   'Flashlight': 'flashlight',
   'Reed Bellows': 'reed-bellows',
+  'Bone Gaff Hook': 'bone-gaff-hook',
   
   // Tier 3 items
   'Hollow Reed Arrow': 'hollow-reed-arrow',
   'Primitive Reed Snorkel': 'reed-snorkel',
   'Primitive Reed Fishing Rod': 'reed-fishing-rod',
   'Reed Rain Collector': 'reed-rain-collector',
+  'Large Wooden Storage Box': 'large-wooden-storage-box',
   
   // Tier 4 items
   'Metal Door': 'metal-door',
   'Shelter': 'shelter',
   '9x18mm Round': '9x18mm-round',
+  'Refrigerator': 'refrigerator',
   
   // Tier 5 items
   'Makarov PM': 'makarov-pm',

@@ -1029,6 +1029,39 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    case 'PoisonCoating':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'poison_coating',
+                            name: 'Poison Coating',
+                            emoji: '💀',
+                            type: 'positive' as const,
+                            description: 'Weapons inflict poison on targets.',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
+                    case 'PassiveHealthRegen':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'passive_health_regen',
+                            name: 'Regeneration',
+                            emoji: '💚',
+                            type: 'positive' as const,
+                            description: 'Slowly regenerating health over time.',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
+                    case 'HarvestBoost':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'harvest_boost',
+                            name: 'Harvest Boost',
+                            emoji: '⚒️',
+                            type: 'positive' as const,
+                            description: 'Increased yield from mining and chopping.',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
                 }
             } else if (effectTargetPlayerIdHex === localPlayerIdHex && effectTypeTag === 'RemoteBandageBurst') {
                 // Check if remote bandage healer is in range
@@ -1055,7 +1088,21 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 }
             }
             
-            if (effectApplies && effectData && (bufferedRemainingTime > 0 || effectData.id === 'cozy' || effectData.id === 'tree_cover' || effectData.id === 'exhausted' || effectData.id === 'building_privilege' || effectData.id === 'production_rune' || effectData.id === 'agrarian_rune' || effectData.id === 'safe_zone' || effectData.id === 'fumarole' || effectData.id === 'hot_spring' || effectData.id === 'blue_runestone')) {
+            // Show effect if it has remaining time OR is a permanent effect
+            const isPermanentEffect = effectData && (
+                effectData.id === 'cozy' || 
+                effectData.id === 'tree_cover' || 
+                effectData.id === 'exhausted' || 
+                effectData.id === 'building_privilege' || 
+                effectData.id === 'production_rune' || 
+                effectData.id === 'agrarian_rune' || 
+                effectData.id === 'safe_zone' || 
+                effectData.id === 'fumarole' || 
+                effectData.id === 'hot_spring' || 
+                effectData.id === 'blue_runestone'
+            );
+            
+            if (effectApplies && effectData && (bufferedRemainingTime > 0 || isPermanentEffect)) {
                 effects.push(effectData);
             }
         });

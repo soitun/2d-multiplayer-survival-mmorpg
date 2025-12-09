@@ -2364,8 +2364,10 @@ pub fn apply_broth_effect_from_category(
     match category {
         "alcoholic" => apply_intoxicated_effect(ctx, player_id, item_def_id),
         "poison" => {
-            // Poison brews apply poison DOT to the consumer (self-harm for assassination attempts gone wrong)
-            apply_poisoned_effect(ctx, player_id, item_def_id, 30.0) // 30 second poison
+            // Poison brews ONLY apply PoisonCoating effect (weapon coating buff)
+            // NO consumable stats (health/hunger/thirst) - strictly a weapon coating buff
+            // NO Poisoned DOT - this is for coating weapons, not self-harm
+            apply_poison_coating_effect(ctx, player_id, item_def_id) // 1 hour weapon coating
         },
         "performance_enhancer" => {
             // Performance enhancers give both speed and stamina boosts

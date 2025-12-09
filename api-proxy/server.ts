@@ -85,11 +85,12 @@ app.use(express.raw({ type: 'audio/*', limit: '50mb' }));
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GROK_API_KEY = process.env.GROK_API_KEY;
+const RETRO_DIFFUSION_API_KEY = process.env.RETRO_DIFFUSION_API_KEY;
 
 // At least one API key should be configured
-if (!OPENAI_API_KEY && !GEMINI_API_KEY && !GROK_API_KEY) {
+if (!OPENAI_API_KEY && !GEMINI_API_KEY && !GROK_API_KEY && !RETRO_DIFFUSION_API_KEY) {
   console.error('❌ No AI API keys found in environment variables');
-  console.error(`   Please ensure at least one of OPENAI_API_KEY, GEMINI_API_KEY, or GROK_API_KEY is set`);
+  console.error(`   Please ensure at least one of OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY, or RETRO_DIFFUSION_API_KEY is set`);
   console.error(`   Current working directory: ${process.cwd()}`);
   // Don't exit - allow server to start but endpoints will return errors
 }
@@ -104,6 +105,7 @@ console.log('✅ API Proxy Server starting...');
 console.log(`   OpenAI API: ${OPENAI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Gemini API: ${GEMINI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Grok API: ${GROK_API_KEY ? 'Ready' : 'Not configured'}`);
+console.log(`   Retro Diffusion API: ${RETRO_DIFFUSION_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Note: Kokoro TTS runs locally (no proxy needed)`);
 
 // Health check
@@ -112,7 +114,8 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     openaiConfigured: !!OPENAI_API_KEY,
     geminiConfigured: !!GEMINI_API_KEY,
-    grokConfigured: !!GROK_API_KEY
+    grokConfigured: !!GROK_API_KEY,
+    retroDiffusionConfigured: !!RETRO_DIFFUSION_API_KEY
   });
 });
 
@@ -361,7 +364,7 @@ const VALID_EFFECT_TYPES = [
   'PoisonResistance', // For antidote brews
   'NightVision',      // For special brews
   'WarmthBoost',      // For warming brews
-  'Poisoned',         // For poison brews (distinct from FoodPoisoning)
+  'PoisonCoating',    // For poison brews - weapon coating buff (NO consumable stats)
   null,               // No special effect (stats only)
 ];
 
@@ -375,7 +378,7 @@ CATEGORIES (choose one):
 - healing_broth: Health restoration, hunger satisfaction (health: 30-80, hunger: 40-100)
 - medicinal_tea: Stat buffs, healing over time (health: 20-50, hunger: 5-20, thirst: 30-60)
 - alcoholic: Buffs/debuffs, cold resistance (health: -5 to 10, hunger: 10-30, thirst: -10 to 0)
-- poison: Offensive combat, dangerous (health: -50 to -200, hunger: -20 to -50)
+- poison: Weapon coating buff ONLY - NO consumable stats (health: 0, hunger: 0, thirst: 0) - strictly for coating weapons to inflict poison on targets
 - performance_enhancer: Temporary buffs (health: 10-30, hunger: 20-40, thirst: 10-30)
 - utility_brew: Crafting materials, non-consumable (minimal stats)
 - psychoactive: Special effects, risky (variable stats)
@@ -395,12 +398,12 @@ EFFECT TYPES (optional, use only when appropriate - IMPORTANT: Apply these when 
 - PoisonResistance: For antidote brews, reduces poison/venom damage
 - NightVision: For psychoactive brews, enhanced vision at night
 - WarmthBoost: For warming broths, warmth protection bonus
-- Poisoned: For poison brews (distinct from FoodPoisoning), damage over time
+- PoisonCoating: For poison brews - weapon coating that makes attacks inflict poison (NO consumable stats, NO self-damage)
 - null: No special effect (most common, stats only)
 
 CRITICAL: When generating recipes, you MUST include an appropriate effect_type when:
 - Category is "alcoholic" → MUST use "Intoxicated"
-- Category is "poison" → MUST use "Poisoned" or "FoodPoisoning"
+- Category is "poison" → MUST use "PoisonCoating" (weapon coating buff, NO consumable stats, NO self-damage)
 - Category is "performance_enhancer" → SHOULD use "SpeedBoost" or "StaminaBoost"
 - Category is "psychoactive" → SHOULD use "NightVision"
 - Ingredients suggest fire resistance (e.g., fire-related materials) → CONSIDER "FireResistance"
@@ -463,7 +466,13 @@ Return a JSON object with these exact fields:
   "category": "string - one of the valid categories",
   "effect_type": "string or null - one of the valid effect types, or null for stats-only",
   "icon_subject": "string - short description of the brew's appearance for icon generation (e.g., 'steaming bowl of mushroom soup', 'glowing green poison vial')"
-}`;
+}
+
+CRITICAL RULES FOR POISON CATEGORY:
+- If category is "poison", you MUST set: health: 0, hunger: 0, thirst: 0
+- Poison brews are weapon coating buffs ONLY - they have NO consumable stats
+- Effect type MUST be "PoisonCoating" for poison category
+- NO self-damage, NO stat changes - strictly a weapon coating effect`;
 
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash',
@@ -533,12 +542,12 @@ Return a JSON object with these exact fields:
   }
 });
 
-// OpenAI DALL-E 2 Icon Generation (fast, cheap, great for pixel art)
-// Cost: ~$0.016-0.020 per 256x256 image
+// Retro Diffusion Icon Generation (specialized for pixel art game icons)
+// Uses rd_plus__mc_item prompt style for Minecraft-style game item icons
 app.post('/api/gemini/icon', async (req, res) => {
   try {
-    if (!OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'OpenAI API key not configured' });
+    if (!RETRO_DIFFUSION_API_KEY) {
+      return res.status(500).json({ error: 'Retro Diffusion API key not configured' });
     }
 
     const { subject } = req.body;
@@ -547,50 +556,97 @@ app.post('/api/gemini/icon', async (req, res) => {
       return res.status(400).json({ error: 'Subject string required' });
     }
 
-    console.log(`[Proxy] DALL-E icon request: ${subject}`);
+    console.log(`[Proxy] Retro Diffusion icon request: ${subject}`);
 
-    // Optimized pixel art prompt for DALL-E 2 - CRITICAL: Must have transparent background
-    // Note: DALL-E 2 generates PNGs but may include white backgrounds. The prompt emphasizes transparency.
-    const iconPrompt = `Pixel art style ${subject} as a game item icon. Pixel art with consistent pixel width, clean black outlines, sharp pixel-level detail. CRITICAL: Must have a completely transparent background - no white background, no colored background, no shadows, no background elements whatsoever. The icon should be the object only on a transparent PNG. Top-down RPG style like Secret of Mana. Warm color palette with light dithering. The entire background must be transparent alpha channel.`;
+    // Generate a consistent seed based on the subject for reproducible results
+    // Simple hash function to convert subject string to a number
+    let seed = 1372619675; // Default seed
+    for (let i = 0; i < subject.length; i++) {
+      seed = ((seed << 5) - seed) + subject.charCodeAt(i);
+      seed = seed & 0xFFFFFFFF; // Convert to 32-bit integer
+    }
+    seed = Math.abs(seed); // Ensure positive
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    // Optimized prompt for Retro Diffusion - uses Minecraft item style
+    // The rd_plus__mc_item prompt style is specifically designed for game item icons
+    const iconPrompt = `${subject}`;
+
+    const response = await fetch('https://api.retrodiffusion.ai/v1/inferences', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'X-RD-Token': RETRO_DIFFUSION_API_KEY,
       },
       body: JSON.stringify({
-        model: 'dall-e-2',
         prompt: iconPrompt,
-        n: 1,
-        size: '256x256',
-        response_format: 'b64_json',
+        width: 48,
+        height: 48,
+        num_images: 1,
+        seed: seed,
+        prompt_style: 'rd_plus__mc_item', // Minecraft item style - perfect for game icons
+        tile_x: false,
+        tile_y: false,
+        upscale_output_factor: 1,
+        remove_bg: true, // Transparent background for game icons
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json() as { error?: { message?: string } };
-      console.error(`[Proxy] DALL-E error (${response.status}):`, errorData);
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`[Proxy] Retro Diffusion error (${response.status}):`, errorData);
       return res.json({
         icon_base64: null,
         placeholder: true,
         description: subject,
-        error: errorData.error?.message || 'DALL-E generation failed'
+        error: (errorData as any).error?.message || 'Retro Diffusion generation failed'
       });
     }
 
-    const data = await response.json() as { data?: Array<{ b64_json?: string }> };
+    const data = await response.json() as { 
+      images?: Array<{ url?: string; base64?: string }>;
+      image?: { url?: string; base64?: string };
+      data?: string; // Base64 string directly
+    };
     
-    if (data.data && data.data[0]?.b64_json) {
-      console.log(`[Proxy] Generated icon via DALL-E 2 successfully`);
+    // Retro Diffusion API may return images in different formats
+    // Check for base64 data in various possible response structures
+    let base64Image: string | undefined;
+    
+    if (data.images && data.images[0]) {
+      base64Image = data.images[0].base64 || data.images[0].url;
+    } else if (data.image) {
+      base64Image = data.image.base64 || data.image.url;
+    } else if (typeof data.data === 'string') {
+      base64Image = data.data;
+    }
+    
+    // If we got a URL instead of base64, fetch it and convert
+    if (base64Image && base64Image.startsWith('http')) {
+      try {
+        const imageResponse = await fetch(base64Image);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        base64Image = Buffer.from(imageBuffer).toString('base64');
+      } catch (fetchError) {
+        console.error('[Proxy] Failed to fetch image URL:', fetchError);
+        base64Image = undefined;
+      }
+    }
+    
+    if (base64Image) {
+      // Remove data URL prefix if present
+      if (base64Image.startsWith('data:image/')) {
+        base64Image = base64Image.split(',')[1];
+      }
+      
+      console.log(`[Proxy] Generated icon via Retro Diffusion successfully`);
       return res.json({
-        icon_base64: data.data[0].b64_json,
+        icon_base64: base64Image,
         mime_type: 'image/png',
       });
     }
 
     // If no image was generated, return a placeholder indicator
-    console.log(`[Proxy] No image in DALL-E response, returning placeholder`);
+    console.log(`[Proxy] No image in Retro Diffusion response, returning placeholder`);
     return res.json({
       icon_base64: null,
       placeholder: true,
@@ -598,7 +654,7 @@ app.post('/api/gemini/icon', async (req, res) => {
     });
 
   } catch (error: any) {
-    console.error('[Proxy] DALL-E icon error:', error);
+    console.error('[Proxy] Retro Diffusion icon error:', error);
     res.status(500).json({ error: error.message || 'Icon generation failed' });
   }
 });
@@ -611,7 +667,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Grok Chat: POST /api/grok/chat`);
   console.log(`   Gemini Chat: POST /api/gemini/chat`);
   console.log(`   Gemini Brew: POST /api/gemini/brew`);
-  console.log(`   DALL-E 2 Icon: POST /api/gemini/icon`);
+  console.log(`   Retro Diffusion Icon: POST /api/gemini/icon`);
   console.log(`   Health Check: GET /health`);
 });
 

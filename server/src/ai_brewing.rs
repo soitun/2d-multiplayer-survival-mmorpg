@@ -108,7 +108,7 @@ pub fn map_category_to_effect(category: &str) -> Option<EffectType> {
     match category {
         // medicinal_tea: healing handled by item's consumable_health_gain stat, no special effect needed
         // healing_broth: healing handled by item's consumable_health_gain stat, no special effect needed
-        "poison" => Some(EffectType::Poisoned),           // Use new Poisoned effect (not FoodPoisoning)
+        "poison" => Some(EffectType::PoisonCoating),     // Weapon coating - attacks inflict poison
         "alcoholic" => Some(EffectType::Intoxicated),     // Drunk effect - 15% speed penalty, blurred vision
         "performance_enhancer" => Some(EffectType::SpeedBoost), // 25% faster movement
         "psychoactive" => Some(EffectType::NightVision),  // Enhanced vision at night
@@ -205,14 +205,36 @@ fn validate_recipe_data(recipe: &AiBrewRecipeData) -> Result<(), String> {
     }
     
     // Stat validation (allow negative for poisons, but cap extremes)
-    if recipe.health < -500.0 || recipe.health > 500.0 {
-        return Err("Health value out of range (-500 to 500)".to_string());
-    }
-    if recipe.hunger < -200.0 || recipe.hunger > 200.0 {
-        return Err("Hunger value out of range (-200 to 200)".to_string());
-    }
-    if recipe.thirst < -200.0 || recipe.thirst > 200.0 {
-        return Err("Thirst value out of range (-200 to 200)".to_string());
+    // CRITICAL: Poison category brews MUST have zero stats (weapon coating only)
+    if recipe.category == "poison" {
+        if recipe.health != 0.0 {
+            return Err("Poison category brews must have health: 0 (weapon coating only, no consumable stats)".to_string());
+        }
+        if recipe.hunger != 0.0 {
+            return Err("Poison category brews must have hunger: 0 (weapon coating only, no consumable stats)".to_string());
+        }
+        if recipe.thirst != 0.0 {
+            return Err("Poison category brews must have thirst: 0 (weapon coating only, no consumable stats)".to_string());
+        }
+        // Verify effect_type is PoisonCoating
+        if let Some(ref effect_type) = recipe.effect_type {
+            if effect_type != "PoisonCoating" {
+                return Err(format!("Poison category brews must use effect_type 'PoisonCoating', got '{}'", effect_type));
+            }
+        } else {
+            return Err("Poison category brews must have effect_type 'PoisonCoating'".to_string());
+        }
+    } else {
+        // Normal stat validation for non-poison brews
+        if recipe.health < -500.0 || recipe.health > 500.0 {
+            return Err("Health value out of range (-500 to 500)".to_string());
+        }
+        if recipe.hunger < -200.0 || recipe.hunger > 200.0 {
+            return Err("Hunger value out of range (-200 to 200)".to_string());
+        }
+        if recipe.thirst < -200.0 || recipe.thirst > 200.0 {
+            return Err("Thirst value out of range (-200 to 200)".to_string());
+        }
     }
     
     // Brew time validation

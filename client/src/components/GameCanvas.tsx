@@ -1225,6 +1225,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [connection, localPlayer?.isFlashlightOn, worldMousePos.x, worldMousePos.y, predictedPosition, localPlayer?.positionX, localPlayer?.positionY]);
   
+  // Register error handlers for consumeItem reducer
+  useEffect(() => {
+    if (!connection) return;
+
+    const handleConsumeItemResult = (ctx: any, itemInstanceId: bigint) => {
+      console.log(`[GameCanvas] consumeItem reducer callback triggered for instance ${itemInstanceId.toString()}`);
+      console.log(`[GameCanvas] Event status:`, ctx.event?.status);
+      
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Unknown error';
+        console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);
+        // TODO: Show error message to player (toast notification or similar)
+      } else if (ctx.event?.status?.tag === 'Committed') {
+        console.log(`[GameCanvas] ✅ consumeItem succeeded for instance ${itemInstanceId.toString()}`);
+      } else {
+        console.log(`[GameCanvas] consumeItem status:`, ctx.event?.status);
+      }
+    };
+
+    connection.reducers.onConsumeItem(handleConsumeItemResult);
+
+    return () => {
+      connection.reducers.removeOnConsumeItem(handleConsumeItemResult);
+    };
+  }, [connection]);
+
   // Register error handlers for destroy reducers
   useEffect(() => {
     if (!connection) return;
