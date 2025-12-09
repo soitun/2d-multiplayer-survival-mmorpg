@@ -5,6 +5,7 @@ import AlkPanel from './AlkPanel';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
+import { playImmediateSound } from '../hooks/useSoundSystem';
 import {
   AlkState,
   AlkStation,
@@ -257,6 +258,29 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       console.error('❌ Failed to reset faction:', error);
     }
   }, [connection, updateMemoryGridData]);
+
+  // Register reducer callback for successful memory grid node purchases
+  useEffect(() => {
+    if (!connection.connection) return;
+
+    const handlePurchaseResult = (ctx: any, nodeId: string) => {
+      // Only play sound on successful purchase (Committed status)
+      if (ctx.event?.status?.tag === 'Committed') {
+        // Play unlock sound when purchase succeeds (for both skill unlocks and faction unlocks)
+        playImmediateSound('unlock_sound', 1.0);
+        console.log(`✅ Successfully purchased memory grid node: ${nodeId}`);
+      } else if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Unknown error';
+        console.error(`❌ Failed to purchase memory grid node ${nodeId}:`, errorMsg);
+      }
+    };
+
+    connection.connection.reducers.onPurchaseMemoryGridNode(handlePurchaseResult);
+
+    return () => {
+      connection.connection?.reducers.removeOnPurchaseMemoryGridNode(handlePurchaseResult);
+    };
+  }, [connection]);
 
   // Update memory grid data when connection changes or data updates
   useEffect(() => {
