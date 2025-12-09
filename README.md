@@ -108,10 +108,15 @@ spacetime generate --lang typescript --out-dir ../client/src/generated --project
 
 **Only needed if you want to use the in-game AI assistant (SOVA).**
 
-**Terminal 4 - API Proxy (Secure OpenAI):**
+**Terminal 4 - API Proxy (Secure AI Provider):**
 ```bash
 # Create .env file in project root first
+# OpenAI API key is REQUIRED for Whisper (speech-to-text)
 echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > .env
+# Add at least one AI provider key for SOVA responses:
+echo "GROK_API_KEY=xai-your-grok-api-key-here" >> .env
+# OR echo "GEMINI_API_KEY=your-gemini-api-key-here" >> .env
+# (If using OpenAI for SOVA, you already have OPENAI_API_KEY above)
 echo "PROXY_PORT=8002" >> .env
 
 # Start proxy server
@@ -136,6 +141,8 @@ python app.py
 # Add to .env file in project root
 echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
 echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
+# Optional: Select AI provider (defaults to 'grok')
+echo "VITE_AI_PROVIDER=grok" >> .env    # Options: 'openai', 'grok', 'gemini'
 ```
 
 See the [SOVA AI Assistant Configuration](#-sova-ai-assistant-configuration) section below for details.
@@ -367,7 +374,12 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 1. **Start Secure API Proxy:**
    ```bash
    # Create .env file in project root
+   # OpenAI API key is REQUIRED for Whisper (speech-to-text)
    echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > .env
+   # Add at least one AI provider key for SOVA responses:
+   echo "GROK_API_KEY=xai-your-grok-api-key-here" >> .env
+   # OR echo "GEMINI_API_KEY=your-gemini-api-key-here" >> .env
+   # (If using OpenAI for SOVA, you already have OPENAI_API_KEY above)
    echo "PROXY_PORT=8002" >> .env
    
    # Start proxy server
@@ -407,12 +419,15 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
    # Add to .env file in project root
    echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
    echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
+   # Optional: Select AI provider (defaults to 'grok')
+   echo "VITE_AI_PROVIDER=grok" >> .env    # Options: 'openai', 'grok', 'gemini'
    ```
 
 ### Features
 - 🎤 **Voice Synthesis:** High-quality voice responses using Kokoro TTS (self-hosted, free)
 - 🎙️ **Voice Commands:** Hold V key for speech-to-text input (OpenAI Whisper via secure proxy)
-- 🧠 **AI Personality:** Intelligent responses powered by OpenAI GPT-4o (via secure proxy)
+- 🧠 **AI Personality:** Intelligent responses powered by multiple providers (Grok/OpenAI/Gemini via secure proxy)
+- 🔄 **Provider Switching:** Easy switching between AI providers via `VITE_AI_PROVIDER` environment variable
 - 🔒 **Secure:** All API keys stay on server - never exposed to browser
 - 🎯 **Game Knowledge:** Contextual survival tips and tactical advice
 - 🎪 **Easter Eggs:** Special responses (try asking "What does SOVA stand for?")

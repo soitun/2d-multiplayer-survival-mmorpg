@@ -5,11 +5,14 @@ This guide explains how to configure environment variables for the game's AI sys
 ## 📋 Required Environment Variables
 
 ### Server-Side (API Proxy - Secure)
-The API proxy handles OpenAI API calls securely, keeping keys server-side:
+The API proxy handles AI API calls securely, keeping keys server-side:
 
 ```bash
 # .env file in project root
+# At least one AI provider key is required:
 OPENAI_API_KEY=sk-your-openai-api-key-here
+GROK_API_KEY=xai-your-grok-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 PROXY_PORT=8002
 ```
 
@@ -20,12 +23,19 @@ These variables are used by the React client application:
 # .env file in project root or client/.env
 VITE_API_PROXY_URL=http://localhost:8002
 VITE_KOKORO_BASE_URL=http://localhost:8001
+# AI Provider Selection (optional - defaults to 'grok'):
+VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini'
 ```
 
 **Note:** 
-- **OpenAI API key** is used for GPT-4o (AI personality) and Whisper (speech-to-text) - handled by secure proxy
+- **AI Provider Selection**: Choose which AI provider to use for SOVA responses via `VITE_AI_PROVIDER` (defaults to `grok`)
+- **OpenAI API key** is **required** for Whisper (speech-to-text) - Whisper always uses OpenAI regardless of `VITE_AI_PROVIDER`
+- **OpenAI API key** can also be used for GPT-4o (AI personality) if `VITE_AI_PROVIDER=openai`
+- **Grok API key** is used for Grok model (AI personality) if `VITE_AI_PROVIDER=grok` - uses `grok-4-1-fast-reasoning` model (cheapest, 2M context) - handled by secure proxy
+- **Gemini API key** is used for Gemini-2.0-flash (AI personality) if `VITE_AI_PROVIDER=gemini` - handled by secure proxy
 - **Kokoro TTS** runs locally - no API key needed!
 - **No ElevenLabs** - we use Kokoro for text-to-speech
+- **Mixed Providers**: You can use OpenAI for Whisper (speech-to-text) while using Grok/Gemini for SOVA responses!
 
 ## 🚀 Setup Methods
 
@@ -35,7 +45,10 @@ VITE_KOKORO_BASE_URL=http://localhost:8001
 1. Create `.env` file in **project root**:
 ```bash
 # .env (project root)
+# At least one AI provider key is required:
 OPENAI_API_KEY=sk-your-actual-openai-api-key-here
+GROK_API_KEY=xai-your-grok-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 PROXY_PORT=8002
 ```
 
@@ -45,6 +58,8 @@ PROXY_PORT=8002
 # .env (project root)
 VITE_API_PROXY_URL=http://localhost:8002
 VITE_KOKORO_BASE_URL=http://localhost:8001
+# Optional: Select AI provider (defaults to 'grok')
+VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini'
 ```
 
 **Important:** All API keys stay on the server - never exposed to the browser!
@@ -54,12 +69,29 @@ Use `.env` files instead for better security and portability.
 
 ## 🔑 Getting API Keys
 
-### OpenAI API Key
+### AI Provider API Keys
+
+**OpenAI:**
 1. Go to [OpenAI Platform](https://platform.openai.com/)
 2. Sign up/login and navigate to [API Keys](https://platform.openai.com/api-keys)
 3. Click "Create new secret key"
 4. Copy the key (starts with `sk-...`)
-5. Add to `.env` file in project root
+5. Add to `.env` file as `OPENAI_API_KEY=sk-...`
+
+**Grok (xAI):**
+1. Go to [xAI Console](https://console.x.ai/)
+2. Sign up/login and navigate to API Keys
+3. Create a new API key
+4. Copy the key (starts with `xai-...`)
+5. Add to `.env` file as `GROK_API_KEY=xai-...`
+
+**Gemini (Google):**
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign up/login and create an API key
+3. Copy the key
+4. Add to `.env` file as `GEMINI_API_KEY=...`
+
+**Note:** You only need **one** provider key to use SOVA. Set `VITE_AI_PROVIDER` in your client `.env` to choose which provider to use (defaults to `grok`).
 
 ### Kokoro TTS (No API Key Needed!)
 Kokoro runs locally on your machine - just start the backend:
@@ -72,10 +104,11 @@ python app.py
 
 ### ✅ Current Setup (Secure):
 - ✅ API keys stored server-side only
-- ✅ Proxy server handles all OpenAI API calls
+- ✅ Proxy server handles all AI API calls (OpenAI, Grok, Gemini)
 - ✅ Client never exposes API keys
 - ✅ Kokoro runs locally (no keys needed)
 - ✅ `.env` files in `.gitignore`
+- ✅ Easy provider switching via `VITE_AI_PROVIDER` environment variable
 
 ### ✅ Do:
 - Use environment variables for all API keys
@@ -172,18 +205,32 @@ npm run dev
 
 | Variable | Location | Purpose | Example |
 |----------|----------|---------|---------|
-| `OPENAI_API_KEY` | `.env` (root) | OpenAI API access (server-side) | `sk-abc123...` |
+| `OPENAI_API_KEY` | `.env` (root) | **Required** for Whisper (speech-to-text). Optional for SOVA if using Grok/Gemini | `sk-abc123...` |
+| `GROK_API_KEY` | `.env` (root) | Grok API access for SOVA responses (server-side) | `xai-abc123...` |
+| `GEMINI_API_KEY` | `.env` (root) | Gemini API access for SOVA responses (server-side) | `abc123...` |
 | `PROXY_PORT` | `.env` (root) | Proxy server port | `8002` |
 | `VITE_API_PROXY_URL` | `.env` (root) | Proxy server URL | `http://localhost:8002` |
 | `VITE_KOKORO_BASE_URL` | `.env` (root) | Kokoro backend URL | `http://localhost:8001` |
+| `VITE_AI_PROVIDER` | `.env` (root) | AI provider for SOVA responses (client-side). Whisper always uses OpenAI | `grok` (default) |
 
 ## 🎯 What Each Service Does
 
-### OpenAI GPT-4o (Via Proxy)
+### AI Providers (Via Proxy) - Choose One for SOVA Responses
+- **OpenAI GPT-4o**: Fast, reliable, excellent instruction following
+- **Grok Beta**: Fast, cost-effective, great for tactical responses (default)
+- **Gemini 2.0 Flash**: Fast, efficient, good for game context
 - **Purpose**: Generates intelligent SOVA responses based on game context
 - **Usage**: Text chat and voice responses
 - **Security**: API key stays on server, never exposed to browser
+- **Selection**: Set `VITE_AI_PROVIDER` in client `.env` (options: `openai`, `grok`, `gemini`)
 - **Fallback**: Predefined tactical responses if API unavailable
+
+### OpenAI Whisper (Speech-to-Text)
+- **Always OpenAI**: Whisper is always OpenAI regardless of `VITE_AI_PROVIDER` setting
+- **Purpose**: Converts speech to text for voice commands
+- **Usage**: Hold V key to record, release to transcribe
+- **Security**: API key stays on server, never exposed to browser
+- **Note**: You can use OpenAI for Whisper while using Grok/Gemini for SOVA responses!
 
 ### OpenAI Whisper (Via Proxy)
 - **Purpose**: Converts speech to text for voice commands

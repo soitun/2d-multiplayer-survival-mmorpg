@@ -1,9 +1,28 @@
 # 🤖 SOVA AI Setup Guide
 
-This guide explains how to set up OpenAI integration to give SOVA an intelligent personality.
+This guide explains how to set up AI provider integration (OpenAI, Grok, or Gemini) to give SOVA an intelligent personality.
 
-## 🔑 Getting Your OpenAI API Key
+## 🔑 Getting Your AI Provider API Key
 
+SOVA supports multiple AI providers. Choose the one that best fits your needs:
+
+### Option 1: Grok (xAI) - Recommended (Default)
+1. **Sign up for xAI:**
+   - Go to [https://console.x.ai/](https://console.x.ai/)
+   - Create an account or sign in
+
+2. **Generate API Key:**
+   - Navigate to API Keys section
+   - Create a new API key
+   - Copy the key (starts with `xai-...`)
+
+3. **Add to `.env`:**
+   ```bash
+   GROK_API_KEY=xai-your-key-here
+   VITE_AI_PROVIDER=grok
+   ```
+
+### Option 2: OpenAI GPT-4o
 1. **Sign up for OpenAI:**
    - Go to [https://platform.openai.com/](https://platform.openai.com/)
    - Create an account or sign in
@@ -18,25 +37,59 @@ This guide explains how to set up OpenAI integration to give SOVA an intelligent
    - Add a payment method
    - Set usage limits if desired
 
+4. **Add to `.env`:**
+   ```bash
+   OPENAI_API_KEY=sk-your-key-here
+   VITE_AI_PROVIDER=openai
+   ```
+
+### Option 3: Gemini (Google)
+1. **Sign up for Google AI Studio:**
+   - Go to [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+   - Sign in with your Google account
+
+2. **Generate API Key:**
+   - Click "Create API Key"
+   - Copy the key
+
+3. **Add to `.env`:**
+   ```bash
+   GEMINI_API_KEY=your-key-here
+   VITE_AI_PROVIDER=gemini
+   ```
+
+**Important Notes:**
+- You only need **one** provider for SOVA responses. Set `VITE_AI_PROVIDER` to your chosen provider (`grok`, `openai`, or `gemini`).
+- **Whisper (speech-to-text) always uses OpenAI** regardless of `VITE_AI_PROVIDER` setting.
+- **Mixed Providers**: You can use OpenAI for Whisper while using Grok/Gemini for SOVA responses! Just ensure you have `OPENAI_API_KEY` set (for Whisper) and your chosen provider key set (for SOVA).
+
 ## ⚙️ Configuration
 
-### **Option A: Environment Variable (Recommended)**
-1. **Create environment file:**
-   - Create a `.env` file in the `client/` directory:
-   ```bash
-   # client/.env
-   OPENAI_API_KEY=sk-your-actual-api-key-here
-   ```
+### **Step 1: Add API Key to Server `.env`**
+Create a `.env` file in the **project root** (not client/):
+```bash
+# .env (project root)
+# Add at least one AI provider key:
+OPENAI_API_KEY=sk-your-actual-api-key-here
+# OR
+GROK_API_KEY=xai-your-actual-api-key-here
+# OR
+GEMINI_API_KEY=your-actual-api-key-here
+PROXY_PORT=8002
+```
 
-2. **The service automatically uses the environment variable:**
-   ```typescript
-   const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY || 'your-openai-api-key-here';
-   ```
+### **Step 2: Select Provider in Client `.env`**
+Add to `.env` file in **project root**:
+```bash
+# .env (project root)
+VITE_API_PROXY_URL=http://localhost:8002
+VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini' (default: 'grok')
+```
 
-### **Option B: Direct Configuration (Not Recommended)**
-   - Open `client/src/services/openaiService.ts`
-   - Replace `'your-openai-api-key-here'` with your actual API key
-   - **Note:** This exposes your API key in source code
+**Important:** 
+- API keys are stored **server-side only** (in `.env` at project root)
+- The client only specifies which provider to use via `VITE_AI_PROVIDER`
+- Never expose API keys in client-side code!
 
 ## 🎮 SOVA's Personality Features
 
@@ -84,18 +137,39 @@ If OpenAI is unavailable or not configured:
 
 ## 💰 Cost Considerations
 
-**GPT-4o Pricing (as of 2024):**
+**Provider Pricing Comparison:**
+
+**Grok Beta (Default):**
+- Fast and cost-effective
+- Great for tactical responses
+- Check [xAI pricing](https://x.ai/pricing) for current rates
+
+**OpenAI GPT-4o:**
 - Input: ~$5 per 1M tokens
 - Output: ~$15 per 1M tokens
 - Average SOVA response: ~100-200 tokens
 - **Estimated cost:** $0.002-0.003 per response
+- Set billing limits in OpenAI dashboard
+
+**Gemini 2.0 Flash:**
+- Fast and efficient
+- Competitive pricing
+- Check [Google AI pricing](https://ai.google.dev/pricing) for current rates
 
 **Usage Tips:**
-- Set billing limits in OpenAI dashboard
-- Monitor usage in OpenAI account
-- Consider using GPT-3.5-turbo for lower costs (change model in `openaiService.ts`)
+- Set billing limits in provider dashboard
+- Monitor usage regularly
+- Switch providers easily via `VITE_AI_PROVIDER` if needed
 
 ## 🛠️ Customization
+
+### **Switch AI Providers:**
+Change `VITE_AI_PROVIDER` in your `.env` file:
+```bash
+VITE_AI_PROVIDER=grok     # Use Grok (default)
+VITE_AI_PROVIDER=openai   # Use OpenAI GPT-4o
+VITE_AI_PROVIDER=gemini   # Use Gemini 2.0 Flash
+```
 
 ### **Modify SOVA's Personality:**
 Edit the system prompt in `openaiService.ts` → `buildSOVASystemPrompt()`
@@ -104,36 +178,51 @@ Edit the system prompt in `openaiService.ts` → `buildSOVASystemPrompt()`
 Update the fallback responses in `getFallbackResponse()`
 
 ### **Change Response Length:**
-Adjust `max_tokens` in the OpenAI API call (currently 150)
+Adjust `max_completion_tokens` in the AI service (currently 1500)
 
 ### **Adjust Personality:**
-Modify `temperature` (0.7 = balanced, 0.3 = more focused, 1.0 = more creative)
+Modify `temperature` (0.8 = balanced, 0.3 = more focused, 1.0 = more creative)
 
 ## 🧪 Testing
 
-1. **Start your proxy server:** `node proxy-server.cjs`
-2. **Launch your game:** `npm run dev`
+1. **Start your proxy server:** 
+   ```bash
+   cd api-proxy
+   npm start
+   ```
+
+2. **Launch your game:** 
+   ```bash
+   npm run dev
+   ```
+
 3. **Test SOVA responses:**
    - *"Hello SOVA"*
    - *"What does your name stand for?"*
    - *"Give me some survival tips"*
    - *"What should I do at night?"*
 
+4. **Verify Provider:**
+   - Check browser console for `[AI Service] 🤖 Using provider: grok` (or your selected provider)
+
 ## 🐛 Troubleshooting
 
-### **"OpenAI API error: 401"**
-- Check your API key is correct
-- Ensure billing is set up in OpenAI account
+### **"API error: 401"**
+- Check your API key is correct for the selected provider
+- Ensure billing is set up in provider account
+- Verify the correct key is in `.env` (e.g., `GROK_API_KEY` if using Grok)
 
-### **"OpenAI API error: 429"**
-- You've hit rate limits
+### **"API error: 429"**
+- You've hit rate limits for the selected provider
 - Wait a moment and try again
-- Consider upgrading your OpenAI plan
+- Consider switching providers via `VITE_AI_PROVIDER`
+- Consider upgrading your provider plan
 
 ### **No AI responses, only fallbacks**
 - Check browser console for errors
-- Verify API key is configured
-- Check OpenAI account has available credits
+- Verify API key is configured for the selected provider
+- Check provider account has available credits
+- Verify `VITE_AI_PROVIDER` matches the provider key you've configured
 
 ### **Responses are too long/short**
 - Adjust `max_tokens` in `openaiService.ts`

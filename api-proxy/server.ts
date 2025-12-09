@@ -84,12 +84,14 @@ app.use(express.raw({ type: 'audio/*', limit: '50mb' }));
 // Environment variables
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROK_API_KEY = process.env.GROK_API_KEY;
 
-if (!OPENAI_API_KEY) {
-  console.error('❌ OpenAI API key not found in environment variables');
+// At least one API key should be configured
+if (!OPENAI_API_KEY && !GEMINI_API_KEY && !GROK_API_KEY) {
+  console.error('❌ No AI API keys found in environment variables');
+  console.error(`   Please ensure at least one of OPENAI_API_KEY, GEMINI_API_KEY, or GROK_API_KEY is set`);
   console.error(`   Current working directory: ${process.cwd()}`);
-  console.error(`   Please ensure OPENAI_API_KEY is set in Railway environment variables`);
-  process.exit(1);
+  // Don't exit - allow server to start but endpoints will return errors
 }
 
 // Initialize Gemini client if API key is available
@@ -101,6 +103,7 @@ if (GEMINI_API_KEY) {
 console.log('✅ API Proxy Server starting...');
 console.log(`   OpenAI API: ${OPENAI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Gemini API: ${GEMINI_API_KEY ? 'Ready' : 'Not configured'}`);
+console.log(`   Grok API: ${GROK_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Note: Kokoro TTS runs locally (no proxy needed)`);
 
 // Health check
@@ -108,7 +111,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     openaiConfigured: !!OPENAI_API_KEY,
-    geminiConfigured: !!GEMINI_API_KEY
+    geminiConfigured: !!GEMINI_API_KEY,
+    grokConfigured: !!GROK_API_KEY
   });
 });
 
@@ -224,6 +228,105 @@ app.post('/api/openai/chat', async (req, res) => {
   } catch (error: any) {
     console.error('[Proxy] OpenAI chat error:', error);
     res.status(500).json({ error: error.message || 'Chat completion failed' });
+  }
+});
+
+// Grok Chat completion proxy (for SOVA)
+app.post('/api/grok/chat', async (req, res) => {
+  try {
+    if (!GROK_API_KEY) {
+      return res.status(500).json({ error: 'Grok API key not configured' });
+    }
+
+    // Grok API uses xAI's API endpoint
+    // Note: Grok API format is similar to OpenAI but uses different base URL
+    // Default model: grok-beta (fallback to grok-2 if needed)
+    const requestBody = req.body;
+    
+    // Ensure model is set - default to grok-beta if not specified
+    if (!requestBody.model) {
+      requestBody.model = 'grok-beta';
+    }
+    
+    console.log(`[Proxy] Grok request - Model: ${requestBody.model}, Messages: ${requestBody.messages?.length || 0}`);
+    
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROK_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+    
+    // Log detailed error information for debugging
+    if (!response.ok) {
+      console.error(`[Proxy] Grok API error (${response.status}):`, JSON.stringify(data, null, 2));
+      console.error(`[Proxy] Request body:`, JSON.stringify(requestBody, null, 2));
+    }
+    
+    res.status(response.status).json(data);
+
+  } catch (error: any) {
+    console.error('[Proxy] Grok chat error:', error);
+    res.status(500).json({ error: error.message || 'Grok chat completion failed' });
+  }
+});
+
+// Gemini Chat completion proxy (for SOVA)
+app.post('/api/gemini/chat', async (req, res) => {
+  try {
+    if (!genAI || !GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'Gemini API key not configured' });
+    }
+
+    const { model = 'gemini-2.0-flash', messages, max_completion_tokens = 1500, temperature = 0.8 } = req.body;
+
+    // Convert OpenAI-style messages to Gemini format
+    const systemMessage = messages.find((m: any) => m.role === 'system');
+    const userMessages = messages.filter((m: any) => m.role !== 'system');
+    
+    // Combine system message with first user message if present
+    let promptParts: string[] = [];
+    if (systemMessage) {
+      promptParts.push(systemMessage.content);
+    }
+    userMessages.forEach((msg: any) => {
+      promptParts.push(`${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`);
+    });
+
+    const geminiModel = genAI.getGenerativeModel({ 
+      model,
+      generationConfig: {
+        temperature,
+        maxOutputTokens: max_completion_tokens,
+      },
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      ],
+    });
+
+    const result = await geminiModel.generateContent(promptParts.join('\n\n'));
+    const responseText = result.response.text();
+
+    // Format response to match OpenAI format for compatibility
+    res.json({
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: responseText
+        }
+      }]
+    });
+
+  } catch (error: any) {
+    console.error('[Proxy] Gemini chat error:', error);
+    res.status(500).json({ error: error.message || 'Gemini chat completion failed' });
   }
 });
 
@@ -505,6 +608,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   OpenAI Whisper: POST /api/whisper/transcribe`);
   console.log(`   OpenAI Chat: POST /api/openai/chat`);
+  console.log(`   Grok Chat: POST /api/grok/chat`);
+  console.log(`   Gemini Chat: POST /api/gemini/chat`);
   console.log(`   Gemini Brew: POST /api/gemini/brew`);
   console.log(`   DALL-E 2 Icon: POST /api/gemini/icon`);
   console.log(`   Health Check: GET /health`);

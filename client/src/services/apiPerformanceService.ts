@@ -1,7 +1,7 @@
 // Unified API Performance Report Service
-// Combines performance data from OpenAI (GPT-4o & Whisper) and Kokoro TTS
+// Combines performance data from AI providers (OpenAI/Grok/Gemini), Whisper, and Kokoro TTS
 
-import { openaiService, type OpenAIPerformanceReport } from './openaiService';
+import { aiService, openaiService, type OpenAIPerformanceReport } from './openaiService';
 import whisperService, { type WhisperPerformanceReport } from './whisperService';
 import { kokoroService, type KokoroPerformanceReport } from './kokoroService';
 
@@ -26,6 +26,8 @@ class APIPerformanceService {
    * Generate unified performance report from all API services
    */
   generateUnifiedReport(): UnifiedAPIPerformanceReport {
+    // Get current provider name for reporting
+    const currentProvider = aiService.getProvider();
     const openaiReport = openaiService.generatePerformanceReport();
     const whisperReport = whisperService.generatePerformanceReport();
     const kokoroReport = kokoroService.generatePerformanceReport();
@@ -68,11 +70,15 @@ class APIPerformanceService {
     const formatPercent = (num: number) => `${formatNumber(num, 1)}%`;
     const formatTime = (ms: number) => `${formatNumber(ms)}ms`;
 
+    // Get current provider for display
+    const currentProvider = aiService.getProvider().toUpperCase();
+    
     let output = '╔════════════════════════════════════════════════════════════════╗\n';
     output += '║        SOVA API PERFORMANCE REPORT (Unified)                    ║\n';
     output += '╚════════════════════════════════════════════════════════════════╝\n\n';
     
     output += `Generated: ${new Date(report.generatedAt).toLocaleString()}\n`;
+    output += `AI Provider: ${currentProvider}\n`;
     output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
     // Summary Section
@@ -85,8 +91,8 @@ class APIPerformanceService {
     output += `Average Latency:        ${formatTime(report.summary.averageLatencyMs)}\n`;
     output += '\n';
 
-    // OpenAI GPT-4o Chat Section
-    output += '🤖 OPENAI GPT-4O (Chat Responses via Secure Proxy)\n';
+    // AI Provider Chat Section (OpenAI/Grok/Gemini)
+    output += `🤖 AI PROVIDER: ${currentProvider} (Chat Responses via Secure Proxy)\n`;
     output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
     if (report.services.openai.totalRequests === 0) {
       output += 'No requests recorded yet.\n';
@@ -153,10 +159,10 @@ class APIPerformanceService {
    * Clear all performance data from all services
    */
   clearAllPerformanceData() {
-    openaiService.clearPerformanceData();
+    aiService.clearPerformanceData();
     whisperService.clearPerformanceData();
     kokoroService.clearPerformanceData();
-    console.log('[APIPerformance] All performance data cleared');
+    console.log(`[APIPerformance] All performance data cleared (using ${aiService.getProvider()})`);
   }
 }
 

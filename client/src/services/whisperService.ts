@@ -1,5 +1,8 @@
 // OpenAI Whisper Service for Speech-to-Text
 // Enhanced with audio processing and accuracy optimizations
+// 
+// NOTE: Whisper is always OpenAI (regardless of VITE_AI_PROVIDER setting)
+// VITE_AI_PROVIDER only affects SOVA chat responses, not speech-to-text
 
 // Always use secure proxy - API keys never exposed to client
 const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';

@@ -145,7 +145,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
         // Headlamp - Head armor with light source functionality
         // Burns tallow for 30 minutes of hands-free lighting (longer than torch)
         // Durability degrades only while lit and equipped
-        ItemBuilder::new("Headlamp", "A head-mounted tallow lamp that provides hands-free lighting for 30 minutes. Toggle with G key when equipped. Offers basic head protection and warmth.", ItemCategory::Armor)
+        ItemBuilder::new("Headlamp", "A head-mounted tallow lamp that provides hands-free lighting for 30 minutes. Toggle with F key when equipped. Offers basic head protection and warmth.", ItemCategory::Armor)
             .icon("tallow_head_lamp.png")
             .equippable(Some(EquipmentSlotType::Head))
             .armor_resistances(ArmorResistances {
@@ -161,7 +161,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 20 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
-                CostIngredient { item_name: "Animal Hide".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 5 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 30 },
             ])
             .crafting_output(1, 20)

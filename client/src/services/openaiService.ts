@@ -1,12 +1,24 @@
-// OpenAI Service for SOVA AI Personality
+// AI Service for SOVA AI Personality
 // Handles intelligent responses based on game lore and context
+// Supports multiple AI providers: OpenAI, Grok, and Gemini
 
 import { type GameContext } from '../utils/gameContextBuilder';
 import { getGameKnowledgeForSOVA, getRandomSOVAJoke } from '../utils/gameKnowledgeExtractor';
 
 // Always use secure proxy - API keys never exposed to client
 const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';
+
+// Provider selection: 'openai' | 'grok' | 'gemini'
+// Defaults to 'grok' if not specified
+export type AIProvider = 'openai' | 'grok' | 'gemini';
+const AI_PROVIDER: AIProvider = (import.meta.env.VITE_AI_PROVIDER || 'grok').toLowerCase() as AIProvider;
+
+// API endpoints for each provider
 const OPENAI_API_URL = `${PROXY_URL}/api/openai/chat`;
+const GROK_API_URL = `${PROXY_URL}/api/grok/chat`;
+const GEMINI_API_URL = `${PROXY_URL}/api/gemini/chat`;
+
+console.log(`[AI Service] 🤖 Using provider: ${AI_PROVIDER}`);
 
 export interface OpenAITiming {
   requestStartTime: number;
@@ -53,12 +65,30 @@ export interface SOVAPromptRequest {
   gameContext?: GameContext;
 }
 
-class OpenAIService {
+class AIService {
   private performanceData: OpenAITiming[] = [];
   private maxStoredTimings = 100; // Keep last 100 requests for analysis
+  private currentProvider: AIProvider;
 
-  constructor() {
-    // console.log('[OpenAI] 🔒 Using secure proxy - API key never exposed to client');
+  constructor(provider: AIProvider = AI_PROVIDER) {
+    this.currentProvider = provider;
+    console.log(`[AI Service] 🔒 Using secure proxy - API key never exposed to client`);
+    console.log(`[AI Service] 📡 Provider: ${this.currentProvider}`);
+  }
+
+  /**
+   * Get the current provider
+   */
+  getProvider(): AIProvider {
+    return this.currentProvider;
+  }
+
+  /**
+   * Set the provider (for runtime switching if needed)
+   */
+  setProvider(provider: AIProvider) {
+    this.currentProvider = provider;
+    console.log(`[AI Service] 🔄 Switched to provider: ${provider}`);
   }
 
   /**
@@ -74,7 +104,7 @@ class OpenAIService {
   }
 
   /**
-   * Generate SOVA's AI response using OpenAI GPT-4
+   * Generate SOVA's AI response using the configured provider (OpenAI, Grok, or Gemini)
    */
   async generateSOVAResponse(request: SOVAPromptRequest): Promise<OpenAIResponse> {
     const systemPrompt = this.buildSOVASystemPrompt();
@@ -89,10 +119,10 @@ class OpenAIService {
       timestamp: new Date().toISOString(),
     };
 
-    console.log(`[OpenAI] 🤖 Starting AI response generation - Prompt: ${timing.promptLength} chars`);
+    console.log(`[AI Service] 🤖 Starting AI response generation (${this.currentProvider}) - Prompt: ${timing.promptLength} chars`);
 
     try {
-      console.log('[OpenAI] Generating SOVA response for:', request.userMessage);
+      console.log(`[AI Service] Generating SOVA response via ${this.currentProvider} for:`, request.userMessage);
 
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -100,48 +130,105 @@ class OpenAIService {
       
       // Proxy handles authentication server-side - no API key needed here
 
-      const response = await fetch(OPENAI_API_URL, {
+      // Determine API URL and request body based on provider
+      let apiUrl: string;
+      let requestBody: any;
+
+      switch (this.currentProvider) {
+        case 'grok':
+          apiUrl = GROK_API_URL;
+          // Using grok-4-1-fast-reasoning: cheapest ($0.20/$0.50 per million tokens), 
+          // 2M context window, supports function calling, JSON mode, and search
+          // Alternative models: grok-4-1-fast-non-reasoning, grok-4-fast-reasoning, grok-3-mini
+          // Note: Grok models don't support presence_penalty or frequency_penalty parameters
+          requestBody = {
+            model: 'grok-4-1-fast-reasoning',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_completion_tokens: 1500,
+            temperature: 0.8,
+            // presence_penalty and frequency_penalty not supported by Grok API
+          };
+          break;
+
+        case 'gemini':
+          apiUrl = GEMINI_API_URL;
+          requestBody = {
+            model: 'gemini-2.0-flash', // Fast Gemini model
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_completion_tokens: 1500,
+            temperature: 0.8,
+          };
+          break;
+
+        case 'openai':
+        default:
+          apiUrl = OPENAI_API_URL;
+          requestBody = {
+            model: 'gpt-4o', // Optimized for speed + better instruction following
+            // Alternatives:
+            // 'gpt-4o-mini' - Cheaper, but less capable for complex instructions
+            // 'gpt-4-turbo' - Older model, slower than GPT-4o
+            // 'o1-mini' - Good reasoning but slower due to chain-of-thought
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_completion_tokens: 1500, // Increased significantly to handle large recipe lists
+            temperature: 0.8, // Reduced for more consistent, factual responses
+            presence_penalty: 0.0, // Removed to avoid penalizing factual information
+            frequency_penalty: 0.0, // Removed to avoid penalizing repeated factual data
+          };
+          break;
+      }
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: 'gpt-4o', // Optimized for speed + better instruction following
-          // Alternatives:
-          // 'gpt-4o-mini' - Cheaper, but less capable for complex instructions
-          // 'gpt-4-turbo' - Older model, slower than GPT-4o
-          // 'o1-mini' - Good reasoning but slower due to chain-of-thought
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          max_completion_tokens: 1500, // Increased significantly to handle large recipe lists
-          temperature: 0.8, // Reduced for more consistent, factual responses
-          presence_penalty: 0.0, // Removed to avoid penalizing factual information
-          frequency_penalty: 0.0, // Removed to avoid penalizing repeated factual data
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       timing.responseReceivedTime = performance.now();
       timing.totalLatencyMs = timing.responseReceivedTime - timing.requestStartTime;
 
-      console.log(`[OpenAI] ⚡ OpenAI GPT response received in ${timing.totalLatencyMs.toFixed(2)}ms`);
+      console.log(`[AI Service] ⚡ ${this.currentProvider.toUpperCase()} response received in ${timing.totalLatencyMs.toFixed(2)}ms`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[OpenAI] API error:', errorData);
-        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        const errorMessage = errorData.error?.message || errorData.error || 'Unknown error';
+        
+        console.error(`[AI Service] ${this.currentProvider.toUpperCase()} API error:`, {
+          status: response.status,
+          error: errorMessage,
+          provider: this.currentProvider,
+          model: requestBody.model,
+          fullError: errorData,
+        });
+        
+        // Provide helpful error message for 404 (model not found)
+        if (response.status === 404 && this.currentProvider === 'grok') {
+          throw new Error(`${this.currentProvider.toUpperCase()} API error: 404 - Model "${requestBody.model}" not found. Available models: grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning, grok-4-fast-reasoning, grok-3-mini. Original error: ${errorMessage}`);
+        }
+        
+        throw new Error(`${this.currentProvider.toUpperCase()} API error: ${response.status} - ${errorMessage}. Message received: "${request.userMessage}". Please try again.`);
       }
 
       const data = await response.json();
       const sovaResponse = data.choices?.[0]?.message?.content?.trim();
 
       if (!sovaResponse) {
-        throw new Error('No response generated from OpenAI');
+        throw new Error(`No response generated from ${this.currentProvider}`);
       }
 
       timing.responseLength = sovaResponse.length;
 
-      console.log(`[OpenAI] 🎯 AI response generated: "${sovaResponse.substring(0, 100)}${sovaResponse.length > 100 ? '...' : ''}" (${timing.responseLength} chars)`);
-      console.log(`[OpenAI] 📊 OpenAI Performance:`, {
+      console.log(`[AI Service] 🎯 AI response generated (${this.currentProvider}): "${sovaResponse.substring(0, 100)}${sovaResponse.length > 100 ? '...' : ''}" (${timing.responseLength} chars)`);
+      console.log(`[AI Service] 📊 ${this.currentProvider.toUpperCase()} Performance:`, {
         latency: `${timing.totalLatencyMs.toFixed(2)}ms`,
         promptLength: `${timing.promptLength} chars`,
         responseLength: `${timing.responseLength} chars`,
@@ -164,9 +251,9 @@ class OpenAIService {
       timing.responseReceivedTime = timing.responseReceivedTime || performance.now();
       timing.totalLatencyMs = timing.responseReceivedTime - timing.requestStartTime;
 
-      console.error('[OpenAI] Failed to generate SOVA response:', error);
+      console.error(`[AI Service] Failed to generate SOVA response via ${this.currentProvider}:`, error);
       
-      // Fallback to predefined responses if OpenAI fails
+      // Fallback to predefined responses if AI provider fails
       const fallbackResponse = this.getFallbackResponse(request.userMessage);
       timing.responseLength = fallbackResponse.length;
       
@@ -195,7 +282,7 @@ class OpenAIService {
       this.performanceData = this.performanceData.slice(-this.maxStoredTimings);
     }
 
-    console.log(`[OpenAI] 📈 REQUEST SUMMARY:`, {
+    console.log(`[AI Service] 📈 REQUEST SUMMARY (${this.currentProvider}):`, {
       success,
       prompt: `${timing.promptLength} chars`,
       response: `${timing.responseLength} chars`,
@@ -255,7 +342,7 @@ class OpenAIService {
    */
   clearPerformanceData() {
     this.performanceData = [];
-    console.log('[OpenAI] Performance data cleared');
+    console.log(`[AI Service] Performance data cleared (${this.currentProvider})`);
   }
 
   /**
@@ -438,8 +525,8 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
   private buildUserPrompt(request: SOVAPromptRequest): string {
     const { userMessage, playerName, gameContext: ctx } = request;
     
-    console.log('🚨🚨🚨 [OpenAI] BUILDING USER PROMPT 🚨🚨🚨');
-    console.log('🔍 [OpenAI] Game context received in buildUserPrompt:', {
+    console.log(`🚨🚨🚨 [AI Service] BUILDING USER PROMPT (${this.currentProvider}) 🚨🚨🚨`);
+    console.log(`🔍 [AI Service] Game context received in buildUserPrompt:`, {
       hasGameContext: !!ctx,
       inventorySlots: ctx?.inventorySlots?.length || 0,
       hotbarSlots: ctx?.hotbarSlots?.length || 0,
@@ -452,25 +539,25 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
     
     if (ctx?.inventorySlots) {
       const occupiedInventory = ctx.inventorySlots.filter(s => !s.isEmpty);
-      console.log('📦📦📦 [OpenAI] OCCUPIED INVENTORY SLOTS:', occupiedInventory.map(s => ({
+      console.log(`📦📦📦 [AI Service] OCCUPIED INVENTORY SLOTS:`, occupiedInventory.map(s => ({
         slot: s.slotIndex,
         item: s.itemName,
         quantity: s.quantity
       })));
     } else {
-      console.log('❌ [OpenAI] NO INVENTORY SLOTS DATA');
+      console.log(`❌ [AI Service] NO INVENTORY SLOTS DATA`);
     }
     
     if (ctx?.hotbarSlots) {
       const occupiedHotbar = ctx.hotbarSlots.filter(s => !s.isEmpty);
-      console.log('🎮🎮🎮 [OpenAI] OCCUPIED HOTBAR SLOTS:', occupiedHotbar.map(s => ({
+      console.log(`🎮🎮🎮 [AI Service] OCCUPIED HOTBAR SLOTS:`, occupiedHotbar.map(s => ({
         slot: s.slotIndex + 1,
         item: s.itemName,
         quantity: s.quantity,
         active: s.isActiveItem
       })));
     } else {
-      console.log('❌ [OpenAI] NO HOTBAR SLOTS DATA');
+      console.log(`❌ [AI Service] NO HOTBAR SLOTS DATA`);
     }
 
     let prompt = `CURRENT SITUATION:\\n`;
@@ -530,17 +617,17 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
       prompt += `EQUIPMENT & CRAFTING:\\n`;
       prompt += `- Current weapon/tool: ${ctx?.currentEquipment || 'None'}\\n`;
       if (ctx?.craftableItems && ctx.craftableItems.length > 0) {
-        console.log('[OpenAI] Craftable items being sent to SOVA:', ctx.craftableItems);
+        console.log(`[AI Service] Craftable items being sent to SOVA:`, ctx.craftableItems);
         // Look for Shelter specifically
         const shelterItem = ctx.craftableItems.find(item => item.includes('Shelter'));
         if (shelterItem) {
-          console.log('[OpenAI] Shelter crafting info being sent to SOVA:', shelterItem);
+          console.log(`[AI Service] Shelter crafting info being sent to SOVA:`, shelterItem);
         } else {
-          console.log('[OpenAI] NO SHELTER FOUND in craftable items!');
+          console.log(`[AI Service] NO SHELTER FOUND in craftable items!`);
         }
         prompt += `- Available recipes: ${ctx.craftableItems.join(', ')}\\n`;
       } else {
-        console.log('[OpenAI] NO CRAFTABLE ITEMS DATA provided to SOVA!');
+        console.log(`[AI Service] NO CRAFTABLE ITEMS DATA provided to SOVA!`);
         prompt += `- Available recipes: None available\\n`;
       }
       if (ctx?.currentResources && ctx.currentResources.length > 0) {
@@ -555,7 +642,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
       // Detailed Inventory & Hotbar Status
       prompt += `\\\\nDETAILED INVENTORY & HOTBAR STATUS:\\\\n`;
       
-      console.log('[OpenAI] Inventory/Hotbar data being sent to SOVA:', {
+      console.log(`[AI Service] Inventory/Hotbar data being sent to SOVA:`, {
         inventorySlotCount: ctx?.inventorySlots?.length || 0,
         hotbarSlotCount: ctx?.hotbarSlots?.length || 0,
         inventoryOccupied: ctx?.inventorySlots?.filter(s => !s.isEmpty).length || 0,
@@ -571,7 +658,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
           if (!slot.isEmpty) {
             const activeIndicator = slot.isActiveItem ? ' [ACTIVE/EQUIPPED]' : '';
             prompt += `- Slot ${slot.slotIndex + 1}: ${slot.itemName} (x${slot.quantity})${activeIndicator}\\\\n`;
-            console.log(`[OpenAI] Hotbar slot ${slot.slotIndex + 1}:`, {
+            console.log(`[AI Service] Hotbar slot ${slot.slotIndex + 1}:`, {
               itemName: slot.itemName,
               quantity: slot.quantity,
               isActive: slot.isActiveItem,
@@ -582,7 +669,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
         });
       } else {
         prompt += `HOTBAR: No hotbar data available\\\\n`;
-        console.log('[OpenAI] No hotbar data available for SOVA');
+        console.log(`[AI Service] No hotbar data available for SOVA`);
       }
       
       // Inventory Status (24 slots) - Summary
@@ -593,14 +680,14 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
         prompt += `\\\\nINVENTORY STATUS (${occupiedSlots.length}/${ctx.totalInventorySlots} slots used):\\\\n`;
         if (occupiedSlots.length > 0) {
           prompt += `Items in inventory: ${inventoryItems.join(', ')}\\\\n`;
-          console.log('[OpenAI] Inventory items being sent to SOVA:', inventoryItems);
+          console.log(`[AI Service] Inventory items being sent to SOVA:`, inventoryItems);
         } else {
           prompt += `Inventory appears to be empty\\\\n`;
-          console.log('[OpenAI] SOVA thinks inventory is empty!');
+          console.log(`[AI Service] SOVA thinks inventory is empty!`);
         }
       } else {
         prompt += `\\\\nINVENTORY: No inventory data available\\\\n`;
-        console.log('[OpenAI] No inventory data available for SOVA');
+        console.log(`[AI Service] No inventory data available for SOVA`);
       }
     }
     
@@ -689,7 +776,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
     
     prompt += `🚨 EXAMPLE: If asked "What does a shelter cost?", look at Available recipes, find "Shelter (takes 60s): 3200 Wood, 10 Rope" and respond with those EXACT numbers. Do not say "200 Wood and 100 Stone" or any other made-up costs! 🚨\\n`;
     
-    console.log('[OpenAI] Full prompt being sent to SOVA:');
+    console.log(`[AI Service] Full prompt being sent to SOVA (${this.currentProvider}):`);
     console.log('='.repeat(80));
     console.log(prompt);
     console.log('='.repeat(80));
@@ -745,7 +832,7 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
   }
 
   /**
-   * Check if OpenAI API key is configured
+   * Check if AI service is configured
    * Always returns true - proxy handles authentication server-side
    */
   isConfigured(): boolean {
@@ -753,6 +840,8 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
   }
 }
 
-// Export singleton instance
-export const openaiService = new OpenAIService();
-export default openaiService;
+// Export singleton instance with default provider
+export const aiService = new AIService(AI_PROVIDER);
+// Also export as openaiService for backward compatibility
+export const openaiService = aiService;
+export default aiService;
