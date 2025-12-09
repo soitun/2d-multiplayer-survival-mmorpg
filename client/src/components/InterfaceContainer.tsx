@@ -708,6 +708,12 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
             <MemoryGrid
               playerShards={playerShards}
               purchasedNodes={purchasedNodes}
+              totalShardsSpent={(() => {
+                // Get total shards spent from memory grid progress
+                if (!connection.connection || !connection.dbIdentity) return 0;
+                const progress = connection.connection.db.memoryGridProgress.playerId.find(connection.dbIdentity);
+                return progress ? Number(progress.totalShardsSpent) : 0;
+              })()}
               onNodePurchase={handleNodePurchase}
               onFactionReset={handleFactionReset}
             />

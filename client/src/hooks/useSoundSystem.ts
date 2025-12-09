@@ -562,6 +562,8 @@ const playLocalSound = async (
                 variationCount = 1; // torch_hit.mp3
             } else if (soundType === 'torch_hit_lit') {
                 variationCount = 1; // torch_hit_lit.mp3
+            } else if (soundType === 'unlock_sound') {
+                variationCount = 1; // unlock_sound.mp3 - only one variation
             } else if (soundType === 'light_torch') {
                 variationCount = 1; // light_torch.mp3
             } else if (soundType === 'extinguish_torch') {
