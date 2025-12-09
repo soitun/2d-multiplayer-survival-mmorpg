@@ -918,6 +918,7 @@ const BASE_MATERIALS: &[&str] = &[
     "Bone Fragments",
     "Animal Fat",
     "Animal Leather",
+    "Fertilizer",
 ];
 
 /// Generate materials contracts - ONLY base resources (fixed list)
@@ -1463,6 +1464,9 @@ fn get_material_contract_params(item_name: &str) -> (u32, u32) {
         "Tin Can" => (40, 30),
         "Scrap Batteries" => (20, 50),
         "Gunpowder" => (30, 85),
+        
+        // === FARMING MATERIALS ===
+        "Fertilizer" => (50, 40),
         
         // Skip items not suitable for material contracts
         "Memory Shard" => (0, 0), // Currency, not a material

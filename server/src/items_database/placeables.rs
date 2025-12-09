@@ -74,6 +74,17 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
+        // Compost - Organic material storage container (24 slots)
+        ItemBuilder::new("Compost", "A container that slowly converts organic material into fertilizer. Great for getting use out of raw or overcooked food.", ItemCategory::Placeable)
+            .icon("compost.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 20)
+            .respawn_time(300)
+            .build(),
+
         // === SHELTER & RESPAWN ===
 
         // Sleeping Bag - Portable respawn point
