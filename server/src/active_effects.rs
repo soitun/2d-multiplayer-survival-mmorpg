@@ -79,6 +79,9 @@ pub enum EffectType {
     PoisonCoating,     // Poison weapon coating - all attacks inflict poison for X seconds (1 hour)
     PassiveHealthRegen, // Slow passive health regeneration over time (1 hour, distinct from instant HealthRegen)
     HarvestBoost,      // Mining/chopping efficacy bonus - extra yield per hit (1 hour)
+    
+    // === INSANITY SYSTEM EFFECTS ===
+    Entrainment,       // Permanent debuff from max insanity - slow damage until death (cannot be removed)
 }
 
 // Table defining food poisoning risks for different food items
@@ -185,7 +188,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -332,7 +335,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             log::trace!("[EffectTick] HealthRegen Post-Heal for Player {:?}: Health now {:.2}",
                                 effect.player_id, player_to_update.health);
                         }
-                        EffectType::Bleed | EffectType::Burn | EffectType::Venom => {
+                        EffectType::Bleed | EffectType::Burn | EffectType::Venom | EffectType::Entrainment => {
                             log::trace!("[EffectTick] {:?} Pre-Damage for Player {:?}: Health {:.2}, AmountThisTick {:.2}",
                                 effect.effect_type, effect.player_id, player_to_update.health, amount_this_tick);
                             
@@ -344,8 +347,8 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             }
                             // --- END SAFE ZONE CHECK ---
                             
-                            // --- KNOCKED OUT PLAYERS ARE IMMUNE TO BLEED, BURN, AND VENOM DAMAGE ---
-                            if player_to_update.is_knocked_out && (effect.effect_type == EffectType::Bleed || effect.effect_type == EffectType::Burn || effect.effect_type == EffectType::Venom) {
+                            // --- KNOCKED OUT PLAYERS ARE IMMUNE TO BLEED, BURN, VENOM, AND ENTRAINMENT DAMAGE ---
+                            if player_to_update.is_knocked_out && (effect.effect_type == EffectType::Bleed || effect.effect_type == EffectType::Burn || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment) {
                                 // Knocked out players are completely immune to DOT damage
                                 amount_this_tick = 0.0; // No damage applied
                                 log::info!("[EffectTick] Knocked out player {:?} is immune to {:?} damage. No damage applied.",
@@ -366,6 +369,13 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                                         );
                                     }
                                     // <<< END BROTH EFFECT >>>
+                                }
+                                
+                                // Special handling for Entrainment: permanent debuff from max insanity (3x faster than venom)
+                                if effect.effect_type == EffectType::Entrainment {
+                                    amount_this_tick = 3.0; // Fixed 3 damage per tick (3x venom rate for urgency)
+                                    // Entrainment cannot be reduced or removed - it's a permanent death sentence
+                                    log::trace!("Player {:?} taking Entrainment damage: {:.1} HP", effect.player_id, amount_this_tick);
                                 }
                                 
                                 // <<< APPLY FIRE DAMAGE MULTIPLIER FOR BURN EFFECTS (WOODEN ARMOR VULNERABILITY) >>>
@@ -617,9 +627,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         player_effect_applied_this_iteration = true;
                     }
                     
-                    // For SeawaterPoisoning and Venom, we don't track amount_applied_so_far
-                    // SeawaterPoisoning and Venom: fixed damage per tick, ends based on time only
-                    if effect.effect_type != EffectType::SeawaterPoisoning && effect.effect_type != EffectType::Venom {
+                    // For SeawaterPoisoning, Venom, and Entrainment, we don't track amount_applied_so_far
+                    // These effects: fixed damage per tick, ends based on time only
+                    if effect.effect_type != EffectType::SeawaterPoisoning && effect.effect_type != EffectType::Venom && effect.effect_type != EffectType::Entrainment {
                         current_effect_applied_so_far += amount_this_tick; // Increment amount applied *for this effect*
                     }
 
@@ -636,15 +646,16 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                 }
 
         // Check if effect should end based on amount or time
-        // For SeawaterPoisoning, Venom, Wet, WaterDrinking, and broth buff effects, only end based on time, not accumulated amount
+        // For SeawaterPoisoning, Venom, Entrainment, Wet, WaterDrinking, and broth buff effects, only end based on time, not accumulated amount
         // Broth buff effects (Intoxicated, SpeedBoost, etc.) have total_amount = 0.0 and should only expire by time
+        // Entrainment is permanent until death (effectively infinite duration)
         let is_broth_buff_effect_end_check = matches!(effect.effect_type, 
             EffectType::Intoxicated | EffectType::SpeedBoost | 
             EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | 
             EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
             EffectType::PoisonCoating | EffectType::HarvestBoost);
         
-        if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || 
+        if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment || 
            effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking ||
            is_broth_buff_effect_end_check {
             if current_time >= effect.ends_at {
@@ -1751,8 +1762,9 @@ pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
     // CRITICAL: Clear all broth effects - they don't persist through death!
     clear_broth_effects_on_death(ctx, player_id);
     
-    // Clear any other effects (burn, food poisoning, seawater poisoning, wet, exhausted, etc.)
-    // BUT preserve BuildingPrivilege - it should persist across death
+    // Clear any other effects (burn, food poisoning, seawater poisoning, wet, exhausted, entrainment, etc.)
+    // Entrainment is an insanity effect (not a broth effect), but it's still cleared on death
+    // ONLY preserve BuildingPrivilege - it persists across death
     let mut effects_to_remove = Vec::new();
     for effect in ctx.db.active_consumable_effect().iter() {
         if effect.player_id == player_id {
@@ -1761,6 +1773,11 @@ pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
                 log::debug!("[PlayerDeath] Preserving BuildingPrivilege effect {} for deceased player {:?}", 
                     effect.effect_id, player_id);
                 continue;
+            }
+            // Entrainment is cleared on death (permanent while alive, cleared on respawn)
+            if effect.effect_type == EffectType::Entrainment {
+                log::info!("[PlayerDeath] Clearing Entrainment effect {} for deceased player {:?} (insanity effect cleared on death)", 
+                    effect.effect_id, player_id);
             }
             effects_to_remove.push(effect.effect_id);
             log::debug!("[PlayerDeath] Removing {:?} effect {} for deceased player {:?}", 
@@ -2937,6 +2954,57 @@ pub fn player_has_harvest_boost_effect(ctx: &ReducerContext, player_id: Identity
 pub fn player_has_poisoned_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
     ctx.db.active_consumable_effect().iter()
         .any(|e| e.player_id == player_id && e.effect_type == EffectType::Poisoned)
+}
+
+/// Checks if a player has the Entrainment effect (permanent insanity debuff)
+pub fn player_has_entrainment_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Entrainment)
+}
+
+/// Applies Entrainment effect - permanent debuff from max insanity
+/// This effect cannot be removed and damages the player slowly until death (same rate as venom)
+pub fn apply_entrainment_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    // Check if player already has Entrainment - if so, don't apply again
+    if player_has_entrainment_effect(ctx, player_id) {
+        log::warn!("Player {:?} already has Entrainment effect - not applying again", player_id);
+        return Ok(());
+    }
+    
+    let current_time = ctx.timestamp;
+    
+    // Entrainment is permanent - lasts effectively forever (1 year duration)
+    // Damage: 3.0 per tick, tick every 5 seconds (3x faster than venom for urgency)
+    // This gives ~2.8 minutes to death from 100 HP (balanced - fast but not instant)
+    let duration_micros = (86400.0 * 365.0 * 1_000_000.0) as i64; // 1 year
+    let tick_interval_micros = 5_000_000; // 5 seconds per tick
+    
+    let entrainment_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item, from insanity
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: current_time + TimeDuration::from_micros(duration_micros),
+        total_amount: Some(f32::MAX), // Infinite damage pool - will only stop on death
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::Entrainment,
+        tick_interval_micros,
+        next_tick_at: current_time + TimeDuration::from_micros(tick_interval_micros as i64),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(entrainment_effect) {
+        Ok(inserted_effect) => {
+            log::warn!("Applied Entrainment effect {} to player {:?} - permanent insanity debuff (3 damage per 5 seconds until death, ~2.8 minutes from 100 HP)", 
+                inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply Entrainment effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply Entrainment effect".to_string())
+        }
+    }
 }
 
 // ============================================================================

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { TimeOfDay, WeatherType } from '../generated'; // Import actual types
+import { TimeOfDay, WeatherType, ActiveConsumableEffect } from '../generated'; // Import actual types
 import { calculateChunkIndex } from '../utils/chunkUtils'; // Import chunk calculation helper
 import { gameConfig } from '../config/gameConfig'; // Import game config for chunk dimensions
 
@@ -20,6 +20,8 @@ interface AmbientSoundProps {
     weatherCondition?: WeatherType; // Use actual server WeatherType (deprecated - use chunkWeather instead)
     chunkWeather?: Map<string, any>; // Chunk-based weather data
     localPlayer?: any; // Player data for position
+    activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // For detecting Entrainment effect
+    localPlayerId?: string; // For detecting Entrainment effect
 }
 
 // Ambient sound definitions for Aleutian island atmosphere
@@ -64,6 +66,14 @@ const AMBIENT_SOUND_DEFINITIONS = {
         isLooping: true,
         useSeamlessLooping: true,
         description: 'General nature ambience - insects, rustling'
+    },
+    entrainment_ambient: {
+        type: 'continuous',
+        filename: 'sova_entrainment_ambient.mp3', // Note: stored in /sounds/ not /sounds/ambient/
+        baseVolume: 0.3, // Distorted/glitchy background for Entrainment effect
+        isLooping: true,
+        useSeamlessLooping: true,
+        description: 'Distorted ambient sound when player has Entrainment (max insanity)'
     },
     
     // === RANDOM/PERIODIC AMBIENCE ===
@@ -222,7 +232,10 @@ class AmbientAudioCache {
             if (audio.duration && audio.duration > 0 && !isNaN(audio.duration) && isFinite(audio.duration)) {
                 // Create a new Audio element instead of cloning to ensure metadata loads properly
                 // Cloned elements don't automatically have metadata loaded
-                const fullPath = AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
+                // Special handling for entrainment_ambient (stored in /sounds/ not /sounds/ambient/)
+                const fullPath = filename.startsWith('sova_') 
+                    ? `/sounds/${filename}` 
+                    : AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
                 const newAudio = new Audio(fullPath);
                 newAudio.preload = 'metadata';
                 newAudio.crossOrigin = 'anonymous';
@@ -300,7 +313,10 @@ class AmbientAudioCache {
         
         try {
             // Load and cache
-            const fullPath = AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
+            // Special handling for entrainment_ambient (stored in /sounds/ not /sounds/ambient/)
+            const fullPath = filename.startsWith('sova_') 
+                ? `/sounds/${filename}` 
+                : AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
             // console.log(`🌊 [LOADING] Attempting to load: ${fullPath}`);
             
             audio = new Audio(fullPath);
@@ -901,6 +917,8 @@ export const useAmbientSounds = ({
     weatherCondition, // Deprecated - kept for backwards compatibility
     chunkWeather,
     localPlayer,
+    activeConsumableEffects,
+    localPlayerId,
 }: AmbientSoundProps = {}) => {
     // Use a fallback only if environmentalVolume is completely undefined, but allow 0
     const effectiveEnvironmentalVolume = environmentalVolume !== undefined ? environmentalVolume : 0.7;
@@ -940,8 +958,25 @@ export const useAmbientSounds = ({
         return 'light'; // Clear weather = gentle breeze
     }, [chunkWeather, localPlayer, weatherCondition]);
 
+    // Helper to check if player has Entrainment effect
+    const hasEntrainmentEffect = useCallback((): boolean => {
+        if (!activeConsumableEffects || !localPlayerId) return false;
+        
+        return Array.from(activeConsumableEffects.values()).some(
+            (effect: ActiveConsumableEffect) => effect.playerId.toHexString() === localPlayerId && 
+                      effect.effectType.tag === 'Entrainment'
+        );
+    }, [activeConsumableEffects, localPlayerId]);
+
     const getActiveContinuousSounds = useCallback((): AmbientSoundType[] => {
         const sounds: AmbientSoundType[] = [];
+        
+        // Entrainment ambient sound (highest priority - plays when player has Entrainment)
+        if (hasEntrainmentEffect()) {
+            sounds.push('entrainment_ambient');
+            // Don't add other ambient sounds when Entrainment is active (too chaotic)
+            return sounds;
+        }
         
         // Wind matches player's current chunk weather (same as rain)
         const windIntensity = getCurrentWindIntensity();
@@ -961,7 +996,7 @@ export const useAmbientSounds = ({
         sounds.push('nature_general');
         
         return sounds;
-    }, [getCurrentWindIntensity]);
+    }, [getCurrentWindIntensity, hasEntrainmentEffect]);
 
     // Start a seamless continuous ambient sound
     const startContinuousSound = useCallback(async (soundType: AmbientSoundType) => {

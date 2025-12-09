@@ -1451,6 +1451,30 @@ pub fn damage_stone(
         } else {
             log::debug!("[damage_stone] Successfully granted {} {} to player {:?}", actual_yield, resource_name, attacker_id);
         }
+        
+        // <<< INSANITY SYSTEM: Increase insanity when mining memory shard nodes >>>
+        if stone.ore_type == crate::stone::OreType::Memory {
+            let players = ctx.db.player();
+            if let Some(mut player) = players.identity().find(&attacker_id) {
+                let new_insanity = (player.insanity + crate::player_stats::INSANITY_MINING_INCREASE)
+                    .min(crate::player_stats::PLAYER_MAX_INSANITY);
+                player.insanity = new_insanity;
+                players.identity().update(player);
+                log::info!("Player {:?} mined memory shard node - insanity increased by {:.1} to {:.1}", 
+                    attacker_id, crate::player_stats::INSANITY_MINING_INCREASE, new_insanity);
+                
+                // Check if insanity reached max - apply Entrainment effect
+                if new_insanity >= crate::player_stats::PLAYER_MAX_INSANITY {
+                    if !crate::active_effects::player_has_entrainment_effect(ctx, attacker_id) {
+                        log::warn!("Player {:?} reached maximum insanity from mining - applying Entrainment effect!", attacker_id);
+                        if let Err(e) = crate::active_effects::apply_entrainment_effect(ctx, attacker_id) {
+                            log::error!("Failed to apply Entrainment effect to player {:?}: {}", attacker_id, e);
+                        }
+                    }
+                }
+            }
+        }
+        // <<< END INSANITY SYSTEM >>>
     }
     
     if stone_destroyed {

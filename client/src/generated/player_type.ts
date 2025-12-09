@@ -59,6 +59,8 @@ export type Player = {
   clientMovementSequence: bigint,
   isInsideBuilding: boolean,
   lastRespawnTime: __Timestamp,
+  insanity: number,
+  lastInsanityThreshold: number,
 };
 let _cached_Player_type_value: __AlgebraicTypeType | null = null;
 
@@ -104,6 +106,8 @@ export const Player = {
       { name: "clientMovementSequence", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "isInsideBuilding", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "lastRespawnTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "insanity", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "lastInsanityThreshold", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_Player_type_value;
   },

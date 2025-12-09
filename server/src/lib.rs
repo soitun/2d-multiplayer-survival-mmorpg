@@ -581,6 +581,8 @@ pub struct Player {
     pub client_movement_sequence: u64,
     pub is_inside_building: bool, // NEW: Tracks if player is inside an enclosed building (≥70% wall coverage)
     pub last_respawn_time: Timestamp, // NEW: When the player last spawned/respawned (for fat accumulation calculation)
+    pub insanity: f32, // NEW: Hidden stat that increases when carrying memory shards or mining them (0.0-100.0)
+    pub last_insanity_threshold: f32, // NEW: Last insanity threshold crossed (for SOVA sound triggers: 0.0, 25.0, 50.0, 75.0, 90.0, 100.0)
 }
 
 // Table to store the last attack timestamp for each player
@@ -1340,6 +1342,8 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         client_movement_sequence: 0,
         is_inside_building: false, // NEW: Players spawn outside (not inside buildings)
         last_respawn_time: ctx.timestamp, // NEW: Track initial spawn time
+        insanity: 0.0, // NEW: Start with no insanity
+        last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
     };
 
     // Insert the new player

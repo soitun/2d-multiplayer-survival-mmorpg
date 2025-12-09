@@ -27,6 +27,7 @@ let nightVisionState: EffectAnimationState = {
   intensity: 0,
 };
 
+
 // Day/Night cycle constants
 // Night periods: Twilight Evening (0.76-0.80), Night (0.80-0.92), Midnight (0.92-0.97), Twilight Morning (0.97-1.0)
 const NIGHT_START_PROGRESS = 0.76;
@@ -251,7 +252,7 @@ export function renderNightVisionOverlay(
 }
 
 /**
- * Renders both broth effect overlays
+ * Renders broth effect overlays (NightVision and Intoxicated)
  * Returns wobble offset for Intoxicated effect (to apply to canvas transform)
  * 
  * @param cycleProgress - Day/night cycle progress (0.0-1.0). Night starts at 0.76

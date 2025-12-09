@@ -111,6 +111,7 @@ import { setShelterClippingData } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
 import { renderCombinedHealthOverlays } from '../utils/renderers/healthOverlayUtils';
 import { renderBrothEffectsOverlays } from '../utils/renderers/brothEffectsOverlayUtils';
+import { renderInsanityOverlay } from '../utils/renderers/insanityOverlayUtils';
 import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
@@ -1694,6 +1695,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     weatherCondition: worldState?.currentWeather, // Fallback for global weather (deprecated)
     chunkWeather, // Chunk-based weather for regional wind calculation
     localPlayer, // Player position for determining nearby chunks
+    activeConsumableEffects, // For detecting Entrainment effect
+    localPlayerId, // For detecting Entrainment effect
   });
 
   // 🧪 DEBUG: Expose ambient sound test function to window for debugging
@@ -2915,6 +2918,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- Broth Effects Overlays (NightVision, Intoxicated) ---
     if (showStatusOverlays && localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
+      // Render broth effects (NightVision and Intoxicated)
       renderBrothEffectsOverlays(
         ctx,
         currentCanvasWidth,
@@ -2926,6 +2930,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       );
     }
     // --- End Broth Effects Overlays ---
+
+    // --- Insanity Overlay (Memory Shard Effect) ---
+    // Render insanity overlay independently - always show when player has insanity
+    if (localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
+      // Calculate insanity intensity (0.0-1.0) from player insanity / max (100.0)
+      const insanityIntensity = (localPlayer.insanity ?? 0) / 100.0;
+      
+      // Always render (even at 0 intensity for smooth transitions)
+      renderInsanityOverlay(
+        ctx,
+        currentCanvasWidth,
+        currentCanvasHeight,
+        deltaTimeRef.current / 1000, // Convert to seconds for animation timing
+        insanityIntensity
+      );
+    }
+    // --- End Insanity Overlay ---
 
     // Interaction indicators - Draw only for visible entities that are interactable
     const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {

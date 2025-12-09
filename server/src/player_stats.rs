@@ -85,6 +85,22 @@ pub(crate) const PLAYER_MAX_THIRST: f32 = 250.0;
 pub(crate) const HUNGER_RECOVERY_THRESHOLD: f32 = 127.5; // ~51% of 250
 pub(crate) const THIRST_RECOVERY_THRESHOLD: f32 = 127.5; // ~51% of 250
 
+// Insanity system constants
+pub(crate) const PLAYER_MAX_INSANITY: f32 = 100.0; // Max insanity value (triggers Entrainment)
+pub(crate) const INSANITY_BASE_INCREASE_PER_SECOND: f32 = 0.05; // Base increase rate (scales with shard count using diminishing returns)
+pub(crate) const INSANITY_MINING_INCREASE: f32 = 2.0; // Insanity increase when mining a memory shard node
+pub(crate) const INSANITY_DECAY_PER_SECOND: f32 = 0.02; // Decay rate when not holding memory shards (slower than increase)
+pub(crate) const INSANITY_SHARD_SCALING_EXPONENT: f32 = 0.5; // Diminishing returns: shard_count^0.5 (square root scaling)
+// This means: 1 shard = 1x, 4 shards = 2x, 9 shards = 3x, 100 shards = 10x, 400 shards = 20x
+// Allows carrying hundreds of shards without instant Entrainment
+
+// Insanity threshold constants for SOVA sound triggers (client-side sounds)
+pub(crate) const INSANITY_THRESHOLD_25: f32 = 25.0; // First warning threshold
+pub(crate) const INSANITY_THRESHOLD_50: f32 = 50.0; // Moderate warning threshold
+pub(crate) const INSANITY_THRESHOLD_75: f32 = 75.0; // Severe warning threshold
+pub(crate) const INSANITY_THRESHOLD_90: f32 = 90.0; // Critical warning threshold
+pub(crate) const INSANITY_THRESHOLD_100: f32 = 100.0; // Maximum threshold (Entrainment)
+
 // Add constants for starting values (when spawning/respawning)
 pub(crate) const PLAYER_STARTING_HUNGER: f32 = 100.0; // Start at 40% of max (100/250)
 pub(crate) const PLAYER_STARTING_THIRST: f32 = 100.0; // Start at 40% of max (100/250)
@@ -525,6 +541,127 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         let new_warmth = (player.warmth + (total_warmth_change_per_sec * elapsed_seconds))
                          .max(0.0).min(100.0);
 
+        // <<< INSANITY SYSTEM: Increases when carrying memory shards or mining them >>>
+        // Count memory shards in player's inventory/hotbar (not in chests)
+        let memory_shard_name = "Memory Shard";
+        let memory_shard_def_id = ctx.db.item_definition().iter()
+            .find(|def| def.name == memory_shard_name)
+            .map(|def| def.id);
+        
+        let mut memory_shard_count = 0u32;
+        if let Some(def_id) = memory_shard_def_id {
+            for inventory_item in ctx.db.inventory_item().iter() {
+                // Only count items in inventory or hotbar (not chests, equipment, etc.)
+                match &inventory_item.location {
+                    crate::models::ItemLocation::Inventory(data) if data.owner_id == player_id => {
+                        if inventory_item.item_def_id == def_id {
+                            memory_shard_count += inventory_item.quantity;
+                        }
+                    }
+                    crate::models::ItemLocation::Hotbar(data) if data.owner_id == player_id => {
+                        if inventory_item.item_def_id == def_id {
+                            memory_shard_count += inventory_item.quantity;
+                        }
+                    }
+                    _ => {} // Ignore items in chests, equipment, etc.
+                }
+            }
+        }
+        
+        // Calculate insanity change: increases when holding shards, decays when not
+        // IMPORTANT: Insanity increase is HALTED while in ALK station safe zones
+        // This allows players to rest and recover after completing contracts before heading back to base
+        let mut insanity_change_per_sec = 0.0;
+        
+        // Check if player is in an ALK station safe zone (central compound or substations)
+        let is_in_alk_safe_zone = crate::active_effects::is_player_in_safe_zone(ctx, player.position_x, player.position_y);
+        
+        if memory_shard_count > 0 && !is_in_alk_safe_zone {
+            // Calculate insanity increase with diminishing returns on shard count
+            // Formula: increase = base_rate * (shard_count^scaling_exponent) * (1 + insanity/50)^2 / (1 + log(1 + insanity/10))
+            // 
+            // Key design decisions:
+            // 1. Square root scaling (shard_count^0.5) prevents linear explosion with high shard counts
+            //    - 1 shard = 1x rate, 4 shards = 2x, 9 shards = 3x, 100 shards = 10x, 400 shards = 20x
+            //    - Allows carrying 100-500 shards for memory grid purchases without instant death
+            // 2. Exponential factor makes it worse at higher insanity (risk increases as you approach Entrainment)
+            // 3. Logarithmic factor tapers off the exponential growth
+            // 4. ALK station safe zones halt insanity increase - players can rest after contracts
+            //
+            // Example times to Entrainment (at 0% starting insanity):
+            // - 1 shard: ~33 minutes
+            // - 10 shards: ~10 minutes  
+            // - 100 shards: ~3.3 minutes (reasonable for a run back to base)
+            // - 400 shards: ~1.7 minutes (risky but manageable)
+            // - 1000 shards: ~1.0 minute (very risky, requires careful planning)
+            let current_insanity = player.insanity;
+            let shard_count_f32 = memory_shard_count as f32;
+            let scaled_shard_count = shard_count_f32.powf(INSANITY_SHARD_SCALING_EXPONENT); // Square root scaling
+            let exponential_factor = 1.0 + (current_insanity / 50.0);
+            let logarithmic_factor = 1.0 + (1.0 + current_insanity / 10.0).ln();
+            insanity_change_per_sec = INSANITY_BASE_INCREASE_PER_SECOND * scaled_shard_count
+                * (exponential_factor * exponential_factor) / logarithmic_factor;
+        } else if memory_shard_count > 0 && is_in_alk_safe_zone {
+            // Player is holding shards but in ALK safe zone - insanity increase is halted
+            // This gives players time to rest after completing contracts before heading back to base
+            insanity_change_per_sec = 0.0;
+            log::trace!("Player {:?} is in ALK safe zone - insanity increase halted (holding {} shards)", 
+                player_id, memory_shard_count);
+        } else {
+            // Decay insanity when not holding memory shards (slow recovery)
+            // Decay happens even in safe zones (safe zones only halt increase, not decay)
+            insanity_change_per_sec = -INSANITY_DECAY_PER_SECOND;
+        }
+        
+        let new_insanity = (player.insanity + (insanity_change_per_sec * elapsed_seconds))
+            .max(0.0).min(PLAYER_MAX_INSANITY);
+        
+        // Detect insanity threshold crossings for SOVA sound triggers (client-side sounds)
+        // Check thresholds in descending order to catch the highest one crossed
+        let mut new_threshold = player.last_insanity_threshold;
+        if new_insanity >= INSANITY_THRESHOLD_100 && player.last_insanity_threshold < INSANITY_THRESHOLD_100 {
+            new_threshold = INSANITY_THRESHOLD_100;
+            log::info!("Player {:?} crossed insanity threshold 100% - SOVA sound trigger", player_id);
+        } else if new_insanity >= INSANITY_THRESHOLD_90 && player.last_insanity_threshold < INSANITY_THRESHOLD_90 {
+            new_threshold = INSANITY_THRESHOLD_90;
+            log::info!("Player {:?} crossed insanity threshold 90% - SOVA sound trigger", player_id);
+        } else if new_insanity >= INSANITY_THRESHOLD_75 && player.last_insanity_threshold < INSANITY_THRESHOLD_75 {
+            new_threshold = INSANITY_THRESHOLD_75;
+            log::info!("Player {:?} crossed insanity threshold 75% - SOVA sound trigger", player_id);
+        } else if new_insanity >= INSANITY_THRESHOLD_50 && player.last_insanity_threshold < INSANITY_THRESHOLD_50 {
+            new_threshold = INSANITY_THRESHOLD_50;
+            log::info!("Player {:?} crossed insanity threshold 50% - SOVA sound trigger", player_id);
+        } else if new_insanity >= INSANITY_THRESHOLD_25 && player.last_insanity_threshold < INSANITY_THRESHOLD_25 {
+            new_threshold = INSANITY_THRESHOLD_25;
+            log::info!("Player {:?} crossed insanity threshold 25% - SOVA sound trigger", player_id);
+        }
+        // Note: Thresholds reset when insanity drops below them (for re-triggering sounds)
+        // This allows sounds to play again if player recovers and crosses threshold again
+        else if new_insanity < player.last_insanity_threshold {
+            // Reset threshold if insanity dropped below current threshold
+            // Find the highest threshold still below current insanity
+            if new_insanity < INSANITY_THRESHOLD_25 {
+                new_threshold = 0.0;
+            } else if new_insanity < INSANITY_THRESHOLD_50 {
+                new_threshold = INSANITY_THRESHOLD_25;
+            } else if new_insanity < INSANITY_THRESHOLD_75 {
+                new_threshold = INSANITY_THRESHOLD_50;
+            } else if new_insanity < INSANITY_THRESHOLD_90 {
+                new_threshold = INSANITY_THRESHOLD_75;
+            } else if new_insanity < INSANITY_THRESHOLD_100 {
+                new_threshold = INSANITY_THRESHOLD_90;
+            }
+        }
+        
+        // Check if insanity reached max - apply Entrainment effect (permanent debuff)
+        if new_insanity >= PLAYER_MAX_INSANITY && !crate::active_effects::player_has_entrainment_effect(ctx, player_id) {
+            log::warn!("Player {:?} reached maximum insanity ({:.1}) - applying Entrainment effect!", player_id, new_insanity);
+            if let Err(e) = crate::active_effects::apply_entrainment_effect(ctx, player_id) {
+                log::error!("Failed to apply Entrainment effect to player {:?}: {}", player_id, e);
+            }
+        }
+        // <<< END INSANITY SYSTEM >>>
+
         // Stamina processing removed - players can sprint without stamina cost
 
         // <<< ADD EXHAUSTED EFFECT MANAGEMENT >>>
@@ -707,6 +844,8 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                             (player.hunger - new_hunger).abs() > 0.01 ||
                             (player.thirst - new_thirst).abs() > 0.01 ||
                             (player.warmth - new_warmth).abs() > 0.01 ||
+                            (player.insanity - new_insanity).abs() > 0.01 ||
+                            (player.last_insanity_threshold - new_threshold).abs() > 0.01 ||
                             player.is_dead; // Also update if other stats changed OR if player died
 
         if stats_changed {
@@ -722,6 +861,8 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             current_player.hunger = new_hunger;
             current_player.thirst = new_thirst;
             current_player.warmth = new_warmth;
+            current_player.insanity = new_insanity;
+            current_player.last_insanity_threshold = new_threshold;
             current_player.is_dead = player.is_dead;
             current_player.death_timestamp = player.death_timestamp;
             current_player.last_stat_update = current_time;

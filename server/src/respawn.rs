@@ -299,6 +299,7 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     current_player.thirst = PLAYER_STARTING_THIRST;
     current_player.warmth = 100.0;
     current_player.stamina = 100.0;
+    current_player.insanity = 0.0; // Reset insanity on respawn
     current_player.jump_start_time_ms = 0;
     current_player.is_sprinting = false;
     current_player.is_dead = false; // Mark as alive again

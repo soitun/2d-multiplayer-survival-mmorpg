@@ -43,6 +43,8 @@ import { useAuthErrorHandler } from './hooks/useAuthErrorHandler';
 import { useMovementInput } from './hooks/useMovementInput';
 import { usePredictedMovement } from './hooks/usePredictedMovement';
 import { useSoundSystem } from './hooks/useSoundSystem';
+import { useInsanitySovaSounds } from './hooks/useInsanitySovaSounds';
+import { useEntrainmentSovaSounds } from './hooks/useEntrainmentSovaSounds';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
 
@@ -70,6 +72,8 @@ import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/pl
 // Import the cut grass effect system
 import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects/cutGrassEffect';
 import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteringUtils';
+import { resetBrothEffectsState } from './utils/renderers/brothEffectsOverlayUtils';
+import { resetInsanityState } from './utils/renderers/insanityOverlayUtils';
 
 // Graceful error boundary that logs errors but doesn't crash the app
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any; hasError: boolean }> {
@@ -296,6 +300,15 @@ function AppContent() {
     const isUIFocused = isChatting || isCraftingSearchFocused;
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
     const isDead = localPlayer?.isDead ?? false;
+    
+    // --- Insanity SOVA Sounds Hook ---
+    useInsanitySovaSounds({ localPlayer });
+    
+    // --- Entrainment SOVA Sounds Hook (quotes + ambient) ---
+    useEntrainmentSovaSounds({ 
+      activeConsumableEffects, 
+      localPlayerId: dbIdentity?.toHexString() 
+    });
     
     // --- Mobile Detection ---
     const isMobile = useMobileDetection();
@@ -586,6 +599,11 @@ function AppContent() {
             // Reset lastSentCenter on respawn to force immediate update
             if (respawnDetected || positionChangedDramatically) {
                 lastSentViewportCenterRef.current = null;
+                
+                // Reset overlay states on respawn
+                console.log('[App] Respawn detected - resetting overlay states');
+                resetBrothEffectsState();
+                resetInsanityState();
             }
         }
         

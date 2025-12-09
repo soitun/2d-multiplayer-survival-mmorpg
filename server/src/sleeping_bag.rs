@@ -289,6 +289,7 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
     player.thirst = PLAYER_STARTING_THIRST;
     player.warmth = 100.0;
     player.stamina = 100.0;
+    player.insanity = 0.0; // Reset insanity on respawn
     player.jump_start_time_ms = 0;
     player.is_sprinting = false;
     player.last_hit_time = None;

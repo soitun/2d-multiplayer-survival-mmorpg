@@ -741,6 +741,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    case 'Entrainment':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'entrainment',
+                            name: 'Entrainment',
+                            emoji: '🌀',
+                            type: 'negative' as const,
+                            description: 'The memory shards have consumed your mind. Reality fractures around you. This effect cannot be removed.',
+                            // No duration - permanent effect until death
+                        };
+                        break;
                     case 'Burn':
                         effectApplies = true;
                         effectData = {
