@@ -25,8 +25,9 @@ const SOUND_VARIATIONS_PER_THRESHOLD = 3;
 
 /**
  * Plays a random SOVA sound for the given insanity threshold
+ * Returns the audio element so we can track when it finishes
  */
-function playInsanitySovaSound(threshold: number): void {
+function playInsanitySovaSound(threshold: number): HTMLAudioElement | null {
   // Randomly select one of the variations for this threshold
   const variation = Math.floor(Math.random() * SOUND_VARIATIONS_PER_THRESHOLD) + 1;
   const soundFilename = `sova_insanity_${threshold}_${variation}.mp3`;
@@ -35,20 +36,35 @@ function playInsanitySovaSound(threshold: number): void {
   try {
     const audio = new Audio(soundPath);
     audio.volume = 0.7; // SOVA sounds should be noticeable but not overwhelming
+    
     audio.play().catch((error) => {
       console.warn(`Failed to play SOVA insanity sound ${soundFilename}:`, error);
+      return null;
     });
+    
+    return audio; // Return audio element to track playback
   } catch (error) {
     console.warn(`Failed to create audio for SOVA insanity sound ${soundFilename}:`, error);
+    return null;
   }
 }
 
+// Export a way for other hooks to check if 100% sound is playing
+export const insanity100SoundRef = { current: null as HTMLAudioElement | null };
+
 export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProps): void {
   const lastThresholdRef = useRef<number>(0.0);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingThresholdRef = useRef<number | null>(null); // Queue for sounds that couldn't play immediately
   
   useEffect(() => {
     if (!localPlayer) {
       lastThresholdRef.current = 0.0;
+      // Clean up audio on unmount
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
       return;
     }
     
@@ -56,13 +72,91 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
     const currentThreshold = (localPlayer as any).lastInsanityThreshold ?? 0.0;
     const previousThreshold = lastThresholdRef.current;
     
+    // Check if a sound is currently playing
+    const isSoundPlaying = currentAudioRef.current && 
+                          !currentAudioRef.current.paused && 
+                          currentAudioRef.current.currentTime > 0 &&
+                          currentAudioRef.current.currentTime < currentAudioRef.current.duration;
+    
     // Check if threshold increased (crossed a new threshold)
     if (currentThreshold > previousThreshold) {
       // Find which threshold was crossed
       for (const threshold of INSANITY_THRESHOLDS) {
         if (currentThreshold >= threshold && previousThreshold < threshold) {
-          console.log(`[SOVA] Insanity threshold ${threshold}% crossed - playing sound`);
-          playInsanitySovaSound(threshold);
+          // If a sound is already playing, queue this threshold to play after current sound finishes
+          if (isSoundPlaying) {
+            console.log(`[SOVA] Insanity threshold ${threshold}% crossed - sound already playing, queuing...`);
+            pendingThresholdRef.current = threshold;
+          } else {
+            console.log(`[SOVA] Insanity threshold ${threshold}% crossed - playing sound`);
+            const audio = playInsanitySovaSound(threshold);
+            currentAudioRef.current = audio;
+            
+            // Track 100% sound specifically for Entrainment hook
+            if (threshold === 100.0) {
+              insanity100SoundRef.current = audio;
+            }
+            
+            // When sound finishes, check if there's a pending threshold to play
+            if (audio) {
+              audio.addEventListener('ended', () => {
+                currentAudioRef.current = null;
+                
+                // Clear 100% sound ref if this was the 100% sound
+                if (threshold === 100.0) {
+                  insanity100SoundRef.current = null;
+                }
+                
+                // Play pending threshold sound if one exists
+                if (pendingThresholdRef.current !== null) {
+                  const pendingThreshold = pendingThresholdRef.current;
+                  pendingThresholdRef.current = null;
+                  console.log(`[SOVA] Playing queued insanity threshold ${pendingThreshold}% sound`);
+                  const nextAudio = playInsanitySovaSound(pendingThreshold);
+                  currentAudioRef.current = nextAudio;
+                  
+                  // Track 100% sound if this is it
+                  if (pendingThreshold === 100.0) {
+                    insanity100SoundRef.current = nextAudio;
+                  }
+                  
+                  // Set up listener for this sound too
+                  if (nextAudio) {
+                    nextAudio.addEventListener('ended', () => {
+                      currentAudioRef.current = null;
+                      
+                      // Clear 100% sound ref if this was the 100% sound
+                      if (pendingThreshold === 100.0) {
+                        insanity100SoundRef.current = null;
+                      }
+                      
+                      // Check again for any new pending sounds
+                      if (pendingThresholdRef.current !== null) {
+                        const nextPending = pendingThresholdRef.current;
+                        pendingThresholdRef.current = null;
+                        const finalAudio = playInsanitySovaSound(nextPending);
+                        currentAudioRef.current = finalAudio;
+                        
+                        // Track 100% sound if this is it
+                        if (nextPending === 100.0) {
+                          insanity100SoundRef.current = finalAudio;
+                        }
+                        
+                        if (finalAudio) {
+                          finalAudio.addEventListener('ended', () => {
+                            currentAudioRef.current = null;
+                            if (nextPending === 100.0) {
+                              insanity100SoundRef.current = null;
+                            }
+                          }, { once: true });
+                        }
+                      }
+                    }, { once: true });
+                  }
+                }
+              }, { once: true });
+            }
+          }
           break; // Only play sound for the highest threshold crossed
         }
       }
@@ -71,5 +165,15 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
     // Update ref to track current threshold
     lastThresholdRef.current = currentThreshold;
   }, [localPlayer]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
+  }, []);
 }
 

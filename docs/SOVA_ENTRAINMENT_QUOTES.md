@@ -101,14 +101,13 @@ These quotes play when the player has reached maximum insanity (100/100) and has
 - Static/white noise bursts
 
 ### Playback Rules
-1. **Cooldown:** 30-90 seconds between quotes (random)
+1. **Cooldown:** 10-30 seconds between quotes (random)
 2. **Interruption:** Never interrupt an already playing quote
 3. **Priority:** Entrainment quotes override normal insanity quotes
 4. **Volume:** Slightly louder than normal SOVA quotes (player needs to HEAR this)
 5. **Trigger:** Only plays while Entrainment effect is active
 
 ### Visual Feedback (Optional)
-- Text could appear on screen briefly with glitch effect
 - Screen shake on particularly intense quotes
 - Brief color inversion flashes
 - Distortion at screen edges

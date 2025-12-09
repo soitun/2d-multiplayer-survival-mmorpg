@@ -16,12 +16,23 @@ interface InsanityAnimationState {
   pulsePhase: number;
   wobbleOffset: { x: number; y: number };
   intensity: number;
+  // Entrainment-specific effects
+  lastColorInversionTime: number;
+  colorInversionDuration: number;
+  glitchOffset: { x: number; y: number };
+  glitchPhase: number;
+  randomFlashPhase: number;
 }
 
 let insanityState: InsanityAnimationState = {
   pulsePhase: 0,
   wobbleOffset: { x: 0, y: 0 },
   intensity: 0,
+  lastColorInversionTime: 0,
+  colorInversionDuration: 0,
+  glitchOffset: { x: 0, y: 0 },
+  glitchPhase: 0,
+  randomFlashPhase: 0,
 };
 
 /**
@@ -96,13 +107,15 @@ function createInsanityVignette(
  * Intensity increases as insanity bar goes up (0.0-1.0)
  * 
  * @param insanityIntensity - Insanity intensity (0.0-1.0) from player.insanity / max_insanity
+ * @param hasEntrainment - Whether player has Entrainment effect (max insanity death sentence)
  */
 export function renderInsanityOverlay(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   deltaTime: number,
-  insanityIntensity: number // 0.0-1.0 (insanity / max_insanity)
+  insanityIntensity: number, // 0.0-1.0 (insanity / max_insanity)
+  hasEntrainment: boolean = false // Entrainment = max insanity, triggers extra chaotic effects
 ): void {
   // Only show overlay when insanity is above 10% (similar to health overlay threshold)
   const INSANITY_THRESHOLD = 0.1; // 10% insanity
@@ -172,6 +185,101 @@ export function renderInsanityOverlay(
     ctx.fillRect(x, y, size, size);
   }
   
+  // 5. ENTRAINMENT-SPECIFIC CHAOTIC EFFECTS (max insanity death sentence)
+  if (hasEntrainment) {
+    const currentTime = insanityState.pulsePhase;
+    
+    // Update glitch phase for screen shifts
+    insanityState.glitchPhase += deltaTime * 2000; // Fast glitch movement
+    insanityState.randomFlashPhase += deltaTime * 3000; // Random flash timing
+    
+    // Subtle color inversion flashes (safer - less frequent and less intense)
+    // Reduced frequency and intensity to prevent seizures
+    const timeSinceLastInversion = currentTime - insanityState.lastColorInversionTime;
+    if (timeSinceLastInversion > insanityState.colorInversionDuration) {
+      // Trigger new inversion flash (less frequent: 3-6 seconds between flashes)
+      insanityState.lastColorInversionTime = currentTime;
+      insanityState.colorInversionDuration = 3000 + Math.random() * 3000; // 3-6 seconds between flashes
+    }
+    
+    const timeIntoFlash = timeSinceLastInversion;
+    const flashDuration = 50; // Flash lasts 50ms (shorter)
+    const isFlashing = timeIntoFlash < flashDuration;
+    
+    // Subtle color inversion flash effect (reduced intensity)
+    if (isFlashing) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'difference';
+      // Fade in/out for smoother transition (less jarring)
+      const flashProgress = timeIntoFlash / flashDuration;
+      const fadeAlpha = Math.sin(flashProgress * Math.PI); // Smooth fade curve
+      ctx.globalAlpha = 0.3 * fadeAlpha; // Reduced from 0.8 to 0.3 max, with fade
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+    
+    // Random screen glitches/shifts (horizontal displacement)
+    const glitchChance = Math.random();
+    if (glitchChance < 0.3) { // 30% chance per frame when Entrainment active
+      const glitchAmount = (Math.random() - 0.5) * 20; // Random horizontal shift up to 20px
+      ctx.save();
+      ctx.translate(glitchAmount, 0);
+      ctx.globalAlpha = 0.3;
+      ctx.globalCompositeOperation = 'source-over';
+      // Draw a vertical glitch line
+      const glitchX = Math.random() * width;
+      ctx.fillStyle = '#FF00FF';
+      ctx.fillRect(glitchX, 0, 2, height);
+      ctx.restore();
+    }
+    
+    // Intense digital corruption (more artifacts)
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.9;
+    const entrainmentArtifacts = Math.floor(100 + Math.random() * 50); // 100-150 artifacts
+    
+    for (let i = 0; i < entrainmentArtifacts; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = 1 + Math.random() * 4;
+      const alpha = 0.3 + Math.random() * 0.7;
+      
+      ctx.globalAlpha = alpha;
+      // Random colors: magenta, cyan, or white for chaos
+      const colors = ['#FF00FF', '#00FFFF', '#FFFFFF'];
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+      ctx.fillRect(x, y, size, size);
+    }
+    
+    // Random vertical scan line glitches
+    if (Math.random() < 0.2) { // 20% chance per frame
+      const glitchY = Math.random() * height;
+      const glitchHeight = 5 + Math.random() * 15;
+      ctx.globalCompositeOperation = 'difference';
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#00FFFF';
+      ctx.fillRect(0, glitchY, width, glitchHeight);
+    }
+    
+    // Screen shake/wobble effect (visual only - creates wobbling overlay)
+    const shakeAmount = 3 + Math.random() * 5; // 3-8px shake
+    insanityState.wobbleOffset.x = (Math.sin(insanityState.glitchPhase * 0.01) * shakeAmount);
+    insanityState.wobbleOffset.y = (Math.cos(insanityState.glitchPhase * 0.013) * shakeAmount);
+    
+    // Apply wobble to overlay elements (not the entire canvas)
+    ctx.save();
+    ctx.translate(insanityState.wobbleOffset.x, insanityState.wobbleOffset.y);
+    ctx.globalAlpha = 0.4;
+    ctx.globalCompositeOperation = 'screen';
+    // Draw wobbling scan lines
+    for (let y = 0; y < height; y += 5) {
+      ctx.fillStyle = `rgba(255, 0, 255, ${0.3 + Math.random() * 0.3})`;
+      ctx.fillRect(0, y, width, 1);
+    }
+    ctx.restore();
+  }
+  
   ctx.restore();
 }
 
@@ -183,6 +291,11 @@ export function resetInsanityState(): void {
     pulsePhase: 0,
     wobbleOffset: { x: 0, y: 0 },
     intensity: 0,
+    lastColorInversionTime: 0,
+    colorInversionDuration: 0,
+    glitchOffset: { x: 0, y: 0 },
+    glitchPhase: 0,
+    randomFlashPhase: 0,
   };
 }
 

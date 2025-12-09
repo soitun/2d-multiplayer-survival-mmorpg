@@ -2937,13 +2937,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Calculate insanity intensity (0.0-1.0) from player insanity / max (100.0)
       const insanityIntensity = (localPlayer.insanity ?? 0) / 100.0;
       
+      // Check if player has Entrainment effect (max insanity death sentence)
+      const hasEntrainment = localPlayerId && activeConsumableEffects
+        ? Array.from(activeConsumableEffects.values()).some(
+            effect => effect.playerId.toHexString() === localPlayerId && 
+                      effect.effectType.tag === 'Entrainment'
+          )
+        : false;
+      
       // Always render (even at 0 intensity for smooth transitions)
       renderInsanityOverlay(
         ctx,
         currentCanvasWidth,
         currentCanvasHeight,
         deltaTimeRef.current / 1000, // Convert to seconds for animation timing
-        insanityIntensity
+        insanityIntensity,
+        hasEntrainment // Pass Entrainment status for extra chaotic effects
       );
     }
     // --- End Insanity Overlay ---
