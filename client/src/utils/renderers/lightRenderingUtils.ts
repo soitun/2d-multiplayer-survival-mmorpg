@@ -225,9 +225,9 @@ export const renderPlayerTorchLight = ({
     }
 }; 
 
-// --- Headlamp Light Constants (tallow-based fire light, slightly larger than torch for good coverage) ---
-export const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 1.3; // Larger than torch for better coverage
-export const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 0.8; // Slightly less flicker (more stable head mount)
+// --- Headlamp Light Constants (tallow-based fire light, twice as bright as torch with fire-like flicker) ---
+export const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 2.0; // Twice as bright as torch
+export const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 1.2; // More flicker for fire-like effect (tallow burning)
 
 interface RenderPlayerHeadlampLightProps {
     ctx: CanvasRenderingContext2D;
@@ -267,53 +267,53 @@ export const renderPlayerHeadlampLight = ({
     const lightScreenY = lightCenterY + cameraOffsetY;
     const baseFlicker = (Math.random() - 0.5) * 2 * HEADLAMP_FLICKER_AMOUNT;
 
-    // Add subtle asymmetry for organic fire feel (less than torch since head is steadier)
-    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.2;
-    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.15;
-    const flickerLightX = lightScreenX + asymmetryX;
-    const flickerLightY = lightScreenY + asymmetryY;
+    // Add subtle asymmetry for more rustic feel (same as torch)
+    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.3;
+    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.2;
+    const rustixLightX = lightScreenX + asymmetryX;
+    const rustixLightY = lightScreenY + asymmetryY;
 
-    // Layer 1: Large ambient glow (tallow burning - warm golden amber)
-    const ambientRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 3.0 + baseFlicker * 0.4);
+    // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) - same style as torch, scaled up
+    const ambientRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 2.8 + baseFlicker * 0.4);
     const ambientGradient = ctx.createRadialGradient(
-        flickerLightX, flickerLightY, 0,
-        flickerLightX, flickerLightY, ambientRadius
+        rustixLightX, rustixLightY, 0,
+        rustixLightX, rustixLightY, ambientRadius
     );
-    ambientGradient.addColorStop(0, 'rgba(245, 180, 100, 0.05)'); // Warm tallow golden
-    ambientGradient.addColorStop(0.3, 'rgba(230, 150, 80, 0.03)'); // Amber glow
-    ambientGradient.addColorStop(1, 'rgba(210, 120, 60, 0)'); // Golden fade
+    ambientGradient.addColorStop(0, 'rgba(240, 160, 80, 0.04)'); // More natural pitch/tar golden
+    ambientGradient.addColorStop(0.3, 'rgba(220, 130, 60, 0.025)'); // Warmer natural orange
+    ambientGradient.addColorStop(1, 'rgba(200, 100, 40, 0)'); // Natural golden fade
     
     ctx.fillStyle = ambientGradient;
     ctx.beginPath();
-    ctx.arc(flickerLightX, flickerLightY, ambientRadius, 0, Math.PI * 2);
+    ctx.arc(rustixLightX, rustixLightY, ambientRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Layer 2: Main illumination (good coverage for wandering at night)
-    const mainRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 2.0 + baseFlicker * 0.8);
+    // Layer 2: Main illumination (pitch/tar characteristic glow) - same style as torch, scaled up
+    const mainRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 1.8 + baseFlicker * 0.8);
     const mainGradient = ctx.createRadialGradient(
-        flickerLightX, flickerLightY, 0,
-        flickerLightX, flickerLightY, mainRadius
+        rustixLightX, rustixLightY, 0,
+        rustixLightX, rustixLightY, mainRadius
     );
-    mainGradient.addColorStop(0, 'rgba(250, 210, 140, 0.18)'); // Bright tallow center
-    mainGradient.addColorStop(0.2, 'rgba(240, 180, 100, 0.14)'); // Rich golden amber
-    mainGradient.addColorStop(0.5, 'rgba(225, 150, 80, 0.09)'); // Warm orange-gold
-    mainGradient.addColorStop(0.8, 'rgba(210, 130, 60, 0.04)'); // Soft orange
-    mainGradient.addColorStop(1, 'rgba(200, 110, 50, 0)'); // Golden fade
+    mainGradient.addColorStop(0, 'rgba(240, 200, 120, 0.16)'); // Natural pitch/tar golden
+    mainGradient.addColorStop(0.2, 'rgba(230, 170, 90, 0.13)'); // Rich natural amber
+    mainGradient.addColorStop(0.5, 'rgba(220, 140, 70, 0.08)'); // Warm natural orange
+    mainGradient.addColorStop(0.8, 'rgba(210, 120, 50, 0.04)'); // Natural golden orange
+    mainGradient.addColorStop(1, 'rgba(190, 100, 40, 0)'); // Natural golden fade
     
     ctx.fillStyle = mainGradient;
     ctx.beginPath();
-    ctx.arc(flickerLightX, flickerLightY, mainRadius, 0, Math.PI * 2);
+    ctx.arc(rustixLightX, rustixLightY, mainRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Layer 3: Core bright light (flame center)
-    const coreRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 0.6 + baseFlicker * 1.0);
+    // Layer 3: Core bright light (pitch/tar flame center) - same style as torch, scaled up
+    const coreRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 0.5 + baseFlicker * 1.2);
     const coreGradient = ctx.createRadialGradient(
-        flickerLightX, flickerLightY, 0,
-        flickerLightX, flickerLightY, coreRadius
+        rustixLightX, rustixLightY, 0,
+        rustixLightX, rustixLightY, coreRadius
     );
-    coreGradient.addColorStop(0, 'rgba(255, 235, 180, 0.26)'); // Bright tallow flame center
-    coreGradient.addColorStop(0.4, 'rgba(245, 200, 130, 0.18)'); // Golden yellow
-    coreGradient.addColorStop(1, 'rgba(230, 170, 100, 0)'); // Amber fade
+    coreGradient.addColorStop(0, 'rgba(245, 220, 160, 0.24)'); // Natural pitch/tar flame center
+    coreGradient.addColorStop(0.4, 'rgba(235, 190, 110, 0.16)'); // Natural golden yellow
+    coreGradient.addColorStop(1, 'rgba(220, 150, 80, 0)'); // Natural golden fade
     
     ctx.fillStyle = coreGradient;
     ctx.beginPath();
@@ -412,39 +412,14 @@ export const renderPlayerFlashlightLight = ({
             const rightX = endX - perpX;
             const rightY = endY - perpY;
 
-            // === LAYER 1: Outer soft glow (widest, most transparent) ===
-            const outerGlowLength = FLASHLIGHT_BEAM_LENGTH * 1.1;
-            const outerGlowWidth = halfWidth * 1.4;
-            const outerEndX = startX + Math.cos(beamAngle) * outerGlowLength;
-            const outerEndY = startY + Math.sin(beamAngle) * outerGlowLength;
-            const outerLeftX = outerEndX + (-Math.sin(beamAngle) * outerGlowWidth);
-            const outerLeftY = outerEndY + (Math.cos(beamAngle) * outerGlowWidth);
-            const outerRightX = outerEndX - (-Math.sin(beamAngle) * outerGlowWidth);
-            const outerRightY = outerEndY - (Math.cos(beamAngle) * outerGlowWidth);
-
-            const outerGradient = ctx.createLinearGradient(startX, startY, outerEndX, outerEndY);
-            outerGradient.addColorStop(0, 'rgba(220, 235, 255, 0.08)'); // Soft blue-white
-            outerGradient.addColorStop(0.3, 'rgba(200, 220, 255, 0.06)');
-            outerGradient.addColorStop(0.7, 'rgba(180, 200, 240, 0.03)');
-            outerGradient.addColorStop(1, 'rgba(160, 180, 220, 0)');
-
-            ctx.fillStyle = outerGradient;
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(outerLeftX, outerLeftY);
-            ctx.lineTo(outerRightX, outerRightY);
-            ctx.closePath();
-            ctx.fill();
-
-            // === LAYER 2: Main beam cone (primary light) ===
+            // === SIMPLIFIED FUNCTIONAL FLASHLIGHT ===
+            // Main beam cone - clean cutout with soft edges
             const mainGradient = ctx.createLinearGradient(startX, startY, endX, endY);
-            mainGradient.addColorStop(0, 'rgba(255, 252, 245, 0.32)'); // Warm white at source
-            mainGradient.addColorStop(0.15, 'rgba(255, 250, 240, 0.28)');
-            mainGradient.addColorStop(0.35, 'rgba(250, 248, 235, 0.20)');
-            mainGradient.addColorStop(0.55, 'rgba(245, 243, 230, 0.12)');
-            mainGradient.addColorStop(0.75, 'rgba(240, 238, 225, 0.06)');
-            mainGradient.addColorStop(0.9, 'rgba(235, 233, 220, 0.02)');
-            mainGradient.addColorStop(1, 'rgba(230, 228, 215, 0)');
+            mainGradient.addColorStop(0, 'rgba(255, 255, 255, 0.45)'); // Bright white at source
+            mainGradient.addColorStop(0.3, 'rgba(250, 250, 250, 0.35)');
+            mainGradient.addColorStop(0.6, 'rgba(245, 245, 245, 0.22)');
+            mainGradient.addColorStop(0.85, 'rgba(240, 240, 240, 0.10)');
+            mainGradient.addColorStop(1, 'rgba(235, 235, 235, 0)'); // Soft fade at end
 
             ctx.fillStyle = mainGradient;
             ctx.beginPath();
@@ -454,69 +429,78 @@ export const renderPlayerFlashlightLight = ({
             ctx.closePath();
             ctx.fill();
 
-            // === LAYER 3: Hot core beam (brightest, narrowest) ===
-            const coreLength = FLASHLIGHT_BEAM_LENGTH * 0.75;
-            const coreWidth = halfWidth * 0.35;
-            const coreEndX = startX + Math.cos(beamAngle) * coreLength;
-            const coreEndY = startY + Math.sin(beamAngle) * coreLength;
-            const coreLeftX = coreEndX + (-Math.sin(beamAngle) * coreWidth);
-            const coreLeftY = coreEndY + (Math.cos(beamAngle) * coreWidth);
-            const coreRightX = coreEndX - (-Math.sin(beamAngle) * coreWidth);
-            const coreRightY = coreEndY - (Math.cos(beamAngle) * coreWidth);
+            // === DUST PARTICLES IN BEAM ===
+            // Subtle floating particles to show the beam volume
+            const numParticles = 12;
+            const time = Date.now() * 0.0005; // Slow animation
+            
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            
+            for (let i = 0; i < numParticles; i++) {
+                // Distribute particles along the beam
+                const t = (i / numParticles) + (Math.sin(time + i * 0.5) * 0.1); // Slight drift
+                const distance = FLASHLIGHT_BEAM_LENGTH * Math.max(0.1, Math.min(0.9, t));
+                
+                // Position along beam center
+                const particleX = startX + Math.cos(beamAngle) * distance;
+                const particleY = startY + Math.sin(beamAngle) * distance;
+                
+                // Add slight perpendicular offset (particles drift across beam)
+                const driftOffset = Math.sin(time * 2 + i * 1.3) * halfWidth * (distance / FLASHLIGHT_BEAM_LENGTH) * 0.6;
+                const finalX = particleX + (-Math.sin(beamAngle) * driftOffset);
+                const finalY = particleY + (Math.cos(beamAngle) * driftOffset);
+                
+                // Particle size decreases with distance
+                const baseSize = 1.5;
+                const sizeFade = 1.0 - (distance / FLASHLIGHT_BEAM_LENGTH) * 0.5;
+                const particleSize = baseSize * sizeFade;
+                
+                // Brightness flicker
+                const flicker = 0.7 + Math.sin(time * 3 + i * 2.1) * 0.3;
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${flicker})`;
+                ctx.beginPath();
+                ctx.arc(finalX, finalY, particleSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
 
-            const coreGradient = ctx.createLinearGradient(startX, startY, coreEndX, coreEndY);
-            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.55)'); // Pure white hotspot
-            coreGradient.addColorStop(0.2, 'rgba(255, 254, 250, 0.40)');
-            coreGradient.addColorStop(0.5, 'rgba(255, 252, 245, 0.22)');
-            coreGradient.addColorStop(0.8, 'rgba(250, 248, 240, 0.08)');
-            coreGradient.addColorStop(1, 'rgba(245, 243, 235, 0)');
+            // === SOFT EDGE GLOW (subtle halo around beam edges) ===
+            const edgeGlowWidth = halfWidth * 1.2;
+            const edgeLeftX = endX + (-Math.sin(beamAngle) * edgeGlowWidth);
+            const edgeLeftY = endY + (Math.cos(beamAngle) * edgeGlowWidth);
+            const edgeRightX = endX - (-Math.sin(beamAngle) * edgeGlowWidth);
+            const edgeRightY = endY - (Math.cos(beamAngle) * edgeGlowWidth);
 
-            ctx.fillStyle = coreGradient;
+            const edgeGradient = ctx.createLinearGradient(startX, startY, endX, endY);
+            edgeGradient.addColorStop(0, 'rgba(240, 245, 255, 0.12)'); // Soft blue-white glow
+            edgeGradient.addColorStop(0.5, 'rgba(230, 240, 255, 0.06)');
+            edgeGradient.addColorStop(1, 'rgba(220, 235, 250, 0)');
+
+            ctx.fillStyle = edgeGradient;
             ctx.beginPath();
             ctx.moveTo(startX, startY);
-            ctx.lineTo(coreLeftX, coreLeftY);
-            ctx.lineTo(coreRightX, coreRightY);
+            ctx.lineTo(edgeLeftX, edgeLeftY);
+            ctx.lineTo(edgeRightX, edgeRightY);
             ctx.closePath();
             ctx.fill();
 
-            // === LAYER 4: Intense hotspot at source ===
-            const hotspotRadius = 12;
+            // === BRIGHT HOTSPOT AT SOURCE ===
+            const hotspotRadius = 15;
             const hotspotGradient = ctx.createRadialGradient(
                 startX, startY, 0,
                 startX, startY, hotspotRadius
             );
-            hotspotGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-            hotspotGradient.addColorStop(0.4, 'rgba(255, 252, 245, 0.35)');
-            hotspotGradient.addColorStop(0.7, 'rgba(250, 248, 240, 0.15)');
+            hotspotGradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+            hotspotGradient.addColorStop(0.5, 'rgba(255, 252, 245, 0.4)');
             hotspotGradient.addColorStop(1, 'rgba(245, 243, 235, 0)');
 
             ctx.fillStyle = hotspotGradient;
             ctx.beginPath();
             ctx.arc(startX, startY, hotspotRadius, 0, Math.PI * 2);
             ctx.fill();
-
-            // === LAYER 5: Subtle beam edge highlights (volumetric feel) ===
-            const edgeLength = FLASHLIGHT_BEAM_LENGTH * 0.6;
-            const edgeEndX = startX + Math.cos(beamAngle) * edgeLength;
-            const edgeEndY = startY + Math.sin(beamAngle) * edgeLength;
-            
-            // Left edge line
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            const edgeLeftX = edgeEndX + (-Math.sin(beamAngle) * halfWidth * 0.9);
-            const edgeLeftY = edgeEndY + (Math.cos(beamAngle) * halfWidth * 0.9);
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(edgeLeftX, edgeLeftY);
-            ctx.stroke();
-            
-            // Right edge line
-            ctx.beginPath();
-            const edgeRightX = edgeEndX - (-Math.sin(beamAngle) * halfWidth * 0.9);
-            const edgeRightY = edgeEndY - (Math.cos(beamAngle) * halfWidth * 0.9);
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(edgeRightX, edgeRightY);
-            ctx.stroke();
             
             // Restore context if we applied a clip
             if (restoreClip) restoreClip();

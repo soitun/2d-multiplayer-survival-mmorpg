@@ -2,7 +2,7 @@
  * Durability Helper Functions
  * 
  * Client-side utilities for handling item durability display and calculations.
- * Items with durability include weapons, tools, ranged weapons, torches, flashlights, and food.
+ * Items with durability include weapons, tools, ranged weapons, torches, flashlights, headlamps, and food.
  */
 
 import { InventoryItem, ItemDefinition } from '../generated';
@@ -75,8 +75,8 @@ export function hasDurabilitySystem(itemDef: ItemDefinition): boolean {
         return true;
     }
     
-    // Check special items by name
-    if (itemDef.name === 'Torch' || itemDef.name === 'Flashlight') {
+    // Check special items by name (light sources with durability)
+    if (itemDef.name === 'Torch' || itemDef.name === 'Flashlight' || itemDef.name === 'Headlamp') {
         return true;
     }
     

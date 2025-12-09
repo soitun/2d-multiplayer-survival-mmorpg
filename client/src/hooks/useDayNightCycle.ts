@@ -63,6 +63,10 @@ export const baseKeyframes: Record<number, ColorPoint> = {
 const TORCH_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 0.8; // Slightly smaller than campfire
 const TORCH_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.7; // Added for torch flicker
 
+// Define HEADLAMP_LIGHT_RADIUS_BASE locally (twice as bright as torch, same fire-like style)
+const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 2.0;
+const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 1.2; // More flicker for fire-like effect
+
 // Define RGB colors for overlay tints - UPDATED FOR 25-MINUTE CYCLE (20min day + 5min night)
 interface ColorAlphaKeyframe {
   progress: number;
@@ -482,6 +486,16 @@ export function useDayNightCycle({
     }, [players, activeEquipments, itemDefinitions]);
     // --- End derived state ---
 
+    // --- Create a derived state string that changes when any headlamp's lit status changes ---
+    const headlampLitStatesKey = useMemo(() => {
+        let key = "headlamp_light_states:";
+        players.forEach((player, playerId) => {
+            key += `${playerId}:${player.isHeadlampLit};`;
+        });
+        return key;
+    }, [players]);
+    // --- End derived state ---
+
     // --- Create a derived state string that changes when any lantern's burning status changes ---
     const lanternBurningStatesKey = useMemo(() => {
         let key = "lantern_burning_states:";
@@ -749,6 +763,57 @@ export function useDayNightCycle({
                     cameraOffsetY
                 );
             }
+        });
+
+        // Render headlamp light cutouts (head armor - tallow burning lamp)
+        players.forEach((player, playerId) => {
+            if (!player || player.isDead || !player.isHeadlampLit) return;
+
+            // Use the same interpolated position logic as other lights for smooth cutouts
+            let renderPositionX = player.positionX;
+            let renderPositionY = player.positionY;
+            
+            if (playerId === localPlayerId && predictedPosition) {
+                // For local player, use predicted position
+                renderPositionX = predictedPosition.x;
+                renderPositionY = predictedPosition.y;
+            } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
+                // For remote players, use interpolated position
+                const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+                if (interpolatedPos) {
+                    renderPositionX = interpolatedPos.x;
+                    renderPositionY = interpolatedPos.y;
+                }
+            }
+            
+            // Check if player with headlamp is inside an enclosed building
+            const enclosingCluster = buildingClusters 
+                ? findEnclosingCluster(renderPositionX, renderPositionY, buildingClusters)
+                : null;
+            
+            const lightScreenX = renderPositionX + cameraOffsetX;
+            const lightScreenY = renderPositionY + cameraOffsetY;
+
+            // Headlamp cutout - same style as torch, scaled up (2x torch radius)
+            const flicker = (Math.random() - 0.5) * 2 * HEADLAMP_FLICKER_AMOUNT;
+            const currentLightRadius = Math.max(0, (HEADLAMP_LIGHT_RADIUS_BASE * 1.25) + flicker);
+
+            // Use clipped rendering if inside a building
+            renderClippedLightCutout(
+                maskCtx,
+                lightScreenX,
+                lightScreenY,
+                currentLightRadius,
+                [
+                    { stop: 0.12, alpha: 1 },    // Full cutout at center
+                    { stop: 0.35, alpha: 0.8 },  // Natural transition zone
+                    { stop: 0.75, alpha: 0.4 },  // Gentle fade
+                    { stop: 1, alpha: 0 },       // Complete fade to darkness
+                ],
+                enclosingCluster,
+                cameraOffsetX,
+                cameraOffsetY
+            );
         });
 
         // Render flashlight beam cutouts (AAA pixel art style - narrow, long beam)
@@ -1162,7 +1227,7 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation, buildingClusters]);
+    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation, buildingClusters]);
 
     return { overlayRgba, maskCanvasRef };
 } 

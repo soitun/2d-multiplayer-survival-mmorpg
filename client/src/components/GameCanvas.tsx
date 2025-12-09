@@ -3059,7 +3059,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
        drawIndicatorIfNeeded('homestead_hearth', hearth.id, hearth.posX, hearth.posY - 15, 125, true);
      });
 
-    // --- Render Torch Light for ALL players (Local and Remote) ---
+    // --- Torch Light for ALL players (Local and Remote) ---
     players.forEach(player => {
       const playerId = player.identity?.toHexString();
       if (!playerId) return;
@@ -3176,6 +3176,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     // --- End Headlamp Light ---
 
+    ctx.restore(); // Restore from 'lighter' blend mode for lights
+
     // --- Mobile Tap Animation ---
     if (isMobile && tapAnimation) {
       const TAP_ANIMATION_DURATION = 500; // ms
@@ -3221,8 +3223,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
     // --- End Mobile Tap Animation ---
-
-    ctx.restore();
 
     // === PERFORMANCE PROFILING - Frame time tracking ===
     const frameEndTime = performance.now();
