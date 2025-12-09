@@ -127,21 +127,41 @@ function BlogPostPage() {
     setCurrentImageIndex(index);
   };
 
-  // Make images in content clickable
-  const processedContent = content.replace(
-    /<img([^>]+)>/g,
-    (match, attributes) => {
-      const srcMatch = attributes.match(/src="([^"]+)"/);
-      if (srcMatch) {
-        const imgSrc = srcMatch[1];
-        const imgIndex = galleryImages.findIndex(img => img.src === imgSrc);
-        if (imgIndex !== -1) {
-          return `<img${attributes} style="cursor: pointer;" onclick="window.openGalleryImage(${imgIndex})">`;
+  // Make images in content clickable and wrap tables for mobile scrolling
+  const processedContent = (() => {
+    let processed = content;
+    
+    // Process images first
+    processed = processed.replace(
+      /<img([^>]+)>/g,
+      (match, attributes) => {
+        const srcMatch = attributes.match(/src="([^"]+)"/);
+        if (srcMatch) {
+          const imgSrc = srcMatch[1];
+          const imgIndex = galleryImages.findIndex(img => img.src === imgSrc);
+          if (imgIndex !== -1) {
+            return `<img${attributes} style="cursor: pointer;" onclick="window.openGalleryImage(${imgIndex})">`;
+          }
         }
+        return match;
       }
-      return match;
-    }
-  );
+    );
+    
+    // Wrap tables in scrollable container for mobile
+    // Match table tags and their closing tags, handling nested content
+    processed = processed.replace(
+      /(<table[^>]*>[\s\S]*?<\/table>)/g,
+      (match) => {
+        // Skip if already wrapped
+        if (match.includes('table-wrapper')) {
+          return match;
+        }
+        return `<div class="table-wrapper">${match}</div>`;
+      }
+    );
+    
+    return processed;
+  })();
 
   // Expose gallery opener to window for onclick handlers
   useEffect(() => {
