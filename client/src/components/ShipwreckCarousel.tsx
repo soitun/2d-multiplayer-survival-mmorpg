@@ -30,6 +30,15 @@ const carouselItems: CarouselItem[] = [
 const ShipwreckCarousel: React.FC = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const nextSlide = () => {
         if (isAnimating) return;
@@ -180,16 +189,18 @@ const ShipwreckCarousel: React.FC = () => {
                 disabled={isAnimating}
                 style={{
                     position: 'absolute',
-                    left: 'clamp(10px, 2vw, 20px)',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 'clamp(40px, 8vw, 50px)',
-                    height: 'clamp(40px, 8vw, 50px)',
+                    left: isMobile ? '15px' : 'clamp(10px, 2vw, 20px)',
+                    top: isMobile ? 'auto' : '50%',
+                    bottom: isMobile ? '20px' : 'auto',
+                    transform: isMobile ? 'none' : 'translateY(-50%)',
+                    width: isMobile ? '50px' : 'clamp(40px, 8vw, 50px)',
+                    height: isMobile ? '50px' : 'clamp(40px, 8vw, 50px)',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 140, 0, 0.2)',
+                    border: '2px solid rgba(255, 140, 0, 0.6)',
                     color: 'white',
-                    fontSize: '20px',
+                    fontSize: isMobile ? '24px' : '20px',
+                    fontWeight: 'bold',
                     cursor: isAnimating ? 'default' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -198,16 +209,21 @@ const ShipwreckCarousel: React.FC = () => {
                     backdropFilter: 'blur(8px)',
                     zIndex: 20,
                     opacity: isAnimating ? 0.5 : 1,
+                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)',
                 }}
                 onMouseEnter={(e) => {
                     if (!isAnimating) {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 140, 0, 0.3)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.8)';
+                        e.currentTarget.style.transform = isMobile ? 'scale(1.1)' : 'translateY(-50%) scale(1.1)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.6)';
                     }
                 }}
                 onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 140, 0, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.6)';
+                    e.currentTarget.style.transform = isMobile ? 'scale(1)' : 'translateY(-50%) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.4)';
                 }}
             >
                 ‹
@@ -218,16 +234,18 @@ const ShipwreckCarousel: React.FC = () => {
                 disabled={isAnimating}
                 style={{
                     position: 'absolute',
-                    right: 'clamp(10px, 2vw, 20px)',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 'clamp(40px, 8vw, 50px)',
-                    height: 'clamp(40px, 8vw, 50px)',
+                    right: isMobile ? '15px' : 'clamp(10px, 2vw, 20px)',
+                    top: isMobile ? 'auto' : '50%',
+                    bottom: isMobile ? '20px' : 'auto',
+                    transform: isMobile ? 'none' : 'translateY(-50%)',
+                    width: isMobile ? '50px' : 'clamp(40px, 8vw, 50px)',
+                    height: isMobile ? '50px' : 'clamp(40px, 8vw, 50px)',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 140, 0, 0.2)',
+                    border: '2px solid rgba(255, 140, 0, 0.6)',
                     color: 'white',
-                    fontSize: '20px',
+                    fontSize: isMobile ? '24px' : '20px',
+                    fontWeight: 'bold',
                     cursor: isAnimating ? 'default' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -236,16 +254,21 @@ const ShipwreckCarousel: React.FC = () => {
                     backdropFilter: 'blur(8px)',
                     zIndex: 20,
                     opacity: isAnimating ? 0.5 : 1,
+                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)',
                 }}
                 onMouseEnter={(e) => {
                     if (!isAnimating) {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 140, 0, 0.3)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.8)';
+                        e.currentTarget.style.transform = isMobile ? 'scale(1.1)' : 'translateY(-50%) scale(1.1)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.6)';
                     }
                 }}
                 onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 140, 0, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.6)';
+                    e.currentTarget.style.transform = isMobile ? 'scale(1)' : 'translateY(-50%) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.4)';
                 }}
             >
                 ›

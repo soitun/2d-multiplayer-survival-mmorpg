@@ -19,6 +19,7 @@ import { Player } from '../generated'; // Adjusted path
 // Import FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDiscord, faXTwitter, faGithub } from '@fortawesome/free-brands-svg-icons';
+import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
 import loginBackground from '../assets/login_background2.png';
 import logo from '../assets/logo_new.png';
 import ShipwreckCarousel from './ShipwreckCarousel';
@@ -36,6 +37,164 @@ const UI_FONT_FAMILY = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI'
 const UI_BUTTON_COLOR = '#777';
 const UI_BUTTON_DISABLED_COLOR = '#555';
 const UI_PAGE_BG_COLOR = '#1a1a2e';
+
+// Mobile Navigation Menu Component
+interface MobileNavMenuProps {
+    navItems: Array<{ label: string; selector: string }>;
+    onNavigate: (selector: string) => void;
+    onPlayClick: () => void;
+}
+
+const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ navItems, onNavigate, onPlayClick }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleNavClick = (selector: string) => {
+        setIsOpen(false);
+        onNavigate(selector);
+    };
+
+    const handlePlayClick = () => {
+        setIsOpen(false);
+        onPlayClick();
+    };
+
+    return (
+        <>
+            {/* Hamburger Button */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    padding: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    zIndex: 1001,
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ff8c00';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                }}
+            >
+                <FontAwesomeIcon icon={isOpen ? faTimes : faBars} />
+            </button>
+
+            {/* Mobile Menu Overlay */}
+            {isOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        onClick={() => setIsOpen(false)}
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            zIndex: 1000,
+                            animation: 'fadeIn 0.2s ease-out',
+                        }}
+                    />
+                    
+                    {/* Menu Panel */}
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: '70px',
+                            right: 0,
+                            width: '280px',
+                            maxWidth: '85vw',
+                            height: 'calc(100vh - 70px)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.98)',
+                            backdropFilter: 'blur(20px)',
+                            borderLeft: '2px solid rgba(255, 140, 0, 0.3)',
+                            boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.5)',
+                            zIndex: 1001,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: '20px 0',
+                            animation: 'slideInRight 0.3s ease-out',
+                            overflowY: 'auto',
+                        }}
+                    >
+                        {navItems.map((item) => (
+                            <button
+                                key={item.label}
+                                onClick={() => handleNavClick(item.selector)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    fontSize: '16px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    padding: '16px 24px',
+                                    textAlign: 'left',
+                                    transition: 'all 0.2s ease',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    borderLeft: '3px solid transparent',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = '#ff8c00';
+                                    e.currentTarget.style.backgroundColor = 'rgba(255, 140, 0, 0.1)';
+                                    e.currentTarget.style.borderLeftColor = '#ff8c00';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderLeftColor = 'transparent';
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                        
+                        {/* PLAY Button in Menu */}
+                        <button
+                            onClick={handlePlayClick}
+                            style={{
+                                backgroundColor: '#ff8c00',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '16px 24px',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
+                                transition: 'all 0.2s ease',
+                                margin: '20px 24px 0',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ff9d1a';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ff8c00';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
+                            }}
+                        >
+                            PLAY
+                        </button>
+                    </div>
+                </>
+            )}
+        </>
+    );
+};
 
 interface LoginScreenProps {
     // Removed username/setUsername props
@@ -347,6 +506,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                         opacity: 1;
                     }
                 }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
             `}</style>
 
             {/* Sticky Navigation Bar */}
@@ -383,78 +550,128 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                     />
 
                     {/* Navigation Links */}
-                    <nav style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: isMobile ? '15px' : '30px',
-                        fontSize: isMobile ? '12px' : '14px',
-                    }}>
-                        {[
-                            { label: 'ABOUT', selector: '[data-about-section]' },
-                            { label: 'LOADOUT', selector: '[data-tools-section]' },
-                            { label: 'FEATURES', selector: '[data-features-section]' },
-                            { label: 'BLOG', selector: '[data-blog-section]' },
-                            { label: 'FAQ', selector: '[data-faq-section]' },
-                        ].map((item) => (
+                    {isMobile ? (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            {/* Play Now Button */}
                             <button
-                                key={item.label}
-                                onClick={() => smoothScrollTo(item.selector)}
+                                onClick={scrollToTop}
                                 style={{
-                                    background: 'none',
+                                    backgroundColor: '#ff8c00',
+                                    color: 'white',
                                     border: 'none',
-                                    color: 'rgba(255, 255, 255, 0.8)',
-                                    fontSize: 'inherit',
-                                    fontWeight: '600',
+                                    borderRadius: '6px',
+                                    padding: '8px 16px',
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
                                     cursor: 'pointer',
-                                    padding: '8px 12px',
-                                    transition: 'all 0.2s ease',
                                     textTransform: 'uppercase',
                                     letterSpacing: '1px',
+                                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
+                                    transition: 'all 0.2s ease',
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.color = '#ff8c00';
+                                    e.currentTarget.style.backgroundColor = '#ff9d1a';
                                     e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                    e.currentTarget.style.backgroundColor = '#ff8c00';
                                     e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
                                 }}
                             >
-                                {item.label}
+                                PLAY
                             </button>
-                        ))}
+                            <MobileNavMenu 
+                                navItems={[
+                                    { label: 'ABOUT', selector: '[data-about-section]' },
+                                    { label: 'LOADOUT', selector: '[data-tools-section]' },
+                                    { label: 'FEATURES', selector: '[data-features-section]' },
+                                    { label: 'BLOG', selector: '[data-blog-section]' },
+                                    { label: 'FAQ', selector: '[data-faq-section]' },
+                                ]}
+                                onNavigate={smoothScrollTo}
+                                onPlayClick={scrollToTop}
+                            />
+                        </div>
+                    ) : (
+                        <nav style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '30px',
+                            fontSize: '14px',
+                        }}>
+                            {[
+                                { label: 'ABOUT', selector: '[data-about-section]' },
+                                { label: 'LOADOUT', selector: '[data-tools-section]' },
+                                { label: 'FEATURES', selector: '[data-features-section]' },
+                                { label: 'BLOG', selector: '[data-blog-section]' },
+                                { label: 'FAQ', selector: '[data-faq-section]' },
+                            ].map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => smoothScrollTo(item.selector)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        fontSize: 'inherit',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        padding: '8px 12px',
+                                        transition: 'all 0.2s ease',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.color = '#ff8c00';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                    }}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
 
-                        {/* PLAY Button */}
-                        <button
-                            onClick={scrollToTop}
-                            style={{
-                                backgroundColor: '#ff8c00',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: isMobile ? '8px 16px' : '10px 24px',
-                                fontSize: isMobile ? '13px' : '15px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                textTransform: 'uppercase',
-                                letterSpacing: '1px',
-                                boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
-                                transition: 'all 0.2s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#ff9d1a';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#ff8c00';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
-                            }}
-                        >
-                            PLAY
-                        </button>
-                    </nav>
+                            {/* PLAY Button */}
+                            <button
+                                onClick={scrollToTop}
+                                style={{
+                                    backgroundColor: '#ff8c00',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '10px 24px',
+                                    fontSize: '15px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#ff9d1a';
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#ff8c00';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
+                                }}
+                            >
+                                PLAY
+                            </button>
+                        </nav>
+                    )}
                 </div>
             )}
 
@@ -616,34 +833,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     disabled={authIsLoading}
                                     onMouseEnter={(e) => {
                                         if (!authIsLoading) {
+                                            e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)';
+                                            e.currentTarget.style.borderColor = '#ff8c00';
                                             e.currentTarget.style.transform = 'translateY(-2px)';
-                                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.4), 0 0 20px rgba(139,69,19,0.3)';
+                                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 140, 0, 0.6)';
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         if (!authIsLoading) {
+                                            e.currentTarget.style.background = 'linear-gradient(135deg, #003366 0%, #00aaff 100%)';
+                                            e.currentTarget.style.borderColor = '#00aaff';
                                             e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4), 0 0 15px rgba(139,69,19,0.4)';
+                                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.4)';
                                         }
                                     }}
                                     style={{
                                         padding: '16px 32px',
-                                        border: '2px solid rgba(139, 69, 19, 0.6)',
-                                        background: 'linear-gradient(135deg, #8b4513, #654321)',
-                                        color: 'white',
-                                        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                        fontSize: '16px',
+                                        border: '2px solid #00aaff',
+                                        background: 'linear-gradient(135deg, #003366 0%, #00aaff 100%)',
+                                        color: '#ffffff',
+                                        fontFamily: "'Courier New', Consolas, Monaco, monospace",
+                                        fontSize: 'clamp(14px, 1.5vw, 16px)',
                                         fontWeight: 'bold',
                                         cursor: authIsLoading ? 'not-allowed' : 'pointer',
-                                        boxShadow: '0 4px 15px rgba(0,0,0,0.4), 0 0 15px rgba(139,69,19,0.4)',
+                                        boxShadow: '0 4px 15px rgba(0, 170, 255, 0.4)',
                                         display: 'inline-block',
                                         textTransform: 'uppercase',
                                         borderRadius: '8px',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        transition: 'all 0.3s ease',
                                         letterSpacing: '1px',
-                                        textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
+                                        textShadow: '0 0 5px rgba(255, 255, 255, 0.3)',
                                         position: 'relative',
                                         overflow: 'hidden',
+                                        opacity: authIsLoading ? 0.6 : 1,
                                     }}
                                 >
                                     Sign Out
@@ -999,10 +1221,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                         }}>
                             {userProfile && (
                                 <span style={{
-                                    fontSize: '10px',
-                                    color: '#ccc',
+                                    fontSize: 'clamp(14px, 2vw, 16px)',
+                                    color: '#ff8c00',
                                     display: 'block',
-                                    marginBottom: '8px'
+                                    marginBottom: '16px',
+                                    fontFamily: "'Courier New', Consolas, Monaco, monospace",
+                                    fontWeight: '600',
+                                    letterSpacing: '0.5px',
+                                    textShadow: '0 0 10px rgba(255, 140, 0, 0.5), 1px 1px 2px rgba(0,0,0,0.8)',
                                 }}>
                                     ({userProfile.email || userProfile.userId})
                                 </span>
@@ -1010,15 +1236,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                             <button
                                 onClick={logout}
                                 disabled={authIsLoading}
+                                onMouseEnter={(e) => {
+                                    if (!authIsLoading) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)';
+                                        e.currentTarget.style.borderColor = '#ff8c00';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 140, 0, 0.6)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!authIsLoading) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #003366 0%, #00aaff 100%)';
+                                        e.currentTarget.style.borderColor = '#00aaff';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.4)';
+                                    }
+                                }}
                                 style={{
-                                    padding: '5px 10px',
-                                    fontSize: '10px',
-                                    background: '#444',
-                                    color: 'white',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    padding: '12px 24px',
+                                    fontSize: 'clamp(13px, 1.5vw, 15px)',
+                                    background: 'linear-gradient(135deg, #003366 0%, #00aaff 100%)',
+                                    color: '#ffffff',
+                                    border: '2px solid #00aaff',
                                     cursor: authIsLoading ? 'not-allowed' : 'pointer',
-                                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                    borderRadius: '2px',
+                                    fontFamily: "'Courier New', Consolas, Monaco, monospace",
+                                    fontWeight: 'bold',
+                                    borderRadius: '8px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 4px 15px rgba(0, 170, 255, 0.4)',
+                                    textShadow: '0 0 5px rgba(255, 255, 255, 0.3)',
+                                    opacity: authIsLoading ? 0.6 : 1,
                                 }}
                             >
                                 Sign Out

@@ -32,13 +32,15 @@ const BlogFooter: React.FC = () => {
             backgroundColor: 'rgba(0, 0, 0, 0.95)',
             backdropFilter: 'blur(20px)',
             borderTop: '1px solid rgba(0, 170, 255, 0.3)',
-            padding: 'clamp(30px, 6vw, 60px) clamp(20px, 5vw, 40px) clamp(20px, 4vw, 40px) clamp(20px, 5vw, 40px)',
+            padding: isMobile 
+                ? '30px 20px 20px 20px' 
+                : 'clamp(30px, 6vw, 60px) clamp(20px, 5vw, 40px) clamp(20px, 4vw, 40px) clamp(20px, 5vw, 40px)',
             position: 'relative',
             zIndex: 3,
             width: '100%',
             boxSizing: 'border-box',
             overflowX: 'hidden',
-            marginTop: '60px',
+            marginTop: isMobile ? '40px' : '60px',
         }}>
             {/* Decorative line at top */}
             <div style={{
@@ -69,7 +71,7 @@ const BlogFooter: React.FC = () => {
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
-                gap: isMobile ? '40px' : '30px',
+                gap: isMobile ? '30px' : '30px',
                 maxWidth: '1200px',
                 margin: '0 auto',
                 alignItems: 'start',
@@ -85,9 +87,9 @@ const BlogFooter: React.FC = () => {
                         src="/images/blog/logo_new.png"
                         alt="Broth & Bullets Logo"
                         style={{
-                            width: '160px',
+                            width: isMobile ? '140px' : '160px',
                             height: 'auto',
-                            marginBottom: '20px',
+                            marginBottom: isMobile ? '15px' : '20px',
                             filter: 'none',
                             boxShadow: 'none',
                             border: 'none',
