@@ -372,15 +372,29 @@ const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.
 const MAX_TELEPORT_DISTANCE: f32 = 1200.0; // Increased from 800px for better lag tolerance and high frame rates
 const POSITION_UPDATE_TIMEOUT_MS: u64 = 30000; // 30 seconds (increased from 20s for very high ping)
 
-/// Calculate the maximum allowed movement speed for a player, accounting for exhausted effect
+/// Calculate the maximum allowed movement speed for a player, accounting for broth effects and exhausted effect
 fn get_max_movement_speed_for_player(ctx: &ReducerContext, player_id: Identity) -> f32 {
-    let has_exhausted_effect = player_has_exhausted_effect(ctx, player_id);
+    let mut speed_multiplier = 1.0;
     
+    // Exhausted effect (25% speed reduction when hunger/thirst/warmth is low)
+    let has_exhausted_effect = player_has_exhausted_effect(ctx, player_id);
     if has_exhausted_effect {
-        BASE_MAX_MOVEMENT_SPEED * EXHAUSTED_SPEED_PENALTY // 25% speed reduction when exhausted
-    } else {
-        BASE_MAX_MOVEMENT_SPEED
+        speed_multiplier *= EXHAUSTED_SPEED_PENALTY;
     }
+    
+    // <<< BROTH EFFECTS: SpeedBoost and Intoxicated >>>
+    // SpeedBoost broth gives 25% speed increase
+    if crate::active_effects::player_has_speed_boost_effect(ctx, player_id) {
+        speed_multiplier *= crate::active_effects::SPEED_BOOST_MULTIPLIER;
+    }
+    
+    // Intoxicated (drunk) broth gives 15% speed reduction (clumsy movement)
+    if crate::active_effects::player_has_intoxicated_effect(ctx, player_id) {
+        speed_multiplier *= crate::active_effects::INTOXICATED_SPEED_PENALTY;
+    }
+    // <<< END BROTH EFFECTS >>>
+    
+    BASE_MAX_MOVEMENT_SPEED * speed_multiplier
 }
 
 // === WALKING SOUND CONSTANTS ===

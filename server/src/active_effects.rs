@@ -64,16 +64,21 @@ pub enum EffectType {
     Fumarole, // Warmth protection from standing near a fumarole (nullifies warmth decay)
     SafeZone, // Protection from player/animal/projectile damage when near ALK monuments (shield emoji)
     
-    // === BREWING SYSTEM EFFECTS (stub implementations - logic to be added later) ===
-    Intoxicated,       // Drunk effect from alcoholic brews - blurred vision, movement wobble
+    // === BREWING SYSTEM EFFECTS - 1 hour buffs that don't persist through death ===
+    Intoxicated,       // Drunk effect from alcoholic brews - blurred vision, movement wobble (1 hour)
     Poisoned,          // Poison DOT from brews/coated weapons (distinct from Venom which is animal-based)
-    SpeedBoost,        // Movement speed increase from performance enhancer brews
-    StaminaBoost,      // Reduced hunger/thirst drain from performance enhancer brews
-    NightVision,       // Enhanced vision at night from psychoactive brews
-    WarmthBoost,       // Warmth protection bonus from warming broths
-    ColdResistance,    // Reduced cold damage from specialty brews
-    PoisonResistance,  // Reduced poison/venom damage from antidote brews
-    FireResistance,    // Reduced fire/burn damage from fire-resistant brews
+    SpeedBoost,        // Movement speed increase from performance enhancer brews (1 hour)
+    StaminaBoost,      // Reduced hunger/thirst drain from performance enhancer brews (1 hour)
+    NightVision,       // Enhanced vision at night from psychoactive brews (1 hour)
+    WarmthBoost,       // Warmth decay reduction from warming broths (1 hour)
+    ColdResistance,    // Reduced cold damage from specialty brews (1 hour)
+    PoisonResistance,  // Reduced poison/venom damage from antidote brews (1 hour)
+    FireResistance,    // Reduced fire/burn damage from fire-resistant brews (1 hour)
+    
+    // === ADDITIONAL BROTH EFFECTS ===
+    PoisonCoating,     // Poison weapon coating - all attacks inflict poison for X seconds (1 hour)
+    PassiveHealthRegen, // Slow passive health regeneration over time (1 hour, distinct from instant HealthRegen)
+    HarvestBoost,      // Mining/chopping efficacy bonus - extra yield per hit (1 hour)
 }
 
 // Table defining food poisoning risks for different food items
@@ -180,7 +185,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -282,14 +287,15 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             }
         }
         // --- Handle Other Progressive Effects (HealthRegen, Bleed, item-based Damage) ---
-        // Wet, WaterDrinking, and stub brewing effects don't need per-tick processing
-        // Stub brewing effects (Intoxicated, Poisoned, SpeedBoost, etc.) are time-based only
-        let is_stub_brewing_effect = matches!(effect.effect_type, 
-            EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | 
+        // Wet, WaterDrinking, and broth buff effects don't need per-tick processing (except PassiveHealthRegen)
+        // Broth buff effects (Intoxicated, SpeedBoost, etc.) are time-based flags only
+        let is_broth_buff_effect = matches!(effect.effect_type, 
+            EffectType::Intoxicated | EffectType::SpeedBoost | 
             EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | 
-            EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance);
+            EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
+            EffectType::PoisonCoating | EffectType::HarvestBoost);
         
-        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || is_stub_brewing_effect {
+        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || is_broth_buff_effect {
             // These effects are purely time-based, no per-tick processing needed
             // They just exist until they expire or are removed
             // Check for time-based expiration (this was missing, causing effects to persist indefinitely!)
@@ -349,6 +355,17 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                                 // Special handling for Venom: fixed damage per tick like SeawaterPoisoning
                                 if effect.effect_type == EffectType::Venom {
                                     amount_this_tick = 1.0; // Fixed 1 damage per tick for persistent venom
+                                    
+                                    // <<< BROTH EFFECT: PoisonResistance reduces venom damage by 75% >>>
+                                    if player_has_poison_resistance_effect(ctx, effect.player_id) {
+                                        let original_damage = amount_this_tick;
+                                        amount_this_tick *= (1.0 - POISON_RESISTANCE_REDUCTION);
+                                        log::info!(
+                                            "Player {:?} has PoisonResistance broth - venom damage reduced by {:.0}%: {:.1} -> {:.1}",
+                                            effect.player_id, POISON_RESISTANCE_REDUCTION * 100.0, original_damage, amount_this_tick
+                                        );
+                                    }
+                                    // <<< END BROTH EFFECT >>>
                                 }
                                 
                                 // <<< APPLY FIRE DAMAGE MULTIPLIER FOR BURN EFFECTS (WOODEN ARMOR VULNERABILITY) >>>
@@ -362,6 +379,17 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                                             effect.player_id, fire_multiplier, original_damage, amount_this_tick
                                         );
                                     }
+                                    
+                                    // <<< BROTH EFFECT: FireResistance reduces burn damage by 50% >>>
+                                    if player_has_fire_resistance_effect(ctx, effect.player_id) {
+                                        let original_damage = amount_this_tick;
+                                        amount_this_tick *= FIRE_RESISTANCE_REDUCTION;
+                                        log::info!(
+                                            "Player {:?} has FireResistance broth - burn damage reduced by {:.0}%: {:.1} -> {:.1}",
+                                            effect.player_id, (1.0 - FIRE_RESISTANCE_REDUCTION) * 100.0, original_damage, amount_this_tick
+                                        );
+                                    }
+                                    // <<< END BROTH EFFECT >>>
                                 }
                                 // <<< END FIRE DAMAGE MULTIPLIER >>>
                                 
@@ -429,16 +457,29 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             amount_this_tick = 0.0; // No effect yet
                         }
                         EffectType::Poisoned => {
-                            // TODO: Implement poison DOT from brews/coated weapons
+                            // Poison DOT from brews/coated weapons
                             // Similar to Venom but from brew-based poison
-                            // For now, treat like Venom (damage over time)
                             if player_to_update.is_knocked_out {
                                 amount_this_tick = 0.0;
                                 log::info!("[EffectTick] Knocked out player {:?} is immune to Poisoned damage.", effect.player_id);
                             } else {
-                                // Stub: Apply poison damage (same as Venom for now)
-                                amount_this_tick = 1.0; // Fixed 1 damage per tick (stub)
+                                // Apply poison damage (similar to Venom)
+                                amount_this_tick = POISON_DOT_DAMAGE_PER_TICK; // 2.0 damage per tick
+                                
+                                // <<< BROTH EFFECT: PoisonResistance reduces poison damage by 75% >>>
+                                if player_has_poison_resistance_effect(ctx, effect.player_id) {
+                                    let original_damage = amount_this_tick;
+                                    amount_this_tick *= (1.0 - POISON_RESISTANCE_REDUCTION);
+                                    log::info!(
+                                        "Player {:?} has PoisonResistance broth - poison damage reduced by {:.0}%: {:.1} -> {:.1}",
+                                        effect.player_id, POISON_RESISTANCE_REDUCTION * 100.0, original_damage, amount_this_tick
+                                    );
+                                }
+                                // <<< END BROTH EFFECT >>>
+                                
                                 player_to_update.health = (player_to_update.health - amount_this_tick).clamp(MIN_STAT_VALUE, MAX_HEALTH_VALUE);
+                                log::trace!("[EffectTick] Poisoned damage for Player {:?}: {:.1} HP (health now {:.1})",
+                                    effect.player_id, amount_this_tick, player_to_update.health);
                             }
                         }
                         EffectType::SpeedBoost => {
@@ -548,6 +589,28 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // This effect doesn't consume amount_applied_so_far
                             amount_this_tick = 0.0;
                         },
+                        // === ADDITIONAL BROTH EFFECTS ===
+                        EffectType::PoisonCoating => {
+                            // PoisonCoating makes all player attacks inflict poison on targets
+                            // The poison application is handled in combat.rs when attacks land
+                            // This effect is just a flag - no per-tick processing needed
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::PassiveHealthRegen => {
+                            // PassiveHealthRegen provides slow continuous health regeneration (1 hour buff)
+                            // Heals a small amount per tick over the full duration
+                            log::trace!("[EffectTick] PassiveHealthRegen for Player {:?}: Health {:.2}, AmountThisTick {:.2}",
+                                effect.player_id, player_to_update.health, amount_this_tick);
+                            player_to_update.health = (player_to_update.health + amount_this_tick).clamp(MIN_STAT_VALUE, MAX_HEALTH_VALUE);
+                            log::trace!("[EffectTick] PassiveHealthRegen Post-Heal for Player {:?}: Health now {:.2}",
+                                effect.player_id, player_to_update.health);
+                        },
+                        EffectType::HarvestBoost => {
+                            // HarvestBoost provides bonus yield from mining and chopping
+                            // The yield bonus is applied in tree/stone harvesting code
+                            // This effect is just a flag - no per-tick processing needed
+                            amount_this_tick = 0.0;
+                        },
                     }
 
                     if (player_to_update.health - old_health).abs() > f32::EPSILON {
@@ -573,16 +636,17 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                 }
 
         // Check if effect should end based on amount or time
-        // For SeawaterPoisoning, Venom, Wet, WaterDrinking, and stub brewing effects, only end based on time, not accumulated amount
-        // Stub brewing effects (Intoxicated, Poisoned, SpeedBoost, etc.) have total_amount = 0.0 and should only expire by time
-        let is_stub_brewing_effect = matches!(effect.effect_type, 
-            EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | 
+        // For SeawaterPoisoning, Venom, Wet, WaterDrinking, and broth buff effects, only end based on time, not accumulated amount
+        // Broth buff effects (Intoxicated, SpeedBoost, etc.) have total_amount = 0.0 and should only expire by time
+        let is_broth_buff_effect_end_check = matches!(effect.effect_type, 
+            EffectType::Intoxicated | EffectType::SpeedBoost | 
             EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | 
-            EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance);
+            EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
+            EffectType::PoisonCoating | EffectType::HarvestBoost);
         
         if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || 
            effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking ||
-           is_stub_brewing_effect {
+           is_broth_buff_effect_end_check {
             if current_time >= effect.ends_at {
                 effect_ended = true;
             }
@@ -1672,6 +1736,7 @@ pub fn cancel_venom_effects(ctx: &ReducerContext, player_id: Identity) {
 
 /// Clear all active effects for a player who has died
 /// This includes all damage-over-time effects, healing effects, and status effects
+/// CRITICAL: Broth effects do NOT persist through death!
 pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
     log::info!("[PlayerDeath] Clearing all active effects for deceased player {:?}", player_id);
     
@@ -1682,6 +1747,9 @@ pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
     // Clear all healing effects  
     cancel_health_regen_effects(ctx, player_id);
     cancel_bandage_burst_effects(ctx, player_id);
+    
+    // CRITICAL: Clear all broth effects - they don't persist through death!
+    clear_broth_effects_on_death(ctx, player_id);
     
     // Clear any other effects (burn, food poisoning, seawater poisoning, wet, exhausted, etc.)
     // BUT preserve BuildingPrivilege - it should persist across death
@@ -2243,4 +2311,674 @@ fn remove_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed safe zone effect {} from player {:?}", effect_id, player_id);
     }
+}
+
+// ============================================================================
+// BROTH EFFECT SYSTEM
+// ============================================================================
+// Broths provide powerful 1-hour buffs that DO NOT persist through death.
+// Effects are applied when consuming brewed items from the broth pot.
+
+/// Duration for broth effects in microseconds (1 hour = 3600 seconds)
+pub const BROTH_EFFECT_DURATION_MICROS: i64 = 3600 * 1_000_000;
+
+/// Broth effect magnitudes
+pub const SPEED_BOOST_MULTIPLIER: f32 = 1.25;         // 25% faster movement
+pub const STAMINA_BOOST_DRAIN_REDUCTION: f32 = 0.5;   // 50% reduced hunger/thirst drain
+pub const WARMTH_BOOST_DECAY_REDUCTION: f32 = 0.5;    // 50% reduced warmth decay
+pub const COLD_RESISTANCE_REDUCTION: f32 = 0.5;       // 50% reduced cold damage
+pub const FIRE_RESISTANCE_REDUCTION: f32 = 0.5;       // 50% reduced fire/burn damage
+pub const POISON_RESISTANCE_REDUCTION: f32 = 0.75;    // 75% reduced poison/venom damage
+pub const HARVEST_BOOST_MULTIPLIER: f32 = 1.5;        // 50% bonus yield from mining/chopping
+pub const INTOXICATED_SPEED_PENALTY: f32 = 0.85;      // 15% slower movement when drunk
+pub const PASSIVE_HEALTH_REGEN_TOTAL: f32 = 50.0;     // Total health regenerated over 1 hour (slow regen)
+pub const POISON_DOT_DAMAGE_PER_TICK: f32 = 2.0;      // Damage per tick for poisoned status
+pub const POISON_COATING_DURATION_SECS: f32 = 10.0;   // Duration of poison inflicted by coated weapons
+
+// ============================================================================
+// APPLY FUNCTIONS FOR BROTH EFFECTS
+// ============================================================================
+
+/// Applies a broth effect to a player based on the brew category
+/// Called when consuming AI-generated brews
+/// 
+/// === BROTH EFFECT CATEGORIES (1-hour buffs, cleared on death) ===
+/// - alcoholic: Intoxicated (drunk effect, 15% speed penalty)
+/// - poison: Poisoned (DOT, self-harm for assassination attempts gone wrong)
+/// - performance_enhancer: SpeedBoost (25% faster) + StaminaBoost (50% reduced drain)
+/// - psychoactive: NightVision (enhanced night vision)
+/// - warming_broth: WarmthBoost (50% reduced warmth decay)
+/// - cold_resistant_brew: ColdResistance (50% reduced cold damage)
+/// - fire_resistant_brew: FireResistance (50% reduced fire/burn damage)
+/// - antidote_brew: PoisonResistance (75% reduced poison/venom damage, clears existing poison)
+/// - endurance_broth: StaminaBoost (50% reduced hunger/thirst drain)
+/// - healing_elixir: PassiveHealthRegen (slow 1-hour health regeneration)
+/// - harvester_brew: HarvestBoost (50% bonus mining/chopping yield)
+/// - weapon_coating: PoisonCoating (attacks inflict poison on targets)
+pub fn apply_broth_effect_from_category(
+    ctx: &ReducerContext, 
+    player_id: Identity, 
+    category: &str,
+    item_def_id: u64,
+) -> Result<(), String> {
+    match category {
+        "alcoholic" => apply_intoxicated_effect(ctx, player_id, item_def_id),
+        "poison" => {
+            // Poison brews apply poison DOT to the consumer (self-harm for assassination attempts gone wrong)
+            apply_poisoned_effect(ctx, player_id, item_def_id, 30.0) // 30 second poison
+        },
+        "performance_enhancer" => {
+            // Performance enhancers give both speed and stamina boosts
+            apply_speed_boost_effect(ctx, player_id, item_def_id)?;
+            apply_stamina_boost_effect(ctx, player_id, item_def_id)
+        },
+        "psychoactive" => apply_night_vision_effect(ctx, player_id, item_def_id),
+        
+        // === NEW BROTH CATEGORIES (1-hour buffs, cleared on death) ===
+        "warming_broth" => apply_warmth_boost_effect(ctx, player_id, item_def_id),
+        "cold_resistant_brew" => apply_cold_resistance_effect(ctx, player_id, item_def_id),
+        "fire_resistant_brew" => apply_fire_resistance_effect(ctx, player_id, item_def_id),
+        "antidote_brew" => apply_poison_resistance_effect(ctx, player_id, item_def_id),
+        "endurance_broth" => apply_stamina_boost_effect(ctx, player_id, item_def_id),
+        "healing_elixir" => apply_passive_health_regen_effect(ctx, player_id, item_def_id),
+        "harvester_brew" => apply_harvest_boost_effect(ctx, player_id, item_def_id),
+        "weapon_coating" => apply_poison_coating_effect(ctx, player_id, item_def_id),
+        
+        "utility_brew" => {
+            // Utility brews check for specific effect types from AI
+            // For now, default to passive health regen
+            apply_passive_health_regen_effect(ctx, player_id, item_def_id)
+        },
+        _ => {
+            // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological
+            // These don't apply special effects - their benefits are from consumable stats only
+            log::debug!("[BrothEffect] Category '{}' has no special effect - using consumable stats", category);
+            Ok(())
+        }
+    }
+}
+
+/// Applies a specific broth effect based on effect type string from AI
+pub fn apply_broth_effect_from_type(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    effect_type_str: &str,
+    item_def_id: u64,
+) -> Result<(), String> {
+    match effect_type_str {
+        "Intoxicated" => apply_intoxicated_effect(ctx, player_id, item_def_id),
+        "Poisoned" => apply_poisoned_effect(ctx, player_id, item_def_id, 30.0),
+        "SpeedBoost" => apply_speed_boost_effect(ctx, player_id, item_def_id),
+        "StaminaBoost" => apply_stamina_boost_effect(ctx, player_id, item_def_id),
+        "NightVision" => apply_night_vision_effect(ctx, player_id, item_def_id),
+        "WarmthBoost" => apply_warmth_boost_effect(ctx, player_id, item_def_id),
+        "ColdResistance" => apply_cold_resistance_effect(ctx, player_id, item_def_id),
+        "PoisonResistance" => apply_poison_resistance_effect(ctx, player_id, item_def_id),
+        "FireResistance" => apply_fire_resistance_effect(ctx, player_id, item_def_id),
+        "PoisonCoating" => apply_poison_coating_effect(ctx, player_id, item_def_id),
+        "PassiveHealthRegen" => apply_passive_health_regen_effect(ctx, player_id, item_def_id),
+        "HarvestBoost" => apply_harvest_boost_effect(ctx, player_id, item_def_id),
+        _ => {
+            log::warn!("[BrothEffect] Unknown effect type: {}", effect_type_str);
+            Ok(())
+        }
+    }
+}
+
+/// Applies intoxicated (drunk) effect - movement wobble, visual effects
+pub fn apply_intoxicated_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    // Remove any existing intoxicated effect first (refresh)
+    cancel_broth_effect(ctx, player_id, EffectType::Intoxicated);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0), // No accumulation needed
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::Intoxicated,
+        tick_interval_micros: 1_000_000, // 1 second
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied Intoxicated effect {} to player {:?} (1 hour)", e.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply Intoxicated effect: {:?}", e);
+            Err("Failed to apply intoxicated effect".to_string())
+        }
+    }
+}
+
+/// Applies poisoned DOT effect - damage over time from consuming poison or being hit by poisoned weapons
+pub fn apply_poisoned_effect(
+    ctx: &ReducerContext, 
+    player_id: Identity, 
+    item_def_id: u64,
+    duration_secs: f32,
+) -> Result<(), String> {
+    // NOTE: Poison resistance is applied per-tick in process_active_consumable_effects_tick
+    // Do NOT reduce duration here to avoid double-dipping the resistance bonus
+    // The 75% damage reduction per tick is the intended resistance behavior
+    
+    if duration_secs < 1.0 {
+        log::info!("[BrothEffect] Poison duration too short for player {:?}", player_id);
+        return Ok(());
+    }
+    
+    let current_time = ctx.timestamp;
+    let duration_micros = (duration_secs * 1_000_000.0) as i64;
+    let ends_at = current_time + TimeDuration::from_micros(duration_micros);
+    let total_damage = POISON_DOT_DAMAGE_PER_TICK * duration_secs;
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(total_damage),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::Poisoned,
+        tick_interval_micros: 1_000_000, // 1 damage tick per second
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied Poisoned effect {} to player {:?} ({:.1}s, {:.1} total damage)", 
+                e.effect_id, player_id, duration_secs, total_damage);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply Poisoned effect: {:?}", e);
+            Err("Failed to apply poisoned effect".to_string())
+        }
+    }
+}
+
+/// Applies speed boost effect - 25% faster movement for 1 hour
+pub fn apply_speed_boost_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::SpeedBoost);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::SpeedBoost,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied SpeedBoost effect {} to player {:?} (1 hour, {}x speed)", 
+                e.effect_id, player_id, SPEED_BOOST_MULTIPLIER);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply SpeedBoost effect: {:?}", e);
+            Err("Failed to apply speed boost effect".to_string())
+        }
+    }
+}
+
+/// Applies stamina boost effect - 50% reduced hunger/thirst drain for 1 hour
+pub fn apply_stamina_boost_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::StaminaBoost);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::StaminaBoost,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied StaminaBoost effect {} to player {:?} (1 hour, {}x drain)", 
+                e.effect_id, player_id, STAMINA_BOOST_DRAIN_REDUCTION);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply StaminaBoost effect: {:?}", e);
+            Err("Failed to apply stamina boost effect".to_string())
+        }
+    }
+}
+
+/// Applies night vision effect - enhanced vision at night for 1 hour
+pub fn apply_night_vision_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::NightVision);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::NightVision,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied NightVision effect {} to player {:?} (1 hour)", e.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply NightVision effect: {:?}", e);
+            Err("Failed to apply night vision effect".to_string())
+        }
+    }
+}
+
+/// Applies warmth boost effect - 50% reduced warmth decay for 1 hour
+pub fn apply_warmth_boost_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::WarmthBoost);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::WarmthBoost,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied WarmthBoost effect {} to player {:?} (1 hour, {}x decay)", 
+                e.effect_id, player_id, WARMTH_BOOST_DECAY_REDUCTION);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply WarmthBoost effect: {:?}", e);
+            Err("Failed to apply warmth boost effect".to_string())
+        }
+    }
+}
+
+/// Applies cold resistance effect - 50% reduced cold damage for 1 hour
+pub fn apply_cold_resistance_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::ColdResistance);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::ColdResistance,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied ColdResistance effect {} to player {:?} (1 hour, {}x damage)", 
+                e.effect_id, player_id, COLD_RESISTANCE_REDUCTION);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply ColdResistance effect: {:?}", e);
+            Err("Failed to apply cold resistance effect".to_string())
+        }
+    }
+}
+
+/// Applies poison resistance effect - 75% reduced poison/venom damage for 1 hour (acts as antidote)
+pub fn apply_poison_resistance_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    // Cancel existing poison effects when gaining resistance (antidote behavior)
+    cancel_broth_effect(ctx, player_id, EffectType::Poisoned);
+    cancel_venom_effects(ctx, player_id);
+    cancel_broth_effect(ctx, player_id, EffectType::PoisonResistance);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::PoisonResistance,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied PoisonResistance effect {} to player {:?} (1 hour, antidote + {}x damage)", 
+                e.effect_id, player_id, POISON_RESISTANCE_REDUCTION);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply PoisonResistance effect: {:?}", e);
+            Err("Failed to apply poison resistance effect".to_string())
+        }
+    }
+}
+
+/// Applies fire resistance effect - 50% reduced fire/burn damage for 1 hour
+pub fn apply_fire_resistance_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::FireResistance);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::FireResistance,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied FireResistance effect {} to player {:?} (1 hour, {}x damage)", 
+                e.effect_id, player_id, FIRE_RESISTANCE_REDUCTION);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply FireResistance effect: {:?}", e);
+            Err("Failed to apply fire resistance effect".to_string())
+        }
+    }
+}
+
+/// Applies poison coating effect - all attacks inflict poison on targets for 1 hour
+pub fn apply_poison_coating_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::PoisonCoating);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::PoisonCoating,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied PoisonCoating effect {} to player {:?} (1 hour, attacks inflict {}s poison)", 
+                e.effect_id, player_id, POISON_COATING_DURATION_SECS);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply PoisonCoating effect: {:?}", e);
+            Err("Failed to apply poison coating effect".to_string())
+        }
+    }
+}
+
+/// Applies passive health regen effect - slow health regeneration over 1 hour
+pub fn apply_passive_health_regen_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::PassiveHealthRegen);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(PASSIVE_HEALTH_REGEN_TOTAL),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::PassiveHealthRegen,
+        tick_interval_micros: 1_000_000, // Heal a tiny bit each second
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied PassiveHealthRegen effect {} to player {:?} (1 hour, {:.1} total HP)", 
+                e.effect_id, player_id, PASSIVE_HEALTH_REGEN_TOTAL);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply PassiveHealthRegen effect: {:?}", e);
+            Err("Failed to apply passive health regen effect".to_string())
+        }
+    }
+}
+
+/// Applies harvest boost effect - 50% bonus yield from mining/chopping for 1 hour
+pub fn apply_harvest_boost_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    cancel_broth_effect(ctx, player_id, EffectType::HarvestBoost);
+    
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BROTH_EFFECT_DURATION_MICROS);
+    
+    let effect = ActiveConsumableEffect {
+        effect_id: 0,
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0),
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::HarvestBoost,
+        tick_interval_micros: 1_000_000,
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrothEffect] Applied HarvestBoost effect {} to player {:?} (1 hour, {}x yield)", 
+                e.effect_id, player_id, HARVEST_BOOST_MULTIPLIER);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrothEffect] Failed to apply HarvestBoost effect: {:?}", e);
+            Err("Failed to apply harvest boost effect".to_string())
+        }
+    }
+}
+
+// ============================================================================
+// CHECK FUNCTIONS FOR BROTH EFFECTS
+// ============================================================================
+
+/// Checks if a player has the intoxicated (drunk) effect
+pub fn player_has_intoxicated_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Intoxicated)
+}
+
+/// Checks if a player has the speed boost effect
+pub fn player_has_speed_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::SpeedBoost)
+}
+
+/// Checks if a player has the stamina boost effect
+pub fn player_has_stamina_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::StaminaBoost)
+}
+
+/// Checks if a player has the night vision effect
+pub fn player_has_night_vision_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::NightVision)
+}
+
+/// Checks if a player has the warmth boost effect
+pub fn player_has_warmth_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::WarmthBoost)
+}
+
+/// Checks if a player has the cold resistance effect
+pub fn player_has_cold_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::ColdResistance)
+}
+
+/// Checks if a player has the poison resistance effect
+pub fn player_has_poison_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PoisonResistance)
+}
+
+/// Checks if a player has the fire resistance effect
+pub fn player_has_fire_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::FireResistance)
+}
+
+/// Checks if a player has the poison coating effect
+pub fn player_has_poison_coating_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PoisonCoating)
+}
+
+/// Checks if a player has the passive health regen effect
+pub fn player_has_passive_health_regen_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PassiveHealthRegen)
+}
+
+/// Checks if a player has the harvest boost effect
+pub fn player_has_harvest_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::HarvestBoost)
+}
+
+/// Checks if a player has the poisoned status effect
+pub fn player_has_poisoned_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Poisoned)
+}
+
+// ============================================================================
+// HELPER FUNCTIONS FOR BROTH EFFECTS
+// ============================================================================
+
+/// Cancels a specific broth effect type for a player
+pub fn cancel_broth_effect(ctx: &ReducerContext, player_id: Identity, effect_type: EffectType) {
+    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().iter()
+        .filter(|e| e.player_id == player_id && e.effect_type == effect_type)
+        .map(|e| e.effect_id)
+        .collect();
+
+    for effect_id in effects_to_cancel {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("[BrothEffect] Cancelled {:?} effect {} for player {:?}", effect_type, effect_id, player_id);
+    }
+}
+
+/// Cancels all poisoned effects for a player (used by antivenom/poison resistance)
+pub fn cancel_poisoned_effects(ctx: &ReducerContext, player_id: Identity) {
+    cancel_broth_effect(ctx, player_id, EffectType::Poisoned);
+}
+
+/// Clears all broth buff effects on player death (they don't persist through death)
+/// Called from clear_all_effects_on_death
+pub fn clear_broth_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
+    let broth_effect_types = [
+        EffectType::Intoxicated,
+        EffectType::Poisoned,
+        EffectType::SpeedBoost,
+        EffectType::StaminaBoost,
+        EffectType::NightVision,
+        EffectType::WarmthBoost,
+        EffectType::ColdResistance,
+        EffectType::PoisonResistance,
+        EffectType::FireResistance,
+        EffectType::PoisonCoating,
+        EffectType::PassiveHealthRegen,
+        EffectType::HarvestBoost,
+    ];
+    
+    for effect_type in broth_effect_types {
+        cancel_broth_effect(ctx, player_id, effect_type);
+    }
+    log::info!("[BrothEffect] Cleared all broth effects on death for player {:?}", player_id);
 }

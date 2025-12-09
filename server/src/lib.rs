@@ -111,6 +111,7 @@ mod projectile; // Add this line
 mod death_marker; // <<< ADDED death marker module
 mod torch; // <<< ADDED torch module
 mod flashlight; // <<< ADDED flashlight module
+mod headlamp; // <<< ADDED headlamp module
 mod respawn; // <<< ADDED respawn module
 mod player_collision; // <<< ADDED player_collision module
 mod shelter; // <<< ADDED shelter module
@@ -342,6 +343,9 @@ pub use torch::toggle_torch;
 // ADD: Re-export flashlight reducer for client bindings
 pub use flashlight::toggle_flashlight;
 
+// ADD: Re-export headlamp reducer for client bindings
+pub use headlamp::toggle_headlamp;
+
 // Import Table Traits needed in this module
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
@@ -567,6 +571,7 @@ pub struct Player {
     pub is_online: bool, // <<< ADDED
     pub is_torch_lit: bool, // <<< ADDED: Tracks if the player's torch is currently lit
     pub is_flashlight_on: bool, // <<< ADDED: Tracks if the player's flashlight is currently on
+    pub is_headlamp_lit: bool, // <<< ADDED: Tracks if the player's headlamp is currently lit (head armor)
     pub flashlight_aim_angle: f32, // Angle in radians for flashlight direction (synced for all players)
     pub last_consumed_at: Option<Timestamp>, // <<< ADDED: Tracks when a player last consumed an item
     pub is_crouching: bool, // RENAMED: For crouching speed control
@@ -1325,6 +1330,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         is_online: true, // <<< Keep this for BRAND NEW players
         is_torch_lit: false, // Initialize to false
         is_flashlight_on: false, // Initialize to false
+        is_headlamp_lit: false, // Initialize to false
         flashlight_aim_angle: 0.0, // Initialize to 0 radians (pointing right)
         last_consumed_at: None, // Initialize last_consumed_at
         is_crouching: false, // Initialize is_crouching

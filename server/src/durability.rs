@@ -46,6 +46,15 @@ pub const FLASHLIGHT_TOTAL_DURATION_SECS: f32 = 1800.0;
 /// 100 durability / 360 ticks ≈ 0.278 per tick
 pub const FLASHLIGHT_DURABILITY_LOSS_PER_TICK: f32 = MAX_DURABILITY / (FLASHLIGHT_TOTAL_DURATION_SECS / TORCH_DURABILITY_TICK_INTERVAL_SECS as f32);
 
+/// Total headlamp duration in seconds (30 minutes = 1800 seconds - same as flashlight)
+/// Headlamp uses tallow fuel and lasts longer than a torch
+pub const HEADLAMP_TOTAL_DURATION_SECS: f32 = 1800.0;
+
+/// Durability lost per headlamp tick
+/// With 5-second ticks over 1800 seconds = 360 ticks
+/// 100 durability / 360 ticks ≈ 0.278 per tick
+pub const HEADLAMP_DURABILITY_LOSS_PER_TICK: f32 = MAX_DURABILITY / (HEADLAMP_TOTAL_DURATION_SECS / TORCH_DURABILITY_TICK_INTERVAL_SECS as f32);
+
 /// Food spoilage tick interval in seconds (check every 5 minutes = 300 seconds)
 /// Longer interval than torches since food spoils much slower
 pub const FOOD_SPOILAGE_TICK_INTERVAL_SECS: u64 = 300;
@@ -618,12 +627,128 @@ pub fn process_torch_durability(ctx: &ReducerContext, _args: TorchDurabilitySche
         }
     }
     
-    if torch_processed_count > 0 || torch_burned_out_count > 0 || flashlight_processed_count > 0 || flashlight_dead_count > 0 {
-        log::debug!("[LightDurability] Processed {} torches ({} burned out), {} flashlights ({} battery dead)", 
-            torch_processed_count, torch_burned_out_count, flashlight_processed_count, flashlight_dead_count);
+    // === PROCESS HEADLAMPS ===
+    // Collect players with lit headlamps to process
+    let mut headlamp_processed_count = 0;
+    let mut headlamp_burned_out_count = 0;
+    
+    let headlamp_players: Vec<_> = players_table.iter()
+        .filter(|p| p.is_headlamp_lit && !p.is_dead && !p.is_knocked_out)
+        .collect();
+    
+    for player in headlamp_players {
+        // Get player's active equipment
+        let equipment = match active_equipments.player_identity().find(&player.identity) {
+            Some(eq) => eq,
+            None => continue,
+        };
+        
+        // Check if player has something equipped in head slot
+        let head_instance_id = match equipment.head_item_instance_id {
+            Some(id) => id,
+            None => {
+                // Player has headlamp lit but nothing in head slot - turn off headlamp
+                log::warn!("[HeadlampDurability] Player {:?} has is_headlamp_lit=true but nothing in head slot, turning off", 
+                    player.identity);
+                if let Some(mut p) = players_table.identity().find(&player.identity) {
+                    p.is_headlamp_lit = false;
+                    p.last_update = ctx.timestamp;
+                    players_table.identity().update(p);
+                }
+                continue;
+            }
+        };
+        
+        // Get the head armor item
+        let head_item = match inventory_items.instance_id().find(head_instance_id) {
+            Some(item) => item,
+            None => continue,
+        };
+        
+        // Get item definition
+        let item_def = match item_defs.id().find(head_item.item_def_id) {
+            Some(def) => def,
+            None => continue,
+        };
+        
+        // Only process if the head item is actually a Headlamp
+        if item_def.name != "Headlamp" {
+            // Player has headlamp lit but wearing something else - turn off headlamp
+            log::debug!("[HeadlampDurability] Player {:?} has is_headlamp_lit=true but wearing '{}', turning off", 
+                player.identity, item_def.name);
+            if let Some(mut p) = players_table.identity().find(&player.identity) {
+                p.is_headlamp_lit = false;
+                p.last_update = ctx.timestamp;
+                players_table.identity().update(p);
+            }
+            continue;
+        }
+        
+        // Reduce headlamp durability
+        match reduce_headlamp_durability(ctx, head_instance_id) {
+            Ok(burned_out) => {
+                headlamp_processed_count += 1;
+                
+                if burned_out {
+                    headlamp_burned_out_count += 1;
+                    
+                    // Extinguish the headlamp
+                    if let Some(mut p) = players_table.identity().find(&player.identity) {
+                        p.is_headlamp_lit = false;
+                        p.last_update = ctx.timestamp;
+                        players_table.identity().update(p);
+                        log::info!("[HeadlampDurability] Player {:?}'s headlamp burned out and was extinguished", 
+                            player.identity);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("[HeadlampDurability] Error reducing durability for headlamp {}: {}", 
+                    head_instance_id, e);
+            }
+        }
+    }
+    
+    if torch_processed_count > 0 || torch_burned_out_count > 0 || flashlight_processed_count > 0 || flashlight_dead_count > 0 || headlamp_processed_count > 0 || headlamp_burned_out_count > 0 {
+        log::debug!("[LightDurability] Processed {} torches ({} burned out), {} flashlights ({} battery dead), {} headlamps ({} burned out)", 
+            torch_processed_count, torch_burned_out_count, flashlight_processed_count, flashlight_dead_count, headlamp_processed_count, headlamp_burned_out_count);
     }
     
     Ok(())
+}
+
+/// Reduces headlamp durability (called by scheduler)
+/// Returns Ok(true) if the headlamp burned out
+fn reduce_headlamp_durability(
+    ctx: &ReducerContext,
+    item_instance_id: u64,
+) -> Result<bool, String> {
+    let inventory_items = ctx.db.inventory_item();
+    
+    let mut item = inventory_items.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Headlamp {} not found", item_instance_id))?;
+    
+    // Initialize durability if not set
+    ensure_durability_initialized(&mut item);
+    
+    // Get current durability
+    let current_durability = get_durability(&item).unwrap_or(MAX_DURABILITY);
+    let new_durability = (current_durability - HEADLAMP_DURABILITY_LOSS_PER_TICK).max(0.0);
+    
+    // Update durability
+    set_durability(&mut item, new_durability);
+    inventory_items.instance_id().update(item);
+    
+    let headlamp_burned_out = new_durability <= 0.0;
+    
+    if headlamp_burned_out {
+        log::info!("[Durability] Headlamp {} burned out! Durability depleted.", item_instance_id);
+    } else {
+        log::debug!("[Durability] Headlamp {} durability: {:.1} -> {:.1}", 
+            item_instance_id, current_durability, new_durability);
+    }
+    
+    Ok(headlamp_burned_out)
 }
 
 /// Checks if an item is stored in a refrigerator (skips spoilage)

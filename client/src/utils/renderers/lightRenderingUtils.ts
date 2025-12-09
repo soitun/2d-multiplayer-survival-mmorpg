@@ -225,6 +225,105 @@ export const renderPlayerTorchLight = ({
     }
 }; 
 
+// --- Headlamp Light Constants (tallow-based fire light, slightly larger than torch for good coverage) ---
+export const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 1.3; // Larger than torch for better coverage
+export const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 0.8; // Slightly less flicker (more stable head mount)
+
+interface RenderPlayerHeadlampLightProps {
+    ctx: CanvasRenderingContext2D;
+    player: SpacetimeDBPlayer;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    renderPositionX?: number;
+    renderPositionY?: number;
+    // Indoor light containment - prevents light from spilling outside enclosed buildings
+    buildingClusters?: Map<string, BuildingCluster>;
+}
+
+/**
+ * Renders fire-like light for the headlamp (tallow-burning head lamp)
+ * Similar to torch but positioned at player center (head), with good coverage radius
+ */
+export const renderPlayerHeadlampLight = ({
+    ctx,
+    player,
+    cameraOffsetX,
+    cameraOffsetY,
+    renderPositionX,
+    renderPositionY,
+    buildingClusters,
+}: RenderPlayerHeadlampLightProps) => {
+    if (!player.isHeadlampLit || !player.identity) {
+        return; // Not lit or no identity, nothing to render
+    }
+
+    const lightCenterX = renderPositionX ?? player.positionX;
+    const lightCenterY = renderPositionY ?? player.positionY;
+    
+    // Apply indoor clipping if player is inside an enclosed building
+    const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
+    
+    const lightScreenX = lightCenterX + cameraOffsetX;
+    const lightScreenY = lightCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * HEADLAMP_FLICKER_AMOUNT;
+
+    // Add subtle asymmetry for organic fire feel (less than torch since head is steadier)
+    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.2;
+    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.15;
+    const flickerLightX = lightScreenX + asymmetryX;
+    const flickerLightY = lightScreenY + asymmetryY;
+
+    // Layer 1: Large ambient glow (tallow burning - warm golden amber)
+    const ambientRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 3.0 + baseFlicker * 0.4);
+    const ambientGradient = ctx.createRadialGradient(
+        flickerLightX, flickerLightY, 0,
+        flickerLightX, flickerLightY, ambientRadius
+    );
+    ambientGradient.addColorStop(0, 'rgba(245, 180, 100, 0.05)'); // Warm tallow golden
+    ambientGradient.addColorStop(0.3, 'rgba(230, 150, 80, 0.03)'); // Amber glow
+    ambientGradient.addColorStop(1, 'rgba(210, 120, 60, 0)'); // Golden fade
+    
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(flickerLightX, flickerLightY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (good coverage for wandering at night)
+    const mainRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 2.0 + baseFlicker * 0.8);
+    const mainGradient = ctx.createRadialGradient(
+        flickerLightX, flickerLightY, 0,
+        flickerLightX, flickerLightY, mainRadius
+    );
+    mainGradient.addColorStop(0, 'rgba(250, 210, 140, 0.18)'); // Bright tallow center
+    mainGradient.addColorStop(0.2, 'rgba(240, 180, 100, 0.14)'); // Rich golden amber
+    mainGradient.addColorStop(0.5, 'rgba(225, 150, 80, 0.09)'); // Warm orange-gold
+    mainGradient.addColorStop(0.8, 'rgba(210, 130, 60, 0.04)'); // Soft orange
+    mainGradient.addColorStop(1, 'rgba(200, 110, 50, 0)'); // Golden fade
+    
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(flickerLightX, flickerLightY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (flame center)
+    const coreRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 0.6 + baseFlicker * 1.0);
+    const coreGradient = ctx.createRadialGradient(
+        flickerLightX, flickerLightY, 0,
+        flickerLightX, flickerLightY, coreRadius
+    );
+    coreGradient.addColorStop(0, 'rgba(255, 235, 180, 0.26)'); // Bright tallow flame center
+    coreGradient.addColorStop(0.4, 'rgba(245, 200, 130, 0.18)'); // Golden yellow
+    coreGradient.addColorStop(1, 'rgba(230, 170, 100, 0)'); // Amber fade
+    
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Restore context if we applied a clip
+    if (restoreClip) restoreClip();
+};
+
 // --- Flashlight Light Constants (AAA pixel art style - narrow, long beam) ---
 export const FLASHLIGHT_BEAM_LENGTH = 650; // Very long reach for exploration
 export const FLASHLIGHT_BEAM_ANGLE = Math.PI / 7; // ~25 degrees - narrow focused beam

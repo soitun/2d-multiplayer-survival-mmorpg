@@ -296,6 +296,14 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                 player_id, HUNGER_DRAIN_MULTIPLIER_LOW_WARMTH, hunger_drain_rate);
         }
         
+        // <<< BROTH EFFECT: StaminaBoost reduces hunger drain by 50% >>>
+        if crate::active_effects::player_has_stamina_boost_effect(ctx, player_id) {
+            hunger_drain_rate *= crate::active_effects::STAMINA_BOOST_DRAIN_REDUCTION;
+            log::trace!("Player {:?} has StaminaBoost broth - hunger drain reduced by {:.0}% to {:.4}/sec", 
+                player_id, (1.0 - crate::active_effects::STAMINA_BOOST_DRAIN_REDUCTION) * 100.0, hunger_drain_rate);
+        }
+        // <<< END BROTH EFFECT >>>
+        
         let new_hunger = (player.hunger - (elapsed_seconds * hunger_drain_rate)).max(0.0).min(PLAYER_MAX_HUNGER);
         
         // Calculate thirst drain with tree cover reduction
@@ -305,6 +313,15 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             log::trace!("Player {:?} has tree cover - thirst drain reduced by {:.0}% to {:.4}/sec", 
                 player_id, (1.0 - TREE_COVER_HYDRATION_REDUCTION_MULTIPLIER) * 100.0, thirst_drain_rate);
         }
+        
+        // <<< BROTH EFFECT: StaminaBoost reduces thirst drain by 50% >>>
+        if crate::active_effects::player_has_stamina_boost_effect(ctx, player_id) {
+            thirst_drain_rate *= crate::active_effects::STAMINA_BOOST_DRAIN_REDUCTION;
+            log::trace!("Player {:?} has StaminaBoost broth - thirst drain reduced by {:.0}% to {:.4}/sec", 
+                player_id, (1.0 - crate::active_effects::STAMINA_BOOST_DRAIN_REDUCTION) * 100.0, thirst_drain_rate);
+        }
+        // <<< END BROTH EFFECT >>>
+        
         let new_thirst = (player.thirst - (elapsed_seconds * thirst_drain_rate)).max(0.0).min(PLAYER_MAX_THIRST);
 
         // Calculate Warmth
@@ -327,7 +344,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         // Tundra and Alpine biomes have faster warmth decay (get colder faster)
         // This multiplier only affects NEGATIVE warmth changes - daytime warmth gain is unaffected
         let biome_multiplier = get_biome_warmth_multiplier(ctx, player.position_x, player.position_y);
-        let biome_adjusted_warmth_change = if base_warmth_change_per_sec < 0.0 && biome_multiplier > 1.0 {
+        let mut biome_adjusted_warmth_change = if base_warmth_change_per_sec < 0.0 && biome_multiplier > 1.0 {
             let adjusted = base_warmth_change_per_sec * biome_multiplier;
             log::trace!(
                 "Player {:?} in cold biome - warmth decay multiplied by {:.1}x (from {:.3} to {:.3} warmth/sec)",
@@ -338,6 +355,15 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             base_warmth_change_per_sec
         };
         // <<< END BIOME-BASED WARMTH DECAY MULTIPLIER >>>
+        
+        // <<< BROTH EFFECT: WarmthBoost reduces warmth decay by 50% >>>
+        if biome_adjusted_warmth_change < 0.0 && crate::active_effects::player_has_warmth_boost_effect(ctx, player_id) {
+            let original = biome_adjusted_warmth_change;
+            biome_adjusted_warmth_change *= crate::active_effects::WARMTH_BOOST_DECAY_REDUCTION;
+            log::trace!("Player {:?} has WarmthBoost broth - warmth decay reduced by {:.0}% (from {:.3} to {:.3} warmth/sec)",
+                player_id, (1.0 - crate::active_effects::WARMTH_BOOST_DECAY_REDUCTION) * 100.0, original, biome_adjusted_warmth_change);
+        }
+        // <<< END BROTH EFFECT >>>
 
         // Apply indoor warmth protection to reduce cold drain (but not eliminate it)
         let mut total_warmth_change_per_sec = biome_adjusted_warmth_change;
@@ -542,6 +568,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                     log::trace!("Player {:?} has {:.1}% cold resistance from armor, reducing cold damage to {:.3}/sec", 
                         player_id, cold_resistance * 100.0, cold_damage);
                 }
+                // <<< BROTH EFFECT: ColdResistance reduces cold damage by 50% >>>
+                if crate::active_effects::player_has_cold_resistance_effect(ctx, player_id) {
+                    cold_damage *= crate::active_effects::COLD_RESISTANCE_REDUCTION;
+                    log::trace!("Player {:?} has ColdResistance broth - cold damage reduced by {:.0}% to {:.3}/sec", 
+                        player_id, (1.0 - crate::active_effects::COLD_RESISTANCE_REDUCTION) * 100.0, cold_damage);
+                }
+                // <<< END BROTH EFFECT >>>
                 health_change_per_sec -= cold_damage;
             }
         } else if new_warmth < WARMTH_DAMAGE_THRESHOLD {
@@ -561,6 +594,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                     log::trace!("Player {:?} has {:.1}% cold resistance from armor, reducing cold damage to {:.3}/sec", 
                         player_id, cold_resistance * 100.0, cold_damage);
                 }
+                // <<< BROTH EFFECT: ColdResistance reduces cold damage by 50% >>>
+                if crate::active_effects::player_has_cold_resistance_effect(ctx, player_id) {
+                    cold_damage *= crate::active_effects::COLD_RESISTANCE_REDUCTION;
+                    log::trace!("Player {:?} has ColdResistance broth - cold damage reduced by {:.0}% to {:.3}/sec", 
+                        player_id, (1.0 - crate::active_effects::COLD_RESISTANCE_REDUCTION) * 100.0, cold_damage);
+                }
+                // <<< END BROTH EFFECT >>>
                 health_change_per_sec -= cold_damage;
             }
         }

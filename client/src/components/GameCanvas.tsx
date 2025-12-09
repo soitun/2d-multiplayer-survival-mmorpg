@@ -100,7 +100,7 @@ import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
+import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderPlayerHeadlampLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
@@ -110,6 +110,7 @@ import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
 import { renderCombinedHealthOverlays } from '../utils/renderers/healthOverlayUtils';
+import { renderBrothEffectsOverlays } from '../utils/renderers/brothEffectsOverlayUtils';
 import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
@@ -2886,6 +2887,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Health/Frost Overlays ---
 
+    // --- Broth Effects Overlays (NightVision, Intoxicated) ---
+    if (showStatusOverlays && localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
+      renderBrothEffectsOverlays(
+        ctx,
+        currentCanvasWidth,
+        currentCanvasHeight,
+        deltaTimeRef.current / 1000, // Convert to seconds for animation timing
+        activeConsumableEffects,
+        localPlayerId,
+        currentCycleProgress // Pass day/night cycle progress for NightVision effect
+      );
+    }
+    // --- End Broth Effects Overlays ---
+
     // Interaction indicators - Draw only for visible entities that are interactable
     const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
@@ -3124,6 +3139,42 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     });
     // --- End Flashlight Light ---
+
+    // --- Headlamp Light ---
+    // Render headlamp fire light for all players with headlamps lit (head armor)
+    players.forEach(player => {
+      const playerId = player.identity?.toHexString();
+      if (!playerId || !player.isHeadlampLit) return;
+      
+      // Use the same position logic as player sprites
+      let renderPositionX = player.positionX;
+      let renderPositionY = player.positionY;
+      
+      if (playerId === localPlayerId && currentPredictedPosition) {
+        // For local player, use predicted position
+        renderPositionX = currentPredictedPosition.x;
+        renderPositionY = currentPredictedPosition.y;
+      } else if (playerId !== localPlayerId && remotePlayerInterpolation) {
+        // For remote players, use interpolated position
+        const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+        if (interpolatedPos) {
+          renderPositionX = interpolatedPos.x;
+          renderPositionY = interpolatedPos.y;
+        }
+      }
+      
+      renderPlayerHeadlampLight({
+        ctx,
+        player,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        renderPositionX,
+        renderPositionY,
+        // Indoor light containment - clip light to building interior
+        buildingClusters,
+      });
+    });
+    // --- End Headlamp Light ---
 
     // --- Mobile Tap Animation ---
     if (isMobile && tapAnimation) {

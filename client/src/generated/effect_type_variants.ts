@@ -57,4 +57,7 @@ export type WarmthBoost = { tag: "WarmthBoost" };
 export type ColdResistance = { tag: "ColdResistance" };
 export type PoisonResistance = { tag: "PoisonResistance" };
 export type FireResistance = { tag: "FireResistance" };
+export type PoisonCoating = { tag: "PoisonCoating" };
+export type PassiveHealthRegen = { tag: "PassiveHealthRegen" };
+export type HarvestBoost = { tag: "HarvestBoost" };
 

@@ -1246,7 +1246,18 @@ pub fn damage_tree(
     tree.last_hit_time = Some(timestamp);
     
     // NEW: Resource depletion system - limit yield to remaining resources
-    let actual_yield = std::cmp::min(yield_amount, tree.resource_remaining);
+    let mut actual_yield = std::cmp::min(yield_amount, tree.resource_remaining);
+    
+    // <<< BROTH EFFECT: HarvestBoost gives 50% bonus yield from chopping >>>
+    if active_effects::player_has_harvest_boost_effect(ctx, attacker_id) {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * active_effects::HARVEST_BOOST_MULTIPLIER).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, tree.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has HarvestBoost broth - wood yield increased by {:.0}%: {} -> {}", 
+            attacker_id, (active_effects::HARVEST_BOOST_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
+    }
+    // <<< END BROTH EFFECT >>>
+    
     tree.resource_remaining = tree.resource_remaining.saturating_sub(actual_yield);
     
     log::info!("Player {:?} hit Tree {} for {:.1} damage. Health: {} -> {}, Resources: {} remaining", 
@@ -1396,7 +1407,18 @@ pub fn damage_stone(
     stone.last_hit_time = Some(timestamp);
     
     // NEW: Resource depletion system - limit yield to remaining resources
-    let actual_yield = std::cmp::min(yield_amount, stone.resource_remaining);
+    let mut actual_yield = std::cmp::min(yield_amount, stone.resource_remaining);
+    
+    // <<< BROTH EFFECT: HarvestBoost gives 50% bonus yield from mining >>>
+    if active_effects::player_has_harvest_boost_effect(ctx, attacker_id) {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * active_effects::HARVEST_BOOST_MULTIPLIER).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, stone.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has HarvestBoost broth - ore yield increased by {:.0}%: {} -> {}", 
+            attacker_id, (active_effects::HARVEST_BOOST_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
+    }
+    // <<< END BROTH EFFECT >>>
+    
     stone.resource_remaining = stone.resource_remaining.saturating_sub(actual_yield);
     
     log::info!("[damage_stone] After calculation - actual_yield: {}, new resource_remaining: {}", actual_yield, stone.resource_remaining);
@@ -1786,6 +1808,39 @@ pub fn damage_player(
             }
         }
     }
+
+    // <<< BROTH EFFECT: PoisonCoating - apply poison to target if attacker has coating >>>
+    if active_effects::player_has_poison_coating_effect(ctx, attacker_id) {
+        // Check if target has poison resistance (reduces duration)
+        let has_resistance = active_effects::player_has_poison_resistance_effect(ctx, target_id);
+        let poison_duration = if has_resistance {
+            active_effects::POISON_COATING_DURATION_SECS * (1.0 - active_effects::POISON_RESISTANCE_REDUCTION)
+        } else {
+            active_effects::POISON_COATING_DURATION_SECS
+        };
+        
+        if poison_duration >= 1.0 {
+            log::info!(
+                "[PoisonCoating] Attacker {:?} has poison coating active. Applying {}s poison to target {:?}.", 
+                attacker_id, poison_duration, target_id
+            );
+            
+            if let Err(e) = active_effects::apply_poisoned_effect(
+                ctx,
+                target_id,
+                item_def.id,
+                poison_duration,
+            ) {
+                log::error!("Failed to apply poison coating effect to player {:?}: {}", target_id, e);
+            }
+        } else {
+            log::info!(
+                "[PoisonCoating] Target {:?} has poison resistance - poison blocked.",
+                target_id
+            );
+        }
+    }
+    // <<< END BROTH EFFECT >>>
 
     // INTERRUPT BANDAGE IF DAMAGED
     active_effects::cancel_bandage_burst_effects(ctx, target_id);

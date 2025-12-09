@@ -13,7 +13,7 @@ use crate::items::ItemCategory; // Import the enum itself
 use crate::models::ItemLocation; // Added import
 
 // Import active effects related items
-use crate::active_effects::{ActiveConsumableEffect, EffectType, active_consumable_effect as ActiveConsumableEffectTableTrait, cancel_bleed_effects, cancel_health_regen_effects, player_has_cozy_effect, COZY_FOOD_HEALING_MULTIPLIER};
+use crate::active_effects::{ActiveConsumableEffect, EffectType, active_consumable_effect as ActiveConsumableEffectTableTrait, cancel_bleed_effects, cancel_health_regen_effects, player_has_cozy_effect, COZY_FOOD_HEALING_MULTIPLIER, apply_broth_effect_from_type, apply_broth_effect_from_category};
 
 // Import AI brewing cache for poison brew detection and effect application
 use crate::ai_brewing::{brew_recipe_cache as BrewRecipeCacheTableTrait, parse_effect_type, map_category_to_effect};
@@ -399,11 +399,12 @@ fn apply_timed_effect_for_helper(
 
 /// Applies brewing recipe effects (Intoxicated, Poisoned, SpeedBoost, etc.) from AI-generated brews
 /// Checks the brew_recipe_cache to see if this item has a special effect type
+/// IMPORTANT: Broth effects provide powerful 1-hour buffs but DO NOT persist through death!
 fn apply_brewing_recipe_effect(
     ctx: &ReducerContext,
     player_id: Identity,
     item_def: &ItemDefinition,
-    item_instance_id: u64,
+    _item_instance_id: u64, // Unused now - effects use item_def_id
 ) -> Result<(), String> {
     // Check if this item is a generated brew by looking it up in the brew_recipe_cache
     let brew_cache = ctx.db.brew_recipe_cache();
@@ -411,76 +412,24 @@ fn apply_brewing_recipe_effect(
         .find(|recipe| recipe.output_item_def_id == item_def.id);
     
     if let Some(recipe) = cached_recipe {
-        // This is a generated brew - check for effect type
-        let effect_type_opt = if let Some(ref effect_type_str) = recipe.effect_type {
-            // Try parsing the explicit effect_type string first
-            parse_effect_type(effect_type_str)
-        } else {
-            // Fall back to category-based mapping
-            map_category_to_effect(&recipe.category)
-        };
+        log::info!(
+            "[BrewingEffect] Processing brew '{}' (category: {}, effect: {:?}) for player {:?}",
+            item_def.name, recipe.category, recipe.effect_type, player_id
+        );
         
-        if let Some(effect_type) = effect_type_opt {
-            // Apply the effect with a default duration (even if it's a stub)
-            // Default duration: 60 seconds for most effects, 120 seconds for performance enhancers
-            let default_duration = match effect_type {
-                EffectType::Intoxicated => 120.0, // 2 minutes drunk
-                EffectType::Poisoned => 60.0,     // 1 minute poison
-                EffectType::SpeedBoost => 90.0,   // 1.5 minutes speed boost
-                EffectType::StaminaBoost => 90.0, // 1.5 minutes stamina boost
-                EffectType::NightVision => 180.0, // 3 minutes night vision
-                EffectType::WarmthBoost => 120.0, // 2 minutes warmth boost
-                EffectType::ColdResistance => 120.0, // 2 minutes cold resistance
-                EffectType::PoisonResistance => 120.0, // 2 minutes poison resistance
-                EffectType::FireResistance => 120.0, // 2 minutes fire resistance
-                _ => 60.0, // Default 1 minute for other effects
-            };
-            
-            // Create a stub effect entry (does nothing but shows timer in UI)
-            // Use total_amount = 0.0 so it doesn't affect stats, but still creates the effect entry
-            let now = ctx.timestamp;
-            let duration_micros = (default_duration * 1_000_000.0) as u64;
-            let tick_interval_micros = 1_000_000u64; // 1 second ticks
-            
-            let effect_to_insert = ActiveConsumableEffect {
-                effect_id: 0, // auto_inc
-                player_id,
-                target_player_id: None,
-                item_def_id: item_def.id,
-                consuming_item_instance_id: Some(item_instance_id),
-                started_at: now,
-                ends_at: now + TimeDuration::from_micros(duration_micros as i64),
-                total_amount: Some(0.0), // Stub effect - no stat changes
-                amount_applied_so_far: Some(0.0),
-                effect_type: effect_type.clone(),
-                tick_interval_micros,
-                next_tick_at: now + TimeDuration::from_micros(tick_interval_micros as i64),
-            };
-            
-            match ctx.db.active_consumable_effect().try_insert(effect_to_insert) {
-                Ok(_) => {
-                    log::info!(
-                        "[BrewingEffect] Applied brewing effect {:?} to player {:?} from brew '{}' (instance {}). Duration: {}s (stub - no stat changes yet).",
-                        effect_type, player_id, item_def.name, item_instance_id, default_duration
-                    );
-                    Ok(())
-                }
-                Err(e) => {
-                    log::error!(
-                        "[BrewingEffect] Failed to insert brewing effect {:?} for player {:?} from brew '{}': {:?}",
-                        effect_type, player_id, item_def.name, e
-                    );
-                    Err(format!("Failed to apply brewing effect: {:?}", e))
-                }
-            }
-        } else {
-            // No special effect type for this brew - that's fine, it's stats-only
-            Ok(())
+        // First try explicit effect_type if specified in the recipe
+        if let Some(ref effect_type_str) = recipe.effect_type {
+            log::info!("[BrewingEffect] Applying explicit effect type: {}", effect_type_str);
+            return apply_broth_effect_from_type(ctx, player_id, effect_type_str, item_def.id);
         }
-    } else {
-        // Not a generated brew - no special effects to apply
-        Ok(())
+        
+        // Fall back to category-based effect mapping
+        log::info!("[BrewingEffect] Applying category-based effect for category: {}", recipe.category);
+        return apply_broth_effect_from_category(ctx, player_id, &recipe.category, item_def.id);
     }
+    
+    // Not a generated brew - no special effects to apply
+    Ok(())
 }
 
 /// Helper function to find plant type from item name (by checking primary yield)

@@ -672,74 +672,86 @@ export const useInputHandler = ({
                 }
             }
 
-            // Water container filling key ('f')
+            // Multi-function key ('f'): Water container filling + Headlamp toggle
             if (key === 'f' && !event.repeat) {
                 if (isPlayerDead) return;
                 
+                let handledWaterFilling = false;
+                let handledHeadlampToggle = false;
+                
+                // === WATER CONTAINER FILLING (equipped item) ===
                 const localPlayerActiveEquipment = activeEquipmentsRef.current?.get(localPlayerId || '');
-                if (!localPlayerActiveEquipment?.equippedItemInstanceId || !localPlayerActiveEquipment?.equippedItemDefId) {
-                    console.log('[F-Key] No equipped item for water filling');
-                    return;
-                }
-
-                const equippedItemDef = itemDefinitionsRef.current?.get(localPlayerActiveEquipment.equippedItemDefId.toString());
-                if (!equippedItemDef) {
-                    console.log('[F-Key] No item definition found for equipped item');
-                    return;
-                }
-
-                // Check if equipped item is a water container
-                if (!isWaterContainer(equippedItemDef.name)) {
-                    console.log('[F-Key] Equipped item is not a water container');
-                    return;
-                }
-
-                // Get the water container item
-                const waterContainer = inventoryItems.get(localPlayerActiveEquipment.equippedItemInstanceId.toString());
-                if (!waterContainer || !connectionRef.current?.reducers) {
-                    console.log('[F-Key] No water container found or no connection');
-                    return;
-                }
-
-                // Check if player is standing on water for filling
-                if (localPlayerRef.current?.isOnWater) {
-                    console.log('[F-Key] Player is on water - attempting to fill container');
+                if (localPlayerActiveEquipment?.equippedItemInstanceId && localPlayerActiveEquipment?.equippedItemDefId) {
+                    const equippedItemDef = itemDefinitionsRef.current?.get(localPlayerActiveEquipment.equippedItemDefId.toString());
                     
-                    // TODO: Add salt water detection when implemented
-                    const isOnSaltWater = false; // Placeholder - all water is fresh for now
-                    
-                    if (isOnSaltWater) {
-                        console.log('[F-Key] Cannot fill water container from salt water source');
-                        return;
+                    if (equippedItemDef && isWaterContainer(equippedItemDef.name)) {
+                        // Get the water container item
+                        const waterContainer = inventoryItems.get(localPlayerActiveEquipment.equippedItemInstanceId.toString());
+                        
+                        if (waterContainer && connectionRef.current?.reducers && localPlayerRef.current?.isOnWater) {
+                            console.log('[F-Key] Player is on water - attempting to fill container');
+                            
+                            // TODO: Add salt water detection when implemented
+                            const isOnSaltWater = false; // Placeholder - all water is fresh for now
+                            
+                            if (!isOnSaltWater) {
+                                // Calculate remaining capacity using helper functions
+                                const currentWaterContent = getWaterContent(waterContainer) || 0; // in liters
+                                const maxCapacityLiters = getWaterCapacity(equippedItemDef.name); // in liters
+                                const remainingCapacityMl = Math.floor((maxCapacityLiters - currentWaterContent) * 1000); // Convert L to mL
+
+                                console.log(`[F-Key] Current water: ${currentWaterContent}L, Max: ${maxCapacityLiters}L, Remaining: ${remainingCapacityMl}mL`);
+
+                                if (remainingCapacityMl > 0) {
+                                    const fillAmount = Math.min(250, remainingCapacityMl); // Fill 250mL or remaining capacity
+                                    console.log(`[F-Key] Attempting to fill ${equippedItemDef.name} with ${fillAmount}mL from fresh water source`);
+
+                                    try {
+                                        connectionRef.current.reducers.fillWaterContainerFromNaturalSource(
+                                            localPlayerActiveEquipment.equippedItemInstanceId, 
+                                            fillAmount
+                                        );
+                                        console.log(`[F-Key] Successfully called fillWaterContainerFromNaturalSource`);
+                                        handledWaterFilling = true;
+                                    } catch (err) {
+                                        console.error('[F-Key] Error filling water container:', err);
+                                    }
+                                } else {
+                                    console.log('[F-Key] Water container is already full');
+                                }
+                            } else {
+                                console.log('[F-Key] Cannot fill water container from salt water source');
+                            }
+                        }
                     }
-
-                    // Calculate remaining capacity using helper functions
-                    const currentWaterContent = getWaterContent(waterContainer) || 0; // in liters
-                    const maxCapacityLiters = getWaterCapacity(equippedItemDef.name); // in liters
-                    const remainingCapacityMl = Math.floor((maxCapacityLiters - currentWaterContent) * 1000); // Convert L to mL
-
-                    console.log(`[F-Key] Current water: ${currentWaterContent}L, Max: ${maxCapacityLiters}L, Remaining: ${remainingCapacityMl}mL`);
-
-                    if (remainingCapacityMl <= 0) {
-                        console.log('[F-Key] Water container is already full');
-                        return;
-                    }
-
-                    const fillAmount = Math.min(250, remainingCapacityMl); // Fill 250mL or remaining capacity
-                    console.log(`[F-Key] Attempting to fill ${equippedItemDef.name} with ${fillAmount}mL from fresh water source`);
-
-                    try {
-                        connectionRef.current.reducers.fillWaterContainerFromNaturalSource(
-                            localPlayerActiveEquipment.equippedItemInstanceId, 
-                            fillAmount
-                        );
-                        console.log(`[F-Key] Successfully called fillWaterContainerFromNaturalSource`);
-                    } catch (err) {
-                        console.error('[F-Key] Error filling water container:', err);
-                    }
-                } else {
-                    console.log('[F-Key] Player not on water - cannot fill container');
                 }
+                
+                // === HEADLAMP TOGGLE (head armor slot) ===
+                // Check if player has a headlamp equipped in head armor slot
+                const activeArmor = activeEquipmentsRef.current?.get(localPlayerId || '');
+                if (activeArmor?.headItemInstanceId && connectionRef.current?.reducers) {
+                    // Get the head armor item
+                    const headItem = inventoryItems.get(activeArmor.headItemInstanceId.toString());
+                    if (headItem) {
+                        const headItemDef = itemDefinitionsRef.current?.get(headItem.itemDefId.toString());
+                        if (headItemDef && headItemDef.name === 'Headlamp') {
+                            console.log('[F-Key] Toggling headlamp');
+                            try {
+                                connectionRef.current.reducers.toggleHeadlamp();
+                                console.log('[F-Key] Successfully called toggleHeadlamp');
+                                handledHeadlampToggle = true;
+                            } catch (err) {
+                                console.error('[F-Key] Error toggling headlamp:', err);
+                            }
+                        }
+                    }
+                }
+                
+                // Log if neither action was taken
+                if (!handledWaterFilling && !handledHeadlampToggle) {
+                    console.log('[F-Key] No water container equipped or not on water, and no headlamp equipped');
+                }
+                
                 return;
             }
 

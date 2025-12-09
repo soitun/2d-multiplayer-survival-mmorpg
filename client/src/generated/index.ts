@@ -549,6 +549,8 @@ import { ToggleFlashlight } from "./toggle_flashlight_reducer.ts";
 export { ToggleFlashlight };
 import { ToggleFurnaceBurning } from "./toggle_furnace_burning_reducer.ts";
 export { ToggleFurnaceBurning };
+import { ToggleHeadlamp } from "./toggle_headlamp_reducer.ts";
+export { ToggleHeadlamp };
 import { ToggleLantern } from "./toggle_lantern_reducer.ts";
 export { ToggleLantern };
 import { ToggleStashVisibility } from "./toggle_stash_visibility_reducer.ts";
@@ -3157,6 +3159,10 @@ const REMOTE_MODULE = {
       reducerName: "toggle_furnace_burning",
       argsType: ToggleFurnaceBurning.getTypeScriptAlgebraicType(),
     },
+    toggle_headlamp: {
+      reducerName: "toggle_headlamp",
+      argsType: ToggleHeadlamp.getTypeScriptAlgebraicType(),
+    },
     toggle_lantern: {
       reducerName: "toggle_lantern",
       argsType: ToggleLantern.getTypeScriptAlgebraicType(),
@@ -3514,6 +3520,7 @@ export type Reducer = never
 | { name: "ToggleCrouch", args: ToggleCrouch }
 | { name: "ToggleFlashlight", args: ToggleFlashlight }
 | { name: "ToggleFurnaceBurning", args: ToggleFurnaceBurning }
+| { name: "ToggleHeadlamp", args: ToggleHeadlamp }
 | { name: "ToggleLantern", args: ToggleLantern }
 | { name: "ToggleStashVisibility", args: ToggleStashVisibility }
 | { name: "ToggleTorch", args: ToggleTorch }
@@ -7536,6 +7543,18 @@ export class RemoteReducers {
     this.connection.offReducer("toggle_furnace_burning", callback);
   }
 
+  toggleHeadlamp() {
+    this.connection.callReducer("toggle_headlamp", new Uint8Array(0), this.setCallReducerFlags.toggleHeadlampFlags);
+  }
+
+  onToggleHeadlamp(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("toggle_headlamp", callback);
+  }
+
+  removeOnToggleHeadlamp(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("toggle_headlamp", callback);
+  }
+
   toggleLantern(lanternId: number) {
     const __args = { lanternId };
     let __writer = new __BinaryWriter(1024);
@@ -9086,6 +9105,11 @@ export class SetReducerFlags {
   toggleFurnaceBurningFlags: __CallReducerFlags = 'FullUpdate';
   toggleFurnaceBurning(flags: __CallReducerFlags) {
     this.toggleFurnaceBurningFlags = flags;
+  }
+
+  toggleHeadlampFlags: __CallReducerFlags = 'FullUpdate';
+  toggleHeadlamp(flags: __CallReducerFlags) {
+    this.toggleHeadlampFlags = flags;
   }
 
   toggleLanternFlags: __CallReducerFlags = 'FullUpdate';

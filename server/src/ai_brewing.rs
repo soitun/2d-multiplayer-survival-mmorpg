@@ -48,18 +48,45 @@ pub struct BrewRecipeCache {
 // ============================================================================
 
 /// Valid brew categories that AI can generate
+/// Categories with special effects (1-hour duration, cleared on death):
+/// - alcoholic: Intoxicated (drunk effect)
+/// - poison: Poisoned (DOT)
+/// - performance_enhancer: SpeedBoost (25% faster)
+/// - psychoactive: NightVision
+/// - warming_broth: WarmthBoost (50% reduced warmth decay)
+/// - cold_resistant_brew: ColdResistance (50% reduced cold damage)
+/// - fire_resistant_brew: FireResistance (50% reduced fire damage)
+/// - antidote_brew: PoisonResistance (75% reduced poison damage, acts as antivenom)
+/// - endurance_broth: StaminaBoost (50% reduced hunger/thirst drain)
+/// - healing_elixir: PassiveHealthRegen (slow 1-hour health regen)
+/// - harvester_brew: HarvestBoost (50% bonus mining/chopping yield)
+/// - weapon_coating: PoisonCoating (attacks inflict poison)
+/// Categories without special effects (use consumable stats only):
+/// - healing_broth, medicinal_tea: Use consumable_health_gain stat
+/// - nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew: Various stat effects
 pub const VALID_BREW_CATEGORIES: &[&str] = &[
-    "healing_broth",
-    "medicinal_tea",
-    "alcoholic",
-    "poison",
-    "performance_enhancer",
-    "utility_brew",
-    "psychoactive",
-    "nutritional_drink",
-    "maritime_specialty",
-    "cooking_base",
-    "technological",
+    // === CATEGORIES WITH NO SPECIAL EFFECTS (stats only) ===
+    "healing_broth",       // Heals via consumable_health_gain stat
+    "medicinal_tea",       // Heals via consumable_health_gain stat
+    "nutritional_drink",   // Hunger/thirst via consumable stats
+    "maritime_specialty",  // Various stat boosts
+    "cooking_base",        // Base ingredient for other recipes
+    "technological",       // Tech/utility items
+    "utility_brew",        // Misc utility effects via stats
+    
+    // === CATEGORIES WITH SPECIAL EFFECTS (1-hour buffs, cleared on death) ===
+    "alcoholic",           // Intoxicated - drunk, 15% speed penalty
+    "poison",              // Poisoned - damage over time
+    "performance_enhancer", // SpeedBoost - 25% faster movement
+    "psychoactive",        // NightVision - enhanced night vision
+    "warming_broth",       // WarmthBoost - 50% reduced warmth decay
+    "cold_resistant_brew", // ColdResistance - 50% reduced cold damage
+    "fire_resistant_brew", // FireResistance - 50% reduced fire damage
+    "antidote_brew",       // PoisonResistance - 75% poison resist (antivenom)
+    "endurance_broth",     // StaminaBoost - 50% reduced hunger/thirst drain
+    "healing_elixir",      // PassiveHealthRegen - slow 1-hour regen
+    "harvester_brew",      // HarvestBoost - 50% bonus mining/chopping yield
+    "weapon_coating",      // PoisonCoating - attacks inflict poison
 ];
 
 /// Maps brew categories to server-side EffectType variants
@@ -67,14 +94,35 @@ pub const VALID_BREW_CATEGORIES: &[&str] = &[
 /// NOTE: medicinal_tea and healing_broth should NOT map to HealthRegen - 
 /// their healing is handled by consumable_health_gain stat on the item definition.
 /// Creating a stub HealthRegen effect would conflict with the real healing effect.
+/// 
+/// === BROTH SYSTEM CATEGORIES (1-hour buffs, cleared on death) ===
+/// - warming_broth: WarmthBoost - 50% reduced warmth decay
+/// - cold_resistant_brew: ColdResistance - 50% reduced cold damage
+/// - fire_resistant_brew: FireResistance - 50% reduced fire/burn damage
+/// - antidote_brew: PoisonResistance - 75% reduced poison/venom damage (acts as antivenom)
+/// - endurance_broth: StaminaBoost - 50% reduced hunger/thirst drain
+/// - healing_elixir: PassiveHealthRegen - Slow 1-hour health regeneration
+/// - harvester_brew: HarvestBoost - 50% bonus yield from mining/chopping
+/// - weapon_coating: PoisonCoating - Attacks inflict poison on targets
 pub fn map_category_to_effect(category: &str) -> Option<EffectType> {
     match category {
         // medicinal_tea: healing handled by item's consumable_health_gain stat, no special effect needed
         // healing_broth: healing handled by item's consumable_health_gain stat, no special effect needed
         "poison" => Some(EffectType::Poisoned),           // Use new Poisoned effect (not FoodPoisoning)
-        "alcoholic" => Some(EffectType::Intoxicated),     // Drunk effect
-        "performance_enhancer" => Some(EffectType::SpeedBoost), // Speed/stamina buffs
-        "psychoactive" => Some(EffectType::NightVision),  // Enhanced vision
+        "alcoholic" => Some(EffectType::Intoxicated),     // Drunk effect - 15% speed penalty, blurred vision
+        "performance_enhancer" => Some(EffectType::SpeedBoost), // 25% faster movement
+        "psychoactive" => Some(EffectType::NightVision),  // Enhanced vision at night
+        
+        // === BROTH BUFFS (1 hour duration, cleared on death) ===
+        "warming_broth" => Some(EffectType::WarmthBoost),      // 50% reduced warmth decay from cold
+        "cold_resistant_brew" => Some(EffectType::ColdResistance), // 50% reduced cold damage
+        "fire_resistant_brew" => Some(EffectType::FireResistance), // 50% reduced fire/burn damage
+        "antidote_brew" => Some(EffectType::PoisonResistance), // 75% reduced poison/venom damage (antivenom)
+        "endurance_broth" => Some(EffectType::StaminaBoost),   // 50% reduced hunger/thirst drain
+        "healing_elixir" => Some(EffectType::PassiveHealthRegen), // Slow passive health regen over 1 hour
+        "harvester_brew" => Some(EffectType::HarvestBoost),    // 50% bonus yield from mining/chopping
+        "weapon_coating" => Some(EffectType::PoisonCoating),   // Attacks inflict poison on targets
+        
         // These categories use stats only (no special effect):
         // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew
         _ => None,
@@ -90,16 +138,20 @@ pub fn parse_effect_type(effect_str: &str) -> Option<EffectType> {
         "Venom" => Some(EffectType::Venom),
         "Burn" => Some(EffectType::Burn),
         "Bleed" => Some(EffectType::Bleed),
-        // New brewing system effects
-        "Intoxicated" => Some(EffectType::Intoxicated),
-        "Poisoned" => Some(EffectType::Poisoned),
-        "SpeedBoost" => Some(EffectType::SpeedBoost),
-        "StaminaBoost" => Some(EffectType::StaminaBoost),
-        "NightVision" => Some(EffectType::NightVision),
-        "WarmthBoost" => Some(EffectType::WarmthBoost),
-        "ColdResistance" => Some(EffectType::ColdResistance),
-        "PoisonResistance" => Some(EffectType::PoisonResistance),
-        "FireResistance" => Some(EffectType::FireResistance),
+        // Brewing system effects - 1 hour buffs that don't persist through death
+        "Intoxicated" => Some(EffectType::Intoxicated),      // Drunk - movement wobble, 15% speed penalty
+        "Poisoned" => Some(EffectType::Poisoned),            // DOT from poison brews
+        "SpeedBoost" => Some(EffectType::SpeedBoost),        // 25% faster movement
+        "StaminaBoost" => Some(EffectType::StaminaBoost),    // 50% reduced hunger/thirst drain
+        "NightVision" => Some(EffectType::NightVision),      // Enhanced vision at night
+        "WarmthBoost" => Some(EffectType::WarmthBoost),      // 50% reduced warmth decay
+        "ColdResistance" => Some(EffectType::ColdResistance),// 50% reduced cold damage
+        "PoisonResistance" => Some(EffectType::PoisonResistance), // 75% reduced poison/venom damage (acts as antivenom)
+        "FireResistance" => Some(EffectType::FireResistance),// 50% reduced fire/burn damage
+        // Additional broth effects
+        "PoisonCoating" => Some(EffectType::PoisonCoating),  // Attacks inflict poison on targets
+        "PassiveHealthRegen" => Some(EffectType::PassiveHealthRegen), // Slow 1-hour health regen
+        "HarvestBoost" => Some(EffectType::HarvestBoost),    // 50% bonus yield from mining/chopping
         _ => None,
     }
 }
