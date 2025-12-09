@@ -366,8 +366,9 @@ export function renderWildAnimal({
 
     const props = getSpeciesRenderingProps(animal.species);
     
-    // Keep flying birds the same size as ground sprites for consistency
-    const flyingSizeMultiplier = 1.0; // Same size whether flying or walking
+    // Terns are twice as large when flying (their flying sprite sheet is smaller)
+    // Crows stay the same size
+    const flyingSizeMultiplier = (animal.species.tag === 'Tern' && useFlying) ? 1.75 : 1.0;
     const renderWidth = props.width * flyingSizeMultiplier;
     const renderHeight = props.height * flyingSizeMultiplier;
     
