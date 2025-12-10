@@ -76,7 +76,7 @@ import { renderBasaltColumn } from './basaltColumnRenderingUtils';
 // Import ALK station renderer
 import { renderAlkStation } from './alkStationRenderingUtils';
 // Import compound building renderer
-import { renderCompoundBuilding, getBuildingImage } from './compoundBuildingRenderingUtils';
+import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
 import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 import { COMPOUND_BUILDINGS } from '../../config/compoundBuildings';
 // Import sea stack renderer
@@ -1152,14 +1152,32 @@ export const renderYSortedEntities = ({
                 drawInteractionOutline(ctx, alkStation.worldPosX, outlineY, outlineWidth, outlineHeight, cycleProgress, outlineColor);
             }
         } else if (type === 'compound_building') {
-            // Static compound buildings - render from config-defined positions
+            // Compound buildings include both static buildings and dynamic shipwreck parts
             const buildingEntity = entity as CompoundBuildingEntity;
             
-            // Find the full building config to get all properties needed for rendering
-            const buildingConfig = COMPOUND_BUILDINGS.find(b => b.id === buildingEntity.id);
-            if (buildingConfig) {
-                renderCompoundBuilding(ctx, buildingConfig, cycleProgress, localPlayerPosition, doodadImagesRef);
-            }
+            // The entity already has all the data we need from useEntityFiltering
+            // Convert it to CompoundBuilding format for renderMonument
+            const buildingForRendering = {
+                id: buildingEntity.id,
+                offsetX: 0, // Not used by renderMonument (uses worldX/worldY directly)
+                offsetY: 0,
+                imagePath: buildingEntity.imagePath,
+                width: buildingEntity.width,
+                height: buildingEntity.height,
+                anchorYOffset: buildingEntity.anchorYOffset,
+                collisionRadius: 0, // Not used for rendering
+                collisionYOffset: 0,
+            };
+            
+            // renderMonument expects world position, so we need to pass it directly
+            // Override getBuildingWorldPosition by passing worldX/worldY in the building object
+            const buildingWithWorldPos = {
+                ...buildingForRendering,
+                worldX: buildingEntity.worldX,
+                worldY: buildingEntity.worldY,
+            };
+            
+            renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
         } else if (type === 'foundation_cell') {
             const foundation = entity as SpacetimeDBFoundationCell;
             // Foundations use cell coordinates directly - renderFoundation handles conversion

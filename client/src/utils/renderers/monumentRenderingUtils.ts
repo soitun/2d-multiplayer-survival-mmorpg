@@ -1,9 +1,12 @@
 /**
- * compoundBuildingRenderingUtils.ts
+ * monumentRenderingUtils.ts
  * 
- * Rendering utility for static compound buildings.
- * These buildings are defined in config and rendered client-side.
- * Server handles collision detection using mirrored constants.
+ * Rendering utility for all monument structures in the game.
+ * Handles both:
+ * - Static monuments: Defined in client config (e.g., compound buildings, guard posts)
+ * - Dynamic monuments: Generated during world creation (e.g., shipwrecks on beaches)
+ * 
+ * Server handles collision detection for all monuments.
  */
 
 import React from 'react';
@@ -31,35 +34,40 @@ function loadImage(imageName: string, importPromise: Promise<{ default: string }
         img.onload = () => {
             buildingImages.set(imageName, img);
             loadingImages.delete(imageName);
-            console.log(`[CompoundBuilding] ✅ Loaded: ${imageName}`);
+            console.log(`[Monument] ✅ Loaded: ${imageName}`);
         };
         img.onerror = (e) => {
             loadingImages.delete(imageName);
             failedImages.add(imageName); // Mark as failed to prevent retry loops
-            console.error(`[CompoundBuilding] ❌ Failed to load: ${imageName}, URL was: ${module.default}`, e);
+            console.error(`[Monument] ❌ Failed to load: ${imageName}, URL was: ${module.default}`, e);
         };
         img.src = module.default;
     }).catch((err) => {
         loadingImages.delete(imageName);
         failedImages.add(imageName); // Mark as failed to prevent retry loops
-        console.error(`[CompoundBuilding] ❌ Import failed for: ${imageName}`, err);
+        console.error(`[Monument] ❌ Import failed for: ${imageName}`, err);
     });
 }
 
 /**
- * Preload all compound building images (explicit imports like alkStationRenderingUtils.ts)
+ * Preload all monument images (explicit imports like alkStationRenderingUtils.ts)
  * Using ?url suffix to ensure Vite processes these as static assets
+ * Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)
  */
-export function preloadCompoundBuildingImages(): void {
+export function preloadMonumentImages(): void {
     loadImage('guardpost.png', import('../../assets/doodads/guardpost.png?url'));
     loadImage('shed.png', import('../../assets/doodads/shed.png?url'));
     loadImage('garage.png', import('../../assets/doodads/garage.png?url'));
     loadImage('warehouse.png', import('../../assets/doodads/warehouse.png?url'));
     loadImage('barracks.png', import('../../assets/doodads/barracks.png?url'));
     loadImage('fuel_depot.png', import('../../assets/doodads/fuel_depot.png?url'));
-    // Add more as you create image files:
-    // loadImage('wall_horizontal.png', import('../../assets/doodads/wall_horizontal.png?url'));
-    // loadImage('wall_vertical.png', import('../../assets/doodads/wall_vertical.png?url'));
+    
+    // Shipwreck monument images (hull1, hull2, hull3, etc.)
+    loadImage('hull1.png', import('../../assets/doodads/hull1.png?url'));
+    loadImage('hull2.png', import('../../assets/doodads/hull2.png?url'));
+    loadImage('hull3.png', import('../../assets/doodads/hull3.png?url'));
+    loadImage('hull4.png', import('../../assets/doodads/hull4.png?url'));
+    loadImage('hull5.png', import('../../assets/doodads/hull5.png?url'));
 }
 
 /**
@@ -84,17 +92,24 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'warehouse.png': () => import('../../assets/doodads/warehouse.png?url'),
             'barracks.png': () => import('../../assets/doodads/barracks.png?url'),
             'fuel_depot.png': () => import('../../assets/doodads/fuel_depot.png?url'),
+            
+            // Shipwreck monument images (hull1, hull2, hull3, etc.)
+            'hull1.png': () => import('../../assets/doodads/hull1.png?url'),
+            'hull2.png': () => import('../../assets/doodads/hull2.png?url'),
+            'hull3.png': () => import('../../assets/doodads/hull3.png?url'),
+            'hull4.png': () => import('../../assets/doodads/hull4.png?url'),
+            'hull5.png': () => import('../../assets/doodads/hull5.png?url'),
         };
     
         const loader = imageMap[imagePath];
         if (loader) {
         // Log only once when actually starting to load
-        console.log(`[CompoundBuilding] Starting load for: ${imagePath}`);
+        console.log(`[Monument] Starting load for: ${imagePath}`);
             loadImage(imagePath, loader());
     } else {
         // No loader for this image - mark as failed to prevent retry spam
         // Log only once to notify developers
-        console.warn(`[CompoundBuilding] No loader configured for: ${imagePath} - skipping`);
+        console.warn(`[Monument] No loader configured for: ${imagePath} - skipping`);
         failedImages.add(imagePath);
     }
     
@@ -122,8 +137,8 @@ function getPlaceholderColor(buildingId: string): { fill: string; stroke: string
 }
 
 /**
- * Render a placeholder for buildings whose images haven't loaded yet
- * Shows a colored transparent overlay with border and building info
+ * Render a placeholder for monuments whose images haven't loaded yet
+ * Shows a colored transparent overlay with border and monument info
  */
 function renderPlaceholder(
     ctx: CanvasRenderingContext2D,
@@ -210,18 +225,19 @@ function renderPlaceholder(
 }
 
 /**
- * Render a single compound building
+ * Render a single monument (compound building or shipwreck part)
  */
-export function renderCompoundBuilding(
+export function renderMonument(
     ctx: CanvasRenderingContext2D,
-    building: CompoundBuilding,
+    building: CompoundBuilding & { worldX?: number; worldY?: number },
     cycleProgress: number,
     localPlayerPosition?: { x: number; y: number } | null,
     doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>
 ): void {
-    const worldPos = getBuildingWorldPosition(building);
-    const worldX = worldPos.x;
-    const worldY = worldPos.y;
+    // Use provided world coordinates if available (for dynamic shipwrecks),
+    // otherwise calculate from offset (for static compound buildings)
+    const worldX = building.worldX !== undefined ? building.worldX : getBuildingWorldPosition(building).x;
+    const worldY = building.worldY !== undefined ? building.worldY : getBuildingWorldPosition(building).y;
     
     // Try doodadImagesRef first (like alkStationRenderingUtils.ts), then fallback to module cache
     let img: HTMLImageElement | null | undefined = doodadImagesRef?.current?.get(building.imagePath);
@@ -305,25 +321,26 @@ export function renderCompoundBuilding(
 }
 
 /**
- * Render all compound buildings
- * Note: For proper Y-sorting, buildings should be rendered through the Y-sorted entity system.
- * This function is useful for debugging or if you want to render all buildings in a batch.
+ * Render all static monuments (compound buildings)
+ * Note: For proper Y-sorting, monuments should be rendered through the Y-sorted entity system.
+ * This function is useful for debugging or if you want to render all monuments in a batch.
+ * Does NOT include dynamic monuments (shipwrecks) - those come from SpacetimeDB subscription.
  */
-export function renderAllCompoundBuildings(
+export function renderAllStaticMonuments(
     ctx: CanvasRenderingContext2D,
     cycleProgress: number,
     localPlayerPosition?: { x: number; y: number } | null
 ): void {
     for (const building of COMPOUND_BUILDINGS) {
-        renderCompoundBuilding(ctx, building, cycleProgress, localPlayerPosition);
+        renderMonument(ctx, building, cycleProgress, localPlayerPosition);
     }
 }
 
 /**
- * Check if a point is within the visual bounds of any compound building.
+ * Check if a point is within the visual bounds of any static monument.
  * Useful for interaction detection or UI purposes.
  */
-export function isPointInCompoundBuilding(x: number, y: number): CompoundBuilding | null {
+export function isPointInStaticMonument(x: number, y: number): CompoundBuilding | null {
     for (const building of COMPOUND_BUILDINGS) {
         const worldPos = getBuildingWorldPosition(building);
         const left = worldPos.x - building.width / 2;
@@ -339,10 +356,10 @@ export function isPointInCompoundBuilding(x: number, y: number): CompoundBuildin
 }
 
 /**
- * Get compound buildings visible in a viewport.
- * Useful for culling buildings outside the camera view.
+ * Get static monuments visible in a viewport.
+ * Useful for culling monuments outside the camera view.
  */
-export function getVisibleCompoundBuildings(
+export function getVisibleStaticMonuments(
     viewMinX: number,
     viewMaxX: number,
     viewMinY: number,

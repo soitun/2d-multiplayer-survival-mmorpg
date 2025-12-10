@@ -27,6 +27,9 @@ pub struct CompoundBuildingCollision {
 /// When adding/modifying buildings:
 /// 1. Copy offsetX, offsetY, collisionRadius, collisionYOffset from client config
 /// 2. Keep the order consistent for easier maintenance
+/// 
+/// NOTE: Shipwreck collisions are handled separately via shipwreck_part table
+/// since shipwrecks are dynamically placed during world generation.
 pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
     // ===== GUARD POSTS (4 corners) =====
     // NOTE: Server collision DISABLED - this is just for reference/consistency with client

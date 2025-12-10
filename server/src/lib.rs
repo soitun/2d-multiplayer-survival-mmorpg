@@ -144,6 +144,7 @@ mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
+mod shipwreck; // <<< ADDED: Shipwreck monument collision system
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 
 // ADD: Re-export respawn reducer
@@ -1582,6 +1583,25 @@ pub struct MinimapCache {
     pub height: u32,
     pub data: Vec<u8>, // Compressed minimap data as color values
     pub generated_at: Timestamp,
+}
+
+/// Shipwreck monument positions (dynamically placed during world generation)
+#[spacetimedb::table(name = shipwreck_part, public)]
+#[derive(Clone, Debug)]
+pub struct ShipwreckPart {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// World X position in pixels
+    pub world_x: f32,
+    /// World Y position in pixels
+    pub world_y: f32,
+    /// Image filename (e.g., "hull1.png")
+    pub image_path: String,
+    /// Whether this is the center piece (hull1.png)
+    pub is_center: bool,
+    /// Collision radius in pixels
+    pub collision_radius: f32,
 }
 
 // ADD: Utility functions for tile compression

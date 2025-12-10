@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -54,6 +54,13 @@ const ALK_SUBSTATION_COLOR = '#ffaa00'; // Bright amber for substations (with fe
 const ALK_STATION_GLOW_COLOR = '#00ff88'; // Matching glow
 const ALK_STATION_OUTLINE_COLOR = '#000000'; // Black outline for contrast
 const ALK_STATION_OUTLINE_WIDTH = 2;
+
+// Shipwreck constants - EXPLORATION LANDMARKS
+const SHIPWRECK_ICON_SIZE = 20; // Large for landmark visibility
+const SHIPWRECK_COLOR = '#8B4513'; // Rusty brown color for shipwrecks
+const SHIPWRECK_GLOW_COLOR = '#CD853F'; // Lighter brown glow
+const SHIPWRECK_OUTLINE_COLOR = '#000000'; // Black outline for contrast
+const SHIPWRECK_OUTLINE_WIDTH = 2;
 
 const RESOURCE_ICON_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.8)'; // Strong black outline for clarity
 const RESOURCE_ICON_OUTLINE_WIDTH = 1.5; // Thicker outline for tactical visibility
@@ -195,6 +202,7 @@ interface MinimapProps {
   campfires: Map<string, SpacetimeDBCampfire>; // Add campfires
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
   alkStations?: Map<string, SpacetimeDBAlkStation>; // ALK delivery stations
+  shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
 
   localPlayer: SpacetimeDBPlayer | undefined; // Extracted local player
   localPlayerId?: string;
@@ -566,6 +574,7 @@ export function drawMinimapOntoCanvas({
   campfires,
   sleepingBags,
   alkStations, // ALK delivery stations
+  shipwreckParts, // Shipwreck monument parts
 
   localPlayer, // Destructure localPlayer
   localPlayerId,
@@ -1125,6 +1134,58 @@ export function drawMinimapOntoCanvas({
           ctx.fillStyle = '#ffffff';
           ctx.fillText('ALK', x, y);
         }
+        
+        ctx.restore();
+      }
+    });
+  }
+
+  // --- Draw Shipwreck Parts (EXPLORATION LANDMARKS) ---
+  // Show ALL shipwreck parts so players can find the actual visible ship pieces
+  // Note: The "center" (isCenter=true) is just a reference point on the beach
+  // The actual visible ship parts are scattered north of the center
+  if (shipwreckParts && shipwreckParts.size > 0) {
+    let partCount = 0;
+    shipwreckParts.forEach((part, key) => {
+      // Show ALL parts (both center reference and actual visible parts)
+      // This way players can find the actual ship wreckage
+      
+      partCount++;
+      const screenCoords = worldToMinimap(part.worldX, part.worldY);
+      if (screenCoords) {
+        const iconSize = part.isCenter ? SHIPWRECK_ICON_SIZE * 1.2 : SHIPWRECK_ICON_SIZE; // Center slightly larger
+        const radius = iconSize / 2;
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw background circle for better visibility
+        ctx.fillStyle = 'rgba(139, 69, 19, 0.7)'; // Semi-transparent brown background
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw border around circle
+        ctx.strokeStyle = SHIPWRECK_OUTLINE_COLOR;
+        ctx.lineWidth = SHIPWRECK_OUTLINE_WIDTH;
+        ctx.stroke();
+        
+        // Add rusty glow effect
+        ctx.shadowColor = SHIPWRECK_GLOW_COLOR;
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw anchor symbol (⚓) - simple FontAwesome-style icon using Unicode
+        // Use larger font size for better visibility
+        ctx.font = `bold ${iconSize * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF'; // White for better contrast
+        
+        // Draw anchor Unicode symbol
+        ctx.fillText('⚓', x, y);
         
         ctx.restore();
       }

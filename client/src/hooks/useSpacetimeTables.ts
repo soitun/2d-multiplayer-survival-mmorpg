@@ -154,6 +154,7 @@ export interface SpacetimeTableStates {
     alkState: SpacetimeDB.AlkState | null; // ADDED: ALK system state
     playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>; // ADDED: Player shard balances
     memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
+    shipwreckParts: Map<string, any>; // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
 }
 
 // Define the props the hook accepts
@@ -236,6 +237,7 @@ export const useSpacetimeTables = ({
     const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null); // ADDED: ALK system state
     const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map()); // ADDED: Player shard balances
     const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
+    const [shipwreckParts, setShipwreckParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1547,6 +1549,17 @@ export const useSpacetimeTables = ({
                 setAlkStations(prev => { const newMap = new Map(prev); newMap.delete(station.stationId.toString()); return newMap; });
             };
 
+            // Shipwreck Part handlers - for shipwreck monument rendering
+            const handleShipwreckPartInsert = (ctx: any, part: any) => {
+                setShipwreckParts(prev => new Map(prev).set(part.id.toString(), part));
+            };
+            const handleShipwreckPartUpdate = (ctx: any, oldPart: any, newPart: any) => {
+                setShipwreckParts(prev => new Map(prev).set(newPart.id.toString(), newPart));
+            };
+            const handleShipwreckPartDelete = (ctx: any, part: any) => {
+                setShipwreckParts(prev => { const newMap = new Map(prev); newMap.delete(part.id.toString()); return newMap; });
+            };
+
             // ALK Contract handlers
             const handleAlkContractInsert = (ctx: any, contract: SpacetimeDB.AlkContract) => {
                 setAlkContracts(prev => new Map(prev).set(contract.contractId.toString(), contract));
@@ -1799,6 +1812,11 @@ export const useSpacetimeTables = ({
             connection.db.alkStation.onUpdate(handleAlkStationUpdate);
             connection.db.alkStation.onDelete(handleAlkStationDelete);
 
+            // Register Shipwreck Part callbacks - for shipwreck monument rendering
+            connection.db.shipwreckPart.onInsert(handleShipwreckPartInsert);
+            connection.db.shipwreckPart.onUpdate(handleShipwreckPartUpdate);
+            connection.db.shipwreckPart.onDelete(handleShipwreckPartDelete);
+
             // Register ALK Contract callbacks
             connection.db.alkContract.onInsert(handleAlkContractInsert);
             connection.db.alkContract.onUpdate(handleAlkContractUpdate);
@@ -1943,6 +1961,12 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_SHARD_BALANCE Sub Error]:", err))
                     .subscribe('SELECT * FROM player_shard_balance'),
+                // ADDED Shipwreck Part subscription - NON-SPATIAL (one-time read of static world gen data)
+                // Shipwrecks are placed during world generation and never change - similar to minimap_cache.
+                // Client reads once on connect, then treats as static config like compound buildings.
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[SHIPWRECK_PART Sub Error]:", err))
+                    .subscribe('SELECT * FROM shipwreck_part'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2309,5 +2333,6 @@ export const useSpacetimeTables = ({
         alkState, // ADDED: ALK system state
         playerShardBalance, // ADDED: Player shard balances
         memoryGridProgress, // ADDED: Memory Grid unlocks
+        shipwreckParts, // ADDED: Shipwreck monument parts
     };
 }; 

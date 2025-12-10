@@ -85,7 +85,7 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
-import { preloadCompoundBuildingImages } from '../utils/renderers/compoundBuildingRenderingUtils';
+import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
 import { renderInteractionLabels } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
@@ -243,6 +243,8 @@ interface GameCanvasProps {
   playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
   // Memory Grid progress for crafting unlocks
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
+  // Shipwreck monument parts (dynamically placed during world generation)
+  shipwreckParts?: Map<string, any>;
   // Weather overlay toggle for main game canvas atmospheric effects
   showWeatherOverlay?: boolean;
   // Status overlays toggle for cold/low health screen effects
@@ -337,6 +339,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
   chunkWeather, // Chunk-based weather data
   alkStations, // ALK delivery stations for minimap
+  shipwreckParts, // Shipwreck monument parts
   alkContracts, // ALK contracts for provisioning board
   alkPlayerContracts, // Player's accepted ALK contracts
   alkState, // ALK system state
@@ -681,7 +684,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
-    alkStations, // ADDED: ALK delivery stations for rendering and interaction
+    alkStations, // ADDED: ALK delivery stations
+  shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
   );
 
   // --- Day/Night Cycle with Indoor Light Containment ---
@@ -1460,7 +1464,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Load compound building images
   useEffect(() => {
-    preloadCompoundBuildingImages();
+        preloadMonumentImages();
   }, []);
 
   // Load doodad images
@@ -1521,8 +1525,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.src = module.default;
     });
 
-    // Compound building images are now loaded via static imports in compoundBuildingRenderingUtils.ts
+    // Monument images are now loaded via static imports in monumentRenderingUtils.ts
     // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
+    // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)
 
     // Load foundation tile images
     import('../assets/tiles/foundation_wood.png').then((module) => {
@@ -3649,6 +3654,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       chunkWeatherData: chunkWeatherForMinimap,
       // ALK delivery stations for minimap
       alkStations: alkStations,
+      // Shipwreck monument parts for minimap
+      shipwreckParts: shipwreckParts,
     });
   }, [
     isMinimapOpen,
@@ -3745,6 +3752,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           pinMarkerImage={pinMarkerImg}
           campfireWarmthImage={campfireWarmthImg}
           torchOnImage={torchOnImg}
+          // Shipwreck monument parts for minimap
+          shipwreckParts={shipwreckParts}
         />
       )}
 

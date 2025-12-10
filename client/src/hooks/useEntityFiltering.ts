@@ -47,7 +47,7 @@ import {
   isSeaStack // ADDED SeaStack type guard import
 } from '../utils/typeGuards';
 import { InterpolatedGrassData } from './useGrassInterpolation'; // Import InterpolatedGrassData
-import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition } from '../config/compoundBuildings'; // Import compound buildings config
+import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition, getAllCompoundBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 
 export interface ViewportBounds {
   viewMinX: number;
@@ -621,7 +621,8 @@ export function useEntityFiltering(
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
-  alkStations?: Map<string, SpacetimeDBAlkStation> // ADDED: ALK delivery stations
+  alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
+  shipwreckParts?: Map<string, any> // ADDED: Shipwreck monument parts
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -1137,11 +1138,23 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
-  // ADDED: Compound buildings filtering - static buildings defined in config
-  // These don't come from server, so we compute world positions from config and filter by viewport
+  // ADDED: Compound buildings filtering - static buildings + dynamic shipwrecks
+  // Static buildings come from config, shipwrecks come from database
   const visibleCompoundBuildings = useMemo(() => {
-    // Convert config buildings to entity format with world positions
-    return COMPOUND_BUILDINGS.map(building => {
+    // Merge static compound buildings with dynamic shipwreck parts
+    const shipwreckPartsArray = shipwreckParts ? Array.from(shipwreckParts.values()).map(part => ({
+      id: part.id,
+      worldX: part.worldX,
+      worldY: part.worldY,
+      imagePath: part.imagePath,
+      isCenter: part.isCenter,
+      collisionRadius: part.collisionRadius,
+    })) : [];
+    
+    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray);
+    
+    // Convert buildings to entity format with world positions
+    return allBuildings.map(building => {
       const worldPos = getBuildingWorldPosition(building);
       return {
         id: building.id,
@@ -1165,7 +1178,7 @@ export function useEntityFiltering(
              bottom + buffer >= viewBounds.viewMinY &&
              top - buffer <= viewBounds.viewMaxY;
     });
-  }, [viewBounds]);
+  }, [viewBounds, shipwreckParts]);
 
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))

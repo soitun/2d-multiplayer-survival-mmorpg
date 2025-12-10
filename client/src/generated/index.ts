@@ -785,6 +785,8 @@ import { SeasonalPlantManagementScheduleTableHandle } from "./seasonal_plant_man
 export { SeasonalPlantManagementScheduleTableHandle };
 import { ShelterTableHandle } from "./shelter_table.ts";
 export { ShelterTableHandle };
+import { ShipwreckPartTableHandle } from "./shipwreck_part_table.ts";
+export { ShipwreckPartTableHandle };
 import { SleepingBagTableHandle } from "./sleeping_bag_table.ts";
 export { SleepingBagTableHandle };
 import { SleepingBagDeteriorationScheduleTableHandle } from "./sleeping_bag_deterioration_schedule_table.ts";
@@ -1087,6 +1089,8 @@ import { SeasonalPlantManagementSchedule } from "./seasonal_plant_management_sch
 export { SeasonalPlantManagementSchedule };
 import { Shelter } from "./shelter_type.ts";
 export { Shelter };
+import { ShipwreckPart } from "./shipwreck_part_type.ts";
+export { ShipwreckPart };
 import { SleepingBag } from "./sleeping_bag_type.ts";
 export { SleepingBag };
 import { SleepingBagDeteriorationSchedule } from "./sleeping_bag_deterioration_schedule_type.ts";
@@ -1981,6 +1985,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Shelter.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    shipwreck_part: {
+      tableName: "shipwreck_part" as const,
+      rowType: ShipwreckPart.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ShipwreckPart.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     sleeping_bag: {
@@ -9872,6 +9885,11 @@ export class RemoteTables {
   get shelter(): ShelterTableHandle<'shelter'> {
     // clientCache is a private property
     return new ShelterTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Shelter>(REMOTE_MODULE.tables.shelter));
+  }
+
+  get shipwreckPart(): ShipwreckPartTableHandle<'shipwreck_part'> {
+    // clientCache is a private property
+    return new ShipwreckPartTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ShipwreckPart>(REMOTE_MODULE.tables.shipwreck_part));
   }
 
   get sleepingBag(): SleepingBagTableHandle<'sleeping_bag'> {

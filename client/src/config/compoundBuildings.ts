@@ -546,3 +546,60 @@ export function getCompoundBuildingsWithLights(): Array<{
     });
 }
 
+/**
+ * Convert shipwreck parts from database to compound building format.
+ * Shipwrecks are dynamically placed during world generation, but then treated as static config.
+ * Client reads shipwreck positions once on world load, then treats them like compound buildings.
+ */
+export function getShipwreckBuildings(shipwreckParts: Array<{
+  id: bigint;
+  worldX: number;
+  worldY: number;
+  imagePath: string;
+  isCenter: boolean;
+  collisionRadius: number;
+}>): CompoundBuilding[] {
+  const center = getWorldCenter();
+  
+  return shipwreckParts.map((part, index) => {
+    // Calculate offset from world center (matching compound building pattern)
+    const offsetX = part.worldX - center.x;
+    const offsetY = part.worldY - center.y;
+    
+    // All ship parts are rendered at half size (512x512) for better spacing
+    const width = 512;
+    const height = 512;
+    const anchorYOffset = 0; // Anchor at bottom of sprite
+    
+    return {
+      id: `shipwreck_${part.id}`,
+      offsetX,
+      offsetY,
+      imagePath: part.imagePath,
+      width,
+      height,
+      anchorYOffset,
+      collisionRadius: part.collisionRadius,
+      collisionYOffset: 0,
+    };
+  });
+}
+
+/**
+ * Get all compound buildings including shipwrecks.
+ * Shipwrecks are read once from database during world load, then treated as static config.
+ * This matches the compound buildings pattern: client-side rendering, server-side collision only.
+ */
+export function getAllCompoundBuildings(shipwreckParts?: Array<{
+  id: bigint;
+  worldX: number;
+  worldY: number;
+  imagePath: string;
+  isCenter: boolean;
+  collisionRadius: number;
+}>): CompoundBuilding[] {
+  const staticBuildings = COMPOUND_BUILDINGS;
+  const shipwreckBuildings = shipwreckParts ? getShipwreckBuildings(shipwreckParts) : [];
+  return [...staticBuildings, ...shipwreckBuildings];
+}
+

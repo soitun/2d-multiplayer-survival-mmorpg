@@ -14,6 +14,8 @@ export const LARGE_BOX_WIDTH = 96;  // Larger dimensions for large box
 export const LARGE_BOX_HEIGHT = 96;
 export const REFRIGERATOR_WIDTH = 64;  // Refrigerator dimensions
 export const REFRIGERATOR_HEIGHT = 96;
+export const COMPOST_WIDTH = 128;  // Compost box dimensions (larger than normal box)
+export const COMPOST_HEIGHT = 128;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -58,6 +60,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: LARGE_BOX_WIDTH, height: LARGE_BOX_HEIGHT };
             case BOX_TYPE_REFRIGERATOR:
                 return { width: REFRIGERATOR_WIDTH, height: REFRIGERATOR_HEIGHT };
+            case BOX_TYPE_COMPOST:
+                return { width: COMPOST_WIDTH, height: COMPOST_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }

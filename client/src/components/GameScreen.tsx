@@ -266,6 +266,8 @@ interface GameScreenProps {
     alkPlayerContracts?: Map<string, SpacetimeDBAlkPlayerContract>;
     // ALK system state
     alkState?: SpacetimeDBAlkState | null;
+    // Shipwreck monument parts (one-time read of static world gen data)
+    shipwreckParts?: Map<string, any>;
     // Player shard balances
     playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
     // Memory Grid progress for crafting unlocks
@@ -871,6 +873,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showStatusOverlays={statusOverlaysEnabled}
                 alkStations={props.alkStations}
                 alkContracts={props.alkContracts}
+                shipwreckParts={props.shipwreckParts}
                 alkPlayerContracts={props.alkPlayerContracts}
                 alkState={props.alkState}
                 playerShardBalance={props.playerShardBalance}

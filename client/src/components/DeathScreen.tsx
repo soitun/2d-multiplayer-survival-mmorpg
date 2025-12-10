@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone } from '../generated'; // Corrected import
+import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone, ShipwreckPart } from '../generated'; // Corrected import
 import { drawMinimapOntoCanvas, MINIMAP_DIMENSIONS, worldToMinimapCoords, calculateMinimapViewport } from './Minimap'; // Import Minimap drawing and helpers
 import { gameConfig } from '../config/gameConfig'; // Import gameConfig
 
@@ -30,6 +30,7 @@ interface DeathScreenProps {
   pinMarkerImage?: HTMLImageElement | null;
   campfireWarmthImage?: HTMLImageElement | null;
   torchOnImage?: HTMLImageElement | null;
+  shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
 }
 
 // Helper function to format death cause messages
@@ -77,6 +78,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   campfires,
   playerPin,
   sleepingBagImage,
+  shipwreckParts, // Shipwreck monument parts
   // Destructure new props
   localPlayerDeathMarker,
   deathMarkerImage,
@@ -242,6 +244,8 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       torchOnImage,
       // Add grid coordinates visibility preference
       showGridCoordinates,
+      // Shipwreck monument parts for minimap
+      shipwreckParts,
     });
 
     // Draw hover effect (simple circle) - This is illustrative
