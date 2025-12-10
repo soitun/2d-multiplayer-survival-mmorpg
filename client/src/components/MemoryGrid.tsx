@@ -114,18 +114,18 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     };
   }, []);
 
-  // Memoize updated nodes - only recalculate when purchasedNodes changes
+  // Memoize updated nodes - only recalculate when purchasedNodes or totalShardsSpent changes
   const updatedNodes = useMemo((): MemoryGridNode[] => {
     return MEMORY_GRID_NODES.map(node => {
       if (purchasedNodes.has(node.id)) {
         return { ...node, status: 'purchased' };
-      } else if (isNodeAvailable(node.id, purchasedNodes)) {
+      } else if (isNodeAvailable(node.id, purchasedNodes, totalShardsSpent)) {
         return { ...node, status: 'available' };
       } else {
         return { ...node, status: 'locked' };
       }
     }) as MemoryGridNode[];
-  }, [purchasedNodes]);
+  }, [purchasedNodes, totalShardsSpent]);
 
   // Check if player has unlocked any faction
   const unlockedFaction = useMemo(() => {
@@ -794,11 +794,30 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                   )}
                 </div>
                 
-                {/* Show faction lock message for faction unlock nodes */}
+                {/* Show "coming soon" message for faction unlock nodes */}
+                {displayNode.id.includes('unlock-') && (
+                  <div style={{ 
+                    marginTop: '8px', 
+                    padding: '8px', 
+                    background: 'rgba(124, 58, 237, 0.1)', 
+                    border: '1px solid #7c3aed',
+                    borderRadius: '4px',
+                    fontSize: '11px'
+                  }}>
+                    <div style={{ color: '#7c3aed', fontWeight: 'bold', marginBottom: '6px' }}>
+                      🚧 Coming Soon
+                    </div>
+                    <div style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.5' }}>
+                      Faction unlocks will be available in v1.0 release after early access ends.
+                    </div>
+                  </div>
+                )}
+                
+                {/* TEMPORARILY DISABLED - Original faction lock message code */}
+                {/* TODO: Uncomment this code when enabling faction unlocks */}
+                {/*
                 {displayNode.status === 'locked' && displayNode.id.includes('unlock-') && (() => {
-                  const tier5Nodes = ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'];
-                  const hasTier5 = tier5Nodes.some(id => purchasedNodes.has(id));
-                  const isLockedDueToFaction = hasTier5 && unlockedFaction;
+                  const isLockedDueToFaction = !!unlockedFaction;
                   
                   // Check requirement
                   const MIN_TOTAL_SHARDS = 2000;
@@ -843,7 +862,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                         </div>
                         <div style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ color: '#ef4444' }}>✗</span>
-                          <span>Spend at least 2,000 total shards</span>
+                          <span>Spend at least 2,000 total shards on core grid</span>
                           <span style={{ color: '#6b7280', marginLeft: 'auto' }}>
                             ({totalShardsSpent.toLocaleString()} / 2,000)
                           </span>
@@ -854,6 +873,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                   
                   return null;
                 })()}
+                */}
                 
                 {displayNode.status === 'available' && canAfford && onNodePurchase && (
                   <button

@@ -170,12 +170,6 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .icon("animal_leather.png")
             .build(),
 
-        // Fertilizer - Organic nutrient material for farming
-        basic_material("Fertilizer", "Rich organic fertilizer made from decomposed organic matter. Essential for improving crop yields and soil quality.", 500)
-            .icon("fertilizer.png")
-            .respawn_time(300)
-            .build(),
-
         // Crab Carapace - Armor component from crabs
         basic_material("Crab Carapace", "A hard, protective shell from a beach crab. Lightweight yet sturdy, useful for crafting protective gear.", 10)
             .icon("crab_carapace.png")

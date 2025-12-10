@@ -45,6 +45,7 @@ export type PlantedSeed = {
   growthProgress: number,
   baseGrowthTimeSecs: bigint,
   lastGrowthUpdate: __Timestamp,
+  fertilizedAt: __Timestamp | undefined,
 };
 let _cached_PlantedSeed_type_value: __AlgebraicTypeType | null = null;
 
@@ -72,6 +73,7 @@ export const PlantedSeed = {
       { name: "growthProgress", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "baseGrowthTimeSecs", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "lastGrowthUpdate", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "fertilizedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_PlantedSeed_type_value;
   },

@@ -60,6 +60,7 @@ import {
     Stash as SpacetimeDBStash,
     RainCollector as SpacetimeDBRainCollector,
     WaterPatch as SpacetimeDBWaterPatch,
+    FertilizerPatch as SpacetimeDBFertilizerPatch,
     FirePatch as SpacetimeDBFirePatch,
     ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
     Cloud as SpacetimeDBCloud,
@@ -165,6 +166,9 @@ interface GameScreenProps {
 
     // Water patches
     waterPatches: Map<string, SpacetimeDBWaterPatch>;
+
+    // Fertilizer patches
+    fertilizerPatches: Map<string, SpacetimeDBFertilizerPatch>;
 
     // Fire patches
     firePatches: Map<string, SpacetimeDBFirePatch>;
@@ -373,6 +377,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         rainCollectors,
         brothPots,
         waterPatches,
+        fertilizerPatches,
         isMusicPanelVisible,
         setIsMusicPanelVisible,
         movementDirection,
@@ -853,6 +858,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 rainCollectors={rainCollectors}
                 brothPots={brothPots}
                 waterPatches={waterPatches}
+                fertilizerPatches={fertilizerPatches}
                 firePatches={props.firePatches}
                 setMusicPanelVisible={setIsMusicPanelVisible}
                 environmentalVolume={props.environmentalVolume}

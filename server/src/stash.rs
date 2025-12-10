@@ -215,6 +215,9 @@ pub fn place_stash(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, wo
 
     log::info!("Player {:?} attempting to place stash (item instance {}) at ({}, {}).", sender_id, item_instance_id, world_x, world_y);
 
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
+
     // 1. Validate Player (Existence checked by get_player_item)
     // 2. Validate Item to be Placed
     let mut item_to_place = get_player_item(ctx, item_instance_id)?; // Validates ownership and player existence

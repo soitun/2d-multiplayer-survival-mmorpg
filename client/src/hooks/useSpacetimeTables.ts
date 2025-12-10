@@ -111,6 +111,7 @@ export interface SpacetimeTableStates {
     stashes: Map<string, SpacetimeDB.Stash>;
     rainCollectors: Map<string, SpacetimeDB.RainCollector>;
     waterPatches: Map<string, SpacetimeDB.WaterPatch>;
+    fertilizerPatches: Map<string, SpacetimeDB.FertilizerPatch>;
     firePatches: Map<string, SpacetimeDB.FirePatch>;
     hotSprings: Map<string, any>; // HotSpring - placeholder (hot springs are tile-based, not entities)
     recipes: Map<string, SpacetimeDB.Recipe>;
@@ -202,6 +203,7 @@ export const useSpacetimeTables = ({
     const [stashes, setStashes] = useState<Map<string, SpacetimeDB.Stash>>(() => new Map());
     const [rainCollectors, setRainCollectors] = useState<Map<string, SpacetimeDB.RainCollector>>(() => new Map());
     const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
+    const [fertilizerPatches, setFertilizerPatches] = useState<Map<string, SpacetimeDB.FertilizerPatch>>(() => new Map());
     const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
     const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
@@ -355,6 +357,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
@@ -400,6 +403,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('FertilizerPatch', `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FirePatch', `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
@@ -1270,6 +1274,31 @@ export const useSpacetimeTables = ({
                 setWaterPatches(prev => { const newMap = new Map(prev); newMap.delete(waterPatch.id.toString()); return newMap; });
             };
 
+            // --- FertilizerPatch Subscriptions ---
+            const handleFertilizerPatchInsert = (ctx: any, fertilizerPatch: SpacetimeDB.FertilizerPatch) => {
+                // CRITICAL FIX: Ensure we're subscribed to the chunk containing this fertilizer patch
+                const patchChunkIndex = fertilizerPatch.chunkIndex;
+
+                // Check if we're subscribed to this chunk
+                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                    console.log(`[FERTILIZER_PATCH] Received fertilizer patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
+
+                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
+                    if (newHandlesForChunk.length > 0) {
+                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
+                    }
+                }
+
+                // Add the fertilizer patch to state
+                setFertilizerPatches(prev => new Map(prev).set(fertilizerPatch.id.toString(), fertilizerPatch));
+            };
+            const handleFertilizerPatchUpdate = (ctx: any, oldFertilizerPatch: SpacetimeDB.FertilizerPatch, newFertilizerPatch: SpacetimeDB.FertilizerPatch) => {
+                setFertilizerPatches(prev => new Map(prev).set(newFertilizerPatch.id.toString(), newFertilizerPatch));
+            };
+            const handleFertilizerPatchDelete = (ctx: any, fertilizerPatch: SpacetimeDB.FertilizerPatch) => {
+                setFertilizerPatches(prev => { const newMap = new Map(prev); newMap.delete(fertilizerPatch.id.toString()); return newMap; });
+            };
+
             // --- FirePatch Subscriptions ---
             const handleFirePatchInsert = (ctx: any, firePatch: SpacetimeDB.FirePatch) => {
                 // CRITICAL FIX: Ensure we're subscribed to the chunk containing this fire patch
@@ -1687,6 +1716,10 @@ export const useSpacetimeTables = ({
             connection.db.waterPatch.onInsert(handleWaterPatchInsert);
             connection.db.waterPatch.onUpdate(handleWaterPatchUpdate);
             connection.db.waterPatch.onDelete(handleWaterPatchDelete);
+            
+            connection.db.fertilizerPatch.onInsert(handleFertilizerPatchInsert);
+            connection.db.fertilizerPatch.onUpdate(handleFertilizerPatchUpdate);
+            connection.db.fertilizerPatch.onDelete(handleFertilizerPatchDelete);
 
             // Register FirePatch callbacks - ADDED
             connection.db.firePatch.onInsert(handleFirePatchInsert);
@@ -2014,7 +2047,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
                                     `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance (was causing 800+ updates/sec globally)
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
@@ -2240,6 +2273,7 @@ export const useSpacetimeTables = ({
         stashes,
         rainCollectors,
         waterPatches,
+        fertilizerPatches,
         firePatches,
         hotSprings,
         activeConsumableEffects,

@@ -292,6 +292,18 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Flashlight']
   },
   { 
+    id: 'compost', 
+    name: 'Compost', 
+    description: 'Unlocks crafting Compost containers - converts organic materials (food, plants, plant fiber) into fertilizer over time.', 
+    cost: 60, 
+    tier: 2, 
+    prerequisites: ['lantern'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6 + 0.3, 220), // Branch 4: Alternative path from lantern
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Compost']
+  },
+  { 
     id: 'reed-bellows', 
     name: 'Reed Bellows', 
     description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.', 
@@ -302,17 +314,6 @@ export const MEMORY_GRID_NODES = [
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Bellows']
-  },
-  { 
-    id: 'movement-speed-1', 
-    name: 'Movement Speed I', 
-    description: 'Enhanced mobility training. Move 10% faster.', 
-    cost: 80, 
-    tier: 2, 
-    prerequisites: ['stone-spear'], 
-    position: getRadialPosition(5 * 2 * Math.PI / 6, 220), // Branch 6: Straight from stone-spear
-    category: 'passive' as const, 
-    status: 'locked' as const
   },
 
   // ============================================
@@ -363,8 +364,8 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
     cost: 140, 
     tier: 3, 
-    prerequisites: ['flashlight'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight
+    prerequisites: ['flashlight', 'compost'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight OR compost
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Rain Collector']
@@ -377,17 +378,6 @@ export const MEMORY_GRID_NODES = [
     tier: 3, 
     prerequisites: ['reed-bellows'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 320), // Branch 5: Continues from reed-bellows
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
-  { 
-    id: 'movement-speed-2', 
-    name: 'Movement Speed II', 
-    description: 'Advanced mobility training. Move 20% faster total.', 
-    cost: 200, 
-    tier: 3, 
-    prerequisites: ['movement-speed-1'], 
-    position: getRadialPosition(5 * 2 * Math.PI / 6, 320), // Branch 6: Continues from movement-speed-1
     category: 'passive' as const, 
     status: 'locked' as const
   },
@@ -454,17 +444,6 @@ export const MEMORY_GRID_NODES = [
     tier: 4, 
     prerequisites: ['mining-efficiency'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 420), // Branch 5: Continues from mining-efficiency
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
-  { 
-    id: 'armor-mastery', 
-    name: 'Armor Mastery', 
-    description: 'Master armor maintenance. All armor durability increased by 30%.', 
-    cost: 420, 
-    tier: 4, 
-    prerequisites: ['movement-speed-2'], 
-    position: getRadialPosition(5 * 2 * Math.PI / 6, 420), // Branch 6: Continues from movement-speed-2
     category: 'passive' as const, 
     status: 'locked' as const
   },
@@ -573,12 +552,12 @@ export const MEMORY_GRID_NODES = [
   // Player commits to ONE faction (reset costs 2000 shards)
   // Radius: 900 (increased spacing from core nodes)
   // ============================================
-  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 400, tier: 8, faction: 'black-wolves', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(0, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 400, tier: 8, faction: 'hive', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 400, tier: 8, faction: 'university', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(2 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 400, tier: 8, faction: 'data-angels', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(Math.PI, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 400, tier: 8, faction: 'battalion', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(4 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 400, tier: 8, faction: 'admiralty', prerequisites: ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'], position: getRadialPosition(5 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 400, tier: 8, faction: 'black-wolves', prerequisites: [], position: getRadialPosition(0, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 400, tier: 8, faction: 'hive', prerequisites: [], position: getRadialPosition(Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 400, tier: 8, faction: 'university', prerequisites: [], position: getRadialPosition(2 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 400, tier: 8, faction: 'data-angels', prerequisites: [], position: getRadialPosition(Math.PI, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 400, tier: 8, faction: 'battalion', prerequisites: [], position: getRadialPosition(4 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 400, tier: 8, faction: 'admiralty', prerequisites: [], position: getRadialPosition(5 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
 
   // ============================================
   // FACTION BRANCHES (400-2500 shards per node)
@@ -832,20 +811,15 @@ const FACTION_UNLOCK_NODES = [
   'unlock-admiralty'
 ];
 
-export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>): boolean => {
+export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>, totalShardsSpent: number = 0): boolean => {
   const node = MEMORY_GRID_NODES.find(n => n.id === nodeId);
   if (!node) return false;
   
   if (nodeId.includes('unlock-')) {
-    // First check: Has any tier 5 node been purchased?
-    const tier5Nodes = ['9x18mm-round', 'shelter', 'crafting-speed-2', 'makarov-pm', 'harvester-drone', 'broth-mastery', 'combat-drone'];
-    const hasTier5 = tier5Nodes.some((tier5Id: string) => purchasedNodes.has(tier5Id));
-    
-    if (!hasTier5) {
-      return false; // No tier 5 node yet
-    }
-    
-    // Second check: Has the player already unlocked a DIFFERENT faction?
+    // TEMPORARILY DISABLED FOR v1.0 - Coming soon after early access ends
+    // TODO: Uncomment this code when enabling faction unlocks
+    /*
+    // First check: Has the player already unlocked a DIFFERENT faction?
     // If so, this faction unlock is NOT available (must reset first)
     for (const factionId of FACTION_UNLOCK_NODES) {
       if (purchasedNodes.has(factionId)) {
@@ -854,7 +828,17 @@ export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>): bo
       }
     }
     
-    return true; // Has tier 5 and no faction unlocked yet
+    // Second check: Requires spending 2000 total shards on core grid
+    // Note: This check is handled server-side, but we check here for UI display
+    // The server will enforce the actual requirement
+    const MIN_TOTAL_SHARDS = 2000;
+    if (totalShardsSpent < MIN_TOTAL_SHARDS) {
+      return false; // Not enough total shards spent
+    }
+    
+    return true; // No faction unlocked yet and enough shards spent
+    */
+    return false; // Disabled - coming soon in v1.0
   }
   
   return node.prerequisites.some((prereqId: string) => purchasedNodes.has(prereqId));
@@ -876,6 +860,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Fire Arrow': 'fire-arrow',
   'Bush Knife': 'bush-knife',
   'Flashlight': 'flashlight',
+  'Compost': 'compost',
   'Reed Bellows': 'reed-bellows',
   'Bone Gaff Hook': 'bone-gaff-hook',
   

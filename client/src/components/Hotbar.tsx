@@ -948,7 +948,22 @@ const Hotbar: React.FC<HotbarProps> = ({
                       connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
                       break;
                   case 'wooden_storage_box':
-                      connection.reducers.quickMoveToBox(containerId, itemInstanceId);
+                      // Check if this is a compost box and use the appropriate reducer
+                      let boxEntity: any = null;
+                      try {
+                          if (connection?.db) {
+                              const boxTable = connection.db.woodenStorageBox;
+                              boxEntity = boxTable.id.find(containerId);
+                          }
+                      } catch (e) {
+                          // Entity lookup failed, continue without it
+                      }
+                      const BOX_TYPE_COMPOST = 3; // Match server constant
+                      if (boxEntity?.boxType === BOX_TYPE_COMPOST) {
+                          connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                      } else {
+                          connection.reducers.quickMoveToBox(containerId, itemInstanceId);
+                      }
                       break;
                   case 'stash':
                       const currentStash = stashes.get(interactingWith.id.toString());
@@ -1078,6 +1093,17 @@ const Hotbar: React.FC<HotbarProps> = ({
               connection.reducers.consumeFilledWaterContainer(itemInstanceId);
           } catch (error: any) {
               console.error("[Hotbar ContextMenu] Failed to consume water container:", error);
+          }
+          return;
+      }
+
+      // Check if it's fertilizer (right-click to consume directly)
+      if (itemInfo.definition.name === "Fertilizer" && itemInfo.instance.quantity > 0) {
+          try {
+              console.log(`[Hotbar ContextMenu] Consuming fertilizer from bag`);
+              connection.reducers.consumeItem(itemInstanceId);
+          } catch (error: any) {
+              console.error("[Hotbar ContextMenu] Failed to consume fertilizer:", error);
           }
           return;
       }

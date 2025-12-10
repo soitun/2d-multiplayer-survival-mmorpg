@@ -77,6 +77,7 @@ mod utils; // Declare utils module
 mod dropped_item; // Declare dropped_item module
 mod wooden_storage_box; // Add the new module
 mod refrigerator; // Refrigerator-specific container logic
+mod compost; // Compost-specific container logic
 
 mod items_database; // <<< NEW: Modular items database
 mod starting_items; // <<< ADDED module declaration
@@ -122,6 +123,7 @@ mod wet; // <<< ADDED wet status effect module
 mod sound_events; // <<< ADDED sound events module
 mod rain_collector; // <<< ADDED rain collector module
 mod water_patch; // <<< ADDED water patch module for crop watering
+mod fertilizer_patch; // <<< ADDED fertilizer patch module for visual fertilizer application
 pub mod wild_animal_npc; // <<< ADDED wild animal NPC system (now modular)
 mod animal_collision; // <<< ADDED animal collision system
 mod barrel; // <<< ADDED roadside barrel loot system
@@ -379,6 +381,8 @@ use crate::sound_events::sound_event_cleanup_schedule as SoundEventCleanupSchedu
 // Thunder sound schedule removed - system disabled for now
 use crate::rain_collector::rain_collector as RainCollectorTableTrait; // <<< ADDED: Import RainCollector table trait
 use crate::water_patch::water_patch as WaterPatchTableTrait; // <<< ADDED: Import WaterPatch table trait
+use crate::fertilizer_patch::fertilizer_patch as FertilizerPatchTableTrait; // <<< ADDED: Import FertilizerPatch table trait
+use crate::compost::compost_process_schedule as CompostProcessScheduleTableTrait; // <<< ADDED: Import CompostProcessSchedule table trait
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait; // <<< ADDED: Import WildAnimal table trait
 use crate::wild_animal_npc::wild_animal_ai_schedule as WildAnimalAiScheduleTableTrait; // <<< ADDED: Import WildAnimalAiSchedule table trait
 use crate::wild_animal_npc::animal_corpse as AnimalCorpseTableTrait; // <<< ADDED: Import AnimalCorpse table trait
@@ -650,6 +654,12 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize water patch cleanup system
     crate::water_patch::init_water_patch_system(ctx)?;
+    
+    // ADD: Initialize fertilizer patch cleanup system
+    crate::fertilizer_patch::init_fertilizer_patch_system(ctx)?;
+    
+    // ADD: Initialize compost processing system
+    crate::compost::init_compost_system(ctx)?;
     
     // ADD: Initialize fire patch cleanup system
     crate::fire_patch::init_fire_patch_system(ctx)?;

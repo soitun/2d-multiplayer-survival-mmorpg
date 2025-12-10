@@ -21,7 +21,7 @@ interface UseEntrainmentSovaSoundsProps {
   localPlayerId: string | undefined;
 }
 
-const ENTRAINMENT_QUOTE_COUNT = 7;
+const ENTRAINMENT_QUOTE_COUNT = 6;
 const MIN_QUOTE_INTERVAL_MS = 5000; // 5 seconds minimum
 const MAX_QUOTE_INTERVAL_MS = 15000; // 15 seconds maximum
 
@@ -33,7 +33,7 @@ function hasEntrainmentEffect(
   localPlayerId: string | undefined
 ): boolean {
   if (!localPlayerId || !activeConsumableEffects) {
-    console.log(`[SOVA Entrainment] No localPlayerId or activeConsumableEffects - localPlayerId: ${localPlayerId}, effects: ${activeConsumableEffects?.size || 0}`);
+    // console.log(`[SOVA Entrainment] No localPlayerId or activeConsumableEffects - localPlayerId: ${localPlayerId}, effects: ${activeConsumableEffects?.size || 0}`);
     return false;
   }
   
@@ -47,7 +47,7 @@ function hasEntrainmentEffect(
   );
   
   if (hasEntrainment) {
-    console.log(`[SOVA Entrainment] Entrainment effect detected for player ${localPlayerId}`);
+    // console.log(`[SOVA Entrainment] Entrainment effect detected for player ${localPlayerId}`);
   }
   
   return hasEntrainment;
@@ -61,7 +61,7 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
   const soundFilename = `sova_entrainment_${quoteNumber}.mp3`;
   const soundPath = `/sounds/${soundFilename}`;
   
-  console.log(`[SOVA Entrainment] Attempting to play quote ${quoteNumber}: ${soundPath}`);
+  // console.log(`[SOVA Entrainment] Attempting to play quote ${quoteNumber}: ${soundPath}`);
   
   try {
     const audio = new Audio(soundPath);
@@ -80,11 +80,11 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
     });
     
     audio.addEventListener('loadstart', () => {
-      console.log(`[SOVA Entrainment] Loading quote ${quoteNumber}...`);
+      // console.log(`[SOVA Entrainment] Loading quote ${quoteNumber}...`);
     });
     
     audio.addEventListener('canplay', () => {
-      console.log(`[SOVA Entrainment] Quote ${quoteNumber} ready to play`);
+      // console.log(`[SOVA Entrainment] Quote ${quoteNumber} ready to play`);
     });
     
     // Apply slight pitch variation for glitchy effect (simple approach)
@@ -92,7 +92,7 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
     // For now, we'll rely on the audio files themselves having distortion baked in
     
     audio.play().then(() => {
-      console.log(`[SOVA Entrainment] Successfully started playing quote ${quoteNumber}`);
+      // console.log(`[SOVA Entrainment] Successfully started playing quote ${quoteNumber}`);
     }).catch((error) => {
       console.error(`[SOVA Entrainment] Failed to play quote ${soundFilename}:`, error);
       const audioError = (audio as any).error;
@@ -133,7 +133,7 @@ export function useEntrainmentSovaSounds({
    * Only schedules if no quote is currently playing
    */
   const scheduleNextQuote = useCallback(() => {
-    console.log('[SOVA Entrainment] scheduleNextQuote called');
+    // console.log('[SOVA Entrainment] scheduleNextQuote called');
     
     // Clear any existing timer
     if (quoteTimerRef.current !== null) {
@@ -144,7 +144,7 @@ export function useEntrainmentSovaSounds({
     // Check if Entrainment is still active
     const stillHasEntrainment = hasEntrainmentEffect(activeConsumableEffectsRef.current, localPlayerIdRef.current);
     if (!stillHasEntrainment) {
-      console.log('[SOVA Entrainment] Entrainment ended, stopping quote scheduling');
+      // console.log('[SOVA Entrainment] Entrainment ended, stopping quote scheduling');
       return; // Entrainment ended, stop scheduling
     }
     
@@ -155,7 +155,7 @@ export function useEntrainmentSovaSounds({
                           currentQuoteAudioRef.current.currentTime < currentQuoteAudioRef.current.duration;
     
     if (isQuotePlaying) {
-      console.log('[SOVA Entrainment] Quote is currently playing, will check again in 2 seconds');
+      // console.log('[SOVA Entrainment] Quote is currently playing, will check again in 2 seconds');
       // Quote is playing, check again in 2 seconds
       quoteTimerRef.current = window.setTimeout(() => {
         scheduleNextQuote();
@@ -165,14 +165,14 @@ export function useEntrainmentSovaSounds({
     
     // No quote playing, schedule next one
     const delay = MIN_QUOTE_INTERVAL_MS + Math.random() * (MAX_QUOTE_INTERVAL_MS - MIN_QUOTE_INTERVAL_MS);
-    console.log(`[SOVA Entrainment] Scheduling next quote in ${(delay / 1000).toFixed(1)} seconds`);
+    // console.log(`[SOVA Entrainment] Scheduling next quote in ${(delay / 1000).toFixed(1)} seconds`);
     
     quoteTimerRef.current = window.setTimeout(() => {
-      console.log('[SOVA Entrainment] Quote timer fired');
+      // console.log('[SOVA Entrainment] Quote timer fired');
       // Double-check Entrainment is still active
       const stillActive = hasEntrainmentEffect(activeConsumableEffectsRef.current, localPlayerIdRef.current);
       if (!stillActive) {
-        console.log('[SOVA Entrainment] Entrainment ended before quote could play');
+        // console.log('[SOVA Entrainment] Entrainment ended before quote could play');
         return;
       }
       
@@ -182,7 +182,7 @@ export function useEntrainmentSovaSounds({
       // When quote finishes, schedule next one
       if (audio) {
         audio.addEventListener('ended', () => {
-          console.log('[SOVA Entrainment] Quote ended, scheduling next');
+          // console.log('[SOVA Entrainment] Quote ended, scheduling next');
           currentQuoteAudioRef.current = null;
           scheduleNextQuote();
         }, { once: true });
@@ -202,23 +202,35 @@ export function useEntrainmentSovaSounds({
 
   // Compute Entrainment status - use useMemo to avoid recalculating unnecessarily
   const hasEntrainment = useMemo(() => {
-    return hasEntrainmentEffect(activeConsumableEffects, localPlayerId);
+    const result = hasEntrainmentEffect(activeConsumableEffects, localPlayerId);
+    // console.log(`[SOVA Entrainment] useMemo - hasEntrainment: ${result}, localPlayerId: ${localPlayerId}, effects: ${activeConsumableEffects?.size || 0}`);
+    return result;
   }, [activeConsumableEffects, localPlayerId]);
 
   // Helper function to play the first Entrainment quote
   const playFirstEntrainmentQuote = useCallback(() => {
+    // console.log('[SOVA Entrainment] playFirstEntrainmentQuote called');
     const stillHasEntrainment = hasEntrainmentEffect(activeConsumableEffectsRef.current, localPlayerIdRef.current);
-    console.log(`[SOVA Entrainment] Still has Entrainment: ${stillHasEntrainment}`);
+    // console.log(`[SOVA Entrainment] Still has Entrainment: ${stillHasEntrainment}, localPlayerId: ${localPlayerIdRef.current}, effects: ${activeConsumableEffectsRef.current?.size || 0}`);
     
     if (stillHasEntrainment) {
+      // console.log('[SOVA Entrainment] Calling playEntrainmentQuote()');
       const audio = playEntrainmentQuote();
       currentQuoteAudioRef.current = audio;
+      // console.log(`[SOVA Entrainment] Audio created: ${!!audio}`);
       
       // When first quote finishes, start the scheduling loop
       if (audio) {
         audio.addEventListener('ended', () => {
-          console.log('[SOVA Entrainment] First quote ended, starting scheduling loop');
+          // console.log('[SOVA Entrainment] First quote ended, starting scheduling loop');
           currentQuoteAudioRef.current = null;
+          scheduleNextQuote();
+        }, { once: true });
+        
+        // Also add error handler to catch any playback issues
+        audio.addEventListener('error', (e) => {
+          // console.error('[SOVA Entrainment] Error playing first quote:', e);
+          // Try to schedule next anyway
           scheduleNextQuote();
         }, { once: true });
       } else {
@@ -235,11 +247,22 @@ export function useEntrainmentSovaSounds({
   useEffect(() => {
     const hadEntrainment = hasEntrainmentRef.current;
     
-    console.log(`[SOVA Entrainment] Effect check - hasEntrainment: ${hasEntrainment}, hadEntrainment: ${hadEntrainment}, localPlayerId: ${localPlayerId}, effects count: ${activeConsumableEffects?.size || 0}`);
+    // console.log(`[SOVA Entrainment] Effect check - hasEntrainment: ${hasEntrainment}, hadEntrainment: ${hadEntrainment}, localPlayerId: ${localPlayerId}, effects count: ${activeConsumableEffects?.size || 0}`);
+    
+    // Handle initial mount case - if Entrainment is already active when component mounts
+    if (hasEntrainment && hasEntrainmentRef.current === false && quoteTimerRef.current === null) {
+      // console.log('[SOVA Entrainment] Entrainment already active on mount - starting immediately');
+      // Small delay to ensure refs are set up
+      quoteTimerRef.current = window.setTimeout(() => {
+        playFirstEntrainmentQuote();
+      }, 500);
+      hasEntrainmentRef.current = hasEntrainment;
+      return;
+    }
     
     // Entrainment effect started
     if (hasEntrainment && !hadEntrainment) {
-      console.log('[SOVA Entrainment] Effect detected - checking if 100% insanity sound is playing');
+      // console.log('[SOVA Entrainment] Effect detected - checking if 100% insanity sound is playing');
       
       // Check if 100% insanity sound is currently playing
       const is100PercentSoundPlaying = insanity100SoundRef.current && 
@@ -247,8 +270,10 @@ export function useEntrainmentSovaSounds({
                                        insanity100SoundRef.current.currentTime > 0 &&
                                        insanity100SoundRef.current.currentTime < insanity100SoundRef.current.duration;
       
+      // console.log(`[SOVA Entrainment] 100% sound check - ref exists: ${!!insanity100SoundRef.current}, paused: ${insanity100SoundRef.current?.paused}, isPlaying: ${is100PercentSoundPlaying}`);
+      
       if (is100PercentSoundPlaying) {
-        console.log('[SOVA Entrainment] 100% insanity sound is playing - waiting for it to finish');
+        // console.log('[SOVA Entrainment] 100% insanity sound is playing - waiting for it to finish');
         
         // Wait for the 100% sound to finish
         const checkFor100PercentFinish = () => {
@@ -262,7 +287,7 @@ export function useEntrainmentSovaSounds({
             quoteTimerRef.current = window.setTimeout(checkFor100PercentFinish, 100);
           } else {
             // 100% sound finished, play first Entrainment quote
-            console.log('[SOVA Entrainment] 100% insanity sound finished - playing first Entrainment quote');
+            // console.log('[SOVA Entrainment] 100% insanity sound finished - playing first Entrainment quote');
             playFirstEntrainmentQuote();
           }
         };
@@ -271,14 +296,14 @@ export function useEntrainmentSovaSounds({
         quoteTimerRef.current = window.setTimeout(checkFor100PercentFinish, 100);
       } else {
         // No 100% sound playing, play first quote immediately
-        console.log('[SOVA Entrainment] No 100% sound playing - playing first quote immediately');
+        // console.log('[SOVA Entrainment] No 100% sound playing - playing first quote immediately');
         playFirstEntrainmentQuote();
       }
     }
     
     // Entrainment effect ended
     if (!hasEntrainment && hadEntrainment) {
-      console.log('[SOVA Entrainment] Effect cleared - stopping quotes');
+      // console.log('[SOVA Entrainment] Effect cleared - stopping quotes');
       
       // Stop current quote if playing
       if (currentQuoteAudioRef.current) {

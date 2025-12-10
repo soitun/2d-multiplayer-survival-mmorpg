@@ -26,6 +26,7 @@ use crate::campfire::campfire as CampfireTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::tree::tree as TreeTableTrait;
+use crate::fertilizer_patch::fertilizer_patch as FertilizerPatchTableTrait;
 // Import water tile detection from fishing module
 use crate::fishing::is_water_tile;
 
@@ -48,6 +49,7 @@ pub struct PlantedSeed {
     pub growth_progress: f32,     // 0.0 to 1.0 - actual growth accumulated
     pub base_growth_time_secs: u64, // Base time needed to reach maturity
     pub last_growth_update: Timestamp, // Last time growth was calculated
+    pub fertilized_at: Option<Timestamp>, // When fertilizer was applied (None = not fertilized)
 }
 
 // --- Growth Schedule Table ---
@@ -378,6 +380,14 @@ fn get_shelter_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f
     1.0 // No penalty if not inside any shelter
 }
 
+/// Get the growth bonus multiplier for a planted seed based on nearby fertilizer patches
+/// Returns multiplier based on proximity to fertilizer patches (similar to water patches)
+/// Fertilizer provides a significant boost: up to 100% faster growth when very close to patch
+fn get_fertilizer_growth_multiplier(ctx: &ReducerContext, plant: &PlantedSeed) -> f32 {
+    // Check for nearby fertilizer patches (like water patches work)
+    crate::fertilizer_patch::get_fertilizer_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
+}
+
 /// Calculate the effective growth rate for current conditions
 /// Returns (base_multiplier, current_season, time_of_day)
 fn calculate_growth_rate_multiplier(ctx: &ReducerContext) -> (f32, crate::world_state::Season, crate::world_state::TimeOfDay) {
@@ -552,6 +562,9 @@ pub fn plant_seed(
     log::info!("PLANT_SEED: Player {:?} attempting to plant item {} at ({:.1}, {:.1})", 
               player_id, item_instance_id, plant_pos_x, plant_pos_y);
     
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, plant_pos_x, plant_pos_y)?;
+    
     // Find the player
     let player = ctx.db.player().identity().find(player_id)
         .ok_or_else(|| {
@@ -697,6 +710,7 @@ pub fn plant_seed(
         growth_progress: 0.0,
         base_growth_time_secs: growth_time_secs,
         last_growth_update: ctx.timestamp,
+        fertilized_at: None, // Not fertilized initially
     };
     
     match ctx.db.planted_seed().try_insert(planted_seed) {
@@ -726,6 +740,111 @@ pub fn plant_seed(
     
     // Emit plant seed sound
     crate::sound_events::emit_plant_seed_sound(ctx, plant_pos_x, plant_pos_y, player_id);
+    
+    Ok(())
+}
+
+/// Apply fertilizer to nearby crops (triggered by left-click with fertilizer equipped)
+#[spacetimedb::reducer]
+pub fn apply_fertilizer(ctx: &ReducerContext, fertilizer_instance_id: u64) -> Result<(), String> {
+    let player_id = ctx.sender;
+    
+    log::info!("Player {} attempting to apply fertilizer with item {}", player_id, fertilizer_instance_id);
+    
+    // Find the player
+    let player = ctx.db.player().identity().find(&player_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    // Find the fertilizer item
+    let mut fertilizer_item = ctx.db.inventory_item().instance_id().find(&fertilizer_instance_id)
+        .ok_or_else(|| "Fertilizer item not found".to_string())?;
+    
+    // Verify ownership
+    let owns_fertilizer = match &fertilizer_item.location {
+        crate::models::ItemLocation::Inventory(data) => data.owner_id == player_id,
+        crate::models::ItemLocation::Hotbar(data) => data.owner_id == player_id,
+        crate::models::ItemLocation::Equipped(data) => data.owner_id == player_id,
+        _ => false,
+    };
+    
+    if !owns_fertilizer {
+        return Err("You don't own this fertilizer".to_string());
+    }
+    
+    // Get fertilizer definition
+    let fertilizer_def = ctx.db.item_definition().id().find(&fertilizer_item.item_def_id)
+        .ok_or_else(|| "Fertilizer definition not found".to_string())?;
+    
+    // Check if it's actually fertilizer
+    if fertilizer_def.name != "Fertilizer" {
+        return Err("This item is not fertilizer".to_string());
+    }
+    
+    // Check if player has any fertilizer
+    if fertilizer_item.quantity == 0 {
+        return Err("Fertilizer bag is empty".to_string());
+    }
+    
+    // Calculate where fertilizer should be applied (in front of player based on facing direction)
+    let facing_angle = match player.direction.as_str() {
+        "up" => -std::f32::consts::PI / 2.0,
+        "down" => std::f32::consts::PI / 2.0,
+        "right" => 0.0,
+        "left" => std::f32::consts::PI,
+        "up_right" => -std::f32::consts::PI / 4.0,
+        "up_left" => -3.0 * std::f32::consts::PI / 4.0,
+        "down_right" => std::f32::consts::PI / 4.0,
+        "down_left" => 3.0 * std::f32::consts::PI / 4.0,
+        _ => std::f32::consts::PI / 2.0, // Default to down
+    };
+    
+    // Apply fertilizer in front of player (similar to water placement)
+    const FERTILIZER_APPLICATION_DISTANCE: f32 = 80.0; // Distance in front of player
+    let fertilizer_x = player.position_x + (facing_angle.cos() * FERTILIZER_APPLICATION_DISTANCE);
+    let fertilizer_y = player.position_y + (facing_angle.sin() * FERTILIZER_APPLICATION_DISTANCE);
+    
+    // Check if there's already a fertilizer patch at this location (prevent stacking)
+    let has_patch_at_location = {
+        let mut has_patch = false;
+        for patch in ctx.db.fertilizer_patch().iter() {
+            let dx = patch.pos_x - fertilizer_x;
+            let dy = patch.pos_y - fertilizer_y;
+            let distance_sq = dx * dx + dy * dy;
+            
+            // If there's already a patch within collision radius, consider it occupied
+            if distance_sq <= (crate::fertilizer_patch::FERTILIZER_PATCH_COLLISION_RADIUS * crate::fertilizer_patch::FERTILIZER_PATCH_COLLISION_RADIUS) {
+                has_patch = true;
+                break;
+            }
+        }
+        has_patch
+    };
+    
+    if has_patch_at_location {
+        return Err("There's already fertilizer at this location".to_string());
+    }
+    
+    // Consume 1 fertilizer (always consume 1, regardless of nearby crops)
+    // The patch will affect any crops planted nearby, just like water patches
+    if fertilizer_item.quantity > 1 {
+        fertilizer_item.quantity -= 1;
+        ctx.db.inventory_item().instance_id().update(fertilizer_item);
+    } else {
+        // Used all fertilizer, delete the item
+        ctx.db.inventory_item().instance_id().delete(fertilizer_instance_id);
+    }
+    
+    // Create fertilizer patch at application location (always create, like water patches)
+    if let Err(e) = crate::fertilizer_patch::create_fertilizer_patch(ctx, fertilizer_x, fertilizer_y, player_id) {
+        log::error!("Failed to create fertilizer patch: {}", e);
+        return Err(format!("Failed to create fertilizer patch: {}", e));
+    }
+    
+    log::info!("Player {} created fertilizer patch at ({:.1}, {:.1})", 
+              player_id, fertilizer_x, fertilizer_y);
+    
+    // Emit fertilizer application sound effect
+    crate::sound_events::emit_plant_seed_sound(ctx, fertilizer_x, fertilizer_y, player_id);
     
     Ok(())
 }
@@ -840,6 +959,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         // Calculate water patch bonus for this specific plant
         let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
         
+        // Calculate fertilizer bonus for this specific plant (checks for nearby patches)
+        let fertilizer_multiplier = get_fertilizer_growth_multiplier(ctx, &plant);
+        
         // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
         let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &current_time_of_day);
         
@@ -852,7 +974,7 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             green_rune_multiplier
         } else {
             // No green rune stone - apply all normal modifiers
-            base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * mushroom_bonus
+            base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus
         };
         
         // Calculate growth progress increment
@@ -900,9 +1022,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             plants_updated += 1;
             
             if growth_increment > 0.0 {
-                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, mushroom: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
+                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, fertilizer: {:.2}x, mushroom: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
                            plant_id, plant_type, old_progress * 100.0, progress_pct, 
-                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, mushroom_bonus, total_growth_multiplier, chunk_weather.current_weather);
+                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, fertilizer_multiplier, mushroom_bonus, total_growth_multiplier, chunk_weather.current_weather);
             }
         }
     }

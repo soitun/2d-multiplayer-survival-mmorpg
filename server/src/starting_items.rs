@@ -32,9 +32,9 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Flashlight", 1, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
-        ("Memory Shard", 10000, None, Some(0u16)),
-        // ("Wood", 5000, None, Some(1u16)),
-        // ("Furnace", 1, None, Some(2u16)),
+        ("Fertilizer", 100, None, Some(0u16)),
+        ("Compost", 1, None, Some(1u16)),
+        ("Burnt Wolf Meat", 50, None, Some(2u16)),
         // ("Wood Door", 2, None, Some(3u16)),
         // ("Wood", 5000, None, Some(4u16)),
         // ("Reed Harpoon", 1, None, Some(5u16)),

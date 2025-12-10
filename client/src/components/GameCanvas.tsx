@@ -21,6 +21,7 @@ import {
   RainCollector as SpacetimeDBRainCollector,
   BrothPot as SpacetimeDBBrothPot,
   WaterPatch as SpacetimeDBWaterPatch,
+  FertilizerPatch as SpacetimeDBFertilizerPatch,
   FirePatch as SpacetimeDBFirePatch,
   Cloud as SpacetimeDBCloud,
   ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
@@ -118,6 +119,7 @@ import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly } from '../utils/renderers/seaStackRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
+import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
@@ -170,6 +172,7 @@ interface GameCanvasProps {
   rainCollectors: Map<string, SpacetimeDBRainCollector>;
   brothPots: Map<string, SpacetimeDBBrothPot>;
   waterPatches: Map<string, SpacetimeDBWaterPatch>;
+  fertilizerPatches: Map<string, SpacetimeDBFertilizerPatch>;
   firePatches: Map<string, SpacetimeDBFirePatch>;
   playerPins: Map<string, SpacetimeDBPlayerPin>;
   inventoryItems: Map<string, SpacetimeDBInventoryItem>;
@@ -278,6 +281,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   rainCollectors,
   brothPots,
   waterPatches,
+  fertilizerPatches,
   firePatches,
   playerPins,
   inventoryItems,
@@ -1252,6 +1256,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [connection]);
 
+  // Register error handlers for applyFertilizer reducer
+  useEffect(() => {
+    if (!connection) return;
+
+    const handleApplyFertilizerResult = (ctx: any, fertilizerInstanceId: bigint) => {
+      console.log(`[GameCanvas] applyFertilizer reducer callback triggered for instance ${fertilizerInstanceId.toString()}`);
+      console.log(`[GameCanvas] Event status:`, ctx.event?.status);
+      
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Unknown error';
+        console.error(`[GameCanvas] ❌ applyFertilizer failed for instance ${fertilizerInstanceId.toString()}:`, errorMsg);
+        // TODO: Show error message to player (toast notification or similar)
+      } else if (ctx.event?.status?.tag === 'Committed') {
+        console.log(`[GameCanvas] ✅ applyFertilizer succeeded for instance ${fertilizerInstanceId.toString()}`);
+      } else {
+        console.log(`[GameCanvas] applyFertilizer status:`, ctx.event?.status);
+      }
+    };
+
+    connection.reducers.onApplyFertilizer(handleApplyFertilizerResult);
+
+    return () => {
+      connection.reducers.removeOnApplyFertilizer(handleApplyFertilizerResult);
+    };
+  }, [connection]);
+
   // Register error handlers for destroy reducers
   useEffect(() => {
     if (!connection) return;
@@ -1912,6 +1942,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       currentCanvasHeight
     );
     // --- End Water Patches ---
+
+    // --- Render Fertilizer Patches ---
+    // Fertilizer patches show as brown/organic circles on the ground where fertilizer was applied
+    // Note: Context is already translated by cameraOffset, so we pass the actual camera world position
+    renderFertilizerPatches(
+      ctx,
+      fertilizerPatches,
+      -currentCameraOffsetX, // Camera world X position
+      -currentCameraOffsetY, // Camera world Y position
+      currentCanvasWidth,
+      currentCanvasHeight
+    );
+    // --- End Fertilizer Patches ---
 
     // --- Render Fire Patches ---
     // Fire patches show as animated flames created by fire arrows that damage players and structures
@@ -3881,6 +3924,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           furnaces={furnaces}
           trees={trees}
           runeStones={runeStones}
+          fertilizerPatches={fertilizerPatches}
         />
       )}
     </div>

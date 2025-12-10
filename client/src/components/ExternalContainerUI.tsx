@@ -16,6 +16,7 @@ import ContainerSlots from './ContainerSlots';
 import ContainerButtons from './ContainerButtons';
 import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
+import { getAllSlotProgress } from '../utils/containerProgressUtils';
 
 // Import Types
 import { 
@@ -196,6 +197,32 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         connection,
         lastDragCompleteTime
     });
+    
+    // Track current time for compost progress updates
+    const [currentTime, setCurrentTime] = useState(Date.now());
+    
+    // Update time periodically for compost progress (every second)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000); // Update every second
+        
+        return () => clearInterval(interval);
+    }, []);
+    
+    // Calculate progress for cooking/fertilizing overlays
+    const slotProgress = useMemo(() => {
+        if (!container.containerType || !container.containerEntity) {
+            return new Map<number, number>();
+        }
+        
+        return getAllSlotProgress(
+            container.containerType,
+            container.containerEntity,
+            container.items,
+            currentTime
+        );
+    }, [container.containerType, container.containerEntity, container.items, currentTime]);
 
     // Enhanced tooltip handler for campfire items to show Reed Bellows effects
     const handleCampfireFuelMouseEnter = useCallback((item: PopulatedItem, event: React.MouseEvent<HTMLDivElement>) => {
@@ -1145,15 +1172,15 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 </div>
             )}
 
-            {/* Generic Container Slots - handles all slot rendering */}
+            {/* Generic Container Slots - handles all slot rendering with progress overlays */}
             <ContainerSlots
                 containerType={container.containerType}
                 containerEntity={container.containerEntity}
                 items={container.items}
                 createSlotInfo={container.createSlotInfo}
                 getSlotKey={container.getSlotKey}
-                                                onItemDragStart={onItemDragStart}
-                                                onItemDrop={handleItemDropWithTracking}
+                onItemDragStart={onItemDragStart}
+                onItemDrop={handleItemDropWithTracking}
                 onContextMenu={container.contextMenuHandler}
                 onItemMouseEnter={
                     container.containerType === 'campfire' ? handleCampfireFuelMouseEnter : 
@@ -1170,6 +1197,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         ? new Set([0, 1, 2, 3, 4, 5]) // Disable all 6 fumarole slots when broth pot is attached (fumaroles don't need fuel)
                         : undefined
                 }
+                slotProgress={slotProgress}
             />
 
             {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}

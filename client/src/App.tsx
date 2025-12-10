@@ -254,6 +254,7 @@ function AppContent() {
       stashes, // <<< ADD stashes destructuring
       rainCollectors, // <<< ADD rainCollectors destructuring
       waterPatches, // <<< ADD waterPatches destructuring
+      fertilizerPatches, // <<< ADD fertilizerPatches destructuring
       firePatches, // <<< ADD firePatches destructuring
       hotSprings, // <<< ADD hotSprings destructuring
       activeConsumableEffects, // <<< ADD activeConsumableEffects destructuring
@@ -1109,6 +1110,7 @@ function AppContent() {
                             playerDrinkingCooldowns={playerDrinkingCooldowns}
                             rainCollectors={rainCollectors}
                             waterPatches={waterPatches}
+                            fertilizerPatches={fertilizerPatches}
                             firePatches={firePatches}
                             hotSprings={hotSprings}
                             isMusicPanelVisible={isMusicPanelVisible}

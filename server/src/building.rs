@@ -496,6 +496,118 @@ pub fn is_foundation_position_valid(
     true
 }
 
+// --- Helper Functions ---
+
+/// Check if a position is within a monument zone (rune stones, ALK stations, hot springs, quarries)
+/// Returns an error message if placement is blocked, or Ok(()) if allowed
+/// This function is used by all placement reducers (seeds, placeables, foundations)
+pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y: f32) -> Result<(), String> {
+    // Check ALK station monument bounds (same logic as foundation placement)
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL: f32 = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION: f32 = 3.0;
+    
+    let alk_stations = ctx.db.alk_station();
+    for station in alk_stations.iter() {
+        if !station.is_active {
+            continue;
+        }
+        let dx = world_x - station.world_pos_x;
+        let dy = world_y - station.world_pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        // Calculate building restriction radius (matches safe zone radius)
+        let multiplier = if station.station_id == 0 {
+            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL
+        } else {
+            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION
+        };
+        let restriction_radius = station.interaction_radius * multiplier;
+        let restriction_radius_sq = restriction_radius * restriction_radius;
+        
+        if distance_sq <= restriction_radius_sq {
+            return Err("Cannot place items within ALK station compound. These areas are protected.".to_string());
+        }
+    }
+    
+    // Check rune stones (same 800px radius as foundations)
+    const MONUMENT_PLACEMENT_RESTRICTION_RADIUS: f32 = 800.0; // 800px = ~16 tiles
+    const MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ: f32 = MONUMENT_PLACEMENT_RESTRICTION_RADIUS * MONUMENT_PLACEMENT_RESTRICTION_RADIUS;
+    
+    let rune_stones = ctx.db.rune_stone();
+    for rune_stone in rune_stones.iter() {
+        let dx = world_x - rune_stone.pos_x;
+        let dy = world_y - rune_stone.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ {
+            return Err("Cannot place items within a rune stone's light area. These monuments must remain unobstructed.".to_string());
+        }
+    }
+    
+    // Check hot springs and quarries (same 800px radius)
+    // OPTIMIZATION: Use indexed lookups per tile (O(log n) each) but only check tiles within radius
+    // Most tiles don't exist (sparse world), so empty lookups are very fast
+    // Early exit when monument found - typical case: 0-1 monuments in search area
+    let tile_size = crate::TILE_SIZE_PX as f32;
+    let check_radius_tiles = (MONUMENT_PLACEMENT_RESTRICTION_RADIUS / tile_size).ceil() as i32 + 1;
+    let center_tile_x = (world_x / tile_size).floor() as i32;
+    let center_tile_y = (world_y / tile_size).floor() as i32;
+    
+    let world_tiles = ctx.db.world_tile();
+    
+    // Pre-calculate tile center positions to avoid repeated calculations
+    let world_tile_size_f32 = tile_size;
+    let half_tile = tile_size / 2.0;
+    
+    // Check tiles in a square around the position (optimized: early exit on first monument found)
+    for dy in -check_radius_tiles..=check_radius_tiles {
+        for dx in -check_radius_tiles..=check_radius_tiles {
+            let check_tile_x = center_tile_x + dx;
+            let check_tile_y = center_tile_y + dy;
+            
+            // OPTIMIZATION: Quick distance check before expensive lookup
+            // If tile is definitely outside radius, skip lookup entirely
+            let tile_center_x = (check_tile_x as f32 * world_tile_size_f32) + half_tile;
+            let tile_center_y = (check_tile_y as f32 * world_tile_size_f32) + half_tile;
+            let quick_dx = world_x - tile_center_x;
+            let quick_dy = world_y - tile_center_y;
+            let quick_dist_sq = quick_dx * quick_dx + quick_dy * quick_dy;
+            
+            // Skip if definitely outside radius (with small margin for tile size)
+            if quick_dist_sq > (MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ + (tile_size * tile_size)) {
+                continue;
+            }
+            
+            // Use indexed lookup for this specific tile (O(log n) - very fast)
+            for tile in world_tiles.idx_world_position().filter((check_tile_x, check_tile_y)) {
+                // Early exit: Skip non-monument tiles immediately
+                if tile.tile_type != crate::TileType::HotSpringWater && tile.tile_type != crate::TileType::Quarry {
+                    continue;
+                }
+                
+                // Calculate exact distance from world position to tile center
+                let tile_center_x_exact = (tile.world_x as f32 * world_tile_size_f32) + half_tile;
+                let tile_center_y_exact = (tile.world_y as f32 * world_tile_size_f32) + half_tile;
+                let tdx = world_x - tile_center_x_exact;
+                let tdy = world_y - tile_center_y_exact;
+                let distance_sq = tdx * tdx + tdy * tdy;
+                
+                // Early exit: Found a monument within restriction radius
+                if distance_sq <= MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ {
+                    let monument_type = if tile.tile_type == crate::TileType::HotSpringWater { 
+                        "hot springs" 
+                    } else { 
+                        "quarries" 
+                    };
+                    return Err(format!("Cannot place items near {}. These monuments must remain unobstructed.", monument_type));
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
 // --- Reducers ---
 
 /// Place a foundation cell at the specified tile coordinates
@@ -581,36 +693,8 @@ pub fn place_foundation(
         return Err("Cannot place foundation on asphalt/compound areas.".to_string());
     }
     
-    // 5.2. Check if position is within ALK station monument bounds
-    // ALK stations have protected zones where building is prohibited
-    // Building restriction radius MUST match safe zone radius to prevent abuse
-    // Central compound (station_id = 0): 7x interaction_radius = ~1750px (~1/3 of original)
-    // Substations (station_id 1-4): 3x interaction_radius = ~600px (1/3 of original)
-    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL: f32 = 7.0;
-    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION: f32 = 3.0;
-    
-    let alk_stations = ctx.db.alk_station();
-    for station in alk_stations.iter() {
-        if !station.is_active {
-            continue;
-        }
-        let dx = world_x - station.world_pos_x;
-        let dy = world_y - station.world_pos_y;
-        let distance_sq = dx * dx + dy * dy;
-        
-        // Calculate building restriction radius (matches safe zone radius)
-        let multiplier = if station.station_id == 0 {
-            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL
-        } else {
-            ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION
-        };
-        let restriction_radius = station.interaction_radius * multiplier;
-        let restriction_radius_sq = restriction_radius * restriction_radius;
-        
-        if distance_sq <= restriction_radius_sq {
-            return Err("Cannot place foundation within ALK station compound. These areas are protected.".to_string());
-        }
-    }
+    // 5.2. Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    check_monument_zone_placement(ctx, world_x, world_y)?;
     
     // 5.25. Check if position has grass (cannot place foundation on grass - must clear first)
     // Foundation is 96x96 pixels, check if any alive grass is within the foundation bounds
@@ -682,64 +766,6 @@ pub fn place_foundation(
                grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
                grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
                 return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
-            }
-        }
-    }
-    
-    // 5.5. Check if position is within monument areas (rune stones, hot springs, quarries)
-    // All monuments use 800px radius for foundation placement restriction
-    const MONUMENT_FOUNDATION_RESTRICTION_RADIUS: f32 = 800.0; // 800px = ~16 tiles
-    const MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ: f32 = MONUMENT_FOUNDATION_RESTRICTION_RADIUS * MONUMENT_FOUNDATION_RESTRICTION_RADIUS;
-    
-    // Check rune stones
-    let rune_stones = ctx.db.rune_stone();
-    for rune_stone in rune_stones.iter() {
-        let dx = world_x - rune_stone.pos_x;
-        let dy = world_y - rune_stone.pos_y;
-        let distance_sq = dx * dx + dy * dy;
-        
-        if distance_sq <= MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ {
-            return Err("Cannot place foundation within a rune stone's light area. These monuments must remain unobstructed.".to_string());
-        }
-    }
-    
-    // PERFORMANCE FIX: Check hot springs and quarries using spatial filtering instead of full table iteration
-    // The old code iterated ALL tiles in the world (250,000+ tiles!) - this was causing 3+ second delays
-    // Now we only check tiles within the restriction radius using the world position index
-    let tile_size = crate::TILE_SIZE_PX as f32;
-    let check_radius_tiles = (MONUMENT_FOUNDATION_RESTRICTION_RADIUS / tile_size).ceil() as i32 + 1;
-    let center_tile_x = (world_x / tile_size).floor() as i32;
-    let center_tile_y = (world_y / tile_size).floor() as i32;
-    
-    // Check tiles in a square around the placement position
-    // This is O(radius^2) = ~289 tiles instead of O(world_size^2) = 250,000+ tiles
-    let world_tiles = ctx.db.world_tile();
-    'monument_check: for dy in -check_radius_tiles..=check_radius_tiles {
-        for dx in -check_radius_tiles..=check_radius_tiles {
-            let check_tile_x = center_tile_x + dx;
-            let check_tile_y = center_tile_y + dy;
-            
-            // Use indexed lookup for this specific tile
-            for tile in world_tiles.idx_world_position().filter((check_tile_x, check_tile_y)) {
-                // Check if it's a monument tile type
-                if tile.tile_type != crate::TileType::HotSpringWater && tile.tile_type != crate::TileType::Quarry {
-                    continue;
-                }
-                
-                let tile_center_x = (tile.world_x as f32 * tile_size) + (tile_size / 2.0);
-                let tile_center_y = (tile.world_y as f32 * tile_size) + (tile_size / 2.0);
-                let tdx = world_x - tile_center_x;
-                let tdy = world_y - tile_center_y;
-                let distance_sq = tdx * tdx + tdy * tdy;
-                
-                if distance_sq <= MONUMENT_FOUNDATION_RESTRICTION_RADIUS_SQ {
-                    let monument_type = if tile.tile_type == crate::TileType::HotSpringWater { 
-                        "hot springs" 
-                    } else { 
-                        "quarries" 
-                    };
-                    return Err(format!("Cannot place foundation near {}. These monuments must remain unobstructed.", monument_type));
-                }
             }
         }
     }

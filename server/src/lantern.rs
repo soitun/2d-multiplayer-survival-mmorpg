@@ -268,6 +268,9 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         sender_id, item_instance_id, world_x, world_y
     );
 
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
+
     // Validate player and placement rules
     let player = players.identity().find(sender_id)
         .ok_or_else(|| "Player not found".to_string())?;

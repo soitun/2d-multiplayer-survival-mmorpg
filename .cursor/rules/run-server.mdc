@@ -1,7 +1,6 @@
 ---
-description: 
-globs: 
-alwaysApply: true
+description: When the user asks you to run the server, i.
+alwaysApply: false
 ---
 The command to run the server in PowerShell follows:
 

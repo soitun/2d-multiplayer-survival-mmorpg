@@ -298,6 +298,82 @@ function isSeedPlacementTooClose(connection: DbConnection | null, placementInfo:
   return false;
 }
 
+/**
+ * Checks if placement is blocked due to monument zones (ALK stations, rune stones, hot springs, quarries).
+ * Returns true if placement should be blocked.
+ */
+function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    return false; // If no connection, allow placement (fallback)
+  }
+
+  // Check ALK stations (same logic as server-side)
+  const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+  const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
+  
+  for (const station of connection.db.alkStation.iter()) {
+    if (!station.isActive) continue;
+    
+    const dx = worldX - station.worldPosX;
+    const dy = worldY - station.worldPosY;
+    const distanceSq = dx * dx + dy * dy;
+    
+    const multiplier = station.stationId === 0 
+      ? ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL
+      : ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION;
+    const restrictionRadius = station.interactionRadius * multiplier;
+    const restrictionRadiusSq = restrictionRadius * restrictionRadius;
+    
+    if (distanceSq <= restrictionRadiusSq) {
+      return true; // Blocked by ALK station
+    }
+  }
+  
+  // Check rune stones (800px radius)
+  const MONUMENT_PLACEMENT_RESTRICTION_RADIUS = 800.0;
+  const MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ = MONUMENT_PLACEMENT_RESTRICTION_RADIUS * MONUMENT_PLACEMENT_RESTRICTION_RADIUS;
+  
+  for (const runeStone of connection.db.runeStone.iter()) {
+    const dx = worldX - runeStone.posX;
+    const dy = worldY - runeStone.posY;
+    const distanceSq = dx * dx + dy * dy;
+    
+    if (distanceSq <= MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ) {
+      return true; // Blocked by rune stone
+    }
+  }
+  
+  // Check hot springs and quarries (800px radius)
+  // We check tiles around the position
+  const TILE_SIZE = 48;
+  const checkRadiusTiles = Math.ceil(MONUMENT_PLACEMENT_RESTRICTION_RADIUS / TILE_SIZE) + 1;
+  const centerTileX = Math.floor(worldX / TILE_SIZE);
+  const centerTileY = Math.floor(worldY / TILE_SIZE);
+  
+  for (let dy = -checkRadiusTiles; dy <= checkRadiusTiles; dy++) {
+    for (let dx = -checkRadiusTiles; dx <= checkRadiusTiles; dx++) {
+      const checkTileX = centerTileX + dx;
+      const checkTileY = centerTileY + dy;
+      
+      const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
+      
+      if (tileType === 'HotSpringWater' || tileType === 'Quarry') {
+        const tileCenterX = checkTileX * TILE_SIZE + TILE_SIZE / 2;
+        const tileCenterY = checkTileY * TILE_SIZE + TILE_SIZE / 2;
+        const tdx = worldX - tileCenterX;
+        const tdy = worldY - tileCenterY;
+        const distanceSq = tdx * tdx + tdy * tdy;
+        
+        if (distanceSq <= MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ) {
+          return true; // Blocked by hot spring or quarry
+        }
+      }
+    }
+  }
+  
+  return false; // Not blocked
+}
+
 export const usePlacementManager = (connection: DbConnection | null): [PlacementState, PlacementActions] => {
   const [placementInfo, setPlacementInfo] = useState<PlacementItemInfo | null>(null);
   const [placementError, setPlacementError] = useState<string | null>(null);
@@ -527,6 +603,20 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       return; // Don't proceed with placement
     }
 
+    // Check for monument zone restriction
+    if (isMonumentZonePlacementBlocked(connection, worldX, worldY)) {
+      // setPlacementError("Cannot place in monument zones");
+      // Play error sound for monument zone placement
+      if (isSeedItemValid(placementInfo.itemName)) {
+        console.log('[PlacementManager] Client-side validation: Cannot plant in monument zones, playing error sound');
+        playImmediateSound('error_planting', 1.0);
+      } else {
+        console.log('[PlacementManager] Client-side validation: Cannot place in monument zones, playing error sound');
+        playImmediateSound('error_chest_placement', 1.0);
+      }
+      return; // Don't proceed with placement
+    }
+
     // Check for water placement restriction
     if (isWaterPlacementBlocked(connection, placementInfo, worldX, worldY)) {
       // setPlacementError("Cannot place on water");
@@ -569,6 +659,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Wooden Storage Box':
         case 'Large Wooden Storage Box':
         case 'Refrigerator':
+        case 'Compost':
           // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire

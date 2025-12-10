@@ -29,6 +29,7 @@ pub const LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH: f32 = 1200.0;
 pub const BOX_TYPE_NORMAL: u8 = 0;
 pub const BOX_TYPE_LARGE: u8 = 1;
 pub const BOX_TYPE_REFRIGERATOR: u8 = 2;
+pub const BOX_TYPE_COMPOST: u8 = 3;
 
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
@@ -339,6 +340,10 @@ pub fn split_stack_from_box(
         target_slot_index
     )?;
     
+    // Note: When splitting FROM compost, the source stack keeps its original timestamp
+    // The split item (now in player inventory) doesn't need a compost timestamp
+    // If it's moved back to compost later, it will get a fresh timestamp then
+    
     boxes.id().update(storage_box);
     Ok(())
 }
@@ -372,6 +377,29 @@ pub fn split_stack_within_box(
         target_slot_index,
         quantity_to_split
     )?;
+
+    // --- Compost-specific: Set timestamp on new split item only ---
+    // Note: Source stack keeps its original timestamp (continues from where it was)
+    // Only the new split item gets a fresh timestamp (starts composting from 0)
+    if storage_box.box_type == crate::wooden_storage_box::BOX_TYPE_COMPOST {
+        use crate::compost::{set_compost_timestamp, is_item_compostable};
+        use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
+        let mut inventory_items = ctx.db.inventory_item();
+        let item_defs = ctx.db.item_definition();
+        
+        // Set timestamp on new split item in target slot (starts fresh)
+        if let Some(new_item_id) = storage_box.get_slot_instance_id(target_slot_index) {
+            if let Some(mut new_item) = inventory_items.instance_id().find(&new_item_id) {
+                if let Some(item_def) = item_defs.id().find(&new_item.item_def_id) {
+                    if is_item_compostable(&item_def, Some(&new_item)) {
+                        set_compost_timestamp(&mut new_item, ctx.timestamp);
+                        inventory_items.instance_id().update(new_item);
+                        log::debug!("[Compost] Set fresh timestamp on new split item {} in compost (slot {}). Source stack keeps original timestamp.", new_item_id, target_slot_index);
+                    }
+                }
+            }
+        }
+    }
 
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
@@ -453,6 +481,9 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
 
     log::info!("Player {:?} attempting to place wooden storage box (item instance {}) at ({}, {}).", sender_id, item_instance_id, world_x, world_y);
 
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
+
     // 1. Validate Player
     let player = players.identity().find(sender_id)
         .ok_or_else(|| "Player not found.".to_string())?;
@@ -470,6 +501,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_LARGE
     } else if item_def.name == "Refrigerator" {
         BOX_TYPE_REFRIGERATOR
+    } else if item_def.name == "Compost" {
+        BOX_TYPE_COMPOST
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -513,6 +546,10 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_REFRIGERATOR => {
             use crate::refrigerator::{REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
             (REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH)
+        },
+        BOX_TYPE_COMPOST => {
+            use crate::compost::{COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH};
+            (COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH)
         },
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
@@ -585,6 +622,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     let box_type_name = match box_type {
         BOX_TYPE_LARGE => "Large Wooden Storage Box",
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
+        BOX_TYPE_COMPOST => "Compost",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -642,6 +680,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
     let item_name = match storage_box_to_pickup.box_type {
         BOX_TYPE_LARGE => "Large Wooden Storage Box",
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
+        BOX_TYPE_COMPOST => "Compost",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -748,6 +787,10 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_REFRIGERATOR => {
                 use crate::refrigerator::NUM_REFRIGERATOR_SLOTS;
                 NUM_REFRIGERATOR_SLOTS
+            },
+            BOX_TYPE_COMPOST => {
+                use crate::compost::NUM_COMPOST_SLOTS;
+                NUM_COMPOST_SLOTS
             },
             _ => NUM_BOX_SLOTS,
         }

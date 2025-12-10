@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType, FertilizerPatch } from '../generated';
 import styles from './PlantedSeedTooltip.module.css';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { RESOURCE_IMAGE_SOURCES } from '../utils/renderers/resourceImageConfigs';
@@ -19,6 +19,7 @@ interface PlantedSeedTooltipProps {
   furnaces: Map<string, Furnace>;
   trees: Map<string, Tree>; // Added for mushroom tree cover check
   runeStones: Map<string, RuneStone>; // Added for rune stone growth boost check
+  fertilizerPatches: Map<string, FertilizerPatch>; // Added for fertilizer/compost effect
 }
 
 const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({ 
@@ -34,7 +35,8 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   lanterns,
   furnaces,
   trees,
-  runeStones
+  runeStones,
+  fertilizerPatches
 }) => {
   if (!visible || !seed) {
     return null;
@@ -150,6 +152,41 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return { hasWater, isSaltWater, multiplier: bestMultiplier };
   };
   
+  // Check if seed is near fertilizer/compost and calculate effect
+  const getFertilizerPatchEffect = (): { hasFertilizer: boolean; multiplier: number } => {
+    const FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS = 60; // pixels (matching server constant)
+    const FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS_SQ = FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS * FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS;
+    const FERTILIZER_GROWTH_BONUS_MULTIPLIER = 2.0; // 2x growth rate (matching server constant)
+    
+    let bestMultiplier = 1.0; // Base multiplier (no effect)
+    let hasFertilizer = false;
+    
+    for (const fertilizerPatch of fertilizerPatches.values()) {
+      const dx = seed.posX - fertilizerPatch.posX;
+      const dy = seed.posY - fertilizerPatch.posY;
+      const distanceSq = dx * dx + dy * dy;
+      
+      if (distanceSq <= FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS_SQ) {
+        hasFertilizer = true;
+        
+        // Calculate effect strength based on distance (closer = stronger effect)
+        const distance = Math.sqrt(distanceSq);
+        const distanceFactor = Math.max(0, Math.min(1, (FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS - distance) / FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS));
+        
+        // Calculate effect strength based on patch opacity (fresher patches = stronger effect)
+        const opacityFactor = fertilizerPatch.currentOpacity;
+        
+        // Fertilizer: positive effect (boosts growth)
+        // Maximum bonus: +100% growth (2.0x multiplier) when very close
+        // Minimum bonus: +15% growth (1.15x multiplier) at edge of radius
+        const fertilizerBonus = 1.0 + (FERTILIZER_GROWTH_BONUS_MULTIPLIER - 1.0) * distanceFactor * opacityFactor;
+        bestMultiplier = Math.max(bestMultiplier, fertilizerBonus);
+      }
+    }
+    
+    return { hasFertilizer, multiplier: bestMultiplier };
+  };
+  
   // Check nearby light sources
   const calculateLightEffects = (): { nearCampfire: boolean; nearLantern: boolean; nearFurnace: boolean } => {
     let nearCampfire = false;
@@ -252,6 +289,7 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
 
   const cloudCoverage = calculateCloudCoverage();
   const waterPatchEffect = getWaterPatchEffect();
+  const fertilizerPatchEffect = getFertilizerPatchEffect();
   const nearTree = isNearTree();
   const nearGreenRuneStone = isNearGreenRuneStone();
   const lightEffects = calculateLightEffects();
@@ -440,6 +478,16 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
                   ? `−${Math.round((1.0 - waterPatchEffect.multiplier) * 100)}%`
                   : `+${Math.round((waterPatchEffect.multiplier - 1.0) * 100)}%`
                 }
+              </span>
+            </div>
+          )}
+          
+          {/* Fertilizer/Compost Proximity */}
+          {fertilizerPatchEffect.hasFertilizer && (
+            <div className={styles.conditionRow}>
+              <span className={styles.conditionLabel}>Near Compost:</span>
+              <span className={`${styles.conditionValue} ${styles.positive}`}>
+                🌿 Yes +{Math.round((fertilizerPatchEffect.multiplier - 1.0) * 100)}%
               </span>
             </div>
           )}

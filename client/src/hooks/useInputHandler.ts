@@ -1171,6 +1171,40 @@ export const useInputHandler = ({
                                 // If no water content, fall through to normal swing behavior
                             }
                         }
+                        // 6. Fertilizer: Apply to nearby crops on left-click
+                        else if (equippedItemDef.name === "Fertilizer" && localPlayerActiveEquipment.equippedItemInstanceId) {
+                            console.log('[InputHandler] Left-click with fertilizer');
+                            
+                            // Get the fertilizer item
+                            const fertilizerItem = inventoryItems.get(localPlayerActiveEquipment.equippedItemInstanceId.toString());
+                            if (!fertilizerItem || !connectionRef.current?.reducers) {
+                                console.log('[InputHandler] No fertilizer found or no connection', {
+                                    fertilizerItem: !!fertilizerItem,
+                                    hasReducers: !!connectionRef.current?.reducers,
+                                    instanceId: localPlayerActiveEquipment.equippedItemInstanceId?.toString()
+                                });
+                                return;
+                            }
+                            
+                            // Check if fertilizer has quantity
+                            if (fertilizerItem.quantity > 0) {
+                                console.log("[InputHandler] Fertilizer equipped. Calling apply_fertilizer reducer.", {
+                                    instanceId: localPlayerActiveEquipment.equippedItemInstanceId.toString(),
+                                    quantity: fertilizerItem.quantity
+                                });
+                                try {
+                                    connectionRef.current.reducers.applyFertilizer(localPlayerActiveEquipment.equippedItemInstanceId);
+                                    console.log("[InputHandler] Successfully called applyFertilizer reducer");
+                                    return;
+                                } catch (err) {
+                                    console.error("[InputHandler] Error applying fertilizer:", err);
+                                    return;
+                                }
+                            } else {
+                                console.log('[InputHandler] Fertilizer bag is empty');
+                                return;
+                            }
+                        }
                         // If none of the above special cases, fall through to default item use (melee/tool)
                     } else {
                         // console.log("[InputHandler DEBUG MOUSEDOWN] Equipped item definition NOT FOUND for ID:", localPlayerActiveEquipment.equippedItemDefId);

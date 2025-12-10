@@ -1,3 +1,7 @@
+---
+description: When dealing with y-sorting issues
+alwaysApply: false
+---
 # Y-Sorting for Tall Structures (ALK Stations, Shelters, etc.)
 
 This guide documents how to properly Y-sort tall structures so players render correctly when approaching from any direction.

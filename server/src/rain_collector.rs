@@ -162,6 +162,9 @@ impl ContainerItemClearer for RainCollector {
 pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
     log::info!("Player {} attempting to place rain collector at ({}, {})", ctx.sender, world_x, world_y);
 
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
+
     // --- Get player and validate ---
     let players = ctx.db.player();
     let player = players.identity().find(&ctx.sender)

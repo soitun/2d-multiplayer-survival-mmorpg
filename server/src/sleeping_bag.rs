@@ -104,6 +104,9 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
         sender_id, item_instance_id, world_x, world_y
     );
 
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
+
     // 1. Find the 'Sleeping Bag' Item Definition ID
     let bag_def_id = item_defs.iter()
         .find(|def| def.name == "Sleeping Bag")

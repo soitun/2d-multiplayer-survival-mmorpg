@@ -344,6 +344,9 @@ import henbaneSeedsIcon from '../assets/items/henbane_seeds.png';
 import daturaSeedsIcon from '../assets/items/datura_seeds.png';
 import wolfsbaneSeedsIcon from '../assets/items/wolfsbane_seeds.png';
 
+// Farming supplies
+import fertilizerIcon from '../assets/items/fertilizer.png';
+
 // === PLACEABLES ===
 // Structures, containers, and deployable items
 
@@ -353,6 +356,7 @@ import stashIcon from '../assets/items/stash.png';
 import woodenStorageBoxIcon from '../assets/items/wooden_storage_box.png';
 import largeWoodenStorageBoxIcon from '../assets/items/large_wood_box.png';
 import refrigeratorIcon from '../assets/items/refrigerator.png';
+import compostIcon from '../assets/items/compost.png';
 import sleepingBagIcon from '../assets/items/sleeping_bag.png';
 import shelterIcon from '../assets/items/shelter.png';
 import tallowLampIcon from '../assets/items/lantern_off.png';
@@ -701,6 +705,9 @@ const iconMap: { [key: string]: string | undefined } = {
   'datura_seeds.png': daturaSeedsIcon,
   'wolfsbane_seeds.png': wolfsbaneSeedsIcon,
 
+  // Farming supplies
+  'fertilizer.png': fertilizerIcon,
+
   // === PLACEABLES ===
   'campfire.png': campFireIcon,
   'furnace_simple.png': furnaceIcon,
@@ -708,6 +715,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'wooden_storage_box.png': woodenStorageBoxIcon,
   'large_wood_box.png': largeWoodenStorageBoxIcon,
   'refrigerator.png': refrigeratorIcon,
+  'compost.png': compostIcon,
   'sleeping_bag.png': sleepingBagIcon,
   'shelter.png': shelterIcon,
   'lantern_off.png': tallowLampIcon,

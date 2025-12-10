@@ -71,11 +71,12 @@ export const renderEquippedItem = (
   // --- End Shake Offset ---
 
   // --- Item Size and Position ---
-  // Skulls render at actual pixel size (1:1 scale) - all other items use 0.05 scale
+  // Skulls and fertilizer render at larger size (0.5 scale) - all other items use 0.05 scale
   const isSkull = itemDef.name === "Human Skull" || itemDef.name === "Fox Skull" || 
                    itemDef.name === "Wolf Skull" || itemDef.name === "Viper Skull" || 
                    itemDef.name === "Walrus Skull";
-  const scale = isSkull ? 0.5 : 0.05; // Skulls render at 100% size (actual pixels), other items at 5% scale
+  const isFertilizer = itemDef.name === "Fertilizer";
+  const scale = (isSkull || isFertilizer) ? 0.5 : 0.05; // Skulls and fertilizer render at 50% size, other items at 5% scale
   const itemWidth = itemImgFromCaller.width * scale;
   const itemHeight = itemImgFromCaller.height * scale;
   let itemOffsetX = 0; 

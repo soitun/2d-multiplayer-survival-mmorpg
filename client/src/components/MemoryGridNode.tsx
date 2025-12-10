@@ -45,8 +45,11 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
   const colors = useMemo(() => {
     const faction = node.faction ? FACTIONS[node.faction] : null;
     
-    // Special styling for unlock nodes to make them stand out
+    // Special styling for unlock nodes - TEMPORARILY DISABLED (grayed out for "coming soon")
     if (isUnlockNode) {
+      // TEMPORARILY DISABLED FOR v1.0 - Coming soon after early access ends
+      // TODO: Uncomment this code when enabling faction unlocks
+      /*
       const unlockColor = faction ? faction.color : '#f59e0b'; // Golden amber if no faction color
       switch (node.status) {
         case 'purchased':
@@ -69,6 +72,13 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
             glowColor: unlockColor
           };
       }
+      */
+      // Grayed out styling for "coming soon"
+      return {
+        fill: '#4b5563', // Dark gray for disabled/coming soon
+        stroke: '#6b7280', // Lighter gray border
+        glowColor: '#6b7280' // Subtle glow
+      };
     }
     
     switch (node.status) {

@@ -73,8 +73,10 @@ export function getReducerName(containerType: ContainerType, action: string): st
 
 /**
  * Get reducer names for drag-drop operations using consistent patterns
+ * @param containerType - The type of container
+ * @param entity - Optional entity to check box_type for compost/refrigerator/large box
  */
-export function getDragDropReducerNames(containerType: ContainerType) {
+export function getDragDropReducerNames(containerType: ContainerType, entity?: ContainerEntity) {
     const typeMap = {
         campfire: 'Campfire',
         furnace: 'Furnace',
@@ -88,7 +90,15 @@ export function getDragDropReducerNames(containerType: ContainerType) {
         broth_pot: 'BrothPot'
     };
     
-    const typeName = typeMap[containerType];
+    // Check if this is a compost box (needs special reducer names)
+    let isCompost = false;
+    if (containerType === 'wooden_storage_box' && entity) {
+        const box = entity as WoodenStorageBox;
+        isCompost = box.boxType === BOX_TYPE_COMPOST;
+    }
+    
+    // Use compost-specific type name if it's a compost box
+    const typeName = isCompost ? 'Compost' : typeMap[containerType];
     
     // Determine if this is a fuel container (different naming pattern)
     // Note: Fumarole is HYBRID - uses storage pattern for moveFromPlayer, fuel pattern for moveToPlayer
@@ -101,18 +111,18 @@ export function getDragDropReducerNames(containerType: ContainerType) {
         splitDropToWorld: `splitAndDropItemFrom${typeName}SlotToWorld`,
         
         // Player <-> Container reducers - DIFFERENT PATTERNS
-        moveFromPlayer: `moveItemTo${typeName}`,  // Consistent: moveItemToCampfire, moveItemToBox, moveItemToHearth, etc.
+        moveFromPlayer: `moveItemTo${typeName}`,  // Consistent: moveItemToCampfire, moveItemToBox, moveItemToCompost, moveItemToHearth, etc.
         moveToPlayer: (isFuelContainer || isFumarole)
             ? `moveItemFrom${typeName}ToPlayerSlot`  // Fuel/Fumarole: moveItemFromCampfireToPlayerSlot, moveItemFromFumaroleToPlayerSlot
-            : `moveItemFrom${typeName}`,             // Storage: moveItemFromBox, moveItemFromHearth
+            : `moveItemFrom${typeName}`,             // Storage: moveItemFromBox, moveItemFromCompost, moveItemFromHearth
         
         // Within container moves (consistent)  
-        moveWithin: `moveItemWithin${typeName}`,  // moveItemWithinCampfire, moveItemWithinBox, moveItemWithinHearth, etc.
+        moveWithin: `moveItemWithin${typeName}`,  // moveItemWithinCampfire, moveItemWithinBox, moveItemWithinCompost, moveItemWithinHearth, etc.
         
         // Split operations
-        splitFromPlayer: `splitStackInto${typeName}`,     // splitStackIntoCampfire, splitStackIntoBox, splitStackIntoHearth
-        splitToPlayer: `splitStackFrom${typeName}`,       // splitStackFromCampfire, splitStackFromBox, splitStackFromHearth
-        splitWithin: `splitStackWithin${typeName}`,       // splitStackWithinCampfire, splitStackWithinBox, splitStackWithinHearth
+        splitFromPlayer: `splitStackInto${typeName}`,     // splitStackIntoCampfire, splitStackIntoBox, splitStackIntoCompost, splitStackIntoHearth
+        splitToPlayer: `splitStackFrom${typeName}`,       // splitStackFromCampfire, splitStackFromBox, splitStackFromCompost, splitStackFromHearth
+        splitWithin: `splitStackWithin${typeName}`,       // splitStackWithinCampfire, splitStackWithinBox, splitStackWithinCompost, splitStackWithinHearth
     };
 }
 
@@ -335,8 +345,6 @@ export function handlePlayerToContainerMove(
         return false;
     }
     
-    const reducers = getDragDropReducerNames(containerType);
-    
     try {
         const targetIndexNum = typeof targetSlot.index === 'number' 
             ? targetSlot.index 
@@ -358,6 +366,23 @@ export function handlePlayerToContainerMove(
             return true; // Silently reject - context lost
         }
         
+        // Look up entity for wooden storage boxes to check box_type (for compost/refrigerator)
+        let entity: ContainerEntity | undefined = undefined;
+        if (containerType === 'wooden_storage_box' && connection?.db) {
+            try {
+                const boxTable = connection.db.woodenStorageBox;
+                const box = boxTable.id.find(containerIdNum);
+                if (box) {
+                    entity = box;
+                }
+            } catch (e) {
+                // Entity lookup failed, continue without it
+            }
+        }
+        
+        // Get reducer names (will use compost-specific names if entity is compost)
+        const reducers = getDragDropReducerNames(containerType, entity);
+        
         // Special validation: Prevent placing items into broth pot output slot
         if (targetSlot.type === 'broth_pot_output') {
             playImmediateSound('error_jar_placement', 1.0);
@@ -375,6 +400,7 @@ export function handlePlayerToContainerMove(
             reducerName = 'moveItemToBrothPotWaterContainer';
         } else {
             // Use standard reducer pattern (includes broth_pot ingredient slots)
+            // For compost boxes, this will be 'moveItemToCompost' instead of 'moveItemToBox'
             reducerName = reducers.moveFromPlayer;  
         }
         
@@ -646,9 +672,11 @@ export function isStorageContainer(containerType: ContainerType): boolean {
 export const BOX_TYPE_NORMAL = 0;
 export const BOX_TYPE_LARGE = 1;
 export const BOX_TYPE_REFRIGERATOR = 2;
+export const BOX_TYPE_COMPOST = 3;
 export const NUM_BOX_SLOTS = 18;
 export const NUM_LARGE_BOX_SLOTS = 48;
 export const NUM_REFRIGERATOR_SLOTS = 30;
+export const NUM_COMPOST_SLOTS = 20;
 
 /**
  * Get container configuration
@@ -670,6 +698,9 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
                 break;
             case BOX_TYPE_REFRIGERATOR:
                 slots = NUM_REFRIGERATOR_SLOTS;
+                break;
+            case BOX_TYPE_COMPOST:
+                slots = NUM_COMPOST_SLOTS;
                 break;
             default:
                 slots = NUM_BOX_SLOTS;
@@ -693,6 +724,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'LARGE WOODEN STORAGE BOX';
             case BOX_TYPE_REFRIGERATOR:
                 return 'REFRIGERATOR';
+            case BOX_TYPE_COMPOST:
+                return 'COMPOST';
             default:
                 return 'WOODEN STORAGE BOX';
         }

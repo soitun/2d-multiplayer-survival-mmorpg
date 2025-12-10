@@ -33,6 +33,8 @@ import {
 // Import and reexport all reducer arg types
 import { AcceptAlkContract } from "./accept_alk_contract_reducer.ts";
 export { AcceptAlkContract };
+import { ApplyFertilizer } from "./apply_fertilizer_reducer.ts";
+export { ApplyFertilizer };
 import { CancelAlkContract } from "./cancel_alk_contract_reducer.ts";
 export { CancelAlkContract };
 import { CancelAllCrafting } from "./cancel_all_crafting_reducer.ts";
@@ -59,6 +61,8 @@ import { CleanupExpiredAnimalCorpses } from "./cleanup_expired_animal_corpses_re
 export { CleanupExpiredAnimalCorpses };
 import { CleanupExpiredDodgeRolls } from "./cleanup_expired_dodge_rolls_reducer.ts";
 export { CleanupExpiredDodgeRolls };
+import { CleanupExpiredFertilizerPatches } from "./cleanup_expired_fertilizer_patches_reducer.ts";
+export { CleanupExpiredFertilizerPatches };
 import { CleanupExpiredFirePatches } from "./cleanup_expired_fire_patches_reducer.ts";
 export { CleanupExpiredFirePatches };
 import { CleanupExpiredWaterPatches } from "./cleanup_expired_water_patches_reducer.ts";
@@ -225,6 +229,8 @@ import { MoveItemToBrothPotWaterContainer } from "./move_item_to_broth_pot_water
 export { MoveItemToBrothPotWaterContainer };
 import { MoveItemToCampfire } from "./move_item_to_campfire_reducer.ts";
 export { MoveItemToCampfire };
+import { MoveItemToCompost } from "./move_item_to_compost_reducer.ts";
+export { MoveItemToCompost };
 import { MoveItemToCorpse } from "./move_item_to_corpse_reducer.ts";
 export { MoveItemToCorpse };
 import { MoveItemToFumarole } from "./move_item_to_fumarole_reducer.ts";
@@ -317,6 +323,8 @@ import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
 export { ProcessBuildingDecay };
 import { ProcessCampfireLogicScheduled } from "./process_campfire_logic_scheduled_reducer.ts";
 export { ProcessCampfireLogicScheduled };
+import { ProcessCompostConversion } from "./process_compost_conversion_reducer.ts";
+export { ProcessCompostConversion };
 import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
@@ -381,6 +389,8 @@ import { QuickMoveToBrothPotWaterContainer } from "./quick_move_to_broth_pot_wat
 export { QuickMoveToBrothPotWaterContainer };
 import { QuickMoveToCampfire } from "./quick_move_to_campfire_reducer.ts";
 export { QuickMoveToCampfire };
+import { QuickMoveToCompost } from "./quick_move_to_compost_reducer.ts";
+export { QuickMoveToCompost };
 import { QuickMoveToCorpse } from "./quick_move_to_corpse_reducer.ts";
 export { QuickMoveToCorpse };
 import { QuickMoveToFumarole } from "./quick_move_to_fumarole_reducer.ts";
@@ -493,6 +503,8 @@ import { SplitStackIntoBrothPot } from "./split_stack_into_broth_pot_reducer.ts"
 export { SplitStackIntoBrothPot };
 import { SplitStackIntoCampfire } from "./split_stack_into_campfire_reducer.ts";
 export { SplitStackIntoCampfire };
+import { SplitStackIntoCompost } from "./split_stack_into_compost_reducer.ts";
+export { SplitStackIntoCompost };
 import { SplitStackIntoCorpse } from "./split_stack_into_corpse_reducer.ts";
 export { SplitStackIntoCorpse };
 import { SplitStackIntoFumarole } from "./split_stack_into_fumarole_reducer.ts";
@@ -637,6 +649,8 @@ import { CloudIntensityScheduleTableHandle } from "./cloud_intensity_schedule_ta
 export { CloudIntensityScheduleTableHandle };
 import { CloudUpdateScheduleTableHandle } from "./cloud_update_schedule_table.ts";
 export { CloudUpdateScheduleTableHandle };
+import { CompostProcessScheduleTableHandle } from "./compost_process_schedule_table.ts";
+export { CompostProcessScheduleTableHandle };
 import { ContinuousSoundTableHandle } from "./continuous_sound_table.ts";
 export { ContinuousSoundTableHandle };
 import { CraftingFinishScheduleTableHandle } from "./crafting_finish_schedule_table.ts";
@@ -653,6 +667,10 @@ import { DroppedItemTableHandle } from "./dropped_item_table.ts";
 export { DroppedItemTableHandle };
 import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_schedule_table.ts";
 export { DroppedItemDespawnScheduleTableHandle };
+import { FertilizerPatchTableHandle } from "./fertilizer_patch_table.ts";
+export { FertilizerPatchTableHandle };
+import { FertilizerPatchCleanupScheduleTableHandle } from "./fertilizer_patch_cleanup_schedule_table.ts";
+export { FertilizerPatchCleanupScheduleTableHandle };
 import { FirePatchTableHandle } from "./fire_patch_table.ts";
 export { FirePatchTableHandle };
 import { FirePatchCleanupScheduleTableHandle } from "./fire_patch_cleanup_schedule_table.ts";
@@ -885,6 +903,8 @@ import { CloudType } from "./cloud_type_type.ts";
 export { CloudType };
 import { CloudUpdateSchedule } from "./cloud_update_schedule_type.ts";
 export { CloudUpdateSchedule };
+import { CompostProcessSchedule } from "./compost_process_schedule_type.ts";
+export { CompostProcessSchedule };
 import { ContainerLocationData } from "./container_location_data_type.ts";
 export { ContainerLocationData };
 import { ContainerType } from "./container_type_type.ts";
@@ -919,6 +939,10 @@ import { EquipmentSlotType } from "./equipment_slot_type_type.ts";
 export { EquipmentSlotType };
 import { EquippedLocationData } from "./equipped_location_data_type.ts";
 export { EquippedLocationData };
+import { FertilizerPatch } from "./fertilizer_patch_type.ts";
+export { FertilizerPatch };
+import { FertilizerPatchCleanupSchedule } from "./fertilizer_patch_cleanup_schedule_type.ts";
+export { FertilizerPatchCleanupSchedule };
 import { FirePatch } from "./fire_patch_type.ts";
 export { FirePatch };
 import { FirePatchCleanupSchedule } from "./fire_patch_cleanup_schedule_type.ts";
@@ -1347,6 +1371,15 @@ const REMOTE_MODULE = {
         colType: (CloudUpdateSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    compost_process_schedule: {
+      tableName: "compost_process_schedule" as const,
+      rowType: CompostProcessSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (CompostProcessSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     continuous_sound: {
       tableName: "continuous_sound" as const,
       rowType: ContinuousSound.getTypeScriptAlgebraicType(),
@@ -1417,6 +1450,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (DroppedItemDespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fertilizer_patch: {
+      tableName: "fertilizer_patch" as const,
+      rowType: FertilizerPatch.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FertilizerPatch.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fertilizer_patch_cleanup_schedule: {
+      tableName: "fertilizer_patch_cleanup_schedule" as const,
+      rowType: FertilizerPatchCleanupSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FertilizerPatchCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     fire_patch: {
@@ -2127,6 +2178,10 @@ const REMOTE_MODULE = {
       reducerName: "accept_alk_contract",
       argsType: AcceptAlkContract.getTypeScriptAlgebraicType(),
     },
+    apply_fertilizer: {
+      reducerName: "apply_fertilizer",
+      argsType: ApplyFertilizer.getTypeScriptAlgebraicType(),
+    },
     cancel_alk_contract: {
       reducerName: "cancel_alk_contract",
       argsType: CancelAlkContract.getTypeScriptAlgebraicType(),
@@ -2178,6 +2233,10 @@ const REMOTE_MODULE = {
     cleanup_expired_dodge_rolls: {
       reducerName: "cleanup_expired_dodge_rolls",
       argsType: CleanupExpiredDodgeRolls.getTypeScriptAlgebraicType(),
+    },
+    cleanup_expired_fertilizer_patches: {
+      reducerName: "cleanup_expired_fertilizer_patches",
+      argsType: CleanupExpiredFertilizerPatches.getTypeScriptAlgebraicType(),
     },
     cleanup_expired_fire_patches: {
       reducerName: "cleanup_expired_fire_patches",
@@ -2511,6 +2570,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_to_campfire",
       argsType: MoveItemToCampfire.getTypeScriptAlgebraicType(),
     },
+    move_item_to_compost: {
+      reducerName: "move_item_to_compost",
+      argsType: MoveItemToCompost.getTypeScriptAlgebraicType(),
+    },
     move_item_to_corpse: {
       reducerName: "move_item_to_corpse",
       argsType: MoveItemToCorpse.getTypeScriptAlgebraicType(),
@@ -2695,6 +2758,10 @@ const REMOTE_MODULE = {
       reducerName: "process_campfire_logic_scheduled",
       argsType: ProcessCampfireLogicScheduled.getTypeScriptAlgebraicType(),
     },
+    process_compost_conversion: {
+      reducerName: "process_compost_conversion",
+      argsType: ProcessCompostConversion.getTypeScriptAlgebraicType(),
+    },
     process_corpse_despawn: {
       reducerName: "process_corpse_despawn",
       argsType: ProcessCorpseDespawn.getTypeScriptAlgebraicType(),
@@ -2822,6 +2889,10 @@ const REMOTE_MODULE = {
     quick_move_to_campfire: {
       reducerName: "quick_move_to_campfire",
       argsType: QuickMoveToCampfire.getTypeScriptAlgebraicType(),
+    },
+    quick_move_to_compost: {
+      reducerName: "quick_move_to_compost",
+      argsType: QuickMoveToCompost.getTypeScriptAlgebraicType(),
     },
     quick_move_to_corpse: {
       reducerName: "quick_move_to_corpse",
@@ -3047,6 +3118,10 @@ const REMOTE_MODULE = {
       reducerName: "split_stack_into_campfire",
       argsType: SplitStackIntoCampfire.getTypeScriptAlgebraicType(),
     },
+    split_stack_into_compost: {
+      reducerName: "split_stack_into_compost",
+      argsType: SplitStackIntoCompost.getTypeScriptAlgebraicType(),
+    },
     split_stack_into_corpse: {
       reducerName: "split_stack_into_corpse",
       argsType: SplitStackIntoCorpse.getTypeScriptAlgebraicType(),
@@ -3262,6 +3337,7 @@ const REMOTE_MODULE = {
 // A type representing all the possible variants of a reducer.
 export type Reducer = never
 | { name: "AcceptAlkContract", args: AcceptAlkContract }
+| { name: "ApplyFertilizer", args: ApplyFertilizer }
 | { name: "CancelAlkContract", args: CancelAlkContract }
 | { name: "CancelAllCrafting", args: CancelAllCrafting }
 | { name: "CancelCraftingItem", args: CancelCraftingItem }
@@ -3275,6 +3351,7 @@ export type Reducer = never
 | { name: "CheckResourceRespawns", args: CheckResourceRespawns }
 | { name: "CleanupExpiredAnimalCorpses", args: CleanupExpiredAnimalCorpses }
 | { name: "CleanupExpiredDodgeRolls", args: CleanupExpiredDodgeRolls }
+| { name: "CleanupExpiredFertilizerPatches", args: CleanupExpiredFertilizerPatches }
 | { name: "CleanupExpiredFirePatches", args: CleanupExpiredFirePatches }
 | { name: "CleanupExpiredWaterPatches", args: CleanupExpiredWaterPatches }
 | { name: "CleanupOldSoundEvents", args: CleanupOldSoundEvents }
@@ -3358,6 +3435,7 @@ export type Reducer = never
 | { name: "MoveItemToBrothPot", args: MoveItemToBrothPot }
 | { name: "MoveItemToBrothPotWaterContainer", args: MoveItemToBrothPotWaterContainer }
 | { name: "MoveItemToCampfire", args: MoveItemToCampfire }
+| { name: "MoveItemToCompost", args: MoveItemToCompost }
 | { name: "MoveItemToCorpse", args: MoveItemToCorpse }
 | { name: "MoveItemToFumarole", args: MoveItemToFumarole }
 | { name: "MoveItemToFurnace", args: MoveItemToFurnace }
@@ -3404,6 +3482,7 @@ export type Reducer = never
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
+| { name: "ProcessCompostConversion", args: ProcessCompostConversion }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
@@ -3436,6 +3515,7 @@ export type Reducer = never
 | { name: "QuickMoveToBrothPot", args: QuickMoveToBrothPot }
 | { name: "QuickMoveToBrothPotWaterContainer", args: QuickMoveToBrothPotWaterContainer }
 | { name: "QuickMoveToCampfire", args: QuickMoveToCampfire }
+| { name: "QuickMoveToCompost", args: QuickMoveToCompost }
 | { name: "QuickMoveToCorpse", args: QuickMoveToCorpse }
 | { name: "QuickMoveToFumarole", args: QuickMoveToFumarole }
 | { name: "QuickMoveToFurnace", args: QuickMoveToFurnace }
@@ -3492,6 +3572,7 @@ export type Reducer = never
 | { name: "SplitStackIntoBox", args: SplitStackIntoBox }
 | { name: "SplitStackIntoBrothPot", args: SplitStackIntoBrothPot }
 | { name: "SplitStackIntoCampfire", args: SplitStackIntoCampfire }
+| { name: "SplitStackIntoCompost", args: SplitStackIntoCompost }
 | { name: "SplitStackIntoCorpse", args: SplitStackIntoCorpse }
 | { name: "SplitStackIntoFumarole", args: SplitStackIntoFumarole }
 | { name: "SplitStackIntoFurnace", args: SplitStackIntoFurnace }
@@ -3557,6 +3638,22 @@ export class RemoteReducers {
 
   removeOnAcceptAlkContract(callback: (ctx: ReducerEventContext, contractId: bigint, targetQuantity: number, preferredStationId: number | undefined) => void) {
     this.connection.offReducer("accept_alk_contract", callback);
+  }
+
+  applyFertilizer(fertilizerInstanceId: bigint) {
+    const __args = { fertilizerInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    ApplyFertilizer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("apply_fertilizer", __argsBuffer, this.setCallReducerFlags.applyFertilizerFlags);
+  }
+
+  onApplyFertilizer(callback: (ctx: ReducerEventContext, fertilizerInstanceId: bigint) => void) {
+    this.connection.onReducer("apply_fertilizer", callback);
+  }
+
+  removeOnApplyFertilizer(callback: (ctx: ReducerEventContext, fertilizerInstanceId: bigint) => void) {
+    this.connection.offReducer("apply_fertilizer", callback);
   }
 
   cancelAlkContract(playerContractId: bigint) {
@@ -3745,6 +3842,22 @@ export class RemoteReducers {
 
   removeOnCleanupExpiredDodgeRolls(callback: (ctx: ReducerEventContext, args: DodgeRollCleanupSchedule) => void) {
     this.connection.offReducer("cleanup_expired_dodge_rolls", callback);
+  }
+
+  cleanupExpiredFertilizerPatches(schedule: FertilizerPatchCleanupSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    CleanupExpiredFertilizerPatches.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("cleanup_expired_fertilizer_patches", __argsBuffer, this.setCallReducerFlags.cleanupExpiredFertilizerPatchesFlags);
+  }
+
+  onCleanupExpiredFertilizerPatches(callback: (ctx: ReducerEventContext, schedule: FertilizerPatchCleanupSchedule) => void) {
+    this.connection.onReducer("cleanup_expired_fertilizer_patches", callback);
+  }
+
+  removeOnCleanupExpiredFertilizerPatches(callback: (ctx: ReducerEventContext, schedule: FertilizerPatchCleanupSchedule) => void) {
+    this.connection.offReducer("cleanup_expired_fertilizer_patches", callback);
   }
 
   cleanupExpiredFirePatches(args: FirePatchCleanupSchedule) {
@@ -5011,6 +5124,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_campfire", callback);
   }
 
+  moveItemToCompost(boxId: number, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { boxId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToCompost.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_compost", __argsBuffer, this.setCallReducerFlags.moveItemToCompostFlags);
+  }
+
+  onMoveItemToCompost(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_compost", callback);
+  }
+
+  removeOnMoveItemToCompost(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_compost", callback);
+  }
+
   moveItemToCorpse(corpseId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { corpseId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -5747,6 +5876,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_campfire_logic_scheduled", callback);
   }
 
+  processCompostConversion(args: CompostProcessSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessCompostConversion.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_compost_conversion", __argsBuffer, this.setCallReducerFlags.processCompostConversionFlags);
+  }
+
+  onProcessCompostConversion(callback: (ctx: ReducerEventContext, args: CompostProcessSchedule) => void) {
+    this.connection.onReducer("process_compost_conversion", callback);
+  }
+
+  removeOnProcessCompostConversion(callback: (ctx: ReducerEventContext, args: CompostProcessSchedule) => void) {
+    this.connection.offReducer("process_compost_conversion", callback);
+  }
+
   processCorpseDespawn(args: PlayerCorpseDespawnSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -6257,6 +6402,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveToCampfire(callback: (ctx: ReducerEventContext, campfireId: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("quick_move_to_campfire", callback);
+  }
+
+  quickMoveToCompost(boxId: number, itemInstanceId: bigint) {
+    const __args = { boxId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToCompost.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_compost", __argsBuffer, this.setCallReducerFlags.quickMoveToCompostFlags);
+  }
+
+  onQuickMoveToCompost(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_compost", callback);
+  }
+
+  removeOnQuickMoveToCompost(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_compost", callback);
   }
 
   quickMoveToCorpse(corpseId: number, itemInstanceId: bigint) {
@@ -7119,6 +7280,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_into_campfire", callback);
   }
 
+  splitStackIntoCompost(boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
+    const __args = { boxId, targetSlotIndex, sourceItemInstanceId, quantityToSplit };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoCompost.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_compost", __argsBuffer, this.setCallReducerFlags.splitStackIntoCompostFlags);
+  }
+
+  onSplitStackIntoCompost(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.onReducer("split_stack_into_compost", callback);
+  }
+
+  removeOnSplitStackIntoCompost(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.offReducer("split_stack_into_compost", callback);
+  }
+
   splitStackIntoCorpse(corpseId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
     const __args = { corpseId, targetSlotIndex, sourceItemInstanceId, quantityToSplit };
     let __writer = new __BinaryWriter(1024);
@@ -7827,6 +8004,11 @@ export class SetReducerFlags {
     this.acceptAlkContractFlags = flags;
   }
 
+  applyFertilizerFlags: __CallReducerFlags = 'FullUpdate';
+  applyFertilizer(flags: __CallReducerFlags) {
+    this.applyFertilizerFlags = flags;
+  }
+
   cancelAlkContractFlags: __CallReducerFlags = 'FullUpdate';
   cancelAlkContract(flags: __CallReducerFlags) {
     this.cancelAlkContractFlags = flags;
@@ -7890,6 +8072,11 @@ export class SetReducerFlags {
   cleanupExpiredDodgeRollsFlags: __CallReducerFlags = 'FullUpdate';
   cleanupExpiredDodgeRolls(flags: __CallReducerFlags) {
     this.cleanupExpiredDodgeRollsFlags = flags;
+  }
+
+  cleanupExpiredFertilizerPatchesFlags: __CallReducerFlags = 'FullUpdate';
+  cleanupExpiredFertilizerPatches(flags: __CallReducerFlags) {
+    this.cleanupExpiredFertilizerPatchesFlags = flags;
   }
 
   cleanupExpiredFirePatchesFlags: __CallReducerFlags = 'FullUpdate';
@@ -8297,6 +8484,11 @@ export class SetReducerFlags {
     this.moveItemToCampfireFlags = flags;
   }
 
+  moveItemToCompostFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToCompost(flags: __CallReducerFlags) {
+    this.moveItemToCompostFlags = flags;
+  }
+
   moveItemToCorpseFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToCorpse(flags: __CallReducerFlags) {
     this.moveItemToCorpseFlags = flags;
@@ -8527,6 +8719,11 @@ export class SetReducerFlags {
     this.processCampfireLogicScheduledFlags = flags;
   }
 
+  processCompostConversionFlags: __CallReducerFlags = 'FullUpdate';
+  processCompostConversion(flags: __CallReducerFlags) {
+    this.processCompostConversionFlags = flags;
+  }
+
   processCorpseDespawnFlags: __CallReducerFlags = 'FullUpdate';
   processCorpseDespawn(flags: __CallReducerFlags) {
     this.processCorpseDespawnFlags = flags;
@@ -8685,6 +8882,11 @@ export class SetReducerFlags {
   quickMoveToCampfireFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToCampfire(flags: __CallReducerFlags) {
     this.quickMoveToCampfireFlags = flags;
+  }
+
+  quickMoveToCompostFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToCompost(flags: __CallReducerFlags) {
+    this.quickMoveToCompostFlags = flags;
   }
 
   quickMoveToCorpseFlags: __CallReducerFlags = 'FullUpdate';
@@ -8965,6 +9167,11 @@ export class SetReducerFlags {
   splitStackIntoCampfireFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoCampfire(flags: __CallReducerFlags) {
     this.splitStackIntoCampfireFlags = flags;
+  }
+
+  splitStackIntoCompostFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoCompost(flags: __CallReducerFlags) {
+    this.splitStackIntoCompostFlags = flags;
   }
 
   splitStackIntoCorpseFlags: __CallReducerFlags = 'FullUpdate';
@@ -9327,6 +9534,11 @@ export class RemoteTables {
     return new CloudUpdateScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CloudUpdateSchedule>(REMOTE_MODULE.tables.cloud_update_schedule));
   }
 
+  get compostProcessSchedule(): CompostProcessScheduleTableHandle<'compost_process_schedule'> {
+    // clientCache is a private property
+    return new CompostProcessScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CompostProcessSchedule>(REMOTE_MODULE.tables.compost_process_schedule));
+  }
+
   get continuousSound(): ContinuousSoundTableHandle<'continuous_sound'> {
     // clientCache is a private property
     return new ContinuousSoundTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ContinuousSound>(REMOTE_MODULE.tables.continuous_sound));
@@ -9365,6 +9577,16 @@ export class RemoteTables {
   get droppedItemDespawnSchedule(): DroppedItemDespawnScheduleTableHandle<'dropped_item_despawn_schedule'> {
     // clientCache is a private property
     return new DroppedItemDespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroppedItemDespawnSchedule>(REMOTE_MODULE.tables.dropped_item_despawn_schedule));
+  }
+
+  get fertilizerPatch(): FertilizerPatchTableHandle<'fertilizer_patch'> {
+    // clientCache is a private property
+    return new FertilizerPatchTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FertilizerPatch>(REMOTE_MODULE.tables.fertilizer_patch));
+  }
+
+  get fertilizerPatchCleanupSchedule(): FertilizerPatchCleanupScheduleTableHandle<'fertilizer_patch_cleanup_schedule'> {
+    // clientCache is a private property
+    return new FertilizerPatchCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FertilizerPatchCleanupSchedule>(REMOTE_MODULE.tables.fertilizer_patch_cleanup_schedule));
   }
 
   get firePatch(): FirePatchTableHandle<'fire_patch'> {

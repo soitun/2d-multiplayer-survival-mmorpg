@@ -61,8 +61,15 @@ export function isFoodItem(itemDef: ItemDefinition): boolean {
 /**
  * Check if an item definition supports the durability system
  * Returns true for weapons, tools, ranged weapons, torches, flashlights, and food items
+ * Excludes items that don't lose durability: Fertilizer, Reed Water Bottle, Plastic Water Jug
  */
 export function hasDurabilitySystem(itemDef: ItemDefinition): boolean {
+    // Exclude items that don't lose durability
+    const noDurabilityItems = ['Fertilizer', 'Reed Water Bottle', 'Plastic Water Jug'];
+    if (noDurabilityItems.includes(itemDef.name)) {
+        return false;
+    }
+    
     const categoryTag = itemDef.category.tag;
     
     // Check category

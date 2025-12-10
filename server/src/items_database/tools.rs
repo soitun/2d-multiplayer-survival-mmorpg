@@ -1,6 +1,6 @@
 use crate::items::{ItemDefinition, ItemCategory, CostIngredient};
 use crate::models::{EquipmentSlotType, TargetType};
-use crate::items_database::builders::{ItemBuilder, basic_tool};
+use crate::items_database::builders::{ItemBuilder, basic_tool, basic_material};
 
 pub fn get_tool_definitions() -> Vec<ItemDefinition> {
     vec![
@@ -302,6 +302,15 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .icon("water_jug.png")
             .equippable(None)
             .respawn_time(720)
+            .build(),
+
+        // Fertilizer - Organic nutrient tool for farming (equippable, consumable)
+        ItemBuilder::new("Fertilizer", "Rich organic fertilizer made from decomposed organic matter. Equip and left-click to apply to crops for significant growth boost. Right-click to consume directly.", ItemCategory::Tool)
+            .icon("fertilizer.png")
+            .equippable(None)
+            .stackable(500)
+            .consumable(0.0, 0.0, 0.0) // No nutritional value, but consumable via right-click
+            .respawn_time(300)
             .build(),
     ]
 }

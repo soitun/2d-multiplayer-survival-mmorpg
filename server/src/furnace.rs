@@ -206,6 +206,12 @@ pub fn split_stack_within_furnace(
 ) -> Result<(), String> {
     let (_player, mut furnace) = validate_furnace_interaction(ctx, furnace_id)?;
     inventory_management::handle_split_within_container(ctx, &mut furnace, source_slot_index, target_slot_index, quantity_to_split)?;
+    
+    // IMPORTANT: Keep cooking progress on source slot when splitting (same as compost keeps timestamp)
+    // The remaining stack continues from where it was - only the new split item starts fresh
+    // Note: Progress is per-slot, so the remaining stack will continue cooking with existing progress
+    // The new split item in target slot will start cooking fresh when placed (no progress on new slot)
+    
     ctx.db.furnace().id().update(furnace.clone());
     schedule_next_furnace_processing(ctx, furnace_id);
     Ok(())
@@ -279,6 +285,10 @@ pub fn split_stack_from_furnace(
         target_slot_type, 
         target_slot_index
     )?;
+
+    // IMPORTANT: Keep cooking progress on source slot when splitting (same as compost keeps timestamp)
+    // The remaining stack continues from where it was - only the new split item starts fresh
+    // Note: Progress is per-slot, so the remaining stack will continue cooking with existing progress
 
     // --- Commit Furnace Update --- 
     // The handler might have modified the source item quantity via split_stack_helper,
@@ -509,6 +519,9 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         "[PlaceFurnace] Player {:?} attempting placement of item {} at ({:.1}, {:.1})",
         sender_id, item_instance_id, world_x, world_y
     );
+
+    // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
+    crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
 
     // Find the player who wants to place the furnace
     let player = players.identity().find(sender_id)
