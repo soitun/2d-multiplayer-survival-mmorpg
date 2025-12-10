@@ -3,6 +3,7 @@ import boxImage from '../../assets/doodads/wooden_storage_box.png'; // Direct im
 import largeBoxImage from '../../assets/doodads/large_wood_box.png'; // Large box image
 import refrigeratorImage from '../../assets/doodads/refrigerator.png'; // Refrigerator image
 import compostImage from '../../assets/doodads/compost.png'; // Compost image
+import backpackImage from '../../assets/doodads/burlap_sack.png'; // Backpack image
 import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
@@ -16,12 +17,15 @@ export const REFRIGERATOR_WIDTH = 64;  // Refrigerator dimensions
 export const REFRIGERATOR_HEIGHT = 96;
 export const COMPOST_WIDTH = 128;  // Compost box dimensions (larger than normal box)
 export const COMPOST_HEIGHT = 128;
+export const BACKPACK_WIDTH = 48;
+export const BACKPACK_HEIGHT = 48;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
 export const BOX_TYPE_LARGE = 1;
 export const BOX_TYPE_REFRIGERATOR = 2;
 export const BOX_TYPE_COMPOST = 3;
+export const BOX_TYPE_BACKPACK = 4;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -48,6 +52,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return refrigeratorImage;
             case BOX_TYPE_COMPOST:
                 return compostImage;
+            case BOX_TYPE_BACKPACK:
+                return backpackImage;
             default:
                 return boxImage;
         }
@@ -62,6 +68,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: REFRIGERATOR_WIDTH, height: REFRIGERATOR_HEIGHT };
             case BOX_TYPE_COMPOST:
                 return { width: COMPOST_WIDTH, height: COMPOST_HEIGHT };
+            case BOX_TYPE_BACKPACK:
+                return { width: BACKPACK_WIDTH, height: BACKPACK_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -176,6 +184,7 @@ imageManager.preloadImage(boxImage);
 imageManager.preloadImage(largeBoxImage);
 imageManager.preloadImage(refrigeratorImage);
 imageManager.preloadImage(compostImage);
+imageManager.preloadImage(backpackImage);
 
 // --- Rendering Function (Refactored) ---
 export function renderWoodenStorageBox(

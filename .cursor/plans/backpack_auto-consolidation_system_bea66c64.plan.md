@@ -4,31 +4,31 @@ overview: Implement an automatic backpack system as a new box_type variant (BOX_
 todos:
   - id: server-box-type-constant
     content: Add BOX_TYPE_BACKPACK = 4 and related constants to wooden_storage_box.rs
-    status: pending
+    status: completed
   - id: server-backpack-module
     content: Create backpack.rs with consolidation logic and scheduled reducer
-    status: pending
+    status: completed
   - id: server-box-integration
     content: Update wooden_storage_box.rs match statements for backpack type
-    status: pending
+    status: completed
   - id: server-auto-despawn
     content: Add check_and_despawn_if_empty hooks to box reducers
-    status: pending
+    status: completed
   - id: server-hybrid-trigger
     content: Add immediate consolidation check in dropped_item.rs
-    status: pending
+    status: completed
   - id: server-lib-integration
     content: Add backpack module to lib.rs and call init in init reducer
-    status: pending
+    status: completed
   - id: client-rendering-config
     content: Add backpack image and dimensions to woodenStorageBoxRenderingUtils.ts
-    status: pending
+    status: completed
   - id: client-ui-config
     content: Add backpack case (36 slots, 6 columns) to useContainer.ts
-    status: pending
+    status: completed
   - id: client-label-update
     content: Update interaction label text for backpacks in interactionLabelUtils.ts
-    status: pending
+    status: completed
   - id: generate-bindings
     content: Run spacetime generate to update TypeScript bindings
     status: pending

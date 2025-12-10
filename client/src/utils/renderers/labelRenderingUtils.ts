@@ -352,7 +352,9 @@ export function renderInteractionLabels({
                 const visualCenterY = box.posY - BOX_COLLISION_Y_OFFSET;
                 textX = box.posX;
                 textY = visualCenterY - (BOX_HEIGHT / 2) - 0;
-                renderStyledInteractionLabel(ctx, text, textX, textY);
+                // Show different label text for backpacks
+                const labelText = box.boxType === 4 ? 'E - Open Backpack' : text;
+                renderStyledInteractionLabel(ctx, labelText, textX, textY);
             }
             break;
         }

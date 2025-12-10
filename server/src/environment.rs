@@ -48,6 +48,7 @@ use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 use crate::wild_animal_npc::core::AnimalBehavior;
 use crate::barrel::barrel as BarrelTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
+use crate::monument; // Import monument module for clearance checks
 use crate::sea_stack::sea_stack as SeaStackTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
@@ -1398,7 +1399,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args
-            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs - allow sparse trees in tundra/alpine
+            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y), // Block water, central compound, hot springs, and monuments
             threshold_fn, // Position-based threshold function
             distance_fn, // Position-based distance function
             trees,
@@ -1498,7 +1499,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             0u32, // Dummy value - resource amount is now determined inside the closure
-            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y), // Block water, central compound, and hot springs for stones
+            |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y), // Block water, central compound, hot springs, and monuments for stones
             stone_threshold_fn, // Biome-specific threshold for stones (Alpine 3x, Tundra 2x density)
             |_pos_x, _pos_y| crate::stone::MIN_STONE_DISTANCE_SQ, // Base distance for stones
             stones,
@@ -1561,7 +1562,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             (sea_stack_scale, variant), // Pass scale and variant as extra_args
-            |pos_x, pos_y| !is_position_on_ocean_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y), // Only spawn on ocean water, not inland water
+            |pos_x, pos_y| !is_position_on_ocean_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y), // Only spawn on ocean water, not inland water, and not near monuments
             |_pos_x, _pos_y| SEA_STACK_SPAWN_NOISE_THRESHOLD, // Base threshold for sea stacks
             |_pos_x, _pos_y| MIN_SEA_STACK_DISTANCE_SQ, // Base distance for sea stacks
             ctx.db.sea_stack(),

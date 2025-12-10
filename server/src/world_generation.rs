@@ -98,12 +98,13 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     
     // Store shipwreck positions in database table for client access (one-time read, then static)
     // Following compound buildings pattern: client-side rendering, server-side collision only
+    // Center uses hull1.png, parts use hull2.png through hull6.png + hull1.png (6 parts, one duplicate with center)
     for (center_x, center_y) in &world_features.shipwreck_centers {
         ctx.db.shipwreck_part().insert(ShipwreckPart {
             id: 0, // auto_inc
             world_x: *center_x,
             world_y: *center_y,
-            image_path: "hull1.png".to_string(),
+            image_path: "hull1.png".to_string(), // Center uses hull1.png
             is_center: true,
             collision_radius: 80.0, // Collision radius for center piece
         });
@@ -124,6 +125,29 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         log::info!("Stored {} shipwreck parts in database (1 center + {} crash parts) - client reads once, then treats as static config", 
                    world_features.shipwreck_centers.len() + world_features.shipwreck_parts.len(),
                    world_features.shipwreck_parts.len());
+        
+        // Spawn respawnable resources around shipwreck monument (harvestables and barrels only)
+        // Note: We don't spawn dropped items here because they don't respawn - only respawnable resources
+        let mut shipwreck_positions = Vec::new();
+        // Add center positions
+        for (center_x, center_y) in &world_features.shipwreck_centers {
+            shipwreck_positions.push((*center_x, *center_y));
+        }
+        // Add part positions
+        for (part_x, part_y, _) in &world_features.shipwreck_parts {
+            shipwreck_positions.push((*part_x, *part_y));
+        }
+        
+        // Spawn harvestable resources (Beach Wood Piles) - these respawn
+        let harvestable_configs = crate::monument::get_shipwreck_harvestables();
+        if let Err(e) = crate::monument::spawn_monument_harvestables(ctx, &shipwreck_positions, &harvestable_configs) {
+            log::warn!("Failed to spawn shipwreck harvestables: {}", e);
+        }
+        
+        // Spawn beach barrels around shipwreck parts - these respawn
+        if let Err(e) = crate::monument::spawn_shipwreck_barrels(ctx, &shipwreck_positions) {
+            log::warn!("Failed to spawn shipwreck barrels: {}", e);
+        }
     }
     
     // Sea stacks will be generated in environment.rs alongside trees and stones
@@ -214,8 +238,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Also adds dense forest rings around hot springs with organic paths
     let forest_areas = generate_forest_areas_with_biomes(config, noise, &shore_distance, &river_network, &lake_map, &road_network, &hot_spring_water, &hot_spring_beach, &hot_spring_centers, &quarry_dirt, &tundra_areas, &alpine_areas, width, height);
     
-    // Generate shipwreck monument on south beach
-    let (shipwreck_centers, shipwreck_parts) = generate_shipwreck(config, noise, &shore_distance, &river_network, &lake_map, width, height);
+    // Generate shipwreck monument on south beach (now handled by monument module)
+    let (shipwreck_centers, shipwreck_parts) = crate::monument::generate_shipwreck(noise, &shore_distance, &river_network, &lake_map, width, height);
     
     WorldFeatures {
         heightmap,
@@ -1717,240 +1741,7 @@ fn generate_asphalt_compounds(
     asphalt
 }
 
-/// Generate shipwreck monument on south beach
-/// Returns (center_positions, crash_parts) where:
-/// - center_positions: Vec of (x, y) in world pixels for hull1.png center piece
-/// - crash_parts: Vec of (x, y, image_path) for additional crash debris north/northeast/northwest
-fn generate_shipwreck(
-    config: &WorldGenConfig,
-    noise: &Perlin,
-    shore_distance: &[Vec<f64>],
-    river_network: &[Vec<bool>],
-    lake_map: &[Vec<bool>],
-    width: usize,
-    height: usize,
-) -> (Vec<(f32, f32)>, Vec<(f32, f32, String)>) {
-    let mut shipwreck_centers = Vec::new();
-    let mut shipwreck_parts = Vec::new();
-    
-    log::info!("🚢 Generating shipwreck monument on south beach...");
-    
-    // Find south beach tiles (south half of map, beach tiles only)
-    let map_height_half = height / 2;
-    let beach_threshold = 12.0; // Same threshold as beach generation
-    let min_distance_from_edge = 20;
-    
-    let mut candidate_positions = Vec::new();
-    
-    // Search south half of map for beach tiles
-    for y in (map_height_half + min_distance_from_edge)..(height - min_distance_from_edge) {
-        for x in min_distance_from_edge..(width - min_distance_from_edge) {
-            let shore_dist = shore_distance[y][x];
-            
-            // Must be beach tile (not water, not deep inland)
-            if shore_dist >= 0.0 && shore_dist < beach_threshold {
-                // Must not be on river or lake
-                if river_network[y][x] || lake_map[y][x] {
-                    continue;
-                }
-                
-                // Must be walkable land (not water)
-                if shore_dist < 0.0 {
-                    continue;
-                }
-                
-                candidate_positions.push((x, y));
-            }
-        }
-    }
-    
-    if candidate_positions.is_empty() {
-        log::warn!("🚢 No valid south beach positions found for shipwreck");
-        return (shipwreck_centers, shipwreck_parts);
-    }
-    
-    // Select one position using noise for deterministic placement
-    let mut best_score = f64::NEG_INFINITY;
-    let mut best_position: Option<(usize, usize)> = None;
-    
-    for &(x, y) in &candidate_positions {
-        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 10000.0]);
-        if noise_val > best_score {
-            best_score = noise_val;
-            best_position = Some((x, y));
-        }
-    }
-    
-    if let Some((center_x, center_y)) = best_position {
-        // Convert tile position to world pixels
-        let center_world_x = (center_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
-        let center_world_y = (center_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
-        
-        shipwreck_centers.push((center_world_x, center_world_y));
-        
-        log::info!("🚢✨ PLACED SHIPWRECK CENTER at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
-                   center_x, center_y, center_world_x, center_world_y);
-        
-        // Generate crash parts scattered along the beach (east and west of center)
-        // Parts spawn on beach/land tiles along the southern shore
-        // Expanded range for better spacing with doubled minimum distance
-        let min_distance_tiles = 15; // Minimum distance from center (about 720px)
-        let max_distance_tiles = 50; // Increased max distance for wider spread (about 2400px)
-        let tile_size_px = crate::TILE_SIZE_PX as f32;
-        
-        // Directions: east and west along the beach, with slight north/south variation
-        let directions = [
-            (1.0, 0.0),       // East
-            (-1.0, 0.0),      // West
-            (1.0, 0.3),       // East-southeast
-            (-1.0, 0.3),      // West-southeast
-            (1.0, -0.3),      // East-northeast
-            (-1.0, -0.3),     // West-northeast
-        ];
-        
-        // ALWAYS spawn exactly 6 crash parts (no randomness)
-        let num_parts = 6;
-        let mut placed_parts = Vec::new();
-        
-        for i in 0..num_parts {
-            let mut attempts = 0;
-            let max_attempts = 200; // Many attempts to ensure all 6 parts spawn
-            
-            loop {
-                if attempts >= max_attempts {
-                    log::error!("🚢 CRITICAL: Failed to place shipwreck part #{} after {} attempts. This should not happen!", i + 1, max_attempts);
-                    break;
-                }
-                
-                // Pick a direction (cycle through all directions for variety)
-                // Vary direction based on attempts to search wider area
-                let dir_idx = (i + (attempts / 10)) % directions.len();
-                let (dir_x, dir_y) = directions[dir_idx];
-                
-                // Vary distance from center (between min and max distance)
-                // Add attempt offset to noise seed for different positions on retry
-                let distance_factor = noise.get([
-                    center_x as f64 * 0.05 + i as f64 + attempts as f64 * 0.1, 
-                    center_y as f64 * 0.05 + i as f64 + attempts as f64 * 0.1, 
-                    10002.0
-                ]);
-                let distance_range = max_distance_tiles - min_distance_tiles;
-                let distance_tiles = min_distance_tiles as f32 + (distance_factor.abs() as f32 * distance_range as f32);
-                
-                // Calculate part position in tiles
-                let part_tile_x = center_x as f32 + dir_x * distance_tiles;
-                let part_tile_y = center_y as f32 + dir_y * distance_tiles;
-                
-                // Round to nearest tile
-                let part_tile_x_int = part_tile_x.round() as i32;
-                let part_tile_y_int = part_tile_y.round() as i32;
-                
-                // Bounds check
-                if part_tile_x_int < 10 || part_tile_y_int < 10 || 
-                   part_tile_x_int >= (width as i32 - 10) || part_tile_y_int >= (height as i32 - 10) {
-                    attempts += 1;
-                    continue;
-                }
-                
-                let px = part_tile_x_int as usize;
-                let py = part_tile_y_int as usize;
-                
-                // Must be on land (not water, not river, not lake)
-                let part_shore_dist = shore_distance[py][px];
-                if part_shore_dist < 0.0 || river_network[py][px] || lake_map[py][px] {
-                    attempts += 1;
-                    continue;
-                }
-                
-                // Must be on beach or near beach (not too far inland)
-                // Allow up to 40 tiles inland to give more placement options (relaxed for all 6 parts)
-                if part_shore_dist > 40.0 {
-                    attempts += 1;
-                    continue;
-                }
-                
-                // Check for minimum distance from other parts (at least 20 tiles apart - doubled spacing)
-                let min_part_distance = 20.0;
-                let mut too_close = false;
-                for &(other_x, other_y, _) in &placed_parts {
-                    let other_tile_x = (other_x / tile_size_px) as f32;
-                    let other_tile_y = (other_y / tile_size_px) as f32;
-                    let dx = part_tile_x - other_tile_x;
-                    let dy = part_tile_y - other_tile_y;
-                    let dist_sq = dx * dx + dy * dy;
-                    if dist_sq < min_part_distance * min_part_distance {
-                        too_close = true;
-                        break;
-                    }
-                }
-                
-                if too_close {
-                    attempts += 1;
-                    continue;
-                }
-                
-                // Check area around the part for obstacles (trees, stones, sea stacks)
-                // Check a 5x5 tile area around the part
-                let check_radius = 2;
-                let mut has_obstacles = false;
-                
-                for dy in -check_radius..=check_radius {
-                    for dx in -check_radius..=check_radius {
-                        let check_x = (px as i32 + dx) as usize;
-                        let check_y = (py as i32 + dy) as usize;
-                        
-                        if check_x >= width || check_y >= height {
-                            continue;
-                        }
-                        
-                        // Check shore distance - avoid being too close to water or too far inland
-                        let check_shore_dist = shore_distance[check_y][check_x];
-                        
-                        // Too close to water (< 2 tiles)
-                        if check_shore_dist < 2.0 {
-                            has_obstacles = true;
-                            break;
-                        }
-                        
-                        // Check for water features
-                        if river_network[check_y][check_x] || lake_map[check_y][check_x] {
-                            has_obstacles = true;
-                            break;
-                        }
-                    }
-                    if has_obstacles {
-                        break;
-                    }
-                }
-                
-                if has_obstacles {
-                    attempts += 1;
-                    continue;
-                }
-                
-                // Valid position found! Convert to world pixels
-                let part_world_x = (part_tile_x_int as f32 + 0.5) * tile_size_px;
-                let part_world_y = (part_tile_y_int as f32 + 0.5) * tile_size_px;
-                
-                // Cycle through hull1-hull6.png for variety
-                let image_path = format!("hull{}.png", (i % 6) + 1);
-                
-                placed_parts.push((part_world_x, part_world_y, image_path.clone()));
-                shipwreck_parts.push((part_world_x, part_world_y, image_path));
-                
-                log::info!("🚢✨ PLACED SHIPWRECK PART #{} at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
-                           i + 1, px, py, part_world_x, part_world_y);
-                break; // Successfully placed
-            }
-        }
-        
-        log::info!("🚢 Shipwreck generation complete: 1 center + {} crash parts", shipwreck_parts.len());
-    } else {
-        log::warn!("🚢 Failed to select shipwreck position");
-    }
-    
-    (shipwreck_centers, shipwreck_parts)
-}
+// Shipwreck generation logic moved to monument.rs module
 
 /// Generate forest areas using noise-based distribution (OLD VERSION - kept for reference)
 /// Forests are dense vegetation areas that complement meadows (Grass) and clearings (Dirt)

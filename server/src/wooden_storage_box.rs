@@ -30,6 +30,10 @@ pub const BOX_TYPE_NORMAL: u8 = 0;
 pub const BOX_TYPE_LARGE: u8 = 1;
 pub const BOX_TYPE_REFRIGERATOR: u8 = 2;
 pub const BOX_TYPE_COMPOST: u8 = 3;
+pub const BOX_TYPE_BACKPACK: u8 = 4;
+pub const NUM_BACKPACK_SLOTS: usize = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
+pub const BACKPACK_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
+pub const BACKPACK_MAX_HEALTH: f32 = 100.0;
 
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
@@ -250,9 +254,18 @@ pub fn move_item_from_box(
     )?;
     // ^ If this returns Ok, it means the move/merge/swap into the player slot succeeded.
 
+    // Check box type before moving storage_box
+    let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
+
     // --- Commit Box Update --- 
     // The handler modified storage_box (cleared the slot) if the move was successful.
     boxes.id().update(storage_box);
+
+    // Auto-despawn empty backpacks
+    if is_backpack {
+        let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+
     Ok(())
 }
 
@@ -430,8 +443,17 @@ pub fn quick_move_from_box(
         source_slot_index
     )?;
 
+    // Check box type before moving storage_box
+    let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
+
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
+
+    // Auto-despawn empty backpacks
+    if is_backpack {
+        let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+
     Ok(())
 }
 
@@ -503,6 +525,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_REFRIGERATOR
     } else if item_def.name == "Compost" {
         BOX_TYPE_COMPOST
+    } else if item_def.name == "Backpack" {
+        BOX_TYPE_BACKPACK
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -551,6 +575,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
             use crate::compost::{COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH};
             (COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH)
         },
+        BOX_TYPE_BACKPACK => (BACKPACK_INITIAL_HEALTH, BACKPACK_MAX_HEALTH),
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
@@ -623,6 +648,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_LARGE => "Large Wooden Storage Box",
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
         BOX_TYPE_COMPOST => "Compost",
+        BOX_TYPE_BACKPACK => "Backpack",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -732,9 +758,17 @@ pub fn drop_item_from_box_slot_to_world(
     // The handler will modify wooden_box (clear slot) and create dropped item, delete inventory_item.
     crate::inventory_management::handle_drop_from_container_slot(ctx, &mut wooden_box, slot_index, &player_for_drop_location)?;
 
+    // Check box type before moving wooden_box
+    let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
+
     // 4. Persist changes to the WoodenStorageBox
     wooden_box_table.id().update(wooden_box);
     log::info!("[DropFromBoxToWorld] Successfully dropped item from box {}, slot {}. Box updated.", box_id, slot_index);
+
+    // Auto-despawn empty backpacks
+    if is_backpack {
+        let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
 
     Ok(())
 }
@@ -764,10 +798,18 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // 3. Call the generic handler from inventory_management
     crate::inventory_management::handle_split_and_drop_from_container_slot(ctx, &mut wooden_box, slot_index, quantity_to_split, &player_for_drop_location)?;
 
+    // Check box type before moving wooden_box
+    let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
+
     // 4. Persist changes to the WoodenStorageBox (if its slot was cleared because the whole stack was dropped)
     wooden_box_table.id().update(wooden_box); 
 
     log::info!("[SplitDropFromBoxToWorld] Successfully split and dropped from box {}, slot {}. Box updated if slot cleared.", box_id, slot_index);
+
+    // Auto-despawn empty backpacks
+    if is_backpack {
+        let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
     
     Ok(())
 }
@@ -792,6 +834,7 @@ impl ItemContainer for WoodenStorageBox {
                 use crate::compost::NUM_COMPOST_SLOTS;
                 NUM_COMPOST_SLOTS
             },
+            BOX_TYPE_BACKPACK => NUM_BACKPACK_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

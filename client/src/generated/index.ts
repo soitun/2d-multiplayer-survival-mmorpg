@@ -47,6 +47,8 @@ import { CastFishingLine } from "./cast_fishing_line_reducer.ts";
 export { CastFishingLine };
 import { CheckAlkStationProximity } from "./check_alk_station_proximity_reducer.ts";
 export { CheckAlkStationProximity };
+import { CheckAndConsolidateAllClusters } from "./check_and_consolidate_all_clusters_reducer.ts";
+export { CheckAndConsolidateAllClusters };
 import { CheckBrewCache } from "./check_brew_cache_reducer.ts";
 export { CheckBrewCache };
 import { CheckBuildingPrivilegeDistance } from "./check_building_privilege_distance_reducer.ts";
@@ -619,6 +621,8 @@ import { AnimalCorpseTableHandle } from "./animal_corpse_table.ts";
 export { AnimalCorpseTableHandle };
 import { ArrowBreakEventTableHandle } from "./arrow_break_event_table.ts";
 export { ArrowBreakEventTableHandle };
+import { BackpackConsolidationScheduleTableHandle } from "./backpack_consolidation_schedule_table.ts";
+export { BackpackConsolidationScheduleTableHandle };
 import { BarrelTableHandle } from "./barrel_table.ts";
 export { BarrelTableHandle };
 import { BarrelRespawnScheduleTableHandle } from "./barrel_respawn_schedule_table.ts";
@@ -869,6 +873,8 @@ import { ArmorResistances } from "./armor_resistances_type.ts";
 export { ArmorResistances };
 import { ArrowBreakEvent } from "./arrow_break_event_type.ts";
 export { ArrowBreakEvent };
+import { BackpackConsolidationSchedule } from "./backpack_consolidation_schedule_type.ts";
+export { BackpackConsolidationSchedule };
 import { Barrel } from "./barrel_type.ts";
 export { Barrel };
 import { BarrelRespawnSchedule } from "./barrel_respawn_schedule_type.ts";
@@ -1238,6 +1244,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (ArrowBreakEvent.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    backpack_consolidation_schedule: {
+      tableName: "backpack_consolidation_schedule" as const,
+      rowType: BackpackConsolidationSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (BackpackConsolidationSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     barrel: {
@@ -2218,6 +2233,10 @@ const REMOTE_MODULE = {
     check_alk_station_proximity: {
       reducerName: "check_alk_station_proximity",
       argsType: CheckAlkStationProximity.getTypeScriptAlgebraicType(),
+    },
+    check_and_consolidate_all_clusters: {
+      reducerName: "check_and_consolidate_all_clusters",
+      argsType: CheckAndConsolidateAllClusters.getTypeScriptAlgebraicType(),
     },
     check_brew_cache: {
       reducerName: "check_brew_cache",
@@ -3357,6 +3376,7 @@ export type Reducer = never
 | { name: "CancelFishing", args: CancelFishing }
 | { name: "CastFishingLine", args: CastFishingLine }
 | { name: "CheckAlkStationProximity", args: CheckAlkStationProximity }
+| { name: "CheckAndConsolidateAllClusters", args: CheckAndConsolidateAllClusters }
 | { name: "CheckBrewCache", args: CheckBrewCache }
 | { name: "CheckBuildingPrivilegeDistance", args: CheckBuildingPrivilegeDistance }
 | { name: "CheckFinishedCrafting", args: CheckFinishedCrafting }
@@ -3751,6 +3771,22 @@ export class RemoteReducers {
 
   removeOnCheckAlkStationProximity(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("check_alk_station_proximity", callback);
+  }
+
+  checkAndConsolidateAllClusters(args: BackpackConsolidationSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    CheckAndConsolidateAllClusters.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("check_and_consolidate_all_clusters", __argsBuffer, this.setCallReducerFlags.checkAndConsolidateAllClustersFlags);
+  }
+
+  onCheckAndConsolidateAllClusters(callback: (ctx: ReducerEventContext, args: BackpackConsolidationSchedule) => void) {
+    this.connection.onReducer("check_and_consolidate_all_clusters", callback);
+  }
+
+  removeOnCheckAndConsolidateAllClusters(callback: (ctx: ReducerEventContext, args: BackpackConsolidationSchedule) => void) {
+    this.connection.offReducer("check_and_consolidate_all_clusters", callback);
   }
 
   checkBrewCache(recipeHash: bigint) {
@@ -8052,6 +8088,11 @@ export class SetReducerFlags {
     this.checkAlkStationProximityFlags = flags;
   }
 
+  checkAndConsolidateAllClustersFlags: __CallReducerFlags = 'FullUpdate';
+  checkAndConsolidateAllClusters(flags: __CallReducerFlags) {
+    this.checkAndConsolidateAllClustersFlags = flags;
+  }
+
   checkBrewCacheFlags: __CallReducerFlags = 'FullUpdate';
   checkBrewCache(flags: __CallReducerFlags) {
     this.checkBrewCacheFlags = flags;
@@ -9470,6 +9511,11 @@ export class RemoteTables {
   get arrowBreakEvent(): ArrowBreakEventTableHandle<'arrow_break_event'> {
     // clientCache is a private property
     return new ArrowBreakEventTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ArrowBreakEvent>(REMOTE_MODULE.tables.arrow_break_event));
+  }
+
+  get backpackConsolidationSchedule(): BackpackConsolidationScheduleTableHandle<'backpack_consolidation_schedule'> {
+    // clientCache is a private property
+    return new BackpackConsolidationScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BackpackConsolidationSchedule>(REMOTE_MODULE.tables.backpack_consolidation_schedule));
   }
 
   get barrel(): BarrelTableHandle<'barrel'> {

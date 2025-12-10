@@ -279,6 +279,23 @@ pub(crate) fn create_dropped_item_entity_with_data(
         Ok(_) => {
             log::info!("[CreateDroppedItem] Created dropped item entity (DefID: {}, Qty: {}) at ({:.1}, {:.1})",
                      item_def_id, quantity, pos_x, pos_y);
+            
+            // Quick check for nearby items to trigger consolidation
+            let nearby_items: Vec<DroppedItem> = ctx.db.dropped_item().iter()
+                .filter(|item| {
+                    let dx = item.pos_x - pos_x;
+                    let dy = item.pos_y - pos_y;
+                    dx * dx + dy * dy <= 16384.0 // 128px radius squared
+                })
+                .collect();
+            
+            if nearby_items.len() >= 5 {
+                log::info!("[CreateDroppedItem] Detected {} nearby items, triggering consolidation", nearby_items.len());
+                let _ = crate::backpack::consolidate_dropped_items_near_position(
+                    ctx, pos_x, pos_y, nearby_items
+                );
+            }
+            
             Ok(())
         },
         Err(e) => {

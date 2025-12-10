@@ -78,6 +78,7 @@ mod dropped_item; // Declare dropped_item module
 mod wooden_storage_box; // Add the new module
 mod refrigerator; // Refrigerator-specific container logic
 mod compost; // Compost-specific container logic
+mod backpack; // Backpack auto-consolidation system
 
 mod items_database; // <<< NEW: Modular items database
 mod starting_items; // <<< ADDED module declaration
@@ -145,6 +146,7 @@ mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
+pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 
 // ADD: Re-export respawn reducer
@@ -664,6 +666,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize fire patch cleanup system
     crate::fire_patch::init_fire_patch_system(ctx)?;
+    
+    // ADD: Initialize backpack consolidation system
+    crate::backpack::init_backpack_consolidation_schedule(ctx)?;
     
     // ADD: Initialize sound event cleanup system
     crate::sound_events::init_sound_cleanup_system(ctx)?;
