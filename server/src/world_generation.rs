@@ -97,35 +97,34 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // The autotile system handles transitions properly, no need for strict adjacency rules
     
     // Store shipwreck positions in database table for client access (one-time read, then static)
-    // TEMPORARILY DISABLED: Shipwreck spawning logic not working well
     // Following compound buildings pattern: client-side rendering, server-side collision only
-    // for (center_x, center_y) in &world_features.shipwreck_centers {
-    //     ctx.db.shipwreck_part().insert(ShipwreckPart {
-    //         id: 0, // auto_inc
-    //         world_x: *center_x,
-    //         world_y: *center_y,
-    //         image_path: "hull1.png".to_string(),
-    //         is_center: true,
-    //         collision_radius: 80.0, // Collision radius for center piece
-    //     });
-    // }
-    // 
-    // for (part_x, part_y, image_path) in &world_features.shipwreck_parts {
-    //     ctx.db.shipwreck_part().insert(ShipwreckPart {
-    //         id: 0, // auto_inc
-    //         world_x: *part_x,
-    //         world_y: *part_y,
-    //         image_path: image_path.clone(),
-    //         is_center: false,
-    //         collision_radius: 40.0, // Smaller collision radius for crash parts
-    //     });
-    // }
-    // 
-    // if !world_features.shipwreck_centers.is_empty() {
-    //     log::info!("Stored {} shipwreck parts in database (1 center + {} crash parts) - client reads once, then treats as static config", 
-    //                world_features.shipwreck_centers.len() + world_features.shipwreck_parts.len(),
-    //                world_features.shipwreck_parts.len());
-    // }
+    for (center_x, center_y) in &world_features.shipwreck_centers {
+        ctx.db.shipwreck_part().insert(ShipwreckPart {
+            id: 0, // auto_inc
+            world_x: *center_x,
+            world_y: *center_y,
+            image_path: "hull1.png".to_string(),
+            is_center: true,
+            collision_radius: 80.0, // Collision radius for center piece
+        });
+    }
+    
+    for (part_x, part_y, image_path) in &world_features.shipwreck_parts {
+        ctx.db.shipwreck_part().insert(ShipwreckPart {
+            id: 0, // auto_inc
+            world_x: *part_x,
+            world_y: *part_y,
+            image_path: image_path.clone(),
+            is_center: false,
+            collision_radius: 40.0, // Smaller collision radius for crash parts
+        });
+    }
+    
+    if !world_features.shipwreck_centers.is_empty() {
+        log::info!("Stored {} shipwreck parts in database (1 center + {} crash parts) - client reads once, then treats as static config", 
+                   world_features.shipwreck_centers.len() + world_features.shipwreck_parts.len(),
+                   world_features.shipwreck_parts.len());
+    }
     
     // Sea stacks will be generated in environment.rs alongside trees and stones
     
@@ -216,10 +215,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     let forest_areas = generate_forest_areas_with_biomes(config, noise, &shore_distance, &river_network, &lake_map, &road_network, &hot_spring_water, &hot_spring_beach, &hot_spring_centers, &quarry_dirt, &tundra_areas, &alpine_areas, width, height);
     
     // Generate shipwreck monument on south beach
-    // TEMPORARILY DISABLED: Shipwreck spawning logic not working well
-    // let (shipwreck_centers, shipwreck_parts) = generate_shipwreck(config, noise, &shore_distance, &river_network, &lake_map, width, height);
-    let shipwreck_centers = Vec::new();
-    let shipwreck_parts = Vec::new();
+    let (shipwreck_centers, shipwreck_parts) = generate_shipwreck(config, noise, &shore_distance, &river_network, &lake_map, width, height);
     
     WorldFeatures {
         heightmap,

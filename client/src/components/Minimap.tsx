@@ -57,10 +57,11 @@ const ALK_STATION_OUTLINE_WIDTH = 2;
 
 // Shipwreck constants - EXPLORATION LANDMARKS
 const SHIPWRECK_ICON_SIZE = 20; // Large for landmark visibility
-const SHIPWRECK_COLOR = '#8B4513'; // Rusty brown color for shipwrecks
-const SHIPWRECK_GLOW_COLOR = '#CD853F'; // Lighter brown glow
-const SHIPWRECK_OUTLINE_COLOR = '#000000'; // Black outline for contrast
-const SHIPWRECK_OUTLINE_WIDTH = 2;
+const SHIPWRECK_COLOR = '#D2691E'; // Vibrant rusty orange-brown for shipwrecks (more visible)
+const SHIPWRECK_GLOW_COLOR = '#FF8C42'; // Bright orange glow for high visibility
+const SHIPWRECK_OUTLINE_COLOR = '#000000'; // Black outline for contrast (matching other icons)
+const SHIPWRECK_OUTLINE_WIDTH = 2.5; // Thicker outline like player icons
+const SHIPWRECK_INNER_COLOR = '#8B4513'; // Darker brown for inner detail
 
 const RESOURCE_ICON_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.8)'; // Strong black outline for clarity
 const RESOURCE_ICON_OUTLINE_WIDTH = 1.5; // Thicker outline for tactical visibility
@@ -1160,31 +1161,47 @@ export function drawMinimapOntoCanvas({
         
         ctx.save();
         
-        // Draw background circle for better visibility
-        ctx.fillStyle = 'rgba(139, 69, 19, 0.7)'; // Semi-transparent brown background
+        // Add strong glow effect for high visibility (matching ALK station style)
+        ctx.shadowColor = SHIPWRECK_GLOW_COLOR;
+        ctx.shadowBlur = 12; // Strong glow like ALK stations
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw outer circle with vibrant rusty color
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
         
-        // Draw border around circle
+        // Draw black outline first for contrast (matching other icon styles)
         ctx.strokeStyle = SHIPWRECK_OUTLINE_COLOR;
         ctx.lineWidth = SHIPWRECK_OUTLINE_WIDTH;
         ctx.stroke();
         
-        // Add rusty glow effect
-        ctx.shadowColor = SHIPWRECK_GLOW_COLOR;
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+        // Fill with shipwreck color
+        ctx.fillStyle = SHIPWRECK_COLOR;
+        ctx.fill();
         
-        // Draw anchor symbol (⚓) - simple FontAwesome-style icon using Unicode
+        // Draw inner detail circle for depth (matching ALK station pattern)
+        ctx.shadowBlur = 0; // No shadow on inner detail
+        ctx.beginPath();
+        const innerRadius = radius * 0.5; // Inner circle at 50% size
+        ctx.arc(x, y, innerRadius, 0, Math.PI * 2);
+        
+        // Fill inner circle with darker color for depth
+        ctx.fillStyle = SHIPWRECK_INNER_COLOR;
+        ctx.fill();
+        
+        // Draw anchor symbol (⚓) - bold and prominent
         // Use larger font size for better visibility
-        ctx.font = `bold ${iconSize * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Arial, sans-serif`;
+        ctx.font = `bold ${iconSize * 0.75}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Arial, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFFFFF'; // White for better contrast
         
-        // Draw anchor Unicode symbol
+        // White anchor with subtle shadow for depth
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = '#FFFFFF'; // Bright white for maximum contrast
         ctx.fillText('⚓', x, y);
         
         ctx.restore();
