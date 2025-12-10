@@ -91,15 +91,16 @@ pub fn generate_shipwreck(
     
     log::info!("🚢 Generating shipwreck monument on south beach...");
     
-    // Find south beach tiles (south half of map, beach tiles only)
-    let map_height_half = height / 2;
+    // Find south beach tiles (bottom 1/3 of map for more beach tiles, beach tiles only)
+    // Focus on southern beach where there are more beach tiles available
+    let map_height_third = height * 2 / 3; // Start at 2/3 down the map (bottom third)
     let beach_threshold = 12.0; // Same threshold as beach generation
     let min_distance_from_edge = 20;
     
     let mut candidate_positions = Vec::new();
     
-    // Search south half of map for beach tiles
-    for y in (map_height_half + min_distance_from_edge)..(height - min_distance_from_edge) {
+    // Search bottom third of map for beach tiles (more beach tiles here)
+    for y in (map_height_third + min_distance_from_edge)..(height - min_distance_from_edge) {
         for x in min_distance_from_edge..(width - min_distance_from_edge) {
             let shore_dist = shore_distance[y][x];
             
@@ -180,10 +181,10 @@ pub fn generate_shipwreck(
             let image_path = format!("hull{}.png", image_num);
             
             let mut attempts = 0;
-            // Increased attempts: hull6.png (part 0) gets 2000 attempts, others get 1000
-            // This ensures hull6.png has the best chance of placement
-            let max_attempts_normal = if i == 0 { 1000 } else { 500 }; // More attempts for hull6.png
-            let max_attempts_relaxed = if i == 0 { 1000 } else { 500 }; // More relaxed attempts for hull6.png
+            // Increased attempts: hull6.png (part 0) gets 3000 attempts, others get 2000
+            // This ensures all parts have a good chance of placement, especially on southern beach
+            let max_attempts_normal = if i == 0 { 1500 } else { 1000 }; // More attempts for hull6.png
+            let max_attempts_relaxed = if i == 0 { 1500 } else { 1000 }; // More relaxed attempts for hull6.png
             let total_max_attempts = max_attempts_normal + max_attempts_relaxed;
             let mut placed = false;
             
@@ -234,22 +235,25 @@ pub fn generate_shipwreck(
                     continue;
                 }
                 
-                // Must be at least 5 tiles from shore/water - relaxed for hull6.png
-                let min_water_dist = if extra_relaxed { 3.0 } else if relaxed_mode { 4.0 } else { 5.0 };
+                // Must be at least 5 tiles from shore/water - relaxed for hull6.png and relaxed mode
+                // More relaxed since we're focusing on southern beach with more beach tiles
+                let min_water_dist = if extra_relaxed { 2.0 } else if relaxed_mode { 3.0 } else { 4.0 };
                 if part_shore_dist < min_water_dist {
                     attempts += 1;
                     continue;
                 }
                 
-                // Must be on beach or near beach - more relaxed for hull6.png
-                let max_inland = if extra_relaxed { 60.0 } else if relaxed_mode { 50.0 } else { 40.0 };
+                // Must be on beach or near beach - more relaxed for hull6.png and relaxed mode
+                // Southern beach has more beach tiles, so we can be more permissive
+                let max_inland = if extra_relaxed { 70.0 } else if relaxed_mode { 60.0 } else { 50.0 };
                 if part_shore_dist > max_inland {
                     attempts += 1;
                     continue;
                 }
                 
-                // Check minimum distance from other parts - more relaxed for hull6.png
-                let min_part_distance = if extra_relaxed { 10.0 } else if relaxed_mode { 15.0 } else { 20.0 };
+                // Check minimum distance from other parts - more relaxed for hull6.png and relaxed mode
+                // Reduced since southern beach has more space
+                let min_part_distance = if extra_relaxed { 8.0 } else if relaxed_mode { 12.0 } else { 18.0 };
                 let mut too_close = false;
                 for &(other_x, other_y, _) in &placed_parts {
                     let other_tile_x = (other_x / tile_size_px) as f32;
@@ -344,11 +348,19 @@ pub fn get_shipwreck_decorations() -> Vec<MonumentDecorationConfig> {
 pub fn get_shipwreck_harvestables() -> Vec<MonumentHarvestableConfig> {
     vec![
         // Beach Wood Pile - common, scattered around wreckage
+        // Increased spawn chance and allow multiple spawns per part
         MonumentHarvestableConfig {
             plant_type: crate::plants_database::PlantType::BeachWoodPile,
-            spawn_chance: 0.60, // 60% chance per part
+            spawn_chance: 0.85, // 85% chance per part (increased from 60%)
             min_distance: 80.0,
             max_distance: 200.0,
+        },
+        // Second Beach Wood Pile spawn - additional chance for more driftwood
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::BeachWoodPile,
+            spawn_chance: 0.50, // 50% chance for second pile per part
+            min_distance: 100.0,
+            max_distance: 250.0,
         },
     ]
 }
@@ -518,18 +530,20 @@ pub fn spawn_shipwreck_barrels(
     let barrels = ctx.db.barrel();
     let mut spawned_count = 0;
     
-    // Spawn 1-2 beach barrels per shipwreck part (30% chance per part)
+    // Spawn 2-4 beach barrels per shipwreck part (70% chance per part - increased from 30%)
     for &(part_x, part_y) in monument_part_positions {
         let spawn_roll: f32 = ctx.rng().gen();
-        if spawn_roll > 0.30 {
-            continue; // 70% chance to skip this part
+        if spawn_roll > 0.70 {
+            continue; // 30% chance to skip this part (was 70%)
         }
         
-        // Determine how many barrels (1-2)
-        let barrel_count = if ctx.rng().gen::<f32>() < 0.7 {
-            1 // 70% chance for single barrel
+        // Determine how many barrels (2-4) - increased from 1-2
+        let barrel_count = if ctx.rng().gen::<f32>() < 0.4 {
+            2 // 40% chance for 2 barrels
+        } else if ctx.rng().gen::<f32>() < 0.8 {
+            3 // 40% chance for 3 barrels
         } else {
-            2 // 30% chance for 2 barrels
+            4 // 20% chance for 4 barrels
         };
         
         for barrel_idx in 0..barrel_count {

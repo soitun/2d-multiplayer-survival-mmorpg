@@ -98,13 +98,13 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     
     // Store shipwreck positions in database table for client access (one-time read, then static)
     // Following compound buildings pattern: client-side rendering, server-side collision only
-    // Center uses hull1.png, parts use hull2.png through hull6.png + hull1.png (6 parts, one duplicate with center)
+    // Center uses hull7.png (to avoid duplication), parts use hull1.png through hull6.png (6 unique parts)
     for (center_x, center_y) in &world_features.shipwreck_centers {
         ctx.db.shipwreck_part().insert(ShipwreckPart {
             id: 0, // auto_inc
             world_x: *center_x,
             world_y: *center_y,
-            image_path: "hull1.png".to_string(), // Center uses hull1.png
+            image_path: "hull7.png".to_string(), // Center uses hull7.png to avoid duplication with parts
             is_center: true,
             collision_radius: 80.0, // Collision radius for center piece
         });
