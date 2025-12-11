@@ -2800,6 +2800,138 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_tundra_grass_count, target_tundra_grass_count, tundra_grass_attempts
     );
 
+    // --- Seed Alpine Grass --- Similar to tundra grass but for Alpine tiles only
+    log::info!("Seeding Alpine Grass (Alpine tiles only)...");
+    
+    // Count alpine tiles for density calculation
+    let mut alpine_tile_count = 0u32;
+    for tile in world_tiles_for_biome.iter() {
+        if tile.tile_type == TileType::Alpine {
+            alpine_tile_count += 1;
+        }
+    }
+    
+    // Target ~12% of Alpine tiles (same density as regular grass)
+    const ALPINE_GRASS_DENSITY_PERCENT: f32 = 0.12;
+    let target_alpine_grass_count = (alpine_tile_count as f32 * ALPINE_GRASS_DENSITY_PERCENT) as u32;
+    let max_alpine_grass_attempts = target_alpine_grass_count * crate::grass::MAX_GRASS_SEEDING_ATTEMPTS_FACTOR;
+    
+    log::info!("Target Alpine Grass: {} (from {} Alpine tiles, {:.1}% density), Max Attempts: {}", 
+        target_alpine_grass_count, alpine_tile_count, ALPINE_GRASS_DENSITY_PERCENT * 100.0, max_alpine_grass_attempts);
+    
+    let mut spawned_alpine_grass_count = 0;
+    let mut alpine_grass_attempts = 0;
+    
+    while spawned_alpine_grass_count < target_alpine_grass_count && alpine_grass_attempts < max_alpine_grass_attempts {
+        alpine_grass_attempts += 1;
+        
+        // Generate random tile coordinates
+        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+        
+        // ===== BIOME FILTER: Only spawn on Alpine tiles =====
+        let mut valid_biome = false;
+        for tile in world_tiles_for_biome.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+            if tile.tile_type == TileType::Alpine {
+                valid_biome = true;
+            }
+            break;
+        }
+        if !valid_biome {
+            continue; // Skip non-alpine biomes
+        }
+        
+        // Calculate position
+        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        
+        // Skip central compound
+        if is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+        
+        // Noise check for natural distribution (same as regular grass)
+        let noise_val = fbm.get([
+            (pos_x as f64 / WORLD_WIDTH_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+            (pos_y as f64 / WORLD_HEIGHT_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+        ]);
+        let normalized_noise = (noise_val + 1.0) / 2.0;
+        if normalized_noise <= crate::grass::GRASS_SPAWN_NOISE_THRESHOLD {
+            continue;
+        }
+        
+        // Distance check from trees
+        let too_close_to_tree = spawned_tree_positions.iter().any(|(tx, ty)| {
+            let dx = pos_x - tx;
+            let dy = pos_y - ty;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_TREE_DISTANCE_SQ
+        });
+        if too_close_to_tree {
+            continue;
+        }
+        
+        // Distance check from stones
+        let too_close_to_stone = spawned_stone_positions.iter().any(|(sx, sy)| {
+            let dx = pos_x - sx;
+            let dy = pos_y - sy;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_STONE_DISTANCE_SQ
+        });
+        if too_close_to_stone {
+            continue;
+        }
+        
+        // Generate random grass properties
+        let sway_offset_seed = rng.gen::<u32>();
+        let sway_speed = rng.gen_range(0.5..2.0);
+        
+        // Choose alpine grass appearance type with weighted distribution
+        let appearance_roll: f64 = rng.gen_range(0.0..1.0);
+        let appearance_type = if appearance_roll < 0.2 {
+            GrassAppearanceType::AlpinePatchA
+        } else if appearance_roll < 0.4 {
+            GrassAppearanceType::AlpinePatchB
+        } else if appearance_roll < 0.6 {
+            GrassAppearanceType::AlpinePatchC
+        } else if appearance_roll < 0.7 {
+            GrassAppearanceType::AlpinePatchD
+        } else if appearance_roll < 0.85 {
+            GrassAppearanceType::TallGrassAlpineA
+        } else {
+            GrassAppearanceType::TallGrassAlpineB
+        };
+        
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        
+        let new_alpine_grass = Grass {
+            id: 0,
+            pos_x,
+            pos_y,
+            health: crate::grass::GRASS_INITIAL_HEALTH,
+            appearance_type,
+            chunk_index: chunk_idx,
+            last_hit_time: None,
+            respawn_at: None,
+            sway_offset_seed,
+            sway_speed,
+            disturbed_at: None,
+            disturbance_direction_x: 0.0,
+            disturbance_direction_y: 0.0,
+        };
+        
+        match grasses.try_insert(new_alpine_grass) {
+            Ok(_) => {
+                spawned_alpine_grass_count += 1;
+            }
+            Err(e) => {
+                log::warn!("Failed to insert alpine grass at ({}, {}): {}", pos_x, pos_y, e);
+            }
+        }
+    }
+    log::info!(
+        "Finished seeding {} alpine grass entities (target: {}, attempts: {}).",
+        spawned_alpine_grass_count, target_alpine_grass_count, alpine_grass_attempts
+    );
+
     // --- Seed Water Foliage (Lily Pads, Algae Mats, Bulrushes, ReedBedsA, SeaweedForest) on Inland Sea Tiles ---
     // DISABLED: Water foliage not ready yet - enable by setting DISABLE_WATER_FOLIAGE_SPAWNING to false in grass.rs
     if crate::grass::DISABLE_WATER_FOLIAGE_SPAWNING {

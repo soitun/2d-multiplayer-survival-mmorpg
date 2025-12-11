@@ -18,6 +18,14 @@ import grassTundra4TextureUrl from '../../assets/doodads/grass_tundra4.png';
 import tallGrassTundraATextureUrl from '../../assets/doodads/tall_grass_tundra_a.png';
 import tallGrassTundraBTextureUrl from '../../assets/doodads/tall_grass_tundra_b.png';
 
+// Alpine grass assets
+import grassAlpine1TextureUrl from '../../assets/doodads/grass_alpine1.png';
+import grassAlpine2TextureUrl from '../../assets/doodads/grass_alpine2.png';
+import grassAlpine3TextureUrl from '../../assets/doodads/grass_alpine3.png';
+import grassAlpine4TextureUrl from '../../assets/doodads/grass_alpine4.png';
+import tallGrassAlpineATextureUrl from '../../assets/doodads/tall_grass_alpine_a.png';
+import tallGrassAlpineBTextureUrl from '../../assets/doodads/tall_grass_alpine_b.png';
+
 // Water foliage assets
 import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
 import bulrushesTextureUrl from '../../assets/doodads/bulrushes.png';
@@ -113,6 +121,12 @@ const SWAYING_GRASS_TYPES = new Set<string>([
     'TundraPatchD', // Will be available after bindings regeneration
     'TallGrassTundraA', // Will be available after bindings regeneration
     'TallGrassTundraB', // Will be available after bindings regeneration
+    'AlpinePatchA', // Will be available after bindings regeneration
+    'AlpinePatchB', // Will be available after bindings regeneration
+    'AlpinePatchC', // Will be available after bindings regeneration
+    'AlpinePatchD', // Will be available after bindings regeneration
+    'TallGrassAlpineA', // Will be available after bindings regeneration
+    'TallGrassAlpineB', // Will be available after bindings regeneration
     GrassAppearanceType.ReedBedsA.tag,
     GrassAppearanceType.Bulrushes.tag,
     GrassAppearanceType.SeaweedForest.tag,
@@ -195,6 +209,13 @@ const grassAssetPaths: Record<string, string> = {
     'TundraPatchD': grassTundra4TextureUrl,
     'TallGrassTundraA': tallGrassTundraATextureUrl,
     'TallGrassTundraB': tallGrassTundraBTextureUrl,
+    // Alpine grass variants
+    'AlpinePatchA': grassAlpine1TextureUrl,
+    'AlpinePatchB': grassAlpine2TextureUrl,
+    'AlpinePatchC': grassAlpine3TextureUrl,
+    'AlpinePatchD': grassAlpine4TextureUrl,
+    'TallGrassAlpineA': tallGrassAlpineATextureUrl,
+    'TallGrassAlpineB': tallGrassAlpineBTextureUrl,
     // Water foliage
     [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
     [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
@@ -222,6 +243,14 @@ const grassTargetWidths: Record<string, number> = {
     'TundraPatchD': 128,
     'TallGrassTundraA': 128,
     'TallGrassTundraB': 128,
+    
+    // Alpine grass variants - same sizes as regular grass
+    'AlpinePatchA': 128,
+    'AlpinePatchB': 128,
+    'AlpinePatchC': 128,
+    'AlpinePatchD': 128,
+    'TallGrassAlpineA': 128,
+    'TallGrassAlpineB': 128,
     
     // Water foliage - distinctive but balanced
     [GrassAppearanceType.ReedBedsA.tag]: 128, // Tall swaying reeds - medium-tall

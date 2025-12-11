@@ -75,6 +75,14 @@ pub enum GrassAppearanceType {
     TallGrassTundraA,  // tall_grass_tundra_a.png
     TallGrassTundraB,  // tall_grass_tundra_b.png
     
+    // Alpine foliage
+    AlpinePatchA,      // grass_alpine1.png
+    AlpinePatchB,      // grass_alpine2.png
+    AlpinePatchC,      // grass_alpine3.png
+    AlpinePatchD,      // grass_alpine4.png
+    TallGrassAlpineA,  // tall_grass_alpine_a.png
+    TallGrassAlpineB,  // tall_grass_alpine_b.png
+    
     // Water foliage
     ReedBedsA,       // Tall swaying reeds
     Bulrushes,       // Classic cattails
