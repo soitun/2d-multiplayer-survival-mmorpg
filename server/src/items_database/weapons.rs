@@ -131,11 +131,12 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
 
         // === TIER 1: Hunting Bow - Early Game Ranged Weapon ===
         // Easy to craft with basic materials, good for hunting animals
-        // Lower damage, shorter range - encourages progression to better weapons
-        ItemBuilder::new("Hunting Bow", "A sturdy wooden bow for hunting game and self-defense. Short range but easy to craft. Requires arrows to fire.", ItemCategory::RangedWeapon)
+        // Requires skill (leading shots, arc compensation) but rewarding when mastered
+        // BALANCED: Decent damage, fast fire rate, rewards getting close
+        ItemBuilder::new("Hunting Bow", "A sturdy wooden bow for hunting game and self-defense. Requires skill to master the arrow arc. Fast follow-up shots reward aggressive play. Requires arrows to fire.", ItemCategory::RangedWeapon)
             .icon("bow.png")
             .stackable(1)
-            .weapon(35, 45, 0.0) // Lower damage than crossbow (35-45)
+            .weapon(42, 52, 0.0) // Solid damage (42-52) - hits feel meaningful
             .damage_type(DamageType::Projectile)
             .equippable(None)
             .crafting_cost(vec![
@@ -149,11 +150,12 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
 
         // === TIER 2: Crossbow - Mid Game Ranged Weapon ===
         // Requires metal, more powerful and accurate than bow
-        // Slow reload but hits hard - tactical choice
-        ItemBuilder::new("Crossbow", "A mechanical crossbow with superior accuracy and power. Longer range and faster bolts than a bow, but slow to reload.", ItemCategory::RangedWeapon)
+        // Slow reload but hits HARD - one-shot potential, punishes misses
+        // BALANCED: Highest single-hit damage, slowest fire rate
+        ItemBuilder::new("Crossbow", "A mechanical crossbow with devastating power. Bolts hit like a truck, but the slow reload punishes missed shots. Best for ambushes and calculated engagements.", ItemCategory::RangedWeapon)
             .icon("crossbow.png")
             .stackable(1)
-            .weapon(65, 80, 0.0) // Higher damage (65-80)
+            .weapon(78, 95, 0.0) // High burst damage (78-95) - rewards patience
             .damage_type(DamageType::Projectile)
             .equippable(None)
             .crafting_cost(vec![
@@ -172,11 +174,11 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
         // === TIER 3: Makarov PM - Late Game Firearm ===
         // Expensive to craft, requires significant metal investment
         // Fastest fire rate, longest range, uses 9x18mm ammunition
-        // The ultimate ranged weapon - worth the grind
-        ItemBuilder::new("Makarov PM", "A reliable Soviet-era semi-automatic pistol. Longest range, fastest fire rate, but burns through ammo. Uses 9x18mm ammunition.", ItemCategory::RangedWeapon)
+        // BALANCED: Lower per-shot damage but highest DPS, burns expensive ammo
+        ItemBuilder::new("Makarov PM", "A reliable Soviet-era semi-automatic pistol. Rapid fire and long range make it deadly, but burns through expensive ammunition quickly. Uses 9x18mm rounds.", ItemCategory::RangedWeapon)
             .icon("makarov_pm.png")
             .stackable(1)
-            .weapon(50, 60, 0.0) // Per-shot damage (50-60) - compensated by fire rate
+            .weapon(38, 48, 0.0) // Lower per-shot (38-48) - compensated by fire rate and magazine
             .damage_type(DamageType::Projectile)
             .equippable(None)
             .crafting_cost(vec![

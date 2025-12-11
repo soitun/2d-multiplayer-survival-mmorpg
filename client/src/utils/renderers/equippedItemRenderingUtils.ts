@@ -284,18 +284,33 @@ export const renderEquippedItem = (
   const preAnimationPivotX = pivotX;
   const preAnimationPivotY = pivotY;
 
-  // --- NEW: Arrow Rendering for Loaded Bow/Crossbow ---
+  // --- Arrow Rendering for Loaded Bow/Crossbow ---
+  // Only show arrow when weapon is TRULY ready to fire (after reload cooldown)
+  // The server sets isReadyToFire=true immediately on reload, but actual firing is blocked
+  // by a cooldown based on reload_time_secs. We mirror this check client-side for accurate UX.
   let loadedArrowImage: HTMLImageElement | undefined = undefined;
   if ((itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow") && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
-    const ammoDef = itemDefinitions.get(String(equipment.loadedAmmoDefId));
-    if (ammoDef && ammoDef.iconAssetName) {
-        loadedArrowImage = itemImages.get(ammoDef.iconAssetName); // Use ammo's icon
-        if (!loadedArrowImage) {
-            // console.warn(`[RenderEquipped] Image for loaded arrow '${ammoDef.iconAssetName}' not found.`);
-        }
+    // Check if reload cooldown has elapsed since last shot (swing_start_time_ms)
+    // Hunting Bow: 850ms reload, Crossbow: 2300ms reload
+    const HUNTING_BOW_RELOAD_MS = 850;
+    const CROSSBOW_RELOAD_MS = 2300;
+    const reloadTimeMs = itemDef.name === "Hunting Bow" ? HUNTING_BOW_RELOAD_MS : CROSSBOW_RELOAD_MS;
+    
+    const lastShotTimeMs = Number(equipment.swingStartTimeMs);
+    const timeSinceLastShot = now_ms - lastShotTimeMs;
+    const reloadComplete = lastShotTimeMs === 0 || timeSinceLastShot >= reloadTimeMs;
+    
+    if (reloadComplete) {
+      const ammoDef = itemDefinitions.get(String(equipment.loadedAmmoDefId));
+      if (ammoDef && ammoDef.iconAssetName) {
+          loadedArrowImage = itemImages.get(ammoDef.iconAssetName); // Use ammo's icon
+          if (!loadedArrowImage) {
+              // console.warn(`[RenderEquipped] Image for loaded arrow '${ammoDef.iconAssetName}' not found.`);
+          }
+      }
     }
   }
-  // --- END NEW ---
+  // --- END Arrow Rendering ---
 
   // --- Swing/Thrust Animation --- 
   const swingStartTime = Number(equipment.swingStartTimeMs);

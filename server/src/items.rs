@@ -181,51 +181,60 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
 
     // RANGED WEAPON PROGRESSION (Early → Mid → Late Game)
     // ================================================
-    // Hunting Bow: Easy to craft, short range, slower arrows, good for early hunting
-    // Crossbow: Harder to craft, longer range, faster bolts, very accurate, slow reload
-    // Makarov PM: End-game, longest range, fastest projectile, rapid fire, requires ammo
+    // BALANCED for clear progression feel:
+    // 
+    // Hunting Bow: Skill-based, fast fire rate, decent damage, rewarding when mastered
+    //   - DPS: ~55 | Burst: 47 avg | Requires leading shots but fast follow-ups
+    //   
+    // Crossbow: Power weapon, slow but devastating hits, punishes misses
+    //   - DPS: ~37.5 | Burst: 86.5 avg | Best single-hit damage, slow reload
+    //   
+    // Makarov PM: Rapid fire, highest sustained DPS, burns expensive ammo
+    //   - DPS: ~113 | Burst: 43 avg | Magazine-fed, ammo-hungry
     
     let initial_ranged_stats = vec![
         // TIER 1: Hunting Bow (Early Game)
-        // - Easy materials (wood, plant fiber)
-        // - Short effective range forces closer engagement
-        // - Slower arrows with visible arc
-        // - Decent accuracy for hunting animals
+        // THE "SKILL WEAPON" - Rewards practice and aggressive play
+        // - Fast fire rate allows follow-up shots
+        // - Arrow arc requires skill to compensate
+        // - Close range forces decisive engagements
+        // - Accessible materials, good for hunting and light PvP
         RangedWeaponStats {
             item_name: "Hunting Bow".to_string(),
-            weapon_range: 450.0,       // Short range - need to get relatively close
-            projectile_speed: 650.0,   // Slower arrows with noticeable arc
-            accuracy: 0.78,            // 78% accuracy - good enough for hunting
-            reload_time_secs: 1.2,     // Moderate fire rate
+            weapon_range: 520.0,       // Close-mid range - rewards aggressive positioning
+            projectile_speed: 800.0,   // Faster arrows - less frustrating to lead
+            accuracy: 0.86,            // 86% accuracy - rewards getting in range
+            reload_time_secs: 0.85,    // Fast follow-up shots - aggressive playstyle
             magazine_capacity: 0,      // Single-shot (arrows loaded one at a time)
         },
         
         // TIER 2: Crossbow (Mid Game)
-        // - Requires metal fragments to craft
-        // - Significantly longer range than bow
-        // - Much faster, flatter trajectory
-        // - Highest accuracy but slowest reload (trade-off)
+        // THE "POWER WEAPON" - One-shot potential, punishes misses
+        // - Highest single-hit damage in ranged category
+        // - Mechanical precision (highest accuracy)
+        // - Slow reload creates risk/reward tension
+        // - Best for ambushes and calculated shots
         RangedWeaponStats {
             item_name: "Crossbow".to_string(),
-            weapon_range: 700.0,       // Good range - can engage from safety
-            projectile_speed: 1000.0,  // Fast bolts, flatter trajectory
-            accuracy: 0.92,            // 92% accuracy - mechanical precision
-            reload_time_secs: 2.5,     // Slow reload (cranking mechanism)
+            weapon_range: 680.0,       // Good range - can engage from cover
+            projectile_speed: 920.0,   // Fast bolts, flat trajectory
+            accuracy: 0.95,            // 95% accuracy - mechanical precision
+            reload_time_secs: 2.3,     // Slow reload - make your shot count
             magazine_capacity: 0,      // Single-shot (bolts loaded one at a time)
         },
         
         // TIER 3: Makarov PM (Late Game)
-        // - Expensive crafting cost (lots of metal)
-        // - Longest effective range
-        // - Fastest projectile (nearly hitscan)
-        // - Good accuracy but recoil makes rapid fire less precise
-        // - Magazine-fed for sustained fire
+        // THE "RAPID FIRE WEAPON" - Highest DPS, expensive to run
+        // - Fastest fire rate for sustained pressure
+        // - Magazine allows 8 shots before reload
+        // - Lower per-shot damage balanced by volume
+        // - Burns through expensive 9x18mm ammo quickly
         RangedWeaponStats {
             item_name: "Makarov PM".to_string(),
-            weapon_range: 900.0,       // Longest range - can engage at distance
-            projectile_speed: 1400.0,  // Very fast bullets
-            accuracy: 0.82,            // 82% accuracy - recoil affects precision
-            reload_time_secs: 0.4,     // Fast semi-auto fire rate
+            weapon_range: 820.0,       // Longest range - engage at distance
+            projectile_speed: 1300.0,  // Very fast bullets, nearly hitscan
+            accuracy: 0.84,            // 84% accuracy - recoil affects rapid fire
+            reload_time_secs: 0.38,    // Rapid semi-auto fire
             magazine_capacity: 8,      // 8-round magazine
         },
     ];
