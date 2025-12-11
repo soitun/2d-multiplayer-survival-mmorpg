@@ -1012,6 +1012,9 @@ const Hotbar: React.FC<HotbarProps> = ({
                   case 'furnace':
                       connection.reducers.quickMoveToFurnace(containerId, itemInstanceId);
                       break;
+                  case 'barbecue':
+                      connection.reducers.quickMoveToBarbecue(containerId, itemInstanceId);
+                      break;
                   case 'lantern':
                       connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
                       break;

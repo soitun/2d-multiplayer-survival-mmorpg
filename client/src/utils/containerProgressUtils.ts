@@ -5,7 +5,7 @@
  * to display visual progress overlays similar to weapon cooldowns
  */
 
-import { Campfire, Furnace, WoodenStorageBox, CookingProgress, InventoryItem } from '../generated';
+import { Campfire, Furnace, Barbecue, WoodenStorageBox, CookingProgress, InventoryItem } from '../generated';
 import { ContainerType, ContainerEntity } from './containerUtils';
 
 const COMPOST_CONVERSION_TIME_SECS = 300; // 5 minutes (matching server constant)
@@ -33,6 +33,14 @@ export function getCookingProgress(
         const furnace = containerEntity as Furnace;
         const progressField = `slot${slotIndex}CookingProgress` as keyof Furnace;
         const cookingProgress = furnace[progressField] as CookingProgress | undefined;
+        
+        if (cookingProgress && cookingProgress.targetCookTimeSecs > 0) {
+            return Math.min(1.0, cookingProgress.currentCookTimeSecs / cookingProgress.targetCookTimeSecs);
+        }
+    } else if (containerType === 'barbecue') {
+        const barbecue = containerEntity as Barbecue;
+        const progressField = `slot${slotIndex}CookingProgress` as keyof Barbecue;
+        const cookingProgress = barbecue[progressField] as CookingProgress | undefined;
         
         if (cookingProgress && cookingProgress.targetCookTimeSecs > 0) {
             return Math.min(1.0, cookingProgress.currentCookTimeSecs / cookingProgress.targetCookTimeSecs);
@@ -84,8 +92,8 @@ export function getAllSlotProgress(
     
     if (!containerEntity) return progressMap;
     
-    // For campfire/furnace, use cooking progress
-    if (containerType === 'campfire' || containerType === 'furnace') {
+    // For campfire/furnace/barbecue, use cooking progress
+    if (containerType === 'campfire' || containerType === 'furnace' || containerType === 'barbecue') {
         items.forEach((item, index) => {
             if (item) { // Only calculate if there's an item in the slot
                 const progress = getCookingProgress(containerType, containerEntity, index);

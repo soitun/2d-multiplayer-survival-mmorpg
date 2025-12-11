@@ -1163,6 +1163,9 @@ export function renderPlacementPreview({
         } else if (placementInfo.iconAssetName === 'metal_door.png') {
             previewImg = doodadImagesRef.current?.get(isNorthEdge ? 'metal_door_north.png' : 'metal_door.png');
         }
+    } else if (placementInfo.iconAssetName === 'wooden_storage_box.png' && placementInfo.itemName === 'Compost') {
+        // For compost, use the compost.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('compost.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);

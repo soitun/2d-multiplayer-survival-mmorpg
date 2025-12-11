@@ -84,8 +84,6 @@ export type Barbecue = {
   slot9CookingProgress: CookingProgress | undefined,
   slot10CookingProgress: CookingProgress | undefined,
   slot11CookingProgress: CookingProgress | undefined,
-  lastDamageApplicationTime: __Timestamp | undefined,
-  isPlayerInHotZone: boolean,
 };
 let _cached_Barbecue_type_value: __AlgebraicTypeType | null = null;
 
@@ -152,8 +150,6 @@ export const Barbecue = {
       { name: "slot9CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "slot10CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "slot11CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "lastDamageApplicationTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "isPlayerInHotZone", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Barbecue_type_value;
   },

@@ -342,7 +342,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Destructure props for cleaner usage
     const {
-        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, runeStones, cairns
+        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, barbecues, runeStones, cairns
         playerPins, playerCorpses, stashes,
         shelters,
         plantedSeeds,

@@ -28,43 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type MoveItemFromBarbecue = {
+export type SplitAndDropItemFromBarbecueSlotToWorld = {
   barbecueId: number,
-  sourceSlotIndex: number,
-  targetSlotType: string,
-  targetSlotIndex: number,
+  slotIndex: number,
+  quantityToSplit: number,
 };
-let _cached_MoveItemFromBarbecue_type_value: __AlgebraicTypeType | null = null;
+let _cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const MoveItemFromBarbecue = {
+export const SplitAndDropItemFromBarbecueSlotToWorld = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MoveItemFromBarbecue_type_value) return _cached_MoveItemFromBarbecue_type_value;
-    _cached_MoveItemFromBarbecue_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_MoveItemFromBarbecue_type_value.value.elements.push(
+    if (_cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value) return _cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value;
+    _cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value.value.elements.push(
       { name: "barbecueId", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
-      { name: "targetSlotType", algebraicType: __AlgebraicTypeValue.String },
-      { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "slotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "quantityToSplit", algebraicType: __AlgebraicTypeValue.U32 },
     );
-    return _cached_MoveItemFromBarbecue_type_value;
+    return _cached_SplitAndDropItemFromBarbecueSlotToWorld_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: MoveItemFromBarbecue): void {
-    __AlgebraicTypeValue.serializeValue(writer, MoveItemFromBarbecue.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: SplitAndDropItemFromBarbecueSlotToWorld): void {
+    __AlgebraicTypeValue.serializeValue(writer, SplitAndDropItemFromBarbecueSlotToWorld.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): MoveItemFromBarbecue {
-    return __AlgebraicTypeValue.deserializeValue(reader, MoveItemFromBarbecue.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): SplitAndDropItemFromBarbecueSlotToWorld {
+    return __AlgebraicTypeValue.deserializeValue(reader, SplitAndDropItemFromBarbecueSlotToWorld.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default MoveItemFromBarbecue;
+export default SplitAndDropItemFromBarbecueSlotToWorld;
 

@@ -12,7 +12,8 @@ import {
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth
     BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
     Door as SpacetimeDBDoor, // ADDED: Door
-    AlkStation as SpacetimeDBAlkStation // ADDED: ALK Station
+    AlkStation as SpacetimeDBAlkStation, // ADDED: ALK Station
+    Barbecue as SpacetimeDBBarbecue // ADDED: Barbecue
 } from '../../generated';
 
 // Import visual heights from useInteractionFinder.ts
@@ -33,7 +34,7 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -51,6 +52,7 @@ interface RenderLabelsParams {
     harvestableResources: Map<string, any>; // Unified harvestable resources
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, any>; // ADDED: furnaces parameter
+    barbecues?: Map<string, SpacetimeDBBarbecue>; // ADDED: barbecues parameter
     fumaroles: Map<string, any>; // ADDED: fumaroles parameter
     lanterns: Map<string, any>; // Add lanterns parameter
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
@@ -116,7 +118,7 @@ function drawSOVAOverlayBackground(
     const bgWidth = textWidth + (SOVA_PADDING_X * 2);
     const bgHeight = textHeight + (SOVA_PADDING_Y * 2);
     const bgX = x - bgWidth / 2;
-    const bgY = y - bgHeight / 2 - textHeight / 4; // Adjust for text baseline
+    const bgY = y - bgHeight / 2 - textHeight / 4 - 3; // Adjust for text baseline, moved up 3px
     
     ctx.save();
     
@@ -264,6 +266,7 @@ export function renderInteractionLabels({
     ctx,
     campfires,
     furnaces, // ADDED: furnaces parameter
+    barbecues, // ADDED: barbecues parameter
     fumaroles, // ADDED: fumaroles parameter
     lanterns,
     droppedItems,
@@ -332,6 +335,19 @@ export function renderInteractionLabels({
                 const visualCenterY = furnace.posY - (FURNACE_HEIGHT / 2) - FURNACE_RENDER_Y_OFFSET;
                 textX = visualCenterX;
                 textY = visualCenterY - 64; // Moved up from -50 to -80
+                renderStyledInteractionLabel(ctx, text, textX, textY);
+            }
+            break;
+        }
+        case 'barbecue': { // ADDED: Barbecue label support
+            const barbecue = barbecues?.get(closestInteractableTarget.id.toString());
+            if (barbecue) {
+                const BARBECUE_HEIGHT = 128;
+                const BARBECUE_RENDER_Y_OFFSET = 16;
+                const visualCenterX = barbecue.posX;
+                const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+                textX = visualCenterX;
+                textY = visualCenterY - 50; // Similar to campfire positioning
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

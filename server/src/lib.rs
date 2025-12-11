@@ -256,7 +256,9 @@ pub use campfire::{
 pub use barbecue::{
     place_barbecue, move_item_to_barbecue, quick_move_from_barbecue,
     split_stack_into_barbecue, quick_move_to_barbecue,
-    move_item_from_barbecue, drop_item_from_barbecue,
+    move_item_within_barbecue, split_stack_within_barbecue,
+    move_item_from_barbecue_to_player_slot, split_stack_from_barbecue,
+    drop_item_from_barbecue_slot_to_world, split_and_drop_item_from_barbecue_slot_to_world,
     interact_with_barbecue, toggle_barbecue_burning, pickup_barbecue
 };
 

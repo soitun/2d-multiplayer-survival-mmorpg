@@ -149,6 +149,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     interactionTarget,
     campfires,
     furnaces,
+    barbecues,
     fumaroles,
     lanterns,
     woodenStorageBoxes,
@@ -624,6 +625,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         break;
                     case 'furnace':
                         connection.reducers.quickMoveToFurnace(containerId, itemInstanceId);
+                        break;
+                    case 'barbecue':
+                        connection.reducers.quickMoveToBarbecue(containerId, itemInstanceId);
                         break;
                     case 'fumarole':
                         // CRITICAL: When broth pot is attached, NEVER send items to fumarole incineration slots

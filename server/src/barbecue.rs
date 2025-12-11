@@ -29,7 +29,7 @@ use crate::inventory_management::{self, ItemContainer, ContainerItemClearer, mer
 use crate::player_inventory::{move_item_to_inventory, move_item_to_hotbar, find_first_empty_player_slot, get_player_item};
 use crate::environment::calculate_chunk_index;
 use crate::dropped_item::create_dropped_item_entity;
-use crate::sound_events::{start_campfire_sound, stop_campfire_sound};
+use crate::sound_events::{start_barbecue_sound, stop_barbecue_sound};
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::world_state::WeatherType;
 use crate::shelter::shelter as ShelterTableTrait;
@@ -59,24 +59,12 @@ pub(crate) const PLAYER_BARBECUE_INTERACTION_DISTANCE: f32 = 96.0;
 pub(crate) const PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_BARBECUE_INTERACTION_DISTANCE * PLAYER_BARBECUE_INTERACTION_DISTANCE;
 
-// Warmth and fuel constants
-pub(crate) const WARMTH_RADIUS: f32 = 300.0;
-pub(crate) const WARMTH_RADIUS_SQUARED: f32 = WARMTH_RADIUS * WARMTH_RADIUS;
-pub(crate) const WARMTH_PER_SECOND: f32 = 5.0;
+// Fuel constants
 pub(crate) const FUEL_CONSUME_INTERVAL_SECS: u64 = 5;
 pub const NUM_BARBECUE_SLOTS: usize = 12;
 const FUEL_CHECK_INTERVAL_SECS: u64 = 1;
 pub const BARBECUE_PROCESS_INTERVAL_SECS: u64 = 1;
 const CHARCOAL_PRODUCTION_CHANCE: u8 = 75;
-
-// --- ADDED: Barbecue Damage Constants ---
-const BARBECUE_DAMAGE_CENTER_Y_OFFSET: f32 = 0.0;
-const BARBECUE_DAMAGE_RADIUS: f32 = 50.0;
-const BARBECUE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0;
-const BARBECUE_DAMAGE_PER_TICK: f32 = 5.0;
-const BARBECUE_DAMAGE_EFFECT_DURATION_SECONDS: u64 = 3;
-const BARBECUE_BURN_TICK_INTERVAL_SECONDS: f32 = 2.0;
-const BARBECUE_DAMAGE_APPLICATION_COOLDOWN_SECONDS: u64 = 0;
 
 /// --- Barbecue Data Structure ---
 /// Represents a barbecue in the game world with position, owner, burning state,
@@ -142,9 +130,6 @@ pub struct Barbecue {
     pub slot_9_cooking_progress: Option<CookingProgress>,
     pub slot_10_cooking_progress: Option<CookingProgress>,
     pub slot_11_cooking_progress: Option<CookingProgress>,
-    
-    pub last_damage_application_time: Option<Timestamp>,
-    pub is_player_in_hot_zone: bool,
 }
 
 // Schedule Table for per-barbecue processing
@@ -273,9 +258,71 @@ pub fn quick_move_to_barbecue(
     Ok(())
 }
 
-/// --- Move From Barbecue to Player ---
+/// --- Barbecue Internal Item Movement ---
+/// Moves/merges/swaps an item BETWEEN two slots within the same barbecue.
 #[spacetimedb::reducer]
-pub fn move_item_from_barbecue(
+pub fn move_item_within_barbecue(
+    ctx: &ReducerContext,
+    barbecue_id: u32,
+    source_slot_index: u8,
+    target_slot_index: u8,
+) -> Result<(), String> {
+    let (_player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
+    
+    // Save cooking progress before move (since set_slot clears it)
+    use crate::cooking::CookableAppliance;
+    use crate::inventory_management::ItemContainer;
+    let source_progress = CookableAppliance::get_slot_cooking_progress(&barbecue, source_slot_index);
+    let target_progress = CookableAppliance::get_slot_cooking_progress(&barbecue, target_slot_index);
+    let source_had_item = ItemContainer::get_slot_instance_id(&barbecue, source_slot_index).is_some();
+    let target_had_item = ItemContainer::get_slot_instance_id(&barbecue, target_slot_index).is_some();
+    
+    inventory_management::handle_move_within_container(ctx, &mut barbecue, source_slot_index, target_slot_index)?;
+    
+    // Transfer cooking progress based on what happened:
+    // - Move to empty slot: source progress -> target
+    // - Swap: exchange progress
+    // - Merge: target keeps its progress (items combined there)
+    if source_had_item && !target_had_item {
+        // Move to empty slot: transfer source progress to target
+        CookableAppliance::set_slot_cooking_progress(&mut barbecue, target_slot_index, source_progress);
+    } else if source_had_item && target_had_item {
+        // Check if it was a swap (source slot now has an item) or merge (source slot empty)
+        if ItemContainer::get_slot_instance_id(&barbecue, source_slot_index).is_some() {
+            // Swap: exchange cooking progress
+            CookableAppliance::set_slot_cooking_progress(&mut barbecue, target_slot_index, source_progress);
+            CookableAppliance::set_slot_cooking_progress(&mut barbecue, source_slot_index, target_progress);
+        }
+        // If merge: target keeps its progress (already in place), source was cleared
+    }
+    
+    ctx.db.barbecue().id().update(barbecue.clone());
+    schedule_next_barbecue_processing(ctx, barbecue_id);
+    Ok(())
+}
+
+/// --- Barbecue Internal Stack Splitting ---
+/// Splits a stack FROM one barbecue slot TO another within the same barbecue.
+#[spacetimedb::reducer]
+pub fn split_stack_within_barbecue(
+    ctx: &ReducerContext,
+    barbecue_id: u32,
+    source_slot_index: u8,
+    quantity_to_split: u32,
+    target_slot_index: u8,
+) -> Result<(), String> {
+    let (_player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
+    
+    inventory_management::handle_split_within_container(ctx, &mut barbecue, source_slot_index, target_slot_index, quantity_to_split)?;
+    ctx.db.barbecue().id().update(barbecue.clone());
+    schedule_next_barbecue_processing(ctx, barbecue_id);
+    Ok(())
+}
+
+/// --- Move From Barbecue to Player ---
+/// Moves a specific item FROM a barbecue slot TO a specific player inventory/hotbar slot.
+#[spacetimedb::reducer]
+pub fn move_item_from_barbecue_to_player_slot(
     ctx: &ReducerContext,
     barbecue_id: u32,
     source_slot_index: u8,
@@ -296,14 +343,49 @@ pub fn move_item_from_barbecue(
     Ok(())
 }
 
-/// --- Drop Item From Barbecue ---
+/// --- Split From Barbecue to Player ---
+/// Splits a stack FROM a barbecue slot TO a specific player inventory/hotbar slot.
 #[spacetimedb::reducer]
-pub fn drop_item_from_barbecue(
+pub fn split_stack_from_barbecue(
+    ctx: &ReducerContext,
+    source_barbecue_id: u32,
+    source_slot_index: u8,
+    quantity_to_split: u32,
+    target_slot_type: String,
+    target_slot_index: u32,
+) -> Result<(), String> {
+    let mut barbecues = ctx.db.barbecue();
+    let (_player, mut barbecue) = validate_barbecue_interaction(ctx, source_barbecue_id)?;
+
+    log::info!(
+        "[SplitFromBarbecue] Player {:?} delegating split {} from barbecue {} slot {} to {} slot {}",
+        ctx.sender, quantity_to_split, source_barbecue_id, source_slot_index, target_slot_type, target_slot_index
+    );
+
+    inventory_management::handle_split_from_container(
+        ctx,
+        &mut barbecue,
+        source_slot_index,
+        quantity_to_split,
+        target_slot_type,
+        target_slot_index
+    )?;
+
+    barbecues.id().update(barbecue);
+    Ok(())
+}
+
+/// --- Drop Item From Barbecue Slot to World ---
+#[spacetimedb::reducer]
+pub fn drop_item_from_barbecue_slot_to_world(
     ctx: &ReducerContext,
     barbecue_id: u32,
     slot_index: u8,
 ) -> Result<(), String> {
     let (player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
+    
+    log::info!("[DropFromBarbecueToWorld] Player {} attempting to drop from barbecue ID {}, slot {}.", 
+             ctx.sender, barbecue_id, slot_index);
     
     inventory_management::handle_drop_from_container_slot(ctx, &mut barbecue, slot_index, &player)?;
     let still_has_fuel = check_if_barbecue_has_fuel(ctx, &barbecue);
@@ -312,6 +394,25 @@ pub fn drop_item_from_barbecue(
         barbecue.current_fuel_def_id = None;
         barbecue.remaining_fuel_burn_time_secs = None;
     }
+    ctx.db.barbecue().id().update(barbecue.clone());
+    schedule_next_barbecue_processing(ctx, barbecue_id);
+    Ok(())
+}
+
+/// --- Split and Drop Item from Barbecue Slot to World ---
+#[spacetimedb::reducer]
+pub fn split_and_drop_item_from_barbecue_slot_to_world(
+    ctx: &ReducerContext,
+    barbecue_id: u32,
+    slot_index: u8,
+    quantity_to_split: u32,
+) -> Result<(), String> {
+    let (player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
+    
+    log::info!("[SplitDropFromBarbecueToWorld] Player {} attempting to split {} from barbecue ID {}, slot {}.", 
+             ctx.sender, quantity_to_split, barbecue_id, slot_index);
+    
+    inventory_management::handle_split_and_drop_from_container_slot(ctx, &mut barbecue, slot_index, quantity_to_split, &player)?;
     ctx.db.barbecue().id().update(barbecue.clone());
     schedule_next_barbecue_processing(ctx, barbecue_id);
     Ok(())
@@ -337,7 +438,7 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         barbecue.current_fuel_def_id = None;
         barbecue.remaining_fuel_burn_time_secs = None;
         log::info!("Barbecue {} extinguished by player {:?}.", barbecue.id, ctx.sender);
-        stop_campfire_sound(ctx, barbecue.id as u64);
+        stop_barbecue_sound(ctx, barbecue.id as u64);
     } else {
         if !check_if_barbecue_has_fuel(ctx, &barbecue) {
             return Err("Cannot light barbecue, requires fuel.".to_string());
@@ -349,7 +450,7 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         
         barbecue.is_burning = true;
         log::info!("Barbecue {} lit by player {:?}.", barbecue.id, ctx.sender);
-        start_campfire_sound(ctx, barbecue.id as u64, barbecue.pos_x, barbecue.pos_y);
+        start_barbecue_sound(ctx, barbecue.id as u64, barbecue.pos_x, barbecue.pos_y);
     }
     ctx.db.barbecue().id().update(barbecue.clone());
     schedule_next_barbecue_processing(ctx, barbecue_id);
@@ -527,8 +628,6 @@ pub fn place_barbecue(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         slot_9_cooking_progress: None,
         slot_10_cooking_progress: None,
         slot_11_cooking_progress: None,
-        last_damage_application_time: None,
-        is_player_in_hot_zone: false,
     };
 
     let inserted_barbecue = barbecues.try_insert(new_barbecue)
@@ -600,7 +699,7 @@ pub fn pickup_barbecue(ctx: &ReducerContext, barbecue_id: u32) -> Result<(), Str
 
     // Stop sound if burning
     if barbecue.is_burning {
-        stop_campfire_sound(ctx, barbecue.id as u64);
+        stop_barbecue_sound(ctx, barbecue.id as u64);
     }
 
     // Create barbecue item
@@ -900,66 +999,10 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
     let mut made_changes_to_barbecue_struct = false;
     let mut produced_charcoal_and_modified_barbecue_struct = false;
 
-    if barbecue.is_player_in_hot_zone {
-        barbecue.is_player_in_hot_zone = false;
-        made_changes_to_barbecue_struct = true;
-    }
-
-    let current_time = ctx.timestamp;
-
     if barbecue.is_burning {
+        // Note: Barbecues do NOT extinguish in rain - they're covered/protected by design
+        // Note: Barbecues do NOT have fire damage zones - they're elevated cooking appliances
         let time_increment = BARBECUE_PROCESS_INTERVAL_SECS as f32;
-
-        let damage_cooldown_duration = TimeDuration::from_micros(BARBECUE_DAMAGE_APPLICATION_COOLDOWN_SECONDS as i64 * 1_000_000);
-
-        let can_apply_damage = barbecue.last_damage_application_time.map_or(true, |last_time| {
-            current_time >= last_time + damage_cooldown_duration
-        });
-
-        if can_apply_damage {
-            barbecue.last_damage_application_time = Some(current_time);
-
-            let mut applied_damage_this_tick = false;
-            let mut a_player_is_in_hot_zone_this_tick = false;
-
-            const VISUAL_CENTER_Y_OFFSET: f32 = 42.0;
-
-            for player_entity in ctx.db.player().iter() {
-                if player_entity.is_dead { continue; }
-                
-                let dx = player_entity.position_x - barbecue.pos_x;
-                let dy = player_entity.position_y - (barbecue.pos_y - VISUAL_CENTER_Y_OFFSET);
-                let dist_sq = dx * dx + dy * dy;
-
-                if dist_sq < BARBECUE_DAMAGE_RADIUS_SQUARED {
-                    a_player_is_in_hot_zone_this_tick = true;
-
-                    match crate::active_effects::apply_burn_effect(
-                        ctx,
-                        player_entity.identity,
-                        BARBECUE_DAMAGE_PER_TICK,
-                        BARBECUE_DAMAGE_EFFECT_DURATION_SECONDS as f32,
-                        BARBECUE_BURN_TICK_INTERVAL_SECONDS,
-                        0
-                    ) {
-                        Ok(_) => {
-                            applied_damage_this_tick = true;
-                        }
-                        Err(_) => {}
-                    }
-                }
-            }
-
-            if a_player_is_in_hot_zone_this_tick && !barbecue.is_player_in_hot_zone {
-                barbecue.is_player_in_hot_zone = true;
-                made_changes_to_barbecue_struct = true;
-            }
-
-            if applied_damage_this_tick {
-                barbecue.last_damage_application_time = Some(current_time);
-                made_changes_to_barbecue_struct = true;
-            }
-        }
 
         let active_fuel_instance_id_for_cooking_check = barbecue.current_fuel_def_id.and_then(|fuel_def_id| {
             (0..NUM_BARBECUE_SLOTS as u8).find_map(|slot_idx_check| {
@@ -1087,7 +1130,7 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
             if !new_fuel_loaded {
                 barbecue.is_burning = false;
                 made_changes_to_barbecue_struct = true;
-                stop_campfire_sound(ctx, barbecue.id as u64);
+                stop_barbecue_sound(ctx, barbecue.id as u64);
             }
         }
     }
@@ -1144,7 +1187,7 @@ pub fn schedule_next_barbecue_processing(ctx: &ReducerContext, barbecue_id: u32)
                 updated_barbecue.current_fuel_def_id = None;
                 updated_barbecue.remaining_fuel_burn_time_secs = None;
                 ctx.db.barbecue().id().update(updated_barbecue);
-                stop_campfire_sound(ctx, barbecue_id as u64);
+                stop_barbecue_sound(ctx, barbecue_id as u64);
             }
         }
     } else {

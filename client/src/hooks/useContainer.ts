@@ -159,11 +159,11 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         // console.log('[useContainer] containerType:', containerType, 'containerId:', containerId, 'entity:', entity);
         
         return entity;
-    }, [containerType, containerId, campfires, furnaces, fumaroles, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, brothPots, currentStorageBox]);
+    }, [containerType, containerId, campfires, furnaces, barbecues, fumaroles, lanterns, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, homesteadHearths, brothPots, currentStorageBox]);
     
     // Get container configuration
     const config = useMemo(() => {
-        return containerType ? getContainerConfig(containerType, containerEntity) : null;
+        return containerType ? getContainerConfig(containerType, containerEntity ?? undefined) : null;
     }, [containerType, containerEntity]);
     
     // Extract items using pattern-based utility
@@ -226,7 +226,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             return stash.isHidden ? 'HIDDEN STASH (NEARBY)' : 'STASH';
         }
         
-        return getContainerDisplayName(containerType, containerEntity);
+        return getContainerDisplayName(containerType, containerEntity ?? undefined);
     }, [containerType, containerEntity]);
     
     // State helpers

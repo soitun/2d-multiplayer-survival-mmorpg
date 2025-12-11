@@ -37,6 +37,11 @@ import {
     FURNACE_RENDER_Y_OFFSET
 } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace rendering constants
 import {
+    PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED,
+    BARBECUE_HEIGHT,
+    BARBECUE_RENDER_Y_OFFSET
+} from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue rendering constants
+import {
     PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED,
     FUMAROLE_WIDTH,
     FUMAROLE_HEIGHT
@@ -207,6 +212,7 @@ export function useInteractionFinder({
     localPlayer,
     campfires,
     furnaces, // ADDED: Furnace prop destructuring
+    barbecues, // ADDED: Barbecue prop destructuring
     fumaroles, // ADDED: Fumarole prop destructuring (volcanic heat source)
     lanterns,
     homesteadHearths, // ADDED: HomesteadHearths prop destructuring
@@ -234,6 +240,7 @@ export function useInteractionFinder({
     const [closestInteractableHarvestableResourceId, setClosestInteractableHarvestableResourceId] = useState<bigint | null>(null);
     const [closestInteractableCampfireId, setClosestInteractableCampfireId] = useState<number | null>(null);
     const [closestInteractableFurnaceId, setClosestInteractableFurnaceId] = useState<number | null>(null); // ADDED: Furnace state
+    const [closestInteractableBarbecueId, setClosestInteractableBarbecueId] = useState<number | null>(null); // ADDED: Barbecue state
     const [closestInteractableFumaroleId, setClosestInteractableFumaroleId] = useState<number | null>(null); // ADDED: Fumarole state
     const [closestInteractableLanternId, setClosestInteractableLanternId] = useState<number | null>(null);
     const [closestInteractableHearthId, setClosestInteractableHearthId] = useState<number | null>(null); // ADDED: HomesteadHearth state
@@ -438,7 +445,9 @@ export function useInteractionFinder({
             if (barbecues) {
                 barbecues.forEach((barbecue) => {
                     if (barbecue.isDestroyed) return;
-                    const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+                    // Content is at bottom of image, so interaction point should be higher (lower Y)
+                    // Use bottom portion of image where content actually is
+                    const visualCenterY = barbecue.posY - BARBECUE_RENDER_Y_OFFSET - (BARBECUE_HEIGHT * 0.25);
                     
                     const dx = playerX - barbecue.posX;
                     const dy = playerY - visualCenterY;
@@ -1096,7 +1105,7 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableWaterPosition !== closestInteractableWaterPosition) {
             setClosestInteractableWaterPosition(calculatedResult.closestInteractableWaterPosition);
         }
-    }, [localPlayer, harvestableResources, campfires, furnaces, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles]);
+    }, [localPlayer, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles]);
 
     useEffect(() => {
         // Use requestAnimationFrame for frame-synced updates (every ~16ms at 60fps)

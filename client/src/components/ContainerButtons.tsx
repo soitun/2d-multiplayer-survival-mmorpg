@@ -109,6 +109,7 @@ function getButtonText(containerType: ContainerType, isActive: boolean): string 
         switch (containerType) {
             case 'campfire': return 'Extinguish';
             case 'furnace': return 'Extinguish';
+            case 'barbecue': return 'Extinguish';
             case 'lantern': return 'Extinguish';
             default: return 'Stop';
         }
@@ -116,6 +117,7 @@ function getButtonText(containerType: ContainerType, isActive: boolean): string 
         switch (containerType) {
             case 'campfire': return 'Light Fire';
             case 'furnace': return 'Light Furnace';
+            case 'barbecue': return 'Light Barbecue';
             case 'lantern': return 'Light Lantern';
             default: return 'Start';
         }

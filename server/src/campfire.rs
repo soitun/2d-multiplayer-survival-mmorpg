@@ -279,11 +279,37 @@ pub fn move_item_within_campfire(
         return Err("Cannot move fuel between slots 1-4 while broth pot is attached. Use slot 0 for fuel management.".to_string());
     }
     
+    // Save cooking progress before move (since set_slot clears it)
+    use crate::cooking::CookableAppliance;
+    use crate::inventory_management::ItemContainer;
+    let source_progress = CookableAppliance::get_slot_cooking_progress(&campfire, source_slot_index);
+    let target_progress = CookableAppliance::get_slot_cooking_progress(&campfire, target_slot_index);
+    let source_had_item = ItemContainer::get_slot_instance_id(&campfire, source_slot_index).is_some();
+    let target_had_item = ItemContainer::get_slot_instance_id(&campfire, target_slot_index).is_some();
+    
     inventory_management::handle_move_within_container(ctx, &mut campfire, source_slot_index, target_slot_index)?;
-     ctx.db.campfire().id().update(campfire.clone());
-     schedule_next_campfire_processing(ctx, campfire_id);
-     Ok(())
- }
+    
+    // Transfer cooking progress based on what happened:
+    // - Move to empty slot: source progress -> target
+    // - Swap: exchange progress
+    // - Merge: target keeps its progress (items combined there)
+    if source_had_item && !target_had_item {
+        // Move to empty slot: transfer source progress to target
+        CookableAppliance::set_slot_cooking_progress(&mut campfire, target_slot_index, source_progress);
+    } else if source_had_item && target_had_item {
+        // Check if it was a swap (source slot now has an item) or merge (source slot empty)
+        if ItemContainer::get_slot_instance_id(&campfire, source_slot_index).is_some() {
+            // Swap: exchange cooking progress
+            CookableAppliance::set_slot_cooking_progress(&mut campfire, target_slot_index, source_progress);
+            CookableAppliance::set_slot_cooking_progress(&mut campfire, source_slot_index, target_progress);
+        }
+        // If merge: target keeps its progress (already in place), source was cleared
+    }
+    
+    ctx.db.campfire().id().update(campfire.clone());
+    schedule_next_campfire_processing(ctx, campfire_id);
+    Ok(())
+}
  
 /// --- Campfire Internal Stack Splitting ---
 /// Splits a stack FROM one campfire slot TO another within the same campfire.

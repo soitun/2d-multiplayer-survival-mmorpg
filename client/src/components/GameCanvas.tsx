@@ -82,6 +82,8 @@ import { useFirePatchParticles } from '../hooks/useFirePatchParticles';
 import { useWorldTileCache } from '../hooks/useWorldTileCache';
 import { useAmbientSounds } from '../hooks/useAmbientSounds';
 import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
+import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
+import { useShoreWaveParticles, renderShoreWaves } from '../hooks/useShoreWaveParticles';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // --- Rendering Utilities ---
@@ -1744,10 +1746,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleFurnacesMap,
   });
 
+  // Barbecue particle effects - grill fire, embers and smoke
+  const barbecueParticles = useBarbecueParticles({
+    visibleBarbecuesMap,
+  });
+
   // Fire patch particle effects - fire and smoke from fire patches on the ground
   const firePatchParticles = useFirePatchParticles({
     visibleFirePatchesMap: firePatches,
     localPlayer: localPlayer ?? null,
+  });
+
+  // Shore wave particle effects - animated waves lapping at beach/sea transitions
+  // Calculate viewBounds for viewport culling
+  const shoreWaveViewBounds = useMemo(() => ({
+    minX: -cameraOffsetX,
+    maxX: -cameraOffsetX + canvasSize.width,
+    minY: -cameraOffsetY,
+    maxY: -cameraOffsetY + canvasSize.height,
+  }), [cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height]);
+  
+  const shoreWaveParticles = useShoreWaveParticles({
+    worldTiles: visibleWorldTiles,
+    viewBounds: shoreWaveViewBounds,
+    cameraOffsetX,
+    cameraOffsetY,
   });
 
   // Resource sparkle particle effects - shows sparkles on harvestable resources (viewport-culled)
@@ -2736,11 +2759,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Render particle systems
     if (ctx) {
+      // Render shore wave particles (below fire/smoke particles, on ground level)
+      // Pass 0,0 for camera offsets since ctx is already translated
+      renderShoreWaves(ctx, shoreWaveParticles, 0, 0);
+      
       // Call without camera offsets, as ctx is already translated
       renderParticlesToCanvas(ctx, campfireParticles);
       renderParticlesToCanvas(ctx, torchParticles);
       renderParticlesToCanvas(ctx, fireArrowParticles);
       renderParticlesToCanvas(ctx, furnaceParticles);
+      renderParticlesToCanvas(ctx, barbecueParticles);
       renderParticlesToCanvas(ctx, firePatchParticles);
       // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
@@ -2764,6 +2792,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       harvestableResources: visibleHarvestableResourcesMap,
       campfires: visibleCampfiresMap,
       furnaces: visibleFurnacesMap, // ADDED: furnaces parameter
+      barbecues: visibleBarbecuesMap, // ADDED: barbecues parameter
       fumaroles: fumaroles, // ADDED: fumaroles parameter
       droppedItems: visibleDroppedItemsMap,
       woodenStorageBoxes: visibleBoxesMap,
@@ -3047,7 +3076,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End Insanity Overlay ---
 
     // Interaction indicators - Draw only for visible entities that are interactable
-    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
+    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
       // or if the entity is not in view, do nothing.
       if (!isInView || !holdInteractionProgress) {
@@ -3092,6 +3121,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Furnace interaction indicators (for hold actions like toggle burning)
     visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
       drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, 96, true); // 96px height for standard furnace size
+    });
+
+    // Barbecue interaction indicators (for hold actions like toggle burning)
+    visibleBarbecuesMap.forEach((barbecue: SpacetimeDBBarbecue) => {
+      drawIndicatorIfNeeded('barbecue', barbecue.id, barbecue.posX, barbecue.posY, 128, true); // 128px height for barbecue
     });
 
     // Fumarole interaction indicators - removed empty forEach loop for performance

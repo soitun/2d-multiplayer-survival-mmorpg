@@ -991,6 +991,7 @@ fn create_unique_object_id(object_type: &str, object_id: u64) -> u64 {
         "campfire" => 1_000_000_000_u64, // Campfires start at 1 billion
         "lantern" => 2_000_000_000_u64,  // Lanterns start at 2 billion
         "broth_pot" => 3_000_000_000_u64, // Broth pots start at 3 billion
+        "barbecue" => 4_000_000_000_u64, // Barbecues start at 4 billion
         _ => 0_u64, // Default for unknown types
     };
     type_hash + object_id
@@ -1012,6 +1013,25 @@ pub fn stop_campfire_sound(ctx: &ReducerContext, campfire_id: u64) {
     log::info!("🔥 STOPPING CAMPFIRE SOUND for campfire {} (unique_id: {})", campfire_id, unique_id);
     if let Err(e) = stop_continuous_sound(ctx, unique_id) {
         log::error!("Failed to stop campfire sound: {}", e);
+    }
+}
+
+/// Start barbecue looping sound
+pub fn start_barbecue_sound(ctx: &ReducerContext, barbecue_id: u64, pos_x: f32, pos_y: f32) {
+    let unique_id = create_unique_object_id("barbecue", barbecue_id);
+    log::info!("🔥 STARTING BARBECUE SOUND for barbecue {} (unique_id: {}) at ({:.1}, {:.1})", 
+              barbecue_id, unique_id, pos_x, pos_y);
+    if let Err(e) = start_continuous_sound(ctx, unique_id, SoundType::CampfireLooping, pos_x, pos_y, 1.0, 525.0) {
+        log::error!("Failed to start barbecue sound: {}", e);
+    }
+}
+
+/// Stop barbecue looping sound
+pub fn stop_barbecue_sound(ctx: &ReducerContext, barbecue_id: u64) {
+    let unique_id = create_unique_object_id("barbecue", barbecue_id);
+    log::info!("🔥 STOPPING BARBECUE SOUND for barbecue {} (unique_id: {})", barbecue_id, unique_id);
+    if let Err(e) = stop_continuous_sound(ctx, unique_id) {
+        log::error!("Failed to stop barbecue sound: {}", e);
     }
 }
 

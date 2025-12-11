@@ -1,24 +1,17 @@
 import { Barbecue } from '../../generated'; // Import generated Barbecue type
-import barbecueImage from '../../assets/doodads/barbecue.png'; // Default image for OFF state (when deployed, starts off)
-// Note: If barbecue_on.png doesn't exist, we'll use the same image for both states
-let barbecueOnImage: string | undefined;
-try {
-    barbecueOnImage = require('../../assets/doodads/barbecue_on.png');
-} catch {
-    // barbecue_on.png doesn't exist, use same image for both states
-    barbecueOnImage = undefined;
-}
+import barbecueImage from '../../assets/doodads/barbecue.png'; // Direct import OFF state
+import barbecueOnImage from '../../assets/doodads/barbecue_on.png'; // Direct import ON state
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, applyStandardDropShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
 import { Barbecue as SpacetimeDBBarbecue, Player as SpacetimeDBPlayer } from '../../generated';
 
 // --- Constants directly used by this module or exported ---
-export const BARBECUE_WIDTH = 80;
-export const BARBECUE_HEIGHT = 80;
-export const BARBECUE_WIDTH_PREVIEW = 80;
-export const BARBECUE_HEIGHT_PREVIEW = 80;
-export const BARBECUE_RENDER_Y_OFFSET = 10; // Visual offset from entity's base Y
+export const BARBECUE_WIDTH = 128;
+export const BARBECUE_HEIGHT = 128;
+export const BARBECUE_WIDTH_PREVIEW = 128;
+export const BARBECUE_HEIGHT_PREVIEW = 128;
+export const BARBECUE_RENDER_Y_OFFSET = 16; // Visual offset from entity's base Y
 
 // Barbecue interaction distance (player <-> barbecue)
 export const PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as campfire: 96px
@@ -28,15 +21,15 @@ export const SERVER_BARBECUE_DAMAGE_RADIUS = 25.0;
 export const SERVER_BARBECUE_DAMAGE_CENTER_Y_OFFSET = 0.0;
 
 // Particle emission points relative to the barbecue's visual center
-const FIRE_EMISSION_VISUAL_CENTER_Y_OFFSET = BARBECUE_HEIGHT * 0.35; 
-const SMOKE_EMISSION_VISUAL_CENTER_Y_OFFSET = BARBECUE_HEIGHT * 0.4;
+const FIRE_EMISSION_VISUAL_CENTER_Y_OFFSET = BARBECUE_HEIGHT * 0.30; 
+const SMOKE_EMISSION_VISUAL_CENTER_Y_OFFSET = BARBECUE_HEIGHT * 0.35;
 
 // --- Other Local Constants ---
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 8;
-const HEALTH_BAR_WIDTH = 50;
+const HEALTH_BAR_WIDTH = 70;
 const HEALTH_BAR_HEIGHT = 6;
-const HEALTH_BAR_Y_OFFSET = 10;
+const HEALTH_BAR_Y_OFFSET = 16;
 const HEALTH_BAR_VISIBLE_DURATION_MS = 3000;
 
 // --- Client-side animation tracking for barbecue shakes ---
@@ -49,9 +42,8 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
         if (entity.isDestroyed) {
             return null;
         }
-        // Default image (barbecue.png) is for OFF state, barbecue_on.png is for ON state
-        // When deployed, barbecue starts off, so we use default image
-        return entity.isBurning ? (barbecueOnImage || barbecueImage) : barbecueImage;
+        // Return ON or OFF image based on burning state
+        return entity.isBurning ? barbecueOnImage : barbecueImage;
     },
 
     getTargetDimensions: (_img, _entity) => ({
@@ -160,9 +152,7 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
 
 // Preload images
 imageManager.preloadImage(barbecueImage);
-if (barbecueOffImage && typeof barbecueOffImage === 'string') {
-    imageManager.preloadImage(barbecueOffImage);
-}
+imageManager.preloadImage(barbecueOnImage);
 
 // --- Rendering Function ---
 export function renderBarbecue(

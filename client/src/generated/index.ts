@@ -113,8 +113,8 @@ import { DrinkWater } from "./drink_water_reducer.ts";
 export { DrinkWater };
 import { DropItem } from "./drop_item_reducer.ts";
 export { DropItem };
-import { DropItemFromBarbecue } from "./drop_item_from_barbecue_reducer.ts";
-export { DropItemFromBarbecue };
+import { DropItemFromBarbecueSlotToWorld } from "./drop_item_from_barbecue_slot_to_world_reducer.ts";
+export { DropItemFromBarbecueSlotToWorld };
 import { DropItemFromBoxSlotToWorld } from "./drop_item_from_box_slot_to_world_reducer.ts";
 export { DropItemFromBoxSlotToWorld };
 import { DropItemFromCampfireSlotToWorld } from "./drop_item_from_campfire_slot_to_world_reducer.ts";
@@ -205,8 +205,8 @@ import { ManageSeasonalPlants } from "./manage_seasonal_plants_reducer.ts";
 export { ManageSeasonalPlants };
 import { ManualCleanupThunderEvents } from "./manual_cleanup_thunder_events_reducer.ts";
 export { ManualCleanupThunderEvents };
-import { MoveItemFromBarbecue } from "./move_item_from_barbecue_reducer.ts";
-export { MoveItemFromBarbecue };
+import { MoveItemFromBarbecueToPlayerSlot } from "./move_item_from_barbecue_to_player_slot_reducer.ts";
+export { MoveItemFromBarbecueToPlayerSlot };
 import { MoveItemFromBox } from "./move_item_from_box_reducer.ts";
 export { MoveItemFromBox };
 import { MoveItemFromBrothPot } from "./move_item_from_broth_pot_reducer.ts";
@@ -263,6 +263,8 @@ import { MoveItemToRefrigerator } from "./move_item_to_refrigerator_reducer.ts";
 export { MoveItemToRefrigerator };
 import { MoveItemToStash } from "./move_item_to_stash_reducer.ts";
 export { MoveItemToStash };
+import { MoveItemWithinBarbecue } from "./move_item_within_barbecue_reducer.ts";
+export { MoveItemWithinBarbecue };
 import { MoveItemWithinBox } from "./move_item_within_box_reducer.ts";
 export { MoveItemWithinBox };
 import { MoveItemWithinBrothPot } from "./move_item_within_broth_pot_reducer.ts";
@@ -479,6 +481,8 @@ import { SpawnSeedsAtNight } from "./spawn_seeds_at_night_reducer.ts";
 export { SpawnSeedsAtNight };
 import { SpawnWildAnimal } from "./spawn_wild_animal_reducer.ts";
 export { SpawnWildAnimal };
+import { SplitAndDropItemFromBarbecueSlotToWorld } from "./split_and_drop_item_from_barbecue_slot_to_world_reducer.ts";
+export { SplitAndDropItemFromBarbecueSlotToWorld };
 import { SplitAndDropItemFromBoxSlotToWorld } from "./split_and_drop_item_from_box_slot_to_world_reducer.ts";
 export { SplitAndDropItemFromBoxSlotToWorld };
 import { SplitAndDropItemFromCampfireSlotToWorld } from "./split_and_drop_item_from_campfire_slot_to_world_reducer.ts";
@@ -503,6 +507,8 @@ import { SplitAndMoveFromFurnace } from "./split_and_move_from_furnace_reducer.t
 export { SplitAndMoveFromFurnace };
 import { SplitStack } from "./split_stack_reducer.ts";
 export { SplitStack };
+import { SplitStackFromBarbecue } from "./split_stack_from_barbecue_reducer.ts";
+export { SplitStackFromBarbecue };
 import { SplitStackFromBox } from "./split_stack_from_box_reducer.ts";
 export { SplitStackFromBox };
 import { SplitStackFromBrothPot } from "./split_stack_from_broth_pot_reducer.ts";
@@ -545,6 +551,8 @@ import { SplitStackIntoRefrigerator } from "./split_stack_into_refrigerator_redu
 export { SplitStackIntoRefrigerator };
 import { SplitStackIntoStash } from "./split_stack_into_stash_reducer.ts";
 export { SplitStackIntoStash };
+import { SplitStackWithinBarbecue } from "./split_stack_within_barbecue_reducer.ts";
+export { SplitStackWithinBarbecue };
 import { SplitStackWithinBox } from "./split_stack_within_box_reducer.ts";
 export { SplitStackWithinBox };
 import { SplitStackWithinBrothPot } from "./split_stack_within_broth_pot_reducer.ts";
@@ -2444,9 +2452,9 @@ const REMOTE_MODULE = {
       reducerName: "drop_item",
       argsType: DropItem.getTypeScriptAlgebraicType(),
     },
-    drop_item_from_barbecue: {
-      reducerName: "drop_item_from_barbecue",
-      argsType: DropItemFromBarbecue.getTypeScriptAlgebraicType(),
+    drop_item_from_barbecue_slot_to_world: {
+      reducerName: "drop_item_from_barbecue_slot_to_world",
+      argsType: DropItemFromBarbecueSlotToWorld.getTypeScriptAlgebraicType(),
     },
     drop_item_from_box_slot_to_world: {
       reducerName: "drop_item_from_box_slot_to_world",
@@ -2628,9 +2636,9 @@ const REMOTE_MODULE = {
       reducerName: "manual_cleanup_thunder_events",
       argsType: ManualCleanupThunderEvents.getTypeScriptAlgebraicType(),
     },
-    move_item_from_barbecue: {
-      reducerName: "move_item_from_barbecue",
-      argsType: MoveItemFromBarbecue.getTypeScriptAlgebraicType(),
+    move_item_from_barbecue_to_player_slot: {
+      reducerName: "move_item_from_barbecue_to_player_slot",
+      argsType: MoveItemFromBarbecueToPlayerSlot.getTypeScriptAlgebraicType(),
     },
     move_item_from_box: {
       reducerName: "move_item_from_box",
@@ -2743,6 +2751,10 @@ const REMOTE_MODULE = {
     move_item_to_stash: {
       reducerName: "move_item_to_stash",
       argsType: MoveItemToStash.getTypeScriptAlgebraicType(),
+    },
+    move_item_within_barbecue: {
+      reducerName: "move_item_within_barbecue",
+      argsType: MoveItemWithinBarbecue.getTypeScriptAlgebraicType(),
     },
     move_item_within_box: {
       reducerName: "move_item_within_box",
@@ -3176,6 +3188,10 @@ const REMOTE_MODULE = {
       reducerName: "spawn_wild_animal",
       argsType: SpawnWildAnimal.getTypeScriptAlgebraicType(),
     },
+    split_and_drop_item_from_barbecue_slot_to_world: {
+      reducerName: "split_and_drop_item_from_barbecue_slot_to_world",
+      argsType: SplitAndDropItemFromBarbecueSlotToWorld.getTypeScriptAlgebraicType(),
+    },
     split_and_drop_item_from_box_slot_to_world: {
       reducerName: "split_and_drop_item_from_box_slot_to_world",
       argsType: SplitAndDropItemFromBoxSlotToWorld.getTypeScriptAlgebraicType(),
@@ -3223,6 +3239,10 @@ const REMOTE_MODULE = {
     split_stack: {
       reducerName: "split_stack",
       argsType: SplitStack.getTypeScriptAlgebraicType(),
+    },
+    split_stack_from_barbecue: {
+      reducerName: "split_stack_from_barbecue",
+      argsType: SplitStackFromBarbecue.getTypeScriptAlgebraicType(),
     },
     split_stack_from_box: {
       reducerName: "split_stack_from_box",
@@ -3307,6 +3327,10 @@ const REMOTE_MODULE = {
     split_stack_into_stash: {
       reducerName: "split_stack_into_stash",
       argsType: SplitStackIntoStash.getTypeScriptAlgebraicType(),
+    },
+    split_stack_within_barbecue: {
+      reducerName: "split_stack_within_barbecue",
+      argsType: SplitStackWithinBarbecue.getTypeScriptAlgebraicType(),
     },
     split_stack_within_box: {
       reducerName: "split_stack_within_box",
@@ -3539,7 +3563,7 @@ export type Reducer = never
 | { name: "DodgeRoll", args: DodgeRoll }
 | { name: "DrinkWater", args: DrinkWater }
 | { name: "DropItem", args: DropItem }
-| { name: "DropItemFromBarbecue", args: DropItemFromBarbecue }
+| { name: "DropItemFromBarbecueSlotToWorld", args: DropItemFromBarbecueSlotToWorld }
 | { name: "DropItemFromBoxSlotToWorld", args: DropItemFromBoxSlotToWorld }
 | { name: "DropItemFromCampfireSlotToWorld", args: DropItemFromCampfireSlotToWorld }
 | { name: "DropItemFromCorpseSlotToWorld", args: DropItemFromCorpseSlotToWorld }
@@ -3585,7 +3609,7 @@ export type Reducer = never
 | { name: "LoadRangedWeapon", args: LoadRangedWeapon }
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
 | { name: "ManualCleanupThunderEvents", args: ManualCleanupThunderEvents }
-| { name: "MoveItemFromBarbecue", args: MoveItemFromBarbecue }
+| { name: "MoveItemFromBarbecueToPlayerSlot", args: MoveItemFromBarbecueToPlayerSlot }
 | { name: "MoveItemFromBox", args: MoveItemFromBox }
 | { name: "MoveItemFromBrothPot", args: MoveItemFromBrothPot }
 | { name: "MoveItemFromBrothPotOutput", args: MoveItemFromBrothPotOutput }
@@ -3614,6 +3638,7 @@ export type Reducer = never
 | { name: "MoveItemToRainCollector", args: MoveItemToRainCollector }
 | { name: "MoveItemToRefrigerator", args: MoveItemToRefrigerator }
 | { name: "MoveItemToStash", args: MoveItemToStash }
+| { name: "MoveItemWithinBarbecue", args: MoveItemWithinBarbecue }
 | { name: "MoveItemWithinBox", args: MoveItemWithinBox }
 | { name: "MoveItemWithinBrothPot", args: MoveItemWithinBrothPot }
 | { name: "MoveItemWithinCampfire", args: MoveItemWithinCampfire }
@@ -3722,6 +3747,7 @@ export type Reducer = never
 | { name: "SpawnMemoryShardsAtNight", args: SpawnMemoryShardsAtNight }
 | { name: "SpawnSeedsAtNight", args: SpawnSeedsAtNight }
 | { name: "SpawnWildAnimal", args: SpawnWildAnimal }
+| { name: "SplitAndDropItemFromBarbecueSlotToWorld", args: SplitAndDropItemFromBarbecueSlotToWorld }
 | { name: "SplitAndDropItemFromBoxSlotToWorld", args: SplitAndDropItemFromBoxSlotToWorld }
 | { name: "SplitAndDropItemFromCampfireSlotToWorld", args: SplitAndDropItemFromCampfireSlotToWorld }
 | { name: "SplitAndDropItemFromCorpseSlotToWorld", args: SplitAndDropItemFromCorpseSlotToWorld }
@@ -3734,6 +3760,7 @@ export type Reducer = never
 | { name: "SplitAndMoveFromFumarole", args: SplitAndMoveFromFumarole }
 | { name: "SplitAndMoveFromFurnace", args: SplitAndMoveFromFurnace }
 | { name: "SplitStack", args: SplitStack }
+| { name: "SplitStackFromBarbecue", args: SplitStackFromBarbecue }
 | { name: "SplitStackFromBox", args: SplitStackFromBox }
 | { name: "SplitStackFromBrothPot", args: SplitStackFromBrothPot }
 | { name: "SplitStackFromCampfire", args: SplitStackFromCampfire }
@@ -3755,6 +3782,7 @@ export type Reducer = never
 | { name: "SplitStackIntoLantern", args: SplitStackIntoLantern }
 | { name: "SplitStackIntoRefrigerator", args: SplitStackIntoRefrigerator }
 | { name: "SplitStackIntoStash", args: SplitStackIntoStash }
+| { name: "SplitStackWithinBarbecue", args: SplitStackWithinBarbecue }
 | { name: "SplitStackWithinBox", args: SplitStackWithinBox }
 | { name: "SplitStackWithinBrothPot", args: SplitStackWithinBrothPot }
 | { name: "SplitStackWithinCampfire", args: SplitStackWithinCampfire }
@@ -4424,20 +4452,20 @@ export class RemoteReducers {
     this.connection.offReducer("drop_item", callback);
   }
 
-  dropItemFromBarbecue(barbecueId: number, slotIndex: number) {
+  dropItemFromBarbecueSlotToWorld(barbecueId: number, slotIndex: number) {
     const __args = { barbecueId, slotIndex };
     let __writer = new __BinaryWriter(1024);
-    DropItemFromBarbecue.serialize(__writer, __args);
+    DropItemFromBarbecueSlotToWorld.serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("drop_item_from_barbecue", __argsBuffer, this.setCallReducerFlags.dropItemFromBarbecueFlags);
+    this.connection.callReducer("drop_item_from_barbecue_slot_to_world", __argsBuffer, this.setCallReducerFlags.dropItemFromBarbecueSlotToWorldFlags);
   }
 
-  onDropItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
-    this.connection.onReducer("drop_item_from_barbecue", callback);
+  onDropItemFromBarbecueSlotToWorld(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
+    this.connection.onReducer("drop_item_from_barbecue_slot_to_world", callback);
   }
 
-  removeOnDropItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
-    this.connection.offReducer("drop_item_from_barbecue", callback);
+  removeOnDropItemFromBarbecueSlotToWorld(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
+    this.connection.offReducer("drop_item_from_barbecue_slot_to_world", callback);
   }
 
   dropItemFromBoxSlotToWorld(boxId: number, slotIndex: number) {
@@ -5108,20 +5136,20 @@ export class RemoteReducers {
     this.connection.offReducer("manual_cleanup_thunder_events", callback);
   }
 
-  moveItemFromBarbecue(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
+  moveItemFromBarbecueToPlayerSlot(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { barbecueId, sourceSlotIndex, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
-    MoveItemFromBarbecue.serialize(__writer, __args);
+    MoveItemFromBarbecueToPlayerSlot.serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("move_item_from_barbecue", __argsBuffer, this.setCallReducerFlags.moveItemFromBarbecueFlags);
+    this.connection.callReducer("move_item_from_barbecue_to_player_slot", __argsBuffer, this.setCallReducerFlags.moveItemFromBarbecueToPlayerSlotFlags);
   }
 
-  onMoveItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
-    this.connection.onReducer("move_item_from_barbecue", callback);
+  onMoveItemFromBarbecueToPlayerSlot(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_from_barbecue_to_player_slot", callback);
   }
 
-  removeOnMoveItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
-    this.connection.offReducer("move_item_from_barbecue", callback);
+  removeOnMoveItemFromBarbecueToPlayerSlot(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_from_barbecue_to_player_slot", callback);
   }
 
   moveItemFromBox(boxId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
@@ -5570,6 +5598,22 @@ export class RemoteReducers {
 
   removeOnMoveItemToStash(callback: (ctx: ReducerEventContext, stashId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("move_item_to_stash", callback);
+  }
+
+  moveItemWithinBarbecue(barbecueId: number, sourceSlotIndex: number, targetSlotIndex: number) {
+    const __args = { barbecueId, sourceSlotIndex, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemWithinBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_within_barbecue", __argsBuffer, this.setCallReducerFlags.moveItemWithinBarbecueFlags);
+  }
+
+  onMoveItemWithinBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_within_barbecue", callback);
+  }
+
+  removeOnMoveItemWithinBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_within_barbecue", callback);
   }
 
   moveItemWithinBox(boxId: number, sourceSlotIndex: number, targetSlotIndex: number) {
@@ -7264,6 +7308,22 @@ export class RemoteReducers {
     this.connection.offReducer("spawn_wild_animal", callback);
   }
 
+  splitAndDropItemFromBarbecueSlotToWorld(barbecueId: number, slotIndex: number, quantityToSplit: number) {
+    const __args = { barbecueId, slotIndex, quantityToSplit };
+    let __writer = new __BinaryWriter(1024);
+    SplitAndDropItemFromBarbecueSlotToWorld.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_and_drop_item_from_barbecue_slot_to_world", __argsBuffer, this.setCallReducerFlags.splitAndDropItemFromBarbecueSlotToWorldFlags);
+  }
+
+  onSplitAndDropItemFromBarbecueSlotToWorld(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number, quantityToSplit: number) => void) {
+    this.connection.onReducer("split_and_drop_item_from_barbecue_slot_to_world", callback);
+  }
+
+  removeOnSplitAndDropItemFromBarbecueSlotToWorld(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number, quantityToSplit: number) => void) {
+    this.connection.offReducer("split_and_drop_item_from_barbecue_slot_to_world", callback);
+  }
+
   splitAndDropItemFromBoxSlotToWorld(boxId: number, slotIndex: number, quantityToSplit: number) {
     const __args = { boxId, slotIndex, quantityToSplit };
     let __writer = new __BinaryWriter(1024);
@@ -7454,6 +7514,22 @@ export class RemoteReducers {
 
   removeOnSplitStack(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack", callback);
+  }
+
+  splitStackFromBarbecue(sourceBarbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { sourceBarbecueId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackFromBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_from_barbecue", __argsBuffer, this.setCallReducerFlags.splitStackFromBarbecueFlags);
+  }
+
+  onSplitStackFromBarbecue(callback: (ctx: ReducerEventContext, sourceBarbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_from_barbecue", callback);
+  }
+
+  removeOnSplitStackFromBarbecue(callback: (ctx: ReducerEventContext, sourceBarbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_from_barbecue", callback);
   }
 
   splitStackFromBox(boxId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
@@ -7790,6 +7866,22 @@ export class RemoteReducers {
 
   removeOnSplitStackIntoStash(callback: (ctx: ReducerEventContext, stashId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
     this.connection.offReducer("split_stack_into_stash", callback);
+  }
+
+  splitStackWithinBarbecue(barbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
+    const __args = { barbecueId, sourceSlotIndex, quantityToSplit, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackWithinBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_within_barbecue", __argsBuffer, this.setCallReducerFlags.splitStackWithinBarbecueFlags);
+  }
+
+  onSplitStackWithinBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_within_barbecue", callback);
+  }
+
+  removeOnSplitStackWithinBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_within_barbecue", callback);
   }
 
   splitStackWithinBox(boxId: number, sourceSlotIndex: number, targetSlotIndex: number, quantityToSplit: number) {
@@ -8604,9 +8696,9 @@ export class SetReducerFlags {
     this.dropItemFlags = flags;
   }
 
-  dropItemFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
-  dropItemFromBarbecue(flags: __CallReducerFlags) {
-    this.dropItemFromBarbecueFlags = flags;
+  dropItemFromBarbecueSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
+  dropItemFromBarbecueSlotToWorld(flags: __CallReducerFlags) {
+    this.dropItemFromBarbecueSlotToWorldFlags = flags;
   }
 
   dropItemFromBoxSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
@@ -8824,9 +8916,9 @@ export class SetReducerFlags {
     this.manualCleanupThunderEventsFlags = flags;
   }
 
-  moveItemFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
-  moveItemFromBarbecue(flags: __CallReducerFlags) {
-    this.moveItemFromBarbecueFlags = flags;
+  moveItemFromBarbecueToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemFromBarbecueToPlayerSlot(flags: __CallReducerFlags) {
+    this.moveItemFromBarbecueToPlayerSlotFlags = flags;
   }
 
   moveItemFromBoxFlags: __CallReducerFlags = 'FullUpdate';
@@ -8967,6 +9059,11 @@ export class SetReducerFlags {
   moveItemToStashFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToStash(flags: __CallReducerFlags) {
     this.moveItemToStashFlags = flags;
+  }
+
+  moveItemWithinBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemWithinBarbecue(flags: __CallReducerFlags) {
+    this.moveItemWithinBarbecueFlags = flags;
   }
 
   moveItemWithinBoxFlags: __CallReducerFlags = 'FullUpdate';
@@ -9509,6 +9606,11 @@ export class SetReducerFlags {
     this.spawnWildAnimalFlags = flags;
   }
 
+  splitAndDropItemFromBarbecueSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
+  splitAndDropItemFromBarbecueSlotToWorld(flags: __CallReducerFlags) {
+    this.splitAndDropItemFromBarbecueSlotToWorldFlags = flags;
+  }
+
   splitAndDropItemFromBoxSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
   splitAndDropItemFromBoxSlotToWorld(flags: __CallReducerFlags) {
     this.splitAndDropItemFromBoxSlotToWorldFlags = flags;
@@ -9567,6 +9669,11 @@ export class SetReducerFlags {
   splitStackFlags: __CallReducerFlags = 'FullUpdate';
   splitStack(flags: __CallReducerFlags) {
     this.splitStackFlags = flags;
+  }
+
+  splitStackFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackFromBarbecue(flags: __CallReducerFlags) {
+    this.splitStackFromBarbecueFlags = flags;
   }
 
   splitStackFromBoxFlags: __CallReducerFlags = 'FullUpdate';
@@ -9672,6 +9779,11 @@ export class SetReducerFlags {
   splitStackIntoStashFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoStash(flags: __CallReducerFlags) {
     this.splitStackIntoStashFlags = flags;
+  }
+
+  splitStackWithinBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackWithinBarbecue(flags: __CallReducerFlags) {
+    this.splitStackWithinBarbecueFlags = flags;
   }
 
   splitStackWithinBoxFlags: __CallReducerFlags = 'FullUpdate';

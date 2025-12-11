@@ -892,7 +892,7 @@ const COLLISION_OFFSETS = {
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
-  BARBECUE: { x: 0, y: 0 }, // Same as campfire (centered collision)
+  BARBECUE: { x: 0, y: -50 }, // Collision positioned UP at visual base (matches furnace, similar size appliance)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)

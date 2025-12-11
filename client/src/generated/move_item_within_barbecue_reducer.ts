@@ -28,39 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type DropItemFromBarbecue = {
+export type MoveItemWithinBarbecue = {
   barbecueId: number,
-  slotIndex: number,
+  sourceSlotIndex: number,
+  targetSlotIndex: number,
 };
-let _cached_DropItemFromBarbecue_type_value: __AlgebraicTypeType | null = null;
+let _cached_MoveItemWithinBarbecue_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const DropItemFromBarbecue = {
+export const MoveItemWithinBarbecue = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_DropItemFromBarbecue_type_value) return _cached_DropItemFromBarbecue_type_value;
-    _cached_DropItemFromBarbecue_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_DropItemFromBarbecue_type_value.value.elements.push(
+    if (_cached_MoveItemWithinBarbecue_type_value) return _cached_MoveItemWithinBarbecue_type_value;
+    _cached_MoveItemWithinBarbecue_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_MoveItemWithinBarbecue_type_value.value.elements.push(
       { name: "barbecueId", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "slotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
     );
-    return _cached_DropItemFromBarbecue_type_value;
+    return _cached_MoveItemWithinBarbecue_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: DropItemFromBarbecue): void {
-    __AlgebraicTypeValue.serializeValue(writer, DropItemFromBarbecue.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: MoveItemWithinBarbecue): void {
+    __AlgebraicTypeValue.serializeValue(writer, MoveItemWithinBarbecue.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): DropItemFromBarbecue {
-    return __AlgebraicTypeValue.deserializeValue(reader, DropItemFromBarbecue.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): MoveItemWithinBarbecue {
+    return __AlgebraicTypeValue.deserializeValue(reader, MoveItemWithinBarbecue.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default DropItemFromBarbecue;
+export default MoveItemWithinBarbecue;
 
