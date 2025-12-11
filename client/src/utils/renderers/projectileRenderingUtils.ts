@@ -105,11 +105,26 @@ export const renderProjectile = ({
   // Calculate rotation based on velocity vector
   let angle: number;
   if (isThrown) {
-    // Thrown items spin while maintaining their trajectory
-    const baseAngle = Math.atan2(projectile.velocityY, projectile.velocityX) + (Math.PI / 4);
-    const spinSpeed = 8.0; // Rotations per second - adjust for desired spin rate
-    const spinAngle = spinSpeed * 2 * Math.PI * elapsedTimeSeconds;
-    angle = baseAngle + spinAngle;
+    // Check if this is a spear/harpoon type weapon (should fly straight, not spin)
+    let isSpearType = false;
+    if (itemDefinitions) {
+      const thrownItemDef = itemDefinitions.get(projectile.itemDefId.toString());
+      if (thrownItemDef) {
+        const name = thrownItemDef.name;
+        isSpearType = name === "Wooden Spear" || name === "Stone Spear" || name === "Reed Harpoon";
+      }
+    }
+    
+    if (isSpearType) {
+      // Spears and harpoons fly straight, pointing in direction of travel
+      angle = Math.atan2(projectile.velocityY, projectile.velocityX) + (Math.PI / 4);
+    } else {
+      // Other thrown items (skulls, clubs, etc.) spin while flying
+      const baseAngle = Math.atan2(projectile.velocityY, projectile.velocityX) + (Math.PI / 4);
+      const spinSpeed = 8.0; // Rotations per second - adjust for desired spin rate
+      const spinAngle = spinSpeed * 2 * Math.PI * elapsedTimeSeconds;
+      angle = baseAngle + spinAngle;
+    }
   } else {
     // FIXED: Calculate rotation based on instantaneous velocity vector with correct gravity
     const instantaneousVelocityY = projectile.velocityY + GRAVITY * finalGravityMultiplier * elapsedTimeSeconds;
