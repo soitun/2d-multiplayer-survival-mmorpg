@@ -7,9 +7,16 @@ import grass1TextureUrl from '../../assets/doodads/grass1.png';
 import grass2TextureUrl from '../../assets/doodads/grass2.png';
 import grass3TextureUrl from '../../assets/doodads/grass3.png';
 import grass4TextureUrl from '../../assets/doodads/grass4.png';
-import grass5TextureUrl from '../../assets/doodads/grass5.png';
 import tallGrassATextureUrl from '../../assets/doodads/tall_grass_a.png';
 import tallGrassBTextureUrl from '../../assets/doodads/tall_grass_b.png';
+
+// Tundra grass assets
+import grass1TundraTextureUrl from '../../assets/doodads/grass1_tundra.png';
+import grass2TundraTextureUrl from '../../assets/doodads/grass2_tundra.png';
+import grassTundra3TextureUrl from '../../assets/doodads/grass_tundra3.png';
+import grassTundra4TextureUrl from '../../assets/doodads/grass_tundra4.png';
+import tallGrassTundraATextureUrl from '../../assets/doodads/tall_grass_tundra_a.png';
+import tallGrassTundraBTextureUrl from '../../assets/doodads/tall_grass_tundra_b.png';
 
 // Water foliage assets
 import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
@@ -100,6 +107,12 @@ const SWAYING_GRASS_TYPES = new Set<string>([
     'PatchE', // Will be available after bindings regeneration
     GrassAppearanceType.TallGrassA.tag,
     GrassAppearanceType.TallGrassB.tag,
+    'TundraPatchA', // Will be available after bindings regeneration
+    'TundraPatchB', // Will be available after bindings regeneration
+    'TundraPatchC', // Will be available after bindings regeneration
+    'TundraPatchD', // Will be available after bindings regeneration
+    'TallGrassTundraA', // Will be available after bindings regeneration
+    'TallGrassTundraB', // Will be available after bindings regeneration
     GrassAppearanceType.ReedBedsA.tag,
     GrassAppearanceType.Bulrushes.tag,
     GrassAppearanceType.SeaweedForest.tag,
@@ -172,10 +185,17 @@ const grassAssetPaths: Record<string, string> = {
     [GrassAppearanceType.PatchA.tag]: grass1TextureUrl,
     [GrassAppearanceType.PatchB.tag]: grass2TextureUrl,
     [GrassAppearanceType.PatchC.tag]: grass3TextureUrl,
-    'PatchD': grass4TextureUrl, // Will be available after bindings regeneration
-    'PatchE': grass5TextureUrl, // Will be available after bindings regeneration
+    [GrassAppearanceType.PatchD.tag]: grass4TextureUrl,
     [GrassAppearanceType.TallGrassA.tag]: tallGrassATextureUrl,
     [GrassAppearanceType.TallGrassB.tag]: tallGrassBTextureUrl,
+    // Tundra grass variants
+    'TundraPatchA': grass1TundraTextureUrl,
+    'TundraPatchB': grass2TundraTextureUrl,
+    'TundraPatchC': grassTundra3TextureUrl,
+    'TundraPatchD': grassTundra4TextureUrl,
+    'TallGrassTundraA': tallGrassTundraATextureUrl,
+    'TallGrassTundraB': tallGrassTundraBTextureUrl,
+    // Water foliage
     [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
     [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
     [GrassAppearanceType.LilyPads.tag]: lilyPadsTextureUrl,
@@ -194,6 +214,14 @@ const grassTargetWidths: Record<string, number> = {
     // Tall grass variants - visible but not overwhelming
     [GrassAppearanceType.TallGrassA.tag]: 128, // Single stalk with seed head - increased from 96 for better visibility
     [GrassAppearanceType.TallGrassB.tag]: 128, // Tall with feathery plumes - prominent but not dominant
+    
+    // Tundra grass variants - same sizes as regular grass
+    'TundraPatchA': 128,
+    'TundraPatchB': 128,
+    'TundraPatchC': 128,
+    'TundraPatchD': 128,
+    'TallGrassTundraA': 128,
+    'TallGrassTundraB': 128,
     
     // Water foliage - distinctive but balanced
     [GrassAppearanceType.ReedBedsA.tag]: 128, // Tall swaying reeds - medium-tall

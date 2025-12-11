@@ -30,7 +30,9 @@ import {
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
   AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery station
+  Cairn as SpacetimeDBCairn, // ADDED: Cairn import
 } from '../../generated';
+import { DbConnection } from '../../generated'; // ADDED: DbConnection for tile biome lookup
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
 import { gameConfig } from '../../config/gameConfig';
 import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
@@ -38,6 +40,7 @@ import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the consta
 import { renderTree } from './treeRenderingUtils';
 import { renderStone } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
+import { renderCairn } from './cairnRenderingUtils';
 import { renderWoodenStorageBox } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
@@ -427,6 +430,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
   buildingClusters?: Map<string, any>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
+  connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
 }
 
 
@@ -494,6 +498,7 @@ export const renderYSortedEntities = ({
   allFoundations, // ADDED: All foundations to check for adjacent foundations
   buildingClusters, // ADDED: Building clusters for fog of war
   playerBuildingClusterId, // ADDED: Which building the player is in
+  connection, // ADDED: Connection for tile biome lookup
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -883,6 +888,12 @@ export const renderYSortedEntities = ({
           }
           
           renderRuneStone(ctx, runeStone, nowMs, cycleProgress, false, false, localPlayerPosition, showBuildingRestriction);
+      } else if (type === 'cairn') {
+          // Render cairn with interaction indicator if in range
+          const cairn = entity as SpacetimeDBCairn;
+          const isInInteractionRange = closestInteractableTarget?.type === 'cairn' && 
+                                       closestInteractableTarget?.id === cairn.id;
+          renderCairn(ctx, cairn, cameraOffsetX, cameraOffsetY, connection ?? null, isInInteractionRange ?? false, nowMs, cycleProgress);
       } else if (type === 'shelter') {
           const shelter = entity as SpacetimeDBShelter;
           if (shelterImage) { 

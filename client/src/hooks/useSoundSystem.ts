@@ -94,6 +94,7 @@ const SOUND_DEFINITIONS = {
     error_field_cauldron_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Field cauldron placement error sound (client-side immediate for instant feedback when trying to place cauldron without nearby campfire)
     error_placement_failed: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Placeable placement error sound (client-side immediate for instant feedback when trying to place campfire/furnace/etc on water or invalid location)
     unlock_sound: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Memory grid skill/faction unlock sound (client-side immediate for instant feedback)
+    cairn_unlock: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Cairn unlock sound (client-side immediate for instant feedback when player first unlocks a cairn)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -564,6 +565,8 @@ const playLocalSound = async (
                 variationCount = 1; // torch_hit_lit.mp3
             } else if (soundType === 'unlock_sound') {
                 variationCount = 1; // unlock_sound.mp3 - only one variation
+            } else if (soundType === 'cairn_unlock') {
+                variationCount = 1; // cairn_unlock.mp3 - only one variation
             } else if (soundType === 'light_torch') {
                 variationCount = 1; // light_torch.mp3
             } else if (soundType === 'extinguish_torch') {

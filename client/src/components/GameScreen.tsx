@@ -39,6 +39,8 @@ import {
     Tree as SpacetimeDBTree,
     Stone as SpacetimeDBStone,
     RuneStone as SpacetimeDBRuneStone,
+    Cairn as SpacetimeDBCairn,
+    PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
     Lantern as SpacetimeDBLantern,
@@ -115,6 +117,8 @@ interface GameScreenProps {
     clouds: Map<string, SpacetimeDBCloud>;
     stones: Map<string, SpacetimeDBStone>;
     runeStones: Map<string, SpacetimeDBRuneStone>;
+    cairns: Map<string, SpacetimeDBCairn>;
+    playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
     lanterns: Map<string, SpacetimeDBLantern>;
@@ -326,7 +330,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Destructure props for cleaner usage
     const {
-        players, trees, stones, runeStones, campfires, furnaces, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, runeStones
+        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, runeStones, cairns
         playerPins, playerCorpses, stashes,
         shelters,
         plantedSeeds,
@@ -802,6 +806,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 clouds={clouds}
                 stones={stones}
                 runeStones={runeStones}
+                cairns={cairns}
+                playerDiscoveredCairns={playerDiscoveredCairns}
                 campfires={campfires}
                 furnaces={furnaces} // ADDED: Furnaces prop to GameCanvas
                 harvestableResources={harvestableResources}
@@ -822,6 +828,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 doors={props.doors}
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
+                addSOVAMessage={sovaMessageAdder || undefined} // ADDED: Pass SOVA message adder for cairn lore
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}
                 worldState={worldState}

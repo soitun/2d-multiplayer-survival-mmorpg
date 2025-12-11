@@ -17,6 +17,7 @@ import {
     BrothPot as SpacetimeDBBrothPot,
     Door as SpacetimeDBDoor, // ADDED: Door import
     AlkStation as SpacetimeDBAlkStation, // ADDED: ALK station import
+    Cairn as SpacetimeDBCairn, // ADDED: Cairn import
     DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
@@ -86,6 +87,7 @@ interface UseInteractionFinderProps {
     brothPots: Map<string, SpacetimeDBBrothPot>;
     doors: Map<string, SpacetimeDBDoor>; // ADDED: Door support
     alkStations: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK station support
+    cairns: Map<string, SpacetimeDBCairn>; // ADDED: Cairn support
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
     players: Map<string, SpacetimeDBPlayer>;
     shelters: Map<string, SpacetimeDBShelter>;
@@ -121,6 +123,7 @@ interface UseInteractionFinderResult {
     closestInteractableWaterPosition: { x: number; y: number } | null;
     closestInteractableDoorId: bigint | null; // ADDED: Door support
     closestInteractableAlkStationId: number | null; // ADDED: ALK station support
+    closestInteractableCairnId: bigint | null; // ADDED: Cairn support
 }
 
 // Constants for box slots (should match server)
@@ -135,6 +138,7 @@ const INTERACTION_CHECK_INTERVAL = 16; // ms - Reduced for immediate responsiven
 export const PLAYER_DROPPED_ITEM_INTERACTION_DISTANCE_SQUARED = 120.0 * 120.0; // Balanced: 87% increase from original 64px, consistent with harvestable resources
 // PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED is now imported from playerCorpseRenderingUtils
 export const PLAYER_STASH_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0;
+export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 100.0 * 100.0; // Cairn interaction distance (matches server constant)
 export const PLAYER_STASH_SURFACE_INTERACTION_DISTANCE_SQUARED = 32.0 * 32.0;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
 
@@ -211,6 +215,7 @@ export function useInteractionFinder({
     brothPots,
     doors, // ADDED: Door support
     alkStations, // ADDED: ALK station support
+    cairns, // ADDED: Cairn support
     sleepingBags,
     players,
     shelters,
@@ -238,6 +243,7 @@ export function useInteractionFinder({
     const [closestInteractableBrothPotId, setClosestInteractableBrothPotId] = useState<number | null>(null);
     const [closestInteractableDoorId, setClosestInteractableDoorId] = useState<bigint | null>(null); // ADDED: Door state
     const [closestInteractableAlkStationId, setClosestInteractableAlkStationId] = useState<number | null>(null); // ADDED: ALK station state
+    const [closestInteractableCairnId, setClosestInteractableCairnId] = useState<bigint | null>(null); // ADDED: Cairn state
     const [closestInteractableSleepingBagId, setClosestInteractableSleepingBagId] = useState<number | null>(null);
     const [closestInteractableKnockedOutPlayerId, setClosestInteractableKnockedOutPlayerId] = useState<string | null>(null);
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
@@ -262,6 +268,7 @@ export function useInteractionFinder({
         closestInteractableWaterPosition: null,
         closestInteractableDoorId: null, // ADDED: Door support
         closestInteractableAlkStationId: null, // ADDED: ALK station support
+        closestInteractableCairnId: null, // ADDED: Cairn support
     });
 
     const updateInteractionResult = useCallback(() => {
@@ -311,6 +318,9 @@ export function useInteractionFinder({
 
         let closestAlkStationId: number | null = null;
         let closestAlkStationDistSq = PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED; // ALK delivery station interaction distance
+
+        let closestCairnId: bigint | null = null;
+        let closestCairnDistSq = PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED; // Cairn interaction distance
 
         let closestSleepingBagId: number | null = null;
         let closestSleepingBagDistSq = PLAYER_SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED;
@@ -675,6 +685,20 @@ export function useInteractionFinder({
                 });
             }
 
+            // Find closest cairn
+            if (cairns) {
+                cairns.forEach((cairn) => {
+                    const dx = playerX - cairn.posX;
+                    const dy = playerY - cairn.posY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < closestCairnDistSq) {
+                        closestCairnDistSq = distSq;
+                        closestCairnId = cairn.id;
+                    }
+                });
+            }
+
             // Find closest knocked out player (excluding local player)
             if (players) {
                 players.forEach((player) => {
@@ -928,6 +952,17 @@ export function useInteractionFinder({
                     });
                 }
             }
+            if (closestCairnId !== null) {
+                const cairn = cairns?.get(String(closestCairnId));
+                if (cairn) {
+                    candidates.push({
+                        type: 'cairn',
+                        id: closestCairnId,
+                        position: { x: cairn.posX, y: cairn.posY },
+                        distance: Math.sqrt(closestCairnDistSq)
+                    });
+                }
+            }
             // Broth pot removed from candidates - it now works through campfire interaction
 
             // Find the closest target using priority selection
@@ -956,6 +991,7 @@ export function useInteractionFinder({
             closestInteractableWaterPosition: closestWaterPosition,
             closestInteractableDoorId: closestDoorId, // ADDED: Door support
             closestInteractableAlkStationId: closestAlkStationId, // ADDED: ALK station support
+            closestInteractableCairnId: closestCairnId, // ADDED: Cairn support
         };
 
         resultRef.current = calculatedResult;
@@ -1007,6 +1043,9 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableAlkStationId !== closestInteractableAlkStationId) {
             setClosestInteractableAlkStationId(calculatedResult.closestInteractableAlkStationId);
         }
+        if (calculatedResult.closestInteractableCairnId !== closestInteractableCairnId) {
+            setClosestInteractableCairnId(calculatedResult.closestInteractableCairnId);
+        }
         if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
         }
@@ -1016,7 +1055,7 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableWaterPosition !== closestInteractableWaterPosition) {
             setClosestInteractableWaterPosition(calculatedResult.closestInteractableWaterPosition);
         }
-    }, [localPlayer, harvestableResources, campfires, furnaces, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns]);
+    }, [localPlayer, harvestableResources, campfires, furnaces, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles]);
 
     useEffect(() => {
         // Use requestAnimationFrame for frame-synced updates (every ~16ms at 60fps)
@@ -1055,6 +1094,7 @@ export function useInteractionFinder({
         closestInteractableBrothPotId,
         closestInteractableDoorId, // ADDED: Door support
         closestInteractableAlkStationId, // ADDED: ALK station support
+        closestInteractableCairnId, // ADDED: Cairn support
         closestInteractableSleepingBagId,
         closestInteractableKnockedOutPlayerId,
         closestInteractableWaterPosition,

@@ -46,7 +46,7 @@ interface RenderPlacementPreviewParams {
 /**
  * Converts world pixel coordinates to tile coordinates
  */
-function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; tileY: number } {
+export function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; tileY: number } {
     const TILE_SIZE = 48; // pixels per tile (matches server TILE_SIZE_PX and GameCanvas.tsx)
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);

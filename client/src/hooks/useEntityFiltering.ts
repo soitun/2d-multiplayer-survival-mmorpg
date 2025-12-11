@@ -5,6 +5,7 @@ import {
   Tree as SpacetimeDBTree,
   Stone as SpacetimeDBStone,
   RuneStone as SpacetimeDBRuneStone,
+  Cairn as SpacetimeDBCairn,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Lantern as SpacetimeDBLantern,
@@ -69,6 +70,8 @@ interface EntityFilteringResult {
   visibleTrees: SpacetimeDBTree[];
   visibleStones: SpacetimeDBStone[];
   visibleRuneStones: SpacetimeDBRuneStone[];
+  visibleCairns: SpacetimeDBCairn[];
+  visibleCairnsMap: Map<string, SpacetimeDBCairn>;
   visibleWoodenStorageBoxes: SpacetimeDBWoodenStorageBox[];
   visibleSleepingBags: SpacetimeDBSleepingBag[];
   visibleProjectiles: SpacetimeDBProjectile[];
@@ -131,6 +134,7 @@ export type YSortedEntityType =
   | { type: 'tree'; entity: SpacetimeDBTree }
   | { type: 'stone'; entity: SpacetimeDBStone }
   | { type: 'rune_stone'; entity: SpacetimeDBRuneStone }
+  | { type: 'cairn'; entity: SpacetimeDBCairn }
   | { type: 'wooden_storage_box'; entity: SpacetimeDBWoodenStorageBox }
   | { type: 'player_corpse'; entity: SpacetimeDBPlayerCorpse }
   | { type: 'stash'; entity: SpacetimeDBStash }
@@ -317,6 +321,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'tree': return 2;
     case 'stone': return 3;
     case 'rune_stone': return 3.5; // Render between stones and animals
+    case 'cairn': return 3.5; // Render at same priority as rune stones
     case 'wild_animal': {
       // Flying birds should render above everything (trees, stones, players, etc.)
       const animal = item.entity as SpacetimeDBWildAnimal;
@@ -588,6 +593,7 @@ export function useEntityFiltering(
   trees: Map<string, SpacetimeDBTree>,
   stones: Map<string, SpacetimeDBStone>,
   runeStones: Map<string, SpacetimeDBRuneStone>,
+  cairns: Map<string, SpacetimeDBCairn>,
   campfires: Map<string, SpacetimeDBCampfire>,
   furnaces: Map<string, SpacetimeDBFurnace>, // ADDED: Furnaces parameter
   lanterns: Map<string, SpacetimeDBLantern>,
@@ -874,6 +880,11 @@ export function useEntityFiltering(
     runeStones ? Array.from(runeStones.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
     : [],
     [runeStones, isEntityInView, viewBounds, stableTimestamp]
+  );
+  const visibleCairns = useMemo(() => 
+    cairns ? Array.from(cairns.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
+    : [],
+    [cairns, isEntityInView, viewBounds, stableTimestamp]
   );
   let visibleHarvestableResources = cachedVisibleResources;
 
@@ -1380,6 +1391,12 @@ export function useEntityFiltering(
     return map;
   }, [visibleRuneStones]);
 
+  const visibleCairnsMap = useMemo(() => {
+    const map = new Map<string, SpacetimeDBCairn>();
+    visibleCairns.forEach(e => map.set(e.id.toString(), e));
+    return map;
+  }, [visibleCairns]);
+
   const visibleWoodenStorageBoxesMap = useMemo(() => {
     const map = new Map<string, SpacetimeDBWoodenStorageBox>();
     visibleWoodenStorageBoxes.forEach(e => map.set(e.id.toString(), e));
@@ -1629,6 +1646,7 @@ export function useEntityFiltering(
     visibleTrees.forEach(e => addEntity('tree', e));
     visibleStones.forEach(e => { if (e.health > 0) addEntity('stone', e); });
     visibleRuneStones.forEach(e => addEntity('rune_stone', e));
+    visibleCairns.forEach(e => addEntity('cairn', e));
     visibleWoodenStorageBoxes.forEach(e => addEntity('wooden_storage_box', e));
     visibleStashes.forEach(e => addEntity('stash', e));
     visibleCampfires.forEach(e => addEntity('campfire', e));
@@ -2232,7 +2250,7 @@ export function useEntityFiltering(
     return allEntities as YSortedEntityType[];
   },
     // Dependencies for cached Y-sorting
-    [visiblePlayers, visibleTrees, visibleStones, visibleRuneStones, visibleWoodenStorageBoxes, 
+    [visiblePlayers, visibleTrees, visibleStones, visibleRuneStones, visibleCairns, visibleWoodenStorageBoxes, 
     visiblePlayerCorpses, visibleStashes, 
     visibleCampfires, visibleFurnaces, visibleLanterns, visibleDroppedItems,
     visibleProjectiles, visibleGrass,
@@ -2278,6 +2296,8 @@ export function useEntityFiltering(
     visibleStones,
     visibleRuneStones,
     visibleRuneStonesMap,
+    visibleCairns,
+    visibleCairnsMap,
     visibleWoodenStorageBoxes,
     visibleSleepingBags,
     visiblePlayerCorpses,

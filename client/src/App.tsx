@@ -241,7 +241,7 @@ function AppContent() {
 
     // --- Pass viewport state to useSpacetimeTables ---
     const { 
-      players, trees, clouds, stones, runeStones, campfires, furnaces, lanterns, // ADDED: furnaces, runeStones
+      players, trees, clouds, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, lanterns, // ADDED: furnaces, runeStones, cairns
       harvestableResources,
       itemDefinitions, 
       inventoryItems, worldState, activeEquipments, droppedItems, 
@@ -420,6 +420,12 @@ function AppContent() {
               viewMaxX: currentViewport.maxX,
               viewMaxY: currentViewport.maxY
             }, Date.now()).map(rs => [rs.id.toString(), rs])) : new Map(), // Filter visible rune stones only
+            cairns: currentViewport ? new Map(filterVisibleEntities(cairns, {
+              viewMinX: currentViewport.minX,
+              viewMinY: currentViewport.minY,
+              viewMaxX: currentViewport.maxX,
+              viewMaxY: currentViewport.maxY
+            }, Date.now()).map(c => [c.id.toString(), c])) : new Map(), // Filter visible cairns only
             boxes: woodenStorageBoxes,
             rainCollectors,
             furnaces, // Add furnaces to collision system
@@ -1030,6 +1036,8 @@ function AppContent() {
                             clouds={clouds}
                             stones={stones}
                             runeStones={runeStones}
+                            cairns={cairns}
+                            playerDiscoveredCairns={playerDiscoveredCairns}
                             campfires={campfires}
                             furnaces={furnaces} // ADDED: Furnaces prop
                             lanterns={lanterns}

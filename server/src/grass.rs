@@ -67,6 +67,14 @@ pub enum GrassAppearanceType {
     BramblesA,
     BramblesB,
     
+    // Tundra foliage
+    TundraPatchA,      // grass1_tundra.png
+    TundraPatchB,      // grass2_tundra.png
+    TundraPatchC,      // grass_tundra3.png
+    TundraPatchD,      // grass_tundra4.png
+    TallGrassTundraA,  // tall_grass_tundra_a.png
+    TallGrassTundraB,  // tall_grass_tundra_b.png
+    
     // Water foliage
     ReedBedsA,       // Tall swaying reeds
     Bulrushes,       // Classic cattails

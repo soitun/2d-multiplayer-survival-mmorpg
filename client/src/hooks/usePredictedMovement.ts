@@ -248,7 +248,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500; // 500ms dodge roll duration
       
       if (isDodgeRolling && dodgeRollState) {
-        // SMOOTH DODGE ROLL: Use CLIENT's position as start, not server's (prevents snap/stutter)
+        // SMOOTH DODGE ROLL: Use velocity-based movement for smooth collision handling
         const serverDodgeStartTime = Number(dodgeRollState.startTimeMs);
         
         // Detect NEW dodge roll (server start time changed) - initialize client-side tracking
@@ -257,7 +257,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
           const clientStartX = clientPositionRef.current.x;
           const clientStartY = clientPositionRef.current.y;
           
-          // Calculate dodge direction and distance from server's data
+          // Calculate dodge direction from server's data (normalized)
           const serverDodgeDx = dodgeRollState.targetX - dodgeRollState.startX;
           const serverDodgeDy = dodgeRollState.targetY - dodgeRollState.startY;
           
@@ -272,18 +272,50 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
         }
         
         const clientDodge = clientDodgeRollRef.current;
-        const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0); // 0.0 to 1.0
         
-        // Simple linear interpolation from CLIENT's start to CLIENT's target (no snapping!)
-        const interpolatedX = clientDodge.startX + (clientDodge.targetX - clientDodge.startX) * dodgeProgress;
-        const interpolatedY = clientDodge.startY + (clientDodge.targetY - clientDodge.startY) * dodgeProgress;
+        // COLLISION FIX: Use velocity-based movement instead of progress-based interpolation
+        // This allows collision to work smoothly by moving small distances each frame
+        const dodgeDx = clientDodge.targetX - clientDodge.startX;
+        const dodgeDy = clientDodge.targetY - clientDodge.startY;
+        const dodgeDistance = Math.sqrt(dodgeDx * dodgeDx + dodgeDy * dodgeDy);
         
-        // Apply collision detection
+        let targetX = clientPositionRef.current.x;
+        let targetY = clientPositionRef.current.y;
+        
+        if (dodgeDistance > 0.01) {
+          // Calculate normalized direction
+          const dodgeDirX = dodgeDx / dodgeDistance;
+          const dodgeDirY = dodgeDy / dodgeDistance;
+          
+          // Calculate how far to move this frame based on dodge roll speed (450px in 500ms = 900px/s)
+          const DODGE_ROLL_SPEED = 900; // pixels per second
+          const moveDistance = DODGE_ROLL_SPEED * deltaTime;
+          
+          // Calculate remaining distance to target
+          const remainingDx = clientDodge.targetX - clientPositionRef.current.x;
+          const remainingDy = clientDodge.targetY - clientPositionRef.current.y;
+          const remainingDistance = Math.sqrt(remainingDx * remainingDx + remainingDy * remainingDy);
+          
+          // Only move if we haven't reached the target
+          if (remainingDistance > 1.0) {
+            // Cap movement to remaining distance (don't overshoot)
+            const actualMoveDistance = Math.min(moveDistance, remainingDistance);
+            
+            // Use remaining direction (in case collision changed our path)
+            const moveDirX = remainingDistance > 0.01 ? remainingDx / remainingDistance : dodgeDirX;
+            const moveDirY = remainingDistance > 0.01 ? remainingDy / remainingDistance : dodgeDirY;
+            
+            targetX = clientPositionRef.current.x + moveDirX * actualMoveDistance;
+            targetY = clientPositionRef.current.y + moveDirY * actualMoveDistance;
+          }
+        }
+        
+        // Apply collision detection to the per-frame movement (small distances = smooth collision)
         const collisionResult = resolveClientCollision(
           clientPositionRef.current.x,
           clientPositionRef.current.y,
-          interpolatedX,
-          interpolatedY,
+          targetX,
+          targetY,
           playerId,
           entities
         );
@@ -293,15 +325,11 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
         pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
         
         // Calculate direction for animation purposes (use client's dodge roll data)
-        const dodgeRollDx = clientDodge.targetX - clientDodge.startX;
-        const dodgeRollDy = clientDodge.targetY - clientDodge.startY;
-        const dodgeRollMagnitude = Math.sqrt(dodgeRollDx * dodgeRollDx + dodgeRollDy * dodgeRollDy);
-        
-        if (dodgeRollMagnitude > 0) {
-          direction = { 
-            x: dodgeRollDx / dodgeRollMagnitude, 
-            y: dodgeRollDy / dodgeRollMagnitude 
-          };
+        if (dodgeDistance > 0.01) {
+          const dodgeRollDirX = dodgeDx / dodgeDistance;
+          const dodgeRollDirY = dodgeDy / dodgeDistance;
+          
+          direction = { x: dodgeRollDirX, y: dodgeRollDirY };
           
           // Update facing direction for animation
           const movementThreshold = 0.1;
@@ -523,14 +551,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500;
     
     if (isDodgeRolling && clientDodgeRollRef.current) {
-      // Calculate exact dodge roll position at this moment using CLIENT's tracked data
-      const clientDodge = clientDodgeRollRef.current;
-      const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0);
-      
-      return {
-        x: clientDodge.startX + (clientDodge.targetX - clientDodge.startX) * dodgeProgress,
-        y: clientDodge.startY + (clientDodge.targetY - clientDodge.startY) * dodgeProgress
-      };
+      // During dodge roll, return current position (already updated by velocity-based movement)
+      // The position is collision-resolved, so it's the actual player position
+      return clientPositionRef.current;
     }
     
     // For normal movement, extrapolate from last known position

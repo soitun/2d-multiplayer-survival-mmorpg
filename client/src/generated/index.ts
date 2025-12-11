@@ -175,6 +175,8 @@ import { InteractDoor } from "./interact_door_reducer.ts";
 export { InteractDoor };
 import { InteractWithBrothPot } from "./interact_with_broth_pot_reducer.ts";
 export { InteractWithBrothPot };
+import { InteractWithCairn } from "./interact_with_cairn_reducer.ts";
+export { InteractWithCairn };
 import { InteractWithCampfire } from "./interact_with_campfire_reducer.ts";
 export { InteractWithCampfire };
 import { InteractWithFumarole } from "./interact_with_fumarole_reducer.ts";
@@ -639,6 +641,8 @@ import { BuildingDecayScheduleTableHandle } from "./building_decay_schedule_tabl
 export { BuildingDecayScheduleTableHandle };
 import { BuildingPrivilegeCheckScheduleTableHandle } from "./building_privilege_check_schedule_table.ts";
 export { BuildingPrivilegeCheckScheduleTableHandle };
+import { CairnTableHandle } from "./cairn_table.ts";
+export { CairnTableHandle };
 import { CampfireTableHandle } from "./campfire_table.ts";
 export { CampfireTableHandle };
 import { CampfireProcessingScheduleTableHandle } from "./campfire_processing_schedule_table.ts";
@@ -745,6 +749,8 @@ import { PlayerCorpseTableHandle } from "./player_corpse_table.ts";
 export { PlayerCorpseTableHandle };
 import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_schedule_table.ts";
 export { PlayerCorpseDespawnScheduleTableHandle };
+import { PlayerDiscoveredCairnTableHandle } from "./player_discovered_cairn_table.ts";
+export { PlayerDiscoveredCairnTableHandle };
 import { PlayerDodgeRollStateTableHandle } from "./player_dodge_roll_state_table.ts";
 export { PlayerDodgeRollStateTableHandle };
 import { PlayerDrinkingCooldownTableHandle } from "./player_drinking_cooldown_table.ts";
@@ -893,6 +899,8 @@ import { BuildingDecaySchedule } from "./building_decay_schedule_type.ts";
 export { BuildingDecaySchedule };
 import { BuildingPrivilegeCheckSchedule } from "./building_privilege_check_schedule_type.ts";
 export { BuildingPrivilegeCheckSchedule };
+import { Cairn } from "./cairn_type.ts";
+export { Cairn };
 import { Campfire } from "./campfire_type.ts";
 export { Campfire };
 import { CampfireProcessingSchedule } from "./campfire_processing_schedule_type.ts";
@@ -1041,6 +1049,8 @@ import { PlayerCorpse } from "./player_corpse_type.ts";
 export { PlayerCorpse };
 import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_type.ts";
 export { PlayerCorpseDespawnSchedule };
+import { PlayerDiscoveredCairn } from "./player_discovered_cairn_type.ts";
+export { PlayerDiscoveredCairn };
 import { PlayerDodgeRollState } from "./player_dodge_roll_state_type.ts";
 export { PlayerDodgeRollState };
 import { PlayerDrinkingCooldown } from "./player_drinking_cooldown_type.ts";
@@ -1325,6 +1335,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (BuildingPrivilegeCheckSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    cairn: {
+      tableName: "cairn" as const,
+      rowType: Cairn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Cairn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     campfire: {
@@ -1802,6 +1821,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "corpseId",
         colType: (PlayerCorpseDespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    player_discovered_cairn: {
+      tableName: "player_discovered_cairn" as const,
+      rowType: PlayerDiscoveredCairn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (PlayerDiscoveredCairn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     player_dodge_roll_state: {
@@ -2489,6 +2517,10 @@ const REMOTE_MODULE = {
     interact_with_broth_pot: {
       reducerName: "interact_with_broth_pot",
       argsType: InteractWithBrothPot.getTypeScriptAlgebraicType(),
+    },
+    interact_with_cairn: {
+      reducerName: "interact_with_cairn",
+      argsType: InteractWithCairn.getTypeScriptAlgebraicType(),
     },
     interact_with_campfire: {
       reducerName: "interact_with_campfire",
@@ -3440,6 +3472,7 @@ export type Reducer = never
 | { name: "InitializePlayerMemoryGrid", args: InitializePlayerMemoryGrid }
 | { name: "InteractDoor", args: InteractDoor }
 | { name: "InteractWithBrothPot", args: InteractWithBrothPot }
+| { name: "InteractWithCairn", args: InteractWithCairn }
 | { name: "InteractWithCampfire", args: InteractWithCampfire }
 | { name: "InteractWithFumarole", args: InteractWithFumarole }
 | { name: "InteractWithFurnace", args: InteractWithFurnace }
@@ -4735,6 +4768,22 @@ export class RemoteReducers {
 
   removeOnInteractWithBrothPot(callback: (ctx: ReducerEventContext, brothPotId: number) => void) {
     this.connection.offReducer("interact_with_broth_pot", callback);
+  }
+
+  interactWithCairn(cairnId: bigint) {
+    const __args = { cairnId };
+    let __writer = new __BinaryWriter(1024);
+    InteractWithCairn.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("interact_with_cairn", __argsBuffer, this.setCallReducerFlags.interactWithCairnFlags);
+  }
+
+  onInteractWithCairn(callback: (ctx: ReducerEventContext, cairnId: bigint) => void) {
+    this.connection.onReducer("interact_with_cairn", callback);
+  }
+
+  removeOnInteractWithCairn(callback: (ctx: ReducerEventContext, cairnId: bigint) => void) {
+    this.connection.offReducer("interact_with_cairn", callback);
   }
 
   interactWithCampfire(campfireId: number) {
@@ -8398,6 +8447,11 @@ export class SetReducerFlags {
     this.interactWithBrothPotFlags = flags;
   }
 
+  interactWithCairnFlags: __CallReducerFlags = 'FullUpdate';
+  interactWithCairn(flags: __CallReducerFlags) {
+    this.interactWithCairnFlags = flags;
+  }
+
   interactWithCampfireFlags: __CallReducerFlags = 'FullUpdate';
   interactWithCampfire(flags: __CallReducerFlags) {
     this.interactWithCampfireFlags = flags;
@@ -9558,6 +9612,11 @@ export class RemoteTables {
     return new BuildingPrivilegeCheckScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BuildingPrivilegeCheckSchedule>(REMOTE_MODULE.tables.building_privilege_check_schedule));
   }
 
+  get cairn(): CairnTableHandle<'cairn'> {
+    // clientCache is a private property
+    return new CairnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Cairn>(REMOTE_MODULE.tables.cairn));
+  }
+
   get campfire(): CampfireTableHandle<'campfire'> {
     // clientCache is a private property
     return new CampfireTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Campfire>(REMOTE_MODULE.tables.campfire));
@@ -9821,6 +9880,11 @@ export class RemoteTables {
   get playerCorpseDespawnSchedule(): PlayerCorpseDespawnScheduleTableHandle<'player_corpse_despawn_schedule'> {
     // clientCache is a private property
     return new PlayerCorpseDespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCorpseDespawnSchedule>(REMOTE_MODULE.tables.player_corpse_despawn_schedule));
+  }
+
+  get playerDiscoveredCairn(): PlayerDiscoveredCairnTableHandle<'player_discovered_cairn'> {
+    // clientCache is a private property
+    return new PlayerDiscoveredCairnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerDiscoveredCairn>(REMOTE_MODULE.tables.player_discovered_cairn));
   }
 
   get playerDodgeRollState(): PlayerDodgeRollStateTableHandle<'player_dodge_roll_state'> {

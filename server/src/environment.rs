@@ -29,6 +29,7 @@ use crate::{
     plants_database,
     items::ItemDefinition,
     rune_stone::{RuneStone, RuneStoneType},
+    cairn::Cairn,
     // REMOVED: hot_spring::HotSpring, - No longer using hot spring entities
     utils::*,
     WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TILE_SIZE_PX,
@@ -51,6 +52,7 @@ use crate::world_state::world_state as WorldStateTableTrait;
 use crate::monument; // Import monument module for clearance checks
 use crate::sea_stack::sea_stack as SeaStackTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
+use crate::cairn::cairn as CairnTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
@@ -1067,6 +1069,193 @@ pub fn validate_spawn_location(
             matches!(current_tile_type, Some(TileType::Alpine))
         }
     }
+}
+
+// --- Cairn Seeding ---
+
+/// Seed all 26 cairns across the map in valid biomes
+fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
+    use crate::cairn::cairn as CairnTableTrait;
+    
+    let cairns = ctx.db.cairn();
+    
+    // Check if cairns already exist
+    if cairns.count() > 0 {
+        log::info!("Cairns already seeded ({} existing), skipping", cairns.count());
+        return Ok(());
+    }
+    
+    // All 26 lore IDs matching CAIRN_LORE_TIDBITS
+    let lore_ids = vec![
+        "cairn_volcanic_spine",
+        "cairn_coastline",
+        "cairn_weather_patterns",
+        "cairn_shards_what_are_they",
+        "cairn_shard_consumption",
+        "cairn_alk_purpose",
+        "cairn_alk_blindness",
+        "cairn_ghost_network",
+        "cairn_dropoff_stations",
+        "cairn_radio_towers",
+        "cairn_geothermal_taps",
+        "cairn_aleuts_original_inhabitants",
+        "cairn_aleuts_under_alk",
+        "cairn_cultural_erosion",
+        "cairn_directorate_origins",
+        "cairn_the_freeze",
+        "cairn_compound_purpose",
+        "cairn_intake_scanner",
+        "cairn_survival_loop",
+        "cairn_the_trap",
+        "cairn_unplanned_system",
+        "cairn_my_adaptation",
+        "cairn_islands_memory",
+        "cairn_bering_sea_revenge",
+        "cairn_encoded_markers",
+        "cairn_shared_substrate",
+    ];
+    
+    let target_cairn_count = lore_ids.len() as u32;
+    log::info!("Seeding {} cairns across the map...", target_cairn_count);
+    
+    let mut rng = ctx.rng();
+    let (min_tile_x, max_tile_x, min_tile_y, max_tile_y) = 
+        calculate_tile_bounds(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, 5); // 5 tile margin
+    
+    // Collect existing entity positions for distance checking
+    let spawned_tree_positions: Vec<(f32, f32)> = ctx.db.tree().iter()
+        .map(|tree| (tree.pos_x, tree.pos_y))
+        .collect();
+    let spawned_stone_positions: Vec<(f32, f32)> = ctx.db.stone().iter()
+        .map(|stone| (stone.pos_x, stone.pos_y))
+        .collect();
+    let spawned_rune_stone_positions: Vec<(f32, f32)> = ctx.db.rune_stone().iter()
+        .map(|rune_stone| (rune_stone.pos_x, rune_stone.pos_y))
+        .collect();
+    let mut spawned_cairn_positions: Vec<(f32, f32)> = Vec::new();
+    
+    let mut spawned_cairn_count = 0;
+    let mut cairn_attempts = 0;
+    let max_cairn_attempts = target_cairn_count * 50; // More attempts for rare spawns
+    
+    // Shuffle lore IDs to randomize which cairn gets which lore
+    use rand::seq::SliceRandom;
+    let mut shuffled_lore_ids = lore_ids.clone();
+    shuffled_lore_ids.shuffle(&mut rng);
+    
+    while spawned_cairn_count < target_cairn_count && cairn_attempts < max_cairn_attempts {
+        cairn_attempts += 1;
+        
+        // Generate random position
+        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        
+        // Check biome - only spawn in Grass, Forest, Beach, Tundra, Alpine
+        let world_tiles = ctx.db.world_tile();
+        let mut valid_biome = false;
+        for tile in world_tiles.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+            match tile.tile_type {
+                crate::TileType::Grass | 
+                crate::TileType::Forest | 
+                crate::TileType::Beach |
+                crate::TileType::Tundra |
+                crate::TileType::TundraGrass |
+                crate::TileType::Alpine => {
+                    valid_biome = true;
+                }
+                _ => {}
+            }
+            break;
+        }
+        
+        if !valid_biome {
+            continue; // Skip invalid biomes
+        }
+        
+        // Check water
+        if is_position_on_water(ctx, pos_x, pos_y) || 
+           is_position_on_inland_water(ctx, pos_x, pos_y) ||
+           is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+        
+        // Check minimum distance from other cairns
+        let too_close_to_cairn = spawned_cairn_positions.iter().any(|(other_x, other_y)| {
+            let dx = pos_x - other_x;
+            let dy = pos_y - other_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_DISTANCE_SQ
+        });
+        
+        if too_close_to_cairn {
+            continue;
+        }
+        
+        // Check minimum distance from trees
+        let too_close_to_tree = spawned_tree_positions.iter().any(|(tree_x, tree_y)| {
+            let dx = pos_x - tree_x;
+            let dy = pos_y - tree_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_TREE_DISTANCE_SQ
+        });
+        
+        if too_close_to_tree {
+            continue;
+        }
+        
+        // Check minimum distance from stones
+        let too_close_to_stone = spawned_stone_positions.iter().any(|(stone_x, stone_y)| {
+            let dx = pos_x - stone_x;
+            let dy = pos_y - stone_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_STONE_DISTANCE_SQ
+        });
+        
+        if too_close_to_stone {
+            continue;
+        }
+        
+        // Check minimum distance from rune stones
+        let too_close_to_rune_stone = spawned_rune_stone_positions.iter().any(|(rune_x, rune_y)| {
+            let dx = pos_x - rune_x;
+            let dy = pos_y - rune_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_RUNE_STONE_DISTANCE_SQ
+        });
+        
+        if too_close_to_rune_stone {
+            continue;
+        }
+        
+        // All checks passed - spawn the cairn
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        let lore_id = shuffled_lore_ids[spawned_cairn_count as usize].clone();
+        
+        match cairns.try_insert(Cairn {
+            id: 0,
+            pos_x,
+            pos_y,
+            chunk_index: chunk_idx,
+            lore_id: lore_id.to_string(),
+        }) {
+            Ok(_inserted) => {
+                spawned_cairn_positions.push((pos_x, pos_y));
+                spawned_cairn_count += 1;
+                log::info!(
+                    "Spawned cairn {} at ({:.1}, {:.1}) with lore_id: {}",
+                    spawned_cairn_count, pos_x, pos_y, lore_id
+                );
+            }
+            Err(e) => {
+                log::warn!("Failed to insert cairn at ({:.1}, {:.1}): {}", pos_x, pos_y, e);
+            }
+        }
+    }
+    
+    log::info!(
+        "Finished seeding cairns - Total: {} (target: {}), Attempts: {}",
+        spawned_cairn_count, target_cairn_count, cairn_attempts
+    );
+    
+    Ok(())
 }
 
 // --- Environment Seeding ---
@@ -2479,6 +2668,138 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_grass_count, target_grass_count, grass_attempts
     );
 
+    // --- Seed Tundra Grass --- Similar to regular grass but for Tundra/TundraGrass tiles
+    log::info!("Seeding Tundra Grass (Tundra/TundraGrass tiles only)...");
+    
+    // Count tundra tiles for density calculation
+    let mut tundra_tile_count = 0u32;
+    for tile in world_tiles_for_biome.iter() {
+        if matches!(tile.tile_type, TileType::Tundra | TileType::TundraGrass) {
+            tundra_tile_count += 1;
+        }
+    }
+    
+    // Target ~12% of Tundra/TundraGrass tiles (same density as regular grass)
+    const TUNDRA_GRASS_DENSITY_PERCENT: f32 = 0.12;
+    let target_tundra_grass_count = (tundra_tile_count as f32 * TUNDRA_GRASS_DENSITY_PERCENT) as u32;
+    let max_tundra_grass_attempts = target_tundra_grass_count * crate::grass::MAX_GRASS_SEEDING_ATTEMPTS_FACTOR;
+    
+    log::info!("Target Tundra Grass: {} (from {} Tundra/TundraGrass tiles, {:.1}% density), Max Attempts: {}", 
+        target_tundra_grass_count, tundra_tile_count, TUNDRA_GRASS_DENSITY_PERCENT * 100.0, max_tundra_grass_attempts);
+    
+    let mut spawned_tundra_grass_count = 0;
+    let mut tundra_grass_attempts = 0;
+    
+    while spawned_tundra_grass_count < target_tundra_grass_count && tundra_grass_attempts < max_tundra_grass_attempts {
+        tundra_grass_attempts += 1;
+        
+        // Generate random tile coordinates
+        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+        
+        // ===== BIOME FILTER: Only spawn on Tundra or TundraGrass tiles =====
+        let mut valid_biome = false;
+        for tile in world_tiles_for_biome.idx_world_position().filter((tile_x as i32, tile_y as i32)) {
+            if matches!(tile.tile_type, TileType::Tundra | TileType::TundraGrass) {
+                valid_biome = true;
+            }
+            break;
+        }
+        if !valid_biome {
+            continue; // Skip non-tundra biomes
+        }
+        
+        // Calculate position
+        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        
+        // Skip central compound
+        if is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+        
+        // Noise check for natural distribution (same as regular grass)
+        let noise_val = fbm.get([
+            (pos_x as f64 / WORLD_WIDTH_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+            (pos_y as f64 / WORLD_HEIGHT_PX as f64) * crate::grass::GRASS_SPAWN_NOISE_FREQUENCY,
+        ]);
+        let normalized_noise = (noise_val + 1.0) / 2.0;
+        if normalized_noise <= crate::grass::GRASS_SPAWN_NOISE_THRESHOLD {
+            continue;
+        }
+        
+        // Distance check from trees
+        let too_close_to_tree = spawned_tree_positions.iter().any(|(tx, ty)| {
+            let dx = pos_x - tx;
+            let dy = pos_y - ty;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_TREE_DISTANCE_SQ
+        });
+        if too_close_to_tree {
+            continue;
+        }
+        
+        // Distance check from stones
+        let too_close_to_stone = spawned_stone_positions.iter().any(|(sx, sy)| {
+            let dx = pos_x - sx;
+            let dy = pos_y - sy;
+            dx * dx + dy * dy < crate::grass::MIN_GRASS_STONE_DISTANCE_SQ
+        });
+        if too_close_to_stone {
+            continue;
+        }
+        
+        // Generate random grass properties
+        let sway_offset_seed = rng.gen::<u32>();
+        let sway_speed = rng.gen_range(0.5..2.0);
+        
+        // Choose tundra grass appearance type with weighted distribution
+        let appearance_roll: f64 = rng.gen_range(0.0..1.0);
+        let appearance_type = if appearance_roll < 0.2 {
+            GrassAppearanceType::TundraPatchA
+        } else if appearance_roll < 0.4 {
+            GrassAppearanceType::TundraPatchB
+        } else if appearance_roll < 0.6 {
+            GrassAppearanceType::TundraPatchC
+        } else if appearance_roll < 0.7 {
+            GrassAppearanceType::TundraPatchD
+        } else if appearance_roll < 0.85 {
+            GrassAppearanceType::TallGrassTundraA
+        } else {
+            GrassAppearanceType::TallGrassTundraB
+        };
+        
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        
+        let new_tundra_grass = Grass {
+            id: 0,
+            pos_x,
+            pos_y,
+            health: crate::grass::GRASS_INITIAL_HEALTH,
+            appearance_type,
+            chunk_index: chunk_idx,
+            last_hit_time: None,
+            respawn_at: None,
+            sway_offset_seed,
+            sway_speed,
+            disturbed_at: None,
+            disturbance_direction_x: 0.0,
+            disturbance_direction_y: 0.0,
+        };
+        
+        match grasses.try_insert(new_tundra_grass) {
+            Ok(_) => {
+                spawned_tundra_grass_count += 1;
+            }
+            Err(e) => {
+                log::warn!("Failed to insert tundra grass at ({}, {}): {}", pos_x, pos_y, e);
+            }
+        }
+    }
+    log::info!(
+        "Finished seeding {} tundra grass entities (target: {}, attempts: {}).",
+        spawned_tundra_grass_count, target_tundra_grass_count, tundra_grass_attempts
+    );
+
     // --- Seed Water Foliage (Lily Pads, Algae Mats, Bulrushes, ReedBedsA, SeaweedForest) on Inland Sea Tiles ---
     // DISABLED: Water foliage not ready yet - enable by setting DISABLE_WATER_FOLIAGE_SPAWNING to false in grass.rs
     if crate::grass::DISABLE_WATER_FOLIAGE_SPAWNING {
@@ -2762,9 +3083,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     }
     
     log::info!(
-        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Barrels: {}",
+        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Tundra Grass: {}, Barrels: {}",
         spawned_tree_count, spawned_stone_count, spawned_sea_stack_count, harvestable_summary,
-        spawned_cloud_count, spawned_wild_animal_count, spawned_grass_count, ctx.db.barrel().iter().count()
+        spawned_cloud_count, spawned_wild_animal_count, spawned_grass_count, spawned_tundra_grass_count, ctx.db.barrel().iter().count()
     );
 
     // --- Seed Rune Stones ---
@@ -3126,6 +3447,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         rune_stone_attempts
     );
     
+
+    // --- Seed Cairns ---
+    seed_cairns(ctx)?;
 
     // --- Wild Animal Population Maintenance ---
     // Periodically checks if more animals should be spawned to maintain population

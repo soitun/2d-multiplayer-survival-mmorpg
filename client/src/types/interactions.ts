@@ -47,7 +47,8 @@ export type InteractionTargetType =
     | 'rain_collector'
     | 'broth_pot'
     | 'door'  // ADDED: Building doors
-    | 'alk_station';  // ADDED: ALK delivery stations
+    | 'alk_station'  // ADDED: ALK delivery stations
+    | 'cairn';  // ADDED: Cairn lore monuments
 
 // Interaction behaviors - determines how the interaction works
 export enum InteractionBehavior {
@@ -165,6 +166,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 75,
         actionType: 'open_alk_station'
+    },
+    
+    // Cairn - tap to interact and hear lore
+    cairn: {
+        behavior: InteractionBehavior.TAP,
+        priority: 70,
+        actionType: 'interact_cairn'
     }
 };
 

@@ -139,6 +139,7 @@ mod basalt_column; // <<< ADDED: Basalt column module for quarry decorative obst
 mod homestead_hearth; // <<< ADDED: Homestead Hearth for building privilege system
 mod building_decay; // <<< ADDED: Building decay system
 mod rune_stone; // <<< ADDED: Rune stone system
+mod cairn; // <<< ADDED: Cairn lore system
 mod broth_pot; // <<< ADDED: Broth pot cooking system
 mod recipes; // <<< ADDED: Recipe system for broth pot cooking
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
@@ -355,6 +356,8 @@ pub use headlamp::toggle_headlamp;
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
+use crate::cairn::cairn as CairnTableTrait;
+use crate::cairn::player_discovered_cairn as PlayerDiscoveredCairnTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::furnace::furnace as FurnaceTableTrait;
 use crate::lantern::lantern as LanternTableTrait;

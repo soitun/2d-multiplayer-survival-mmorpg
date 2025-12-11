@@ -4,6 +4,8 @@ import {
   Tree as SpacetimeDBTree,
   Stone as SpacetimeDBStone,
   RuneStone as SpacetimeDBRuneStone,
+  Cairn as SpacetimeDBCairn,
+  PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Lantern as SpacetimeDBLantern,
@@ -103,6 +105,7 @@ import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtil
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderPlayerHeadlampLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
+import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
@@ -160,6 +163,8 @@ interface GameCanvasProps {
   clouds: Map<string, SpacetimeDBCloud>;
   stones: Map<string, SpacetimeDBStone>;
   runeStones: Map<string, SpacetimeDBRuneStone>;
+  cairns: Map<string, SpacetimeDBCairn>;
+  playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
   campfires: Map<string, SpacetimeDBCampfire>;
   furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
   lanterns: Map<string, SpacetimeDBLantern>;
@@ -198,6 +203,7 @@ interface GameCanvasProps {
   showInventory: boolean;
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
+  addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void; // ADDED: SOVA message adder for cairn lore
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
   showAutotileDebug: boolean;
@@ -271,6 +277,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   clouds,
   stones,
   runeStones,
+  cairns,
+  playerDiscoveredCairns,
   campfires,
   furnaces, // ADDED: Furnaces destructuring
   lanterns,
@@ -334,6 +342,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   environmentalVolume,
   movementDirection,
   isAutoWalking, // Auto-walk state for dodge roll detection
+  addSOVAMessage, // ADDED: SOVA message adder for cairn lore
   playerDodgeRollStates,
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
@@ -617,6 +626,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleFurnacesMap, // ADDED: Furnaces visible map
     visibleLanternsMap,
     visibleRuneStonesMap, // ADDED: Rune stones visible map
+    visibleCairns, // ADDED: Cairns visible array
+    visibleCairnsMap, // ADDED: Cairns visible map
     visibleDroppedItemsMap,
     visibleBoxesMap,
     visiblePlayerCorpses,
@@ -657,6 +668,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     trees,
     stones,
     runeStones,
+    cairns, // ADDED: Cairns to useEntityFiltering
     campfires,
     furnaces, // ADDED: Furnaces to useEntityFiltering
     lanterns,
@@ -941,6 +953,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableSleepingBagId,
     closestInteractableDoorId, // ADDED: Door support
     closestInteractableAlkStationId, // ADDED: ALK station support
+    closestInteractableCairnId, // ADDED: Cairn support
     closestInteractableKnockedOutPlayerId,
     closestInteractableWaterPosition,
   } = useInteractionFinder({
@@ -965,6 +978,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     brothPots,
     doors, // ADDED: Doors to useInteractionFinder
     alkStations: visibleAlkStationsMap, // ADDED: ALK stations to useInteractionFinder
+    cairns, // ADDED: Cairns to useInteractionFinder
     harvestableResources,
     worldTiles: visibleWorldTiles,
   });
@@ -1023,6 +1037,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     woodenStorageBoxes,
     stashes,
     players,
+    cairns, // ADDED: Cairns for lore lookup
+    playerDiscoveredCairns, // ADDED: Player discovery tracking
+    addSOVAMessage, // ADDED: SOVA message adder for cairn lore
     onSetInteractingWith: onSetInteractingWith,
     isMinimapOpen,
     setIsMinimapOpen,
@@ -1471,6 +1488,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Load compound building images
   useEffect(() => {
         preloadMonumentImages();
+        preloadCairnImages(); // ADDED: Preload cairn images
   }, []);
 
   // Load doodad images
@@ -2330,6 +2348,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         allFoundations: foundationCells,
         buildingClusters,
         playerBuildingClusterId,
+        connection, // ADDED: Pass connection for cairn biome lookup
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -2623,6 +2642,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           allFoundations: foundationCells,
           buildingClusters,
           playerBuildingClusterId,
+          connection, // ADDED: Pass connection for cairn biome lookup
         });
         currentBatch = [];
       }

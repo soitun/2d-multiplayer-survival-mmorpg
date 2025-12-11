@@ -37,6 +37,9 @@ import {
     isBarrel
 } from '../utils/typeGuards';
 import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
+import { CAIRN_LORE_TIDBITS } from '../data/cairnLoreData';
+import { playImmediateSound } from './useSoundSystem';
+import { Cairn as SpacetimeDBCairn } from '../generated';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
 // If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.
@@ -71,8 +74,11 @@ interface InputHandlerProps {
     woodenStorageBoxes: Map<string, WoodenStorageBox>;
     stashes: Map<string, Stash>;
     players: Map<string, Player>;
+    cairns: Map<string, SpacetimeDBCairn>; // ADDED: Cairns for lore lookup
+    playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
     
     onSetInteractingWith: (target: any | null) => void;
+    addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void; // ADDED: SOVA message adder for cairn lore
     isMinimapOpen: boolean;
     setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
     isChatting: boolean;
@@ -154,6 +160,9 @@ export const useInputHandler = ({
     woodenStorageBoxes,
     stashes,
     players,
+    cairns, // ADDED: Cairns for lore lookup
+    playerDiscoveredCairns, // ADDED: Player discovery tracking
+    addSOVAMessage, // ADDED: SOVA message adder for cairn lore
     
     onSetInteractingWith,
     isMinimapOpen,
@@ -1025,6 +1034,67 @@ export const useInputHandler = ({
                                         } else {
                                             console.log('[E-Tap ACTION] Skipping ALK station open - panel was just closed');
                                             tapActionTaken = true; // Still mark as taken to prevent other actions
+                                        }
+                                        break;
+                                    case 'cairn':
+                                        // Interact with cairn: call reducer, play audio, show lore text in SOVA chat
+                                        if (connectionRef.current?.reducers && typeof currentTarget.id === 'bigint') {
+                                            const cairnId = currentTarget.id;
+                                            const cairn = cairns?.get(String(cairnId));
+                                            
+                                            if (cairn) {
+                                                // Check if this is the first time discovering this cairn
+                                                const isFirstDiscovery = !Array.from(playerDiscoveredCairns?.values() || [])
+                                                    .some(discovery => discovery.cairnId === cairnId);
+                                                
+                                                // Play unlock sound immediately if first discovery
+                                                if (isFirstDiscovery) {
+                                                    playImmediateSound('cairn_unlock', 1.0);
+                                                }
+                                                
+                                                // Call the reducer
+                                                try {
+                                                    connectionRef.current.reducers.interactWithCairn(cairnId);
+                                                    
+                                                    // Find the lore entry
+                                                    const loreEntry = CAIRN_LORE_TIDBITS.find(entry => entry.id === cairn.loreId);
+                                                    
+                                                    if (loreEntry) {
+                                                        // Play audio if available
+                                                        if (loreEntry.audioFile) {
+                                                            try {
+                                                                const audio = new Audio(`/sounds/lore/${loreEntry.audioFile}`);
+                                                                audio.volume = 1.0;
+                                                                audio.play().catch((error) => {
+                                                                    console.warn(`[Cairn] Failed to play audio ${loreEntry.audioFile}:`, error);
+                                                                });
+                                                            } catch (error) {
+                                                                console.warn(`[Cairn] Error creating audio for ${loreEntry.audioFile}:`, error);
+                                                            }
+                                                        }
+                                                        
+                                                        // Add lore text to SOVA chat
+                                                        if (addSOVAMessage) {
+                                                            addSOVAMessage({
+                                                                id: `cairn_${cairnId}_${Date.now()}`,
+                                                                text: loreEntry.text,
+                                                                isUser: false,
+                                                                timestamp: new Date()
+                                                            });
+                                                        } else {
+                                                            console.warn('[Cairn] addSOVAMessage not available, cannot display lore text');
+                                                        }
+                                                    } else {
+                                                        console.warn(`[Cairn] Lore entry not found for lore_id: ${cairn.loreId}`);
+                                                    }
+                                                } catch (error) {
+                                                    console.error('[Cairn] Error interacting with cairn:', error);
+                                                }
+                                                
+                                                tapActionTaken = true;
+                                            } else {
+                                                console.warn(`[Cairn] Cairn not found in map: ${cairnId}`);
+                                            }
                                         }
                                         break;
                                 }

@@ -96,6 +96,8 @@ export interface SpacetimeTableStates {
     trees: Map<string, SpacetimeDB.Tree>;
     stones: Map<string, SpacetimeDB.Stone>;
     runeStones: Map<string, SpacetimeDB.RuneStone>;
+    cairns: Map<string, SpacetimeDB.Cairn>;
+    playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDB.Campfire>;
     furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
     lanterns: Map<string, SpacetimeDB.Lantern>;
@@ -180,6 +182,8 @@ export const useSpacetimeTables = ({
     const [trees, setTrees] = useState<Map<string, SpacetimeDB.Tree>>(() => new Map());
     const [stones, setStones] = useState<Map<string, SpacetimeDB.Stone>>(() => new Map());
     const [runeStones, setRuneStones] = useState<Map<string, SpacetimeDB.RuneStone>>(() => new Map());
+    const [cairns, setCairns] = useState<Map<string, SpacetimeDB.Cairn>>(() => new Map());
+    const [playerDiscoveredCairns, setPlayerDiscoveredCairns] = useState<Map<string, SpacetimeDB.PlayerDiscoveredCairn>>(() => new Map());
     const [campfires, setCampfires] = useState<Map<string, SpacetimeDB.Campfire>>(() => new Map());
     const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
@@ -349,6 +353,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
@@ -398,6 +403,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Cairn', `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('HarvestableResource', `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Campfire', `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BrothPot', `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`));
@@ -816,6 +822,28 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleRuneStoneDelete = (ctx: any, runeStone: SpacetimeDB.RuneStone) => setRuneStones(prev => { const newMap = new Map(prev); newMap.delete(runeStone.id.toString()); return newMap; });
+
+            // --- Cairn Subscriptions ---
+            const handleCairnInsert = (ctx: any, cairn: SpacetimeDB.Cairn) => setCairns(prev => new Map(prev).set(cairn.id.toString(), cairn));
+            const handleCairnUpdate = (ctx: any, oldCairn: SpacetimeDB.Cairn, newCairn: SpacetimeDB.Cairn) => {
+                // Only update for visually significant changes
+                const visuallySignificant =
+                    Math.abs(oldCairn.posX - newCairn.posX) > 0.1 ||
+                    Math.abs(oldCairn.posY - newCairn.posY) > 0.1 ||
+                    oldCairn.loreId !== newCairn.loreId;
+                if (visuallySignificant) {
+                    setCairns(prev => new Map(prev).set(newCairn.id.toString(), newCairn));
+                }
+            };
+            const handleCairnDelete = (ctx: any, cairn: SpacetimeDB.Cairn) => setCairns(prev => { const newMap = new Map(prev); newMap.delete(cairn.id.toString()); return newMap; });
+
+            // --- Player Discovered Cairn Subscriptions ---
+            const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => 
+                setPlayerDiscoveredCairns(prev => new Map(prev).set(discovery.id.toString(), discovery));
+            const handlePlayerDiscoveredCairnUpdate = (ctx: any, oldDiscovery: SpacetimeDB.PlayerDiscoveredCairn, newDiscovery: SpacetimeDB.PlayerDiscoveredCairn) => 
+                setPlayerDiscoveredCairns(prev => new Map(prev).set(newDiscovery.id.toString(), newDiscovery));
+            const handlePlayerDiscoveredCairnDelete = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => 
+                setPlayerDiscoveredCairns(prev => { const newMap = new Map(prev); newMap.delete(discovery.id.toString()); return newMap; });
 
             // --- Campfire Subscriptions ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {
@@ -1620,6 +1648,8 @@ export const useSpacetimeTables = ({
             connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
             connection.db.stone.onInsert(handleStoneInsert); connection.db.stone.onUpdate(handleStoneUpdate); connection.db.stone.onDelete(handleStoneDelete);
             connection.db.runeStone.onInsert(handleRuneStoneInsert); connection.db.runeStone.onUpdate(handleRuneStoneUpdate); connection.db.runeStone.onDelete(handleRuneStoneDelete);
+            connection.db.cairn.onInsert(handleCairnInsert); connection.db.cairn.onUpdate(handleCairnUpdate); connection.db.cairn.onDelete(handleCairnDelete);
+            connection.db.playerDiscoveredCairn.onInsert(handlePlayerDiscoveredCairnInsert); connection.db.playerDiscoveredCairn.onUpdate(handlePlayerDiscoveredCairnUpdate); connection.db.playerDiscoveredCairn.onDelete(handlePlayerDiscoveredCairnDelete);
             connection.db.campfire.onInsert(handleCampfireInsert); connection.db.campfire.onUpdate(handleCampfireUpdate); connection.db.campfire.onDelete(handleCampfireDelete);
             connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
             connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
@@ -1854,6 +1884,10 @@ export const useSpacetimeTables = ({
                     .subscribe('SELECT * FROM player'),
                 connection.subscriptionBuilder().onError((err) => console.error("[RUNE_STONE Sub Error]:", err))
                     .subscribe('SELECT * FROM rune_stone'), // Global subscription for minimap visibility
+                connection.subscriptionBuilder().onError((err) => console.error("[CAIRN Sub Error]:", err))
+                    .subscribe('SELECT * FROM cairn'), // Global subscription for minimap visibility
+                connection.subscriptionBuilder().onError((err) => console.error("[PLAYER_DISCOVERED_CAIRN Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_discovered_cairn'), // Global subscription for discovery tracking
                 connection.subscriptionBuilder().subscribe('SELECT * FROM item_definition'),
                 connection.subscriptionBuilder().subscribe('SELECT * FROM recipe'),
                 connection.subscriptionBuilder().subscribe('SELECT * FROM world_state'),
@@ -2065,6 +2099,7 @@ export const useSpacetimeTables = ({
                                 const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
+                                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`, // ADDED: Cairn initial spatial subscription
                                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
@@ -2177,7 +2212,7 @@ export const useSpacetimeTables = ({
                 currentChunksRef.current = [];
                 setLocalPlayerRegistered(false);
                 // Reset table states
-                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, and Broth Pot cleanup
+                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setRuneStones(new Map()); setCairns(new Map()); setPlayerDiscoveredCairns(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, Broth Pot, Cairn cleanup
                 setHarvestableResources(new Map());
                 setItemDefinitions(new Map()); setRecipes(new Map());
                 setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
@@ -2324,6 +2359,8 @@ export const useSpacetimeTables = ({
         wallCells, // ADDED: Building walls
         doors, // ADDED: Building doors
         runeStones, // ADDED: Rune stones
+        cairns, // ADDED: Cairn lore monuments
+        playerDiscoveredCairns, // ADDED: Player discovery tracking
         chunkWeather, // ADDED: Chunk-based weather
         fumaroles, // ADDED fumaroles
         basaltColumns, // ADDED basalt columns
