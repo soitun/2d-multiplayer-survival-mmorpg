@@ -38,4 +38,5 @@ export type Lantern = { tag: "Lantern" };
 export type RainCollector = { tag: "RainCollector" };
 export type HomesteadHearth = { tag: "HomesteadHearth" };
 export type BrothPot = { tag: "BrothPot" };
+export type Barbecue = { tag: "Barbecue" };
 

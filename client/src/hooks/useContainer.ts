@@ -19,7 +19,7 @@ import {
 import { 
     InventoryItem, 
     ItemDefinition,
-    Campfire, Furnace, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
+    Campfire, Furnace, Barbecue, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { InteractionTarget } from '../hooks/useInteractionManager';
@@ -32,6 +32,7 @@ interface UseContainerProps {
     // Container data maps
     campfires: Map<string, Campfire>;
     furnaces: Map<string, Furnace>;
+    barbecues: Map<string, Barbecue>;
     fumaroles: Map<string, Fumarole>;
     lanterns: Map<string, Lantern>;
     woodenStorageBoxes: Map<string, WoodenStorageBox>;
@@ -80,6 +81,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         itemDefinitions,
         campfires,
         furnaces,
+        barbecues,
         fumaroles,
         lanterns,
         woodenStorageBoxes,
@@ -100,6 +102,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         const typeMap: Record<string, ContainerType> = {
             'campfire': 'campfire',
             'furnace': 'furnace',
+            'barbecue': 'barbecue',
             'fumarole': 'fumarole',
             'lantern': 'lantern',
             'wooden_storage_box': 'wooden_storage_box',
@@ -142,6 +145,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         const entity = getContainerEntity(containerType, containerId, {
             campfires,
             furnaces,
+            barbecues,
             fumaroles,
             lanterns,
             woodenStorageBoxes,
@@ -234,7 +238,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         if (!containerEntity) return false;
         
         // Check if container is burning/lit
-        const burningContainers = ['campfire', 'furnace', 'lantern'];
+        const burningContainers = ['campfire', 'furnace', 'barbecue', 'lantern'];
         if (burningContainers.includes(containerType || '')) {
             return (containerEntity as any).isBurning || false;
         }

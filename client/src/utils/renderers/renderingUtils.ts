@@ -53,6 +53,7 @@ import { renderHarvestableResource } from './unifiedResourceRenderer';
 import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
+import { renderBarbecue } from './barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { renderLantern } from './lanternRenderingUtils';
 import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
@@ -943,6 +944,16 @@ export const renderYSortedEntities = ({
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
               drawInteractionOutline(ctx, furnace.posX, furnace.posY - 64, 96, 128, cycleProgress, outlineColor); // Standard 96x96 furnace size
+          }
+      } else if (type === 'barbecue') { // ADDED: Barbecue handling (same as campfire)
+          const barbecue = entity as any; // Barbecue type from generated types
+          const isTheClosestTarget = closestInteractableTarget?.type === 'barbecue' && closestInteractableTarget?.id === barbecue.id;
+          renderBarbecue(ctx, barbecue, nowMs, cycleProgress);
+          
+          // Draw outline only if this is THE closest interactable target
+          if (isTheClosestTarget) {
+              const outlineColor = getInteractionOutlineColor('open');
+              drawInteractionOutline(ctx, barbecue.posX, barbecue.posY - 48, 64, 96, cycleProgress, outlineColor); // Same size as campfire
           }
       } else if (type === 'lantern') {
           const lantern = entity as any; // Type will be Lantern from generated types

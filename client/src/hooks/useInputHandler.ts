@@ -372,6 +372,11 @@ export const useInputHandler = ({
                             connection.reducers.toggleFurnaceBurning(Number(holdTarget.targetId));
                             actionTaken = true;
                             break;
+                        case 'barbecue':
+                            console.log('[E-Hold ACTION] Attempting to toggle barbecue burning:', holdTarget.targetId);
+                            connection.reducers.toggleBarbecueBurning(Number(holdTarget.targetId));
+                            actionTaken = true;
+                            break;
                         case 'lantern':
                             if (currentTarget.data?.isEmpty) {
                                 console.log('[E-Hold ACTION] Attempting to pickup empty lantern:', holdTarget.targetId);
@@ -1055,6 +1060,11 @@ export const useInputHandler = ({
                                     case 'furnace':
                                         // console.log('[E-Tap ACTION] Opening furnace interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'furnace', id: currentTarget.id });
+                                        tapActionTaken = true;
+                                        break;
+                                    case 'barbecue':
+                                        // console.log('[E-Tap ACTION] Opening barbecue interface:', currentTarget.id);
+                                        onSetInteractingWith({ type: 'barbecue', id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
                                     case 'lantern':

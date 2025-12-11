@@ -8,6 +8,7 @@ import {
   PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
+  Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
   Lantern as SpacetimeDBLantern,
   WorldState as SpacetimeDBWorldState,
   ActiveEquipment as SpacetimeDBActiveEquipment,
@@ -101,9 +102,10 @@ import { useWallTargeting } from '../hooks/useWallTargeting'; // ADDED: Wall tar
 import { drawInteractionIndicator } from '../utils/interactionIndicator';
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
+import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderPlayerHeadlampLight, renderCampfireLight, renderLanternLight, renderFurnaceLight } from '../utils/renderers/lightRenderingUtils';
+import { renderPlayerTorchLight, renderPlayerFlashlightLight, renderPlayerHeadlampLight, renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
@@ -167,6 +169,7 @@ interface GameCanvasProps {
   playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
   campfires: Map<string, SpacetimeDBCampfire>;
   furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
+  barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
   lanterns: Map<string, SpacetimeDBLantern>;
   harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
   droppedItems: Map<string, SpacetimeDBDroppedItem>;
@@ -282,6 +285,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerDiscoveredCairns,
   campfires,
   furnaces, // ADDED: Furnaces destructuring
+  barbecues, // ADDED: Barbecues destructuring
   lanterns,
   harvestableResources,
   droppedItems,
@@ -623,9 +627,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleDroppedItems,
     visibleCampfires,
     visibleFurnaces, // ADDED: Furnaces visible array
+    visibleBarbecues, // ADDED: Barbecues visible array
     visibleHarvestableResourcesMap,
     visibleCampfiresMap,
     visibleFurnacesMap, // ADDED: Furnaces visible map
+    visibleBarbecuesMap, // ADDED: Barbecues visible map
     visibleLanternsMap,
     visibleRuneStonesMap, // ADDED: Rune stones visible map
     visibleCairns, // ADDED: Cairns visible array
@@ -673,6 +679,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     cairns, // ADDED: Cairns to useEntityFiltering
     campfires,
     furnaces, // ADDED: Furnaces to useEntityFiltering
+    barbecues, // ADDED: Barbecues to useEntityFiltering
     lanterns,
     homesteadHearths, // ADDED: HomesteadHearths (must match function signature order)
     harvestableResources,
@@ -962,6 +969,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer,
     campfires,
     furnaces, // ADDED: Furnaces to useInteractionFinder
+    barbecues, // ADDED: Barbecues to useInteractionFinder
     fumaroles, // ADDED: Fumaroles to useInteractionFinder (volcanic heat source)
     lanterns,
     homesteadHearths, // ADDED: HomesteadHearths to useInteractionFinder
@@ -2025,6 +2033,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Render Campfire Shadows
     visibleCampfires.forEach(campfire => {
       renderCampfire(ctx, campfire, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
+    });
+    // Render Barbecue Shadows
+    visibleBarbecues.forEach(barbecue => {
+      renderBarbecue(ctx, barbecue, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
     });
     // Note: Pumpkin and Mushroom shadows are now handled by the unified resource renderer
     // through the Y-sorted entities system
@@ -3165,6 +3177,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderFurnaceLight({
         ctx,
         furnace: furnace,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        // Indoor light containment - clip light to building interior
+        buildingClusters,
+      });
+    });
+
+    // Barbecue Lights - Only draw for visible barbecues (same as campfire)
+    visibleBarbecuesMap.forEach((barbecue: SpacetimeDBBarbecue) => {
+      renderBarbecueLight({
+        ctx,
+        barbecue: barbecue,
         cameraOffsetX: currentCameraOffsetX,
         cameraOffsetY: currentCameraOffsetY,
         // Indoor light containment - clip light to building interior

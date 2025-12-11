@@ -100,6 +100,11 @@ export function useTargetInteractionManager({
                 console.log(`[InteractionManager] Opening campfire interface for ID: ${target.id}`);
                 // In a real implementation, this might dispatch an action to open UI
                 break;
+            case 'barbecue':
+                // Open barbecue interface - same as campfire
+                console.log(`[InteractionManager] Opening barbecue interface for ID: ${target.id}`);
+                connection.reducers.interactWithBarbecue(Number(target.id));
+                break;
             case 'lantern':
                 // Interact with lantern to open interface
                 connection.reducers.interactWithLantern(Number(target.id));
@@ -181,6 +186,10 @@ export function useTargetInteractionManager({
                 if (campfire) {
                     connection.reducers.toggleCampfireBurning(Number(target.id));
                 }
+                break;
+            case 'barbecue':
+                // Toggle burning state
+                connection.reducers.toggleBarbecueBurning(Number(target.id));
                 break;
             case 'stash':
                 // Toggle visibility

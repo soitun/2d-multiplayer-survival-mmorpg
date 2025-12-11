@@ -7,7 +7,7 @@
 
 import { 
     InventoryItem, ItemDefinition,
-    Campfire, Furnace, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
+    Campfire, Furnace, Barbecue, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
@@ -15,17 +15,18 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Container type definitions based on actual usage
 export type ContainerType = 
-    | 'campfire' | 'furnace' | 'lantern'                        // Fuel containers
+    | 'campfire' | 'furnace' | 'barbecue' | 'lantern'                        // Fuel containers
     | 'fumarole'                                                 // Incineration container (always-on, destroys items for charcoal)
     | 'wooden_storage_box' | 'player_corpse' | 'stash' | 'rain_collector' | 'homestead_hearth' | 'broth_pot'; // Storage containers
 
-export type ContainerEntity = Campfire | Furnace | Fumarole | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
+export type ContainerEntity = Campfire | Furnace | Barbecue | Fumarole | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
 
 // Container configurations - simple and focused on actual patterns
 export const CONTAINER_CONFIGS = {
     // Fuel containers (use fuel for burning/light)
     campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    barbecue: { slots: 12, slotType: 'barbecue_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 3 }, // 12 slots like campfire but with cooking
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     
     // Incineration containers (always-on, destroys items)
@@ -48,6 +49,7 @@ export function getReducerName(containerType: ContainerType, action: string): st
     const typeMap = {
         campfire: 'Campfire',
         furnace: 'Furnace',
+        barbecue: 'Barbecue',
         fumarole: 'Fumarole',
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
@@ -80,6 +82,7 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
     const typeMap = {
         campfire: 'Campfire',
         furnace: 'Furnace',
+        barbecue: 'Barbecue',
         fumarole: 'Fumarole',
         lantern: 'Lantern',
         wooden_storage_box: 'Box',
@@ -102,7 +105,7 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
     
     // Determine if this is a fuel container (different naming pattern)
     // Note: Fumarole is HYBRID - uses storage pattern for moveFromPlayer, fuel pattern for moveToPlayer
-    const isFuelContainer = ['campfire', 'furnace', 'lantern'].includes(containerType);
+    const isFuelContainer = ['campfire', 'furnace', 'barbecue', 'lantern'].includes(containerType);
     const isFumarole = containerType === 'fumarole';
     
     return {
@@ -133,6 +136,7 @@ export function getContainerTypeFromSlotType(slotType: string): ContainerType | 
     const mapping: Record<string, ContainerType> = {
         'campfire_fuel': 'campfire',
         'furnace_fuel': 'furnace',
+        'barbecue_fuel': 'barbecue',
         'fumarole': 'fumarole',
         'lantern_fuel': 'lantern',
         'wooden_storage_box': 'wooden_storage_box',
@@ -658,7 +662,7 @@ function findFirstAvailableInventorySlot(connection: any): number {
  * Check if container type has fuel slots
  */
 export function isFuelContainer(containerType: ContainerType): boolean {
-    return ['campfire', 'furnace', 'lantern'].includes(containerType);
+    return ['campfire', 'furnace', 'barbecue', 'lantern'].includes(containerType);
 }
 
 /**
@@ -741,6 +745,7 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
     const nameMap = {
         campfire: 'CAMPFIRE',
         furnace: 'FURNACE',
+        barbecue: 'BARBECUE',
         fumarole: 'FUMAROLE', // Volcanic heat source
         lantern: 'LANTERN',
         wooden_storage_box: 'WOODEN STORAGE BOX',
@@ -763,6 +768,7 @@ export function getContainerEntity(
     containers: {
         campfires?: Map<string, Campfire>;
         furnaces?: Map<string, Furnace>;
+        barbecues?: Map<string, Barbecue>;
         fumaroles?: Map<string, Fumarole>;
         lanterns?: Map<string, Lantern>;
         woodenStorageBoxes?: Map<string, WoodenStorageBox>;
@@ -780,6 +786,7 @@ export function getContainerEntity(
     switch (containerType) {
         case 'campfire': return containers.campfires?.get(idStr) || null;
         case 'furnace': return containers.furnaces?.get(idStr) || null;
+        case 'barbecue': return containers.barbecues?.get(idStr) || null;
         case 'fumarole': return containers.fumaroles?.get(idStr) || null;
         case 'lantern': return containers.lanterns?.get(idStr) || null;
         case 'wooden_storage_box': return containers.woodenStorageBoxes?.get(idStr) || null;
@@ -830,7 +837,7 @@ export function handlePlayerToContainerSplit(
         if (connection.reducers[reducerName]) {
             // Different parameter orders for fuel vs storage containers
             // Note: homestead_hearth and fumarole use fuel container parameter order
-            const isFuel = ['campfire', 'furnace', 'lantern', 'homestead_hearth', 'fumarole'].includes(containerType);
+            const isFuel = ['campfire', 'furnace', 'barbecue', 'lantern', 'homestead_hearth', 'fumarole'].includes(containerType);
             
             if (isFuel) {
                 // Fuel containers, hearth, and fumarole: (sourceItemInstanceId, quantityToSplit, targetContainerId, targetSlotIndex)
@@ -1003,7 +1010,7 @@ export function handleWithinContainerSplit(
         const reducerName = reducers.splitWithin;
         if (connection.reducers[reducerName]) {
             // Different parameter orders for fuel vs storage containers
-            const isFuel = ['campfire', 'furnace', 'lantern', 'fumarole'].includes(containerType);
+            const isFuel = ['campfire', 'furnace', 'barbecue', 'lantern', 'fumarole'].includes(containerType);
             
             if (isFuel) {
                 // Fuel containers and fumarole: (id, sourceSlotIndex, quantityToSplit, targetSlotIndex)

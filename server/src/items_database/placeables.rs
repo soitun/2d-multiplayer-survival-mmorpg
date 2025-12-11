@@ -85,6 +85,18 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Barbecue - Cooking appliance with 12 slots (functions like campfire)
+        ItemBuilder::new("Barbecue", "A large cooking appliance with 12 slots for cooking food. Functions like a campfire but with more capacity.", ItemCategory::Placeable)
+            .icon("barbecue.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 75 },
+            ])
+            .crafting_output(1, 30)
+            .respawn_time(450)
+            .build(),
+
         // === SHELTER & RESPAWN ===
 
         // Sleeping Bag - Portable respawn point

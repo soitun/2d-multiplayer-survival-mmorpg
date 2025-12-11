@@ -282,7 +282,7 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
     let drops_created = items_to_drop.len();
     log::info!("[BarrelLoot] Selected {} items to drop from {} successful rolls", drops_created, successful_rolls.len());
     
-    // Create the actual dropped items
+    // Create the actual dropped items WITHOUT triggering consolidation per-item
     for (index, loot_entry) in items_to_drop.iter().enumerate() {
         // Determine quantity
         let quantity = if loot_entry.min_quantity == loot_entry.max_quantity {
@@ -298,8 +298,8 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
         let drop_x = barrel_pos_x + angle.cos() * distance;
         let drop_y = barrel_pos_y + angle.sin() * distance;
         
-        // Create the dropped item
-        match create_dropped_item_entity(ctx, loot_entry.item_def_id, quantity, drop_x, drop_y) {
+        // Create the dropped item without auto-consolidation
+        match crate::dropped_item::create_dropped_item_entity_no_consolidation(ctx, loot_entry.item_def_id, quantity, drop_x, drop_y) {
             Ok(_) => {
                 log::info!("[BarrelLoot] Created {} of item {} at ({:.1}, {:.1})", 
                           quantity, loot_entry.item_def_id, drop_x, drop_y);
@@ -309,6 +309,9 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
             }
         }
     }
+    
+    // Trigger consolidation ONCE after all items are dropped
+    crate::dropped_item::trigger_consolidation_at_position(ctx, barrel_pos_x, barrel_pos_y);
     
     log::info!("[BarrelLoot] Created {} loot drops for destroyed barrel (guaranteed 1, max 2)", drops_created);
     Ok(())

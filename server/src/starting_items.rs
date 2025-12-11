@@ -37,9 +37,9 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Makarov PM", 1, None, Some(2u16)),
         ("Wooden Arrow", 50, None, Some(3u16)),
         ("9x18mm Round", 500, None, Some(4u16)),
-        // ("Reed Harpoon", 1, None, Some(5u16)),
-        // ("Hunting Bow", 1, None, Some(6u16)),
-        // ("Wooden Arrow", 20, None, Some(7u16)),
+        ("Compost", 1, None, Some(5u16)),
+        ("Barbecue", 1, None, Some(6u16)),
+        ("Potato", 1000, None, Some(7u16)),
         // Armor sets (commented out by default)
         // ("Wolf Fur Hood", 1, None, Some(12u16)),
         // ("Wolf Fur Coat", 1, None, Some(13u16)),

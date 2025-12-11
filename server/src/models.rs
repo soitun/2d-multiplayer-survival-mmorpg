@@ -14,6 +14,7 @@ pub enum ContainerType {
     RainCollector,
     HomesteadHearth,
     BrothPot,
+    Barbecue,
     // Other container types can be added here
 }
 

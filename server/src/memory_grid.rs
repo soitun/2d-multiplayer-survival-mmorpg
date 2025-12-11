@@ -231,7 +231,8 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "hollow-reed-arrow" => Some((300, vec!["fire-arrow"])),         // Branch 1: fire-arrow → hollow-reed-arrow
         "metal-door" => Some((320, vec!["large-wooden-storage-box"])),  // Branch 2: large-wooden-storage-box → metal-door
         "reed-snorkel" => Some((350, vec!["reed-fishing-rod"])),        // Branch 3: reed-fishing-rod → reed-snorkel
-        "refrigerator" => Some((380, vec!["reed-rain-collector"])),     // Branch 4: reed-rain-collector → refrigerator
+        "barbecue" => Some((250, vec!["reed-rain-collector"])),         // Branch 4: reed-rain-collector → barbecue
+        "refrigerator" => Some((380, vec!["barbecue"])),                 // Branch 4: barbecue → refrigerator
         "compost" => Some((400, vec!["refrigerator"])),                 // Branch 4: refrigerator → compost
         "crafting-speed-1" => Some((400, vec!["mining-efficiency"])),   // Branch 5: mining-efficiency → crafting-speed-1
         

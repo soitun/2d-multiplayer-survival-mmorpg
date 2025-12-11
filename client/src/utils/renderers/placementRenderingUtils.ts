@@ -3,6 +3,7 @@ import { BuildingPlacementState, BuildingMode } from '../../hooks/useBuildingMan
 // Import dimensions directly from their respective rendering utility files
 import { CAMPFIRE_WIDTH_PREVIEW, CAMPFIRE_HEIGHT_PREVIEW } from './campfireRenderingUtils';
 import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
+import { BARBECUE_WIDTH_PREVIEW, BARBECUE_HEIGHT_PREVIEW } from './barbecueRenderingUtils'; // ADDED: Barbecue dimensions
 import { LANTERN_WIDTH_PREVIEW, LANTERN_HEIGHT_PREVIEW } from './lanternRenderingUtils';
 import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingUtils';
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
@@ -345,7 +346,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector']; // ADDED: Furnace
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector']; // ADDED: Furnace, Barbecue
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -1174,6 +1175,9 @@ export function renderPlacementPreview({
     if (placementInfo.iconAssetName === 'furnace_simple.png') { // ADDED: Furnace placement dimensions
         drawWidth = FURNACE_WIDTH_PREVIEW; 
         drawHeight = FURNACE_HEIGHT_PREVIEW;
+    } else if (placementInfo.iconAssetName === 'barbecue.png') { // ADDED: Barbecue placement dimensions
+        drawWidth = BARBECUE_WIDTH_PREVIEW; 
+        drawHeight = BARBECUE_HEIGHT_PREVIEW;
     } else if (placementInfo.iconAssetName === 'lantern_off.png') {
         drawWidth = LANTERN_WIDTH_PREVIEW; 
         drawHeight = LANTERN_HEIGHT_PREVIEW;

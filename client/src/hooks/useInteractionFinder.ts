@@ -3,6 +3,7 @@ import {
     Player as SpacetimeDBPlayer,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
+    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import (volcanic heat source)
     Lantern as SpacetimeDBLantern,
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth import
@@ -76,6 +77,7 @@ interface UseInteractionFinderProps {
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnace support
+    barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecue support
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumarole support (volcanic heat source)
     lanterns: Map<string, SpacetimeDBLantern>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths support
@@ -108,6 +110,7 @@ interface UseInteractionFinderResult {
     closestInteractableHarvestableResourceId: bigint | null;
     closestInteractableCampfireId: number | null;
     closestInteractableFurnaceId: number | null; // ADDED: Furnace support
+    closestInteractableBarbecueId: number | null; // ADDED: Barbecue support
     closestInteractableFumaroleId: number | null; // ADDED: Fumarole support (volcanic heat source)
     closestInteractableLanternId: number | null;
     closestInteractableHearthId: number | null; // ADDED: HomesteadHearth support
@@ -253,6 +256,7 @@ export function useInteractionFinder({
         closestInteractableHarvestableResourceId: null,
         closestInteractableCampfireId: null,
         closestInteractableFurnaceId: null,
+        closestInteractableBarbecueId: null, // ADDED: Barbecue
         closestInteractableFumaroleId: null, // ADDED: Fumarole
         closestInteractableLanternId: null,
         closestInteractableHearthId: null, // ADDED: HomesteadHearth
@@ -285,6 +289,9 @@ export function useInteractionFinder({
 
         let closestFurnaceId: number | null = null; // ADDED: Furnace tracking variables
         let closestFurnaceDistSq = PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
+
+        let closestBarbecueId: number | null = null; // ADDED: Barbecue tracking variables
+        let closestBarbecueDistSq = PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED;
 
         let closestFumaroleId: number | null = null; // ADDED: Fumarole tracking variables
         let closestFumaroleDistSq = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
@@ -422,6 +429,28 @@ export function useInteractionFinder({
                         )) {
                             closestFurnaceDistSq = distSq;
                             closestFurnaceId = furnace.id;
+                        }
+                    }
+                });
+            }
+
+            // Find closest barbecue - ADDED: Same pattern as campfire
+            if (barbecues) {
+                barbecues.forEach((barbecue) => {
+                    if (barbecue.isDestroyed) return;
+                    const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+                    
+                    const dx = playerX - barbecue.posX;
+                    const dy = playerY - visualCenterY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < closestBarbecueDistSq) {
+                        // Check shelter access control
+                        if (canPlayerInteractWithObjectInShelter(
+                            playerX, playerY, localPlayer.identity.toHexString(),
+                            barbecue.posX, barbecue.posY, shelters
+                        )) {
+                            closestBarbecueDistSq = distSq;
+                            closestBarbecueId = barbecue.id;
                         }
                     }
                 });
@@ -808,6 +837,14 @@ export function useInteractionFinder({
                     distance: Math.sqrt(closestFurnaceDistSq)
                 });
             }
+            if (closestBarbecueId) { // ADDED: Barbecue candidate
+                candidates.push({
+                    type: 'barbecue',
+                    id: closestBarbecueId,
+                    position: { x: 0, y: 0 },
+                    distance: Math.sqrt(closestBarbecueDistSq)
+                });
+            }
             if (closestFumaroleId) { // ADDED: Fumarole candidate (volcanic heat source)
                 const fumarole = fumaroles?.get(String(closestFumaroleId));
                 if (fumarole) {
@@ -976,6 +1013,7 @@ export function useInteractionFinder({
             closestInteractableHarvestableResourceId: closestHarvestableResourceId,
             closestInteractableCampfireId: closestCampfireId,
             closestInteractableFurnaceId: closestFurnaceId, // ADDED: Furnace return
+            closestInteractableBarbecueId: closestBarbecueId, // ADDED: Barbecue return
             closestInteractableFumaroleId: closestFumaroleId, // ADDED: Fumarole return
             closestInteractableLanternId: closestLanternId,
             closestInteractableHearthId: closestHearthId, // ADDED: HomesteadHearth return
@@ -1005,6 +1043,9 @@ export function useInteractionFinder({
         }
         if (calculatedResult.closestInteractableFurnaceId !== closestInteractableFurnaceId) { // ADDED: Furnace useEffect
             setClosestInteractableFurnaceId(calculatedResult.closestInteractableFurnaceId);
+        }
+        if (calculatedResult.closestInteractableBarbecueId !== closestInteractableBarbecueId) { // ADDED: Barbecue state update
+            setClosestInteractableBarbecueId(calculatedResult.closestInteractableBarbecueId);
         }
         if (calculatedResult.closestInteractableFumaroleId !== closestInteractableFumaroleId) { // ADDED: Fumarole state update
             setClosestInteractableFumaroleId(calculatedResult.closestInteractableFumaroleId);
@@ -1082,6 +1123,7 @@ export function useInteractionFinder({
         closestInteractableHarvestableResourceId,
         closestInteractableCampfireId,
         closestInteractableFurnaceId, // ADDED: Furnace final return
+        closestInteractableBarbecueId, // ADDED: Barbecue final return
         closestInteractableFumaroleId, // ADDED: Fumarole final return
         closestInteractableLanternId,
         closestInteractableHearthId, // ADDED: HomesteadHearth final return

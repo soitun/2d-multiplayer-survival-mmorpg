@@ -44,6 +44,7 @@ import {
     PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
+    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Lantern as SpacetimeDBLantern,
     HarvestableResource as SpacetimeDBHarvestableResource,
     DroppedItem as SpacetimeDBDroppedItem,
@@ -122,6 +123,7 @@ interface GameScreenProps {
     playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
+    barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
     lanterns: Map<string, SpacetimeDBLantern>;
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
@@ -820,6 +822,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerDiscoveredCairns={playerDiscoveredCairns}
                 campfires={campfires}
                 furnaces={furnaces} // ADDED: Furnaces prop to GameCanvas
+                barbecues={props.barbecues} // ADDED: Barbecues prop to GameCanvas
                 harvestableResources={harvestableResources}
                 droppedItems={droppedItems}
                 woodenStorageBoxes={woodenStorageBoxes}
@@ -929,6 +932,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onSetInteractingWith={handleSetInteractingWith}
                 campfires={campfires}
                 furnaces={furnaces}
+                barbecues={barbecues}
                 fumaroles={props.fumaroles}
                 lanterns={lanterns}
                 woodenStorageBoxes={woodenStorageBoxes}

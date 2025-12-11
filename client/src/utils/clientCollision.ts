@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
 
@@ -94,6 +94,7 @@ const COLLISION_PERF = {
   MAX_PLAYERS_TO_CHECK: 20,
   MAX_TREES_TO_CHECK: 30,
   MAX_STONES_TO_CHECK: 20,
+  MAX_CAIRNS_TO_CHECK: 15,        // Dedicated limit for cairns (fewer than stones due to larger collision radius)
   MAX_ANIMALS_TO_CHECK: 15,
   MAX_STRUCTURES_TO_CHECK: 25,
   
@@ -256,7 +257,7 @@ function getCollisionCandidates(
     playerX,
     playerY,
     COLLISION_PERF.CAIRN_CULL_DISTANCE_SQ,
-    COLLISION_PERF.MAX_STONES_TO_CHECK
+    COLLISION_PERF.MAX_CAIRNS_TO_CHECK
   );
   
   for (const cairn of nearbyCairns) {
@@ -367,7 +368,30 @@ function getCollisionCandidates(
       radius: COLLISION_RADII.FURNACE
     });
   }
-  
+
+  // Filter barbecues
+  if (entities.barbecues && entities.barbecues.size > 0) {
+    const nearbyBarbecues = filterEntitiesByDistance(
+      entities.barbecues,
+      playerX,
+      playerY,
+      COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ,
+      COLLISION_PERF.MAX_STRUCTURES_TO_CHECK
+    );
+    
+    for (const barbecue of nearbyBarbecues) {
+      if (barbecue.isDestroyed) continue; // Skip destroyed barbecues
+      
+      shapes.push({
+        id: barbecue.id.toString(),
+        type: `barbecue-${barbecue.id.toString()}`,
+        x: barbecue.posX + COLLISION_OFFSETS.BARBECUE.x,
+        y: barbecue.posY + COLLISION_OFFSETS.BARBECUE.y,
+        radius: COLLISION_RADII.BARBECUE
+      });
+    }
+  }
+
   // Filter homestead hearths
   if (entities.homesteadHearths && entities.homesteadHearths.size > 0) {
     const nearbyHearths = filterEntitiesByDistance(
@@ -849,6 +873,7 @@ const COLLISION_RADII = {
   STORAGE_BOX: 25, // Much tighter radius for boxes
   RAIN_COLLECTOR: 30, // Increased to match server-side for easier targeting
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
+  BARBECUE: 20, // Same as furnace (similar size appliance)
   PLAYER: PLAYER_RADIUS,
   WILD_ANIMAL: 40, // Add wild animal collision radius
   BARREL: 25, // Smaller barrel collision radius for better accuracy
@@ -867,6 +892,7 @@ const COLLISION_OFFSETS = {
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
+  BARBECUE: { x: 0, y: 0 }, // Same as campfire (centered collision)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
@@ -907,6 +933,7 @@ export interface GameEntities {
   boxes: Map<string, WoodenStorageBox>;
   rainCollectors: Map<string, RainCollector>;
   furnaces: Map<string, Furnace>;
+  barbecues: Map<string, Barbecue>;
   shelters: Map<string, Shelter>;
   players: Map<string, Player>;
   wildAnimals: Map<string, WildAnimal>; // Add wild animals

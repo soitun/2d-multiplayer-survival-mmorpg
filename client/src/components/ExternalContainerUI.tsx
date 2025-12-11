@@ -23,6 +23,7 @@ import {
     ItemDefinition, InventoryItem, DbConnection, 
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
+    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
     Lantern as SpacetimeDBLantern, 
     WoodenStorageBox as SpacetimeDBWoodenStorageBox, 
@@ -116,6 +117,7 @@ interface ExternalContainerUIProps {
     itemDefinitions: Map<string, ItemDefinition>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>;
+    barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
     lanterns: Map<string, SpacetimeDBLantern>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -146,6 +148,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     itemDefinitions,
     campfires,
     furnaces,
+    barbecues, // ADDED: Barbecues
     fumaroles, // ADDED: Fumaroles
     lanterns,
     woodenStorageBoxes,
@@ -185,6 +188,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         itemDefinitions,
         campfires,
         furnaces,
+        barbecues,
         fumaroles,
         lanterns,
         woodenStorageBoxes,

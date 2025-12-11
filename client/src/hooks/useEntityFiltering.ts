@@ -8,6 +8,7 @@ import {
   Cairn as SpacetimeDBCairn,
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
+  Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
   Lantern as SpacetimeDBLantern,
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth import
   HarvestableResource as SpacetimeDBHarvestableResource,
@@ -65,6 +66,7 @@ interface EntityFilteringResult {
   visibleDroppedItems: SpacetimeDBDroppedItem[];
   visibleCampfires: SpacetimeDBCampfire[];
   visibleFurnaces: SpacetimeDBFurnace[]; // ADDED: Furnaces
+  visibleBarbecues: SpacetimeDBBarbecue[]; // ADDED: Barbecues
   visibleHomesteadHearths: SpacetimeDBHomesteadHearth[]; // ADDED: Homestead Hearths
   visiblePlayers: SpacetimeDBPlayer[];
   visibleTrees: SpacetimeDBTree[];
@@ -78,6 +80,7 @@ interface EntityFilteringResult {
   visibleHarvestableResourcesMap: Map<string, SpacetimeDBHarvestableResource>;
   visibleCampfiresMap: Map<string, SpacetimeDBCampfire>;
   visibleFurnacesMap: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces map
+  visibleBarbecuesMap: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues map
   visibleLanternsMap: Map<string, SpacetimeDBLantern>;
   visibleHomesteadHearthsMap: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths map
   visibleDroppedItemsMap: Map<string, SpacetimeDBDroppedItem>;
@@ -141,6 +144,7 @@ export type YSortedEntityType =
   | { type: 'harvestable_resource'; entity: SpacetimeDBHarvestableResource }
   | { type: 'campfire'; entity: SpacetimeDBCampfire }
   | { type: 'furnace'; entity: SpacetimeDBFurnace } // ADDED: Furnace type
+  | { type: 'barbecue'; entity: SpacetimeDBBarbecue } // ADDED: Barbecue type
   | { type: 'lantern'; entity: SpacetimeDBLantern }
   | { type: 'homestead_hearth'; entity: SpacetimeDBHomesteadHearth } // ADDED: Homestead Hearth type
   | { type: 'dropped_item'; entity: SpacetimeDBDroppedItem }
@@ -209,6 +213,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'stash':
     case 'campfire':
     case 'furnace':
+    case 'barbecue': // ADDED: Barbecue (same as campfire)
     case 'lantern':
     case 'homestead_hearth': // ADDED: Homestead Hearth (same as campfire)
     case 'planted_seed':
@@ -342,6 +347,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'stash': return 6;
     case 'campfire': return 7;
     case 'furnace': return 7.5;
+    case 'barbecue': return 7.3; // ADDED: Barbecue (between furnace and homestead hearth)
     case 'lantern': return 8;
     case 'homestead_hearth': return 7.2; // ADDED: Homestead Hearth (between furnace and lantern)
     case 'grass': return 9;
@@ -603,6 +609,7 @@ export function useEntityFiltering(
   cairns: Map<string, SpacetimeDBCairn>,
   campfires: Map<string, SpacetimeDBCampfire>,
   furnaces: Map<string, SpacetimeDBFurnace>, // ADDED: Furnaces parameter
+  barbecues: Map<string, SpacetimeDBBarbecue>, // ADDED: Barbecues parameter
   lanterns: Map<string, SpacetimeDBLantern>,
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>, // ADDED: Homestead Hearths parameter
   harvestableResources: Map<string, SpacetimeDBHarvestableResource>,
@@ -921,6 +928,13 @@ export function useEntityFiltering(
           furnaces ? Array.from(furnaces.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
     : [],
     [furnaces, isEntityInView, viewBounds, stableTimestamp]
+  );
+
+  const visibleBarbecues = useMemo(() => 
+    // Check source map - same filtering as campfires
+          barbecues ? Array.from(barbecues.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
+    : [],
+    [barbecues, isEntityInView, viewBounds, stableTimestamp]
   );
 
   const visibleLanterns = useMemo(() => {
@@ -1328,6 +1342,11 @@ export function useEntityFiltering(
     [visibleFurnaces]
   );
 
+  const visibleBarbecuesMap = useMemo(() => 
+    new Map(visibleBarbecues.map(b => [b.id.toString(), b])), 
+    [visibleBarbecues]
+  );
+
   const visibleLanternsMap = useMemo(() => 
     new Map(visibleLanterns.map(l => [l.id.toString(), l])), 
     [visibleLanterns]
@@ -1520,6 +1539,7 @@ export function useEntityFiltering(
       boxes: visibleWoodenStorageBoxes.length,
       campfires: visibleCampfires.length,
       furnaces: visibleFurnaces.length,
+      barbecues: visibleBarbecues.length,
       lanterns: visibleLanterns.length,
       homesteadHearths: visibleHomesteadHearths.length, // ADDED: Homestead Hearths count
       droppedItems: visibleDroppedItems.length,
@@ -1664,6 +1684,7 @@ export function useEntityFiltering(
     visibleStashes.forEach(e => addEntity('stash', e));
     visibleCampfires.forEach(e => addEntity('campfire', e));
     visibleFurnaces.forEach(e => addEntity('furnace', e));
+    visibleBarbecues.forEach(e => addEntity('barbecue', e));
     visibleLanterns.forEach(e => addEntity('lantern', e));
     visibleHomesteadHearths.forEach(e => addEntity('homestead_hearth', e)); // ADDED: Homestead Hearths
     visibleGrass.forEach(e => addEntity('grass', e));
@@ -2319,6 +2340,8 @@ export function useEntityFiltering(
     visibleHarvestableResourcesMap,
     visibleCampfiresMap,
     visibleFurnacesMap, // ADDED: Furnaces map
+    visibleBarbecues, // ADDED: Barbecues
+    visibleBarbecuesMap, // ADDED: Barbecues map
     visibleLanternsMap,
     visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
     visibleDroppedItemsMap,

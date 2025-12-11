@@ -100,6 +100,7 @@ export interface SpacetimeTableStates {
     playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDB.Campfire>;
     furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
+    barbecues: Map<string, SpacetimeDB.Barbecue>; // ADDED: Barbecue support
     lanterns: Map<string, SpacetimeDB.Lantern>;
     homesteadHearths: Map<string, SpacetimeDB.HomesteadHearth>; // ADDED: Homestead Hearth support
     brothPots: Map<string, SpacetimeDB.BrothPot>; // ADDED: Broth pot support
@@ -186,6 +187,7 @@ export const useSpacetimeTables = ({
     const [playerDiscoveredCairns, setPlayerDiscoveredCairns] = useState<Map<string, SpacetimeDB.PlayerDiscoveredCairn>>(() => new Map());
     const [campfires, setCampfires] = useState<Map<string, SpacetimeDB.Campfire>>(() => new Map());
     const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
+    const [barbecues, setBarbecues] = useState<Map<string, SpacetimeDB.Barbecue>>(() => new Map()); // ADDED: Barbecue state
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
     const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map()); // ADDED: Homestead Hearth state
     const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map()); // ADDED: Broth pot state
@@ -356,6 +358,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
@@ -406,6 +409,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Cairn', `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('HarvestableResource', `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Campfire', `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Barbecue', `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BrothPot', `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WoodenStorageBox', `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
@@ -854,6 +858,16 @@ export const useSpacetimeTables = ({
             };
             const handleCampfireUpdate = (ctx: any, oldFire: SpacetimeDB.Campfire, newFire: SpacetimeDB.Campfire) => setCampfires(prev => new Map(prev).set(newFire.id.toString(), newFire));
             const handleCampfireDelete = (ctx: any, campfire: SpacetimeDB.Campfire) => setCampfires(prev => { const newMap = new Map(prev); newMap.delete(campfire.id.toString()); return newMap; });
+
+            // --- Barbecue Subscriptions --- ADDED: Same pattern as campfire
+            const handleBarbecueInsert = (ctx: any, barbecue: SpacetimeDB.Barbecue) => {
+                setBarbecues(prev => new Map(prev).set(barbecue.id.toString(), barbecue));
+                if (connection.identity && barbecue.placedBy.isEqual(connection.identity)) {
+                    cancelPlacementRef.current();
+                }
+            };
+            const handleBarbecueUpdate = (ctx: any, oldBarbecue: SpacetimeDB.Barbecue, newBarbecue: SpacetimeDB.Barbecue) => setBarbecues(prev => new Map(prev).set(newBarbecue.id.toString(), newBarbecue));
+            const handleBarbecueDelete = (ctx: any, barbecue: SpacetimeDB.Barbecue) => setBarbecues(prev => { const newMap = new Map(prev); newMap.delete(barbecue.id.toString()); return newMap; });
 
             // --- Furnace Subscriptions --- ADDED: Same pattern as campfire
             const handleFurnaceInsert = (ctx: any, furnace: SpacetimeDB.Furnace) => {
@@ -1651,6 +1665,7 @@ export const useSpacetimeTables = ({
             connection.db.cairn.onInsert(handleCairnInsert); connection.db.cairn.onUpdate(handleCairnUpdate); connection.db.cairn.onDelete(handleCairnDelete);
             connection.db.playerDiscoveredCairn.onInsert(handlePlayerDiscoveredCairnInsert); connection.db.playerDiscoveredCairn.onUpdate(handlePlayerDiscoveredCairnUpdate); connection.db.playerDiscoveredCairn.onDelete(handlePlayerDiscoveredCairnDelete);
             connection.db.campfire.onInsert(handleCampfireInsert); connection.db.campfire.onUpdate(handleCampfireUpdate); connection.db.campfire.onDelete(handleCampfireDelete);
+            connection.db.barbecue.onInsert(handleBarbecueInsert); connection.db.barbecue.onUpdate(handleBarbecueUpdate); connection.db.barbecue.onDelete(handleBarbecueDelete); // ADDED: Barbecue event registration
             connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
             connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
             connection.db.homesteadHearth.onInsert(handleHomesteadHearthInsert); connection.db.homesteadHearth.onUpdate(handleHomesteadHearthUpdate); connection.db.homesteadHearth.onDelete(handleHomesteadHearthDelete); // ADDED: Homestead Hearth event registration
@@ -2101,6 +2116,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
                                     `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`, // ADDED: Cairn initial spatial subscription
                                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`, // ADDED: Barbecue initial spatial subscription
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
@@ -2212,7 +2228,7 @@ export const useSpacetimeTables = ({
                 currentChunksRef.current = [];
                 setLocalPlayerRegistered(false);
                 // Reset table states
-                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setRuneStones(new Map()); setCairns(new Map()); setPlayerDiscoveredCairns(new Map()); setCampfires(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, Broth Pot, Cairn cleanup
+                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setRuneStones(new Map()); setCairns(new Map()); setPlayerDiscoveredCairns(new Map()); setCampfires(new Map()); setBarbecues(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, Broth Pot, Barbecue, Cairn cleanup
                 setHarvestableResources(new Map());
                 setItemDefinitions(new Map()); setRecipes(new Map());
                 setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
@@ -2311,6 +2327,7 @@ export const useSpacetimeTables = ({
         stones,
         campfires,
         furnaces, // ADDED: Furnace state
+        barbecues, // ADDED: Barbecue state
         lanterns,
         homesteadHearths, // ADDED: Homestead Hearth state
         brothPots, // ADDED: Broth pot state

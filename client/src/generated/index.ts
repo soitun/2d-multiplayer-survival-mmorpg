@@ -113,6 +113,8 @@ import { DrinkWater } from "./drink_water_reducer.ts";
 export { DrinkWater };
 import { DropItem } from "./drop_item_reducer.ts";
 export { DropItem };
+import { DropItemFromBarbecue } from "./drop_item_from_barbecue_reducer.ts";
+export { DropItemFromBarbecue };
 import { DropItemFromBoxSlotToWorld } from "./drop_item_from_box_slot_to_world_reducer.ts";
 export { DropItemFromBoxSlotToWorld };
 import { DropItemFromCampfireSlotToWorld } from "./drop_item_from_campfire_slot_to_world_reducer.ts";
@@ -173,6 +175,8 @@ import { InitializePlayerMemoryGrid } from "./initialize_player_memory_grid_redu
 export { InitializePlayerMemoryGrid };
 import { InteractDoor } from "./interact_door_reducer.ts";
 export { InteractDoor };
+import { InteractWithBarbecue } from "./interact_with_barbecue_reducer.ts";
+export { InteractWithBarbecue };
 import { InteractWithBrothPot } from "./interact_with_broth_pot_reducer.ts";
 export { InteractWithBrothPot };
 import { InteractWithCairn } from "./interact_with_cairn_reducer.ts";
@@ -201,6 +205,8 @@ import { ManageSeasonalPlants } from "./manage_seasonal_plants_reducer.ts";
 export { ManageSeasonalPlants };
 import { ManualCleanupThunderEvents } from "./manual_cleanup_thunder_events_reducer.ts";
 export { ManualCleanupThunderEvents };
+import { MoveItemFromBarbecue } from "./move_item_from_barbecue_reducer.ts";
+export { MoveItemFromBarbecue };
 import { MoveItemFromBox } from "./move_item_from_box_reducer.ts";
 export { MoveItemFromBox };
 import { MoveItemFromBrothPot } from "./move_item_from_broth_pot_reducer.ts";
@@ -225,6 +231,8 @@ import { MoveItemFromRainCollector } from "./move_item_from_rain_collector_reduc
 export { MoveItemFromRainCollector };
 import { MoveItemFromStash } from "./move_item_from_stash_reducer.ts";
 export { MoveItemFromStash };
+import { MoveItemToBarbecue } from "./move_item_to_barbecue_reducer.ts";
+export { MoveItemToBarbecue };
 import { MoveItemToBox } from "./move_item_to_box_reducer.ts";
 export { MoveItemToBox };
 import { MoveItemToBrothPot } from "./move_item_to_broth_pot_reducer.ts";
@@ -277,6 +285,8 @@ import { MoveToFirstAvailableHotbarSlot } from "./move_to_first_available_hotbar
 export { MoveToFirstAvailableHotbarSlot };
 import { MoveToFirstAvailableInventorySlot } from "./move_to_first_available_inventory_slot_reducer.ts";
 export { MoveToFirstAvailableInventorySlot };
+import { PickupBarbecue } from "./pickup_barbecue_reducer.ts";
+export { PickupBarbecue };
 import { PickupBrothPot } from "./pickup_broth_pot_reducer.ts";
 export { PickupBrothPot };
 import { PickupDoor } from "./pickup_door_reducer.ts";
@@ -287,6 +297,8 @@ import { PickupLantern } from "./pickup_lantern_reducer.ts";
 export { PickupLantern };
 import { PickupStorageBox } from "./pickup_storage_box_reducer.ts";
 export { PickupStorageBox };
+import { PlaceBarbecue } from "./place_barbecue_reducer.ts";
+export { PlaceBarbecue };
 import { PlaceBrothPotOnCampfire } from "./place_broth_pot_on_campfire_reducer.ts";
 export { PlaceBrothPotOnCampfire };
 import { PlaceBrothPotOnFumarole } from "./place_broth_pot_on_fumarole_reducer.ts";
@@ -321,6 +333,8 @@ import { ProcessActiveConsumableEffectsTick } from "./process_active_consumable_
 export { ProcessActiveConsumableEffectsTick };
 import { ProcessAlkContractRefresh } from "./process_alk_contract_refresh_reducer.ts";
 export { ProcessAlkContractRefresh };
+import { ProcessBarbecueLogicScheduled } from "./process_barbecue_logic_scheduled_reducer.ts";
+export { ProcessBarbecueLogicScheduled };
 import { ProcessBrothPotLogicScheduled } from "./process_broth_pot_logic_scheduled_reducer.ts";
 export { ProcessBrothPotLogicScheduled };
 import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
@@ -361,6 +375,8 @@ import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
 export { PurchaseMemoryGridNode };
 import { QueryHearthUpkeepCosts } from "./query_hearth_upkeep_costs_reducer.ts";
 export { QueryHearthUpkeepCosts };
+import { QuickMoveFromBarbecue } from "./quick_move_from_barbecue_reducer.ts";
+export { QuickMoveFromBarbecue };
 import { QuickMoveFromBox } from "./quick_move_from_box_reducer.ts";
 export { QuickMoveFromBox };
 import { QuickMoveFromBrothPot } from "./quick_move_from_broth_pot_reducer.ts";
@@ -385,6 +401,8 @@ import { QuickMoveFromRainCollector } from "./quick_move_from_rain_collector_red
 export { QuickMoveFromRainCollector };
 import { QuickMoveFromStash } from "./quick_move_from_stash_reducer.ts";
 export { QuickMoveFromStash };
+import { QuickMoveToBarbecue } from "./quick_move_to_barbecue_reducer.ts";
+export { QuickMoveToBarbecue };
 import { QuickMoveToBox } from "./quick_move_to_box_reducer.ts";
 export { QuickMoveToBox };
 import { QuickMoveToBrothPot } from "./quick_move_to_broth_pot_reducer.ts";
@@ -425,6 +443,8 @@ import { ReviveKnockedOutPlayer } from "./revive_knocked_out_player_reducer.ts";
 export { ReviveKnockedOutPlayer };
 import { RevokePlayerBuildingPrivilege } from "./revoke_player_building_privilege_reducer.ts";
 export { RevokePlayerBuildingPrivilege };
+import { ScheduleNextBarbecueProcessing } from "./schedule_next_barbecue_processing_reducer.ts";
+export { ScheduleNextBarbecueProcessing };
 import { ScheduleNextBrothPotProcessing } from "./schedule_next_broth_pot_processing_reducer.ts";
 export { ScheduleNextBrothPotProcessing };
 import { ScheduleNextCampfireProcessing } from "./schedule_next_campfire_processing_reducer.ts";
@@ -501,6 +521,8 @@ import { SplitStackFromLantern } from "./split_stack_from_lantern_reducer.ts";
 export { SplitStackFromLantern };
 import { SplitStackFromStash } from "./split_stack_from_stash_reducer.ts";
 export { SplitStackFromStash };
+import { SplitStackIntoBarbecue } from "./split_stack_into_barbecue_reducer.ts";
+export { SplitStackIntoBarbecue };
 import { SplitStackIntoBox } from "./split_stack_into_box_reducer.ts";
 export { SplitStackIntoBox };
 import { SplitStackIntoBrothPot } from "./split_stack_into_broth_pot_reducer.ts";
@@ -557,6 +579,8 @@ import { ThrowItem } from "./throw_item_reducer.ts";
 export { ThrowItem };
 import { TickWorldState } from "./tick_world_state_reducer.ts";
 export { TickWorldState };
+import { ToggleBarbecueBurning } from "./toggle_barbecue_burning_reducer.ts";
+export { ToggleBarbecueBurning };
 import { ToggleCampfireBurning } from "./toggle_campfire_burning_reducer.ts";
 export { ToggleCampfireBurning };
 import { ToggleCrouch } from "./toggle_crouch_reducer.ts";
@@ -625,6 +649,10 @@ import { ArrowBreakEventTableHandle } from "./arrow_break_event_table.ts";
 export { ArrowBreakEventTableHandle };
 import { BackpackConsolidationScheduleTableHandle } from "./backpack_consolidation_schedule_table.ts";
 export { BackpackConsolidationScheduleTableHandle };
+import { BarbecueTableHandle } from "./barbecue_table.ts";
+export { BarbecueTableHandle };
+import { BarbecueProcessingScheduleTableHandle } from "./barbecue_processing_schedule_table.ts";
+export { BarbecueProcessingScheduleTableHandle };
 import { BarrelTableHandle } from "./barrel_table.ts";
 export { BarrelTableHandle };
 import { BarrelRespawnScheduleTableHandle } from "./barrel_respawn_schedule_table.ts";
@@ -881,6 +909,10 @@ import { ArrowBreakEvent } from "./arrow_break_event_type.ts";
 export { ArrowBreakEvent };
 import { BackpackConsolidationSchedule } from "./backpack_consolidation_schedule_type.ts";
 export { BackpackConsolidationSchedule };
+import { Barbecue } from "./barbecue_type.ts";
+export { Barbecue };
+import { BarbecueProcessingSchedule } from "./barbecue_processing_schedule_type.ts";
+export { BarbecueProcessingSchedule };
 import { Barrel } from "./barrel_type.ts";
 export { Barrel };
 import { BarrelRespawnSchedule } from "./barrel_respawn_schedule_type.ts";
@@ -1263,6 +1295,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (BackpackConsolidationSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    barbecue: {
+      tableName: "barbecue" as const,
+      rowType: Barbecue.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Barbecue.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    barbecue_processing_schedule: {
+      tableName: "barbecue_processing_schedule" as const,
+      rowType: BarbecueProcessingSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "barbecueId",
+      primaryKeyInfo: {
+        colName: "barbecueId",
+        colType: (BarbecueProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     barrel: {
@@ -2394,6 +2444,10 @@ const REMOTE_MODULE = {
       reducerName: "drop_item",
       argsType: DropItem.getTypeScriptAlgebraicType(),
     },
+    drop_item_from_barbecue: {
+      reducerName: "drop_item_from_barbecue",
+      argsType: DropItemFromBarbecue.getTypeScriptAlgebraicType(),
+    },
     drop_item_from_box_slot_to_world: {
       reducerName: "drop_item_from_box_slot_to_world",
       argsType: DropItemFromBoxSlotToWorld.getTypeScriptAlgebraicType(),
@@ -2514,6 +2568,10 @@ const REMOTE_MODULE = {
       reducerName: "interact_door",
       argsType: InteractDoor.getTypeScriptAlgebraicType(),
     },
+    interact_with_barbecue: {
+      reducerName: "interact_with_barbecue",
+      argsType: InteractWithBarbecue.getTypeScriptAlgebraicType(),
+    },
     interact_with_broth_pot: {
       reducerName: "interact_with_broth_pot",
       argsType: InteractWithBrothPot.getTypeScriptAlgebraicType(),
@@ -2570,6 +2628,10 @@ const REMOTE_MODULE = {
       reducerName: "manual_cleanup_thunder_events",
       argsType: ManualCleanupThunderEvents.getTypeScriptAlgebraicType(),
     },
+    move_item_from_barbecue: {
+      reducerName: "move_item_from_barbecue",
+      argsType: MoveItemFromBarbecue.getTypeScriptAlgebraicType(),
+    },
     move_item_from_box: {
       reducerName: "move_item_from_box",
       argsType: MoveItemFromBox.getTypeScriptAlgebraicType(),
@@ -2617,6 +2679,10 @@ const REMOTE_MODULE = {
     move_item_from_stash: {
       reducerName: "move_item_from_stash",
       argsType: MoveItemFromStash.getTypeScriptAlgebraicType(),
+    },
+    move_item_to_barbecue: {
+      reducerName: "move_item_to_barbecue",
+      argsType: MoveItemToBarbecue.getTypeScriptAlgebraicType(),
     },
     move_item_to_box: {
       reducerName: "move_item_to_box",
@@ -2722,6 +2788,10 @@ const REMOTE_MODULE = {
       reducerName: "move_to_first_available_inventory_slot",
       argsType: MoveToFirstAvailableInventorySlot.getTypeScriptAlgebraicType(),
     },
+    pickup_barbecue: {
+      reducerName: "pickup_barbecue",
+      argsType: PickupBarbecue.getTypeScriptAlgebraicType(),
+    },
     pickup_broth_pot: {
       reducerName: "pickup_broth_pot",
       argsType: PickupBrothPot.getTypeScriptAlgebraicType(),
@@ -2741,6 +2811,10 @@ const REMOTE_MODULE = {
     pickup_storage_box: {
       reducerName: "pickup_storage_box",
       argsType: PickupStorageBox.getTypeScriptAlgebraicType(),
+    },
+    place_barbecue: {
+      reducerName: "place_barbecue",
+      argsType: PlaceBarbecue.getTypeScriptAlgebraicType(),
     },
     place_broth_pot_on_campfire: {
       reducerName: "place_broth_pot_on_campfire",
@@ -2809,6 +2883,10 @@ const REMOTE_MODULE = {
     process_alk_contract_refresh: {
       reducerName: "process_alk_contract_refresh",
       argsType: ProcessAlkContractRefresh.getTypeScriptAlgebraicType(),
+    },
+    process_barbecue_logic_scheduled: {
+      reducerName: "process_barbecue_logic_scheduled",
+      argsType: ProcessBarbecueLogicScheduled.getTypeScriptAlgebraicType(),
     },
     process_broth_pot_logic_scheduled: {
       reducerName: "process_broth_pot_logic_scheduled",
@@ -2890,6 +2968,10 @@ const REMOTE_MODULE = {
       reducerName: "query_hearth_upkeep_costs",
       argsType: QueryHearthUpkeepCosts.getTypeScriptAlgebraicType(),
     },
+    quick_move_from_barbecue: {
+      reducerName: "quick_move_from_barbecue",
+      argsType: QuickMoveFromBarbecue.getTypeScriptAlgebraicType(),
+    },
     quick_move_from_box: {
       reducerName: "quick_move_from_box",
       argsType: QuickMoveFromBox.getTypeScriptAlgebraicType(),
@@ -2937,6 +3019,10 @@ const REMOTE_MODULE = {
     quick_move_from_stash: {
       reducerName: "quick_move_from_stash",
       argsType: QuickMoveFromStash.getTypeScriptAlgebraicType(),
+    },
+    quick_move_to_barbecue: {
+      reducerName: "quick_move_to_barbecue",
+      argsType: QuickMoveToBarbecue.getTypeScriptAlgebraicType(),
     },
     quick_move_to_box: {
       reducerName: "quick_move_to_box",
@@ -3017,6 +3103,10 @@ const REMOTE_MODULE = {
     revoke_player_building_privilege: {
       reducerName: "revoke_player_building_privilege",
       argsType: RevokePlayerBuildingPrivilege.getTypeScriptAlgebraicType(),
+    },
+    schedule_next_barbecue_processing: {
+      reducerName: "schedule_next_barbecue_processing",
+      argsType: ScheduleNextBarbecueProcessing.getTypeScriptAlgebraicType(),
     },
     schedule_next_broth_pot_processing: {
       reducerName: "schedule_next_broth_pot_processing",
@@ -3170,6 +3260,10 @@ const REMOTE_MODULE = {
       reducerName: "split_stack_from_stash",
       argsType: SplitStackFromStash.getTypeScriptAlgebraicType(),
     },
+    split_stack_into_barbecue: {
+      reducerName: "split_stack_into_barbecue",
+      argsType: SplitStackIntoBarbecue.getTypeScriptAlgebraicType(),
+    },
     split_stack_into_box: {
       reducerName: "split_stack_into_box",
       argsType: SplitStackIntoBox.getTypeScriptAlgebraicType(),
@@ -3281,6 +3375,10 @@ const REMOTE_MODULE = {
     tick_world_state: {
       reducerName: "tick_world_state",
       argsType: TickWorldState.getTypeScriptAlgebraicType(),
+    },
+    toggle_barbecue_burning: {
+      reducerName: "toggle_barbecue_burning",
+      argsType: ToggleBarbecueBurning.getTypeScriptAlgebraicType(),
     },
     toggle_campfire_burning: {
       reducerName: "toggle_campfire_burning",
@@ -3441,6 +3539,7 @@ export type Reducer = never
 | { name: "DodgeRoll", args: DodgeRoll }
 | { name: "DrinkWater", args: DrinkWater }
 | { name: "DropItem", args: DropItem }
+| { name: "DropItemFromBarbecue", args: DropItemFromBarbecue }
 | { name: "DropItemFromBoxSlotToWorld", args: DropItemFromBoxSlotToWorld }
 | { name: "DropItemFromCampfireSlotToWorld", args: DropItemFromCampfireSlotToWorld }
 | { name: "DropItemFromCorpseSlotToWorld", args: DropItemFromCorpseSlotToWorld }
@@ -3471,6 +3570,7 @@ export type Reducer = never
 | { name: "InitProjectileSystem", args: InitProjectileSystem }
 | { name: "InitializePlayerMemoryGrid", args: InitializePlayerMemoryGrid }
 | { name: "InteractDoor", args: InteractDoor }
+| { name: "InteractWithBarbecue", args: InteractWithBarbecue }
 | { name: "InteractWithBrothPot", args: InteractWithBrothPot }
 | { name: "InteractWithCairn", args: InteractWithCairn }
 | { name: "InteractWithCampfire", args: InteractWithCampfire }
@@ -3485,6 +3585,7 @@ export type Reducer = never
 | { name: "LoadRangedWeapon", args: LoadRangedWeapon }
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
 | { name: "ManualCleanupThunderEvents", args: ManualCleanupThunderEvents }
+| { name: "MoveItemFromBarbecue", args: MoveItemFromBarbecue }
 | { name: "MoveItemFromBox", args: MoveItemFromBox }
 | { name: "MoveItemFromBrothPot", args: MoveItemFromBrothPot }
 | { name: "MoveItemFromBrothPotOutput", args: MoveItemFromBrothPotOutput }
@@ -3497,6 +3598,7 @@ export type Reducer = never
 | { name: "MoveItemFromLanternToPlayerSlot", args: MoveItemFromLanternToPlayerSlot }
 | { name: "MoveItemFromRainCollector", args: MoveItemFromRainCollector }
 | { name: "MoveItemFromStash", args: MoveItemFromStash }
+| { name: "MoveItemToBarbecue", args: MoveItemToBarbecue }
 | { name: "MoveItemToBox", args: MoveItemToBox }
 | { name: "MoveItemToBrothPot", args: MoveItemToBrothPot }
 | { name: "MoveItemToBrothPotWaterContainer", args: MoveItemToBrothPotWaterContainer }
@@ -3523,11 +3625,13 @@ export type Reducer = never
 | { name: "MoveItemWithinStash", args: MoveItemWithinStash }
 | { name: "MoveToFirstAvailableHotbarSlot", args: MoveToFirstAvailableHotbarSlot }
 | { name: "MoveToFirstAvailableInventorySlot", args: MoveToFirstAvailableInventorySlot }
+| { name: "PickupBarbecue", args: PickupBarbecue }
 | { name: "PickupBrothPot", args: PickupBrothPot }
 | { name: "PickupDoor", args: PickupDoor }
 | { name: "PickupDroppedItem", args: PickupDroppedItem }
 | { name: "PickupLantern", args: PickupLantern }
 | { name: "PickupStorageBox", args: PickupStorageBox }
+| { name: "PlaceBarbecue", args: PlaceBarbecue }
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
 | { name: "PlaceBrothPotOnFumarole", args: PlaceBrothPotOnFumarole }
 | { name: "PlaceCampfire", args: PlaceCampfire }
@@ -3545,6 +3649,7 @@ export type Reducer = never
 | { name: "PlantSeed", args: PlantSeed }
 | { name: "ProcessActiveConsumableEffectsTick", args: ProcessActiveConsumableEffectsTick }
 | { name: "ProcessAlkContractRefresh", args: ProcessAlkContractRefresh }
+| { name: "ProcessBarbecueLogicScheduled", args: ProcessBarbecueLogicScheduled }
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
@@ -3565,6 +3670,7 @@ export type Reducer = never
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
+| { name: "QuickMoveFromBarbecue", args: QuickMoveFromBarbecue }
 | { name: "QuickMoveFromBox", args: QuickMoveFromBox }
 | { name: "QuickMoveFromBrothPot", args: QuickMoveFromBrothPot }
 | { name: "QuickMoveFromBrothPotOutput", args: QuickMoveFromBrothPotOutput }
@@ -3577,6 +3683,7 @@ export type Reducer = never
 | { name: "QuickMoveFromLantern", args: QuickMoveFromLantern }
 | { name: "QuickMoveFromRainCollector", args: QuickMoveFromRainCollector }
 | { name: "QuickMoveFromStash", args: QuickMoveFromStash }
+| { name: "QuickMoveToBarbecue", args: QuickMoveToBarbecue }
 | { name: "QuickMoveToBox", args: QuickMoveToBox }
 | { name: "QuickMoveToBrothPot", args: QuickMoveToBrothPot }
 | { name: "QuickMoveToBrothPotWaterContainer", args: QuickMoveToBrothPotWaterContainer }
@@ -3597,6 +3704,7 @@ export type Reducer = never
 | { name: "RespawnRandomly", args: RespawnRandomly }
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
 | { name: "RevokePlayerBuildingPrivilege", args: RevokePlayerBuildingPrivilege }
+| { name: "ScheduleNextBarbecueProcessing", args: ScheduleNextBarbecueProcessing }
 | { name: "ScheduleNextBrothPotProcessing", args: ScheduleNextBrothPotProcessing }
 | { name: "ScheduleNextCampfireProcessing", args: ScheduleNextCampfireProcessing }
 | { name: "ScheduleNextFumaroleProcessing", args: ScheduleNextFumaroleProcessing }
@@ -3635,6 +3743,7 @@ export type Reducer = never
 | { name: "SplitStackFromHearth", args: SplitStackFromHearth }
 | { name: "SplitStackFromLantern", args: SplitStackFromLantern }
 | { name: "SplitStackFromStash", args: SplitStackFromStash }
+| { name: "SplitStackIntoBarbecue", args: SplitStackIntoBarbecue }
 | { name: "SplitStackIntoBox", args: SplitStackIntoBox }
 | { name: "SplitStackIntoBrothPot", args: SplitStackIntoBrothPot }
 | { name: "SplitStackIntoCampfire", args: SplitStackIntoCampfire }
@@ -3663,6 +3772,7 @@ export type Reducer = never
 | { name: "StopNormalRainSoundReducer", args: StopNormalRainSoundReducer }
 | { name: "ThrowItem", args: ThrowItem }
 | { name: "TickWorldState", args: TickWorldState }
+| { name: "ToggleBarbecueBurning", args: ToggleBarbecueBurning }
 | { name: "ToggleCampfireBurning", args: ToggleCampfireBurning }
 | { name: "ToggleCrouch", args: ToggleCrouch }
 | { name: "ToggleFlashlight", args: ToggleFlashlight }
@@ -4314,6 +4424,22 @@ export class RemoteReducers {
     this.connection.offReducer("drop_item", callback);
   }
 
+  dropItemFromBarbecue(barbecueId: number, slotIndex: number) {
+    const __args = { barbecueId, slotIndex };
+    let __writer = new __BinaryWriter(1024);
+    DropItemFromBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("drop_item_from_barbecue", __argsBuffer, this.setCallReducerFlags.dropItemFromBarbecueFlags);
+  }
+
+  onDropItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
+    this.connection.onReducer("drop_item_from_barbecue", callback);
+  }
+
+  removeOnDropItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, slotIndex: number) => void) {
+    this.connection.offReducer("drop_item_from_barbecue", callback);
+  }
+
   dropItemFromBoxSlotToWorld(boxId: number, slotIndex: number) {
     const __args = { boxId, slotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -4754,6 +4880,22 @@ export class RemoteReducers {
     this.connection.offReducer("interact_door", callback);
   }
 
+  interactWithBarbecue(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    InteractWithBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("interact_with_barbecue", __argsBuffer, this.setCallReducerFlags.interactWithBarbecueFlags);
+  }
+
+  onInteractWithBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("interact_with_barbecue", callback);
+  }
+
+  removeOnInteractWithBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("interact_with_barbecue", callback);
+  }
+
   interactWithBrothPot(brothPotId: number) {
     const __args = { brothPotId };
     let __writer = new __BinaryWriter(1024);
@@ -4966,6 +5108,22 @@ export class RemoteReducers {
     this.connection.offReducer("manual_cleanup_thunder_events", callback);
   }
 
+  moveItemFromBarbecue(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { barbecueId, sourceSlotIndex, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemFromBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_from_barbecue", __argsBuffer, this.setCallReducerFlags.moveItemFromBarbecueFlags);
+  }
+
+  onMoveItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_from_barbecue", callback);
+  }
+
+  removeOnMoveItemFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_from_barbecue", callback);
+  }
+
   moveItemFromBox(boxId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { boxId, sourceSlotIndex, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -5156,6 +5314,22 @@ export class RemoteReducers {
 
   removeOnMoveItemFromStash(callback: (ctx: ReducerEventContext, stashId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
     this.connection.offReducer("move_item_from_stash", callback);
+  }
+
+  moveItemToBarbecue(barbecueId: number, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { barbecueId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_barbecue", __argsBuffer, this.setCallReducerFlags.moveItemToBarbecueFlags);
+  }
+
+  onMoveItemToBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_barbecue", callback);
+  }
+
+  removeOnMoveItemToBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_barbecue", callback);
   }
 
   moveItemToBox(boxId: number, targetSlotIndex: number, itemInstanceId: bigint) {
@@ -5574,6 +5748,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_to_first_available_inventory_slot", callback);
   }
 
+  pickupBarbecue(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    PickupBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pickup_barbecue", __argsBuffer, this.setCallReducerFlags.pickupBarbecueFlags);
+  }
+
+  onPickupBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("pickup_barbecue", callback);
+  }
+
+  removeOnPickupBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("pickup_barbecue", callback);
+  }
+
   pickupBrothPot(brothPotId: number) {
     const __args = { brothPotId };
     let __writer = new __BinaryWriter(1024);
@@ -5652,6 +5842,22 @@ export class RemoteReducers {
 
   removeOnPickupStorageBox(callback: (ctx: ReducerEventContext, boxId: number) => void) {
     this.connection.offReducer("pickup_storage_box", callback);
+  }
+
+  placeBarbecue(itemInstanceId: bigint, worldX: number, worldY: number) {
+    const __args = { itemInstanceId, worldX, worldY };
+    let __writer = new __BinaryWriter(1024);
+    PlaceBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_barbecue", __argsBuffer, this.setCallReducerFlags.placeBarbecueFlags);
+  }
+
+  onPlaceBarbecue(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.onReducer("place_barbecue", callback);
+  }
+
+  removeOnPlaceBarbecue(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.offReducer("place_barbecue", callback);
   }
 
   placeBrothPotOnCampfire(itemInstanceId: bigint, campfireId: number) {
@@ -5924,6 +6130,22 @@ export class RemoteReducers {
 
   removeOnProcessAlkContractRefresh(callback: (ctx: ReducerEventContext, args: AlkContractRefreshSchedule) => void) {
     this.connection.offReducer("process_alk_contract_refresh", callback);
+  }
+
+  processBarbecueLogicScheduled(schedule: BarbecueProcessingSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessBarbecueLogicScheduled.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_barbecue_logic_scheduled", __argsBuffer, this.setCallReducerFlags.processBarbecueLogicScheduledFlags);
+  }
+
+  onProcessBarbecueLogicScheduled(callback: (ctx: ReducerEventContext, schedule: BarbecueProcessingSchedule) => void) {
+    this.connection.onReducer("process_barbecue_logic_scheduled", callback);
+  }
+
+  removeOnProcessBarbecueLogicScheduled(callback: (ctx: ReducerEventContext, schedule: BarbecueProcessingSchedule) => void) {
+    this.connection.offReducer("process_barbecue_logic_scheduled", callback);
   }
 
   processBrothPotLogicScheduled(scheduleArgs: BrothPotProcessingSchedule) {
@@ -6246,6 +6468,22 @@ export class RemoteReducers {
     this.connection.offReducer("query_hearth_upkeep_costs", callback);
   }
 
+  quickMoveFromBarbecue(barbecueId: number, sourceSlotIndex: number) {
+    const __args = { barbecueId, sourceSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveFromBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_from_barbecue", __argsBuffer, this.setCallReducerFlags.quickMoveFromBarbecueFlags);
+  }
+
+  onQuickMoveFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number) => void) {
+    this.connection.onReducer("quick_move_from_barbecue", callback);
+  }
+
+  removeOnQuickMoveFromBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, sourceSlotIndex: number) => void) {
+    this.connection.offReducer("quick_move_from_barbecue", callback);
+  }
+
   quickMoveFromBox(boxId: number, sourceSlotIndex: number) {
     const __args = { boxId, sourceSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -6436,6 +6674,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveFromStash(callback: (ctx: ReducerEventContext, stashId: number, sourceSlotIndex: number) => void) {
     this.connection.offReducer("quick_move_from_stash", callback);
+  }
+
+  quickMoveToBarbecue(barbecueId: number, itemInstanceId: bigint) {
+    const __args = { barbecueId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_barbecue", __argsBuffer, this.setCallReducerFlags.quickMoveToBarbecueFlags);
+  }
+
+  onQuickMoveToBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_barbecue", callback);
+  }
+
+  removeOnQuickMoveToBarbecue(callback: (ctx: ReducerEventContext, barbecueId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_barbecue", callback);
   }
 
   quickMoveToBox(boxId: number, itemInstanceId: bigint) {
@@ -6744,6 +6998,22 @@ export class RemoteReducers {
 
   removeOnRevokePlayerBuildingPrivilege(callback: (ctx: ReducerEventContext, hearthId: number, targetPlayerId: __Identity) => void) {
     this.connection.offReducer("revoke_player_building_privilege", callback);
+  }
+
+  scheduleNextBarbecueProcessing(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    ScheduleNextBarbecueProcessing.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("schedule_next_barbecue_processing", __argsBuffer, this.setCallReducerFlags.scheduleNextBarbecueProcessingFlags);
+  }
+
+  onScheduleNextBarbecueProcessing(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("schedule_next_barbecue_processing", callback);
+  }
+
+  removeOnScheduleNextBarbecueProcessing(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("schedule_next_barbecue_processing", callback);
   }
 
   scheduleNextBrothPotProcessing(brothPotId: number) {
@@ -7330,6 +7600,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_from_stash", callback);
   }
 
+  splitStackIntoBarbecue(sourceItemInstanceId: bigint, quantityToSplit: number, targetBarbecueId: number, targetSlotIndex: number) {
+    const __args = { sourceItemInstanceId, quantityToSplit, targetBarbecueId, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoBarbecue.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_barbecue", __argsBuffer, this.setCallReducerFlags.splitStackIntoBarbecueFlags);
+  }
+
+  onSplitStackIntoBarbecue(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetBarbecueId: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_into_barbecue", callback);
+  }
+
+  removeOnSplitStackIntoBarbecue(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetBarbecueId: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_into_barbecue", callback);
+  }
+
   splitStackIntoBox(boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
     const __args = { boxId, targetSlotIndex, sourceItemInstanceId, quantityToSplit };
     let __writer = new __BinaryWriter(1024);
@@ -7760,6 +8046,22 @@ export class RemoteReducers {
 
   removeOnTickWorldState(callback: (ctx: ReducerEventContext, timestamp: __Timestamp) => void) {
     this.connection.offReducer("tick_world_state", callback);
+  }
+
+  toggleBarbecueBurning(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    ToggleBarbecueBurning.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("toggle_barbecue_burning", __argsBuffer, this.setCallReducerFlags.toggleBarbecueBurningFlags);
+  }
+
+  onToggleBarbecueBurning(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("toggle_barbecue_burning", callback);
+  }
+
+  removeOnToggleBarbecueBurning(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("toggle_barbecue_burning", callback);
   }
 
   toggleCampfireBurning(campfireId: number) {
@@ -8302,6 +8604,11 @@ export class SetReducerFlags {
     this.dropItemFlags = flags;
   }
 
+  dropItemFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  dropItemFromBarbecue(flags: __CallReducerFlags) {
+    this.dropItemFromBarbecueFlags = flags;
+  }
+
   dropItemFromBoxSlotToWorldFlags: __CallReducerFlags = 'FullUpdate';
   dropItemFromBoxSlotToWorld(flags: __CallReducerFlags) {
     this.dropItemFromBoxSlotToWorldFlags = flags;
@@ -8442,6 +8749,11 @@ export class SetReducerFlags {
     this.interactDoorFlags = flags;
   }
 
+  interactWithBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  interactWithBarbecue(flags: __CallReducerFlags) {
+    this.interactWithBarbecueFlags = flags;
+  }
+
   interactWithBrothPotFlags: __CallReducerFlags = 'FullUpdate';
   interactWithBrothPot(flags: __CallReducerFlags) {
     this.interactWithBrothPotFlags = flags;
@@ -8512,6 +8824,11 @@ export class SetReducerFlags {
     this.manualCleanupThunderEventsFlags = flags;
   }
 
+  moveItemFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemFromBarbecue(flags: __CallReducerFlags) {
+    this.moveItemFromBarbecueFlags = flags;
+  }
+
   moveItemFromBoxFlags: __CallReducerFlags = 'FullUpdate';
   moveItemFromBox(flags: __CallReducerFlags) {
     this.moveItemFromBoxFlags = flags;
@@ -8570,6 +8887,11 @@ export class SetReducerFlags {
   moveItemFromStashFlags: __CallReducerFlags = 'FullUpdate';
   moveItemFromStash(flags: __CallReducerFlags) {
     this.moveItemFromStashFlags = flags;
+  }
+
+  moveItemToBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToBarbecue(flags: __CallReducerFlags) {
+    this.moveItemToBarbecueFlags = flags;
   }
 
   moveItemToBoxFlags: __CallReducerFlags = 'FullUpdate';
@@ -8702,6 +9024,11 @@ export class SetReducerFlags {
     this.moveToFirstAvailableInventorySlotFlags = flags;
   }
 
+  pickupBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  pickupBarbecue(flags: __CallReducerFlags) {
+    this.pickupBarbecueFlags = flags;
+  }
+
   pickupBrothPotFlags: __CallReducerFlags = 'FullUpdate';
   pickupBrothPot(flags: __CallReducerFlags) {
     this.pickupBrothPotFlags = flags;
@@ -8725,6 +9052,11 @@ export class SetReducerFlags {
   pickupStorageBoxFlags: __CallReducerFlags = 'FullUpdate';
   pickupStorageBox(flags: __CallReducerFlags) {
     this.pickupStorageBoxFlags = flags;
+  }
+
+  placeBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  placeBarbecue(flags: __CallReducerFlags) {
+    this.placeBarbecueFlags = flags;
   }
 
   placeBrothPotOnCampfireFlags: __CallReducerFlags = 'FullUpdate';
@@ -8810,6 +9142,11 @@ export class SetReducerFlags {
   processAlkContractRefreshFlags: __CallReducerFlags = 'FullUpdate';
   processAlkContractRefresh(flags: __CallReducerFlags) {
     this.processAlkContractRefreshFlags = flags;
+  }
+
+  processBarbecueLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
+  processBarbecueLogicScheduled(flags: __CallReducerFlags) {
+    this.processBarbecueLogicScheduledFlags = flags;
   }
 
   processBrothPotLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
@@ -8912,6 +9249,11 @@ export class SetReducerFlags {
     this.queryHearthUpkeepCostsFlags = flags;
   }
 
+  quickMoveFromBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveFromBarbecue(flags: __CallReducerFlags) {
+    this.quickMoveFromBarbecueFlags = flags;
+  }
+
   quickMoveFromBoxFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveFromBox(flags: __CallReducerFlags) {
     this.quickMoveFromBoxFlags = flags;
@@ -8970,6 +9312,11 @@ export class SetReducerFlags {
   quickMoveFromStashFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveFromStash(flags: __CallReducerFlags) {
     this.quickMoveFromStashFlags = flags;
+  }
+
+  quickMoveToBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToBarbecue(flags: __CallReducerFlags) {
+    this.quickMoveToBarbecueFlags = flags;
   }
 
   quickMoveToBoxFlags: __CallReducerFlags = 'FullUpdate';
@@ -9070,6 +9417,11 @@ export class SetReducerFlags {
   revokePlayerBuildingPrivilegeFlags: __CallReducerFlags = 'FullUpdate';
   revokePlayerBuildingPrivilege(flags: __CallReducerFlags) {
     this.revokePlayerBuildingPrivilegeFlags = flags;
+  }
+
+  scheduleNextBarbecueProcessingFlags: __CallReducerFlags = 'FullUpdate';
+  scheduleNextBarbecueProcessing(flags: __CallReducerFlags) {
+    this.scheduleNextBarbecueProcessingFlags = flags;
   }
 
   scheduleNextBrothPotProcessingFlags: __CallReducerFlags = 'FullUpdate';
@@ -9262,6 +9614,11 @@ export class SetReducerFlags {
     this.splitStackFromStashFlags = flags;
   }
 
+  splitStackIntoBarbecueFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoBarbecue(flags: __CallReducerFlags) {
+    this.splitStackIntoBarbecueFlags = flags;
+  }
+
   splitStackIntoBoxFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoBox(flags: __CallReducerFlags) {
     this.splitStackIntoBoxFlags = flags;
@@ -9400,6 +9757,11 @@ export class SetReducerFlags {
   tickWorldStateFlags: __CallReducerFlags = 'FullUpdate';
   tickWorldState(flags: __CallReducerFlags) {
     this.tickWorldStateFlags = flags;
+  }
+
+  toggleBarbecueBurningFlags: __CallReducerFlags = 'FullUpdate';
+  toggleBarbecueBurning(flags: __CallReducerFlags) {
+    this.toggleBarbecueBurningFlags = flags;
   }
 
   toggleCampfireBurningFlags: __CallReducerFlags = 'FullUpdate';
@@ -9570,6 +9932,16 @@ export class RemoteTables {
   get backpackConsolidationSchedule(): BackpackConsolidationScheduleTableHandle<'backpack_consolidation_schedule'> {
     // clientCache is a private property
     return new BackpackConsolidationScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BackpackConsolidationSchedule>(REMOTE_MODULE.tables.backpack_consolidation_schedule));
+  }
+
+  get barbecue(): BarbecueTableHandle<'barbecue'> {
+    // clientCache is a private property
+    return new BarbecueTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Barbecue>(REMOTE_MODULE.tables.barbecue));
+  }
+
+  get barbecueProcessingSchedule(): BarbecueProcessingScheduleTableHandle<'barbecue_processing_schedule'> {
+    // clientCache is a private property
+    return new BarbecueProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BarbecueProcessingSchedule>(REMOTE_MODULE.tables.barbecue_processing_schedule));
   }
 
   get barrel(): BarrelTableHandle<'barrel'> {

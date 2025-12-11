@@ -126,7 +126,7 @@ const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'craft
   
   // Crafting/Structures
   if (nodeId.includes('door') || nodeId.includes('shelter') || nodeId.includes('cauldron') ||
-      nodeId.includes('furnace') || nodeId.includes('collector') || nodeId.includes('vat') ||
+      nodeId.includes('furnace') || nodeId.includes('barbecue') || nodeId.includes('collector') || nodeId.includes('vat') ||
       nodeId.includes('factory') || nodeId.includes('table') || nodeId.includes('beacon') ||
       nodeId.includes('tower') || nodeId.includes('cache')) {
     return 'crafting';
@@ -413,13 +413,25 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Primitive Reed Snorkel']
   },
   { 
+    id: 'barbecue', 
+    name: 'Barbecue', 
+    description: 'Unlocks crafting Barbecues - a large cooking appliance with 12 slots for cooking food. Functions like a campfire but with more capacity.', 
+    cost: 250, 
+    tier: 4, 
+    prerequisites: ['reed-rain-collector'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from reed-rain-collector (between reed-rain-collector and refrigerator)
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Barbecue']
+  },
+  { 
     id: 'refrigerator', 
     name: 'Refrigerator', 
     description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks of food, seeds, and water containers.', 
     cost: 380, 
     tier: 4, 
-    prerequisites: ['reed-rain-collector'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 420), // Branch 4: Continues from reed-rain-collector
+    prerequisites: ['barbecue'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 420), // Branch 4: Continues from barbecue
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Refrigerator']
@@ -874,6 +886,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 4 items
   'Metal Door': 'metal-door',
   'Shelter': 'shelter',
+  'Barbecue': 'barbecue',
   '9x18mm Round': '9x18mm-round',
   'Refrigerator': 'refrigerator',
   

@@ -34,6 +34,7 @@ export type InteractionTargetType =
     | 'harvestable_resource'  // Unified for all plants (mushroom, corn, potato, pumpkin, hemp, reed)
     | 'campfire' 
     | 'furnace'  // ADDED: Furnace support (same behavior as campfire)
+    | 'barbecue'  // ADDED: Barbecue support (same behavior as campfire)
     | 'fumarole'  // ADDED: Fumarole support (volcanic heat source with broth pot)
     | 'lantern'
     | 'homestead_hearth'  // ADDED: HomesteadHearth support
@@ -89,6 +90,11 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 80,
         actionType: 'open_furnace'
+    },
+    barbecue: {
+        behavior: InteractionBehavior.INTERFACE,
+        priority: 80,
+        actionType: 'open_barbecue'
     },
     fumarole: {
         behavior: InteractionBehavior.INTERFACE,
@@ -295,6 +301,8 @@ export function hasSecondaryHoldAction(target: InteractableTarget): boolean {
             return true; // Always has toggle burning action
         case 'furnace':
             return true; // Always has toggle burning action (same as campfire)
+        case 'barbecue':
+            return true; // Always has toggle burning action (same as campfire)
         case 'homestead_hearth':
             return true; // Always has grant building privilege action via hold
         case 'stash':
@@ -319,6 +327,8 @@ export function getSecondaryHoldDuration(target: InteractableTarget): number {
             return 500; // 0.5 seconds to toggle campfire (quick action)
         case 'furnace':
             return 500; // 0.5 seconds to toggle furnace (quick action, same as campfire)
+        case 'barbecue':
+            return 500; // 0.5 seconds to toggle barbecue (quick action, same as campfire)
         case 'homestead_hearth':
             return 1000; // 1 second to grant building privilege (significant action)
         case 'stash':

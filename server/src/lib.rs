@@ -142,6 +142,7 @@ mod rune_stone; // <<< ADDED: Rune stone system
 mod cairn; // <<< ADDED: Cairn lore system
 mod broth_pot; // <<< ADDED: Broth pot cooking system
 mod recipes; // <<< ADDED: Recipe system for broth pot cooking
+mod barbecue; // <<< ADDED: Barbecue cooking appliance system
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
@@ -249,6 +250,14 @@ pub use campfire::{
     split_stack_from_campfire, split_and_move_from_campfire,
     drop_item_from_campfire_slot_to_world, split_and_drop_item_from_campfire_slot_to_world,
     interact_with_campfire, toggle_campfire_burning
+};
+
+// Re-export barbecue reducers for client bindings
+pub use barbecue::{
+    place_barbecue, move_item_to_barbecue, quick_move_from_barbecue,
+    split_stack_into_barbecue, quick_move_to_barbecue,
+    move_item_from_barbecue, drop_item_from_barbecue,
+    interact_with_barbecue, toggle_barbecue_burning, pickup_barbecue
 };
 
 // Re-export furnace reducers for client bindings

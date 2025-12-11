@@ -1,9 +1,10 @@
-import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire } from '../../generated';
+import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue } from '../../generated';
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
 import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT } from '../renderers/lanternRenderingUtils';
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT } from '../renderers/furnaceRenderingUtils';
+import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecueRenderingUtils';
 import { BuildingCluster } from '../buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
 
@@ -121,6 +122,12 @@ export const FURNACE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 0.5; // Fo
 export const FURNACE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.6; // More stable than campfire, industrial
 export const FURNACE_LIGHT_INNER_COLOR = 'rgba(255, 240, 200, 0.4)'; // Bright white-hot center
 export const FURNACE_LIGHT_OUTER_COLOR = 'rgba(255, 120, 40, 0.0)'; // Bright orange fade
+
+// --- Barbecue Light Constants (same as campfire - wood-burning cooking appliance) ---
+export const BARBECUE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE; // Same as campfire
+export const BARBECUE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT; // Same flicker as campfire
+export const BARBECUE_LIGHT_INNER_COLOR = CAMPFIRE_LIGHT_INNER_COLOR; // Same colors as campfire
+export const BARBECUE_LIGHT_OUTER_COLOR = CAMPFIRE_LIGHT_OUTER_COLOR; // Same colors as campfire
 
 interface RenderPlayerTorchLightProps {
     ctx: CanvasRenderingContext2D;
@@ -589,6 +596,100 @@ export const renderCampfireLight = ({
         rusticCampfireX, rusticCampfireY, coreRadius
     );
     coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)'); // Natural campfire center
+    coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)'); // Natural rich orange
+    coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.10)'); // Natural orange-red glow
+    coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)'); // Natural rustic fade
+    
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Restore context if we applied a clip
+    if (restoreClip) restoreClip();
+};
+
+// --- Barbecue Light Rendering ---
+interface RenderBarbecueLightProps {
+    ctx: CanvasRenderingContext2D;
+    barbecue: SpacetimeDBBarbecue;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    // Indoor light containment - prevents light from spilling outside enclosed buildings
+    buildingClusters?: Map<string, BuildingCluster>;
+}
+
+export const renderBarbecueLight = ({
+    ctx,
+    barbecue,
+    cameraOffsetX,
+    cameraOffsetY,
+    buildingClusters,
+}: RenderBarbecueLightProps) => {
+    if (!barbecue.isBurning) {
+        return; // Not burning, no light
+    }
+
+    // Apply indoor clipping if barbecue is inside an enclosed building
+    const restoreClip = applyIndoorClip(ctx, barbecue.posX, barbecue.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
+
+    const visualCenterX = barbecue.posX;
+    const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+    
+    const lightScreenX = visualCenterX + cameraOffsetX;
+    const lightScreenY = visualCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * BARBECUE_FLICKER_AMOUNT;
+
+    // Add more pronounced asymmetry for crackling barbecue effect (same as campfire)
+    const barbecueAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.6;
+    const barbecueAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
+    const rusticBarbecueX = lightScreenX + barbecueAsymmetryX;
+    const rusticBarbecueY = lightScreenY + barbecueAsymmetryY;
+
+    // BARBECUE LIGHTING SYSTEM - Balanced scale for natural rustic feel (same as campfire)
+    const BARBECUE_SCALE = 1.5; // Same as campfire
+
+    // Layer 1: Large ambient glow (wood-burning barbecue - deep oranges and reds)
+    const ambientRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 3.9 * BARBECUE_SCALE + baseFlicker * 0.3);
+    const ambientGradient = ctx.createRadialGradient(
+        rusticBarbecueX, rusticBarbecueY, 0,
+        rusticBarbecueX, rusticBarbecueY, ambientRadius
+    );
+    ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.04)'); // Natural barbecue orange-red
+    ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.025)'); // Natural ember red
+    ambientGradient.addColorStop(0.7, 'rgba(140, 35, 12, 0.012)'); // Natural wood-burning red
+    ambientGradient.addColorStop(1, 'rgba(100, 20, 8, 0)'); // Natural ember fade
+    
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(rusticBarbecueX, rusticBarbecueY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (authentic wood fire colors)
+    const mainRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 2.6 * BARBECUE_SCALE + baseFlicker * 1.0);
+    const mainGradient = ctx.createRadialGradient(
+        rusticBarbecueX, rusticBarbecueY, 0,
+        rusticBarbecueX, rusticBarbecueY, mainRadius
+    );
+    mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.18)'); // Natural barbecue orange center
+    mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.15)'); // Natural rich orange
+    mainGradient.addColorStop(0.4, 'rgba(190, 60, 18, 0.10)'); // Natural orange-red
+    mainGradient.addColorStop(0.7, 'rgba(160, 45, 12, 0.05)'); // Natural ember red
+    mainGradient.addColorStop(0.9, 'rgba(120, 30, 8, 0.015)'); // Natural wood burning
+    mainGradient.addColorStop(1, 'rgba(90, 20, 6, 0)'); // Natural rustic fade
+    
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(rusticBarbecueX, rusticBarbecueY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (intense barbecue flame center) 
+    const coreRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 0.65 * BARBECUE_SCALE + baseFlicker * 1.5);
+    const coreGradient = ctx.createRadialGradient(
+        rusticBarbecueX, rusticBarbecueY, 0,
+        rusticBarbecueX, rusticBarbecueY, coreRadius
+    );
+    coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)'); // Natural barbecue center
     coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)'); // Natural rich orange
     coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.10)'); // Natural orange-red glow
     coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)'); // Natural rustic fade

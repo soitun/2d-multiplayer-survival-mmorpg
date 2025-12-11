@@ -1531,7 +1531,7 @@ pub fn damage_hearth(
         // Emit destruction sound
         crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, hearth.pos_x, hearth.pos_y, attacker_id);
         
-        // Drop all items from inventory to world
+        // Drop all items from inventory to world WITHOUT triggering consolidation per-item
         let mut items_dropped = 0;
         for slot_index in 0..NUM_HEARTH_SLOTS {
             if let Some(instance_id) = hearth.get_slot_instance_id(slot_index as u8) {
@@ -1542,8 +1542,8 @@ pub fn damage_hearth(
                     let drop_x = hearth.pos_x + angle.cos() * drop_radius;
                     let drop_y = hearth.pos_y + angle.sin() * drop_radius;
                     
-                    // Create dropped item
-                    if let Err(e) = create_dropped_item_entity(ctx, item.item_def_id, item.quantity, drop_x, drop_y) {
+                    // Create dropped item without auto-consolidation
+                    if let Err(e) = crate::dropped_item::create_dropped_item_entity_no_consolidation(ctx, item.item_def_id, item.quantity, drop_x, drop_y) {
                         log::error!("[HearthDamage] Failed to drop item {} from hearth {}: {}", instance_id, hearth_id, e);
                     } else {
                         items_dropped += 1;
@@ -1559,6 +1559,9 @@ pub fn damage_hearth(
                 hearth.set_slot(slot_index as u8, None, None);
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        crate::dropped_item::trigger_consolidation_at_position(ctx, hearth.pos_x, hearth.pos_y);
         
         log::info!("[HearthDamage] Dropped {} items from destroyed hearth {}", items_dropped, hearth_id);
     } else {

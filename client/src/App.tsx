@@ -241,7 +241,7 @@ function AppContent() {
 
     // --- Pass viewport state to useSpacetimeTables ---
     const { 
-      players, trees, clouds, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, lanterns, // ADDED: furnaces, runeStones, cairns
+      players, trees, clouds, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, // ADDED: furnaces, barbecues, runeStones, cairns
       harvestableResources,
       itemDefinitions, 
       inventoryItems, worldState, activeEquipments, droppedItems, 
@@ -429,6 +429,7 @@ function AppContent() {
             boxes: woodenStorageBoxes,
             rainCollectors,
             furnaces, // Add furnaces to collision system
+            barbecues, // Add barbecues to collision system
             shelters,
             players,
             wildAnimals, // Add wild animals to collision system
@@ -1040,6 +1041,7 @@ function AppContent() {
                             playerDiscoveredCairns={playerDiscoveredCairns}
                             campfires={campfires}
                             furnaces={furnaces} // ADDED: Furnaces prop
+                            barbecues={barbecues} // ADDED: Barbecues prop
                             lanterns={lanterns}
                             harvestableResources={harvestableResources}
                             droppedItems={droppedItems}
