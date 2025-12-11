@@ -804,10 +804,10 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                     borderRadius: '4px',
                     fontSize: '11px'
                   }}>
-                    <div style={{ color: '#7c3aed', fontWeight: 'bold', marginBottom: '6px' }}>
+                    <div style={{ color: '#7c3aed', fontWeight: 'bold', marginBottom: '6px', fontSize: '16px' }}>
                       🚧 Coming Soon
                     </div>
-                    <div style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.5' }}>
+                    <div style={{ color: '#9ca3af', fontSize: '12px', lineHeight: '1.5' }}>
                       Faction unlocks will be available in v1.0 release after early access ends.
                     </div>
                   </div>
