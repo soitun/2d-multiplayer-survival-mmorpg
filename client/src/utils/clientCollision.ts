@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
 
@@ -86,6 +86,7 @@ const COLLISION_PERF = {
   TREE_CULL_DISTANCE_SQ: 250 * 250,      // Only check trees within 250px
   STONE_CULL_DISTANCE_SQ: 150 * 150,     // Only check stones within 150px
   RUNE_STONE_CULL_DISTANCE_SQ: 300 * 300, // Only check rune stones within 300px (larger than trees due to bigger radius)
+  CAIRN_CULL_DISTANCE_SQ: 200 * 200,     // Only check cairns within 200px
   ANIMAL_CULL_DISTANCE_SQ: 300 * 300,    // Only check animals within 300px
   STRUCTURE_CULL_DISTANCE_SQ: 200 * 200, // Only check structures within 200px
   
@@ -249,6 +250,25 @@ function getCollisionCandidates(
     });
   }
   
+  // Filter cairns
+  const nearbyCairns = filterEntitiesByDistance(
+    entities.cairns,
+    playerX,
+    playerY,
+    COLLISION_PERF.CAIRN_CULL_DISTANCE_SQ,
+    COLLISION_PERF.MAX_STONES_TO_CHECK
+  );
+  
+  for (const cairn of nearbyCairns) {
+    shapes.push({
+      id: cairn.id.toString(),
+      type: `cairn-${cairn.id.toString()}`,
+      x: cairn.posX + COLLISION_OFFSETS.CAIRN.x,
+      y: cairn.posY + COLLISION_OFFSETS.CAIRN.y,
+      radius: COLLISION_RADII.CAIRN
+    });
+  }
+  
   // Filter wild animals
   const nearbyAnimals = filterEntitiesByDistance(
     entities.wildAnimals,
@@ -279,6 +299,8 @@ function getCollisionCandidates(
   }
   
   // Filter structures (boxes, barrels, etc.)
+  // Skip backpacks (boxType === 4) - they should not have collision
+  const BOX_TYPE_BACKPACK = 4;
   const nearbyBoxes = filterEntitiesByDistance(
     entities.boxes,
     playerX,
@@ -288,6 +310,9 @@ function getCollisionCandidates(
   );
   
   for (const box of nearbyBoxes) {
+    // Skip backpacks - they don't have collision
+    if (box.boxType === BOX_TYPE_BACKPACK) continue;
+    
     shapes.push({
       id: box.id.toString(),
       type: `box-${box.id.toString()}`,
@@ -820,6 +845,7 @@ const COLLISION_RADII = {
   TREE: 38,
   STONE: 28,       // Smaller radius for flattened stones
   RUNE_STONE: 80,  // Doubled from 40 to match doubled visual size (matches server-side RUNE_STONE_RADIUS)
+  CAIRN: 64,       // Cairn collision radius (matches visual size ~256px / 4)
   STORAGE_BOX: 25, // Much tighter radius for boxes
   RAIN_COLLECTOR: 30, // Increased to match server-side for easier targeting
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
@@ -837,6 +863,7 @@ const COLLISION_OFFSETS = {
   TREE: { x: 0, y: -68 },      // Adjusted to keep top boundary similar while squishing from bottom
   STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
   RUNE_STONE: { x: 0, y: -100 }, // Doubled from -50 to match doubled visual size (matches server-side RUNE_STONE_COLLISION_Y_OFFSET)
+  CAIRN: { x: 0, y: -64 },     // Cairn collision pushed UP to match visual base (where stones meet ground)
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
@@ -876,6 +903,7 @@ export interface GameEntities {
   trees: Map<string, Tree>;
   stones: Map<string, Stone>;
   runeStones: Map<string, RuneStone>; // Add rune stones for collision
+  cairns: Map<string, Cairn>; // Add cairns for collision
   boxes: Map<string, WoodenStorageBox>;
   rainCollectors: Map<string, RainCollector>;
   furnaces: Map<string, Furnace>;

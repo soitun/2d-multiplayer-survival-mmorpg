@@ -261,6 +261,32 @@ pub(crate) fn create_dropped_item_entity_with_data(
     pos_y: f32,
     item_data: Option<String>,
 ) -> Result<(), String> {
+    create_dropped_item_entity_internal(ctx, item_def_id, quantity, pos_x, pos_y, item_data, true)
+}
+
+/// Creates a DroppedItem entity WITHOUT triggering automatic consolidation.
+/// Use this for batch drops (e.g., when destroying containers) to avoid creating multiple backpacks.
+/// After all items are dropped, call `trigger_consolidation_at_position` once.
+pub(crate) fn create_dropped_item_entity_no_consolidation(
+    ctx: &ReducerContext,
+    item_def_id: u64,
+    quantity: u32,
+    pos_x: f32,
+    pos_y: f32,
+) -> Result<(), String> {
+    create_dropped_item_entity_internal(ctx, item_def_id, quantity, pos_x, pos_y, None, false)
+}
+
+/// Internal function that creates a DroppedItem with optional consolidation trigger.
+fn create_dropped_item_entity_internal(
+    ctx: &ReducerContext,
+    item_def_id: u64,
+    quantity: u32,
+    pos_x: f32,
+    pos_y: f32,
+    item_data: Option<String>,
+    trigger_consolidation: bool,
+) -> Result<(), String> {
     // --- ADD: Calculate chunk index ---
     let chunk_idx = calculate_chunk_index(pos_x, pos_y);
     // --- END ADD ---
@@ -280,20 +306,23 @@ pub(crate) fn create_dropped_item_entity_with_data(
             log::info!("[CreateDroppedItem] Created dropped item entity (DefID: {}, Qty: {}) at ({:.1}, {:.1})",
                      item_def_id, quantity, pos_x, pos_y);
             
-            // Quick check for nearby items to trigger consolidation
-            let nearby_items: Vec<DroppedItem> = ctx.db.dropped_item().iter()
-                .filter(|item| {
-                    let dx = item.pos_x - pos_x;
-                    let dy = item.pos_y - pos_y;
-                    dx * dx + dy * dy <= 16384.0 // 128px radius squared
-                })
-                .collect();
-            
-            if nearby_items.len() >= 5 {
-                log::info!("[CreateDroppedItem] Detected {} nearby items, triggering consolidation", nearby_items.len());
-                let _ = crate::backpack::consolidate_dropped_items_near_position(
-                    ctx, pos_x, pos_y, nearby_items
-                );
+            // Only check for consolidation if requested (skip for batch drops)
+            if trigger_consolidation {
+                // Quick check for nearby items to trigger consolidation
+                let nearby_items: Vec<DroppedItem> = ctx.db.dropped_item().iter()
+                    .filter(|item| {
+                        let dx = item.pos_x - pos_x;
+                        let dy = item.pos_y - pos_y;
+                        dx * dx + dy * dy <= 16384.0 // 128px radius squared
+                    })
+                    .collect();
+                
+                if nearby_items.len() >= 5 {
+                    log::info!("[CreateDroppedItem] Detected {} nearby items, triggering consolidation", nearby_items.len());
+                    let _ = crate::backpack::consolidate_dropped_items_near_position(
+                        ctx, pos_x, pos_y, nearby_items
+                    );
+                }
             }
             
             Ok(())
@@ -302,6 +331,24 @@ pub(crate) fn create_dropped_item_entity_with_data(
             log::error!("[CreateDroppedItem] Failed to insert dropped item: {}", e);
             Err(format!("Failed to create dropped item entity: {}", e))
         }
+    }
+}
+
+/// Triggers backpack consolidation at a specific position.
+/// Call this after batch-dropping items to consolidate them into backpacks.
+pub(crate) fn trigger_consolidation_at_position(ctx: &ReducerContext, pos_x: f32, pos_y: f32) {
+    let nearby_items: Vec<DroppedItem> = ctx.db.dropped_item().iter()
+        .filter(|item| {
+            let dx = item.pos_x - pos_x;
+            let dy = item.pos_y - pos_y;
+            dx * dx + dy * dy <= 16384.0 // 128px radius squared
+        })
+        .collect();
+    
+    if nearby_items.len() >= 5 {
+        log::info!("[TriggerConsolidation] Detected {} nearby items at ({:.1}, {:.1}), triggering consolidation", 
+                 nearby_items.len(), pos_x, pos_y);
+        let _ = crate::backpack::consolidate_dropped_items_near_position(ctx, pos_x, pos_y, nearby_items);
     }
 }
 

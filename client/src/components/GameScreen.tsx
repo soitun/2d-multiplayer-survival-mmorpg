@@ -32,6 +32,7 @@ import GameVisualSettingsMenu from './GameVisualSettingsMenu';
 import type { MenuType } from './GameMenu';
 import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
 import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
+import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
 
 // Import types used by props
 import {
@@ -301,6 +302,15 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // SOVA message adder function from Chat component
     const [sovaMessageAdder, setSOVAMessageAdder] = useState<((message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void) | null>(null);
+
+    // Cairn unlock notification state
+    const [cairnNotification, setCairnNotification] = useState<CairnNotification | null>(null);
+    const handleCairnNotification = useCallback((notification: CairnNotification) => {
+        setCairnNotification(notification);
+    }, []);
+    const dismissCairnNotification = useCallback(() => {
+        setCairnNotification(null);
+    }, []);
 
     // 🎣 FISHING INPUT FIX: Track fishing state to disable input
     const [isFishing, setIsFishing] = useState(false);
@@ -829,6 +839,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
                 addSOVAMessage={sovaMessageAdder || undefined} // ADDED: Pass SOVA message adder for cairn lore
+                onCairnNotification={handleCairnNotification} // ADDED: Pass cairn notification callback
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}
                 worldState={worldState}
@@ -1180,6 +1191,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     interactableLabel={mobileInteractInfo?.label}
                 />
             )}
+
+            {/* Cairn Unlock Notification - Shows when player discovers a cairn */}
+            <CairnUnlockNotification
+                notification={cairnNotification}
+                onDismiss={dismissCairnNotification}
+            />
 
         </div>
     );

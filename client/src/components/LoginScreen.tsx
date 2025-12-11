@@ -244,6 +244,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     const [showStickyNav, setShowStickyNav] = useState<boolean>(false);
     const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
     const [logoLoaded, setLogoLoaded] = useState<boolean>(false);
+    
+    // --- Scroll-based Auth Header Visibility ---
+    const [showAuthHeader, setShowAuthHeader] = useState<boolean>(true);
+    const lastScrollY = useRef<number>(0);
 
     // Ref for username input focus
     const usernameInputRef = useRef<HTMLInputElement>(null);
@@ -286,15 +290,32 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
         return () => window.removeEventListener('resize', checkIsMobile);
     }, []);
 
-    // Check scroll position for back to top button and sticky nav
+    // Check scroll position for back to top button, sticky nav, and auth header
     useEffect(() => {
         const handleScroll = () => {
             const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const currentScrollY = window.scrollY;
+            
             setShowBackToTop(scrollTop > 300); // Show after scrolling 300px
             setShowStickyNav(scrollTop > window.innerHeight * 0.8); // Show after scrolling past 80% of viewport height
+            
+            // Auth header visibility logic
+            if (currentScrollY < 50) {
+                setShowAuthHeader(true);
+            } 
+            // Hide header when scrolling down
+            else if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+                setShowAuthHeader(false);
+            }
+            // Show header when scrolling up
+            else if (currentScrollY < lastScrollY.current) {
+                setShowAuthHeader(true);
+            }
+            
+            lastScrollY.current = currentScrollY;
         };
         
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -486,6 +507,71 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
     return (
         <>
+            {/* Fixed Header with Email and Logout - Only on Landing Page */}
+            {isAuthenticated && userProfile && (
+                <div 
+                    className="fixed-auth-header"
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        right: 0,
+                        zIndex: 9999,
+                        padding: '12px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px',
+                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(20, 20, 30, 0.9) 100%)',
+                        backdropFilter: 'blur(10px)',
+                        borderBottomLeftRadius: '8px',
+                        borderLeft: '1px solid rgba(0, 255, 255, 0.3)',
+                        borderBottom: '1px solid rgba(0, 255, 255, 0.3)',
+                        boxShadow: '0 4px 20px rgba(0, 255, 255, 0.15)',
+                        transform: showAuthHeader ? 'translateY(0)' : 'translateY(-100%)',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        pointerEvents: showAuthHeader ? 'auto' : 'none',
+                    }}
+                >
+                    <span 
+                        style={{
+                            color: 'rgba(0, 255, 255, 0.9)',
+                            fontSize: '14px',
+                            fontFamily: 'monospace',
+                            textShadow: '0 0 10px rgba(0, 255, 255, 0.5)',
+                        }}
+                    >
+                        {userProfile.email || 'User'}
+                    </span>
+                    <button
+                        onClick={logout}
+                        style={{
+                            padding: '6px 16px',
+                            background: 'linear-gradient(135deg, rgba(255, 0, 100, 0.2) 0%, rgba(200, 0, 80, 0.3) 100%)',
+                            border: '1px solid rgba(255, 0, 100, 0.5)',
+                            borderRadius: '4px',
+                            color: 'rgba(255, 100, 150, 0.95)',
+                            fontSize: '13px',
+                            fontFamily: 'monospace',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            textShadow: '0 0 8px rgba(255, 0, 100, 0.4)',
+                            boxShadow: '0 2px 10px rgba(255, 0, 100, 0.2)',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 0, 100, 0.4) 0%, rgba(200, 0, 80, 0.5) 100%)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 0, 100, 0.8)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 0, 100, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 0, 100, 0.2) 0%, rgba(200, 0, 80, 0.3) 100%)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 0, 100, 0.5)';
+                            e.currentTarget.style.boxShadow = '0 2px 10px rgba(255, 0, 100, 0.2)';
+                        }}
+                    >
+                        LOG OUT
+                    </button>
+                </div>
+            )}
+            
             {/* Add CSS animations */}
             <style>{`
                 @keyframes pulse {
@@ -828,48 +914,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 >
                                     {connectionError && connectionError.includes('Please refresh your browser') ? 'Refresh' : 'Try Again'}
                                 </button>
-                                <button
-                                    onClick={logout}
-                                    disabled={authIsLoading}
-                                    onMouseEnter={(e) => {
-                                        if (!authIsLoading) {
-                                            e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)';
-                                            e.currentTarget.style.borderColor = '#ff8c00';
-                                            e.currentTarget.style.transform = 'translateY(-2px)';
-                                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 140, 0, 0.6)';
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (!authIsLoading) {
-                                            e.currentTarget.style.background = 'linear-gradient(135deg, #003366 0%, #00aaff 100%)';
-                                            e.currentTarget.style.borderColor = '#00aaff';
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.4)';
-                                        }
-                                    }}
-                                    style={{
-                                        padding: '16px 32px',
-                                        border: '2px solid #00aaff',
-                                        background: 'linear-gradient(135deg, #003366 0%, #00aaff 100%)',
-                                        color: '#ffffff',
-                                        fontFamily: "'Courier New', Consolas, Monaco, monospace",
-                                        fontSize: 'clamp(14px, 1.5vw, 16px)',
-                                        fontWeight: 'bold',
-                                        cursor: authIsLoading ? 'not-allowed' : 'pointer',
-                                        boxShadow: '0 4px 15px rgba(0, 170, 255, 0.4)',
-                                        display: 'inline-block',
-                                        textTransform: 'uppercase',
-                                        borderRadius: '8px',
-                                        transition: 'all 0.3s ease',
-                                        letterSpacing: '1px',
-                                        textShadow: '0 0 5px rgba(255, 255, 255, 0.3)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        opacity: authIsLoading ? 0.6 : 1,
-                                    }}
-                                >
-                                    Sign Out
-                                </button>
                             </div>
                         </>
                     ) : isAuthenticated ? (
@@ -1210,69 +1254,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                         }}>
                             {localError}
                         </p>
-                    )}
-
-                    {/* Logout Section (Only if authenticated and no authError and no connectionError) */}
-                    {isAuthenticated && !authError && !connectionError && (
-                        <div style={{
-                            marginTop: '20px',
-                            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                            paddingTop: '20px'
-                        }}>
-                            {userProfile && (
-                                <span style={{
-                                    fontSize: 'clamp(14px, 2vw, 16px)',
-                                    color: '#ff8c00',
-                                    display: 'block',
-                                    marginBottom: '16px',
-                                    fontFamily: "'Courier New', Consolas, Monaco, monospace",
-                                    fontWeight: '600',
-                                    letterSpacing: '0.5px',
-                                    textShadow: '0 0 10px rgba(255, 140, 0, 0.5), 1px 1px 2px rgba(0,0,0,0.8)',
-                                }}>
-                                    ({userProfile.email || userProfile.userId})
-                                </span>
-                            )}
-                            <button
-                                onClick={logout}
-                                disabled={authIsLoading}
-                                onMouseEnter={(e) => {
-                                    if (!authIsLoading) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)';
-                                        e.currentTarget.style.borderColor = '#ff8c00';
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 140, 0, 0.6)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!authIsLoading) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #003366 0%, #00aaff 100%)';
-                                        e.currentTarget.style.borderColor = '#00aaff';
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.4)';
-                                    }
-                                }}
-                                style={{
-                                    padding: '12px 24px',
-                                    fontSize: 'clamp(13px, 1.5vw, 15px)',
-                                    background: 'linear-gradient(135deg, #003366 0%, #00aaff 100%)',
-                                    color: '#ffffff',
-                                    border: '2px solid #00aaff',
-                                    cursor: authIsLoading ? 'not-allowed' : 'pointer',
-                                    fontFamily: "'Courier New', Consolas, Monaco, monospace",
-                                    fontWeight: 'bold',
-                                    borderRadius: '8px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px',
-                                    transition: 'all 0.3s ease',
-                                    boxShadow: '0 4px 15px rgba(0, 170, 255, 0.4)',
-                                    textShadow: '0 0 5px rgba(255, 255, 255, 0.3)',
-                                    opacity: authIsLoading ? 0.6 : 1,
-                                }}
-                            >
-                                Sign Out
-                            </button>
-                        </div>
                     )}
 
                     {/* Content Section - Game Tools */}

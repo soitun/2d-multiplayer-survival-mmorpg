@@ -33,7 +33,7 @@ const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -463,6 +463,13 @@ export function renderInteractionLabels({
                 textY = station.worldPosY - 450; 
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
+            break;
+        }
+        case 'cairn': {
+            // Cairn visual base is at posY, position label above the cairn stones
+            textX = closestInteractableTarget.position.x;
+            textY = closestInteractableTarget.position.y - 155; // Positioned to match interaction outline
+            renderStyledInteractionLabel(ctx, text, textX, textY);
             break;
         }
     }

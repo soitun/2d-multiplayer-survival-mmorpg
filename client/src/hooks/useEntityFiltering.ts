@@ -227,6 +227,13 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'cairn': {
+      // Cairns: posY is the visual base (where stones meet ground), but the sprite
+      // has extra space at the bottom. The visual base is offset upward from sprite bottom.
+      // Use posY directly for Y-sorting (it already represents the visual base).
+      const cairn = entity as SpacetimeDBCairn;
+      return cairn.posY; // posY is already the visual base position
+    }
     case 'alk_station': {
       // ALK stations: worldPosY is the sprite's BOTTOM, but the visual "foot level" 
       // (where players walk) is much HIGHER due to:
@@ -784,6 +791,12 @@ export function useEntityFiltering(
       y = entity.posY;
       width = 400; // Sea stacks are large - use the same as BASE_WIDTH in rendering
       height = 600; // Sea stacks are tall - generous height for Y-sorting visibility
+    } else if ((entity as any).loreId !== undefined) {
+      // Handle cairns - they have a unique loreId property
+      x = (entity as any).posX;
+      y = (entity as any).posY;
+      width = 256; // TARGET_CAIRN_WIDTH_PX
+      height = 256; // Same as width for cairns
     } else if ((entity as any).id !== undefined && (entity as any).posX !== undefined && (entity as any).posY !== undefined && (entity as any).chunkIndex !== undefined) {
       // Handle fumaroles and basalt columns - they have id, posX, posY, and chunkIndex
       x = (entity as any).posX;

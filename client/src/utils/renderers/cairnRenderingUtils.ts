@@ -11,10 +11,14 @@ import { drawInteractionIndicator } from '../interactionIndicator';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 
 // Configuration constants
-const TARGET_CAIRN_WIDTH_PX = 80; // Target width on screen
-const CAIRN_RADIUS = 40.0; // Collision radius (matches server constant)
-export const PLAYER_CAIRN_INTERACTION_DISTANCE = 100.0; // Interaction distance (matches server constant)
+const TARGET_CAIRN_WIDTH_PX = 256; // Target width on screen (~half of 1024x1024 source)
+const CAIRN_RADIUS = 128.0; // Collision radius (matches visual size)
+export const PLAYER_CAIRN_INTERACTION_DISTANCE = 200.0; // Interaction distance (increased to match larger visual)
 export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = PLAYER_CAIRN_INTERACTION_DISTANCE * PLAYER_CAIRN_INTERACTION_DISTANCE;
+
+// Visual base offset: The sprite has extra space at the bottom. The visual base (where stones meet ground)
+// is offset upward from the sprite bottom. This offset is used for collision and Y-sorting.
+export const CAIRN_VISUAL_BASE_OFFSET = 64; // Pixels upward from sprite bottom to visual base
 
 /**
  * Get the appropriate cairn image based on the tile biome
@@ -63,7 +67,9 @@ const cairnConfig: GroundEntityConfig<Cairn> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight / 2,
+        // Draw sprite so that visual base (where stones meet ground) aligns with entity.posY
+        // Visual base is offset upward from sprite bottom by CAIRN_VISUAL_BASE_OFFSET
+        drawY: entity.posY - drawHeight + CAIRN_VISUAL_BASE_OFFSET,
     }),
 
     getShadowParams: undefined,
@@ -73,12 +79,12 @@ const cairnConfig: GroundEntityConfig<Cairn> = {
             ctx,
             entityImage,
             entityCenterX: entityPosX,
-            entityBaseY: entityPosY,
+            entityBaseY: entityPosY, // Shadow at visual base where stones meet ground
             imageDrawWidth,
             imageDrawHeight,
             cycleProgress,
             maxShadowAlpha: 0.3,
-            pivotYOffset: 5,
+            pivotYOffset: -CAIRN_VISUAL_BASE_OFFSET, // Offset to account for visual base position
         });
     },
 
@@ -89,14 +95,15 @@ const cairnConfig: GroundEntityConfig<Cairn> = {
 
 /**
  * Render a cairn monument
+ * Note: Interaction outline is handled by renderingUtils.ts using the standard drawInteractionOutline
  */
 export function renderCairn(
     ctx: CanvasRenderingContext2D,
     cairn: Cairn,
-    cameraOffsetX: number,
-    cameraOffsetY: number,
+    _cameraOffsetX: number, // Unused - canvas already translated
+    _cameraOffsetY: number, // Unused - canvas already translated
     connection: DbConnection | null,
-    isInInteractionRange: boolean = false,
+    _isInInteractionRange: boolean = false, // Unused - outline handled by renderingUtils.ts
     nowMs: number = Date.now(),
     cycleProgress: number = 0
 ): void {
@@ -104,6 +111,8 @@ export function renderCairn(
     currentConnection = connection;
 
     // Render using generic ground entity renderer
+    // Note: Canvas context is already translated by camera offset in Y-sorted rendering
+    // Interaction outline is handled by renderingUtils.ts using the standard drawInteractionOutline
     renderConfiguredGroundEntity({
         ctx,
         entity: cairn,
@@ -113,34 +122,6 @@ export function renderCairn(
         entityPosY: cairn.posY,
         cycleProgress,
     });
-
-    // Draw interaction indicator if in range
-    if (isInInteractionRange) {
-        const screenX = cairn.posX + cameraOffsetX;
-        const screenY = cairn.posY + cameraOffsetY;
-        
-        // Draw blue interaction box with E label
-        const indicatorY = screenY - TARGET_CAIRN_WIDTH_PX / 2 - 30; // Above the cairn
-        
-        // Draw blue box background
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 100, 255, 0.8)';
-        ctx.fillRect(screenX - 25, indicatorY - 12, 50, 24);
-        
-        // Draw border
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(screenX - 25, indicatorY - 12, 50, 24);
-        
-        // Draw "E" label
-        ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('E', screenX, indicatorY);
-        
-        ctx.restore();
-    }
 }
 
 /**

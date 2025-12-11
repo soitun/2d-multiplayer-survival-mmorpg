@@ -891,9 +891,17 @@ export const renderYSortedEntities = ({
       } else if (type === 'cairn') {
           // Render cairn with interaction indicator if in range
           const cairn = entity as SpacetimeDBCairn;
-          const isInInteractionRange = closestInteractableTarget?.type === 'cairn' && 
+          const isTheClosestTarget = closestInteractableTarget?.type === 'cairn' && 
                                        closestInteractableTarget?.id === cairn.id;
-          renderCairn(ctx, cairn, cameraOffsetX, cameraOffsetY, connection ?? null, isInInteractionRange ?? false, nowMs, cycleProgress);
+          // Note: renderCairn no longer draws its own indicator - we use the standard outline below
+          renderCairn(ctx, cairn, cameraOffsetX, cameraOffsetY, connection ?? null, false, nowMs, cycleProgress);
+          
+          // Draw outline only if this is THE closest interactable target
+          if (isTheClosestTarget) {
+              const outlineColor = getInteractionOutlineColor('open'); // Light blue like other containers
+              // Cairn visual base is at posY, outline around visible stone pile
+              drawInteractionOutline(ctx, cairn.posX, cairn.posY - 48, 180, 220, cycleProgress, outlineColor);
+          }
       } else if (type === 'shelter') {
           const shelter = entity as SpacetimeDBShelter;
           if (shelterImage) { 

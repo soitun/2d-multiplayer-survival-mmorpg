@@ -2049,7 +2049,7 @@ pub fn damage_lantern(
             lantern_id, attacker_id
         );
 
-        // Scatter collected items around the lantern's location
+        // Scatter collected items around the lantern's location WITHOUT triggering consolidation per-item
         for (item_def_id, quantity) in items_to_drop {
             // Spawn slightly offset from lantern center
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 15.0; // Spread within +/- 15px (smaller than campfire)
@@ -2057,11 +2057,14 @@ pub fn damage_lantern(
             let drop_pos_x = lantern.pos_x + offset_x;
             let drop_pos_y = lantern.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed lantern {}", quantity, item_def_id, lantern_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, lantern.pos_x, lantern.pos_y);
 
     } else {
         // Lantern still has health, just update it
@@ -2215,7 +2218,7 @@ pub fn damage_campfire(
             campfire_id, attacker_id
         );
 
-        // Scatter collected items around the campfire's location
+        // Scatter collected items around the campfire's location WITHOUT triggering consolidation per-item
         for (item_def_id, quantity) in items_to_drop {
             // Spawn slightly offset from campfire center
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0; // Spread within +/- 20px
@@ -2223,11 +2226,14 @@ pub fn damage_campfire(
             let drop_pos_x = campfire.pos_x + offset_x;
             let drop_pos_y = campfire.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed campfire {}", quantity, item_def_id, campfire_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, campfire.pos_x, campfire.pos_y);
 
     } else {
         // Campfire still has health, just update it
@@ -2268,6 +2274,12 @@ pub fn damage_wooden_storage_box(
     let mut boxes_table = ctx.db.wooden_storage_box();
     let mut wooden_box = boxes_table.id().find(box_id)
         .ok_or_else(|| format!("Target wooden storage box {} disappeared", box_id))?;
+
+    // Backpacks are not damageable - they should be looted, not destroyed
+    if wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_BACKPACK {
+        log::debug!("Player {:?} attempted to damage backpack {} - backpacks are not damageable", attacker_id, box_id);
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::WoodenStorageBox), resource_granted: None });
+    }
 
     if wooden_box.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::WoodenStorageBox), resource_granted: None });
@@ -2313,17 +2325,21 @@ pub fn damage_wooden_storage_box(
             box_id, attacker_id
         );
 
+        // Drop all items WITHOUT triggering consolidation on each drop
         for (item_def_id, quantity) in items_to_drop {
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 30.0; // Spread within +/- 30px
             let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 30.0;
             let drop_pos_x = wooden_box.pos_x + offset_x;
             let drop_pos_y = wooden_box.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed box {}", quantity, item_def_id, box_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, wooden_box.pos_x, wooden_box.pos_y);
 
     } else {
         // Box still has health, just update it
@@ -2396,17 +2412,21 @@ pub fn damage_stash(
             stash_id, attacker_id
         );
 
+        // Drop all items WITHOUT triggering consolidation on each drop
         for (item_def_id, quantity) in items_to_drop {
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 15.0; // Smaller spread for stash
             let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 15.0;
             let drop_pos_x = stash.pos_x + offset_x;
             let drop_pos_y = stash.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed stash {}", quantity, item_def_id, stash_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, stash.pos_x, stash.pos_y);
     } else {
         stashes_table.id().update(stash);
     }
@@ -2530,7 +2550,7 @@ pub fn damage_player_corpse(
                 }
             }
 
-            // Scatter items around the corpse's location
+            // Scatter items around the corpse's location WITHOUT triggering consolidation per-item
             let corpse_pos_x = corpse.pos_x;
             let corpse_pos_y = corpse.pos_y;
 
@@ -2540,12 +2560,15 @@ pub fn damage_player_corpse(
                 let drop_pos_x = corpse_pos_x + offset_x;
                 let drop_pos_y = corpse_pos_y + offset_y;
 
-                match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+                match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                     Ok(_) => log::debug!("[DamagePlayerCorpse] Dropped {} of item_def_id {} from depleted corpse {} at ({:.1}, {:.1})", 
                                        quantity, item_def_id, corpse_id, drop_pos_x, drop_pos_y),
                     Err(e) => log::error!("[DamagePlayerCorpse] Failed to drop item_def_id {} from corpse {}: {}", item_def_id, corpse_id, e),
                 }
             }
+            
+            // Trigger consolidation ONCE after all items are dropped
+            dropped_item::trigger_consolidation_at_position(ctx, corpse_pos_x, corpse_pos_y);
 
             // Delete the PlayerCorpse entity itself
             player_corpses_table.id().delete(corpse_id);
@@ -2720,7 +2743,7 @@ pub fn damage_player_corpse(
             }
         }
 
-        // Scatter collected items around the corpse's location
+        // Scatter collected items around the corpse's location WITHOUT triggering consolidation per-item
         let corpse_pos_x = corpse.pos_x;
         let corpse_pos_y = corpse.pos_y;
 
@@ -2731,12 +2754,15 @@ pub fn damage_player_corpse(
             let drop_pos_x = corpse_pos_x + offset_x;
             let drop_pos_y = corpse_pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("[DamagePlayerCorpse] Dropped {} of item_def_id {} from depleted corpse {} at ({:.1}, {:.1})", 
                                    quantity, item_def_id, corpse_id, drop_pos_x, drop_pos_y),
                 Err(e) => log::error!("[DamagePlayerCorpse] Failed to drop item_def_id {} from corpse {}: {}", item_def_id, corpse_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, corpse_pos_x, corpse_pos_y);
 
         // Delete the PlayerCorpse entity itself
         player_corpses_table.id().delete(corpse_id);
@@ -3573,17 +3599,21 @@ pub fn damage_rain_collector(
             rain_collector_id, attacker_id
         );
 
+        // Drop all items WITHOUT triggering consolidation on each drop
         for (item_def_id, quantity) in items_to_drop {
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0; // Spread within +/- 20px
             let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0;
             let drop_pos_x = rain_collector.pos_x + offset_x;
             let drop_pos_y = rain_collector.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed rain collector {}", quantity, item_def_id, rain_collector_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, rain_collector.pos_x, rain_collector.pos_y);
 
     } else {
         // Rain collector still has health, just update it
@@ -3689,17 +3719,21 @@ pub fn damage_furnace(
             furnace_id, attacker_id
         );
 
+        // Drop all items WITHOUT triggering consolidation on each drop
         for (item_def_id, quantity) in items_to_drop {
             let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0; // Spread within +/- 20px
             let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0;
             let drop_pos_x = furnace.pos_x + offset_x;
             let drop_pos_y = furnace.pos_y + offset_y;
 
-            match dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
                 Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed furnace {}", quantity, item_def_id, furnace_id),
                 Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
             }
         }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, furnace.pos_x, furnace.pos_y);
 
     } else {
         // Furnace still has health, just update it

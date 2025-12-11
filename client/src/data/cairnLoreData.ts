@@ -118,7 +118,7 @@ export const CAIRN_LORE_TIDBITS: CairnLoreEntry[] = [
     index: 11,
     category: "infrastructure",
     title: "Geothermal Taps",
-    text: `The Admiralty didn't build the geothermal vents - they just tapped into them. The island's volcanic activity predates any human presence, and the Directorate's engineers were smart enough to harness what was already there. They drilled into the vents, installed heat exchangers, routed steam to power stations. The Compound's core still runs on this geothermal energy, still draws power from the mountain's heart. But the maintenance crews are gone. The systems degrade. Eventually, even the geothermal taps will fail. Until then, the mountain keeps powering a civilization that forgot how to maintain it.`
+    text: `The island's volcanic activity predates any human presence, and the Directorate's engineers were smart enough to harness what was already there. They drilled into the vents, installed heat exchangers, routed steam to power stations. The Compound's core still runs on this geothermal energy, still draws power from the mountain's heart. But the maintenance crews are gone. The systems degrade. Eventually, even the geothermal taps will fail. Until then, the mountain keeps powering a civilization that forgot how to maintain it.`
   },
 
   // ALEUTS

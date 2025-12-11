@@ -138,7 +138,7 @@ const INTERACTION_CHECK_INTERVAL = 16; // ms - Reduced for immediate responsiven
 export const PLAYER_DROPPED_ITEM_INTERACTION_DISTANCE_SQUARED = 120.0 * 120.0; // Balanced: 87% increase from original 64px, consistent with harvestable resources
 // PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED is now imported from playerCorpseRenderingUtils
 export const PLAYER_STASH_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0;
-export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 100.0 * 100.0; // Cairn interaction distance (matches server constant)
+export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Cairn interaction distance (increased for larger visual)
 export const PLAYER_STASH_SURFACE_INTERACTION_DISTANCE_SQUARED = 32.0 * 32.0;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
 

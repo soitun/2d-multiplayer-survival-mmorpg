@@ -204,6 +204,7 @@ interface GameCanvasProps {
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
   addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void; // ADDED: SOVA message adder for cairn lore
+  onCairnNotification?: (notification: { id: string; cairnNumber: number; totalCairns: number; title: string; isFirstDiscovery: boolean; timestamp: number }) => void; // ADDED: Cairn unlock notification callback
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
   showAutotileDebug: boolean;
@@ -343,6 +344,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   movementDirection,
   isAutoWalking, // Auto-walk state for dodge roll detection
   addSOVAMessage, // ADDED: SOVA message adder for cairn lore
+  onCairnNotification, // ADDED: Cairn unlock notification callback
   playerDodgeRollStates,
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
@@ -1040,6 +1042,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
+    onCairnNotification, // ADDED: Cairn unlock notification callback
     onSetInteractingWith: onSetInteractingWith,
     isMinimapOpen,
     setIsMinimapOpen,
