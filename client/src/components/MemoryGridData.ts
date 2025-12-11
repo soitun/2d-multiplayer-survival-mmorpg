@@ -292,18 +292,6 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Flashlight']
   },
   { 
-    id: 'compost', 
-    name: 'Compost', 
-    description: 'Unlocks crafting Compost containers - converts organic materials (food, plants, plant fiber) into fertilizer over time.', 
-    cost: 60, 
-    tier: 2, 
-    prerequisites: ['lantern'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6 + 0.3, 220), // Branch 4: Alternative path from lantern
-    category: 'crafting' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Compost']
-  },
-  { 
     id: 'reed-bellows', 
     name: 'Reed Bellows', 
     description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.', 
@@ -364,8 +352,8 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
     cost: 140, 
     tier: 3, 
-    prerequisites: ['flashlight', 'compost'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight OR compost
+    prerequisites: ['flashlight'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Rain Collector']
@@ -437,6 +425,18 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Refrigerator']
   },
   { 
+    id: 'compost', 
+    name: 'Compost', 
+    description: 'Unlocks crafting Compost containers - converts organic materials (food, plants, plant fiber) into fertilizer over time.', 
+    cost: 400, 
+    tier: 4, 
+    prerequisites: ['refrigerator'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 520), // Branch 4: Continues from refrigerator (evenly spaced, 100 units apart)
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Compost']
+  },
+  { 
     id: 'crafting-speed-1', 
     name: 'Crafting Speed I', 
     description: 'Improved crafting techniques. All crafting operations are 15% faster.', 
@@ -483,8 +483,8 @@ export const MEMORY_GRID_NODES = [
     description: 'Master broth recipes. All broth effects last 50% longer.', 
     cost: 700, 
     tier: 5, 
-    prerequisites: ['refrigerator'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 520), // Branch 4: Continues from refrigerator
+    prerequisites: ['compost'], 
+    position: getRadialPosition(3 * 2 * Math.PI / 6, 620), // Branch 4: Continues from compost (evenly spaced, 100 units apart)
     category: 'passive' as const, 
     status: 'locked' as const
   },

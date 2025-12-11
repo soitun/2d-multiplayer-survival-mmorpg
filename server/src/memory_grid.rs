@@ -212,7 +212,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "bush-knife" => Some((55, vec!["metal-hatchet"])),      // Branch 2: Metal-hatchet → bush-knife
         "bone-gaff-hook" => Some((65, vec!["reed-harpoon"])),   // Branch 3: Reed-harpoon → bone-gaff-hook
         "flashlight" => Some((55, vec!["lantern"])),            // Branch 4: Lantern → flashlight
-        "compost" => Some((60, vec!["lantern"])),              // Branch 4: Lantern → compost (alternative path)
         "reed-bellows" => Some((70, vec!["metal-pickaxe"])),    // Branch 5: Metal-pickaxe → reed-bellows
         
         // ============================================
@@ -222,7 +221,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "fire-arrow" => Some((120, vec!["bone-arrow"])),                // Branch 1: bone-arrow → fire-arrow
         "large-wooden-storage-box" => Some((150, vec!["bush-knife"])),  // Branch 2: bush-knife → large-wooden-storage-box
         "reed-fishing-rod" => Some((130, vec!["bone-gaff-hook"])),      // Branch 3: bone-gaff-hook → reed-fishing-rod
-        "reed-rain-collector" => Some((140, vec!["flashlight", "compost"])),  // Branch 4: flashlight OR compost → reed-rain-collector
+        "reed-rain-collector" => Some((140, vec!["flashlight"])),       // Branch 4: flashlight → reed-rain-collector
         "mining-efficiency" => Some((180, vec!["reed-bellows"])),       // Branch 5: reed-bellows → mining-efficiency
         
         // ============================================
@@ -233,6 +232,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "metal-door" => Some((320, vec!["large-wooden-storage-box"])),  // Branch 2: large-wooden-storage-box → metal-door
         "reed-snorkel" => Some((350, vec!["reed-fishing-rod"])),        // Branch 3: reed-fishing-rod → reed-snorkel
         "refrigerator" => Some((380, vec!["reed-rain-collector"])),     // Branch 4: reed-rain-collector → refrigerator
+        "compost" => Some((400, vec!["refrigerator"])),                 // Branch 4: refrigerator → compost
         "crafting-speed-1" => Some((400, vec!["mining-efficiency"])),   // Branch 5: mining-efficiency → crafting-speed-1
         
         // ============================================
@@ -241,7 +241,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         "9x18mm-round" => Some((600, vec!["hollow-reed-arrow"])),       // Branch 1: hollow-reed-arrow → 9x18mm-round
         "shelter" => Some((650, vec!["metal-door"])),                   // Branch 2: metal-door → shelter
-        "broth-mastery" => Some((700, vec!["refrigerator"])),           // Branch 4: refrigerator → broth-mastery
+        "broth-mastery" => Some((700, vec!["compost"])),                // Branch 4: compost → broth-mastery
         "crafting-speed-2" => Some((750, vec!["crafting-speed-1"])),    // Branch 5: crafting-speed-1 → crafting-speed-2
         
         // ============================================
