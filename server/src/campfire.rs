@@ -101,18 +101,18 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
      pub chunk_index: u32,
      pub placed_by: Identity, // Track who placed it
      pub placed_at: Timestamp,
-     pub is_burning: bool, // Is the fire currently lit?
-     // Use individual fields instead of arrays
-     pub fuel_instance_id_0: Option<u64>,
-     pub fuel_def_id_0: Option<u64>,
-     pub fuel_instance_id_1: Option<u64>,
-     pub fuel_def_id_1: Option<u64>,
-     pub fuel_instance_id_2: Option<u64>,
-     pub fuel_def_id_2: Option<u64>,
-     pub fuel_instance_id_3: Option<u64>,
-     pub fuel_def_id_3: Option<u64>,
-     pub fuel_instance_id_4: Option<u64>,
-     pub fuel_def_id_4: Option<u64>,
+    pub is_burning: bool, // Is the fire currently lit?
+    // Use individual fields instead of arrays (slot_* naming for consistency with other containers)
+    pub slot_instance_id_0: Option<u64>,
+    pub slot_def_id_0: Option<u64>,
+    pub slot_instance_id_1: Option<u64>,
+    pub slot_def_id_1: Option<u64>,
+    pub slot_instance_id_2: Option<u64>,
+    pub slot_def_id_2: Option<u64>,
+    pub slot_instance_id_3: Option<u64>,
+    pub slot_def_id_3: Option<u64>,
+    pub slot_instance_id_4: Option<u64>,
+    pub slot_def_id_4: Option<u64>,
      pub current_fuel_def_id: Option<u64>,        // ADDED: Def ID of the currently burning fuel item
      pub remaining_fuel_burn_time_secs: Option<f32>, // ADDED: How much time is left for the current_fuel_def_id
      pub health: f32,
@@ -281,11 +281,10 @@ pub fn move_item_within_campfire(
     
     // Save cooking progress before move (since set_slot clears it)
     use crate::cooking::CookableAppliance;
-    use crate::inventory_management::ItemContainer;
-    let source_progress = CookableAppliance::get_slot_cooking_progress(&campfire, source_slot_index);
-    let target_progress = CookableAppliance::get_slot_cooking_progress(&campfire, target_slot_index);
-    let source_had_item = ItemContainer::get_slot_instance_id(&campfire, source_slot_index).is_some();
-    let target_had_item = ItemContainer::get_slot_instance_id(&campfire, target_slot_index).is_some();
+    let source_progress = campfire.get_slot_cooking_progress(source_slot_index);
+    let target_progress = campfire.get_slot_cooking_progress(target_slot_index);
+    let source_had_item = campfire.get_slot_instance_id(source_slot_index).is_some();
+    let target_had_item = campfire.get_slot_instance_id(target_slot_index).is_some();
     
     inventory_management::handle_move_within_container(ctx, &mut campfire, source_slot_index, target_slot_index)?;
     
@@ -295,13 +294,13 @@ pub fn move_item_within_campfire(
     // - Merge: target keeps its progress (items combined there)
     if source_had_item && !target_had_item {
         // Move to empty slot: transfer source progress to target
-        CookableAppliance::set_slot_cooking_progress(&mut campfire, target_slot_index, source_progress);
+        campfire.set_slot_cooking_progress(target_slot_index, source_progress);
     } else if source_had_item && target_had_item {
         // Check if it was a swap (source slot now has an item) or merge (source slot empty)
-        if ItemContainer::get_slot_instance_id(&campfire, source_slot_index).is_some() {
+        if campfire.get_slot_instance_id(source_slot_index).is_some() {
             // Swap: exchange cooking progress
-            CookableAppliance::set_slot_cooking_progress(&mut campfire, target_slot_index, source_progress);
-            CookableAppliance::set_slot_cooking_progress(&mut campfire, source_slot_index, target_progress);
+            campfire.set_slot_cooking_progress(target_slot_index, source_progress);
+            campfire.set_slot_cooking_progress(source_slot_index, target_progress);
         }
         // If merge: target keeps its progress (already in place), source was cleared
     }
@@ -486,14 +485,14 @@ pub fn move_item_from_campfire_to_player_slot(
          return Err(format!("Invalid source fuel slot index: {}", source_slot_index));
      }
  
-     let source_instance_id = match source_slot_index {
-         0 => campfire.fuel_instance_id_0,
-         1 => campfire.fuel_instance_id_1,
-         2 => campfire.fuel_instance_id_2,
-         3 => campfire.fuel_instance_id_3,
-         4 => campfire.fuel_instance_id_4,
-         _ => None,
-     }.ok_or(format!("No item found in source campfire slot {}", source_slot_index))?;
+    let source_instance_id = match source_slot_index {
+        0 => campfire.slot_instance_id_0,
+        1 => campfire.slot_instance_id_1,
+        2 => campfire.slot_instance_id_2,
+        3 => campfire.slot_instance_id_3,
+        4 => campfire.slot_instance_id_4,
+        _ => None,
+    }.ok_or(format!("No item found in source campfire slot {}", source_slot_index))?;
  
      // --- 2. Get Source Item & Validate Split --- 
      let mut source_item = inventory_items.instance_id().find(source_instance_id)
@@ -727,17 +726,17 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         placed_by: sender_id,
         placed_at: current_time,
         is_burning: false, // Campfires start unlit
-        // Initialize all fuel slots to None
-        fuel_instance_id_0: None,
-        fuel_def_id_0: None,
-        fuel_instance_id_1: None,
-        fuel_def_id_1: None,
-        fuel_instance_id_2: None,
-        fuel_def_id_2: None,
-        fuel_instance_id_3: None,
-        fuel_def_id_3: None,
-        fuel_instance_id_4: None,
-        fuel_def_id_4: None,
+        // Initialize all slot fields to None (slot_* naming for consistency with other containers)
+        slot_instance_id_0: None,
+        slot_def_id_0: None,
+        slot_instance_id_1: None,
+        slot_def_id_1: None,
+        slot_instance_id_2: None,
+        slot_def_id_2: None,
+        slot_instance_id_3: None,
+        slot_def_id_3: None,
+        slot_instance_id_4: None,
+        slot_def_id_4: None,
         current_fuel_def_id: None, 
         remaining_fuel_burn_time_secs: None,
         health: CAMPFIRE_INITIAL_HEALTH, // Example initial health
@@ -780,9 +779,9 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
     let mut campfire_to_update = campfires.id().find(new_campfire_id)
         .ok_or_else(|| format!("Failed to re-find campfire {} to update with fuel.", new_campfire_id))?;
     
-    // Set the first fuel slot of the campfire
-    campfire_to_update.fuel_instance_id_0 = Some(fuel_instance_id);
-    campfire_to_update.fuel_def_id_0 = Some(wood_def_id);
+    // Set the first slot of the campfire
+    campfire_to_update.slot_instance_id_0 = Some(fuel_instance_id);
+    campfire_to_update.slot_def_id_0 = Some(wood_def_id);
     // DO NOT set current_fuel_def_id or remaining_fuel_burn_time_secs here.
     // is_burning is already false from new_campfire.
     // The scheduled process_campfire_logic_scheduled will pick it up.
@@ -1167,52 +1166,52 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
          NUM_FUEL_SLOTS
      }
  
-     /// --- Get Slot Instance ID ---
-     /// Returns the instance ID for a given slot index.
-     /// Returns None if the slot index is out of bounds.
-     fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
-         if slot_index >= NUM_FUEL_SLOTS as u8 { return None; }
-         match slot_index {
-             0 => self.fuel_instance_id_0,
-             1 => self.fuel_instance_id_1,
-             2 => self.fuel_instance_id_2,
-             3 => self.fuel_instance_id_3,
-             4 => self.fuel_instance_id_4,
-             _ => None, // Should be unreachable due to index check
-         }
-     }
- 
-     /// --- Get Slot Definition ID ---
-     /// Returns the definition ID for a given slot index.
-     /// Returns None if the slot index is out of bounds.
-     fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
-         if slot_index >= NUM_FUEL_SLOTS as u8 { return None; }
-         match slot_index {
-             0 => self.fuel_def_id_0,
-             1 => self.fuel_def_id_1,
-             2 => self.fuel_def_id_2,
-             3 => self.fuel_def_id_3,
-             4 => self.fuel_def_id_4,
-             _ => None,
-         }
-     }
- 
-     /// --- Set Slot ---
-     /// Sets the item instance ID and definition ID for a given slot index. 
-     /// Returns None if the slot index is out of bounds.
-     fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
-         if slot_index >= NUM_FUEL_SLOTS as u8 { return; }
-         match slot_index {
-             0 => { self.fuel_instance_id_0 = instance_id; self.fuel_def_id_0 = def_id; if instance_id.is_none() { self.slot_0_cooking_progress = None; } },
-             1 => { self.fuel_instance_id_1 = instance_id; self.fuel_def_id_1 = def_id; if instance_id.is_none() { self.slot_1_cooking_progress = None; } },
-             2 => { self.fuel_instance_id_2 = instance_id; self.fuel_def_id_2 = def_id; if instance_id.is_none() { self.slot_2_cooking_progress = None; } },
-             3 => { self.fuel_instance_id_3 = instance_id; self.fuel_def_id_3 = def_id; if instance_id.is_none() { self.slot_3_cooking_progress = None; } },
-             4 => { self.fuel_instance_id_4 = instance_id; self.fuel_def_id_4 = def_id; if instance_id.is_none() { self.slot_4_cooking_progress = None; } },
-             _ => {},
-         }
-         // If a new item is placed (instance_id is Some), its cooking progress should be determined by process_campfire_logic_scheduled.
-         // If an item is cleared (instance_id is None), its cooking progress is set to None above.
-     }
+    /// --- Get Slot Instance ID ---
+    /// Returns the instance ID for a given slot index.
+    /// Returns None if the slot index is out of bounds.
+    fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
+        if slot_index >= NUM_FUEL_SLOTS as u8 { return None; }
+        match slot_index {
+            0 => self.slot_instance_id_0,
+            1 => self.slot_instance_id_1,
+            2 => self.slot_instance_id_2,
+            3 => self.slot_instance_id_3,
+            4 => self.slot_instance_id_4,
+            _ => None, // Should be unreachable due to index check
+        }
+    }
+
+    /// --- Get Slot Definition ID ---
+    /// Returns the definition ID for a given slot index.
+    /// Returns None if the slot index is out of bounds.
+    fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
+        if slot_index >= NUM_FUEL_SLOTS as u8 { return None; }
+        match slot_index {
+            0 => self.slot_def_id_0,
+            1 => self.slot_def_id_1,
+            2 => self.slot_def_id_2,
+            3 => self.slot_def_id_3,
+            4 => self.slot_def_id_4,
+            _ => None,
+        }
+    }
+
+    /// --- Set Slot ---
+    /// Sets the item instance ID and definition ID for a given slot index. 
+    /// Returns None if the slot index is out of bounds.
+    fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
+        if slot_index >= NUM_FUEL_SLOTS as u8 { return; }
+        match slot_index {
+            0 => { self.slot_instance_id_0 = instance_id; self.slot_def_id_0 = def_id; if instance_id.is_none() { self.slot_0_cooking_progress = None; } },
+            1 => { self.slot_instance_id_1 = instance_id; self.slot_def_id_1 = def_id; if instance_id.is_none() { self.slot_1_cooking_progress = None; } },
+            2 => { self.slot_instance_id_2 = instance_id; self.slot_def_id_2 = def_id; if instance_id.is_none() { self.slot_2_cooking_progress = None; } },
+            3 => { self.slot_instance_id_3 = instance_id; self.slot_def_id_3 = def_id; if instance_id.is_none() { self.slot_3_cooking_progress = None; } },
+            4 => { self.slot_instance_id_4 = instance_id; self.slot_def_id_4 = def_id; if instance_id.is_none() { self.slot_4_cooking_progress = None; } },
+            _ => {},
+        }
+        // If a new item is placed (instance_id is Some), its cooking progress should be determined by process_campfire_logic_scheduled.
+        // If an item is cleared (instance_id is None), its cooking progress is set to None above.
+    }
  
      // --- ItemContainer Trait Extension for ItemLocation --- 
      fn get_container_type(&self) -> ContainerType {
@@ -1544,25 +1543,6 @@ fn try_add_charcoal_to_campfire_or_drop(
 
 // --- CookableAppliance Trait Implementation for Campfire ---
 impl crate::cooking::CookableAppliance for Campfire {
-    fn num_processing_slots(&self) -> usize {
-        NUM_FUEL_SLOTS // Campfires use their fuel slots for cooking
-    }
-
-    fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
-        // Delegate to existing ItemContainer method
-        <Self as ItemContainer>::get_slot_instance_id(self, slot_index)
-    }
-
-    fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
-        // Delegate to existing ItemContainer method
-        <Self as ItemContainer>::get_slot_def_id(self, slot_index)
-    }
-
-    fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
-        // Delegate to existing ItemContainer method
-        <Self as ItemContainer>::set_slot(self, slot_index, instance_id, def_id);
-    }
-    
     fn get_slot_cooking_progress(&self, slot_index: u8) -> Option<CookingProgress> {
         match slot_index {
             0 => self.slot_0_cooking_progress.clone(),
@@ -1585,16 +1565,8 @@ impl crate::cooking::CookableAppliance for Campfire {
         }
     }
 
-    fn get_appliance_entity_id(&self) -> u64 {
-        self.id as u64
-    }
-
     fn get_appliance_world_position(&self) -> (f32, f32) {
         (self.pos_x, self.pos_y)
-    }
-
-    fn get_appliance_container_type(&self) -> ContainerType {
-        ContainerType::Campfire // Campfire's own container type
     }
 }
 

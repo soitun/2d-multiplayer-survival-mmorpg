@@ -63,6 +63,7 @@ pub enum SoundType {
     ErrorResources,           // error_resources.mp3 (1 variation - when player doesn't have enough resources)
     ErrorCantPickUpCauldron,  // error_cant_pick_up_cauldron.mp3 (1 variation - when trying to pick up cauldron with contents)
     DoneCooking,              // done_cooking.mp3 (1 variation - when items finish cooking in campfire)
+    DoneBurning,              // done_burning.mp3 (1 variation - when cooked food becomes burnt)
     SoupBoiling,              // soup_boiling.mp3 (1 variation - looping sound while soup is brewing)
     ErrorJarPlacement,       // error_jar_placement.mp3 (1 variation - when trying to place jar back in output slot)
     ErrorBrothNotCompatible, // error_broth_not_compatible.mp3 (1 variation - when trying to place incompatible item in broth pot)
@@ -131,6 +132,7 @@ impl SoundType {
             SoundType::ErrorResources => "error_resources",
             SoundType::ErrorCantPickUpCauldron => "error_cant_pick_up_cauldron",
             SoundType::DoneCooking => "done_cooking",
+            SoundType::DoneBurning => "done_burning",
             SoundType::SoupBoiling => "soup_boiling",
             SoundType::ErrorJarPlacement => "error_jar_placement",
             SoundType::ErrorBrothNotCompatible => "error_broth_not_compatible",
@@ -194,6 +196,7 @@ impl SoundType {
             SoundType::ErrorResources => 3, // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
             SoundType::ErrorCantPickUpCauldron => 1, // error_cant_pick_up_cauldron.mp3 (single variation)
             SoundType::DoneCooking => 1,
+            SoundType::DoneBurning => 1, // done_burning.mp3 (single variation)
             SoundType::SoupBoiling => 1, // soup_boiling.mp3 (single variation - looping sound)
             SoundType::ErrorJarPlacement => 1, // error_jar_placement.mp3 (single variation)
             SoundType::ErrorBrothNotCompatible => 1, // error_broth_not_compatible.mp3 (single variation)
@@ -1088,6 +1091,13 @@ pub fn emit_error_broth_not_compatible_sound(ctx: &ReducerContext, pos_x: f32, p
 pub fn emit_done_cooking_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoneCooking, pos_x, pos_y, 1.2, 700.0, player_id) {
         log::warn!("Failed to emit done cooking sound: {}", e);
+    }
+}
+
+/// Emit done burning sound (when cooked food becomes burnt in campfire/barbecue)
+pub fn emit_done_burning_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoneBurning, pos_x, pos_y, 1.2, 700.0, player_id) {
+        log::warn!("Failed to emit done burning sound: {}", e);
     }
 }
 

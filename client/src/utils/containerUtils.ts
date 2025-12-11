@@ -23,9 +23,9 @@ export type ContainerEntity = Campfire | Furnace | Barbecue | Fumarole | Lantern
 
 // Container configurations - simple and focused on actual patterns
 export const CONTAINER_CONFIGS = {
-    // Fuel containers (use fuel for burning/light)
-    campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
-    furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    // Fuel/cooking containers (use fuel for burning/light, slot_* naming for consistency)
+    campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     barbecue: { slots: 12, slotType: 'barbecue_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 6 }, // 12 slots in 6x2 grid (matches standard inventory row width)
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     

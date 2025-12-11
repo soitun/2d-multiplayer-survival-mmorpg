@@ -3679,16 +3679,16 @@ pub fn damage_furnace(
         furnace.destroyed_at = Some(timestamp);
 
         let mut items_to_drop: Vec<(u64, u32)> = Vec::new();
-        // Check all 5 fuel slots for items to drop
-        let fuel_slots = [
-            (furnace.fuel_instance_id_0, furnace.fuel_def_id_0),
-            (furnace.fuel_instance_id_1, furnace.fuel_def_id_1),
-            (furnace.fuel_instance_id_2, furnace.fuel_def_id_2),
-            (furnace.fuel_instance_id_3, furnace.fuel_def_id_3),
-            (furnace.fuel_instance_id_4, furnace.fuel_def_id_4),
+        // Check all 5 slots for items to drop
+        let slots = [
+            (furnace.slot_instance_id_0, furnace.slot_def_id_0),
+            (furnace.slot_instance_id_1, furnace.slot_def_id_1),
+            (furnace.slot_instance_id_2, furnace.slot_def_id_2),
+            (furnace.slot_instance_id_3, furnace.slot_def_id_3),
+            (furnace.slot_instance_id_4, furnace.slot_def_id_4),
         ];
 
-        for (instance_id_opt, def_id_opt) in fuel_slots {
+        for (instance_id_opt, def_id_opt) in slots {
             if let (Some(instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
                 if let Some(item) = ctx.db.inventory_item().instance_id().find(&instance_id) {
                     items_to_drop.push((def_id, item.quantity));
@@ -3697,17 +3697,17 @@ pub fn damage_furnace(
             }
         }
 
-        // Clear all fuel slots
-        furnace.fuel_instance_id_0 = None;
-        furnace.fuel_def_id_0 = None;
-        furnace.fuel_instance_id_1 = None;
-        furnace.fuel_def_id_1 = None;
-        furnace.fuel_instance_id_2 = None;
-        furnace.fuel_def_id_2 = None;
-        furnace.fuel_instance_id_3 = None;
-        furnace.fuel_def_id_3 = None;
-        furnace.fuel_instance_id_4 = None;
-        furnace.fuel_def_id_4 = None;
+        // Clear all slots
+        furnace.slot_instance_id_0 = None;
+        furnace.slot_def_id_0 = None;
+        furnace.slot_instance_id_1 = None;
+        furnace.slot_def_id_1 = None;
+        furnace.slot_instance_id_2 = None;
+        furnace.slot_def_id_2 = None;
+        furnace.slot_instance_id_3 = None;
+        furnace.slot_def_id_3 = None;
+        furnace.slot_instance_id_4 = None;
+        furnace.slot_def_id_4 = None;
         
         // Update the furnace one last time to ensure is_destroyed and destroyed_at are sent to client
         furnaces_table.id().update(furnace.clone());

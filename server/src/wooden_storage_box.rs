@@ -31,9 +31,8 @@ pub const BOX_TYPE_LARGE: u8 = 1;
 pub const BOX_TYPE_REFRIGERATOR: u8 = 2;
 pub const BOX_TYPE_COMPOST: u8 = 3;
 pub const BOX_TYPE_BACKPACK: u8 = 4;
-pub const BOX_TYPE_BARBECUE: u8 = 5;
+// Note: Barbecue is its own entity (see barbecue.rs), not a wooden storage box type
 pub const NUM_BACKPACK_SLOTS: usize = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
-pub const NUM_BARBECUE_SLOTS: usize = 12;
 pub const BACKPACK_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
 pub const BACKPACK_MAX_HEALTH: f32 = 100.0;
 

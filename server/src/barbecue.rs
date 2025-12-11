@@ -271,11 +271,10 @@ pub fn move_item_within_barbecue(
     
     // Save cooking progress before move (since set_slot clears it)
     use crate::cooking::CookableAppliance;
-    use crate::inventory_management::ItemContainer;
-    let source_progress = CookableAppliance::get_slot_cooking_progress(&barbecue, source_slot_index);
-    let target_progress = CookableAppliance::get_slot_cooking_progress(&barbecue, target_slot_index);
-    let source_had_item = ItemContainer::get_slot_instance_id(&barbecue, source_slot_index).is_some();
-    let target_had_item = ItemContainer::get_slot_instance_id(&barbecue, target_slot_index).is_some();
+    let source_progress = barbecue.get_slot_cooking_progress(source_slot_index);
+    let target_progress = barbecue.get_slot_cooking_progress(target_slot_index);
+    let source_had_item = barbecue.get_slot_instance_id(source_slot_index).is_some();
+    let target_had_item = barbecue.get_slot_instance_id(target_slot_index).is_some();
     
     inventory_management::handle_move_within_container(ctx, &mut barbecue, source_slot_index, target_slot_index)?;
     
@@ -285,13 +284,13 @@ pub fn move_item_within_barbecue(
     // - Merge: target keeps its progress (items combined there)
     if source_had_item && !target_had_item {
         // Move to empty slot: transfer source progress to target
-        CookableAppliance::set_slot_cooking_progress(&mut barbecue, target_slot_index, source_progress);
+        barbecue.set_slot_cooking_progress(target_slot_index, source_progress);
     } else if source_had_item && target_had_item {
         // Check if it was a swap (source slot now has an item) or merge (source slot empty)
-        if ItemContainer::get_slot_instance_id(&barbecue, source_slot_index).is_some() {
+        if barbecue.get_slot_instance_id(source_slot_index).is_some() {
             // Swap: exchange cooking progress
-            CookableAppliance::set_slot_cooking_progress(&mut barbecue, target_slot_index, source_progress);
-            CookableAppliance::set_slot_cooking_progress(&mut barbecue, source_slot_index, target_progress);
+            barbecue.set_slot_cooking_progress(target_slot_index, source_progress);
+            barbecue.set_slot_cooking_progress(source_slot_index, target_progress);
         }
         // If merge: target keeps its progress (already in place), source was cleared
     }
@@ -1318,22 +1317,6 @@ impl ContainerItemClearer for BarbecueClearer {
 }
 
 impl crate::cooking::CookableAppliance for Barbecue {
-    fn num_processing_slots(&self) -> usize {
-        NUM_BARBECUE_SLOTS
-    }
-
-    fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
-        <Self as ItemContainer>::get_slot_instance_id(self, slot_index)
-    }
-
-    fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
-        <Self as ItemContainer>::get_slot_def_id(self, slot_index)
-    }
-
-    fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
-        <Self as ItemContainer>::set_slot(self, slot_index, instance_id, def_id);
-    }
-    
     fn get_slot_cooking_progress(&self, slot_index: u8) -> Option<CookingProgress> {
         match slot_index {
             0 => self.slot_0_cooking_progress.clone(),
@@ -1370,15 +1353,7 @@ impl crate::cooking::CookableAppliance for Barbecue {
         }
     }
 
-    fn get_appliance_entity_id(&self) -> u64 {
-        self.id as u64
-    }
-
     fn get_appliance_world_position(&self) -> (f32, f32) {
         (self.pos_x, self.pos_y)
-    }
-
-    fn get_appliance_container_type(&self) -> ContainerType {
-        ContainerType::Barbecue
     }
 }

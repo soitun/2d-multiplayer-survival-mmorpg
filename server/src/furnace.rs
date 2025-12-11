@@ -81,17 +81,17 @@ pub struct Furnace {
     pub placed_by: Identity,
     pub placed_at: Timestamp,
     pub is_burning: bool,
-    // Use individual fields instead of arrays (same as campfire)
-    pub fuel_instance_id_0: Option<u64>,
-    pub fuel_def_id_0: Option<u64>,
-    pub fuel_instance_id_1: Option<u64>,
-    pub fuel_def_id_1: Option<u64>,
-    pub fuel_instance_id_2: Option<u64>,
-    pub fuel_def_id_2: Option<u64>,
-    pub fuel_instance_id_3: Option<u64>,
-    pub fuel_def_id_3: Option<u64>,
-    pub fuel_instance_id_4: Option<u64>,
-    pub fuel_def_id_4: Option<u64>,
+    // Use individual fields instead of arrays (slot_* naming for consistency with other containers)
+    pub slot_instance_id_0: Option<u64>,
+    pub slot_def_id_0: Option<u64>,
+    pub slot_instance_id_1: Option<u64>,
+    pub slot_def_id_1: Option<u64>,
+    pub slot_instance_id_2: Option<u64>,
+    pub slot_def_id_2: Option<u64>,
+    pub slot_instance_id_3: Option<u64>,
+    pub slot_def_id_3: Option<u64>,
+    pub slot_instance_id_4: Option<u64>,
+    pub slot_def_id_4: Option<u64>,
     pub current_fuel_def_id: Option<u64>,
     pub remaining_fuel_burn_time_secs: Option<f32>,
     pub health: f32,
@@ -192,11 +192,10 @@ pub fn move_item_within_furnace(
     
     // Save cooking progress before move (since set_slot clears it)
     use crate::cooking::CookableAppliance;
-    use crate::inventory_management::ItemContainer;
-    let source_progress = CookableAppliance::get_slot_cooking_progress(&furnace, source_slot_index);
-    let target_progress = CookableAppliance::get_slot_cooking_progress(&furnace, target_slot_index);
-    let source_had_item = ItemContainer::get_slot_instance_id(&furnace, source_slot_index).is_some();
-    let target_had_item = ItemContainer::get_slot_instance_id(&furnace, target_slot_index).is_some();
+    let source_progress = furnace.get_slot_cooking_progress(source_slot_index);
+    let target_progress = furnace.get_slot_cooking_progress(target_slot_index);
+    let source_had_item = furnace.get_slot_instance_id(source_slot_index).is_some();
+    let target_had_item = furnace.get_slot_instance_id(target_slot_index).is_some();
     
     inventory_management::handle_move_within_container(ctx, &mut furnace, source_slot_index, target_slot_index)?;
     
@@ -206,13 +205,13 @@ pub fn move_item_within_furnace(
     // - Merge: target keeps its progress (items combined there)
     if source_had_item && !target_had_item {
         // Move to empty slot: transfer source progress to target
-        CookableAppliance::set_slot_cooking_progress(&mut furnace, target_slot_index, source_progress);
+        furnace.set_slot_cooking_progress(target_slot_index, source_progress);
     } else if source_had_item && target_had_item {
         // Check if it was a swap (source slot now has an item) or merge (source slot empty)
-        if ItemContainer::get_slot_instance_id(&furnace, source_slot_index).is_some() {
+        if furnace.get_slot_instance_id(source_slot_index).is_some() {
             // Swap: exchange cooking progress
-            CookableAppliance::set_slot_cooking_progress(&mut furnace, target_slot_index, source_progress);
-            CookableAppliance::set_slot_cooking_progress(&mut furnace, source_slot_index, target_progress);
+            furnace.set_slot_cooking_progress(target_slot_index, source_progress);
+            furnace.set_slot_cooking_progress(source_slot_index, target_progress);
         }
         // If merge: target keeps its progress (already in place), source was cleared
     }
@@ -358,11 +357,11 @@ pub fn split_and_move_from_furnace(
     }
 
     let source_instance_id = match source_slot_index {
-        0 => furnace.fuel_instance_id_0,
-        1 => furnace.fuel_instance_id_1,
-        2 => furnace.fuel_instance_id_2,
-        3 => furnace.fuel_instance_id_3,
-        4 => furnace.fuel_instance_id_4,
+        0 => furnace.slot_instance_id_0,
+        1 => furnace.slot_instance_id_1,
+        2 => furnace.slot_instance_id_2,
+        3 => furnace.slot_instance_id_3,
+        4 => furnace.slot_instance_id_4,
         _ => None,
     }.ok_or(format!("No item found in source furnace slot {}", source_slot_index))?;
 
@@ -639,16 +638,16 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         placed_by: sender_id,
         placed_at: ctx.timestamp,
         is_burning: false,
-        fuel_instance_id_0: Some(fuel_item.instance_id),
-        fuel_def_id_0: Some(wood_def_id),
-        fuel_instance_id_1: None,
-        fuel_def_id_1: None,
-        fuel_instance_id_2: None,
-        fuel_def_id_2: None,
-        fuel_instance_id_3: None,
-        fuel_def_id_3: None,
-        fuel_instance_id_4: None,
-        fuel_def_id_4: None,
+        slot_instance_id_0: Some(fuel_item.instance_id),
+        slot_def_id_0: Some(wood_def_id),
+        slot_instance_id_1: None,
+        slot_def_id_1: None,
+        slot_instance_id_2: None,
+        slot_def_id_2: None,
+        slot_instance_id_3: None,
+        slot_def_id_3: None,
+        slot_instance_id_4: None,
+        slot_def_id_4: None,
         current_fuel_def_id: None,
         remaining_fuel_burn_time_secs: None,
         health: FURNACE_INITIAL_HEALTH,
@@ -878,33 +877,33 @@ impl ItemContainer for Furnace {
 
     fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
         match slot_index {
-            0 => self.fuel_instance_id_0,
-            1 => self.fuel_instance_id_1,
-            2 => self.fuel_instance_id_2,
-            3 => self.fuel_instance_id_3,
-            4 => self.fuel_instance_id_4,
+            0 => self.slot_instance_id_0,
+            1 => self.slot_instance_id_1,
+            2 => self.slot_instance_id_2,
+            3 => self.slot_instance_id_3,
+            4 => self.slot_instance_id_4,
             _ => None,
         }
     }
 
     fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
         match slot_index {
-            0 => self.fuel_def_id_0,
-            1 => self.fuel_def_id_1,
-            2 => self.fuel_def_id_2,
-            3 => self.fuel_def_id_3,
-            4 => self.fuel_def_id_4,
+            0 => self.slot_def_id_0,
+            1 => self.slot_def_id_1,
+            2 => self.slot_def_id_2,
+            3 => self.slot_def_id_3,
+            4 => self.slot_def_id_4,
             _ => None,
         }
     }
 
     fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
         match slot_index {
-            0 => { self.fuel_instance_id_0 = instance_id; self.fuel_def_id_0 = def_id; }
-            1 => { self.fuel_instance_id_1 = instance_id; self.fuel_def_id_1 = def_id; }
-            2 => { self.fuel_instance_id_2 = instance_id; self.fuel_def_id_2 = def_id; }
-            3 => { self.fuel_instance_id_3 = instance_id; self.fuel_def_id_3 = def_id; }
-            4 => { self.fuel_instance_id_4 = instance_id; self.fuel_def_id_4 = def_id; }
+            0 => { self.slot_instance_id_0 = instance_id; self.slot_def_id_0 = def_id; }
+            1 => { self.slot_instance_id_1 = instance_id; self.slot_def_id_1 = def_id; }
+            2 => { self.slot_instance_id_2 = instance_id; self.slot_def_id_2 = def_id; }
+            3 => { self.slot_instance_id_3 = instance_id; self.slot_def_id_3 = def_id; }
+            4 => { self.slot_instance_id_4 = instance_id; self.slot_def_id_4 = def_id; }
             _ => {}
         }
     }
@@ -1188,22 +1187,6 @@ pub fn get_smelting_speed_multiplier(ctx: &ReducerContext, furnace: &Furnace) ->
 
 // Implement CookableAppliance for Furnace (smelting only)
 impl crate::cooking::CookableAppliance for Furnace {
-    fn num_processing_slots(&self) -> usize {
-        NUM_FUEL_SLOTS
-    }
-
-    fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
-        ItemContainer::get_slot_instance_id(self, slot_index)
-    }
-
-    fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
-        ItemContainer::get_slot_def_id(self, slot_index)
-    }
-
-    fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
-        ItemContainer::set_slot(self, slot_index, instance_id, def_id)
-    }
-
     fn get_slot_cooking_progress(&self, slot_index: u8) -> Option<CookingProgress> {
         match slot_index {
             0 => self.slot_0_cooking_progress.clone(),
@@ -1226,15 +1209,7 @@ impl crate::cooking::CookableAppliance for Furnace {
         }
     }
 
-    fn get_appliance_entity_id(&self) -> u64 {
-        self.id as u64
-    }
-
     fn get_appliance_world_position(&self) -> (f32, f32) {
         (self.pos_x, self.pos_y)
-    }
-
-    fn get_appliance_container_type(&self) -> ContainerType {
-        ContainerType::Furnace
     }
 } 

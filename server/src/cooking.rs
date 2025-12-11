@@ -4,6 +4,7 @@ use crate::items::{InventoryItem, ItemDefinition, inventory_item as InventoryIte
 use std::cmp::min;
 use crate::dropped_item; // For DROP_OFFSET and create_dropped_item_entity
 use crate::sound_events::{self, SoundType}; // For emitting cooking completion sound
+use crate::inventory_management::ItemContainer; // For trait inheritance
 
 // CookingProgress struct (moved from campfire.rs)
 #[derive(SpacetimeType, Clone, Debug, PartialEq)]
@@ -14,23 +15,14 @@ pub struct CookingProgress {
 }
 
 // Trait for appliances that can cook/transform items
-pub trait CookableAppliance {
-    // --- Slot Access ---
-    fn num_processing_slots(&self) -> usize;
-    fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64>;
-    fn get_slot_def_id(&self, slot_index: u8) -> Option<u64>;
-    fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>);
-    
+// Extends ItemContainer to inherit slot access methods and avoid duplication
+pub trait CookableAppliance: ItemContainer {
     // --- Cooking Progress Access ---
     fn get_slot_cooking_progress(&self, slot_index: u8) -> Option<CookingProgress>;
     fn set_slot_cooking_progress(&mut self, slot_index: u8, progress: Option<CookingProgress>);
 
-    // --- Appliance Info ---
-    fn get_appliance_entity_id(&self) -> u64; // Generic ID for the appliance (e.g., campfire.id, furnace.id)
+    // --- Appliance World Position ---
     fn get_appliance_world_position(&self) -> (f32, f32); // For dropping items
-
-    // --- Container Type (for ItemLocation when placing transformed items back) ---
-    fn get_appliance_container_type(&self) -> ContainerType;
 }
 
 // Renamed and generalized from transform_campfire_item
@@ -68,7 +60,7 @@ pub(crate) fn transform_item_in_appliance<T: CookableAppliance>(
         return Err(format!("Cannot transform item in slot {} with 0 quantity.", slot_index));
     }
 
-    let appliance_id_for_log = appliance.get_appliance_entity_id(); // For logging
+    let appliance_id_for_log = appliance.get_container_id(); // For logging
 
     if source_item.quantity == 0 {
         inventory_items_table.instance_id().delete(source_item_instance_id);
@@ -117,7 +109,7 @@ pub(crate) fn handle_transformed_item_placement<T: CookableAppliance>(
     let new_item_quantity = new_item.quantity;
 
     // 1. Try to stack with existing items of the same type in OTHER appliance slots
-    for i in 0..appliance.num_processing_slots() as u8 {
+    for i in 0..appliance.num_slots() as u8 {
         if appliance.get_slot_def_id(i) == Some(new_item_def_id) {
             if let Some(target_slot_instance_id) = appliance.get_slot_instance_id(i) {
                 // Ensure we are not trying to stack with the item that was just created if it somehow got placed back into a slot already
@@ -134,7 +126,7 @@ pub(crate) fn handle_transformed_item_placement<T: CookableAppliance>(
                                 // All of the new item was stacked
                                 inventory_items_table.instance_id().delete(new_item_instance_id); 
                                 log::info!("[TransformedPlacement] Appliance {}: Stacked {} unit(s) of item (Def {}) onto existing stack in slot {}.", 
-                                         appliance.get_appliance_entity_id(), amount_to_stack, new_item_def_id, i);
+                                         appliance.get_container_id(), amount_to_stack, new_item_def_id, i);
                                 return Ok(false); 
                             } else {
                                 // Partial stack - update the new item quantity and continue trying to place the rest
@@ -144,7 +136,7 @@ pub(crate) fn handle_transformed_item_placement<T: CookableAppliance>(
                                 let remaining_quantity = updated_new_item.quantity; // Store before move
                                 inventory_items_table.instance_id().update(updated_new_item);
                                 log::info!("[TransformedPlacement] Appliance {}: Partially stacked {} unit(s) of item (Def {}) onto existing stack in slot {}. {} remaining.", 
-                                         appliance.get_appliance_entity_id(), amount_to_stack, new_item_def_id, i, remaining_quantity);
+                                         appliance.get_container_id(), amount_to_stack, new_item_def_id, i, remaining_quantity);
                                 // Continue to try placing the remaining quantity
                             }
                         }
@@ -155,17 +147,17 @@ pub(crate) fn handle_transformed_item_placement<T: CookableAppliance>(
     }
 
     // 2. Try to place in an empty slot in the appliance
-    for i in 0..appliance.num_processing_slots() as u8 {
+    for i in 0..appliance.num_slots() as u8 {
         if appliance.get_slot_instance_id(i).is_none() {
             if let Some(mut new_item_to_place) = inventory_items_table.instance_id().find(new_item_instance_id) {
                 new_item_to_place.location = ItemLocation::Container(ContainerLocationData {
-                    container_type: appliance.get_appliance_container_type(),
-                    container_id: appliance.get_appliance_entity_id(),
+                    container_type: appliance.get_container_type(),
+                    container_id: appliance.get_container_id(),
                     slot_index: i,
                 });
                 inventory_items_table.instance_id().update(new_item_to_place);
                 appliance.set_slot(i, Some(new_item_instance_id), Some(new_item_def_id));
-                log::info!("[TransformedPlacement] Appliance {}: Placed item (Instance {}, Def {}) into empty slot {}.", appliance.get_appliance_entity_id(), new_item_instance_id, new_item_def_id, i);
+                log::info!("[TransformedPlacement] Appliance {}: Placed item (Instance {}, Def {}) into empty slot {}.", appliance.get_container_id(), new_item_instance_id, new_item_def_id, i);
                 return Ok(true); 
             } else {
                 return Err(format!("[TransformedPlacement] Failed to find new item instance {} to place in empty slot.", new_item_instance_id));
@@ -182,7 +174,7 @@ pub(crate) fn handle_transformed_item_placement<T: CookableAppliance>(
     let quantity_to_drop = final_item_to_drop.quantity;
     
     log::info!("[TransformedPlacement] Appliance {}: Slots full. Dropping {} unit(s) of item (Instance {}, Def {}).", 
-             appliance.get_appliance_entity_id(), quantity_to_drop, new_item_instance_id, new_item_def_id);
+             appliance.get_container_id(), quantity_to_drop, new_item_instance_id, new_item_def_id);
     
     // Delete the temporary item that was in ItemLocation::Unknown
     inventory_items_table.instance_id().delete(new_item_instance_id);
@@ -201,9 +193,10 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
 ) -> Result<bool, String> { // Returns true if the appliance struct was modified
     let mut appliance_struct_modified = false;
     let mut cooking_completed_this_tick = false; // Track if any item finished cooking to play sound once
+    let mut burning_completed_this_tick = false; // Track if any item became burnt to play sound once
     let item_definition_table = ctx.db.item_definition();
 
-    for i in 0..appliance.num_processing_slots() as u8 {
+    for i in 0..appliance.num_slots() as u8 {
         let mut slot_cooking_progress_opt = appliance.get_slot_cooking_progress(i);
 
         // Check if current slot is the active fuel slot
@@ -217,7 +210,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
             if slot_cooking_progress_opt.is_some() {
                 appliance.set_slot_cooking_progress(i, None);
                 appliance_struct_modified = true;
-                log::debug!("[ApplianceCooking] Appliance {}: Slot {} contains active fuel. Clearing any cooking progress.", appliance.get_appliance_entity_id(), i);
+                log::debug!("[ApplianceCooking] Appliance {}: Slot {} contains active fuel. Clearing any cooking progress.", appliance.get_container_id(), i);
             }
             continue; // Skip to next slot if this one is active fuel
         }
@@ -228,7 +221,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                     if let Some(mut progress_data) = slot_cooking_progress_opt.take() {
                         progress_data.current_cook_time_secs += time_increment;
                         log::debug!("[ApplianceCooking] Appliance {}: Slot {} item (Def: {}) incremented cook time to {:.1}s / {:.1}s for target {}", 
-                                 appliance.get_appliance_entity_id(), i, current_item_def.id, progress_data.current_cook_time_secs, progress_data.target_cook_time_secs, progress_data.target_item_def_name);
+                                 appliance.get_container_id(), i, current_item_def.id, progress_data.current_cook_time_secs, progress_data.target_cook_time_secs, progress_data.target_item_def_name);
 
                         if progress_data.current_cook_time_secs >= progress_data.target_cook_time_secs {
                             // Only play sound for raw → cooked transitions, not for cooked → burnt or burnt → charcoal
@@ -236,6 +229,9 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                 && progress_data.target_item_def_name != "Charcoal";
                             if is_desirable_cooking {
                                 cooking_completed_this_tick = true; // Mark that cooking completed (for sound)
+                            } else if progress_data.target_item_def_name.starts_with("Burnt") {
+                                // Food is becoming burnt (cooked → burnt transition)
+                                burning_completed_this_tick = true;
                             }
                             match transform_item_in_appliance(ctx, appliance, i, &progress_data.target_item_def_name) {
                                 Ok((transformed_item_def, new_instance_id)) => {
@@ -248,7 +244,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                         }
                                         Err(e) => {
                                             log::error!("[ApplianceCooking] Appliance {}: Error placing transformed item {}: {}. Item may be lost.", 
-                                                     appliance.get_appliance_entity_id(), new_instance_id, e);
+                                                     appliance.get_container_id(), new_instance_id, e);
                                             ctx.db.inventory_item().instance_id().delete(new_instance_id); // Attempt cleanup
                                         }
                                     }
@@ -279,7 +275,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                 }
                                 Err(e) => {
                                     log::error!("[ApplianceCooking] Appliance {}: Error transforming item in slot {}: {}. Halting for this slot.", 
-                                             appliance.get_appliance_entity_id(), i, e);
+                                             appliance.get_container_id(), i, e);
                                     slot_cooking_progress_opt = None;
                                 }
                             }
@@ -301,7 +297,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                     target_item_def_name: target_name.clone(),
                                 });
                                 log::debug!("[ApplianceCooking] Appliance {}: Slot {} item {} starting to cook towards {} ({}s).", 
-                                         appliance.get_appliance_entity_id(), i, current_item_def.name, target_name, target_time);
+                                         appliance.get_container_id(), i, current_item_def.name, target_name, target_time);
                             }
                         }
                     }
@@ -309,7 +305,7 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
             }
         } else if slot_cooking_progress_opt.is_some() { // Slot became empty but had progress
             slot_cooking_progress_opt = None;
-            log::debug!("[ApplianceCooking] Appliance {}: Slot {} became empty, cleared stale cooking progress.", appliance.get_appliance_entity_id(), i);
+            log::debug!("[ApplianceCooking] Appliance {}: Slot {} became empty, cleared stale cooking progress.", appliance.get_container_id(), i);
         }
 
         // Update appliance's slot_X_cooking_progress for the current slot i
@@ -324,6 +320,12 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
     if cooking_completed_this_tick {
         let (pos_x, pos_y) = appliance.get_appliance_world_position();
         sound_events::emit_done_cooking_sound(ctx, pos_x, pos_y, ctx.identity());
+    }
+    
+    // Play burning sound once if any items became burnt this tick
+    if burning_completed_this_tick {
+        let (pos_x, pos_y) = appliance.get_appliance_world_position();
+        sound_events::emit_done_burning_sound(ctx, pos_x, pos_y, ctx.identity());
     }
     
     Ok(appliance_struct_modified)

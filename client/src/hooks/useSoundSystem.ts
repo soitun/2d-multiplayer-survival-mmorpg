@@ -92,6 +92,7 @@ const SOUND_DEFINITIONS = {
     error_jar_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Jar placement error sound (client-side immediate for instant feedback when trying to place soup back into broth pot output slot)
     error_broth_not_compatible: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Broth not compatible error sound (when trying to place incompatible item in broth pot)
     error_field_cauldron_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Field cauldron placement error sound (client-side immediate for instant feedback when trying to place cauldron without nearby campfire)
+    done_burning: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Food became burnt sound (campfire/barbecue)
     error_placement_failed: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Placeable placement error sound (client-side immediate for instant feedback when trying to place campfire/furnace/etc on water or invalid location)
     unlock_sound: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Memory grid skill/faction unlock sound (client-side immediate for instant feedback)
     cairn_unlock: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Cairn unlock sound (client-side immediate for instant feedback when player first unlocks a cairn)
@@ -341,6 +342,7 @@ const PRELOAD_SOUNDS = [
     'error_field_cauldron_placement.mp3',                   // 1 error field cauldron placement variation
     'construction_placement_error.mp3',                     // 1 construction placement error variation
     'player_burnt.mp3',                                      // 1 player burnt variation
+    'done_burning.mp3',                                      // 1 done burning variation (food became burnt)
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -601,6 +603,8 @@ const playLocalSound = async (
                 variationCount = 1; // error_broth_not_compatible.mp3
             } else if (soundType === 'error_placement_failed') {
                 variationCount = 1; // error_placement_failed.mp3
+            } else if (soundType === 'done_burning') {
+                variationCount = 1; // done_burning.mp3 (food became burnt)
             } else if (soundType === 'arrow_hit') {
                 variationCount = 1; // arrow_hit.mp3
             } else if (soundType === 'shoot_bow') {
