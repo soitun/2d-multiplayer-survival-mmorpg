@@ -84,6 +84,7 @@ export type ItemThrown = { tag: "ItemThrown" };
 export type ErrorResources = { tag: "ErrorResources" };
 export type ErrorCantPickUpCauldron = { tag: "ErrorCantPickUpCauldron" };
 export type DoneCooking = { tag: "DoneCooking" };
+export type DoneBurning = { tag: "DoneBurning" };
 export type SoupBoiling = { tag: "SoupBoiling" };
 export type ErrorJarPlacement = { tag: "ErrorJarPlacement" };
 export type ErrorBrothNotCompatible = { tag: "ErrorBrothNotCompatible" };

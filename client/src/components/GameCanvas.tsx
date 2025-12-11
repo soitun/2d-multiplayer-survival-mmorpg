@@ -1562,6 +1562,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.src = module.default;
     });
 
+    // Load compost image
+    import('../assets/doodads/compost.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('compost.png', img);
+      };
+      img.onerror = () => console.error('Failed to load compost.png');
+      img.src = module.default;
+    });
+
+    // Load barbecue image
+    import('../assets/doodads/barbecue.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('barbecue.png', img);
+      };
+      img.onerror = () => console.error('Failed to load barbecue.png');
+      img.src = module.default;
+    });
+
+    // Load refrigerator image
+    import('../assets/doodads/refrigerator.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('refrigerator.png', img);
+      };
+      img.onerror = () => console.error('Failed to load refrigerator.png');
+      img.src = module.default;
+    });
+
+    // Load large wooden box image
+    import('../assets/doodads/large_wood_box.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('large_wood_box.png', img);
+      };
+      img.onerror = () => console.error('Failed to load large_wood_box.png');
+      img.src = module.default;
+    });
+
     // Monument images are now loaded via static imports in monumentRenderingUtils.ts
     // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
     // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)

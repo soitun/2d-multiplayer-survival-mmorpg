@@ -9,7 +9,7 @@ import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingU
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
-import { COMPOST_WIDTH, COMPOST_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost dimensions
+import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, and Large Box dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../plantsUtils';
@@ -1166,6 +1166,15 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'wooden_storage_box.png' && placementInfo.itemName === 'Compost') {
         // For compost, use the compost.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('compost.png');
+    } else if (placementInfo.iconAssetName === 'barbecue.png') {
+        // For barbecue, use the barbecue.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('barbecue.png');
+    } else if (placementInfo.iconAssetName === 'refrigerator.png') {
+        // For refrigerator, use the refrigerator.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('refrigerator.png');
+    } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
+        // For large wooden box, use the large_wood_box.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('large_wood_box.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
@@ -1194,6 +1203,14 @@ export function renderPlacementPreview({
             drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
             drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
         }
+    } else if (placementInfo.iconAssetName === 'refrigerator.png') {
+        // Refrigerator preview dimensions (matches actual rendering)
+        drawWidth = REFRIGERATOR_WIDTH; // 64px
+        drawHeight = REFRIGERATOR_HEIGHT; // 96px
+    } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
+        // Large wooden box preview dimensions (matches actual rendering)
+        drawWidth = LARGE_BOX_WIDTH; // 96px
+        drawHeight = LARGE_BOX_HEIGHT; // 96px
     } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
         drawWidth = SLEEPING_BAG_WIDTH; 
         drawHeight = SLEEPING_BAG_HEIGHT;
