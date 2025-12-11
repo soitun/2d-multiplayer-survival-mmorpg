@@ -233,6 +233,8 @@ interface MinimapProps {
   // Weather overlay props
   showWeatherOverlay?: boolean; // Whether to show the weather overlay
   chunkWeatherData?: Map<number, ChunkWeather>; // Map of chunk indices to weather data
+  // Show names prop
+  showNames?: boolean; // Whether to show names for shipwrecks and other entities
 }
 
 // Bright, clear terrain colors for easy readability
@@ -606,6 +608,8 @@ export function drawMinimapOntoCanvas({
   // Destructure weather overlay props
   showWeatherOverlay = false, // Default to false (hidden by default)
   chunkWeatherData, // Weather data map
+  // Destructure show names prop
+  showNames = true, // Default to true (show names by default)
 }: MinimapProps) {
   // On mobile (smaller canvas), use full canvas dimensions; on desktop, use fixed dimensions
   const isMobile = canvasWidth <= 768 || canvasHeight <= 768;
@@ -1142,71 +1146,55 @@ export function drawMinimapOntoCanvas({
   }
 
   // --- Draw Shipwreck Parts (EXPLORATION LANDMARKS) ---
-  // Show ALL shipwreck parts so players can find the actual visible ship pieces
-  // Note: The "center" (isCenter=true) is just a reference point on the beach
-  // The actual visible ship parts are scattered north of the center
-  if (shipwreckParts && shipwreckParts.size > 0) {
-    let partCount = 0;
-    shipwreckParts.forEach((part, key) => {
-      // Show ALL parts (both center reference and actual visible parts)
-      // This way players can find the actual ship wreckage
-      
-      partCount++;
-      const screenCoords = worldToMinimap(part.worldX, part.worldY);
+  // Show ONE representative "SHIPWRECK" label for the entire structure
+  if (shipwreckParts && shipwreckParts.size > 0 && showNames === true) {
+    // Find ONE representative shipwreck part (prefer center part, otherwise use first part)
+    let representativePart: ShipwreckPart | null = null;
+    
+    // First, try to find a center part
+    shipwreckParts.forEach((part) => {
+      if (part.isCenter) {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && shipwreckParts.size > 0) {
+      representativePart = Array.from(shipwreckParts.values())[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
       if (screenCoords) {
-        const iconSize = part.isCenter ? SHIPWRECK_ICON_SIZE * 1.2 : SHIPWRECK_ICON_SIZE; // Center slightly larger
-        const radius = iconSize / 2;
         const x = screenCoords.x;
         const y = screenCoords.y;
         
         ctx.save();
         
-        // Add strong glow effect for high visibility (matching ALK station style)
-        ctx.shadowColor = SHIPWRECK_GLOW_COLOR;
-        ctx.shadowBlur = 12; // Strong glow like ALK stations
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        
-        // Draw outer circle with vibrant rusty color
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        
-        // Draw black outline first for contrast (matching other icon styles)
-        ctx.strokeStyle = SHIPWRECK_OUTLINE_COLOR;
-        ctx.lineWidth = SHIPWRECK_OUTLINE_WIDTH;
-        ctx.stroke();
-        
-        // Fill with shipwreck color
-        ctx.fillStyle = SHIPWRECK_COLOR;
-        ctx.fill();
-        
-        // Draw inner detail circle for depth (matching ALK station pattern)
-        ctx.shadowBlur = 0; // No shadow on inner detail
-        ctx.beginPath();
-        const innerRadius = radius * 0.5; // Inner circle at 50% size
-        ctx.arc(x, y, innerRadius, 0, Math.PI * 2);
-        
-        // Fill inner circle with darker color for depth
-        ctx.fillStyle = SHIPWRECK_INNER_COLOR;
-        ctx.fill();
-        
-        // Draw anchor symbol (⚓) - bold and prominent
-        // Use larger font size for better visibility
-        ctx.font = `bold ${iconSize * 0.75}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Arial, sans-serif`;
+        // Draw "SHIPWRECK" text with cyberpunk styling - LARGER SIZE
+        ctx.font = 'bold 14px "Courier New", monospace'; // Increased from 10px to 14px
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        // White anchor with subtle shadow for depth
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 2;
+        // Add glow effect for visibility
+        ctx.shadowColor = SHIPWRECK_GLOW_COLOR;
+        ctx.shadowBlur = 10; // Increased glow
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 1;
-        ctx.fillStyle = '#FFFFFF'; // Bright white for maximum contrast
-        ctx.fillText('⚓', x, y);
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4; // Thicker outline for larger text
+        ctx.strokeText('SHIPWRECK', x, y);
+        
+        // Fill with shipwreck color
+        ctx.fillStyle = SHIPWRECK_COLOR;
+        ctx.fillText('SHIPWRECK', x, y);
         
         ctx.restore();
       }
-    });
+    }
   }
 
   // --- Draw Campfires ---

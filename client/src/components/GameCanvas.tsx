@@ -379,6 +379,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return saved !== null ? saved === 'true' : false;
   });
 
+  // Minimap show names state (for shipwreck labels, etc.)
+  const [minimapShowNames, setMinimapShowNames] = useState<boolean>(() => {
+    const saved = localStorage.getItem('minimap_show_names');
+    return saved !== null ? saved === 'true' : true; // Default to true (show by default)
+  });
+
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
   const torchParticlesRef = useRef<Particle[]>([]);
@@ -3656,6 +3662,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       alkStations: alkStations,
       // Shipwreck monument parts for minimap
       shipwreckParts: shipwreckParts,
+      // Show names toggle for minimap labels
+      showNames: minimapShowNames,
     });
   }, [
     isMinimapOpen,
@@ -3783,6 +3791,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             onToggleWeatherOverlay={(checked) => {
               setMinimapShowWeatherOverlay(checked);
               localStorage.setItem('minimap_show_weather_overlay', checked.toString());
+            }}
+            showNames={minimapShowNames}
+            onToggleShowNames={(checked) => {
+              setMinimapShowNames(checked);
+              localStorage.setItem('minimap_show_names', checked.toString());
             }}
             // ALK Panel data props
             alkContracts={alkContracts}

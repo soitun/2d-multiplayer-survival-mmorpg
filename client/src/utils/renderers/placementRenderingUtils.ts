@@ -8,6 +8,7 @@ import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingU
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
+import { COMPOST_WIDTH, COMPOST_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../plantsUtils';
@@ -1177,10 +1178,15 @@ export function renderPlacementPreview({
         drawWidth = LANTERN_WIDTH_PREVIEW; 
         drawHeight = LANTERN_HEIGHT_PREVIEW;
     } else if (placementInfo.iconAssetName === 'wooden_storage_box.png') {
-        // Assuming box preview uses same dimensions as campfire for now
-        // TODO: If wooden_storage_box has its own preview dimensions, import them
-        drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
-        drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
+        // Check if this is a compost box (larger than regular boxes)
+        if (placementInfo.itemName === 'Compost') {
+            drawWidth = COMPOST_WIDTH; // 128px
+            drawHeight = COMPOST_HEIGHT; // 128px
+        } else {
+            // Regular wooden storage box uses campfire dimensions for preview
+            drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
+            drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
+        }
     } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
         drawWidth = SLEEPING_BAG_WIDTH; 
         drawHeight = SLEEPING_BAG_HEIGHT;

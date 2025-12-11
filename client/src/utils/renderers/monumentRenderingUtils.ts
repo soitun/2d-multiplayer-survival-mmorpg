@@ -68,6 +68,8 @@ export function preloadMonumentImages(): void {
     loadImage('hull3.png', import('../../assets/doodads/hull3.png?url'));
     loadImage('hull4.png', import('../../assets/doodads/hull4.png?url'));
     loadImage('hull5.png', import('../../assets/doodads/hull5.png?url'));
+    loadImage('hull6.png', import('../../assets/doodads/hull6.png?url'));
+    loadImage('hull7.png', import('../../assets/doodads/hull7.png?url'));
 }
 
 /**
@@ -99,6 +101,8 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hull3.png': () => import('../../assets/doodads/hull3.png?url'),
             'hull4.png': () => import('../../assets/doodads/hull4.png?url'),
             'hull5.png': () => import('../../assets/doodads/hull5.png?url'),
+            'hull6.png': () => import('../../assets/doodads/hull6.png?url'),
+            'hull7.png': () => import('../../assets/doodads/hull7.png?url'),
         };
     
         const loader = imageMap[imagePath];

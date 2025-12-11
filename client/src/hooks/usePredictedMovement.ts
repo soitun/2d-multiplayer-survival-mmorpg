@@ -112,8 +112,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
   const FORCE_UPDATE_INTERVAL_MS = 500; // Only trigger React re-render every 500ms for sound system updates
   const [, forceUpdate] = useState({});
   
-  // Track dodge roll collision for smooth stopping
-  const dodgeRollCollisionRef = useRef<{ hitAt: number; stopPosition: { x: number; y: number } } | null>(null);
+  // Track client-side dodge roll for smooth interpolation (prevents snapping to server position)
+  const clientDodgeRollRef = useRef<{ 
+    startX: number; 
+    startY: number; 
+    targetX: number; 
+    targetY: number; 
+    serverStartTime: number; // The server's dodge roll start time to detect new rolls
+  } | null>(null);
 
   // Get player actions from context
   const { 
@@ -147,6 +153,18 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
   // Listen for server position updates - PROPER CLIENT-SIDE PREDICTION
   useEffect(() => {
     if (!localPlayer || !clientPositionRef.current || !serverPositionRef.current) return;
+
+    // Check if we're currently dodge rolling - if so, ignore server position updates to prevent stutter
+    const playerId = localPlayer.identity.toHexString();
+    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
+    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
+    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
+    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500;
+    
+    // CRITICAL: Don't accept server position updates during dodge roll to prevent camera stutter
+    if (isDodgeRolling) {
+      return;
+    }
 
     const hasRespawned = wasDeadRef.current && !localPlayer.isDead;
     const receivedSequence = localPlayer.clientMovementSequence ?? 0n;
@@ -192,7 +210,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     // Update wasDeadRef for the next render cycle
     wasDeadRef.current = localPlayer.isDead;
 
-  }, [localPlayer?.positionX, localPlayer?.positionY, localPlayer?.direction, localPlayer?.isDead]);
+  }, [localPlayer?.positionX, localPlayer?.positionY, localPlayer?.direction, localPlayer?.isDead, playerDodgeRollStates]);
 
   // Optimized position update function
   const updatePosition = useCallback(() => {
@@ -230,65 +248,53 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500; // 500ms dodge roll duration
       
       if (isDodgeRolling && dodgeRollState) {
-        // SERVER-AUTHORITATIVE DODGE ROLL with SMOOTH COLLISION
-        const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0); // 0.0 to 1.0
+        // SMOOTH DODGE ROLL: Use CLIENT's position as start, not server's (prevents snap/stutter)
+        const serverDodgeStartTime = Number(dodgeRollState.startTimeMs);
         
-        // Apply easing for more natural dodge roll feel (ease-out quad for quick start, slow end)
-        const easedProgress = 1 - Math.pow(1 - dodgeProgress, 2);
-        
-        // Interpolate between server's start and target positions
-        const interpolatedX = dodgeRollState.startX + (dodgeRollState.targetX - dodgeRollState.startX) * easedProgress;
-        const interpolatedY = dodgeRollState.startY + (dodgeRollState.targetY - dodgeRollState.startY) * easedProgress;
-        
-        // Check if we already hit something during this dodge roll
-        if (dodgeRollCollisionRef.current && dodgeRollCollisionRef.current.hitAt === dodgeRollStartTime) {
-          // We already collided - smoothly decelerate to stop position
-          const timeSinceCollision = dodgeRollElapsedMs - (dodgeRollCollisionRef.current.hitAt - dodgeRollStartTime);
-          const decelerationDuration = 150; // 150ms smooth stop
-          const decelerationProgress = Math.min(timeSinceCollision / decelerationDuration, 1.0);
+        // Detect NEW dodge roll (server start time changed) - initialize client-side tracking
+        if (!clientDodgeRollRef.current || clientDodgeRollRef.current.serverStartTime !== serverDodgeStartTime) {
+          // NEW dodge roll detected - use CLIENT's current position as start
+          const clientStartX = clientPositionRef.current.x;
+          const clientStartY = clientPositionRef.current.y;
           
-          // Ease-out deceleration (quick at first, slow at end)
-          const easedDecel = 1 - Math.pow(1 - decelerationProgress, 3);
+          // Calculate dodge direction and distance from server's data
+          const serverDodgeDx = dodgeRollState.targetX - dodgeRollState.startX;
+          const serverDodgeDy = dodgeRollState.targetY - dodgeRollState.startY;
           
-          // Interpolate from current position to stop position
-          const stopPos = dodgeRollCollisionRef.current.stopPosition;
-          clientPositionRef.current = {
-            x: clientPositionRef.current.x + (stopPos.x - clientPositionRef.current.x) * easedDecel,
-            y: clientPositionRef.current.y + (stopPos.y - clientPositionRef.current.y) * easedDecel
+          // Apply same direction/distance to client's current position
+          clientDodgeRollRef.current = {
+            startX: clientStartX,
+            startY: clientStartY,
+            targetX: clientStartX + serverDodgeDx,
+            targetY: clientStartY + serverDodgeDy,
+            serverStartTime: serverDodgeStartTime
           };
-          pendingPosition.current = { ...clientPositionRef.current };
-        } else {
-          // Normal dodge roll - check collision
-          const playerId = localPlayer.identity.toHexString();
-          const collisionResult = resolveClientCollision(
-            clientPositionRef.current.x,
-            clientPositionRef.current.y,
-            interpolatedX,
-            interpolatedY,
-            playerId,
-            entities
-          );
-          
-          // Check if we hit something
-          if (collisionResult.collided) {
-            // First collision - record it and start smooth deceleration
-            dodgeRollCollisionRef.current = {
-              hitAt: dodgeRollStartTime,
-              stopPosition: { x: collisionResult.x, y: collisionResult.y }
-            };
-            // Use collision position for this frame
-            clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
-            pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
-          } else {
-            // No collision - continue normal interpolation
-            clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
-            pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
-          }
         }
         
-        // Calculate direction for animation purposes (still use server's dodge direction)
-        const dodgeRollDx = dodgeRollState.targetX - dodgeRollState.startX;
-        const dodgeRollDy = dodgeRollState.targetY - dodgeRollState.startY;
+        const clientDodge = clientDodgeRollRef.current;
+        const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0); // 0.0 to 1.0
+        
+        // Simple linear interpolation from CLIENT's start to CLIENT's target (no snapping!)
+        const interpolatedX = clientDodge.startX + (clientDodge.targetX - clientDodge.startX) * dodgeProgress;
+        const interpolatedY = clientDodge.startY + (clientDodge.targetY - clientDodge.startY) * dodgeProgress;
+        
+        // Apply collision detection
+        const collisionResult = resolveClientCollision(
+          clientPositionRef.current.x,
+          clientPositionRef.current.y,
+          interpolatedX,
+          interpolatedY,
+          playerId,
+          entities
+        );
+        
+        // Update position (collision-resolved)
+        clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
+        pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
+        
+        // Calculate direction for animation purposes (use client's dodge roll data)
+        const dodgeRollDx = clientDodge.targetX - clientDodge.startX;
+        const dodgeRollDy = clientDodge.targetY - clientDodge.startY;
         const dodgeRollMagnitude = Math.sqrt(dodgeRollDx * dodgeRollDx + dodgeRollDy * dodgeRollDy);
         
         if (dodgeRollMagnitude > 0) {
@@ -306,22 +312,16 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
           }
         }
         
-        // PERFORMANCE FIX: Removed per-frame forceUpdate during dodge roll
-        // The game canvas reads position from refs directly, no React re-render needed
-        // Only update React state occasionally for non-canvas consumers
-        const now = performance.now();
-        if (now - lastForceUpdateTime.current > FORCE_UPDATE_INTERVAL_MS) {
-          lastForceUpdateTime.current = now;
+        // CRITICAL: Force update every frame during dodge roll for smooth rendering
         forceUpdate({});
-        }
         
         // Skip normal movement processing during dodge roll
-        movementMonitor.logUpdate(now - updateStartTime, true);
+        movementMonitor.logUpdate(performance.now() - updateStartTime, true);
         return;
       } else {
-        // Dodge roll ended - clear collision tracking
-        if (dodgeRollCollisionRef.current) {
-          dodgeRollCollisionRef.current = null;
+        // Dodge roll ended or not active - clear client-side tracking
+        if (clientDodgeRollRef.current) {
+          clientDodgeRollRef.current = null;
         }
       }
       
@@ -522,14 +522,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
     const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500;
     
-    if (isDodgeRolling && dodgeRollState) {
-      // Calculate exact dodge roll position at this moment
+    if (isDodgeRolling && clientDodgeRollRef.current) {
+      // Calculate exact dodge roll position at this moment using CLIENT's tracked data
+      const clientDodge = clientDodgeRollRef.current;
       const dodgeProgress = Math.min(dodgeRollElapsedMs / 500, 1.0);
-      const easedProgress = 1 - Math.pow(1 - dodgeProgress, 2); // ease-out quad
       
       return {
-        x: dodgeRollState.startX + (dodgeRollState.targetX - dodgeRollState.startX) * easedProgress,
-        y: dodgeRollState.startY + (dodgeRollState.targetY - dodgeRollState.startY) * easedProgress
+        x: clientDodge.startX + (clientDodge.targetX - clientDodge.startX) * dodgeProgress,
+        y: clientDodge.startY + (clientDodge.targetY - clientDodge.startY) * dodgeProgress
       };
     }
     

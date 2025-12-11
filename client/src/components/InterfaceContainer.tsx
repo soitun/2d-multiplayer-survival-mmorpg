@@ -25,6 +25,8 @@ interface InterfaceContainerProps {
   onClose: () => void;
   showWeatherOverlay?: boolean;
   onToggleWeatherOverlay?: (checked: boolean) => void;
+  showNames?: boolean;
+  onToggleShowNames?: (checked: boolean) => void;
   // ALK Panel data props
   alkContracts?: Map<string, AlkContract>;
   alkPlayerContracts?: Map<string, AlkPlayerContract>;
@@ -44,6 +46,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   onClose,
   showWeatherOverlay: externalShowWeatherOverlay,
   onToggleWeatherOverlay: externalToggleWeatherOverlay,
+  showNames: externalShowNames,
+  onToggleShowNames: externalToggleShowNames,
   // ALK Panel data props
   alkContracts,
   alkPlayerContracts,
@@ -69,6 +73,25 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     setShowGridCoordinates(checked);
     localStorage.setItem('minimap_show_grid_coordinates', checked.toString());
   }, []);
+  
+  // Show names visibility preference (use external if provided, otherwise manage internally)
+  const [internalShowNames, setInternalShowNames] = useState<boolean>(() => {
+    const saved = localStorage.getItem('minimap_show_names');
+    return saved !== null ? saved === 'true' : true; // Default to true (show by default)
+  });
+  
+  // Use external prop if provided, otherwise use internal state
+  const showNames = externalShowNames !== undefined ? externalShowNames : internalShowNames;
+  
+  // Save preference to localStorage when it changes
+  const handleToggleShowNames = useCallback((checked: boolean) => {
+    if (externalToggleShowNames) {
+      externalToggleShowNames(checked);
+    } else {
+      setInternalShowNames(checked);
+      localStorage.setItem('minimap_show_names', checked.toString());
+    }
+  }, [externalToggleShowNames]);
   
   // Weather overlay visibility preference (use external if provided, otherwise manage internally)
   const [internalShowWeatherOverlay, setInternalShowWeatherOverlay] = useState<boolean>(() => {
@@ -649,6 +672,48 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
                 />
                 <span style={{ textShadow: '0 0 4px rgba(70, 130, 180, 0.8)' }}>
                   Weather
+                </span>
+              </label>
+              
+              {/* Show Names Toggle Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontFamily: '"Courier New", monospace',
+                  color: '#D2691E',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(210, 105, 30, 0.3)',
+                  userSelect: 'none',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                  e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                  e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.3)';
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showNames}
+                  onChange={(e) => handleToggleShowNames(e.target.checked)}
+                  style={{
+                    cursor: 'pointer',
+                    width: '14px',
+                    height: '14px',
+                    accentColor: '#D2691E',
+                  }}
+                />
+                <span style={{ textShadow: '0 0 4px rgba(210, 105, 30, 0.8)' }}>
+                  Show Names
                 </span>
               </label>
             </div>

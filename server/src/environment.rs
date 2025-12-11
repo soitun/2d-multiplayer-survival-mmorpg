@@ -1123,13 +1123,25 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
 
-    // Check if core environment is already seeded (efficient O(1) check instead of O(N) count)
-    if trees.iter().next().is_some() || stones.iter().next().is_some() || harvestable_resources.iter().next().is_some() || clouds.iter().next().is_some() {
-        log::info!("Environment already seeded. Skipping.");
+    // Check which resources already exist (check each type individually to allow partial seeding)
+    let trees_exist = trees.iter().next().is_some();
+    let stones_exist = stones.iter().next().is_some();
+    let harvestables_exist = harvestable_resources.iter().next().is_some();
+    let clouds_exist = clouds.iter().next().is_some();
+    
+    if trees_exist && stones_exist && harvestables_exist && clouds_exist {
+        log::info!("Environment already fully seeded. Skipping.");
         return Ok(());
     }
-
-    log::info!("Seeding environment (trees, stones, unified harvestable resources, clouds, grass)..." );
+    
+    // Log which resources will be seeded
+    let mut resources_to_seed = Vec::new();
+    if !trees_exist { resources_to_seed.push("trees"); }
+    if !stones_exist { resources_to_seed.push("stones"); }
+    if !harvestables_exist { resources_to_seed.push("harvestable resources"); }
+    if !clouds_exist { resources_to_seed.push("clouds"); }
+    log::info!("Seeding environment ({}). Existing: trees={}, stones={}, harvestables={}, clouds={}", 
+        resources_to_seed.join(", "), trees_exist, stones_exist, harvestables_exist, clouds_exist);
 
     let fbm = Fbm::<Perlin>::new(ctx.rng().gen());
     let mut rng = StdRng::from_rng(ctx.rng()).map_err(|e| format!("Failed to seed RNG: {}", e))?;
@@ -1270,12 +1282,13 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut grass_attempts = 0;
 
     // --- Seed Trees --- Use helper function with dense forest clustering ---
-    log::info!("Seeding Trees with dense forest clusters (including Forest tile type)...");
-    
-    // Create a separate noise generator for dense forest regions
-    let dense_forest_noise = Fbm::<Perlin>::new(ctx.rng().gen());
-    
-    while spawned_tree_count < target_tree_count && tree_attempts < max_tree_attempts {
+    if !trees_exist {
+        log::info!("Seeding Trees with dense forest clusters (including Forest tile type)...");
+        
+        // Create a separate noise generator for dense forest regions
+        let dense_forest_noise = Fbm::<Perlin>::new(ctx.rng().gen());
+        
+        while spawned_tree_count < target_tree_count && tree_attempts < max_tree_attempts {
         tree_attempts += 1;
 
         // Determine tree type roll *before* calling attempt_single_spawn
@@ -1408,15 +1421,19 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             Ok(false) => { /* Condition not met, continue */ }
             Err(_) => { /* Error already logged in helper, continue */ }
         }
+        }
+        log::info!(
+            "Finished seeding {} trees (target: {}, attempts: {}).",
+            spawned_tree_count, target_tree_count, tree_attempts
+        );
+    } else {
+        log::info!("Trees already exist. Skipping tree seeding.");
     }
-     log::info!(
-        "Finished seeding {} trees (target: {}, attempts: {}).",
-        spawned_tree_count, target_tree_count, tree_attempts
-    );
 
     // --- Seed Stones --- Use helper function ---
-    log::info!("Seeding Stones...");
-    while spawned_stone_count < target_stone_count && stone_attempts < max_stone_attempts {
+    if !stones_exist {
+        log::info!("Seeding Stones...");
+        while spawned_stone_count < target_stone_count && stone_attempts < max_stone_attempts {
         stone_attempts += 1;
         
         // Create threshold function for stones that increases density in Alpine/Tundra
@@ -1508,11 +1525,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             Ok(false) => { /* Condition not met, continue */ }
             Err(_) => { /* Error already logged in helper, continue */ }
         }
+        }
+        log::info!(
+            "Finished seeding {} stones (target: {}, attempts: {}).",
+            spawned_stone_count, target_stone_count, stone_attempts
+        );
+    } else {
+        log::info!("Stones already exist. Skipping stone seeding.");
     }
-    log::info!(
-        "Finished seeding {} stones (target: {}, attempts: {}).",
-        spawned_stone_count, target_stone_count, stone_attempts
-    );
 
 
     // --- Seed Sea Stacks --- Use helper function ---
