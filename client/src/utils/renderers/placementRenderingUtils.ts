@@ -1163,7 +1163,7 @@ export function renderPlacementPreview({
         } else if (placementInfo.iconAssetName === 'metal_door.png') {
             previewImg = doodadImagesRef.current?.get(isNorthEdge ? 'metal_door_north.png' : 'metal_door.png');
         }
-    } else if (placementInfo.iconAssetName === 'wooden_storage_box.png' && placementInfo.itemName === 'Compost') {
+    } else if (placementInfo.itemName === 'Compost' || placementInfo.iconAssetName === 'compost.png') {
         // For compost, use the compost.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('compost.png');
     } else if (placementInfo.iconAssetName === 'barbecue.png') {
@@ -1193,16 +1193,14 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'lantern_off.png') {
         drawWidth = LANTERN_WIDTH_PREVIEW; 
         drawHeight = LANTERN_HEIGHT_PREVIEW;
+    } else if (placementInfo.itemName === 'Compost' || placementInfo.iconAssetName === 'compost.png') {
+        // Compost preview dimensions (matches actual rendering: 128px x 128px)
+        drawWidth = COMPOST_WIDTH; // 128px
+        drawHeight = COMPOST_HEIGHT; // 128px
     } else if (placementInfo.iconAssetName === 'wooden_storage_box.png') {
-        // Check if this is a compost box (larger than regular boxes)
-        if (placementInfo.itemName === 'Compost') {
-            drawWidth = COMPOST_WIDTH; // 128px
-            drawHeight = COMPOST_HEIGHT; // 128px
-        } else {
-            // Regular wooden storage box uses campfire dimensions for preview
-            drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
-            drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
-        }
+        // Regular wooden storage box uses campfire dimensions for preview
+        drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
+        drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
     } else if (placementInfo.iconAssetName === 'refrigerator.png') {
         // Refrigerator preview dimensions (matches actual rendering)
         drawWidth = REFRIGERATOR_WIDTH; // 64px
