@@ -11,6 +11,7 @@ import buildingSystem2DChallenges from './posts/building-system-2d-challenges';
 import armorSystemDesign from './posts/armor-system-design';
 import customBabushkaArtDirection from './posts/custom-babushka-art-direction';
 import minimapSpatialSubscriptions from './posts/minimap-spatial-subscriptions';
+import diegeticUiDesignSova from './posts/diegetic-ui-design-sova';
 // AI SEO Optimized Posts - SpacetimeDB Focused
 import spacetimedbTutorial30Minutes from './posts/spacetimedb-tutorial-30-minutes';
 import spacetimedbVsFirebaseComparison from './posts/spacetimedb-vs-firebase-comparison';
@@ -24,6 +25,8 @@ import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-coo
 
 // Export posts as an array, sorted by date (newest first)
 export const blogPosts = [
+  // December 2025 Posts
+  diegeticUiDesignSova, // December 12, 2025 - Diegetic UI and SOVA
   // AI SEO Optimized Posts - Broth Bullets Focused (November 17, 2025)
   brothBulletsCookingSystemEmergentGameplay, // Cooking system deep dive
   brothBulletsSpacetimedbArchitecture, // Why we chose SpacetimeDB
