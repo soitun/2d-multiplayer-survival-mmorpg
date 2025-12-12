@@ -61,6 +61,7 @@ export type Player = {
   lastRespawnTime: __Timestamp,
   insanity: number,
   lastInsanityThreshold: number,
+  shardCarryStartTime: __Timestamp | undefined,
 };
 let _cached_Player_type_value: __AlgebraicTypeType | null = null;
 
@@ -108,6 +109,7 @@ export const Player = {
       { name: "lastRespawnTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "insanity", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "lastInsanityThreshold", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "shardCarryStartTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_Player_type_value;
   },
