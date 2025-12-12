@@ -89,4 +89,6 @@ export type SoupBoiling = { tag: "SoupBoiling" };
 export type ErrorJarPlacement = { tag: "ErrorJarPlacement" };
 export type ErrorBrothNotCompatible = { tag: "ErrorBrothNotCompatible" };
 export type DoorOpening = { tag: "DoorOpening" };
+export type BarbecueOn = { tag: "BarbecueOn" };
+export type BarbecueOff = { tag: "BarbecueOff" };
 

@@ -53,7 +53,7 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight - BARBECUE_RENDER_Y_OFFSET,
+        drawY: entity.posY - drawHeight / 2, // Centered - image content is centered in square
     }),
 
     getShadowParams: undefined,

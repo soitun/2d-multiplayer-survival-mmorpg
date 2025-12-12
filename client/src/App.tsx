@@ -460,7 +460,8 @@ function AppContent() {
     useEffect(() => {
         if (!connection?.reducers) return;
 
-        const handleRefrigeratorError = () => {
+        const handleContainerValidationError = (containerType: string) => {
+            console.log(`[App] ${containerType} validation failed - playing error sound`);
             playImmediateSound('construction_placement_error', 1.0);
         };
 
@@ -468,27 +469,61 @@ function AppContent() {
         // Check if status is Failed (reducer errors come back with status.tag === 'Failed')
         if (connection.reducers.onMoveItemToRefrigerator) {
             connection.reducers.onMoveItemToRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
-                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
-                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
-                    handleRefrigeratorError();
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] moveItemToRefrigerator failed:`, status.value);
+                    handleContainerValidationError('Refrigerator');
                 }
             });
         }
 
         if (connection.reducers.onQuickMoveToRefrigerator) {
             connection.reducers.onQuickMoveToRefrigerator((ctx: any, boxId: number, itemInstanceId: bigint) => {
-                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
-                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
-                    handleRefrigeratorError();
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] quickMoveToRefrigerator failed:`, status.value);
+                    handleContainerValidationError('Refrigerator');
                 }
             });
         }
 
         if (connection.reducers.onSplitStackIntoRefrigerator) {
             connection.reducers.onSplitStackIntoRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
-                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
-                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
-                    handleRefrigeratorError();
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] splitStackIntoRefrigerator failed:`, status.value);
+                    handleContainerValidationError('Refrigerator');
+                }
+            });
+        }
+
+        // Register error callbacks for all compost reducers
+        if (connection.reducers.onMoveItemToCompost) {
+            connection.reducers.onMoveItemToCompost((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] moveItemToCompost failed:`, status.value);
+                    handleContainerValidationError('Compost');
+                }
+            });
+        }
+
+        if (connection.reducers.onQuickMoveToCompost) {
+            connection.reducers.onQuickMoveToCompost((ctx: any, boxId: number, itemInstanceId: bigint) => {
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] quickMoveToCompost failed:`, status.value);
+                    handleContainerValidationError('Compost');
+                }
+            });
+        }
+
+        if (connection.reducers.onSplitStackIntoCompost) {
+            connection.reducers.onSplitStackIntoCompost((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    console.log(`[App] splitStackIntoCompost failed:`, status.value);
+                    handleContainerValidationError('Compost');
                 }
             });
         }

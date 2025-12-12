@@ -75,10 +75,20 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
         }
     },
 
-    calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
-        drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight - 20, // Slight Y adjustment for centering
-    }),
+    calculateDrawPosition: (entity, drawWidth, drawHeight) => {
+        // Compost uses centered positioning (image content is centered in square)
+        if (entity.boxType === BOX_TYPE_COMPOST) {
+            return {
+                drawX: entity.posX - drawWidth / 2,
+                drawY: entity.posY - drawHeight / 2,
+            };
+        }
+        // Other box types use bottom-anchored positioning
+        return {
+            drawX: entity.posX - drawWidth / 2,
+            drawY: entity.posY - drawHeight - 20,
+        };
+    },
 
     getShadowParams: undefined,
 

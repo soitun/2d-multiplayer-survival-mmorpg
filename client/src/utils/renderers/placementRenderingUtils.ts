@@ -1457,13 +1457,18 @@ export function renderPlacementPreview({
         ctx.globalAlpha = 0.7;
     }
 
-    // Calculate the centered position (perfectly centered on cursor or snapped position)
-    // Preview is always centered on cursor for all items (except broth pot which snaps to campfire)
+    // Calculate the draw position - centered on cursor for all items
     const adjustedX = snappedX - drawWidth / 2;
-    // Apply 44px vertical offset for doors (matches door rendering offset)
-    const adjustedY = isDoorPlacement 
-        ? snappedY - drawHeight / 2 - 44
-        : snappedY - drawHeight / 2;
+    
+    // Door placement has a special offset, everything else is centered
+    let adjustedY: number;
+    if (isDoorPlacement) {
+        // Apply 44px vertical offset for doors (matches door rendering offset)
+        adjustedY = snappedY - drawHeight / 2 - 44;
+    } else {
+        // Default: centered on cursor (consistent for all placeable items)
+        adjustedY = snappedY - drawHeight / 2;
+    }
 
     // Draw the preview image or fallback
     if (previewImg && previewImg.complete && previewImg.naturalHeight !== 0) {

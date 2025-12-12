@@ -90,7 +90,9 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.SoupBoiling |
   SoundTypeVariants.ErrorJarPlacement |
   SoundTypeVariants.ErrorBrothNotCompatible |
-  SoundTypeVariants.DoorOpening;
+  SoundTypeVariants.DoorOpening |
+  SoundTypeVariants.BarbecueOn |
+  SoundTypeVariants.BarbecueOff;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -163,6 +165,8 @@ export const SoundType = {
   ErrorJarPlacement: { tag: "ErrorJarPlacement" } as const,
   ErrorBrothNotCompatible: { tag: "ErrorBrothNotCompatible" } as const,
   DoorOpening: { tag: "DoorOpening" } as const,
+  BarbecueOn: { tag: "BarbecueOn" } as const,
+  BarbecueOff: { tag: "BarbecueOff" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -229,6 +233,8 @@ export const SoundType = {
       { name: "ErrorJarPlacement", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorBrothNotCompatible", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DoorOpening", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BarbecueOn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BarbecueOff", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },
