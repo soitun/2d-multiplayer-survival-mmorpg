@@ -158,6 +158,7 @@ export interface SpacetimeTableStates {
     playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>; // ADDED: Player shard balances
     memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
     shipwreckParts: Map<string, any>; // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
+    largeQuarries: Map<string, any>; // ADDED: Large quarry locations with types for minimap labels
 }
 
 // Define the props the hook accepts
@@ -244,6 +245,7 @@ export const useSpacetimeTables = ({
     const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map()); // ADDED: Player shard balances
     const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
     const [shipwreckParts, setShipwreckParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
+    const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map()); // ADDED: Large quarry locations with types for minimap labels
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1602,6 +1604,17 @@ export const useSpacetimeTables = ({
                 setShipwreckParts(prev => { const newMap = new Map(prev); newMap.delete(part.id.toString()); return newMap; });
             };
 
+            // Large Quarry handlers - for minimap quarry type labels (Stone/Sulfur/Metal Quarry)
+            const handleLargeQuarryInsert = (ctx: any, quarry: any) => {
+                setLargeQuarries(prev => new Map(prev).set(quarry.id.toString(), quarry));
+            };
+            const handleLargeQuarryUpdate = (ctx: any, oldQuarry: any, newQuarry: any) => {
+                setLargeQuarries(prev => new Map(prev).set(newQuarry.id.toString(), newQuarry));
+            };
+            const handleLargeQuarryDelete = (ctx: any, quarry: any) => {
+                setLargeQuarries(prev => { const newMap = new Map(prev); newMap.delete(quarry.id.toString()); return newMap; });
+            };
+
             // ALK Contract handlers
             const handleAlkContractInsert = (ctx: any, contract: SpacetimeDB.AlkContract) => {
                 setAlkContracts(prev => new Map(prev).set(contract.contractId.toString(), contract));
@@ -1862,6 +1875,11 @@ export const useSpacetimeTables = ({
             connection.db.shipwreckPart.onUpdate(handleShipwreckPartUpdate);
             connection.db.shipwreckPart.onDelete(handleShipwreckPartDelete);
 
+            // Register Large Quarry callbacks - for minimap quarry type labels
+            connection.db.largeQuarry.onInsert(handleLargeQuarryInsert);
+            connection.db.largeQuarry.onUpdate(handleLargeQuarryUpdate);
+            connection.db.largeQuarry.onDelete(handleLargeQuarryDelete);
+
             // Register ALK Contract callbacks
             connection.db.alkContract.onInsert(handleAlkContractInsert);
             connection.db.alkContract.onUpdate(handleAlkContractUpdate);
@@ -2016,6 +2034,12 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[SHIPWRECK_PART Sub Error]:", err))
                     .subscribe('SELECT * FROM shipwreck_part'),
+                // ADDED Large Quarry subscription - NON-SPATIAL (one-time read of static world gen data)
+                // Large quarries are placed during world generation and never change.
+                // Used for minimap labels (Stone Quarry, Sulfur Quarry, Metal Quarry)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[LARGE_QUARRY Sub Error]:", err))
+                    .subscribe('SELECT * FROM large_quarry'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2388,5 +2412,6 @@ export const useSpacetimeTables = ({
         playerShardBalance, // ADDED: Player shard balances
         memoryGridProgress, // ADDED: Memory Grid unlocks
         shipwreckParts, // ADDED: Shipwreck monument parts
+        largeQuarries, // ADDED: Large quarry locations with types for minimap labels
     };
 }; 

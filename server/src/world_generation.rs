@@ -1,13 +1,14 @@
 use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
-use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, ShipwreckPart, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, ShipwreckPart, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
 use crate::minimap_cache as MinimapCacheTableTrait;
 use crate::world_chunk_data as WorldChunkDataTableTrait;
 use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::large_quarry as LargeQuarryTableTrait;
 
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
@@ -150,6 +151,27 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
     }
     
+    // Store large quarry positions and types in database for client minimap display
+    // Similar to shipwreck - client reads once, then treats as static config
+    for (tile_x, tile_y, radius, quarry_type) in &world_features.large_quarry_centers {
+        // Convert tile position to world pixel position (center of quarry)
+        let world_x_px = (*tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+        let world_y_px = (*tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+        
+        ctx.db.large_quarry().insert(LargeQuarry {
+            id: 0, // auto_inc
+            world_x: world_x_px,
+            world_y: world_y_px,
+            radius_tiles: *radius,
+            quarry_type: quarry_type.clone(),
+        });
+    }
+    
+    if !world_features.large_quarry_centers.is_empty() {
+        log::info!("Stored {} large quarry locations in database - client reads once for minimap labels", 
+                   world_features.large_quarry_centers.len());
+    }
+    
     // Sea stacks will be generated in environment.rs alongside trees and stones
     
     log::info!("World generation complete!");
@@ -170,6 +192,7 @@ struct WorldFeatures {
     quarry_dirt: Vec<Vec<bool>>, // Quarry dirt areas (circular cleared zones)
     quarry_roads: Vec<Vec<bool>>, // Quarry access roads (dirt roads leading in)
     quarry_centers: Vec<(f32, f32, i32)>, // Quarry center positions (x, y, radius) for entity spawning
+    large_quarry_centers: Vec<(f32, f32, i32, LargeQuarryType)>, // Large quarry centers with type (x, y, radius, type)
     asphalt_compound: Vec<Vec<bool>>, // Central compound and mini-compounds (paved asphalt)
     forest_areas: Vec<Vec<bool>>, // Dense forested areas
     tundra_areas: Vec<Vec<bool>>, // Arctic tundra (northern regions)
@@ -225,7 +248,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     
     // Generate quarry locations (dirt areas with enhanced stone spawning)
     // Pass hot spring data to ensure quarries don't spawn near hot springs
-    let (quarry_dirt, quarry_roads, quarry_centers) = generate_quarries(config, noise, &shore_distance, &river_network, &lake_map, &hot_spring_water, &road_network, width, height);
+    let (quarry_dirt, quarry_roads, quarry_centers, large_quarry_centers) = generate_quarries(config, noise, &shore_distance, &river_network, &lake_map, &hot_spring_water, &road_network, width, height);
     
     // Generate asphalt compounds (central compound + mini-compounds at road terminals)
     let asphalt_compound = generate_asphalt_compounds(config, noise, &shore_distance, &road_network, width, height);
@@ -254,6 +277,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         quarry_dirt,
         quarry_roads,
         quarry_centers,
+        large_quarry_centers,
         asphalt_compound,
         forest_areas,
         tundra_areas,
@@ -1368,7 +1392,7 @@ fn generate_quarries(
     road_network: &[Vec<bool>],
     width: usize,
     height: usize
-) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<(f32, f32, i32)>) {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<(f32, f32, i32)>, Vec<(f32, f32, i32, LargeQuarryType)>) {
     let mut quarry_dirt = vec![vec![false; width]; height];
     let mut quarry_roads = vec![vec![false; width]; height];
     
@@ -1460,7 +1484,7 @@ fn generate_quarries(
     
     if candidate_positions_north.is_empty() && candidate_positions_south.is_empty() {
         log::error!("⚠️⚠️⚠️ NO VALID POSITIONS FOUND FOR QUARRIES! ⚠️⚠️⚠️");
-        return (quarry_dirt, quarry_roads, Vec::new());
+        return (quarry_dirt, quarry_roads, Vec::new(), Vec::new());
     }
     
     // Select quarry positions with good spacing using proper RNG
@@ -1548,6 +1572,33 @@ fn generate_quarries(
     log::info!("🏔️ Quarry placement complete: {} large (north) + {} small (south) = {} total",
                large_count, small_count, quarry_centers.len());
     
+    // Assign quarry types to LARGE quarries (Stone, Sulfur, Metal)
+    // Ensure one of each type spawns, then assign remaining randomly
+    let large_quarries: Vec<_> = quarry_centers.iter()
+        .filter(|(_, _, _, is_large)| *is_large)
+        .collect();
+    
+    let mut large_quarry_centers: Vec<(f32, f32, i32, LargeQuarryType)> = Vec::new();
+    
+    // Guaranteed types (one of each) - assign in order: Stone, Sulfur, Metal
+    let guaranteed_types = [LargeQuarryType::Stone, LargeQuarryType::Sulfur, LargeQuarryType::Metal];
+    
+    for (idx, (x, y, r, _)) in large_quarries.iter().enumerate() {
+        let quarry_type = if idx < guaranteed_types.len() {
+            // First 3 large quarries get guaranteed types
+            guaranteed_types[idx].clone()
+        } else {
+            // Additional large quarries get random types
+            match rng.gen_range(0..3) {
+                0 => LargeQuarryType::Stone,
+                1 => LargeQuarryType::Sulfur,
+                _ => LargeQuarryType::Metal,
+            }
+        };
+        
+        large_quarry_centers.push((*x, *y, *r, quarry_type));
+    }
+    
     // Log all quarry centers for easy navigation
     log::info!("🏔️ ========== QUARRY LOCATIONS ==========");
     for (idx, (center_x, center_y, radius_tiles, is_large)) in quarry_centers.iter().enumerate() {
@@ -1556,6 +1607,20 @@ fn generate_quarries(
         let quarry_type = if *is_large { "LARGE" } else { "SMALL" };
         log::info!("🏔️ QUARRY #{} ({}): World Position ({:.0}, {:.0}) | Radius: {} tiles", 
                    idx + 1, quarry_type, world_x_px, world_y_px, radius_tiles);
+    }
+    
+    // Log large quarry types
+    log::info!("🏔️ ========== LARGE QUARRY TYPES ==========");
+    for (idx, (x, y, r, qtype)) in large_quarry_centers.iter().enumerate() {
+        let world_x_px = (*x + 0.5) * crate::TILE_SIZE_PX as f32;
+        let world_y_px = (*y + 0.5) * crate::TILE_SIZE_PX as f32;
+        let type_name = match qtype {
+            LargeQuarryType::Stone => "STONE QUARRY",
+            LargeQuarryType::Sulfur => "SULFUR QUARRY",
+            LargeQuarryType::Metal => "METAL QUARRY",
+        };
+        log::info!("🏔️ LARGE QUARRY #{} ({}): World Position ({:.0}, {:.0}) | Radius: {} tiles", 
+                   idx + 1, type_name, world_x_px, world_y_px, r);
     }
     log::info!("🏔️ =======================================");
     
@@ -1599,8 +1664,9 @@ fn generate_quarries(
         create_quarry_access_road(&mut quarry_roads, road_network, center_x, center_y, *radius_tiles, width, height, noise);
     }
     
-    log::info!("Generated {} quarries with dirt areas and access roads", quarry_centers_for_entities.len());
-    (quarry_dirt, quarry_roads, quarry_centers_for_entities)
+    log::info!("Generated {} quarries with dirt areas and access roads ({} large with types)", 
+               quarry_centers_for_entities.len(), large_quarry_centers.len());
+    (quarry_dirt, quarry_roads, quarry_centers_for_entities, large_quarry_centers)
 }
 
 fn create_quarry_access_road(

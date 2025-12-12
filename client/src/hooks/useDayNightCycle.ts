@@ -710,9 +710,9 @@ export function useDayNightCycle({
         // Render barbecue light cutouts - smaller, subtle red/orange glow (cooking coals)
         barbecues.forEach(barbecue => {
             if (barbecue.isBurning) {
-                // Adjust Y position for the light source to be centered on the grill
-                const visualCenterWorldY = barbecue.posY - (BARBECUE_HEIGHT / 2);
-                const adjustedGradientCenterWorldY = visualCenterWorldY - (BARBECUE_RENDER_Y_OFFSET * 0);
+                // Sprite is CENTERED on posY, so visual center = posY
+                const visualCenterWorldY = barbecue.posY;
+                const adjustedGradientCenterWorldY = visualCenterWorldY;
                 
                 const screenX = barbecue.posX + cameraOffsetX;
                 const screenY = adjustedGradientCenterWorldY + cameraOffsetY;

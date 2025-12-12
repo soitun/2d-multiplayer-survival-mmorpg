@@ -31,6 +31,7 @@ interface DeathScreenProps {
   campfireWarmthImage?: HTMLImageElement | null;
   torchOnImage?: HTMLImageElement | null;
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
+  largeQuarries?: Map<string, any>; // Large quarry locations with types for minimap labels
 }
 
 // Helper function to format death cause messages
@@ -79,6 +80,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   playerPin,
   sleepingBagImage,
   shipwreckParts, // Shipwreck monument parts
+  largeQuarries, // Large quarry locations with types for minimap labels
   // Destructure new props
   localPlayerDeathMarker,
   deathMarkerImage,
@@ -246,6 +248,8 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       showGridCoordinates,
       // Shipwreck monument parts for minimap
       shipwreckParts,
+      // Large quarry locations with types for minimap labels
+      largeQuarries,
     });
 
     // Draw hover effect (simple circle) - This is illustrative

@@ -52,6 +52,8 @@ pub enum SoundType {
     GrowlSnake,     // growl_snake.mp3 (1 variation - when vipers start approaching)
     GrowlWalrus,    // growl_walrus.mp3 (3 variations - when walruses are disturbed)
     GrowlCrab,      // growl_crab.mp3 (1 variation - when crabs detect and attack)
+    GrowlCrow,      // growl_crow.mp3 (1 variation - when crows caw at players)
+    GrowlTern,      // growl_tern.mp3 (1 variation - when terns screech at players)
     Walking,        // walking.mp3 (4 variations - footstep sounds when player moves)
     Swimming,       // swimming.mp3 (4 variations - swimming sounds when player moves in water)
     FoundationWoodConstructed, // foundation_wood_constructed.mp3 (1 variation - when foundation is placed)
@@ -70,6 +72,8 @@ pub enum SoundType {
     DoorOpening,             // door_opening.mp3 (1 variation - when a door is opened)
     BarbecueOn,              // barbecue_on.mp3 (1 variation - when barbecue is turned on)
     BarbecueOff,             // barbecue_off.mp3 (1 variation - when barbecue is turned off)
+    CrowStealing,            // crow_stealing.mp3 (1 variation - when crow successfully steals from player)
+    CairnUnlock,             // cairn_unlock.mp3 (1 variation - when player discovers a new cairn)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -123,6 +127,8 @@ impl SoundType {
             SoundType::GrowlSnake => "growl_snake",
             SoundType::GrowlWalrus => "growl_walrus",
             SoundType::GrowlCrab => "growl_crab",
+            SoundType::GrowlCrow => "growl_crow",
+            SoundType::GrowlTern => "growl_tern",
             SoundType::Walking => "walking",
             SoundType::Swimming => "swimming",
             SoundType::FoundationWoodConstructed => "foundation_wood_constructed",
@@ -141,6 +147,8 @@ impl SoundType {
             SoundType::DoorOpening => "door_opening",
             SoundType::BarbecueOn => "barbecue_on",
             SoundType::BarbecueOff => "barbecue_off",
+            SoundType::CrowStealing => "crow_stealing",
+            SoundType::CairnUnlock => "cairn_unlock",
         }
     }
 
@@ -189,6 +197,8 @@ impl SoundType {
             SoundType::GrowlSnake => 1,
             SoundType::GrowlWalrus => 3,
             SoundType::GrowlCrab => 1, // growl_crab.mp3 (single variation)
+            SoundType::GrowlCrow => 4, // growl_crow.mp3, growl_crow1.mp3, growl_crow2.mp3, growl_crow3.mp3
+            SoundType::GrowlTern => 4, // growl_tern.mp3, growl_tern1.mp3, growl_tern2.mp3, growl_tern3.mp3
             SoundType::Walking => 4,
             SoundType::Swimming => 4,
             SoundType::FoundationWoodConstructed => 1,
@@ -210,6 +220,8 @@ impl SoundType {
             SoundType::ReloadBow => 1, // reload_bow.mp3 (single variation)
             SoundType::ReloadCrossbow => 1, // reload_crossbow.mp3 (single variation)
             SoundType::ReloadPistol => 1, // reload_pistol.mp3 (single variation)
+            SoundType::CrowStealing => 1, // crow_stealing.mp3 (single variation)
+            SoundType::CairnUnlock => 1, // cairn_unlock.mp3 (single variation)
         }
     }
 
@@ -658,6 +670,16 @@ pub fn emit_walrus_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, pla
 /// Emit a crab growl sound (when crabs detect and attack players)
 pub fn emit_crab_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlCrab, pos_x, pos_y, 1.0, 400.0, player_id);
+}
+
+/// Emit a crow caw sound (when crows caw at players)
+pub fn emit_crow_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlCrow, pos_x, pos_y, 1.0, 500.0, player_id);
+}
+
+/// Emit a tern screech sound (when terns screech at players)
+pub fn emit_tern_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlTern, pos_x, pos_y, 1.0, 500.0, player_id);
 }
 
 /// Emit walking/footstep sound (when player moves)
@@ -1125,6 +1147,20 @@ pub fn emit_barbecue_on_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, play
 pub fn emit_barbecue_off_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::BarbecueOff, pos_x, pos_y, 1.0, 600.0, player_id) {
         log::warn!("Failed to emit barbecue off sound: {}", e);
+    }
+}
+
+/// Emit crow stealing sound (when a crow successfully steals from a player)
+pub fn emit_crow_stealing_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, victim_player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::CrowStealing, pos_x, pos_y, 1.2, 700.0, victim_player_id) {
+        log::warn!("Failed to emit crow stealing sound: {}", e);
+    }
+}
+
+/// Emit cairn unlock sound (when a player discovers a new cairn for the first time)
+pub fn emit_cairn_unlock_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::CairnUnlock, pos_x, pos_y, 1.5, 500.0, player_id) {
+        log::warn!("Failed to emit cairn unlock sound: {}", e);
     }
 }
 

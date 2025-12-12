@@ -63,6 +63,12 @@ const SHIPWRECK_OUTLINE_COLOR = '#000000'; // Black outline for contrast (matchi
 const SHIPWRECK_OUTLINE_WIDTH = 2.5; // Thicker outline like player icons
 const SHIPWRECK_INNER_COLOR = '#8B4513'; // Darker brown for inner detail
 
+// Large Quarry constants - RESOURCE LANDMARKS (Stone/Sulfur/Metal Quarry)
+const QUARRY_STONE_COLOR = '#A0A0A0'; // Gray for stone quarry
+const QUARRY_SULFUR_COLOR = '#FFD700'; // Gold/yellow for sulfur quarry
+const QUARRY_METAL_COLOR = '#B87333'; // Copper/bronze for metal quarry
+const QUARRY_GLOW_COLOR = '#FFFFFF'; // White glow for visibility
+
 const RESOURCE_ICON_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.8)'; // Strong black outline for clarity
 const RESOURCE_ICON_OUTLINE_WIDTH = 1.5; // Thicker outline for tactical visibility
 const CAMPFIRE_DOT_COLOR = '#FF6600'; // Bright orange for campfires and lit players
@@ -204,6 +210,7 @@ interface MinimapProps {
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
   alkStations?: Map<string, SpacetimeDBAlkStation>; // ALK delivery stations
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
+  largeQuarries?: Map<string, any>; // Large quarry locations with types for labels (Stone/Sulfur/Metal Quarry)
 
   localPlayer: SpacetimeDBPlayer | undefined; // Extracted local player
   localPlayerId?: string;
@@ -578,6 +585,7 @@ export function drawMinimapOntoCanvas({
   sleepingBags,
   alkStations, // ALK delivery stations
   shipwreckParts, // Shipwreck monument parts
+  largeQuarries, // Large quarry locations with types for labels
 
   localPlayer, // Destructure localPlayer
   localPlayerId,
@@ -1195,6 +1203,66 @@ export function drawMinimapOntoCanvas({
         ctx.restore();
       }
     }
+  }
+
+  // --- Draw Large Quarries (RESOURCE LANDMARKS) ---
+  // Show labels for each large quarry: "STONE QUARRY", "SULFUR QUARRY", "METAL QUARRY"
+  if (largeQuarries && largeQuarries.size > 0 && showNames === true) {
+    largeQuarries.forEach((quarry) => {
+      const screenCoords = worldToMinimap(quarry.worldX, quarry.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        // Determine quarry type name and color based on quarryType tag
+        let quarryLabel = 'QUARRY';
+        let quarryColor = QUARRY_STONE_COLOR;
+        let glowColor = QUARRY_GLOW_COLOR;
+        
+        const quarryTypeTag = quarry.quarryType?.tag || 'Stone';
+        switch (quarryTypeTag) {
+          case 'Stone':
+            quarryLabel = 'STONE QUARRY';
+            quarryColor = QUARRY_STONE_COLOR;
+            glowColor = '#C0C0C0'; // Silver glow
+            break;
+          case 'Sulfur':
+            quarryLabel = 'SULFUR QUARRY';
+            quarryColor = QUARRY_SULFUR_COLOR;
+            glowColor = '#FFD700'; // Gold glow
+            break;
+          case 'Metal':
+            quarryLabel = 'METAL QUARRY';
+            quarryColor = QUARRY_METAL_COLOR;
+            glowColor = '#CD7F32'; // Bronze glow
+            break;
+        }
+        
+        ctx.save();
+        
+        // Draw quarry label text with cyberpunk styling - same size as shipwreck
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect for visibility
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText(quarryLabel, x, y);
+        
+        // Fill with quarry type color
+        ctx.fillStyle = quarryColor;
+        ctx.fillText(quarryLabel, x, y);
+        
+        ctx.restore();
+      }
+    });
   }
 
   // --- Draw Campfires ---

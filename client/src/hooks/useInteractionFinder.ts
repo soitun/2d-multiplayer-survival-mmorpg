@@ -445,9 +445,8 @@ export function useInteractionFinder({
             if (barbecues) {
                 barbecues.forEach((barbecue) => {
                     if (barbecue.isDestroyed) return;
-                    // Content is at bottom of image, so interaction point should be higher (lower Y)
-                    // Use bottom portion of image where content actually is
-                    const visualCenterY = barbecue.posY - BARBECUE_RENDER_Y_OFFSET - (BARBECUE_HEIGHT * 0.25);
+                    // Sprite is CENTERED on posY, so interaction center = posY
+                    const visualCenterY = barbecue.posY;
                     
                     const dx = playerX - barbecue.posX;
                     const dy = playerY - visualCenterY;

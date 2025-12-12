@@ -44,8 +44,8 @@ impl OreType {
         }
         
         if is_in_quarry {
-            // Quarries: 45% Metal, 35% Sulfur, 17% Stone (after Memory check)
-            // Quarries are for advanced resources
+            // Generic quarries (not typed): 45% Metal, 35% Sulfur, 17% Stone (after Memory check)
+            // Use random_for_quarry_type for typed quarries instead
             let roll = rng.gen::<f32>();
             if roll < 0.45 {
                 OreType::Metal
@@ -97,6 +97,53 @@ impl OreType {
                 OreType::Metal
             } else {
                 OreType::Sulfur
+            }
+        }
+    }
+    
+    /// Determines ore type for a TYPED large quarry
+    /// Each quarry type heavily favors its designated ore:
+    /// - Stone Quarry: 75% Stone, 12% Metal, 10% Sulfur (after Memory check)
+    /// - Sulfur Quarry: 75% Sulfur, 12% Metal, 10% Stone (after Memory check)
+    /// - Metal Quarry: 75% Metal, 12% Sulfur, 10% Stone (after Memory check)
+    pub fn random_for_quarry_type(quarry_type: &crate::LargeQuarryType, rng: &mut impl Rng) -> OreType {
+        // Memory ore check (3% chance in typed quarries) - lower than normal since these are specialized
+        let memory_roll = rng.gen::<f32>();
+        if memory_roll < 0.03 {
+            return OreType::Memory;
+        }
+        
+        let roll = rng.gen::<f32>();
+        match quarry_type {
+            crate::LargeQuarryType::Stone => {
+                // Stone Quarry: 75% Stone, 12% Metal, 10% Sulfur
+                if roll < 0.75 {
+                    OreType::Stone
+                } else if roll < 0.87 {
+                    OreType::Metal
+                } else {
+                    OreType::Sulfur
+                }
+            }
+            crate::LargeQuarryType::Sulfur => {
+                // Sulfur Quarry: 75% Sulfur, 12% Metal, 10% Stone
+                if roll < 0.75 {
+                    OreType::Sulfur
+                } else if roll < 0.87 {
+                    OreType::Metal
+                } else {
+                    OreType::Stone
+                }
+            }
+            crate::LargeQuarryType::Metal => {
+                // Metal Quarry: 75% Metal, 12% Sulfur, 10% Stone
+                if roll < 0.75 {
+                    OreType::Metal
+                } else if roll < 0.87 {
+                    OreType::Sulfur
+                } else {
+                    OreType::Stone
+                }
             }
         }
     }

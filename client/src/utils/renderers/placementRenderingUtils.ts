@@ -4,6 +4,7 @@ import { BuildingPlacementState, BuildingMode } from '../../hooks/useBuildingMan
 import { CAMPFIRE_WIDTH_PREVIEW, CAMPFIRE_HEIGHT_PREVIEW } from './campfireRenderingUtils';
 import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
 import { BARBECUE_WIDTH_PREVIEW, BARBECUE_HEIGHT_PREVIEW } from './barbecueRenderingUtils'; // ADDED: Barbecue dimensions
+import { ENTITY_VISUAL_CONFIG, getPlacementPreviewPosition } from '../entityVisualConfig'; // Centralized visual config
 import { LANTERN_WIDTH_PREVIEW, LANTERN_HEIGHT_PREVIEW } from './lanternRenderingUtils';
 import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingUtils';
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
@@ -1457,16 +1458,26 @@ export function renderPlacementPreview({
         ctx.globalAlpha = 0.7;
     }
 
-    // Calculate the draw position - centered on cursor for all items
-    const adjustedX = snappedX - drawWidth / 2;
-    
-    // Door placement has a special offset, everything else is centered
+    // Calculate the draw position - use centralized config when available
+    let adjustedX: number;
     let adjustedY: number;
+    
     if (isDoorPlacement) {
         // Apply 44px vertical offset for doors (matches door rendering offset)
+        adjustedX = snappedX - drawWidth / 2;
         adjustedY = snappedY - drawHeight / 2 - 44;
+    } else if (placementInfo.iconAssetName === 'barbecue.png') {
+        // Use centralized visual config for barbecue
+        const config = ENTITY_VISUAL_CONFIG.barbecue;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
     } else {
         // Default: centered on cursor (consistent for all placeable items)
+        adjustedX = snappedX - drawWidth / 2;
         adjustedY = snappedY - drawHeight / 2;
     }
 

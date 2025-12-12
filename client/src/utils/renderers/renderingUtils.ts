@@ -73,6 +73,8 @@ import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse } from './playerCorpseRenderingUtils';
 // Import barrel renderer
 import { renderBarrel } from './barrelRenderingUtils';
+// Import entity visual config for centralized bounds
+import { ENTITY_VISUAL_CONFIG, getInteractionOutlineParams } from '../entityVisualConfig';
 // Import fumarole renderer
 import { renderFumarole } from './fumaroleRenderingUtils';
 // Import basalt column renderer
@@ -899,9 +901,10 @@ export const renderYSortedEntities = ({
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
-              const outlineColor = getInteractionOutlineColor('open'); // Light blue like other containers
-              // Cairn visual base is at posY, outline around visible stone pile
-              drawInteractionOutline(ctx, cairn.posX, cairn.posY - 48, 180, 220, cycleProgress, outlineColor);
+              const outlineColor = getInteractionOutlineColor('open');
+              const config = ENTITY_VISUAL_CONFIG.cairn;
+              const outline = getInteractionOutlineParams(cairn.posX, cairn.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'shelter') {
           const shelter = entity as SpacetimeDBShelter;
@@ -933,17 +936,21 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, campfire.posX, campfire.posY - 48, 64, 96, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.campfire;
+              const outline = getInteractionOutlineParams(campfire.posX, campfire.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
-      } else if (type === 'furnace') { // ADDED: Furnace handling (same as campfire)
-          const furnace = entity as any; // Furnace type from generated types
+      } else if (type === 'furnace') {
+          const furnace = entity as any;
           const isTheClosestTarget = closestInteractableTarget?.type === 'furnace' && closestInteractableTarget?.id === furnace.id;
           renderFurnace(ctx, furnace, nowMs, cycleProgress);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, furnace.posX, furnace.posY - 64, 96, 128, cycleProgress, outlineColor); // Standard 96x96 furnace size
+              const config = ENTITY_VISUAL_CONFIG.furnace;
+              const outline = getInteractionOutlineParams(furnace.posX, furnace.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'barbecue') { // ADDED: Barbecue handling (same as campfire)
           const barbecue = entity as any; // Barbecue type from generated types
@@ -953,18 +960,21 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, barbecue.posX, barbecue.posY - 48, 64, 96, cycleProgress, outlineColor); // Same size as campfire
+              // Use centralized visual config for consistent bounds
+              const config = ENTITY_VISUAL_CONFIG.barbecue;
+              const outline = getInteractionOutlineParams(barbecue.posX, barbecue.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'lantern') {
-          const lantern = entity as any; // Type will be Lantern from generated types
+          const lantern = entity as any;
           const isTheClosestTarget = closestInteractableTarget?.type === 'lantern' && closestInteractableTarget?.id === lantern.id;
           renderLantern(ctx, lantern, nowMs, cycleProgress);
           
-          // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // Make outline taller (height: 56 -> 72) and extend more downward (Y offset: -48 -> -40)
-              drawInteractionOutline(ctx, lantern.posX, lantern.posY - 40, 48, 72, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.lantern;
+              const outline = getInteractionOutlineParams(lantern.posX, lantern.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'broth_pot') {
           const brothPot = entity as SpacetimeDBBrothPot;
@@ -984,21 +994,22 @@ export const renderYSortedEntities = ({
           renderStash(ctx, stash, nowMs, cycleProgress);
           
           // Draw outline if this is the closest target, even if stash is hidden
-          // This allows players to see where hidden stashes are when close enough
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, stash.posX, stash.posY - 24, 48, 48, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.stash;
+              const outline = getInteractionOutlineParams(stash.posX, stash.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'wooden_storage_box') {
-          // Render box normally, its applyStandardDropShadow will handle the shadow
           const box = entity as SpacetimeDBWoodenStorageBox;
           const isTheClosestTarget = closestInteractableTarget?.type === 'box' && closestInteractableTarget?.id === box.id;
           renderWoodenStorageBox(ctx, box, nowMs, cycleProgress);
           
-          // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, box.posX, box.posY - 58, 64, 72, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
+              const outline = getInteractionOutlineParams(box.posX, box.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'player_corpse') {
           const corpse = entity as SpacetimeDBPlayerCorpse;
@@ -1022,8 +1033,9 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // Make outline wider and positioned lower for lying down corpse (rectangular shape)
-              drawInteractionOutline(ctx, corpse.posX, corpse.posY + 0, 80, 72, cycleProgress, outlineColor); // Made taller: 48 → 72
+              const config = ENTITY_VISUAL_CONFIG.player_corpse;
+              const outline = getInteractionOutlineParams(corpse.posX, corpse.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'grass') {
           // Grass rendered from Y-sorted entities - use 'near' LOD since it's already visibility filtered
@@ -1084,7 +1096,9 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, rainCollector.posX, rainCollector.posY, 96 + 20, 128 + 20, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.rain_collector;
+              const outline = getInteractionOutlineParams(rainCollector.posX, rainCollector.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'wild_animal') {
           const wildAnimal = entity as SpacetimeDBWildAnimal;
@@ -1116,7 +1130,9 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              drawInteractionOutline(ctx, barrel.posX, barrel.posY - 24, 48, 48, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.barrel;
+              const outline = getInteractionOutlineParams(barrel.posX, barrel.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'sea_stack') {
           const seaStack = entity as any; // Sea stack from SpacetimeDB
@@ -1132,20 +1148,20 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // Moved up by ~20% (15px) to match indicator box and E label position
-              drawInteractionOutline(ctx, hearth.posX, hearth.posY - 63, 96, 96, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.homestead_hearth;
+              const outline = getInteractionOutlineParams(hearth.posX, hearth.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'fumarole') {
           const fumarole = entity as SpacetimeDBFumarole;
           const isTheClosestTarget = closestInteractableTarget?.type === 'fumarole' && closestInteractableTarget?.id === fumarole.id;
-          // console.log('🔥 [RENDER] Rendering fumarole', fumarole.id, 'at', fumarole.posX, fumarole.posY);
           renderFumarole(ctx, fumarole, nowMs, cycleProgress);
           
-          // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // Fumaroles are ground-level, center the outline lower on the fumarole
-              drawInteractionOutline(ctx, fumarole.posX, fumarole.posY - 0, 96, 96, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.fumarole;
+              const outline = getInteractionOutlineParams(fumarole.posX, fumarole.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'basalt_column') {
           const basaltColumn = entity as SpacetimeDBBasaltColumn;
@@ -1171,15 +1187,11 @@ export const renderYSortedEntities = ({
           renderAlkStation(ctx, alkStation, cycleProgress, isTheClosestTarget, undefined, localPlayerPosition, showSafeZone);
           
           // Draw outline only if this is THE closest interactable target
-          // Position outline around the actual building content (bottom portion of sprite)
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // The building occupies roughly the bottom 60% of the sprite
-              // ALK_STATION_OUTLINE_WIDTH = 400, ALK_STATION_OUTLINE_HEIGHT = 500, ALK_STATION_OUTLINE_Y_OFFSET = 200
-              const outlineWidth = 400;
-              const outlineHeight = 500;
-              const outlineY = alkStation.worldPosY - 200; // Centered on the actual building
-              drawInteractionOutline(ctx, alkStation.worldPosX, outlineY, outlineWidth, outlineHeight, cycleProgress, outlineColor);
+              const config = ENTITY_VISUAL_CONFIG.alk_station;
+              const outline = getInteractionOutlineParams(alkStation.worldPosX, alkStation.worldPosY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
       } else if (type === 'compound_building') {
           // Compound buildings include both static buildings and dynamic shipwreck parts

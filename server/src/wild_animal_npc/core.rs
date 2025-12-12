@@ -2409,12 +2409,10 @@ pub fn emit_species_sound(
             crate::sound_events::emit_crab_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
         AnimalSpecies::Tern => {
-            // Terns emit a screech sound (can reuse generic sound for now)
-            log::debug!("Tern {} screeching at player {}", animal.id, player_identity);
+            crate::sound_events::emit_tern_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
         AnimalSpecies::Crow => {
-            // Crows emit a caw sound (can reuse generic sound for now)
-            log::debug!("Crow {} cawing at player {}", animal.id, player_identity);
+            crate::sound_events::emit_crow_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
     }
     

@@ -633,8 +633,9 @@ export const renderBarbecueLight = ({
     // Apply indoor clipping if barbecue is inside an enclosed building
     const restoreClip = applyIndoorClip(ctx, barbecue.posX, barbecue.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
 
+    // Sprite is CENTERED on posY, so visual center = posY
     const visualCenterX = barbecue.posX;
-    const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+    const visualCenterY = barbecue.posY;
     
     const lightScreenX = visualCenterX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;

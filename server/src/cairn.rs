@@ -9,12 +9,13 @@
 use spacetimedb::{SpacetimeType, Timestamp, Table, Identity, ReducerContext};
 use crate::PLAYER_RADIUS;
 use crate::player; // Import Player table trait for ctx.db.player()
+use crate::sound_events;
 
 // --- Cairn Constants ---
 
-// Collision and interaction settings
-pub(crate) const CAIRN_RADIUS: f32 = 40.0;
-pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE: f32 = 100.0;
+// Collision and interaction settings - reduced for better gameplay feel
+pub(crate) const CAIRN_RADIUS: f32 = 30.0; // Reduced from 40.0 for smaller collision
+pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE: f32 = 80.0; // Reduced from 100.0
 pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_CAIRN_INTERACTION_DISTANCE * PLAYER_CAIRN_INTERACTION_DISTANCE;
 
@@ -99,6 +100,9 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
             cairn_id,
             discovered_at: ctx.timestamp,
         });
+        
+        // Play cairn unlock sound for new discovery
+        sound_events::emit_cairn_unlock_sound(ctx, cairn.pos_x, cairn.pos_y, player_id);
         
         log::info!(
             "Player {} discovered cairn {} (lore_id: {})",

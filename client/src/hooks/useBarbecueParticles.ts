@@ -66,9 +66,9 @@ export function useBarbecueParticles({ visibleBarbecuesMap }: { visibleBarbecues
     // Add new particles for burning barbecues
     visibleBarbecuesMapRef.current.forEach(barbecue => {
       if (barbecue.isBurning && !barbecue.isDestroyed) {
-        // Center of the grill area (slightly above the base)
+        // Sprite is CENTERED on posY, so visual center = posY
         const centerX = barbecue.posX;
-        const centerY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
+        const centerY = barbecue.posY;
         
         // GRILL FIRE PARTICLES - small flames from the grill
         if (Math.random() < 0.12) {

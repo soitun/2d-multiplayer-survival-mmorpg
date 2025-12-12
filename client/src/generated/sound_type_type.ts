@@ -75,6 +75,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrowlSnake |
   SoundTypeVariants.GrowlWalrus |
   SoundTypeVariants.GrowlCrab |
+  SoundTypeVariants.GrowlCrow |
+  SoundTypeVariants.GrowlTern |
   SoundTypeVariants.Walking |
   SoundTypeVariants.Swimming |
   SoundTypeVariants.FoundationWoodConstructed |
@@ -92,7 +94,9 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.ErrorBrothNotCompatible |
   SoundTypeVariants.DoorOpening |
   SoundTypeVariants.BarbecueOn |
-  SoundTypeVariants.BarbecueOff;
+  SoundTypeVariants.BarbecueOff |
+  SoundTypeVariants.CrowStealing |
+  SoundTypeVariants.CairnUnlock;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -149,6 +153,8 @@ export const SoundType = {
   GrowlSnake: { tag: "GrowlSnake" } as const,
   GrowlWalrus: { tag: "GrowlWalrus" } as const,
   GrowlCrab: { tag: "GrowlCrab" } as const,
+  GrowlCrow: { tag: "GrowlCrow" } as const,
+  GrowlTern: { tag: "GrowlTern" } as const,
   Walking: { tag: "Walking" } as const,
   Swimming: { tag: "Swimming" } as const,
   FoundationWoodConstructed: { tag: "FoundationWoodConstructed" } as const,
@@ -167,6 +173,8 @@ export const SoundType = {
   DoorOpening: { tag: "DoorOpening" } as const,
   BarbecueOn: { tag: "BarbecueOn" } as const,
   BarbecueOff: { tag: "BarbecueOff" } as const,
+  CrowStealing: { tag: "CrowStealing" } as const,
+  CairnUnlock: { tag: "CairnUnlock" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -217,6 +225,8 @@ export const SoundType = {
       { name: "GrowlSnake", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlCrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Walking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "FoundationWoodConstructed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
@@ -235,6 +245,8 @@ export const SoundType = {
       { name: "DoorOpening", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BarbecueOn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BarbecueOff", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CrowStealing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CairnUnlock", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

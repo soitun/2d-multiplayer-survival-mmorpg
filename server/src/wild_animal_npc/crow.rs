@@ -15,6 +15,7 @@ use log;
 
 use crate::Player;
 use crate::utils::get_distance_squared;
+use crate::sound_events;
 
 // Table trait imports
 use crate::player as PlayerTableTrait;
@@ -80,6 +81,8 @@ impl AnimalBehavior for CrowBehavior {
                 animal.held_item_quantity = Some(quantity);
                 log::info!("Crow {} stole {} x{} from player {} during attack!", 
                           animal.id, item_name, quantity, target_player.identity);
+                // Play crow stealing sound at player's position
+                sound_events::emit_crow_stealing_sound(ctx, target_player.position_x, target_player.position_y, target_player.identity);
             }
         }
         
@@ -168,6 +171,8 @@ impl AnimalBehavior for CrowBehavior {
                                         animal.held_item_quantity = Some(quantity);
                                         log::info!("Crow {} stole {} x{} from player {}!", 
                                                   animal.id, item_name, quantity, target_id);
+                                        // Play crow stealing sound at player's position
+                                        sound_events::emit_crow_stealing_sound(ctx, target_player.position_x, target_player.position_y, target_id);
                                         
                                         // Fly away with the loot!
                                         set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 400.0, rng);

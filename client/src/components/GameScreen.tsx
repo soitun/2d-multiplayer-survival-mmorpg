@@ -275,6 +275,8 @@ interface GameScreenProps {
     alkState?: SpacetimeDBAlkState | null;
     // Shipwreck monument parts (one-time read of static world gen data)
     shipwreckParts?: Map<string, any>;
+    // Large quarry locations with types for minimap labels (Stone/Sulfur/Metal Quarry)
+    largeQuarries?: Map<string, any>;
     // Player shard balances
     playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
     // Memory Grid progress for crafting unlocks
@@ -336,7 +338,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     }, []);
 
     // Debug context
-    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug } = useDebug();
+    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug } = useDebug();
 
 
 
@@ -872,6 +874,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showAutotileDebug={showAutotileDebug}
                 showChunkBoundaries={showChunkBoundaries}
                 showInteriorDebug={showInteriorDebug}
+                showCollisionDebug={showCollisionDebug}
                 minimapCache={minimapCache}
                 isGameMenuOpen={currentMenu !== null}
                 onAutoActionStatesChange={handleAutoActionStatesChange}
@@ -895,6 +898,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 alkStations={props.alkStations}
                 alkContracts={props.alkContracts}
                 shipwreckParts={props.shipwreckParts}
+                largeQuarries={props.largeQuarries}
                 alkPlayerContracts={props.alkPlayerContracts}
                 alkState={props.alkState}
                 playerShardBalance={props.playerShardBalance}

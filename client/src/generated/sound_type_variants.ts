@@ -73,6 +73,8 @@ export type GrowlFox = { tag: "GrowlFox" };
 export type GrowlSnake = { tag: "GrowlSnake" };
 export type GrowlWalrus = { tag: "GrowlWalrus" };
 export type GrowlCrab = { tag: "GrowlCrab" };
+export type GrowlCrow = { tag: "GrowlCrow" };
+export type GrowlTern = { tag: "GrowlTern" };
 export type Walking = { tag: "Walking" };
 export type Swimming = { tag: "Swimming" };
 export type FoundationWoodConstructed = { tag: "FoundationWoodConstructed" };
@@ -91,4 +93,6 @@ export type ErrorBrothNotCompatible = { tag: "ErrorBrothNotCompatible" };
 export type DoorOpening = { tag: "DoorOpening" };
 export type BarbecueOn = { tag: "BarbecueOn" };
 export type BarbecueOff = { tag: "BarbecueOff" };
+export type CrowStealing = { tag: "CrowStealing" };
+export type CairnUnlock = { tag: "CairnUnlock" };
 

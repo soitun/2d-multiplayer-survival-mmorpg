@@ -77,7 +77,7 @@ function logCollisionPerformance(
 // ===== CONFIGURATION CONSTANTS =====
 const WORLD_WIDTH_PX = gameConfig.worldWidthPx;
 const WORLD_HEIGHT_PX = gameConfig.worldHeightPx;
-const PLAYER_RADIUS = 32;
+export const PLAYER_RADIUS = 32;
 
 // ===== PERFORMANCE OPTIMIZATION CONSTANTS =====
 const COLLISION_PERF = {
@@ -865,7 +865,8 @@ function getCollisionCandidates(
 }
 
 // Unified collision radii for consistency - match visual sprite sizes
-const COLLISION_RADII = {
+// Exported for debug rendering
+export const COLLISION_RADII = {
   TREE: 38,
   STONE: 28,       // Smaller radius for flattened stones
   RUNE_STONE: 80,  // Doubled from 40 to match doubled visual size (matches server-side RUNE_STONE_RADIUS)
@@ -884,7 +885,8 @@ const COLLISION_RADII = {
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
-const COLLISION_OFFSETS = {
+// Exported for debug rendering
+export const COLLISION_OFFSETS = {
   TREE: { x: 0, y: -68 },      // Adjusted to keep top boundary similar while squishing from bottom
   STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
   RUNE_STONE: { x: 0, y: -100 }, // Doubled from -50 to match doubled visual size (matches server-side RUNE_STONE_COLLISION_Y_OFFSET)
@@ -892,7 +894,7 @@ const COLLISION_OFFSETS = {
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
-  BARBECUE: { x: 0, y: -50 }, // Collision positioned UP at visual base (matches furnace, similar size appliance)
+  BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals
   BARREL: { x: 0, y: -48 }, // Barrel collision at visual center (matches server)
@@ -906,7 +908,8 @@ const COLLISION_OFFSETS = {
 // These are tuned to match the interior collision rectangle (black debug box)
 // drawn in `shelterRenderingUtils.ts`, so what you see is exactly what you
 // collide with as a non-owner.
-const SHELTER_DIMS = {
+// Exported for debug rendering
+export const SHELTER_DIMS = {
   WIDTH: 300,          // SHELTER_COLLISION_WIDTH
   HEIGHT: 125,         // SHELTER_COLLISION_HEIGHT
   HALF_WIDTH: 150,     // SHELTER_AABB_HALF_WIDTH
@@ -947,7 +950,8 @@ export interface GameEntities {
   alkStations?: Map<string, AlkStation>; // Add ALK delivery stations for collision
 }
 
-interface CollisionShape {
+// Exported for debug rendering
+export interface CollisionShape {
   id: string;
   type: string;
   x: number;
@@ -1417,4 +1421,16 @@ function clampToWorldBounds(x: number, y: number): { x: number; y: number } {
     x: Math.max(PLAYER_RADIUS, Math.min(WORLD_WIDTH_PX - PLAYER_RADIUS, x)),
     y: Math.max(PLAYER_RADIUS, Math.min(WORLD_HEIGHT_PX - PLAYER_RADIUS, y))
   };
+}
+
+// ===== DEBUG RENDERING EXPORTS =====
+// Export collision shapes for debug visualization
+// This function returns all collision shapes near a player for rendering
+export function getCollisionShapesForDebug(
+  entities: GameEntities,
+  playerX: number,
+  playerY: number,
+  localPlayerId: string
+): CollisionShape[] {
+  return getCollisionCandidates(entities, playerX, playerY, localPlayerId);
 } 

@@ -69,6 +69,8 @@ const SOUND_DEFINITIONS = {
     growl_fox: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 650 }, // Fox growl when starting to attack
     growl_snake: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.1, maxDistance: 700 }, // Snake/viper growl when approaching
     growl_walrus: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.3, maxDistance: 1000 }, // Walrus growl when disturbed or patrolling
+    growl_crow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 500 }, // Crow caw when detecting players
+    growl_tern: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 500 }, // Tern screech when detecting players
     // Movement sounds - server only for proper synchronization
     walking: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.7, maxDistance: 400 }, // Player footsteps when moving
     swimming: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 450 }, // Player swimming sounds in water
@@ -98,6 +100,7 @@ const SOUND_DEFINITIONS = {
     error_placement_failed: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Placeable placement error sound (client-side immediate for instant feedback when trying to place campfire/furnace/etc on water or invalid location)
     unlock_sound: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Memory grid skill/faction unlock sound (client-side immediate for instant feedback)
     cairn_unlock: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Cairn unlock sound (client-side immediate for instant feedback when player first unlocks a cairn)
+    crow_stealing: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Crow stealing sound when successfully stealing from player
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -323,6 +326,14 @@ const PRELOAD_SOUNDS = [
     'growl_walrus.mp3',                                     // 3 walrus growl variations
     'growl_walrus1.mp3',
     'growl_walrus2.mp3',
+    'growl_crow.mp3',                                       // 4 crow caw variations
+    'growl_crow1.mp3',
+    'growl_crow2.mp3',
+    'growl_crow3.mp3',
+    'growl_tern.mp3',                                       // 4 tern screech variations
+    'growl_tern1.mp3',
+    'growl_tern2.mp3',
+    'growl_tern3.mp3',
     'walking.mp3',                                          // 4 walking/footstep variations
     'walking1.mp3',
     'walking2.mp3',
@@ -345,6 +356,8 @@ const PRELOAD_SOUNDS = [
     'construction_placement_error.mp3',                     // 1 construction placement error variation
     'player_burnt.mp3',                                      // 1 player burnt variation
     'done_burning.mp3',                                      // 1 done burning variation (food became burnt)
+    'crow_stealing.mp3',                                     // 1 crow stealing variation (when crow steals from player)
+    'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -569,8 +582,6 @@ const playLocalSound = async (
                 variationCount = 1; // torch_hit_lit.mp3
             } else if (soundType === 'unlock_sound') {
                 variationCount = 1; // unlock_sound.mp3 - only one variation
-            } else if (soundType === 'cairn_unlock') {
-                variationCount = 1; // cairn_unlock.mp3 - only one variation
             } else if (soundType === 'light_torch') {
                 variationCount = 1; // light_torch.mp3
             } else if (soundType === 'extinguish_torch') {
@@ -637,6 +648,10 @@ const playLocalSound = async (
                 variationCount = 1; // growl_snake.mp3
             } else if (soundType === 'growl_walrus') {
                 variationCount = 3; // growl_walrus.mp3, growl_walrus1.mp3, growl_walrus2.mp3
+            } else if (soundType === 'growl_crow') {
+                variationCount = 4; // growl_crow.mp3, growl_crow1.mp3, growl_crow2.mp3, growl_crow3.mp3
+            } else if (soundType === 'growl_tern') {
+                variationCount = 4; // growl_tern.mp3, growl_tern1.mp3, growl_tern2.mp3, growl_tern3.mp3
             } else if (soundType === 'walking') {
                 variationCount = 4; // walking.mp3, walking1.mp3, walking2.mp3, walking3.mp3
             } else if (soundType === 'swimming') {
@@ -651,6 +666,10 @@ const playLocalSound = async (
                 variationCount = 1; // foundation_metal_upgraded.mp3
             } else if (soundType === 'twig_foundation_destroyed') {
                 variationCount = 1; // twig_foundation_destroyed.mp3
+            } else if (soundType === 'crow_stealing') {
+                variationCount = 1; // crow_stealing.mp3
+            } else if (soundType === 'cairn_unlock') {
+                variationCount = 1; // cairn_unlock.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);

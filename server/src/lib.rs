@@ -1538,6 +1538,14 @@ impl TileType {
     }
 }
 
+/// Large quarry resource type - determines what ore is primarily found at the quarry
+#[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
+pub enum LargeQuarryType {
+    Stone,   // Stone quarry - primarily stone ore
+    Sulfur,  // Sulfur quarry - primarily sulfur ore
+    Metal,   // Metal quarry - primarily metal ore
+}
+
 #[derive(spacetimedb::SpacetimeType, Clone, Debug)]
 pub struct WorldGenConfig {
     pub seed: u64,
@@ -1621,6 +1629,23 @@ pub struct ShipwreckPart {
     pub is_center: bool,
     /// Collision radius in pixels
     pub collision_radius: f32,
+}
+
+/// Large quarry locations with resource type (displayed on minimap as landmarks)
+#[spacetimedb::table(name = large_quarry, public)]
+#[derive(Clone, Debug)]
+pub struct LargeQuarry {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// World X position in pixels (center of quarry)
+    pub world_x: f32,
+    /// World Y position in pixels (center of quarry)
+    pub world_y: f32,
+    /// Radius of the quarry in tiles
+    pub radius_tiles: i32,
+    /// Type of resources primarily found at this quarry
+    pub quarry_type: LargeQuarryType,
 }
 
 // ADD: Utility functions for tile compression

@@ -291,6 +291,7 @@ function AppContent() {
       playerShardBalance, // ADDED: Player shard balances
       memoryGridProgress, // ADDED: Memory Grid unlocks
       shipwreckParts, // ADDED: Shipwreck monument parts (one-time read of static world gen data)
+      largeQuarries, // ADDED: Large quarry locations with types for minimap labels
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1212,6 +1213,7 @@ function AppContent() {
                             playerShardBalance={playerShardBalance} // ADDED: Player shard balances
                             memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
+                            largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
                             // Mobile controls
                             isMobile={isMobile}
                             onMobileTap={handleMobileTap}

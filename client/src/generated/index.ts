@@ -765,6 +765,8 @@ import { LanternTableHandle } from "./lantern_table.ts";
 export { LanternTableHandle };
 import { LanternProcessingScheduleTableHandle } from "./lantern_processing_schedule_table.ts";
 export { LanternProcessingScheduleTableHandle };
+import { LargeQuarryTableHandle } from "./large_quarry_table.ts";
+export { LargeQuarryTableHandle };
 import { LastWhisperFromTableHandle } from "./last_whisper_from_table.ts";
 export { LastWhisperFromTableHandle };
 import { MemoryGridProgressTableHandle } from "./memory_grid_progress_table.ts";
@@ -1061,6 +1063,10 @@ import { Lantern } from "./lantern_type.ts";
 export { Lantern };
 import { LanternProcessingSchedule } from "./lantern_processing_schedule_type.ts";
 export { LanternProcessingSchedule };
+import { LargeQuarry } from "./large_quarry_type.ts";
+export { LargeQuarry };
+import { LargeQuarryType } from "./large_quarry_type_type.ts";
+export { LargeQuarryType };
 import { LastWhisperFrom } from "./last_whisper_from_type.ts";
 export { LastWhisperFrom };
 import { MemoryGridProgress } from "./memory_grid_progress_type.ts";
@@ -1789,6 +1795,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "lanternId",
         colType: (LanternProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    large_quarry: {
+      tableName: "large_quarry" as const,
+      rowType: LargeQuarry.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (LargeQuarry.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     last_whisper_from: {
@@ -10314,6 +10329,11 @@ export class RemoteTables {
   get lanternProcessingSchedule(): LanternProcessingScheduleTableHandle<'lantern_processing_schedule'> {
     // clientCache is a private property
     return new LanternProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LanternProcessingSchedule>(REMOTE_MODULE.tables.lantern_processing_schedule));
+  }
+
+  get largeQuarry(): LargeQuarryTableHandle<'large_quarry'> {
+    // clientCache is a private property
+    return new LargeQuarryTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LargeQuarry>(REMOTE_MODULE.tables.large_quarry));
   }
 
   get lastWhisperFrom(): LastWhisperFromTableHandle<'last_whisper_from'> {

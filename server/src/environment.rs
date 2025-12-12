@@ -56,6 +56,7 @@ use crate::cairn::cairn as CairnTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
+use crate::large_quarry as LargeQuarryTableTrait;
 
 // Import utils helpers and macro
 use crate::utils::{calculate_tile_bounds, attempt_single_spawn};
@@ -1838,6 +1839,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut total_spawned_basalt_column_count = 0;
     let mut total_spawned_quarry_stone_count = 0;
     
+    // Read large quarry data for typed ore spawning
+    // Large quarries have designated types (Stone, Sulfur, Metal) that affect ore spawning
+    let large_quarries: Vec<(f32, f32, i32, crate::LargeQuarryType)> = ctx.db.large_quarry()
+        .iter()
+        .map(|q| (q.world_x, q.world_y, q.radius_tiles, q.quarry_type.clone()))
+        .collect();
+    log::info!("🏔️ Found {} large quarries with types for ore spawning", large_quarries.len());
+    
     // Collect all quarry tiles
     let quarry_tiles: Vec<(i32, i32)> = ctx.db.world_tile()
         .iter()
@@ -2064,11 +2073,29 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 
-                // Quarry stones are always in quarries, so is_in_quarry = true
-                let is_in_quarry = true;
+                // Check if this position is within a TYPED large quarry
+                // If so, use the quarry's designated type for ore selection
+                let mut found_quarry_type: Option<&crate::LargeQuarryType> = None;
+                for (qx, qy, radius_tiles, qtype) in &large_quarries {
+                    // Convert radius from tiles to pixels for distance check
+                    let radius_px = *radius_tiles as f32 * crate::TILE_SIZE_PX as f32;
+                    let dx = world_x_px - qx;
+                    let dy = world_y_px - qy;
+                    let dist_sq = dx * dx + dy * dy;
+                    if dist_sq < radius_px * radius_px {
+                        found_quarry_type = Some(qtype);
+                        break;
+                    }
+                }
                 
-                // Determine ore type based on location (quarry = more metal/sulfur)
-                let ore_type = crate::stone::OreType::random_for_location(world_x_px, world_y_px, is_in_quarry, &mut rng);
+                // Determine ore type: use quarry type if in large quarry, otherwise generic quarry spawn
+                let ore_type = if let Some(quarry_type) = found_quarry_type {
+                    // Use the typed quarry ore selection (75% of designated type)
+                    crate::stone::OreType::random_for_quarry_type(quarry_type, &mut rng)
+                } else {
+                    // Generic quarry spawn (small quarries or untyped)
+                    crate::stone::OreType::random_for_location(world_x_px, world_y_px, true, &mut rng)
+                };
                 
                 // Set resource amount based on ore type
                 // Stone: Basic building material (500-1000)
@@ -3604,12 +3631,32 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         |s: &crate::stone::Stone| s.health == 0, // Filter: only check stones with 0 health
         |s: &mut crate::stone::Stone| { // Update logic
             s.health = crate::stone::STONE_INITIAL_HEALTH;
-            // Preserve ore type based on position (deterministic, same as initial spawn)
-            let is_in_quarry = is_position_on_monument(ctx, s.pos_x, s.pos_y);
+            
             // Create deterministic RNG seeded from position to ensure consistent ore type
             let position_seed: u64 = ((s.pos_x as u64) << 32) ^ (s.pos_y as u64);
             let mut position_rng = StdRng::seed_from_u64(position_seed);
-            s.ore_type = crate::stone::OreType::random_for_location(s.pos_x, s.pos_y, is_in_quarry, &mut position_rng);
+            
+            // Check if this stone is within a TYPED large quarry
+            let mut found_quarry_type: Option<crate::LargeQuarryType> = None;
+            for large_quarry in ctx.db.large_quarry().iter() {
+                let radius_px = large_quarry.radius_tiles as f32 * crate::TILE_SIZE_PX as f32;
+                let dx = s.pos_x - large_quarry.world_x;
+                let dy = s.pos_y - large_quarry.world_y;
+                let dist_sq = dx * dx + dy * dy;
+                if dist_sq < radius_px * radius_px {
+                    found_quarry_type = Some(large_quarry.quarry_type.clone());
+                    break;
+                }
+            }
+            
+            // Determine ore type: use quarry type if in large quarry, otherwise location-based
+            s.ore_type = if let Some(ref quarry_type) = found_quarry_type {
+                crate::stone::OreType::random_for_quarry_type(quarry_type, &mut position_rng)
+            } else {
+                let is_in_quarry = is_position_on_monument(ctx, s.pos_x, s.pos_y);
+                crate::stone::OreType::random_for_location(s.pos_x, s.pos_y, is_in_quarry, &mut position_rng)
+            };
+            
             // Generate new random resource amount based on ore type
             // Stone: Basic building material (500-1000)
             // Metal/Sulfur: Rarer materials (~50% of stone yield, 250-500)

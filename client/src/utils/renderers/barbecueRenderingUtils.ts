@@ -11,7 +11,9 @@ export const BARBECUE_WIDTH = 128;
 export const BARBECUE_HEIGHT = 128;
 export const BARBECUE_WIDTH_PREVIEW = 128;
 export const BARBECUE_HEIGHT_PREVIEW = 128;
-export const BARBECUE_RENDER_Y_OFFSET = 16; // Visual offset from entity's base Y
+// No render offset - sprite is CENTERED on posY
+// This makes collision (at posY) align with sprite center
+export const BARBECUE_RENDER_Y_OFFSET = 0;
 
 // Barbecue interaction distance (player <-> barbecue)
 export const PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as campfire: 96px
@@ -52,8 +54,9 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
     }),
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
+        // Sprite is CENTERED on posY - collision (at posY) aligns with sprite center
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight / 2, // Centered - image content is centered in square
+        drawY: entity.posY - drawHeight / 2,
     }),
 
     getShadowParams: undefined,
@@ -71,11 +74,14 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // Sprite is CENTERED on posY, so the BASE (bottom) is at posY + height/2
+            const entityBaseY = entityPosY + BARBECUE_HEIGHT / 2;
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
                 entityCenterX: entityPosX,
-                entityBaseY: entityPosY,
+                entityBaseY: entityBaseY,
                 imageDrawWidth,
                 imageDrawHeight,
                 cycleProgress,
