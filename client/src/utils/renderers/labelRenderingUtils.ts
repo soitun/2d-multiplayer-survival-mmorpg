@@ -347,7 +347,7 @@ export function renderInteractionLabels({
                 const visualCenterX = barbecue.posX;
                 const visualCenterY = barbecue.posY - (BARBECUE_HEIGHT / 2) - BARBECUE_RENDER_Y_OFFSET;
                 textX = visualCenterX;
-                textY = visualCenterY - 50; // Similar to campfire positioning
+                textY = visualCenterY - 12; // Similar to campfire positioning
                 renderStyledInteractionLabel(ctx, text, textX, textY);
             }
             break;

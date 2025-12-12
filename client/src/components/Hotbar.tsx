@@ -958,9 +958,12 @@ const Hotbar: React.FC<HotbarProps> = ({
                       } catch (e) {
                           // Entity lookup failed, continue without it
                       }
+                      const BOX_TYPE_REFRIGERATOR = 2; // Match server constant
                       const BOX_TYPE_COMPOST = 3; // Match server constant
                       if (boxEntity?.boxType === BOX_TYPE_COMPOST) {
                           connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                      } else if (boxEntity?.boxType === BOX_TYPE_REFRIGERATOR) {
+                          connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
                       } else {
                           connection.reducers.quickMoveToBox(containerId, itemInstanceId);
                       }

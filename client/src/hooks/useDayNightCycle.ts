@@ -10,11 +10,13 @@ import {
     RuneStone as SpacetimeDBRuneStone, // ADDED: RuneStone
     FirePatch as SpacetimeDBFirePatch, // ADDED: FirePatch
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
+    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue
 } from '../generated';
-import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
+import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
+import { BARBECUE_HEIGHT, BARBECUE_RENDER_Y_OFFSET } from '../utils/renderers/barbecueRenderingUtils';
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 import { BuildingCluster } from '../utils/buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
@@ -419,6 +421,7 @@ interface UseDayNightCycleProps {
     campfires: Map<string, SpacetimeDBCampfire>;
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
+    barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues for night light cutouts
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
@@ -449,6 +452,7 @@ export function useDayNightCycle({
     campfires,
     lanterns,
     furnaces,
+    barbecues, // ADDED: Barbecues
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
     fumaroles, // ADDED: Fumaroles
@@ -691,6 +695,67 @@ export function useDayNightCycle({
                 maskCtx.fillStyle = redGradient;
                 maskCtx.beginPath();
                 maskCtx.arc(screenX, screenY, redFillRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+                
+                // Restore context if we applied a clip
+                if (enclosingCluster) {
+                    maskCtx.restore();
+                }
+                
+                // Switch back to cutout mode for other lights
+                maskCtx.globalCompositeOperation = 'destination-out';
+            }
+        });
+
+        // Render barbecue light cutouts - smaller, subtle red/orange glow (cooking coals)
+        barbecues.forEach(barbecue => {
+            if (barbecue.isBurning) {
+                // Adjust Y position for the light source to be centered on the grill
+                const visualCenterWorldY = barbecue.posY - (BARBECUE_HEIGHT / 2);
+                const adjustedGradientCenterWorldY = visualCenterWorldY - (BARBECUE_RENDER_Y_OFFSET * 0);
+                
+                const screenX = barbecue.posX + cameraOffsetX;
+                const screenY = adjustedGradientCenterWorldY + cameraOffsetY;
+                
+                // Check if barbecue is inside an enclosed building
+                const enclosingCluster = buildingClusters 
+                    ? findEnclosingCluster(barbecue.posX, barbecue.posY, buildingClusters)
+                    : null;
+                
+                // SMALL BARBECUE CUTOUT - Much smaller than campfire, subtle glow from coals
+                const lightRadius = BARBECUE_LIGHT_RADIUS_BASE * 1.0; // Smaller radius for realistic cooking glow
+                
+                // Apply clip if inside a building (clip affects both cutout and red fill)
+                if (enclosingCluster) {
+                    maskCtx.save();
+                    const clipPath = createClusterClipPath(enclosingCluster.cluster, cameraOffsetX, cameraOffsetY);
+                    maskCtx.clip(clipPath);
+                }
+                
+                // FIRST: Create a small transparent cutout hole (much smaller than campfire)
+                const maskGradient = maskCtx.createRadialGradient(screenX, screenY, lightRadius * 0.05, screenX, screenY, lightRadius);
+                maskGradient.addColorStop(0, 'rgba(0,0,0,0.5)'); // Partial cutout at center (not full)
+                maskGradient.addColorStop(0.3, 'rgba(0,0,0,0.3)'); // Gentle transition
+                maskGradient.addColorStop(0.6, 'rgba(0,0,0,0.15)'); // Subtle fade
+                maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+                maskCtx.fillStyle = maskGradient;
+                maskCtx.beginPath();
+                maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+
+                // SECOND: Fill the cutout with warm red-orange coal glow (switch composite mode back)
+                maskCtx.globalCompositeOperation = 'source-over';
+                const glowFillRadius = lightRadius * 0.9; // Slightly smaller than cutout
+                const glowGradient = maskCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, glowFillRadius);
+                glowGradient.addColorStop(0, 'rgba(200, 60, 30, 0.35)'); // Warm red-orange center - hot coals
+                glowGradient.addColorStop(0.2, 'rgba(180, 50, 25, 0.28)'); // Deep ember red
+                glowGradient.addColorStop(0.4, 'rgba(150, 40, 20, 0.20)'); // Darker coal red
+                glowGradient.addColorStop(0.6, 'rgba(120, 30, 15, 0.12)'); // Very subtle red
+                glowGradient.addColorStop(0.8, 'rgba(90, 20, 10, 0.06)'); // Faint edge glow
+                glowGradient.addColorStop(1, 'rgba(60, 15, 8, 0)'); // Natural fade to transparent
+                maskCtx.fillStyle = glowGradient;
+                maskCtx.beginPath();
+                maskCtx.arc(screenX, screenY, glowFillRadius, 0, Math.PI * 2);
                 maskCtx.fill();
                 
                 // Restore context if we applied a clip
@@ -1227,7 +1292,7 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation, buildingClusters]);
+    }, [worldState, campfires, lanterns, furnaces, barbecues, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation, buildingClusters]);
 
     return { overlayRgba, maskCanvasRef };
 } 

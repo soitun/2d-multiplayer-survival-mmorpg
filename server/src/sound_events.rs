@@ -68,6 +68,8 @@ pub enum SoundType {
     ErrorJarPlacement,       // error_jar_placement.mp3 (1 variation - when trying to place jar back in output slot)
     ErrorBrothNotCompatible, // error_broth_not_compatible.mp3 (1 variation - when trying to place incompatible item in broth pot)
     DoorOpening,             // door_opening.mp3 (1 variation - when a door is opened)
+    BarbecueOn,              // barbecue_on.mp3 (1 variation - when barbecue is turned on)
+    BarbecueOff,             // barbecue_off.mp3 (1 variation - when barbecue is turned off)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -137,6 +139,8 @@ impl SoundType {
             SoundType::ErrorJarPlacement => "error_jar_placement",
             SoundType::ErrorBrothNotCompatible => "error_broth_not_compatible",
             SoundType::DoorOpening => "door_opening",
+            SoundType::BarbecueOn => "barbecue_on",
+            SoundType::BarbecueOff => "barbecue_off",
         }
     }
 
@@ -201,6 +205,8 @@ impl SoundType {
             SoundType::ErrorJarPlacement => 1, // error_jar_placement.mp3 (single variation)
             SoundType::ErrorBrothNotCompatible => 1, // error_broth_not_compatible.mp3 (single variation)
             SoundType::DoorOpening => 1, // door_opening.mp3 (single variation)
+            SoundType::BarbecueOn => 1, // barbecue_on.mp3 (single variation)
+            SoundType::BarbecueOff => 1, // barbecue_off.mp3 (single variation)
             SoundType::ReloadBow => 1, // reload_bow.mp3 (single variation)
             SoundType::ReloadCrossbow => 1, // reload_crossbow.mp3 (single variation)
             SoundType::ReloadPistol => 1, // reload_pistol.mp3 (single variation)
@@ -1105,6 +1111,20 @@ pub fn emit_done_burning_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, pla
 pub fn emit_door_opening_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoorOpening, pos_x, pos_y, 1.0, 600.0, player_id) {
         log::warn!("Failed to emit door opening sound: {}", e);
+    }
+}
+
+/// Emit barbecue turning on sound
+pub fn emit_barbecue_on_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::BarbecueOn, pos_x, pos_y, 1.0, 600.0, player_id) {
+        log::warn!("Failed to emit barbecue on sound: {}", e);
+    }
+}
+
+/// Emit barbecue turning off sound
+pub fn emit_barbecue_off_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::BarbecueOff, pos_x, pos_y, 1.0, 600.0, player_id) {
+        log::warn!("Failed to emit barbecue off sound: {}", e);
     }
 }
 

@@ -438,6 +438,7 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         barbecue.remaining_fuel_burn_time_secs = None;
         log::info!("Barbecue {} extinguished by player {:?}.", barbecue.id, ctx.sender);
         stop_barbecue_sound(ctx, barbecue.id as u64);
+        crate::sound_events::emit_barbecue_off_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender);
     } else {
         if !check_if_barbecue_has_fuel(ctx, &barbecue) {
             return Err("Cannot light barbecue, requires fuel.".to_string());
@@ -450,6 +451,7 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         barbecue.is_burning = true;
         log::info!("Barbecue {} lit by player {:?}.", barbecue.id, ctx.sender);
         start_barbecue_sound(ctx, barbecue.id as u64, barbecue.pos_x, barbecue.pos_y);
+        crate::sound_events::emit_barbecue_on_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender);
     }
     ctx.db.barbecue().id().update(barbecue.clone());
     schedule_next_barbecue_processing(ctx, barbecue_id);

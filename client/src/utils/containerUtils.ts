@@ -93,15 +93,17 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
         broth_pot: 'BrothPot'
     };
     
-    // Check if this is a compost box (needs special reducer names)
+    // Check if this is a compost or refrigerator box (needs special reducer names)
     let isCompost = false;
+    let isRefrigerator = false;
     if (containerType === 'wooden_storage_box' && entity) {
         const box = entity as WoodenStorageBox;
         isCompost = box.boxType === BOX_TYPE_COMPOST;
+        isRefrigerator = box.boxType === BOX_TYPE_REFRIGERATOR;
     }
     
-    // Use compost-specific type name if it's a compost box
-    const typeName = isCompost ? 'Compost' : typeMap[containerType];
+    // Use compost/refrigerator-specific type name if applicable
+    const typeName = isCompost ? 'Compost' : isRefrigerator ? 'Refrigerator' : typeMap[containerType];
     
     // Determine if this is a fuel container (different naming pattern)
     // Note: Fumarole is HYBRID - uses storage pattern for moveFromPlayer, fuel pattern for moveToPlayer
@@ -384,7 +386,7 @@ export function handlePlayerToContainerMove(
             }
         }
         
-        // Get reducer names (will use compost-specific names if entity is compost)
+        // Get reducer names (will use compost/refrigerator-specific names if applicable)
         const reducers = getDragDropReducerNames(containerType, entity);
         
         // Special validation: Prevent placing items into broth pot output slot
@@ -404,7 +406,7 @@ export function handlePlayerToContainerMove(
             reducerName = 'moveItemToBrothPotWaterContainer';
         } else {
             // Use standard reducer pattern (includes broth_pot ingredient slots)
-            // For compost boxes, this will be 'moveItemToCompost' instead of 'moveItemToBox'
+            // For compost/refrigerator boxes, this will be 'moveItemToCompost'/'moveItemToRefrigerator' instead of 'moveItemToBox'
             reducerName = reducers.moveFromPlayer;  
         }
         

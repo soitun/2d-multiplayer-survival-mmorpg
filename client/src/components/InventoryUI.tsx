@@ -585,10 +585,12 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
                         break;
                     case 'wooden_storage_box':
-                        // Check if this is a compost box and use the appropriate reducer
+                        // Check if this is a compost/refrigerator box and use the appropriate reducer
                         const boxEntity = woodenStorageBoxes.get(containerId.toString());
                         if (boxEntity?.boxType === 3) { // BOX_TYPE_COMPOST = 3
                             connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                        } else if (boxEntity?.boxType === 2) { // BOX_TYPE_REFRIGERATOR = 2
+                            connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
                         } else {
                             connection.reducers.quickMoveToBox(containerId, itemInstanceId);
                         }

@@ -724,6 +724,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     campfires,
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
+    barbecues, // ADDED: Barbecues for night light cutouts
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night

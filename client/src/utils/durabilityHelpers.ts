@@ -240,7 +240,7 @@ function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | nu
     
     // Look up the box to check if it's a refrigerator
     const boxId = Number(containerData.containerId);
-    const storageBox = connection.db.woodenStorageBox.id().find(boxId);
+    const storageBox = connection.db.woodenStorageBox.id.find(boxId);
     
     if (!storageBox) {
         return false;

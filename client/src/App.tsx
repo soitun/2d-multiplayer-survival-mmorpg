@@ -42,7 +42,7 @@ import { useInteractionManager } from './hooks/useInteractionManager';
 import { useAuthErrorHandler } from './hooks/useAuthErrorHandler';
 import { useMovementInput } from './hooks/useMovementInput';
 import { usePredictedMovement } from './hooks/usePredictedMovement';
-import { useSoundSystem } from './hooks/useSoundSystem';
+import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
 import { useInsanitySovaSounds } from './hooks/useInsanitySovaSounds';
 import { useEntrainmentSovaSounds } from './hooks/useEntrainmentSovaSounds';
 import { useMusicSystem } from './hooks/useMusicSystem';
@@ -454,6 +454,45 @@ function AppContent() {
         masterVolume: soundVolume,
         environmentalVolume: environmentalVolume,
     });
+
+    // --- Register Refrigerator Reducer Error Callbacks ---
+    // Play error sound when refrigerator reducers fail (e.g., invalid item deposit)
+    useEffect(() => {
+        if (!connection?.reducers) return;
+
+        const handleRefrigeratorError = () => {
+            playImmediateSound('construction_placement_error', 1.0);
+        };
+
+        // Register error callbacks for all refrigerator reducers   
+        // Check if status is Failed (reducer errors come back with status.tag === 'Failed')
+        if (connection.reducers.onMoveItemToRefrigerator) {
+            connection.reducers.onMoveItemToRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
+                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
+                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
+                    handleRefrigeratorError();
+                }
+            });
+        }
+
+        if (connection.reducers.onQuickMoveToRefrigerator) {
+            connection.reducers.onQuickMoveToRefrigerator((ctx: any, boxId: number, itemInstanceId: bigint) => {
+                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
+                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
+                    handleRefrigeratorError();
+                }
+            });
+        }
+
+        if (connection.reducers.onSplitStackIntoRefrigerator) {
+            connection.reducers.onSplitStackIntoRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
+                const status = (ctx as any).status || (ctx as any).reducerEvent?.status;
+                if (status?.tag === 'Failed' || (typeof status === 'string' && status !== 'Committed')) {
+                    handleRefrigeratorError();
+                }
+            });
+        }
+    }, [connection]);
 
     // --- Music System ---
     const musicSystem = useMusicSystem({
