@@ -5,7 +5,7 @@
  * Items with durability include weapons, tools, ranged weapons, torches, flashlights, headlamps, and food.
  */
 
-import { InventoryItem, ItemDefinition } from '../generated';
+import { InventoryItem, ItemDefinition, DbConnection } from '../generated';
 
 /**
  * Maximum durability value for all items (100%)
@@ -218,12 +218,54 @@ export function calculateFoodSpoilageTimeRemaining(item: InventoryItem, itemDef:
 }
 
 /**
- * Format time remaining until spoilage for display
- * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled"
+ * Check if an item is stored in a refrigerator
+ * Returns true if the item's location is in a WoodenStorageBox with boxType === BOX_TYPE_REFRIGERATOR
  */
-export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition): string {
+function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | null): boolean {
+    if (!connection) {
+        return false;
+    }
+    
+    // Check if item is in a container
+    if (item.location.tag !== 'Container') {
+        return false;
+    }
+    
+    const containerData = item.location.value;
+    
+    // Check if it's a WoodenStorageBox container
+    if (containerData.containerType.tag !== 'WoodenStorageBox') {
+        return false;
+    }
+    
+    // Look up the box to check if it's a refrigerator
+    const boxId = Number(containerData.containerId);
+    const storageBox = connection.db.woodenStorageBox.id().find(boxId);
+    
+    if (!storageBox) {
+        return false;
+    }
+    
+    // BOX_TYPE_REFRIGERATOR = 2 (from containerUtils.ts)
+    const BOX_TYPE_REFRIGERATOR = 2;
+    return storageBox.boxType === BOX_TYPE_REFRIGERATOR;
+}
+
+/**
+ * Format time remaining until spoilage for display
+ * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Refrigerated"
+ * @param item - The inventory item
+ * @param itemDef - The item definition
+ * @param connection - Optional database connection to check if item is in a refrigerator
+ */
+export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition, connection?: DbConnection | null): string {
     if (!isFoodItem(itemDef)) {
         return '';
+    }
+    
+    // Check if item is in a refrigerator - if so, show "Refrigerated"
+    if (connection && isItemInRefrigerator(item, connection)) {
+        return 'Refrigerated';
     }
     
     const timeRemainingHours = calculateFoodSpoilageTimeRemaining(item, itemDef);

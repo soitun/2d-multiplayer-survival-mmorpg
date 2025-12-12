@@ -468,18 +468,33 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 const durabilityDisplay = formatDurability(item.instance);
                 const durabilityColor = getDurabilityColor(item.instance, def);
                 const isFood = isFoodItem(def);
-                const spoilageTime = isFood ? formatFoodSpoilageTimeRemaining(item.instance, def) : null;
                 
-                let durabilityValue = durabilityDisplay;
-                if (spoilageTime) {
-                    durabilityValue += ` (${spoilageTime})`;
+                if (isFood) {
+                    // For food items, show spoilage time prominently
+                    let spoilageTime: string | null = null;
+                    try {
+                        spoilageTime = formatFoodSpoilageTimeRemaining(item.instance, def, connection);
+                    } catch (error) {
+                        console.error('[Tooltip] Error calculating spoilage time:', error);
+                    }
+                    
+                    // For food: show spoilage time directly (not "Full (time)")
+                    // "Refrigerated" means spoilage is paused
+                    // Otherwise show time remaining
+                    const spoilageValue = spoilageTime || durabilityDisplay;
+                    stats.push({ 
+                        label: 'Spoilage', 
+                        value: spoilageValue, 
+                        color: durabilityColor.replace('0.8)', '1)')
+                    });
+                } else {
+                    // For non-food items (weapons, tools), show durability
+                    stats.push({ 
+                        label: 'Durability', 
+                        value: durabilityDisplay, 
+                        color: durabilityColor.replace('0.8)', '1)')
+                    });
                 }
-                
-                stats.push({ 
-                    label: isFood ? 'Spoilage' : 'Durability', 
-                    value: durabilityValue, 
-                    color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
-                });
             }
 
             const content: TooltipContent = {
@@ -495,7 +510,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             setTooltipPosition({ x: relativeX, y: relativeY });
             setTooltipVisible(true);
         }
-    }, []); // Dependency array is empty as panelRef and item details are stable or derived within
+    }, [connection]); // Need connection for spoilage check
 
     const handleItemMouseLeave = useCallback(() => {
         setTooltipVisible(false);
@@ -894,18 +909,33 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 const durabilityDisplay = formatDurability(item.instance);
                 const durabilityColor = getDurabilityColor(item.instance, def);
                 const isFood = isFoodItem(def);
-                const spoilageTime = isFood ? formatFoodSpoilageTimeRemaining(item.instance, def) : null;
                 
-                let durabilityValue = durabilityDisplay;
-                if (spoilageTime) {
-                    durabilityValue += ` (${spoilageTime})`;
+                if (isFood) {
+                    // For food items, show spoilage time prominently
+                    let spoilageTime: string | null = null;
+                    try {
+                        spoilageTime = formatFoodSpoilageTimeRemaining(item.instance, def, connection);
+                    } catch (error) {
+                        console.error('[Tooltip] Error calculating spoilage time:', error);
+                    }
+                    
+                    // For food: show spoilage time directly (not "Full (time)")
+                    // "Refrigerated" means spoilage is paused
+                    // Otherwise show time remaining
+                    const spoilageValue = spoilageTime || durabilityDisplay;
+                    stats.push({ 
+                        label: 'Spoilage', 
+                        value: spoilageValue, 
+                        color: durabilityColor.replace('0.8)', '1)')
+                    });
+                } else {
+                    // For non-food items (weapons, tools), show durability
+                    stats.push({ 
+                        label: 'Durability', 
+                        value: durabilityDisplay, 
+                        color: durabilityColor.replace('0.8)', '1)')
+                    });
                 }
-                
-                stats.push({ 
-                    label: isFood ? 'Spoilage' : 'Durability', 
-                    value: durabilityValue, 
-                    color: durabilityColor.replace('0.8)', '1)') // Make tooltip color fully opaque
-                });
             }
 
             const content: TooltipContent = {
@@ -920,7 +950,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             setTooltipPosition({ x: relativeX, y: relativeY });
             setTooltipVisible(true);
         }
-    }, []);
+    }, [connection]);
 
     const handleExternalItemMouseLeave = useCallback(() => {
         setTooltipVisible(false);

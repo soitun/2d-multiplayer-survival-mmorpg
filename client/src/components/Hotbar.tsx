@@ -1230,7 +1230,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       
       // For food items, also show time remaining until spoilage
       if (isFoodItem(item.definition)) {
-        spoilageTimeRemaining = formatFoodSpoilageTimeRemaining(item.instance, item.definition);
+        spoilageTimeRemaining = formatFoodSpoilageTimeRemaining(item.instance, item.definition, connection);
       }
     }
 
@@ -1261,7 +1261,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         },
       position: position || prev.position
     }));
-  }, [findItemForSlot, rangedWeaponStats, activeEquipment]);
+  }, [findItemForSlot, rangedWeaponStats, activeEquipment, connection]);
 
   // Effect to update tooltip in real-time when item data changes (water content, quantity, etc.)
   useEffect(() => {

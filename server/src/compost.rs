@@ -89,7 +89,13 @@ fn get_compost_timestamp(item: &InventoryItem) -> Option<Timestamp> {
 
 /// Checks if an item can be composted
 /// Allowed items: food (raw, cooked, burnt), plant fiber, plants (seeds, consumables with plant names)
+/// Excluded: Fertilizer (output of composting - cannot be re-composted)
 pub fn is_item_compostable(item_def: &ItemDefinition, item_instance: Option<&InventoryItem>) -> bool {
+    // Explicitly exclude Fertilizer - it's the output of composting, not an input!
+    if item_def.name == "Fertilizer" {
+        return false;
+    }
+    
     // Food items (raw, cooked, burnt) - check by category and name patterns
     if is_food_item(item_def) {
         return true;
