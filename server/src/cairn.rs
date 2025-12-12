@@ -9,7 +9,6 @@
 use spacetimedb::{SpacetimeType, Timestamp, Table, Identity, ReducerContext};
 use crate::PLAYER_RADIUS;
 use crate::player; // Import Player table trait for ctx.db.player()
-use crate::sound_events;
 
 // --- Cairn Constants ---
 
@@ -101,11 +100,16 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
             discovered_at: ctx.timestamp,
         });
         
-        // Play cairn unlock sound for new discovery
-        sound_events::emit_cairn_unlock_sound(ctx, cairn.pos_x, cairn.pos_y, player_id);
-        
         log::info!(
-            "Player {} discovered cairn {} (lore_id: {})",
+            "🎉 Player {} discovered NEW cairn {} (lore_id: {})",
+            player_id,
+            cairn_id,
+            cairn.lore_id
+        );
+        // Note: cairn_unlock sound is played client-side for instant feedback
+    } else {
+        log::debug!(
+            "Player {} re-interacted with already discovered cairn {} (lore_id: {})",
             player_id,
             cairn_id,
             cairn.lore_id

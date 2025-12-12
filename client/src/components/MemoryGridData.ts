@@ -37,8 +37,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Enforcer Branch',
     color: '#ef4444',
     philosophy: 'Brutal efficiency through superior firepower',
-    unlockCost: 400,
-    totalCost: 6200 // 400 unlock + 5800 branch (400+600+900+1400+2500)
+    unlockCost: 1600,
+    totalCost: 24800 // 1600 unlock + 23200 branch (1600+2400+3600+5600+10000)
   },
   'hive': {
     id: 'hive',
@@ -46,8 +46,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Chem-Industrial Branch',
     color: '#f59e0b',
     philosophy: 'Evolution through chemical mastery',
-    unlockCost: 400,
-    totalCost: 6200
+    unlockCost: 1600,
+    totalCost: 24800
   },
   'university': {
     id: 'university',
@@ -55,8 +55,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Robotics & Fabrication Branch',
     color: '#3b82f6',
     philosophy: 'Knowledge is the ultimate weapon',
-    unlockCost: 400,
-    totalCost: 6200
+    unlockCost: 1600,
+    totalCost: 24800
   },
   'data-angels': {
     id: 'data-angels',
@@ -64,8 +64,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Cyber & Stealth Branch',
     color: '#8b5cf6',
     philosophy: 'Information warfare in the digital age',
-    unlockCost: 400,
-    totalCost: 6200
+    unlockCost: 1600,
+    totalCost: 24800
   },
   'battalion': {
     id: 'battalion',
@@ -73,8 +73,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Conventional Military Branch',
     color: '#22c55e',
     philosophy: 'Disciplined force multipliers',
-    unlockCost: 400,
-    totalCost: 6200
+    unlockCost: 1600,
+    totalCost: 24800
   },
   'admiralty': {
     id: 'admiralty',
@@ -82,8 +82,8 @@ export const FACTIONS: Record<string, MemoryGridFaction> = {
     description: 'Weather & Coastal Mastery Branch',
     color: '#06b6d4',
     philosophy: 'Masters of sea and storm',
-    unlockCost: 400,
-    totalCost: 6200
+    unlockCost: 1600,
+    totalCost: 24800
   }
 };
 
@@ -158,8 +158,8 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 1 - Basic Improvements (15-30 shards)
-  // First 15 minutes - immediate power upgrades
+  // TIER 1 - Basic Improvements (60-100 shards)
+  // Day 1-3 - first unlocks require real commitment
   // 6 nodes - each starts a distinct progression branch
   // Radius: 120
   // BRANCH SECTORS: Each T1 node "owns" a 60° sector (2π/6)
@@ -168,7 +168,7 @@ export const MEMORY_GRID_NODES = [
     id: 'crossbow', 
     name: 'Crossbow', 
     description: 'Unlocks crafting the Crossbow - a mechanical crossbow with superior accuracy and power. Longer range than the bow.', 
-    cost: 25, 
+    cost: 100, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(0, 120), // 0° - BRANCH 1: Arrows → Ammo → Gun → Drone
@@ -180,7 +180,7 @@ export const MEMORY_GRID_NODES = [
     id: 'metal-hatchet', 
     name: 'Metal Hatchet', 
     description: 'Unlocks crafting the Metal Hatchet - gathers significantly more wood than stone tools.', 
-    cost: 15, 
+    cost: 60, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 120), // 60° - BRANCH 2: Building → Storage → Shelter → Harvester
@@ -192,7 +192,7 @@ export const MEMORY_GRID_NODES = [
     id: 'reed-harpoon', 
     name: 'Reed Harpoon', 
     description: 'Unlocks crafting the Reed Harpoon - a fragile harpoon made from reeds and bone fragments. Light and buoyant, good for water combat.', 
-    cost: 18, 
+    cost: 75, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(2 * 2 * Math.PI / 6, 120), // 120° - BRANCH 3: Fishing/Water
@@ -204,7 +204,7 @@ export const MEMORY_GRID_NODES = [
     id: 'lantern', 
     name: 'Lantern', 
     description: 'Unlocks crafting Lanterns - deployable light sources that burn longer than torches.', 
-    cost: 20, 
+    cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 120), // 180° - BRANCH 4: Food/Survival → Broth
@@ -216,7 +216,7 @@ export const MEMORY_GRID_NODES = [
     id: 'metal-pickaxe', 
     name: 'Metal Pickaxe', 
     description: 'Unlocks crafting the Metal Pickaxe - gathers significantly more stone than stone tools.', 
-    cost: 15, 
+    cost: 60, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 120), // 240° - BRANCH 5: Mining/Crafting
@@ -228,7 +228,7 @@ export const MEMORY_GRID_NODES = [
     id: 'stone-spear', 
     name: 'Stone Spear', 
     description: 'Unlocks crafting the Stone Spear - a basic spear tipped with sharpened stone. Has longer reach and causes bleeding.', 
-    cost: 20, 
+    cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
     position: getRadialPosition(5 * 2 * Math.PI / 6, 120), // 300° - BRANCH 6: Movement/Armor
@@ -238,8 +238,8 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 2 - Specialization (50-80 shards)
-  // LINEAR CHAINS - single prerequisite, NO overlapping lines
+  // TIER 2 - Specialization (200-280 shards)
+  // Day 3-7 - LINEAR CHAINS, single prerequisite each
   // Each T1 node spawns its own progression branch
   // Radius: 220
   // ============================================
@@ -247,7 +247,7 @@ export const MEMORY_GRID_NODES = [
     id: 'bone-arrow', 
     name: 'Bone Arrow', 
     description: 'Unlocks crafting Bone Arrows - larger arrowhead with higher damage.', 
-    cost: 50, 
+    cost: 200, 
     tier: 2, 
     prerequisites: ['crossbow'], 
     position: getRadialPosition(0, 220), // Branch 1: Straight from crossbow
@@ -259,7 +259,7 @@ export const MEMORY_GRID_NODES = [
     id: 'bush-knife', 
     name: 'Bush Knife', 
     description: 'Unlocks crafting the Bush Knife - a heavy-duty clearing blade for woodcutting and combat.', 
-    cost: 55, 
+    cost: 220, 
     tier: 2, 
     prerequisites: ['metal-hatchet'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 220), // Branch 2: Straight from metal-hatchet
@@ -271,7 +271,7 @@ export const MEMORY_GRID_NODES = [
     id: 'bone-gaff-hook', 
     name: 'Bone Gaff Hook', 
     description: 'Unlocks crafting Bone Gaff Hooks - a sharp, curved bone hook for fishing and combat. Component for crafting fishing rods.', 
-    cost: 65, 
+    cost: 260, 
     tier: 2, 
     prerequisites: ['reed-harpoon'], 
     position: getRadialPosition(2 * 2 * Math.PI / 6, 220), // Branch 3: Straight from reed-harpoon
@@ -283,7 +283,7 @@ export const MEMORY_GRID_NODES = [
     id: 'flashlight', 
     name: 'Flashlight', 
     description: 'Unlocks crafting Flashlights - bright, focused electric illumination.', 
-    cost: 55, 
+    cost: 220, 
     tier: 2, 
     prerequisites: ['lantern'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 220), // Branch 4: Straight from lantern
@@ -295,7 +295,7 @@ export const MEMORY_GRID_NODES = [
     id: 'reed-bellows', 
     name: 'Reed Bellows', 
     description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.', 
-    cost: 70, 
+    cost: 280, 
     tier: 2, 
     prerequisites: ['metal-pickaxe'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 220), // Branch 5: Straight from metal-pickaxe
@@ -305,8 +305,8 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 3 - Advanced Gear (120-200 shards)
-  // LINEAR CHAINS continue - single prerequisite each
+  // TIER 3 - Advanced Gear (480-720 shards)
+  // Day 7-14 - LINEAR CHAINS continue
   // Each branch extends independently
   // Radius: 320
   // ============================================
@@ -314,7 +314,7 @@ export const MEMORY_GRID_NODES = [
     id: 'fire-arrow', 
     name: 'Fire Arrow', 
     description: 'Unlocks crafting Fire Arrows - ignites on impact, causing burn damage over time.', 
-    cost: 120, 
+    cost: 480, 
     tier: 3, 
     prerequisites: ['bone-arrow'], 
     position: getRadialPosition(0, 320), // Branch 1: Continues from bone-arrow
@@ -326,7 +326,7 @@ export const MEMORY_GRID_NODES = [
     id: 'large-wooden-storage-box', 
     name: 'Large Wooden Storage Box', 
     description: 'Unlocks crafting Large Wooden Storage Boxes - large containers for storing many items. Holds 48 stacks.', 
-    cost: 150, 
+    cost: 600, 
     tier: 3, 
     prerequisites: ['bush-knife'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 320), // Branch 2: Continues from bush-knife
@@ -338,7 +338,7 @@ export const MEMORY_GRID_NODES = [
     id: 'reed-fishing-rod', 
     name: 'Reed Fishing Rod', 
     description: 'Unlocks crafting the Primitive Reed Fishing Rod - catch fish and aquatic resources.', 
-    cost: 130, 
+    cost: 520, 
     tier: 3, 
     prerequisites: ['bone-gaff-hook'], 
     position: getRadialPosition(2 * 2 * Math.PI / 6, 320), // Branch 3: Continues from bone-gaff-hook
@@ -350,7 +350,7 @@ export const MEMORY_GRID_NODES = [
     id: 'reed-rain-collector', 
     name: 'Reed Rain Collector', 
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
-    cost: 140, 
+    cost: 560, 
     tier: 3, 
     prerequisites: ['flashlight'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight
@@ -362,7 +362,7 @@ export const MEMORY_GRID_NODES = [
     id: 'mining-efficiency', 
     name: 'Mining Efficiency', 
     description: 'Advanced mining techniques grant +30% resource yield from all gathering activities.', 
-    cost: 180, 
+    cost: 720, 
     tier: 3, 
     prerequisites: ['reed-bellows'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 320), // Branch 5: Continues from reed-bellows
@@ -371,8 +371,8 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 4 - Late Game (300-450 shards)
-  // LINEAR CHAINS continue - single prerequisite each
+  // TIER 4 - Late Early-Game (1000-1600 shards)
+  // Day 14-21 - LINEAR CHAINS continue
   // Each branch extends independently
   // Radius: 420
   // ============================================
@@ -380,7 +380,7 @@ export const MEMORY_GRID_NODES = [
     id: 'hollow-reed-arrow', 
     name: 'Hollow Reed Arrow', 
     description: 'Unlocks crafting Hollow Reed Arrows - lightweight, flies faster but deals less damage.', 
-    cost: 300, 
+    cost: 1200, 
     tier: 4, 
     prerequisites: ['fire-arrow'], 
     position: getRadialPosition(0, 420), // Branch 1: Continues from fire-arrow
@@ -392,7 +392,7 @@ export const MEMORY_GRID_NODES = [
     id: 'metal-door', 
     name: 'Metal Door', 
     description: 'Unlocks crafting Metal Doors - reinforced security for your most valuable areas.', 
-    cost: 320, 
+    cost: 1280, 
     tier: 4, 
     prerequisites: ['large-wooden-storage-box'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 420), // Branch 2: Continues from large-wooden-storage-box
@@ -404,7 +404,7 @@ export const MEMORY_GRID_NODES = [
     id: 'reed-snorkel', 
     name: 'Reed Snorkel', 
     description: 'Unlocks crafting the Primitive Reed Snorkel - allows limited underwater exploration.', 
-    cost: 350, 
+    cost: 1400, 
     tier: 4, 
     prerequisites: ['reed-fishing-rod'], 
     position: getRadialPosition(2 * 2 * Math.PI / 6, 420), // Branch 3: Continues from reed-fishing-rod
@@ -416,7 +416,7 @@ export const MEMORY_GRID_NODES = [
     id: 'barbecue', 
     name: 'Barbecue', 
     description: 'Unlocks crafting Barbecues - a large cooking appliance with 12 slots for cooking food. Functions like a campfire but with more capacity.', 
-    cost: 250, 
+    cost: 1000, 
     tier: 4, 
     prerequisites: ['reed-rain-collector'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from reed-rain-collector (between reed-rain-collector and refrigerator)
@@ -428,7 +428,7 @@ export const MEMORY_GRID_NODES = [
     id: 'refrigerator', 
     name: 'Refrigerator', 
     description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks of food, seeds, and water containers.', 
-    cost: 380, 
+    cost: 1520, 
     tier: 4, 
     prerequisites: ['barbecue'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 420), // Branch 4: Continues from barbecue
@@ -440,7 +440,7 @@ export const MEMORY_GRID_NODES = [
     id: 'compost', 
     name: 'Compost', 
     description: 'Unlocks crafting Compost containers - converts organic materials (food, plants, plant fiber) into fertilizer over time.', 
-    cost: 400, 
+    cost: 1600, 
     tier: 4, 
     prerequisites: ['refrigerator'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 520), // Branch 4: Continues from refrigerator (evenly spaced, 100 units apart)
@@ -452,7 +452,7 @@ export const MEMORY_GRID_NODES = [
     id: 'crafting-speed-1', 
     name: 'Crafting Speed I', 
     description: 'Improved crafting techniques. All crafting operations are 15% faster.', 
-    cost: 400, 
+    cost: 1600, 
     tier: 4, 
     prerequisites: ['mining-efficiency'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 420), // Branch 5: Continues from mining-efficiency
@@ -461,15 +461,15 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 5 - End Game (600-900 shards)
-  // Week 1 - Major milestones
+  // TIER 5 - Mid-Late Game (2400-3000 shards)
+  // Day 21-35 - Major milestones
   // Radius: 520
   // ============================================
   { 
     id: '9x18mm-round', 
     name: '9x18mm Ammunition', 
     description: 'Unlocks crafting 9x18mm Rounds - ammunition for the Makarov PM pistol.', 
-    cost: 600, 
+    cost: 2400, 
     tier: 5, 
     prerequisites: ['hollow-reed-arrow'], 
     position: getRadialPosition(0, 520), // Branch 1: Continues from hollow-reed-arrow
@@ -481,7 +481,7 @@ export const MEMORY_GRID_NODES = [
     id: 'shelter', 
     name: 'Shelter', 
     description: 'Unlocks crafting Shelters - sturdy structures that provide significant protection.', 
-    cost: 650, 
+    cost: 2600, 
     tier: 5, 
     prerequisites: ['metal-door'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 520), // Branch 2: Continues from metal-door
@@ -493,7 +493,7 @@ export const MEMORY_GRID_NODES = [
     id: 'broth-mastery', 
     name: 'Broth Mastery', 
     description: 'Master broth recipes. All broth effects last 50% longer.', 
-    cost: 700, 
+    cost: 2800, 
     tier: 5, 
     prerequisites: ['compost'], 
     position: getRadialPosition(3 * 2 * Math.PI / 6, 620), // Branch 4: Continues from compost (evenly spaced, 100 units apart)
@@ -504,7 +504,7 @@ export const MEMORY_GRID_NODES = [
     id: 'crafting-speed-2', 
     name: 'Crafting Speed II', 
     description: 'Master crafting techniques. All crafting operations are 25% faster.', 
-    cost: 750, 
+    cost: 3000, 
     tier: 5, 
     prerequisites: ['crafting-speed-1'], 
     position: getRadialPosition(4 * 2 * Math.PI / 6, 520), // Branch 5: Continues from crafting-speed-1
@@ -513,15 +513,15 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 6 - Ultimate (800-1000 shards)
-  // Week 1-2 - Final upgrades before factions
+  // TIER 6 - Late Game (3200-3400 shards)
+  // Day 35-45 - Final upgrades before factions
   // Radius: 620
   // ============================================
   { 
     id: 'makarov-pm', 
     name: 'Makarov PM', 
     description: 'Unlocks crafting the Makarov PM - a reliable Soviet-era semi-automatic pistol. Longest range, fastest fire rate.', 
-    cost: 800, 
+    cost: 3200, 
     tier: 6, 
     prerequisites: ['9x18mm-round'], 
     position: getRadialPosition(0, 620), // Branch 1: Continues from 9x18mm-round
@@ -533,7 +533,7 @@ export const MEMORY_GRID_NODES = [
     id: 'harvester-drone', 
     name: 'Harvester Drone', 
     description: 'Unlocks autonomous harvesting drone technology - automatically gathers nearby resources.', 
-    cost: 850, 
+    cost: 3400, 
     tier: 6, 
     prerequisites: ['shelter'], 
     position: getRadialPosition(1 * 2 * Math.PI / 6, 620), // Branch 2: Continues from shelter
@@ -542,15 +542,15 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 7 - Capstone (1000 shards)
-  // Week 2-3 - Final node before factions
+  // TIER 7 - End Game (4000 shards)
+  // Day 45+ - Final node before factions
   // Radius: 720
   // ============================================
   { 
     id: 'combat-drone', 
     name: 'Combat Drone', 
     description: 'Unlocks autonomous combat drone technology - a robotic ally that assists in combat.', 
-    cost: 1000, 
+    cost: 4000, 
     tier: 7, 
     prerequisites: ['makarov-pm'], 
     position: getRadialPosition(0, 720), // Branch 1: Continues from makarov-pm
@@ -559,32 +559,32 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // FACTION UNLOCK NODES (400 shards each)
-  // Major milestone - requires ANY Tier 5+ node
-  // Player commits to ONE faction (reset costs 2000 shards)
+  // FACTION UNLOCK NODES (1600 shards each)
+  // Major milestone - requires 8000 total shards spent
+  // Player commits to ONE faction (reset costs 5000 shards)
   // Radius: 900 (increased spacing from core nodes)
   // ============================================
-  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 400, tier: 8, faction: 'black-wolves', prerequisites: [], position: getRadialPosition(0, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 400, tier: 8, faction: 'hive', prerequisites: [], position: getRadialPosition(Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 400, tier: 8, faction: 'university', prerequisites: [], position: getRadialPosition(2 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 400, tier: 8, faction: 'data-angels', prerequisites: [], position: getRadialPosition(Math.PI, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 400, tier: 8, faction: 'battalion', prerequisites: [], position: getRadialPosition(4 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
-  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 400, tier: 8, faction: 'admiralty', prerequisites: [], position: getRadialPosition(5 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-black-wolves', name: 'Unlock Black Wolves', description: `Unlock access to the ${FACTIONS['black-wolves'].name} specialization branch. ${FACTIONS['black-wolves'].philosophy}`, cost: 1600, tier: 8, faction: 'black-wolves', prerequisites: [], position: getRadialPosition(0, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-hive', name: 'Unlock Hive', description: `Unlock access to the ${FACTIONS['hive'].name} specialization branch. ${FACTIONS['hive'].philosophy}`, cost: 1600, tier: 8, faction: 'hive', prerequisites: [], position: getRadialPosition(Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-university', name: 'Unlock University', description: `Unlock access to the ${FACTIONS['university'].name} specialization branch. ${FACTIONS['university'].philosophy}`, cost: 1600, tier: 8, faction: 'university', prerequisites: [], position: getRadialPosition(2 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-data-angels', name: 'Unlock DATA ANGELS', description: `Unlock access to the ${FACTIONS['data-angels'].name} specialization branch. ${FACTIONS['data-angels'].philosophy}`, cost: 1600, tier: 8, faction: 'data-angels', prerequisites: [], position: getRadialPosition(Math.PI, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-battalion', name: 'Unlock Battalion', description: `Unlock access to the ${FACTIONS['battalion'].name} specialization branch. ${FACTIONS['battalion'].philosophy}`, cost: 1600, tier: 8, faction: 'battalion', prerequisites: [], position: getRadialPosition(4 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
+  { id: 'unlock-admiralty', name: 'Unlock Admiralty', description: `Unlock access to the ${FACTIONS['admiralty'].name} specialization branch. ${FACTIONS['admiralty'].philosophy}`, cost: 1600, tier: 8, faction: 'admiralty', prerequisites: [], position: getRadialPosition(5 * Math.PI / 3, 900), category: 'technology' as const, status: 'locked' as const },
 
   // ============================================
-  // FACTION BRANCHES (400-2500 shards per node)
-  // Long-term progression over weeks
+  // FACTION BRANCHES (1600-10000 shards per node)
+  // Long-term progression over many weeks
   // ============================================
 
-  // BLACK WOLVES - Berserker Path (Total: 5800 shards)
+  // BLACK WOLVES - Berserker Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 0;
     const path = [
-      { id: 'riot-vest', name: 'Riot Vest', description: 'Light assault armor with high mobility', cost: 400 },
-      { id: 'shock-pike', name: 'Shock Pike', description: 'Electrified melee weapon, stuns targets', cost: 600 },
-      { id: 'slab-shield', name: 'Slab Shield', description: 'Heavy riot shield, blocks projectiles', cost: 900 },
-      { id: 'flash-hammer', name: 'Flash Hammer', description: 'Stun grenade launcher attachment', cost: 1400 },
-      { id: 'adrenal-surge', name: 'Adrenal Surge', description: '5s sprint + 30% melee damage, 60s cooldown (Ultimate)', cost: 2500 }
+      { id: 'riot-vest', name: 'Riot Vest', description: 'Light assault armor with high mobility', cost: 1600 },
+      { id: 'shock-pike', name: 'Shock Pike', description: 'Electrified melee weapon, stuns targets', cost: 2400 },
+      { id: 'slab-shield', name: 'Slab Shield', description: 'Heavy riot shield, blocks projectiles', cost: 3600 },
+      { id: 'flash-hammer', name: 'Flash Hammer', description: 'Stun grenade launcher attachment', cost: 5600 },
+      { id: 'adrenal-surge', name: 'Adrenal Surge', description: '5s sprint + 30% melee damage, 60s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -595,15 +595,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // BLACK WOLVES - Assassin Path (Total: 5800 shards)
+  // BLACK WOLVES - Assassin Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 0;
     const path = [
-      { id: 'combat-stims', name: 'Combat Stims', description: 'Enhanced movement and reaction time (Passive +10% Speed)', cost: 400 },
-      { id: 'suppressor-rig', name: 'Suppressor Rig', description: 'Stealth gear for silent takedowns', cost: 600 },
-      { id: 'grav-boots', name: 'Grav Boots', description: 'Dodge rolls become jumps with extended range', cost: 900 },
-      { id: 'field-interrogator', name: 'Field Interrogator', description: 'Portable information extraction station', cost: 1400 },
-      { id: 'armor-durability', name: 'Armor Durability', description: 'All equipped armor lasts longer (Passive +25% Durability)', cost: 2500 }
+      { id: 'combat-stims', name: 'Combat Stims', description: 'Enhanced movement and reaction time (Passive +10% Speed)', cost: 1600 },
+      { id: 'suppressor-rig', name: 'Suppressor Rig', description: 'Stealth gear for silent takedowns', cost: 2400 },
+      { id: 'grav-boots', name: 'Grav Boots', description: 'Dodge rolls become jumps with extended range', cost: 3600 },
+      { id: 'field-interrogator', name: 'Field Interrogator', description: 'Portable information extraction station', cost: 5600 },
+      { id: 'armor-durability', name: 'Armor Durability', description: 'All equipped armor lasts longer (Passive +25% Durability)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -614,15 +614,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // HIVE - Industrialist Path (Total: 5800 shards)
+  // HIVE - Industrialist Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = Math.PI / 3;
     const path = [
-      { id: 'spore-grain-vat', name: 'Spore Grain Vat', description: 'Produces specialized bio-materials', cost: 400 },
-      { id: 'slime-furnace', name: 'Slime Furnace', description: 'Process organic materials into fuel', cost: 600 },
-      { id: 'chameleon-harness', name: 'Chameleon Harness', description: 'Adaptive camouflage system', cost: 900 },
-      { id: 'mealworm-factory', name: 'Mealworm Factory', description: 'Compact bio-farm producing efficient protein', cost: 1400 },
-      { id: 'crafting-speed-hive', name: 'Crafting Speed', description: 'All crafting operations faster (Passive +20% Speed)', cost: 2500 }
+      { id: 'spore-grain-vat', name: 'Spore Grain Vat', description: 'Produces specialized bio-materials', cost: 1600 },
+      { id: 'slime-furnace', name: 'Slime Furnace', description: 'Process organic materials into fuel', cost: 2400 },
+      { id: 'chameleon-harness', name: 'Chameleon Harness', description: 'Adaptive camouflage system', cost: 3600 },
+      { id: 'mealworm-factory', name: 'Mealworm Factory', description: 'Compact bio-farm producing efficient protein', cost: 5600 },
+      { id: 'crafting-speed-hive', name: 'Crafting Speed', description: 'All crafting operations faster (Passive +20% Speed)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -633,15 +633,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // HIVE - Toxicologist Path (Total: 5800 shards)
+  // HIVE - Toxicologist Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = Math.PI / 3;
     const path = [
-      { id: 'venom-knife', name: 'Venom Knife', description: 'Poison-coated blade, DoT damage', cost: 400 },
-      { id: 'poison-resistance', name: 'Poison Resistance', description: 'Reduced toxin damage (Passive +15% Resistance)', cost: 600 },
-      { id: 'acid-sprayer', name: 'Acid Sprayer', description: 'Chemical weapon that melts through armor', cost: 900 },
-      { id: 'toxic-coating', name: 'Toxic Coating', description: 'Apply poison coating to any projectiles', cost: 1400 },
-      { id: 'toxic-bloom', name: 'Toxic Bloom', description: 'AoE slowing mist for 8s, 60s cooldown (Ultimate)', cost: 2500 }
+      { id: 'venom-knife', name: 'Venom Knife', description: 'Poison-coated blade, DoT damage', cost: 1600 },
+      { id: 'poison-resistance', name: 'Poison Resistance', description: 'Reduced toxin damage (Passive +15% Resistance)', cost: 2400 },
+      { id: 'acid-sprayer', name: 'Acid Sprayer', description: 'Chemical weapon that melts through armor', cost: 3600 },
+      { id: 'toxic-coating', name: 'Toxic Coating', description: 'Apply poison coating to any projectiles', cost: 5600 },
+      { id: 'toxic-bloom', name: 'Toxic Bloom', description: 'AoE slowing mist for 8s, 60s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -652,15 +652,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // UNIVERSITY - Engineer Path (Total: 5800 shards)
+  // UNIVERSITY - Engineer Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 2 * Math.PI / 3;
     const path = [
-      { id: 'auto-turret', name: 'Auto-Turret', description: 'Automated defense system', cost: 400 },
-      { id: 'scanner-drone', name: 'Scanner Drone', description: 'Autonomous resource detection', cost: 600 },
-      { id: 'repair-swarm', name: 'Repair Swarm', description: 'Deployable structure maintenance bots', cost: 900 },
-      { id: 'stabilizer-field', name: 'Stabilizer Field', description: 'Area protection from environmental damage', cost: 1400 },
-      { id: 'fabricator-burst', name: 'Fabricator Burst', description: 'Complete next craft instantly, 60s cooldown (Ultimate)', cost: 2500 }
+      { id: 'auto-turret', name: 'Auto-Turret', description: 'Automated defense system', cost: 1600 },
+      { id: 'scanner-drone', name: 'Scanner Drone', description: 'Autonomous resource detection', cost: 2400 },
+      { id: 'repair-swarm', name: 'Repair Swarm', description: 'Deployable structure maintenance bots', cost: 3600 },
+      { id: 'stabilizer-field', name: 'Stabilizer Field', description: 'Area protection from environmental damage', cost: 5600 },
+      { id: 'fabricator-burst', name: 'Fabricator Burst', description: 'Complete next craft instantly, 60s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -671,15 +671,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // UNIVERSITY - Scholar Path (Total: 5800 shards)
+  // UNIVERSITY - Scholar Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 2 * Math.PI / 3;
     const path = [
-      { id: 'logic-furnace', name: 'Logic Furnace', description: 'AI-assisted material processing', cost: 400 },
-      { id: 'bioprinter-table', name: 'Bioprinter Table', description: '3D print organic materials and food', cost: 600 },
-      { id: 'geneforge-vat', name: 'GeneForge Vat', description: 'Advanced biological material synthesis', cost: 900 },
-      { id: 'mining-yield-ii', name: 'Mining Yield II', description: 'Extract more resources (Passive +35% Yield)', cost: 1400 },
-      { id: 'crafting-speed-uni', name: 'Crafting Speed', description: 'Enhanced manufacturing (Passive +25% Speed)', cost: 2500 }
+      { id: 'logic-furnace', name: 'Logic Furnace', description: 'AI-assisted material processing', cost: 1600 },
+      { id: 'bioprinter-table', name: 'Bioprinter Table', description: '3D print organic materials and food', cost: 2400 },
+      { id: 'geneforge-vat', name: 'GeneForge Vat', description: 'Advanced biological material synthesis', cost: 3600 },
+      { id: 'mining-yield-ii', name: 'Mining Yield II', description: 'Extract more resources (Passive +35% Yield)', cost: 5600 },
+      { id: 'crafting-speed-uni', name: 'Crafting Speed', description: 'Enhanced manufacturing (Passive +25% Speed)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -690,15 +690,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // DATA ANGELS - Netrunner Path (Total: 5800 shards)
+  // DATA ANGELS - Netrunner Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = Math.PI;
     const path = [
-      { id: 'jammer-tower', name: 'Jammer Tower', description: 'Disable electronic devices in area', cost: 400 },
-      { id: 'ghost-uplink', name: 'Ghost Uplink', description: 'Remote access to electronic systems', cost: 600 },
-      { id: 'neurochef-decryptor', name: 'Neurochef Decryptor', description: 'Crack advanced security systems', cost: 900 },
-      { id: 'drone-hijack', name: 'Hijack Pulse', description: 'Take control of enemy drones and turrets', cost: 1400 },
-      { id: 'hacking-speed', name: 'Hacking Speed', description: 'Faster infiltration (Passive +25% Speed)', cost: 2500 }
+      { id: 'jammer-tower', name: 'Jammer Tower', description: 'Disable electronic devices in area', cost: 1600 },
+      { id: 'ghost-uplink', name: 'Ghost Uplink', description: 'Remote access to electronic systems', cost: 2400 },
+      { id: 'neurochef-decryptor', name: 'Neurochef Decryptor', description: 'Crack advanced security systems', cost: 3600 },
+      { id: 'drone-hijack', name: 'Hijack Pulse', description: 'Take control of enemy drones and turrets', cost: 5600 },
+      { id: 'hacking-speed', name: 'Hacking Speed', description: 'Faster infiltration (Passive +25% Speed)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -709,15 +709,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // DATA ANGELS - Phantom Path (Total: 5800 shards)
+  // DATA ANGELS - Phantom Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = Math.PI;
     const path = [
-      { id: 'backdoor-cloak', name: 'Backdoor Cloak', description: '5-second invisibility device', cost: 400 },
-      { id: 'signal-scrubber', name: 'Signal Scrubber', description: 'Mobile electronic countermeasures', cost: 600 },
-      { id: 'memory-leech', name: 'Memory Leech', description: 'Extract info from defeated enemies', cost: 900 },
-      { id: 'movement-speed-da', name: 'Movement Speed', description: 'Enhanced mobility (Passive +18% Speed)', cost: 1400 },
-      { id: 'overclock', name: 'Overclock', description: '10s invisibility to turrets & drones, 60s cooldown (Ultimate)', cost: 2500 }
+      { id: 'backdoor-cloak', name: 'Backdoor Cloak', description: '5-second invisibility device', cost: 1600 },
+      { id: 'signal-scrubber', name: 'Signal Scrubber', description: 'Mobile electronic countermeasures', cost: 2400 },
+      { id: 'memory-leech', name: 'Memory Leech', description: 'Extract info from defeated enemies', cost: 3600 },
+      { id: 'movement-speed-da', name: 'Movement Speed', description: 'Enhanced mobility (Passive +18% Speed)', cost: 5600 },
+      { id: 'overclock', name: 'Overclock', description: '10s invisibility to turrets & drones, 60s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -728,15 +728,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // BATTALION - Colonel Path (Total: 5800 shards)
+  // BATTALION - Colonel Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 4 * Math.PI / 3;
     const path = [
-      { id: 'battalion-smg', name: 'Battalion SMG', description: 'Military-grade submachine gun', cost: 400 },
-      { id: 'mortar-nest', name: 'Mortar Nest', description: 'Indirect fire support weapon', cost: 600 },
-      { id: 'fragment-armor', name: 'Fragment Armor', description: 'Heavy armor with explosive resistance', cost: 900 },
-      { id: 'ammo-press', name: 'Military Ammo Press', description: 'High-grade ammunition production', cost: 1400 },
-      { id: 'ranged-damage', name: 'Ranged Damage', description: 'All projectiles deal more (Passive +25% Damage)', cost: 2500 }
+      { id: 'battalion-smg', name: 'Battalion SMG', description: 'Military-grade submachine gun', cost: 1600 },
+      { id: 'mortar-nest', name: 'Mortar Nest', description: 'Indirect fire support weapon', cost: 2400 },
+      { id: 'fragment-armor', name: 'Fragment Armor', description: 'Heavy armor with explosive resistance', cost: 3600 },
+      { id: 'ammo-press', name: 'Military Ammo Press', description: 'High-grade ammunition production', cost: 5600 },
+      { id: 'ranged-damage', name: 'Ranged Damage', description: 'All projectiles deal more (Passive +25% Damage)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -747,15 +747,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // BATTALION - Tactician Path (Total: 5800 shards)
+  // BATTALION - Tactician Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 4 * Math.PI / 3;
     const path = [
-      { id: 'tactical-optics', name: 'Tactical Optics', description: 'Extended range and accuracy (Passive +25% Range)', cost: 400 },
-      { id: 'supply-cache', name: 'Supply Cache', description: 'Deployable ammo and medical depot', cost: 600 },
-      { id: 'field-ration-kit', name: 'Field Ration Kit', description: 'Efficient nutrition for operations', cost: 900 },
-      { id: 'max-hp', name: 'Max HP', description: 'Enhanced conditioning (Passive +20% Health)', cost: 1400 },
-      { id: 'rally-cry', name: 'Rally Cry', description: 'Allies gain +25% reload, -20% recoil for 20s, 60s cooldown (Ultimate)', cost: 2500 }
+      { id: 'tactical-optics', name: 'Tactical Optics', description: 'Extended range and accuracy (Passive +25% Range)', cost: 1600 },
+      { id: 'supply-cache', name: 'Supply Cache', description: 'Deployable ammo and medical depot', cost: 2400 },
+      { id: 'field-ration-kit', name: 'Field Ration Kit', description: 'Efficient nutrition for operations', cost: 3600 },
+      { id: 'max-hp', name: 'Max HP', description: 'Enhanced conditioning (Passive +20% Health)', cost: 5600 },
+      { id: 'rally-cry', name: 'Rally Cry', description: 'Allies gain +25% reload, -20% recoil for 20s, 60s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -766,15 +766,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // ADMIRALTY - Captain Path (Total: 5800 shards)
+  // ADMIRALTY - Captain Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 5 * Math.PI / 3;
     const path = [
-      { id: 'tide-beacon', name: 'Tide Beacon', description: 'Maritime spawn point and navigation aid', cost: 400 },
-      { id: 'storm-sail-raft', name: 'Storm Sail Raft', description: 'Fast water transportation', cost: 600 },
-      { id: 'net-cannon', name: 'Net Cannon', description: 'Fishing and entanglement weapon', cost: 900 },
-      { id: 'luminous-buoy', name: 'Luminous Buoy', description: 'Mini-lighthouse for navigation', cost: 1400 },
-      { id: 'naval-command', name: 'Naval Command', description: 'Allied vessels gain speed, cold immunity (Passive)', cost: 2500 }
+      { id: 'tide-beacon', name: 'Tide Beacon', description: 'Maritime spawn point and navigation aid', cost: 1600 },
+      { id: 'storm-sail-raft', name: 'Storm Sail Raft', description: 'Fast water transportation', cost: 2400 },
+      { id: 'net-cannon', name: 'Net Cannon', description: 'Fishing and entanglement weapon', cost: 3600 },
+      { id: 'luminous-buoy', name: 'Luminous Buoy', description: 'Mini-lighthouse for navigation', cost: 5600 },
+      { id: 'naval-command', name: 'Naval Command', description: 'Allied vessels gain speed, cold immunity (Passive)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -785,15 +785,15 @@ export const MEMORY_GRID_NODES = [
     }));
   })(),
 
-  // ADMIRALTY - Storm Caller Path (Total: 5800 shards)
+  // ADMIRALTY - Storm Caller Path (Total: 23200 shards)
   ...(() => {
     const baseAngle = 5 * Math.PI / 3;
     const path = [
-      { id: 'saltwater-desal', name: 'Saltwater Desal', description: 'Convert seawater to drinking water', cost: 400 },
-      { id: 'weathercock-tower', name: 'Weathercock Tower', description: 'Force moderate rain in area, boost crop yield', cost: 600 },
-      { id: 'weather-resistance', name: 'Weather Resistance', description: 'Reduced environmental damage (Passive +15%)', cost: 900 },
-      { id: 'tide-gauge', name: 'Tide Gauge', description: 'Positive crop growth during any weather condition', cost: 1400 },
-      { id: 'tempest-call', name: 'Tempest Call', description: 'Summon heavy storm, damages enemies and crops, 90s cooldown (Ultimate)', cost: 2500 }
+      { id: 'saltwater-desal', name: 'Saltwater Desal', description: 'Convert seawater to drinking water', cost: 1600 },
+      { id: 'weathercock-tower', name: 'Weathercock Tower', description: 'Force moderate rain in area, boost crop yield', cost: 2400 },
+      { id: 'weather-resistance', name: 'Weather Resistance', description: 'Reduced environmental damage (Passive +15%)', cost: 3600 },
+      { id: 'tide-gauge', name: 'Tide Gauge', description: 'Positive crop growth during any weather condition', cost: 5600 },
+      { id: 'tempest-call', name: 'Tempest Call', description: 'Summon heavy storm, damages enemies and crops, 90s cooldown (Ultimate)', cost: 10000 }
     ];
     return path.map((node, i) => ({
       id: node.id, name: node.name, description: node.description, cost: node.cost,
@@ -840,10 +840,10 @@ export const isNodeAvailable = (nodeId: string, purchasedNodes: Set<string>, tot
       }
     }
     
-    // Second check: Requires spending 2000 total shards on core grid
+    // Second check: Requires spending 8000 total shards on core grid
     // Note: This check is handled server-side, but we check here for UI display
     // The server will enforce the actual requirement
-    const MIN_TOTAL_SHARDS = 2000;
+    const MIN_TOTAL_SHARDS = 8000;
     if (totalShardsSpent < MIN_TOTAL_SHARDS) {
       return false; // Not enough total shards spent
     }

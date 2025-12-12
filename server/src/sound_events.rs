@@ -1158,6 +1158,9 @@ pub fn emit_crow_stealing_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, vi
 }
 
 /// Emit cairn unlock sound (when a player discovers a new cairn for the first time)
+/// Note: Currently the cairn_unlock sound is handled client-side for instant feedback.
+/// This function is kept for potential future server-side use.
+#[allow(dead_code)]
 pub fn emit_cairn_unlock_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::CairnUnlock, pos_x, pos_y, 1.5, 500.0, player_id) {
         log::warn!("Failed to emit cairn unlock sound: {}", e);

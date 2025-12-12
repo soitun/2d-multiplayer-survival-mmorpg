@@ -108,7 +108,7 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   // Structures
   cairn: {
     centerOffsetX: 0,
-    centerOffsetY: -30,  // Reduced from -48 for lower visual offset
+    centerOffsetY: -70,  // Reduced from -48 for lower visual offset
     width: 120,          // Reduced from 180 for smaller interaction box
     height: 160,         // Reduced from 220 for smaller interaction box
     placementYOffset: 0,

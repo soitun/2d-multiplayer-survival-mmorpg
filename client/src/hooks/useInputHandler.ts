@@ -860,6 +860,12 @@ export const useInputHandler = ({
                                             currentConnection.reducers.interactWithCairn(cairnId);
                                             console.log(`[Cairn] Reducer called for cairn ${cairnId}`);
                                             
+                                            // Play cairn unlock sound for first discovery
+                                            if (isFirstDiscovery) {
+                                                console.log(`[Cairn] First discovery! Playing cairn_unlock sound`);
+                                                playImmediateSound('cairn_unlock');
+                                            }
+                                            
                                             if (loreEntry) {
                                                 // Play lore audio using the utility (uses lore index)
                                                 console.log(`[Cairn] Playing audio for lore index ${loreEntry.index}`);

@@ -604,6 +604,7 @@ pub struct Player {
     pub last_respawn_time: Timestamp, // NEW: When the player last spawned/respawned (for fat accumulation calculation)
     pub insanity: f32, // NEW: Hidden stat that increases when carrying memory shards or mining them (0.0-100.0)
     pub last_insanity_threshold: f32, // NEW: Last insanity threshold crossed (for SOVA sound triggers: 0.0, 25.0, 50.0, 75.0, 90.0, 100.0)
+    pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
 }
 
 // Table to store the last attack timestamp for each player
@@ -1374,6 +1375,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         last_respawn_time: ctx.timestamp, // NEW: Track initial spawn time
         insanity: 0.0, // NEW: Start with no insanity
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
+        shard_carry_start_time: None, // NEW: Not carrying shards initially
     };
 
     // Insert the new player
