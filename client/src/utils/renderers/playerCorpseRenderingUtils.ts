@@ -98,6 +98,7 @@ export function renderPlayerCorpse({
     isOnWater: isCorpseOnWater, // ADD: Water status for sprite selection
     clientMovementSequence: 0n, // ADD: Required field for client-side prediction
     isInsideBuilding: false, // Corpses are not inside buildings
+    offlineCorpseId: undefined, // Corpses don't have an offline corpse reference
     insanity: 0, // Corpses have no insanity
     lastInsanityThreshold: 0, // Corpses have no insanity threshold
     shardCarryStartTime: undefined, // Corpses are not carrying shards

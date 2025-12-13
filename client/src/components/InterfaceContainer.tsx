@@ -17,8 +17,8 @@ import {
   ItemDefinition,
   Cairn,
   PlayerDiscoveredCairn,
-  Identity,
 } from '../generated';
+import { Identity } from 'spacetimedb';
 import './InterfaceContainer.css';
 
 interface InterfaceContainerProps {
