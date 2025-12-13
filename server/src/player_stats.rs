@@ -104,8 +104,8 @@ pub(crate) const INSANITY_TIME_SCALE_SECONDS: f32 = 900.0; // Reaches ~7x at 15 
 // Below threshold: rapid decay rewards quick drop-offs and safe play
 // Above threshold: slow decay punishes getting greedy, creates tension
 pub(crate) const INSANITY_RAPID_DECAY_THRESHOLD: f32 = 50.0; // Below 50% = rapid decay when dropping shards
-pub(crate) const INSANITY_RAPID_DECAY_PER_SECOND: f32 = 2.0; // Very fast recovery (0 to 50% in ~25 seconds)
-pub(crate) const INSANITY_SLOW_DECAY_PER_SECOND: f32 = 0.08; // Slow recovery at high insanity (~10 minutes from 100% to 50%)
+pub(crate) const INSANITY_RAPID_DECAY_PER_SECOND: f32 = 2.0; // Very fast recovery (50% to 0% in ~25 seconds)
+pub(crate) const INSANITY_SLOW_DECAY_PER_SECOND: f32 = 0.35; // Moderate recovery at high insanity (~2.4 minutes from 100% to 50%)
 
 // Insanity threshold constants for SOVA sound triggers (client-side sounds)
 pub(crate) const INSANITY_THRESHOLD_25: f32 = 25.0; // First warning threshold
@@ -659,7 +659,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                     );
                 } else {
                     // 50%+ - slow recovery (punishment for getting greedy)
-                    // Takes ~10+ minutes to recover from 100% to 50%
+                    // Takes ~2.4 minutes to recover from 100% to 50%
                     insanity_change_per_sec = -INSANITY_SLOW_DECAY_PER_SECOND;
                     log::trace!(
                         "Player {:?} insanity slow decay: {:.1}% -> rate={:.2}/sec (above threshold)",
