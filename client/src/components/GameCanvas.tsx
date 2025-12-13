@@ -3813,6 +3813,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             worldState={worldState}
             itemDefinitions={itemDefinitions}
             inventoryItems={inventoryItems}
+            // Cairns Panel data props
+            cairns={cairns}
+            playerDiscoveredCairns={playerDiscoveredCairns}
           >
             <canvas
               ref={minimapCanvasRef}

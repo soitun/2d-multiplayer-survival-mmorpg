@@ -299,6 +299,41 @@ export const useInputHandler = ({
         }
     }, [showBuildingRadialMenu]);
 
+    // FIX: Play cairn_unlock sound only on actual first discovery (after server confirms)
+    // Track which cairns we've already played sound for to prevent duplicates
+    const playedSoundForCairnsRef = useRef<Set<bigint>>(new Set());
+    
+    useEffect(() => {
+        if (!connection) return;
+        
+        const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
+            // Only play sound if this is our own discovery (check player identity)
+            if (!localPlayerId) return;
+            
+            const discoveryPlayerId = discovery.playerIdentity?.toString();
+            const currentPlayerId = localPlayerId.toString();
+            
+            // Check if this discovery is for our player
+            if (discoveryPlayerId === currentPlayerId) {
+                const cairnId = discovery.cairnId;
+                
+                // Only play sound if we haven't already played it for this cairn
+                if (!playedSoundForCairnsRef.current.has(cairnId)) {
+                    console.log(`[Cairn] First discovery confirmed! Playing cairn_unlock sound for cairn ${cairnId}`);
+                    playImmediateSound('cairn_unlock');
+                    playedSoundForCairnsRef.current.add(cairnId);
+                }
+            }
+        };
+        
+        // Register callback for PlayerDiscoveredCairn inserts
+        connection.db.playerDiscoveredCairn.onInsert(handlePlayerDiscoveredCairnInsert);
+        
+        return () => {
+            connection.db.playerDiscoveredCairn.removeOnInsert(handlePlayerDiscoveredCairnInsert);
+        };
+    }, [connection, localPlayerId]);
+
     // ADDED: Clear radial menu state when building mode ends (switching tools)
     useEffect(() => {
         if (!buildingState?.isBuilding) {
@@ -860,11 +895,8 @@ export const useInputHandler = ({
                                             currentConnection.reducers.interactWithCairn(cairnId);
                                             console.log(`[Cairn] Reducer called for cairn ${cairnId}`);
                                             
-                                            // Play cairn unlock sound for first discovery
-                                            if (isFirstDiscovery) {
-                                                console.log(`[Cairn] First discovery! Playing cairn_unlock sound`);
-                                                playImmediateSound('cairn_unlock');
-                                            }
+                                            // Note: Sound is played via PlayerDiscoveredCairn.onInsert callback
+                                            // to ensure it only plays on actual first discovery (after server confirms)
                                             
                                             if (loreEntry) {
                                                 // Play lore audio using the utility (uses lore index)

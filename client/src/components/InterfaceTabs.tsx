@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './InterfaceTabs.css';
 
 interface InterfaceTabsProps {
-  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk';
-  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk') => void;
+  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns';
+  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns') => void;
   className?: string;
   hideEncyclopedia?: boolean;
 }
@@ -20,6 +20,7 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
   const isEncyclopediaActive = currentView === 'encyclopedia';
   const isMemoryGridActive = currentView === 'memory-grid';
   const isAlkActive = currentView === 'alk';
+  const isCairnsActive = currentView === 'cairns';
 
   return (
     <div className={`interface-tabs ${className}`}>
@@ -63,6 +64,16 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         onMouseLeave={() => setHoveredTab(null)}
       >
         ALK BOARD
+      </button>
+      
+      {/* CAIRNS Tab */}
+      <button
+        className={`tab cairns-tab ${isCairnsActive ? 'active' : 'inactive'} ${hoveredTab === 'cairns' ? 'hovered' : ''}`}
+        onClick={() => onViewChange('cairns')}
+        onMouseEnter={() => setHoveredTab('cairns')}
+        onMouseLeave={() => setHoveredTab(null)}
+      >
+        CAIRNS
       </button>
     </div>
   );

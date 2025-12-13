@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import InterfaceTabs from './InterfaceTabs';
 import MemoryGrid from './MemoryGrid';
 import AlkPanel from './AlkPanel';
+import CairnsPanel from './CairnsPanel';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
@@ -14,6 +15,9 @@ import {
   PlayerShardBalance,
   WorldState,
   ItemDefinition,
+  Cairn,
+  PlayerDiscoveredCairn,
+  Identity,
 } from '../generated';
 import './InterfaceContainer.css';
 
@@ -36,6 +40,9 @@ interface InterfaceContainerProps {
   worldState?: WorldState | null;
   itemDefinitions?: Map<string, ItemDefinition>;
   inventoryItems?: Map<string, any>; // For counting Memory Shards
+  // Cairns Panel data props
+  cairns?: Map<string, Cairn>;
+  playerDiscoveredCairns?: Map<string, PlayerDiscoveredCairn>;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -57,9 +64,12 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   worldState,
   itemDefinitions,
   inventoryItems,
+  // Cairns Panel data props
+  cairns,
+  playerDiscoveredCairns,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk'>('minimap');
+  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns'>('minimap');
   const [isMinimapLoading, setIsMinimapLoading] = useState(false);
   
   // Grid coordinates visibility preference (stored in localStorage)
@@ -320,7 +330,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   }, [connection.connection, connection.isConnected, updateMemoryGridData]);
 
   // Handle view changes with loading state for minimap
-  const handleViewChange = (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk') => {
+  const handleViewChange = (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns') => {
     if (view === 'minimap' && currentView !== 'minimap') {
       // Show loading when switching TO minimap from another tab
       setIsMinimapLoading(true);
@@ -842,6 +852,22 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               worldState={worldState || null}
               itemDefinitions={itemDefinitions || new Map()}
               inventoryItems={inventoryItems || new Map()}
+            />
+          </div>
+        );
+      case 'cairns':
+        return (
+          <div className="cairns-content" style={{ 
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
+            <CairnsPanel
+              cairns={cairns || new Map()}
+              playerDiscoveredCairns={playerDiscoveredCairns || new Map()}
+              currentPlayerIdentity={connection.dbIdentity || null}
             />
           </div>
         );
