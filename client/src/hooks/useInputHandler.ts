@@ -307,11 +307,18 @@ export const useInputHandler = ({
         if (!connection) return;
         
         const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
-            // Only play sound if this is our own discovery (check player identity)
-            if (!localPlayerId) return;
+            console.log(`[Cairn INPUT HANDLER] Discovery insert received: cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}..., localPlayerId=${localPlayerId?.slice(0, 16)}...`);
             
-            const discoveryPlayerId = discovery.playerIdentity?.toString();
-            const currentPlayerId = localPlayerId.toString();
+            // Only play sound if this is our own discovery (check player identity)
+            if (!localPlayerId) {
+                console.log('[Cairn INPUT HANDLER] No localPlayerId, skipping sound');
+                return;
+            }
+            
+            const discoveryPlayerId = discovery.playerIdentity?.toHexString();
+            const currentPlayerId = localPlayerId;
+            
+            console.log(`[Cairn INPUT HANDLER] Comparing identities: discovery=${discoveryPlayerId?.slice(0, 16)}... vs current=${currentPlayerId?.slice(0, 16)}...`);
             
             // Check if this discovery is for our player
             if (discoveryPlayerId === currentPlayerId) {
@@ -319,10 +326,14 @@ export const useInputHandler = ({
                 
                 // Only play sound if we haven't already played it for this cairn
                 if (!playedSoundForCairnsRef.current.has(cairnId)) {
-                    console.log(`[Cairn] First discovery confirmed! Playing cairn_unlock sound for cairn ${cairnId}`);
+                    console.log(`[Cairn INPUT HANDLER] ✓ First discovery confirmed! Playing cairn_unlock sound for cairn ${cairnId}`);
                     playImmediateSound('cairn_unlock');
                     playedSoundForCairnsRef.current.add(cairnId);
+                } else {
+                    console.log(`[Cairn INPUT HANDLER] Sound already played for cairn ${cairnId}`);
                 }
+            } else {
+                console.log('[Cairn INPUT HANDLER] Discovery is for another player, skipping sound');
             }
         };
         
@@ -877,16 +888,22 @@ export const useInputHandler = ({
                                             break;
                                         }
                                         
-                                        // Check if this is the first time discovering this cairn
+                                        // Check if this is the first time THIS PLAYER is discovering this cairn
+                                        // Must filter by player identity since playerDiscoveredCairns contains ALL players' discoveries
                                         const isFirstDiscovery = !Array.from(playerDiscoveredCairns?.values() || [])
-                                            .some(discovery => discovery.cairnId === cairnId);
+                                            .some(discovery => 
+                                                discovery.playerIdentity?.toHexString() === localPlayerId &&
+                                                discovery.cairnId === cairnId
+                                            );
+                                        console.log(`[Cairn] isFirstDiscovery check: localPlayerId=${localPlayerId?.slice(0, 16)}, cairnId=${cairnId}, result=${isFirstDiscovery}`);
                                         
                                         // Find the lore entry
                                         const loreEntry = CAIRN_LORE_TIDBITS.find(entry => entry.id === cairn.loreId);
                                         console.log(`[Cairn] Found lore entry for cairn ${cairnId}:`, loreEntry?.id, loreEntry?.index, 'isFirstDiscovery:', isFirstDiscovery);
                                         
-                                        // Calculate discovery count for notification
-                                        const currentDiscoveryCount = Array.from(playerDiscoveredCairns?.values() || []).length;
+                                        // Calculate discovery count for THIS PLAYER only
+                                        const currentDiscoveryCount = Array.from(playerDiscoveredCairns?.values() || [])
+                                            .filter(d => d.playerIdentity?.toHexString() === localPlayerId).length;
                                         const newDiscoveryCount = isFirstDiscovery ? currentDiscoveryCount + 1 : currentDiscoveryCount;
                                         const totalCairns = getTotalCairnLoreCount();
                                         

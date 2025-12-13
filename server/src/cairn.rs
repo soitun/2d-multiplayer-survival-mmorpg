@@ -121,9 +121,16 @@ pub struct PlayerDiscoveredCairn {
 pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), String> {
     let player_id = ctx.sender;
     
+    log::info!("🗿 [Cairn] interact_with_cairn called: cairn_id={}, player_id={}", cairn_id, player_id);
+    
     // Find the cairn
     let cairn = ctx.db.cairn().id().find(&cairn_id)
-        .ok_or_else(|| format!("Cairn {} not found", cairn_id))?;
+        .ok_or_else(|| {
+            log::warn!("🗿 [Cairn] Cairn {} not found!", cairn_id);
+            format!("Cairn {} not found", cairn_id)
+        })?;
+    
+    log::info!("🗿 [Cairn] Found cairn: id={}, lore_id={}, pos=({}, {})", cairn.id, cairn.lore_id, cairn.pos_x, cairn.pos_y);
     
     // Find the player
     let player = ctx.db.player().identity().find(&player_id)
@@ -135,6 +142,7 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
     let distance_sq = dx * dx + dy * dy;
     
     if distance_sq > PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED {
+        log::warn!("🗿 [Cairn] Player {} too far from cairn {}. Distance: {:.1}px", player_id, cairn_id, distance_sq.sqrt());
         return Err(format!(
             "Too far from cairn. Distance: {:.1}px, required: {:.1}px",
             distance_sq.sqrt(),
@@ -143,24 +151,35 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
     }
     
     // Check if already discovered by this player
-    // Iterate through all discoveries for this player and check if any match this cairn
-    let already_discovered = ctx.db.player_discovered_cairn()
+    // Count all discoveries for this player first for debugging
+    let player_discoveries: Vec<_> = ctx.db.player_discovered_cairn()
         .player_identity()
         .filter(&player_id)
-        .find(|discovery| discovery.cairn_id == cairn_id)
-        .is_some();
+        .collect();
+    
+    log::info!("🗿 [Cairn] Player {} has {} total discoveries", player_id, player_discoveries.len());
+    
+    let already_discovered = player_discoveries.iter()
+        .any(|discovery| discovery.cairn_id == cairn_id);
+    
+    log::info!("🗿 [Cairn] Already discovered check for cairn {}: {}", cairn_id, already_discovered);
     
     // If not already discovered, record the discovery and award Memory Shards
     if !already_discovered {
-        ctx.db.player_discovered_cairn().insert(PlayerDiscoveredCairn {
+        log::info!("🗿 [Cairn] NEW DISCOVERY! Inserting PlayerDiscoveredCairn for player {} and cairn {}", player_id, cairn_id);
+        
+        let inserted_discovery = ctx.db.player_discovered_cairn().insert(PlayerDiscoveredCairn {
             id: 0,
             player_identity: player_id,
             cairn_id,
             discovered_at: ctx.timestamp,
         });
         
+        log::info!("🗿 [Cairn] Inserted discovery with id={}", inserted_discovery.id);
+        
         // Calculate reward based on cairn category
         let shard_reward = get_cairn_reward_for_lore_id(&cairn.lore_id);
+        log::info!("🗿 [Cairn] Calculated shard reward: {} for lore_id: {}", shard_reward, cairn.lore_id);
         
         // Find Memory Shard item definition
         let memory_shard_def_id = ctx.db.item_definition()
@@ -209,8 +228,8 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
         }
         // Note: cairn_unlock sound is played client-side for instant feedback
     } else {
-        log::debug!(
-            "Player {} re-interacted with already discovered cairn {} (lore_id: {})",
+        log::info!(
+            "🗿 [Cairn] Re-interaction: Player {} already discovered cairn {} (lore_id: {})",
             player_id,
             cairn_id,
             cairn.lore_id

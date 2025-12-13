@@ -844,12 +844,22 @@ export const useSpacetimeTables = ({
             const handleCairnDelete = (ctx: any, cairn: SpacetimeDB.Cairn) => setCairns(prev => { const newMap = new Map(prev); newMap.delete(cairn.id.toString()); return newMap; });
 
             // --- Player Discovered Cairn Subscriptions ---
-            const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => 
-                setPlayerDiscoveredCairns(prev => new Map(prev).set(discovery.id.toString(), discovery));
-            const handlePlayerDiscoveredCairnUpdate = (ctx: any, oldDiscovery: SpacetimeDB.PlayerDiscoveredCairn, newDiscovery: SpacetimeDB.PlayerDiscoveredCairn) => 
+            const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
+                console.log(`[useSpacetimeTables] 🎉 PlayerDiscoveredCairn INSERT: id=${discovery.id}, cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}...`);
+                setPlayerDiscoveredCairns(prev => {
+                    const newMap = new Map(prev).set(discovery.id.toString(), discovery);
+                    console.log(`[useSpacetimeTables] PlayerDiscoveredCairns map now has ${newMap.size} entries`);
+                    return newMap;
+                });
+            };
+            const handlePlayerDiscoveredCairnUpdate = (ctx: any, oldDiscovery: SpacetimeDB.PlayerDiscoveredCairn, newDiscovery: SpacetimeDB.PlayerDiscoveredCairn) => {
+                console.log(`[useSpacetimeTables] PlayerDiscoveredCairn UPDATE: id=${newDiscovery.id}`);
                 setPlayerDiscoveredCairns(prev => new Map(prev).set(newDiscovery.id.toString(), newDiscovery));
-            const handlePlayerDiscoveredCairnDelete = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => 
+            };
+            const handlePlayerDiscoveredCairnDelete = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
+                console.log(`[useSpacetimeTables] PlayerDiscoveredCairn DELETE: id=${discovery.id}`);
                 setPlayerDiscoveredCairns(prev => { const newMap = new Map(prev); newMap.delete(discovery.id.toString()); return newMap; });
+            };
 
             // --- Campfire Subscriptions ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {

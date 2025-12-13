@@ -144,13 +144,21 @@ const CairnsPanel: React.FC<CairnsPanelProps> = ({
     const discoveredIds = new Set<bigint>();
     const currentIdentityStr = currentPlayerIdentity.toHexString();
     
-    playerDiscoveredCairns.forEach((discovery) => {
+    console.log(`[CairnsPanel] Filtering discoveries for player: ${currentIdentityStr.slice(0, 16)}...`);
+    console.log(`[CairnsPanel] Total discoveries in map: ${playerDiscoveredCairns.size}`);
+    
+    let matchCount = 0;
+    playerDiscoveredCairns.forEach((discovery, key) => {
       const discoveryIdentityStr = discovery.playerIdentity?.toHexString();
-      if (discoveryIdentityStr === currentIdentityStr) {
+      const isMatch = discoveryIdentityStr === currentIdentityStr;
+      if (isMatch) {
         discoveredIds.add(discovery.cairnId);
+        matchCount++;
+        console.log(`[CairnsPanel] ✓ Match: discovery.cairnId=${discovery.cairnId}, discoveryIdentity=${discoveryIdentityStr?.slice(0, 16)}...`);
       }
     });
     
+    console.log(`[CairnsPanel] Found ${matchCount} discoveries for current player out of ${playerDiscoveredCairns.size} total`);
     console.log('[CairnsPanel] Discovered cairn IDs for current player:', 
       Array.from(discoveredIds).map(id => id.toString()));
     
