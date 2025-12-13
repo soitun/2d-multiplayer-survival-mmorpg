@@ -848,4 +848,213 @@ pub fn create_player_corpse(ctx: &ReducerContext, dead_player_id: Identity, deat
     );
 
     Ok(())
-} 
+}
+
+/******************************************************************************
+ *                     OFFLINE PLAYER CORPSE SYSTEM                          *
+ ******************************************************************************/
+
+/// Creates a PlayerCorpse for a player going offline.
+/// Unlike death corpses, offline corpses do NOT have a despawn timer.
+/// Returns the corpse ID so it can be stored on the player.
+pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u32, String> {
+    let player_id = player.identity;
+    let inventory_table = ctx.db.inventory_item();
+    let player_corpse_table = ctx.db.player_corpse();
+
+    log::info!("[OfflineCorpse] Creating offline corpse for player {} at ({:.1}, {:.1})", 
+               player.username, player.position_x, player.position_y);
+
+    // Clear player's active equipped item (tool/weapon in hand) first
+    match crate::active_equipment::clear_active_item_reducer(ctx, player_id) {
+        Ok(_) => log::debug!("[OfflineCorpse] Active item cleared for player {}", player_id),
+        Err(e) => log::warn!("[OfflineCorpse] Failed to clear active item for player {}: {}", player_id, e),
+    }
+
+    // 1. Collect all items to be transferred from the player
+    let mut items_to_transfer: Vec<InventoryItem> = Vec::new();
+    for item in inventory_table.iter() {
+        match &item.location {
+            ItemLocation::Inventory(data) if data.owner_id == player_id => {
+                items_to_transfer.push(item.clone());
+            }
+            ItemLocation::Hotbar(data) if data.owner_id == player_id => {
+                items_to_transfer.push(item.clone());
+            }
+            ItemLocation::Equipped(data) if data.owner_id == player_id => {
+                items_to_transfer.push(item.clone());
+            }
+            _ => {}
+        }
+    }
+
+    log::info!("[OfflineCorpse] Player {} has {} items to transfer to offline corpse.", 
+               player.username, items_to_transfer.len());
+
+    // 2. Create a new PlayerCorpse instance (no despawn scheduled)
+    let spawned_at = player.last_respawn_time;
+    
+    let mut new_corpse = PlayerCorpse {
+        id: 0, // Will be auto-incremented
+        player_identity: player_id,
+        username: format!("{} (Sleeping)", player.username), // Mark as sleeping in UI
+        pos_x: player.position_x,
+        pos_y: player.position_y,
+        chunk_index: calculate_chunk_index(player.position_x, player.position_y),
+        death_time: ctx.timestamp, // Use current time as "sleep" time
+        despawn_scheduled_at: ctx.timestamp + Duration::from_secs(86400 * 365), // Far future - no real despawn
+        spawned_at,
+        health: PLAYER_CORPSE_INITIAL_HEALTH,
+        max_health: PLAYER_CORPSE_INITIAL_HEALTH,
+        last_hit_time: None,
+        slot_instance_id_0: None, slot_def_id_0: None,
+        slot_instance_id_1: None, slot_def_id_1: None,
+        slot_instance_id_2: None, slot_def_id_2: None,
+        slot_instance_id_3: None, slot_def_id_3: None,
+        slot_instance_id_4: None, slot_def_id_4: None,
+        slot_instance_id_5: None, slot_def_id_5: None,
+        slot_instance_id_6: None, slot_def_id_6: None,
+        slot_instance_id_7: None, slot_def_id_7: None,
+        slot_instance_id_8: None, slot_def_id_8: None,
+        slot_instance_id_9: None, slot_def_id_9: None,
+        slot_instance_id_10: None, slot_def_id_10: None,
+        slot_instance_id_11: None, slot_def_id_11: None,
+        slot_instance_id_12: None, slot_def_id_12: None,
+        slot_instance_id_13: None, slot_def_id_13: None,
+        slot_instance_id_14: None, slot_def_id_14: None,
+        slot_instance_id_15: None, slot_def_id_15: None,
+        slot_instance_id_16: None, slot_def_id_16: None,
+        slot_instance_id_17: None, slot_def_id_17: None,
+        slot_instance_id_18: None, slot_def_id_18: None,
+        slot_instance_id_19: None, slot_def_id_19: None,
+        slot_instance_id_20: None, slot_def_id_20: None,
+        slot_instance_id_21: None, slot_def_id_21: None,
+        slot_instance_id_22: None, slot_def_id_22: None,
+        slot_instance_id_23: None, slot_def_id_23: None,
+        slot_instance_id_24: None, slot_def_id_24: None,
+        slot_instance_id_25: None, slot_def_id_25: None,
+        slot_instance_id_26: None, slot_def_id_26: None,
+        slot_instance_id_27: None, slot_def_id_27: None,
+        slot_instance_id_28: None, slot_def_id_28: None,
+        slot_instance_id_29: None, slot_def_id_29: None,
+        slot_instance_id_30: None, slot_def_id_30: None,
+        slot_instance_id_31: None, slot_def_id_31: None,
+        slot_instance_id_32: None, slot_def_id_32: None,
+        slot_instance_id_33: None, slot_def_id_33: None,
+        slot_instance_id_34: None, slot_def_id_34: None,
+    };
+
+    // 3. Populate corpse slots and prepare items for location update
+    let mut updated_item_locations: Vec<(u64, ItemLocation)> = Vec::new();
+    let mut corpse_slot_idx: u8 = 0;
+
+    for item in items_to_transfer {
+        if corpse_slot_idx < NUM_CORPSE_SLOTS as u8 {
+            new_corpse.set_slot(corpse_slot_idx, Some(item.instance_id), Some(item.item_def_id));
+            updated_item_locations.push((item.instance_id, ItemLocation::Container(ContainerLocationData {
+                container_type: ContainerType::PlayerCorpse,
+                container_id: 0, // Placeholder, will be updated after insert
+                slot_index: corpse_slot_idx,
+            })));
+            corpse_slot_idx += 1;
+        } else {
+            log::warn!("[OfflineCorpse] Corpse full for player {}. Item {} lost.", player_id, item.instance_id);
+            if let Some(mut excess_item) = inventory_table.instance_id().find(item.instance_id) {
+                excess_item.location = ItemLocation::Unknown;
+                inventory_table.instance_id().update(excess_item);
+            }
+        }
+    }
+
+    // 4. Insert the PlayerCorpse
+    let inserted_corpse = match player_corpse_table.try_insert(new_corpse) {
+        Ok(c) => c,
+        Err(e) => {
+            log::error!("[OfflineCorpse] Failed to insert corpse for player {}: {:?}", player_id, e);
+            return Err(format!("Failed to insert offline corpse: {:?}", e));
+        }
+    };
+    log::info!("[OfflineCorpse] Inserted offline corpse with ID {} for player {}", inserted_corpse.id, player.username);
+
+    // 5. Update ItemLocation for all transferred items with the actual corpse ID
+    for (item_instance_id, mut target_location) in updated_item_locations {
+        if let Some(mut item_to_update) = inventory_table.instance_id().find(item_instance_id) {
+            if let ItemLocation::Container(ref mut loc_data) = target_location {
+                loc_data.container_id = inserted_corpse.id as u64;
+            }
+            item_to_update.location = target_location;
+            inventory_table.instance_id().update(item_to_update);
+        }
+    }
+
+    // NOTE: No despawn schedule is created for offline corpses!
+    // They persist until the player reconnects or the corpse is destroyed.
+
+    log::info!("[OfflineCorpse] Successfully created offline corpse {} with {} items for player {}", 
+               inserted_corpse.id, corpse_slot_idx, player.username);
+    Ok(inserted_corpse.id)
+}
+
+/// Restores items from an offline corpse back to the player's inventory.
+/// Called when a player reconnects and their offline corpse still exists.
+/// Deletes the corpse after restoration.
+pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, corpse_id: u32) -> Result<(), String> {
+    let inventory_table = ctx.db.inventory_item();
+    let player_corpse_table = ctx.db.player_corpse();
+    let despawn_schedules = ctx.db.player_corpse_despawn_schedule();
+
+    log::info!("[OfflineCorpse] Restoring items from corpse {} to player {}", corpse_id, player_id);
+
+    // 1. Find the corpse
+    let corpse = player_corpse_table.id().find(corpse_id)
+        .ok_or_else(|| format!("Offline corpse {} not found", corpse_id))?;
+
+    // 2. Collect all items from the corpse
+    let mut items_restored = 0u32;
+    let mut inventory_slot: u16 = 0;
+    let mut hotbar_slot: u8 = 0;
+
+    for slot_idx in 0..corpse.num_slots() as u8 {
+        if let Some(item_instance_id) = corpse.get_slot_instance_id(slot_idx) {
+            if let Some(mut item) = inventory_table.instance_id().find(item_instance_id) {
+                // Try to place in inventory first, then hotbar
+                if inventory_slot < NUM_PLAYER_INVENTORY_SLOTS as u16 {
+                    item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                        owner_id: player_id,
+                        slot_index: inventory_slot,
+                    });
+                    inventory_slot += 1;
+                } else if hotbar_slot < NUM_PLAYER_HOTBAR_SLOTS as u8 {
+                    item.location = ItemLocation::Hotbar(crate::models::HotbarLocationData {
+                        owner_id: player_id,
+                        slot_index: hotbar_slot,
+                    });
+                    hotbar_slot += 1;
+                } else {
+                    // No room - item stays in limbo (shouldn't happen with proper slot counts)
+                    log::warn!("[OfflineCorpse] No room for item {} when restoring from corpse {}", 
+                              item_instance_id, corpse_id);
+                    item.location = ItemLocation::Unknown;
+                }
+                inventory_table.instance_id().update(item);
+                items_restored += 1;
+            }
+        }
+    }
+
+    log::info!("[OfflineCorpse] Restored {} items from corpse {} to player {}", 
+               items_restored, corpse_id, player_id);
+
+    // 3. Cancel any despawn schedule (shouldn't exist for offline corpses, but just in case)
+    if despawn_schedules.corpse_id().find(corpse_id as u64).is_some() {
+        despawn_schedules.corpse_id().delete(corpse_id as u64);
+        log::debug!("[OfflineCorpse] Cancelled despawn schedule for corpse {}", corpse_id);
+    }
+
+    // 4. Delete the corpse
+    player_corpse_table.id().delete(corpse_id);
+    log::info!("[OfflineCorpse] Deleted offline corpse {} after restoring items to player {}", 
+               corpse_id, player_id);
+
+    Ok(())
+}

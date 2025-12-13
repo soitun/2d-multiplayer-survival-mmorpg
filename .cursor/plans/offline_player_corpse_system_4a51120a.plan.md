@@ -4,25 +4,25 @@ overview: Implement a system where disconnecting players leave behind a lootable
 todos:
   - id: add-player-field
     content: "Add offline_corpse_id: Option<u32> field to Player struct in lib.rs"
-    status: pending
+    status: completed
   - id: create-offline-corpse-fn
     content: Create create_offline_corpse function in player_corpse.rs (no despawn timer)
-    status: pending
+    status: completed
   - id: create-restore-fn
     content: Create restore_from_offline_corpse function in player_corpse.rs
-    status: pending
+    status: completed
   - id: modify-disconnect
     content: Modify identity_disconnected to create offline corpse on disconnect
-    status: pending
+    status: completed
   - id: modify-reconnect
     content: Modify register_player to check/restore from offline corpse on reconnect
-    status: pending
+    status: completed
   - id: init-new-players
     content: Initialize offline_corpse_id = None for new player registration
-    status: pending
+    status: completed
   - id: regenerate-bindings
     content: Regenerate TypeScript client bindings after server changes
-    status: pending
+    status: completed
 ---
 
 # Offline Player Corpse System

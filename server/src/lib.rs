@@ -406,6 +406,7 @@ use crate::wild_animal_npc::animal_corpse as AnimalCorpseTableTrait; // <<< ADDE
 use crate::barrel::barrel as BarrelTableTrait; // <<< ADDED: Import Barrel table trait
 use crate::barrel::barrel_respawn_schedule as BarrelRespawnScheduleTableTrait; // <<< ADDED: Import BarrelRespawnSchedule table trait
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
+use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // <<< ADDED: Import PlayerCorpse table trait
 
 // Use struct names directly for trait aliases
 use crate::crafting::Recipe as RecipeTableTrait;
@@ -605,6 +606,7 @@ pub struct Player {
     pub insanity: f32, // NEW: Hidden stat that increases when carrying memory shards or mining them (0.0-100.0)
     pub last_insanity_threshold: f32, // NEW: Last insanity threshold crossed (for SOVA sound triggers: 0.0, 25.0, 50.0, 75.0, 90.0, 100.0)
     pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
+    pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
 }
 
 // Table to store the last attack timestamp for each player
@@ -911,10 +913,26 @@ pub fn identity_disconnected(ctx: &ReducerContext) {
             active_connections.identity().delete(&sender_id);
             // --- END Clean Up Connection --- 
 
-            // --- Set Player Offline Status --- 
+            // --- Set Player Offline Status and Create Offline Corpse --- 
             if let Some(mut player) = players.identity().find(&sender_id) {
                  if player.is_online { // Only update if they were marked online
                     player.is_online = false;
+                    
+                    // Create offline corpse if player is not dead
+                    if !player.is_dead {
+                        match player_corpse::create_offline_corpse(ctx, &player) {
+                            Ok(corpse_id) => {
+                                player.offline_corpse_id = Some(corpse_id);
+                                log::info!("[Disconnect] Created offline corpse {} for player {:?}", corpse_id, sender_id);
+                            }
+                            Err(e) => {
+                                log::error!("[Disconnect] Failed to create offline corpse for player {:?}: {}", sender_id, e);
+                            }
+                        }
+                    } else {
+                        log::info!("[Disconnect] Player {:?} is dead, no offline corpse needed.", sender_id);
+                    }
+                    
                     players.identity().update(player);
                     log::info!("[Disconnect] Set player {:?} to offline.", sender_id);
                  }
@@ -954,6 +972,37 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         // --- MODIFIED: Only update timestamp on reconnect ---
         let update_timestamp = ctx.timestamp; // Capture timestamp for consistency
         existing_player.last_update = update_timestamp; // Always update player timestamp
+
+        // --- Handle Offline Corpse Restoration ---
+        if let Some(corpse_id) = existing_player.offline_corpse_id {
+            log::info!("[RegisterPlayer] Player {} has offline corpse ID {}. Checking if it still exists...", 
+                      existing_player.username, corpse_id);
+            
+            if ctx.db.player_corpse().id().find(corpse_id).is_some() {
+                // Corpse still exists - restore items to player
+                log::info!("[RegisterPlayer] Offline corpse {} found. Restoring items to player {}.", 
+                          corpse_id, existing_player.username);
+                
+                match player_corpse::restore_from_offline_corpse(ctx, sender_id, corpse_id) {
+                    Ok(_) => {
+                        log::info!("[RegisterPlayer] Successfully restored items from offline corpse {} to player {}.", 
+                                  corpse_id, existing_player.username);
+                    }
+                    Err(e) => {
+                        log::error!("[RegisterPlayer] Failed to restore items from offline corpse {}: {}", corpse_id, e);
+                    }
+                }
+                existing_player.offline_corpse_id = None;
+            } else {
+                // Corpse was destroyed - player died while offline
+                log::info!("[RegisterPlayer] Offline corpse {} was destroyed. Player {} died while offline.", 
+                          corpse_id, existing_player.username);
+                existing_player.is_dead = true;
+                existing_player.death_timestamp = Some(ctx.timestamp);
+                existing_player.offline_corpse_id = None;
+            }
+        }
+        // --- END Handle Offline Corpse Restoration ---
 
         players.identity().update(existing_player.clone()); // Perform the player update
 
@@ -1376,6 +1425,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         insanity: 0.0, // NEW: Start with no insanity
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
         shard_carry_start_time: None, // NEW: Not carrying shards initially
+        offline_corpse_id: None, // No offline corpse for new players
     };
 
     // Insert the new player
