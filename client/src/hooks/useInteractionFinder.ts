@@ -739,9 +739,12 @@ export function useInteractionFinder({
             // Find closest knocked out player (excluding local player)
             if (players) {
                 players.forEach((player) => {
-                    // Skip if it's the local player or player is not knocked out or is dead
+                    // Skip if it's the local player or player is not knocked out or is dead or offline
                     if (localPlayer && player.identity.isEqual(localPlayer.identity)) {
                         return; // Skip local player
+                    }
+                    if (!player.isOnline) {
+                        return; // Skip offline players - they're represented by corpses
                     }
                     if (!player.isKnockedOut || player.isDead) {
                         return; // Skip if not knocked out or is dead

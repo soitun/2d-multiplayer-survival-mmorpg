@@ -998,7 +998,8 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
 /// Restores items from an offline corpse back to the player's inventory.
 /// Called when a player reconnects and their offline corpse still exists.
 /// Deletes the corpse after restoration.
-pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, corpse_id: u32) -> Result<(), String> {
+/// Returns the corpse position (x, y) so the player can be moved back there.
+pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, corpse_id: u32) -> Result<(f32, f32), String> {
     let inventory_table = ctx.db.inventory_item();
     let player_corpse_table = ctx.db.player_corpse();
     let despawn_schedules = ctx.db.player_corpse_despawn_schedule();
@@ -1008,6 +1009,10 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     // 1. Find the corpse
     let corpse = player_corpse_table.id().find(corpse_id)
         .ok_or_else(|| format!("Offline corpse {} not found", corpse_id))?;
+
+    // Save corpse position to restore player position
+    let corpse_pos_x = corpse.pos_x;
+    let corpse_pos_y = corpse.pos_y;
 
     // 2. Collect all items from the corpse
     let mut items_restored = 0u32;
@@ -1056,5 +1061,5 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     log::info!("[OfflineCorpse] Deleted offline corpse {} after restoring items to player {}", 
                corpse_id, player_id);
 
-    Ok(())
+    Ok((corpse_pos_x, corpse_pos_y))
 }

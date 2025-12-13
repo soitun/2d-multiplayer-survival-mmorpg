@@ -109,7 +109,7 @@ pub fn calculate_slide_collision_with_grid(
             spatial_grid::EntityType::Player(other_identity) => {
                 if *other_identity == sender_id { continue; }
                 if let Some(other_player) = players.identity().find(other_identity) {
-                    if other_player.is_dead { continue; }
+                    if other_player.is_dead || !other_player.is_online { continue; } // Skip dead and offline players
                     let dx = final_x - other_player.position_x;
                     let dy = final_y - other_player.position_y;
                     let dist_sq = dx * dx + dy * dy;
@@ -929,7 +929,7 @@ pub fn resolve_push_out_collision_with_grid(
                     log::debug!("[PushOutEntityType] Found Player: {:?}", other_identity);
                     if *other_identity == sender_id { continue; }
                     if let Some(other_player) = players.identity().find(other_identity) {
-                         if other_player.is_dead { continue; }
+                         if other_player.is_dead || !other_player.is_online { continue; } // Skip dead and offline players
                          let dx = resolved_x - other_player.position_x;
                          let dy = resolved_y - other_player.position_y;
                          let dist_sq = dx * dx + dy * dy;

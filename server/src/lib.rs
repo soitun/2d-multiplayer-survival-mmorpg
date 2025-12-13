@@ -979,14 +979,17 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
                       existing_player.username, corpse_id);
             
             if ctx.db.player_corpse().id().find(corpse_id).is_some() {
-                // Corpse still exists - restore items to player
+                // Corpse still exists - restore items to player and move them back to corpse position
                 log::info!("[RegisterPlayer] Offline corpse {} found. Restoring items to player {}.", 
                           corpse_id, existing_player.username);
                 
                 match player_corpse::restore_from_offline_corpse(ctx, sender_id, corpse_id) {
-                    Ok(_) => {
-                        log::info!("[RegisterPlayer] Successfully restored items from offline corpse {} to player {}.", 
-                                  corpse_id, existing_player.username);
+                    Ok((corpse_x, corpse_y)) => {
+                        // Restore player position to where their corpse was
+                        existing_player.position_x = corpse_x;
+                        existing_player.position_y = corpse_y;
+                        log::info!("[RegisterPlayer] Successfully restored items from offline corpse {} to player {} at ({:.1}, {:.1}).", 
+                                  corpse_id, existing_player.username, corpse_x, corpse_y);
                     }
                     Err(e) => {
                         log::error!("[RegisterPlayer] Failed to restore items from offline corpse {}: {}", corpse_id, e);

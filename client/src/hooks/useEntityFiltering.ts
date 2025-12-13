@@ -955,7 +955,8 @@ export function useEntityFiltering(
 
   const visiblePlayers = useMemo(() => {
     if (!players) return [];
-    return Array.from(players.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp));
+    // Filter out offline players - they're represented by their corpse instead
+    return Array.from(players.values()).filter(e => e.isOnline && isEntityInView(e, viewBounds, stableTimestamp));
   }, [players, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleWoodenStorageBoxes = useMemo(() => 
