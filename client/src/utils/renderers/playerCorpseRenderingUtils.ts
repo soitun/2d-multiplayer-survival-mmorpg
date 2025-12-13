@@ -88,6 +88,7 @@ export function renderPlayerCorpse({
     isOnline: false,
     isTorchLit: false,
     isFlashlightOn: false,
+    isHeadlampLit: false, // Corpses don't have headlamps lit
     flashlightAimAngle: 0, // Corpses don't have flashlight aim
     lastRespawnTime: defaultTimestamp,
     lastConsumedAt: defaultTimestamp,
@@ -97,6 +98,9 @@ export function renderPlayerCorpse({
     isOnWater: isCorpseOnWater, // ADD: Water status for sprite selection
     clientMovementSequence: 0n, // ADD: Required field for client-side prediction
     isInsideBuilding: false, // Corpses are not inside buildings
+    insanity: 0, // Corpses have no insanity
+    lastInsanityThreshold: 0, // Corpses have no insanity threshold
+    shardCarryStartTime: undefined, // Corpses are not carrying shards
   };
 
   // Choose the appropriate hero sprite based on water status (corpses don't crouch)

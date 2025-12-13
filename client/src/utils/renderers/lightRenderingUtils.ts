@@ -886,3 +886,121 @@ export const renderFurnaceLight = ({
     // Restore context if we applied a clip
     if (restoreClip) restoreClip();
 };
+
+// ===== UNIFIED PLAYER LIGHTS RENDERING =====
+
+/**
+ * Helper interface for remote player interpolation
+ */
+interface RemotePlayerInterpolation {
+    updateAndGetSmoothedPosition: (player: SpacetimeDBPlayer, localPlayerId: string) => { x: number; y: number } | null;
+}
+
+/**
+ * Options for rendering all player lights in a single unified loop
+ */
+export interface RenderAllPlayerLightsOptions {
+    ctx: CanvasRenderingContext2D;
+    players: Map<string, SpacetimeDBPlayer>;
+    localPlayerId: string | undefined;
+    currentPredictedPosition: { x: number; y: number } | null;
+    remotePlayerInterpolation: RemotePlayerInterpolation | null;
+    activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
+    itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    buildingClusters: Map<string, BuildingCluster>;
+    // Mouse position for local player's flashlight aiming
+    currentWorldMouseX: number | null;
+    currentWorldMouseY: number | null;
+}
+
+/**
+ * Renders all player lights (torch, flashlight, headlamp) in a single unified loop.
+ * This is more efficient than three separate loops over all players.
+ * 
+ * Each player can have multiple light sources active simultaneously.
+ */
+export function renderAllPlayerLights(options: RenderAllPlayerLightsOptions): void {
+    const {
+        ctx,
+        players,
+        localPlayerId,
+        currentPredictedPosition,
+        remotePlayerInterpolation,
+        activeEquipments,
+        itemDefinitions,
+        cameraOffsetX,
+        cameraOffsetY,
+        buildingClusters,
+        currentWorldMouseX,
+        currentWorldMouseY,
+    } = options;
+
+    players.forEach(player => {
+        const playerId = player.identity?.toHexString();
+        if (!playerId) return;
+
+        // Calculate render position once for all light types
+        let renderPositionX = player.positionX;
+        let renderPositionY = player.positionY;
+        const isLocalPlayer = playerId === localPlayerId;
+
+        if (isLocalPlayer && currentPredictedPosition) {
+            // For local player, use predicted position
+            renderPositionX = currentPredictedPosition.x;
+            renderPositionY = currentPredictedPosition.y;
+        } else if (!isLocalPlayer && remotePlayerInterpolation && localPlayerId) {
+            // For remote players, use interpolated position
+            const interpolatedPos = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+            if (interpolatedPos) {
+                renderPositionX = interpolatedPos.x;
+                renderPositionY = interpolatedPos.y;
+            }
+        }
+
+        // Render torch light if player has torch lit
+        renderPlayerTorchLight({
+            ctx,
+            player,
+            activeEquipments,
+            itemDefinitions,
+            cameraOffsetX,
+            cameraOffsetY,
+            renderPositionX,
+            renderPositionY,
+            buildingClusters,
+        });
+
+        // Render flashlight light if player has flashlight on
+        if (player.isFlashlightOn) {
+            renderPlayerFlashlightLight({
+                ctx,
+                player,
+                activeEquipments,
+                itemDefinitions,
+                cameraOffsetX,
+                cameraOffsetY,
+                renderPositionX,
+                renderPositionY,
+                buildingClusters,
+                // Pass mouse position for local player's smooth 360° aiming
+                targetWorldX: isLocalPlayer ? currentWorldMouseX : null,
+                targetWorldY: isLocalPlayer ? currentWorldMouseY : null,
+            });
+        }
+
+        // Render headlamp light if player has headlamp lit
+        if (player.isHeadlampLit) {
+            renderPlayerHeadlampLight({
+                ctx,
+                player,
+                cameraOffsetX,
+                cameraOffsetY,
+                renderPositionX,
+                renderPositionY,
+                buildingClusters,
+            });
+        }
+    });
+}

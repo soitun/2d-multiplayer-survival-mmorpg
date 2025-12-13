@@ -236,9 +236,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         // Check if Reed Bellows is present in the campfire
         const currentCampfire = container.containerEntity as SpacetimeDBCampfire;
         const hasReedBellows = currentCampfire && [
-            currentCampfire.fuelDefId0, currentCampfire.fuelDefId1, 
-            currentCampfire.fuelDefId2, currentCampfire.fuelDefId3, 
-            currentCampfire.fuelDefId4
+            currentCampfire.slotDefId0, currentCampfire.slotDefId1, 
+            currentCampfire.slotDefId2, currentCampfire.slotDefId3, 
+            currentCampfire.slotDefId4
         ].some(defId => {
             if (defId) {
                 const itemDef = itemDefinitions.get(defId.toString());
@@ -302,9 +302,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         // Check if Reed Bellows is present in the furnace
         const currentFurnace = container.containerEntity as SpacetimeDBFurnace;
         const hasReedBellows = currentFurnace && [
-            currentFurnace.fuelDefId0, currentFurnace.fuelDefId1, 
-            currentFurnace.fuelDefId2, currentFurnace.fuelDefId3, 
-            currentFurnace.fuelDefId4
+            currentFurnace.slotDefId0, currentFurnace.slotDefId1, 
+            currentFurnace.slotDefId2, currentFurnace.slotDefId3, 
+            currentFurnace.slotDefId4
         ].some(defId => {
             if (defId) {
                 const itemDef = itemDefinitions.get(defId.toString());

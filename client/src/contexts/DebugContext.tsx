@@ -11,6 +11,8 @@ interface DebugContextType {
     toggleInteriorDebug: () => void;
     showCollisionDebug: boolean;
     toggleCollisionDebug: () => void;
+    showAttackRangeDebug: boolean;
+    toggleAttackRangeDebug: () => void;
 }
 
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
@@ -33,6 +35,7 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
     const [showChunkBoundaries, setShowChunkBoundaries] = useState(false);
     const [showInteriorDebug, setShowInteriorDebug] = useState(false);
     const [showCollisionDebug, setShowCollisionDebug] = useState(false);
+    const [showAttackRangeDebug, setShowAttackRangeDebug] = useState(false);
 
     const toggleAutotileDebug = () => {
         setShowAutotileDebug(prev => !prev);
@@ -59,6 +62,11 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         console.log('[DebugContext] Collision debug overlay:', !showCollisionDebug ? 'enabled' : 'disabled');
     };
 
+    const toggleAttackRangeDebug = () => {
+        setShowAttackRangeDebug(prev => !prev);
+        console.log('[DebugContext] Attack range debug overlay:', !showAttackRangeDebug ? 'enabled' : 'disabled');
+    };
+
     const value = {
         showAutotileDebug,
         toggleAutotileDebug,
@@ -70,6 +78,8 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         toggleInteriorDebug,
         showCollisionDebug,
         toggleCollisionDebug,
+        showAttackRangeDebug,
+        toggleAttackRangeDebug,
     };
 
     return (

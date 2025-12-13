@@ -338,7 +338,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     }, []);
 
     // Debug context
-    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug } = useDebug();
+    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug } = useDebug();
 
 
 
@@ -875,6 +875,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showChunkBoundaries={showChunkBoundaries}
                 showInteriorDebug={showInteriorDebug}
                 showCollisionDebug={showCollisionDebug}
+                showAttackRangeDebug={showAttackRangeDebug}
                 minimapCache={minimapCache}
                 isGameMenuOpen={currentMenu !== null}
                 onAutoActionStatesChange={handleAutoActionStatesChange}
