@@ -803,13 +803,13 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     // Default values for attack - BALANCED MELEE: Wide semicircle for fluid yet skillful combat
     // Changed from narrow 90-degree cone to 180-degree semicircle
     // This makes fast-paced melee combat feel responsive while maintaining positioning skill
-    let mut actual_attack_range = PLAYER_RADIUS * 7.0; // 224px (was 128px) - increased for better reach
+    let mut actual_attack_range = PLAYER_RADIUS * 4.5; // ~144px (reduced from 224px) - tighter melee range
     let mut actual_attack_angle_degrees = 180.0;        // Wide semicircle (was 90 degrees) - forgiving but requires facing
 
     // Check if the item is a spear and adjust its properties
     if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" {
         // Spears have even longer range and keep the 180-degree semicircle
-        actual_attack_range = PLAYER_RADIUS * 9.0; // 288px - spears excel at reach
+        actual_attack_range = PLAYER_RADIUS * 6.0; // ~192px (reduced from 288px) - spears excel at reach
         actual_attack_angle_degrees = 180.0;        // Wide semicircle for thrust attacks
         log::debug!("{} detected: Using custom range {:.1}, angle {:.1}", item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
