@@ -78,7 +78,7 @@ pub const TAMING_PROTECT_RADIUS: f32 = 300.0; // How far tamed animals will go t
 pub const TAMING_PROTECT_RADIUS_SQUARED: f32 = TAMING_PROTECT_RADIUS * TAMING_PROTECT_RADIUS;
 
 // --- Constants ---
-pub const AI_TICK_INTERVAL_MS: u64 = 500; // AI processes 2 times per second (reduced from 8fps for performance)
+pub const AI_TICK_INTERVAL_MS: u64 = 125; // AI processes 8 times per second
 pub const MAX_ANIMALS_PER_CHUNK: u32 = 3;
 pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 
@@ -835,7 +835,7 @@ fn execute_animal_movement(
     current_time: Timestamp,
     rng: &mut impl Rng,
 ) -> Result<(), String> {
-    let dt = 0.5; // Updated to match new AI tick interval (2fps for performance)
+    let dt = 0.125; // Matches AI tick interval (8fps)
     
     let mut is_sprinting = false;
     
