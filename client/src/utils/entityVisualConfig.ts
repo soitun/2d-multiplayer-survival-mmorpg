@@ -85,6 +85,26 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 64,
   },
   
+  compost: {
+    centerOffsetX: 0,
+    centerOffsetY: -84,   // Sprite renders at posY - 148, center at posY - 84
+    width: 80,            // Interaction box width (wider than regular box)
+    height: 80,           // Interaction box height
+    placementYOffset: -32, // Compensate for 128px sprite vs 64px normal box (server adds +52, but larger sprite)
+    spriteWidth: 128,
+    spriteHeight: 128,
+  },
+  
+  refrigerator: {
+    centerOffsetX: 0,
+    centerOffsetY: -68,   // Sprite renders at posY - 116, center at posY - 68 (96x96 squared)
+    width: 80,            // Interaction box width
+    height: 80,           // Interaction box height
+    placementYOffset: -16, // Server adds +52, sprite is 96px (larger than 64px normal box)
+    spriteWidth: 96,
+    spriteHeight: 96,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

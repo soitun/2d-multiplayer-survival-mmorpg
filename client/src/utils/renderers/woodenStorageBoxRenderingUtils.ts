@@ -13,7 +13,7 @@ export const BOX_WIDTH = 64;
 export const BOX_HEIGHT = 64;
 export const LARGE_BOX_WIDTH = 96;  // Larger dimensions for large box
 export const LARGE_BOX_HEIGHT = 96;
-export const REFRIGERATOR_WIDTH = 64;  // Refrigerator dimensions
+export const REFRIGERATOR_WIDTH = 96;  // Refrigerator dimensions (squared)
 export const REFRIGERATOR_HEIGHT = 96;
 export const COMPOST_WIDTH = 128;  // Compost box dimensions (larger than normal box)
 export const COMPOST_HEIGHT = 128;
@@ -76,14 +76,7 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        // Compost uses centered positioning (image content is centered in square)
-        if (entity.boxType === BOX_TYPE_COMPOST) {
-            return {
-                drawX: entity.posX - drawWidth / 2,
-                drawY: entity.posY - drawHeight / 2,
-            };
-        }
-        // Other box types use bottom-anchored positioning
+        // All box types use bottom-anchored positioning (consistent with server BOX_COLLISION_Y_OFFSET)
         return {
             drawX: entity.posX - drawWidth / 2,
             drawY: entity.posY - drawHeight - 20,

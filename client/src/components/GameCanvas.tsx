@@ -3108,7 +3108,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Interaction indicators - Draw only for visible entities that are interactable
     // Uses centralized ENTITY_VISUAL_CONFIG to position indicator at center of blue box
-    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean) => {
+    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean, boxType?: number) => {
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
       // or if the entity is not in view, do nothing.
       if (!isInView || !holdInteractionProgress) {
@@ -3136,8 +3136,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const interactionDuration = entityType === 'knocked_out_player' ? REVIVE_HOLD_DURATION_MS : HOLD_INTERACTION_DURATION_MS;
           const currentProgress = Math.min(Math.max((Date.now() - holdInteractionProgress.startTime) / interactionDuration, 0), 1);
           
-          // Map entity type to config key
-          const configKey = entityType === 'box' ? 'wooden_storage_box' : entityType;
+          // Map entity type to config key - use appropriate config for each box type
+          let configKey: string;
+          if (entityType === 'box') {
+            if (boxType === 3) {
+              configKey = 'compost';
+            } else if (boxType === 2) {
+              configKey = 'refrigerator';
+            } else {
+              configKey = 'wooden_storage_box';
+            }
+          } else {
+            configKey = entityType;
+          }
           const config = ENTITY_VISUAL_CONFIG[configKey];
           
           // Use centralized config for indicator position (center of blue box)
@@ -3187,7 +3198,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleBoxesMap.forEach((box: SpacetimeDBWoodenStorageBox) => {
       // For boxes, the indicator is only relevant if a hold action is in progress (e.g., picking up an empty box)
       if (holdInteractionProgress && holdInteractionProgress.targetId === box.id && holdInteractionProgress.targetType === 'box') {
-        drawIndicatorIfNeeded('box', box.id, box.posX, box.posY, BOX_HEIGHT, true);
+        drawIndicatorIfNeeded('box', box.id, box.posX, box.posY, BOX_HEIGHT, true, box.boxType);
       }
     });
 

@@ -41,7 +41,7 @@ import { renderTree } from './treeRenderingUtils';
 import { renderStone } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -1007,7 +1007,15 @@ export const renderYSortedEntities = ({
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              const config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
+              // Use appropriate config for each box type
+              let config;
+              if (box.boxType === BOX_TYPE_COMPOST) {
+                  config = ENTITY_VISUAL_CONFIG.compost;
+              } else if (box.boxType === BOX_TYPE_REFRIGERATOR) {
+                  config = ENTITY_VISUAL_CONFIG.refrigerator;
+              } else {
+                  config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
+              }
               const outline = getInteractionOutlineParams(box.posX, box.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }

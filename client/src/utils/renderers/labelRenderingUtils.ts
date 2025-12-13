@@ -346,7 +346,15 @@ export function renderInteractionLabels({
         case 'box': {
             const box = woodenStorageBoxes.get(closestInteractableTarget.id.toString());
             if (box) {
-                const config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
+                // Use appropriate config for each box type
+                let config;
+                if (box.boxType === 3) {
+                    config = ENTITY_VISUAL_CONFIG.compost;
+                } else if (box.boxType === 2) {
+                    config = ENTITY_VISUAL_CONFIG.refrigerator;
+                } else {
+                    config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
+                }
                 const labelPos = getLabelPosition(box.posX, box.posY, config);
                 // Show different label text for backpacks
                 const labelText = box.boxType === 4 ? 'E - Open Backpack' : text;

@@ -1203,8 +1203,8 @@ export function renderPlacementPreview({
         drawWidth = CAMPFIRE_WIDTH_PREVIEW; 
         drawHeight = CAMPFIRE_HEIGHT_PREVIEW;
     } else if (placementInfo.iconAssetName === 'refrigerator.png') {
-        // Refrigerator preview dimensions (matches actual rendering)
-        drawWidth = REFRIGERATOR_WIDTH; // 64px
+        // Refrigerator preview dimensions (matches actual rendering - 96x96 squared)
+        drawWidth = REFRIGERATOR_WIDTH; // 96px
         drawHeight = REFRIGERATOR_HEIGHT; // 96px
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // Large wooden box preview dimensions (matches actual rendering)
@@ -1469,6 +1469,24 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'barbecue.png') {
         // Use centralized visual config for barbecue
         const config = ENTITY_VISUAL_CONFIG.barbecue;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.itemName === 'Compost' || placementInfo.iconAssetName === 'compost.png') {
+        // Use centralized visual config for compost
+        const config = ENTITY_VISUAL_CONFIG.compost;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'refrigerator.png') {
+        // Use centralized visual config for refrigerator
+        const config = ENTITY_VISUAL_CONFIG.refrigerator;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;
