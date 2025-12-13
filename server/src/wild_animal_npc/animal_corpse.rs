@@ -289,7 +289,7 @@ pub fn get_harvest_loot(
             AnimalSpecies::TundraWolf => if tool_name == "AK74 Bayonet" { 0.045 } else { 0.03 }, // 4.5%/3% chance for wolf pelt
             AnimalSpecies::CableViper => 0.0,  // No rare trophy for viper
             AnimalSpecies::ArcticWalrus => if tool_name == "AK74 Bayonet" { 0.015 } else { 0.01 }, // 1.5%/1% chance for walrus pelt (ultra rare)
-            AnimalSpecies::BeachCrab => if tool_name == "AK74 Bayonet" { 0.08 } else { 0.05 }, // 8%/5% chance for crab drops (more common)
+            AnimalSpecies::BeachCrab => 0.0, // Crabs don't drop crab items (carapace/claw)
             AnimalSpecies::Tern => 0.0, // No rare trophy for terns
             AnimalSpecies::Crow => 0.0, // No rare trophy for crows
         };
@@ -300,7 +300,7 @@ pub fn get_harvest_loot(
                 AnimalSpecies::TundraWolf => "Wolf Pelt", // Rare placeable trophy
                 AnimalSpecies::CableViper => unreachable!(), // Already checked above
                 AnimalSpecies::ArcticWalrus => "Walrus Pelt", // Rare placeable trophy
-                AnimalSpecies::BeachCrab => if rng.gen_bool(0.5) { "Crab Carapace" } else { "Crab Claw" }, // 50/50 between carapace and claw
+                AnimalSpecies::BeachCrab => unreachable!(), // Already checked above
                 AnimalSpecies::Tern => unreachable!(), // Already checked above
                 AnimalSpecies::Crow => unreachable!(), // Already checked above
             };

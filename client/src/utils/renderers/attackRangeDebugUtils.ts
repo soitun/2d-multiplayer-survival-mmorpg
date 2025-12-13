@@ -3,19 +3,20 @@
  * 
  * Renders debug visualization for server-side attack range detection.
  * Shows:
- * - Attack range semicircles (default 224px, spear 288px)
+ * - Attack range semicircles (default 144px, spear 192px)
  * - Dashed lines from player to attackable entities
  * - Distance labels showing exact pixel distances
  * - Color-coded indicators (green = in range, yellow = spear range, red = out of range)
  */
 
 import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal } from '../../generated';
+import { PLAYER_RADIUS } from '../clientCollision';
 
 // ===== CONSTANTS =====
 // Server-side attack range constants (from server/src/active_equipment.rs)
-const SERVER_PLAYER_RADIUS = 32;
-export const DEFAULT_ATTACK_RANGE = SERVER_PLAYER_RADIUS * 7; // 224px
-export const SPEAR_ATTACK_RANGE = SERVER_PLAYER_RADIUS * 9;   // 288px
+// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 6.0 for spear
+export const DEFAULT_ATTACK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
+export const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 6.0;   // ~192px
 export const ATTACK_ANGLE_DEGREES = 180; // 180-degree semicircle
 
 // Server-side collision offsets (from server/src/wooden_storage_box.rs, combat.rs)
@@ -88,7 +89,7 @@ function drawAttackRangeSemicircles(
 ): void {
   const halfAngle = (ATTACK_ANGLE_DEGREES / 2) * (Math.PI / 180);
 
-  // Draw default attack range semicircle (224px) - filled
+  // Draw default attack range semicircle (144px) - filled
   ctx.beginPath();
   ctx.moveTo(playerX, playerY);
   ctx.arc(playerX, playerY, DEFAULT_ATTACK_RANGE, facingAngle - halfAngle, facingAngle + halfAngle);
@@ -99,7 +100,7 @@ function drawAttackRangeSemicircles(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Draw spear attack range semicircle (288px) - dashed line
+  // Draw spear attack range semicircle (192px) - dashed line
   ctx.beginPath();
   ctx.setLineDash([8, 8]);
   ctx.arc(playerX, playerY, SPEAR_ATTACK_RANGE, facingAngle - halfAngle, facingAngle + halfAngle);
@@ -111,11 +112,11 @@ function drawAttackRangeSemicircles(
   // Draw range labels at the edge of each range
   const labelDefaultX = playerX + Math.cos(facingAngle) * DEFAULT_ATTACK_RANGE;
   const labelDefaultY = playerY + Math.sin(facingAngle) * DEFAULT_ATTACK_RANGE;
-  drawRangeLabel(ctx, '224px (default)', labelDefaultX, labelDefaultY - 15, '#ff4500');
+  drawRangeLabel(ctx, `${DEFAULT_ATTACK_RANGE}px (default)`, labelDefaultX, labelDefaultY - 15, '#ff4500');
 
   const labelSpearX = playerX + Math.cos(facingAngle) * SPEAR_ATTACK_RANGE;
   const labelSpearY = playerY + Math.sin(facingAngle) * SPEAR_ATTACK_RANGE;
-  drawRangeLabel(ctx, '288px (spear)', labelSpearX, labelSpearY - 15, '#ff8c00');
+  drawRangeLabel(ctx, `${SPEAR_ATTACK_RANGE}px (spear)`, labelSpearX, labelSpearY - 15, '#ff8c00');
 }
 
 /**
