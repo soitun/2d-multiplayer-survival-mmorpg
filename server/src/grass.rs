@@ -123,6 +123,7 @@ pub struct Grass {
     pub id: u64,
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub health: u32,
     pub appearance_type: GrassAppearanceType, // For different sprites/sway
     #[index(btree)]

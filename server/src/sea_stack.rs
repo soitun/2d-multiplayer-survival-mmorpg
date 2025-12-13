@@ -18,6 +18,7 @@ pub struct SeaStack {
     pub pos_y: f32,
     
     // Chunk-based spatial indexing for efficient queries
+    #[index(btree)]
     pub chunk_index: u32,
     
     // Visual properties

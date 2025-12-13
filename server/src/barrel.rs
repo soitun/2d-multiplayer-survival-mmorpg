@@ -83,6 +83,7 @@ pub struct Barrel {
     pub pos_y: f32,
     pub health: f32,
     pub variant: u8, // 0, 1, 2 for road barrels; 3, 4, 5 for sea flotsam/cargo crates (can spawn around sea stacks or on beaches)
+    #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
     pub respawn_at: Option<Timestamp>, // When this barrel should respawn (if destroyed)

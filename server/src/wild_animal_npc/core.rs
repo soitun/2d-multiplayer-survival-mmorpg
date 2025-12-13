@@ -39,8 +39,10 @@ use crate::shelter::shelter as ShelterTableTrait;
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
+use crate::campfire::Campfire; // ADDED: Concrete type for pre-fetching
 use crate::dropped_item::dropped_item as DroppedItemTableTrait; // Add dropped item table trait
 use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For foundation fear
+use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -76,7 +78,7 @@ pub const TAMING_PROTECT_RADIUS: f32 = 300.0; // How far tamed animals will go t
 pub const TAMING_PROTECT_RADIUS_SQUARED: f32 = TAMING_PROTECT_RADIUS * TAMING_PROTECT_RADIUS;
 
 // --- Constants ---
-pub const AI_TICK_INTERVAL_MS: u64 = 125; // AI processes 8 times per second (improved from 4fps)
+pub const AI_TICK_INTERVAL_MS: u64 = 500; // AI processes 2 times per second (reduced from 8fps for performance)
 pub const MAX_ANIMALS_PER_CHUNK: u32 = 3;
 pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 
@@ -99,6 +101,32 @@ pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 //     last_pos_x: f32, // Track last position to calculate movement distance
 //     last_pos_y: f32,
 // }
+
+// --- Pre-fetched AI Data (PERFORMANCE OPTIMIZATION) ---
+// This struct holds all data pre-fetched once per AI tick to avoid repeated table scans
+pub struct PreFetchedAIData {
+    pub all_players: Vec<Player>,
+    pub burning_campfires: Vec<Campfire>,
+    pub active_foundations: Vec<FoundationCell>,
+}
+
+impl PreFetchedAIData {
+    /// Pre-fetch all data needed for animal AI processing
+    /// Called ONCE at the start of each AI tick, not per-animal
+    pub fn fetch(ctx: &ReducerContext) -> Self {
+        Self {
+            all_players: ctx.db.player().iter()
+                .filter(|p| !p.is_dead)
+                .collect(),
+            burning_campfires: ctx.db.campfire().iter()
+                .filter(|c| c.is_burning && !c.is_destroyed)
+                .collect(),
+            active_foundations: ctx.db.foundation_cell().iter()
+                .filter(|f| !f.is_destroyed)
+                .collect(),
+        }
+    }
+}
 
 // --- Animal Types and Behaviors ---
 
@@ -182,6 +210,7 @@ pub struct WildAnimal {
     pub patrol_phase: f32, // For movement patterns (0.0 to 1.0)
     pub scent_ping_timer: u64, // For wolves' scent ability
     pub movement_pattern: MovementPattern,
+    #[index(btree)]
     pub chunk_index: u32, // For spatial optimization
     pub created_at: Timestamp,
     pub last_hit_time: Option<Timestamp>, // For damage visual effects
@@ -553,6 +582,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
         (current_time.to_micros_since_unix_epoch() as u64).wrapping_add(42)
     );
 
+    // PERFORMANCE OPTIMIZATION: Pre-fetch all data ONCE per AI tick
+    // This eliminates thousands of redundant table scans per tick
+    let prefetched = PreFetchedAIData::fetch(ctx);
+
     // Build spatial grid for efficient collision detection
     let mut spatial_grid = SpatialGrid::new();
     spatial_grid.populate_from_world(&ctx.db, current_time);
@@ -572,8 +605,8 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             let behavior = animal.species.get_behavior();
             let stats = behavior.get_stats();
             
-            // Find nearby players for perception checks
-            let nearby_players = find_nearby_players(ctx, &animal, &stats);
+            // Find nearby players for perception checks (uses pre-fetched data)
+            let nearby_players = find_nearby_players_prefetched(&prefetched.all_players, &animal, &stats);
             
             // Update AI state based on current conditions
             update_animal_ai_state(ctx, &mut animal, &behavior, &stats, &nearby_players, current_time, &mut rng)?;
@@ -802,7 +835,7 @@ fn execute_animal_movement(
     current_time: Timestamp,
     rng: &mut impl Rng,
 ) -> Result<(), String> {
-    let dt = 0.125; // Updated to match new AI tick interval (8fps instead of 4fps)
+    let dt = 0.5; // Updated to match new AI tick interval (2fps for performance)
     
     let mut is_sprinting = false;
     
@@ -1069,6 +1102,18 @@ fn find_nearby_players(ctx: &ReducerContext, animal: &WildAnimal, stats: &Animal
             get_distance_squared(animal.pos_x, animal.pos_y, player.position_x, player.position_y) 
                 <= (stats.perception_range * 1.5).powi(2)
         })
+        .collect()
+}
+
+/// PERFORMANCE OPTIMIZATION: Uses pre-fetched player data instead of querying database
+fn find_nearby_players_prefetched(all_players: &[Player], animal: &WildAnimal, stats: &AnimalStats) -> Vec<Player> {
+    all_players
+        .iter()
+        .filter(|player| {
+            get_distance_squared(animal.pos_x, animal.pos_y, player.position_x, player.position_y) 
+                <= (stats.perception_range * 1.5).powi(2)
+        })
+        .cloned()
         .collect()
 }
 

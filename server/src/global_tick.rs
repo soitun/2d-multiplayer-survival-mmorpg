@@ -10,7 +10,7 @@ use crate::environment;
 // Import table trait
 use crate::global_tick::GlobalTickSchedule as GlobalTickScheduleTableTrait;
 
-pub(crate) const GLOBAL_TICK_INTERVAL_SECS: u64 = 1; // Check global state every second
+pub(crate) const GLOBAL_TICK_INTERVAL_SECS: u64 = 5; // Check global state every 5 seconds (reduced from 1s for performance)
 
 // --- Global Tick Schedule Table (Reverted to scheduled pattern) ---
 #[spacetimedb::table(name = global_tick_schedule, scheduled(process_global_tick))]
