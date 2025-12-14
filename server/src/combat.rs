@@ -254,7 +254,8 @@ pub fn find_targets_in_cone(
     
     // Check other players
     for other_player in ctx.db.player().iter() {
-        if other_player.identity == player.identity || other_player.is_dead {
+        // Skip self, dead players, and OFFLINE players (offline players have a corpse instead)
+        if other_player.identity == player.identity || other_player.is_dead || !other_player.is_online {
             continue;
         }
         
@@ -1548,6 +1549,13 @@ pub fn damage_player(
         log::debug!("Target player {:?} is already dead. No damage applied.", target_id);
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
     }
+
+    // <<< OFFLINE PLAYER CHECK - Offline players cannot take damage (their corpse can) >>>
+    if !target_player.is_online {
+        log::debug!("Target player {:?} is offline. No damage applied (attack their corpse instead).", target_id);
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
+    }
+    // <<< END OFFLINE PLAYER CHECK >>>
 
     // <<< SAFE ZONE CHECK - Players in safe zones are immune to player weapon damage >>>
     if crate::active_effects::player_has_safe_zone_effect(ctx, target_id) {
