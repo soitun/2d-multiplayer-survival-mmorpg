@@ -1004,7 +1004,7 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     let player_corpse_table = ctx.db.player_corpse();
     let despawn_schedules = ctx.db.player_corpse_despawn_schedule();
 
-    log::info!("[OfflineCorpse] Restoring items from corpse {} to player {}", corpse_id, player_id);
+    log::info!("[OfflineCorpse] Starting restoration from corpse {} to player {}", corpse_id, player_id);
 
     // 1. Find the corpse
     let corpse = player_corpse_table.id().find(corpse_id)
@@ -1013,53 +1013,119 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     // Save corpse position to restore player position
     let corpse_pos_x = corpse.pos_x;
     let corpse_pos_y = corpse.pos_y;
+    
+    log::info!("[OfflineCorpse] Found corpse {} at position ({:.1}, {:.1})", 
+               corpse_id, corpse_pos_x, corpse_pos_y);
 
-    // 2. Collect all items from the corpse
+    // 2. First, find which inventory/hotbar slots are already occupied by the player
+    // This handles edge cases where items might still be in player's inventory
+    let mut occupied_inventory_slots: std::collections::HashSet<u16> = std::collections::HashSet::new();
+    let mut occupied_hotbar_slots: std::collections::HashSet<u8> = std::collections::HashSet::new();
+    
+    for item in inventory_table.iter() {
+        match &item.location {
+            ItemLocation::Inventory(data) if data.owner_id == player_id => {
+                occupied_inventory_slots.insert(data.slot_index);
+            }
+            ItemLocation::Hotbar(data) if data.owner_id == player_id => {
+                occupied_hotbar_slots.insert(data.slot_index);
+            }
+            _ => {}
+        }
+    }
+    
+    log::debug!("[OfflineCorpse] Player {} has {} occupied inventory slots and {} occupied hotbar slots",
+               player_id, occupied_inventory_slots.len(), occupied_hotbar_slots.len());
+
+    // 3. Collect all items from the corpse and prepare to restore them
     let mut items_restored = 0u32;
-    let mut inventory_slot: u16 = 0;
-    let mut hotbar_slot: u8 = 0;
+    let mut items_not_found = 0u32;
+    
+    // Find the first available inventory slot
+    let find_next_inventory_slot = |occupied: &std::collections::HashSet<u16>, start: u16| -> Option<u16> {
+        for slot in start..NUM_PLAYER_INVENTORY_SLOTS as u16 {
+            if !occupied.contains(&slot) {
+                return Some(slot);
+            }
+        }
+        None
+    };
+    
+    // Find the first available hotbar slot
+    let find_next_hotbar_slot = |occupied: &std::collections::HashSet<u8>, start: u8| -> Option<u8> {
+        for slot in start..NUM_PLAYER_HOTBAR_SLOTS as u8 {
+            if !occupied.contains(&slot) {
+                return Some(slot);
+            }
+        }
+        None
+    };
+    
+    let mut next_inventory_slot: u16 = 0;
+    let mut next_hotbar_slot: u8 = 0;
 
     for slot_idx in 0..corpse.num_slots() as u8 {
         if let Some(item_instance_id) = corpse.get_slot_instance_id(slot_idx) {
             if let Some(mut item) = inventory_table.instance_id().find(item_instance_id) {
                 // Try to place in inventory first, then hotbar
-                if inventory_slot < NUM_PLAYER_INVENTORY_SLOTS as u16 {
+                if let Some(inv_slot) = find_next_inventory_slot(&occupied_inventory_slots, next_inventory_slot) {
                     item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
                         owner_id: player_id,
-                        slot_index: inventory_slot,
+                        slot_index: inv_slot,
                     });
-                    inventory_slot += 1;
-                } else if hotbar_slot < NUM_PLAYER_HOTBAR_SLOTS as u8 {
+                    occupied_inventory_slots.insert(inv_slot);
+                    next_inventory_slot = inv_slot + 1;
+                    log::debug!("[OfflineCorpse] Restored item {} (def {}) to inventory slot {}", 
+                               item_instance_id, item.item_def_id, inv_slot);
+                } else if let Some(hotbar_slot) = find_next_hotbar_slot(&occupied_hotbar_slots, next_hotbar_slot) {
                     item.location = ItemLocation::Hotbar(crate::models::HotbarLocationData {
                         owner_id: player_id,
                         slot_index: hotbar_slot,
                     });
-                    hotbar_slot += 1;
+                    occupied_hotbar_slots.insert(hotbar_slot);
+                    next_hotbar_slot = hotbar_slot + 1;
+                    log::debug!("[OfflineCorpse] Restored item {} (def {}) to hotbar slot {}", 
+                               item_instance_id, item.item_def_id, hotbar_slot);
                 } else {
                     // No room - item stays in limbo (shouldn't happen with proper slot counts)
-                    log::warn!("[OfflineCorpse] No room for item {} when restoring from corpse {}", 
-                              item_instance_id, corpse_id);
+                    log::warn!("[OfflineCorpse] No room for item {} (def {}) when restoring from corpse {}. Marking as Unknown.", 
+                              item_instance_id, item.item_def_id, corpse_id);
                     item.location = ItemLocation::Unknown;
                 }
                 inventory_table.instance_id().update(item);
                 items_restored += 1;
+            } else {
+                log::warn!("[OfflineCorpse] Item {} in corpse slot {} not found in inventory table!", 
+                          item_instance_id, slot_idx);
+                items_not_found += 1;
             }
         }
     }
 
-    log::info!("[OfflineCorpse] Restored {} items from corpse {} to player {}", 
-               items_restored, corpse_id, player_id);
+    log::info!("[OfflineCorpse] Restored {} items from corpse {} to player {} ({} items not found)", 
+               items_restored, corpse_id, player_id, items_not_found);
 
-    // 3. Cancel any despawn schedule (shouldn't exist for offline corpses, but just in case)
+    // 4. Cancel any despawn schedule (shouldn't exist for offline corpses, but just in case)
     if despawn_schedules.corpse_id().find(corpse_id as u64).is_some() {
         despawn_schedules.corpse_id().delete(corpse_id as u64);
         log::debug!("[OfflineCorpse] Cancelled despawn schedule for corpse {}", corpse_id);
     }
 
-    // 4. Delete the corpse
-    player_corpse_table.id().delete(corpse_id);
-    log::info!("[OfflineCorpse] Deleted offline corpse {} after restoring items to player {}", 
-               corpse_id, player_id);
+    // 5. Delete the corpse - use the correct delete method
+    let deleted = player_corpse_table.id().delete(corpse_id);
+    if deleted {
+        log::info!("[OfflineCorpse] Successfully deleted offline corpse {} after restoring items to player {}", 
+                   corpse_id, player_id);
+    } else {
+        log::error!("[OfflineCorpse] FAILED to delete offline corpse {} - corpse may still exist!", corpse_id);
+    }
+    
+    // 6. Verify corpse was actually deleted
+    if player_corpse_table.id().find(corpse_id).is_some() {
+        log::error!("[OfflineCorpse] CRITICAL: Corpse {} still exists after delete call! This is a bug.", corpse_id);
+        // Try deleting again as a fallback
+        player_corpse_table.id().delete(corpse_id);
+    }
 
     Ok((corpse_pos_x, corpse_pos_y))
 }

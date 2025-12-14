@@ -1,6 +1,12 @@
 import { gameConfig } from '../../config/gameConfig';
 import { WorldTile } from '../../generated/world_tile_type';
-import { shouldUseAutotiling, getAutotileSpriteCoords, getDebugTileInfo, AutotileConfig, AUTOTILE_CONFIGS } from '../autotileUtils';
+import { 
+    getDualGridTileInfoMultiLayer, 
+    getAllTransitionTilesets, 
+    TILE_SIZE as AUTOTILE_SIZE,
+    describeDualGridIndex,
+    DualGridTileInfo
+} from '../dualGridAutotile';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -59,14 +65,12 @@ export class ProceduralWorldRenderer {
             );
         });
 
-        // Load specific autotile transition images
-        // Use AUTOTILE_CONFIGS to get all transition paths dynamically
-        Object.entries(AUTOTILE_CONFIGS).forEach(([configKey, config]) => {
-            const transitionKey = `transition_${configKey}`;
-            // Use the tilesetPath from config (already includes /src/assets/tiles/ prefix)
-            promises.push(this.loadImage(config.tilesetPath, transitionKey).catch(() => {
+        // Load all transition tilesets from Dual Grid config
+        const transitionTilesets = getAllTransitionTilesets();
+        transitionTilesets.forEach((tilesetPath, transitionKey) => {
+            const cacheKey = `transition_${transitionKey}`;
+            promises.push(this.loadImage(tilesetPath, cacheKey).catch(() => {
                 // Silently ignore missing autotile files - they'll be added later
-                // This allows the build to succeed even when image files don't exist yet
             }));
         });
         
@@ -147,17 +151,32 @@ export class ProceduralWorldRenderer {
         const startTileY = Math.max(0, Math.floor(viewMinY / tileSize));
         const endTileY = Math.min(gameConfig.worldHeight, Math.ceil(viewMaxY / tileSize));
         
-        // Render tiles
-        let tilesRendered = 0;
+        // PASS 1: Render base textures at exact tile positions
         for (let y = startTileY; y < endTileY; y++) {
             for (let x = startTileX; x < endTileX; x++) {
-                this.renderTileAt(ctx, x, y, tileSize, showDebugOverlay);
-                tilesRendered++;
+                this.renderBaseTile(ctx, x, y, tileSize, showDebugOverlay);
+            }
+        }
+        
+        // PASS 2: Render Dual Grid transitions at half-tile offset positions
+        // Start one tile earlier to catch transitions that overlap visible area
+        const dualStartX = Math.max(0, startTileX - 1);
+        const dualStartY = Math.max(0, startTileY - 1);
+        const dualEndX = Math.min(gameConfig.worldWidth - 1, endTileX);
+        const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
+        
+        for (let y = dualStartY; y < dualEndY; y++) {
+            for (let x = dualStartX; x < dualEndX; x++) {
+                this.renderDualGridTransition(ctx, x, y, tileSize, showDebugOverlay);
             }
         }
     }
     
-    private renderTileAt(
+    /**
+     * Render the base texture for a tile at its exact position.
+     * This is the first pass - just the solid terrain texture.
+     */
+    private renderBaseTile(
         ctx: CanvasRenderingContext2D, 
         tileX: number, 
         tileY: number, 
@@ -167,10 +186,10 @@ export class ProceduralWorldRenderer {
         const tileKey = `${tileX}_${tileY}`;
         const tile = this.tileCache.tiles.get(tileKey);
         
-        // Calculate pixel-perfect positions - use exact pixel alignment
+        // Calculate pixel-perfect positions
         const pixelX = Math.floor(tileX * tileSize);
         const pixelY = Math.floor(tileY * tileSize);
-        const pixelSize = Math.floor(tileSize) + 1; // Add 1 pixel to eliminate gaps between tiles
+        const pixelSize = Math.floor(tileSize) + 1; // Add 1 pixel to eliminate gaps
         
         if (!tile) {
             // Fallback to grass if no tile data
@@ -178,222 +197,203 @@ export class ProceduralWorldRenderer {
             if (grassImg && grassImg.complete && grassImg.naturalHeight !== 0) {
                 ctx.drawImage(grassImg, pixelX, pixelY, pixelSize, pixelSize);
             } else {
-                // Ultimate fallback - solid color
                 ctx.fillStyle = '#8FBC8F';
                 ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
             }
-            
-            // Render tile type abbreviation for missing tiles in debug overlay
-            if (showDebugOverlay) {
-                ctx.fillStyle = 'white';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2;
-                ctx.font = 'bold 12px monospace';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const textX = pixelX + pixelSize / 2;
-                const textY = pixelY + pixelSize / 2;
-                ctx.strokeText('?', textX, textY);
-                ctx.fillText('?', textX, textY);
-            }
-            
-            // Disabled excessive logging - was running every frame
-            // if (!(window as any).missingTileCount) (window as any).missingTileCount = 0;
-            // (window as any).missingTileCount++;
-            // if ((window as any).missingTileCount % 50 === 0) {
-            //     console.log(`[TILES] ${(window as any).missingTileCount} missing tiles rendered as grass`);
-            // }
             return;
         }
         
-        // Check if this tile should use autotiling
-        // CRITICAL: Always use the tile's actual type from the tile object
         const tileTypeName = tile.tileType?.tag;
         if (!tileTypeName) {
-            // Can't determine type, render base texture
-            const image = this.getTileImage(tile);
-            if (image && image.complete && image.naturalHeight !== 0) {
-                ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
-            } else {
-                this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
-            }
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
             return;
         }
         
-        const autotileResult = shouldUseAutotiling(tileTypeName, this.tileCache.tiles, tileX, tileY);
+        // Render base texture
+        const image = this.tileCache.images.get(`${tileTypeName}_base`);
         
-        if (autotileResult) {
-            // Render autotile (even if image is missing, so debug overlay can show)
-            this.renderAutotile(ctx, tile, autotileResult, pixelX, pixelY, pixelSize, showDebugOverlay);
+        if (image && image.complete && image.naturalHeight !== 0) {
+            ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
         } else {
-            // Render regular tile
-            const image = this.getTileImage(tile);
+            // Fallback to solid color
+            this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
+        }
+        
+        // Debug overlay for base tiles
+        if (showDebugOverlay && tileTypeName) {
+            const tileTypeAbbr = this.getTileTypeAbbreviation(tileTypeName);
+            const textX = pixelX + pixelSize / 2;
+            const textY = pixelY + pixelSize / 2;
             
-            if (image && image.complete && image.naturalHeight !== 0) {
-                ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
-            } else {
-                // Fallback based on tile type - use solid colors
-                this.renderFallbackTile(ctx, tile, pixelX, pixelY, pixelSize);
-            }
+            ctx.font = 'bold 18px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             
-            // Render tile type abbreviation in debug overlay (only for regular tiles, not autotiles)
-            if (showDebugOverlay && tileTypeName) {
-                const tileTypeAbbr = this.getTileTypeAbbreviation(tileTypeName);
-                ctx.fillStyle = 'white';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2;
-                ctx.font = 'bold 12px monospace';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const textX = pixelX + pixelSize / 2;
-                const textY = pixelY + pixelSize / 2;
-                ctx.strokeText(tileTypeAbbr, textX, textY);
-                ctx.fillText(tileTypeAbbr, textX, textY);
-            }
+            // White outline for visibility
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.strokeText(tileTypeAbbr, textX, textY);
+            
+            // Black fill
+            ctx.fillStyle = 'black';
+            ctx.fillText(tileTypeAbbr, textX, textY);
         }
     }
     
-    private renderAutotile(
+    /**
+     * Render Dual Grid transition tile at half-tile offset position.
+     * This is the second pass - smooth transitions between terrain types.
+     * 
+     * In Dual Grid, the rendered tile at (x, y) straddles 4 logical tiles:
+     * - TL: (x, y)
+     * - TR: (x+1, y)
+     * - BL: (x, y+1)
+     * - BR: (x+1, y+1)
+     * 
+     * The rendered tile is drawn at pixel position (x + 0.5, y + 0.5) * tileSize
+     */
+    private renderDualGridTransition(
         ctx: CanvasRenderingContext2D,
-        tile: WorldTile,
-        autotileResult: { config: AutotileConfig; bitmask: number; isSecondaryInterior?: boolean },
-        pixelX: number,
-        pixelY: number,
-        pixelSize: number,
+        logicalX: number,
+        logicalY: number,
+        tileSize: number,
         showDebugOverlay: boolean = false
     ) {
-        const tileTypeName = tile.tileType.tag;
+        // Get ALL Dual Grid transition layers (handles 3+ terrain junctions)
+        const transitions = getDualGridTileInfoMultiLayer(logicalX, logicalY, this.tileCache.tiles);
         
-        // Find which specific transition this autotile config represents
-        let transitionKey = '';
-        for (const [key, config] of Object.entries(AUTOTILE_CONFIGS)) {
-            if (config.primaryType === autotileResult.config.primaryType && 
-                config.secondaryType === autotileResult.config.secondaryType &&
-                config.tilesetPath === autotileResult.config.tilesetPath) {
-                transitionKey = key;
-                break;
-            }
+        // If no transitions needed (all corners same terrain), skip
+        if (transitions.length === 0) {
+            return;
         }
         
-        // Get the specific transition autotile image (no fallback to wrong tileset)
-        const autotileImg = this.tileCache.images.get(`transition_${transitionKey}`);
+        // Calculate pixel position with half-tile offset
+        // The Dual Grid tile renders centered between 4 logical tiles
+        const pixelX = Math.floor((logicalX + 0.5) * tileSize);
+        const pixelY = Math.floor((logicalY + 0.5) * tileSize);
+        const pixelSize = Math.floor(tileSize) + 1;
         
-        // If autotile image is missing, don't render anything (no fallback to wrong tileset)
-        const isMissingTileset = !autotileImg || !autotileImg.complete || autotileImg.naturalHeight === 0;
-        
-        if (isMissingTileset) {
-            // Don't render anything - let the cyberpunk grid background show through
-            // (No fill, just skip rendering this tile)
+        // Render each transition layer from bottom to top
+        for (const tileInfo of transitions) {
+            // Get the tileset image for this transition
+            const transitionKey = `${tileInfo.primaryTerrain}_${tileInfo.secondaryTerrain}`;
+            let tilesetImg = this.tileCache.images.get(`transition_${transitionKey}`);
             
-            // Render debug overlay for missing tilesets (same format as existing debug overlay)
-            if (showDebugOverlay) {
-                const debugInfo = getDebugTileInfo(autotileResult.bitmask);
-                
+            // Try reversed key if not found
+            if (!tilesetImg || !tilesetImg.complete) {
+                const reversedKey = `${tileInfo.secondaryTerrain}_${tileInfo.primaryTerrain}`;
+                tilesetImg = this.tileCache.images.get(`transition_${reversedKey}`);
+            }
+            
+            // If tileset not found, skip this layer
+            if (!tilesetImg || !tilesetImg.complete || tilesetImg.naturalHeight === 0) {
+                continue;
+            }
+            
+            // Get sprite coordinates from Dual Grid lookup
+            const { spriteCoords, clipCorners } = tileInfo;
+            
+            const destX = Math.floor(pixelX - pixelSize / 2);
+            const destY = Math.floor(pixelY - pixelSize / 2);
+            const halfSize = Math.floor(pixelSize / 2);
+            
+            if (clipCorners && clipCorners.length > 0) {
+                // Corner clipping mode: only render specified corners
+                // This is used for 3+ terrain junctions where upper layers
+                // should only show where their higherTerrain actually exists
                 ctx.save();
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.font = '10px monospace';
-                ctx.textAlign = 'center';
                 
-                // Show bitmask number (same format as existing overlay)
-                ctx.fillText(
-                    `${autotileResult.bitmask}`,
-                    Math.floor(pixelX + pixelSize/2), 
-                    Math.floor(pixelY + pixelSize/4)
-                );
+                // Create clipping path for specified corners
+                ctx.beginPath();
+                for (const corner of clipCorners) {
+                    switch (corner) {
+                        case 'TL':
+                            ctx.rect(destX, destY, halfSize, halfSize);
+                            break;
+                        case 'TR':
+                            ctx.rect(destX + halfSize, destY, halfSize, halfSize);
+                            break;
+                        case 'BL':
+                            ctx.rect(destX, destY + halfSize, halfSize, halfSize);
+                            break;
+                        case 'BR':
+                            ctx.rect(destX + halfSize, destY + halfSize, halfSize, halfSize);
+                            break;
+                    }
+                }
+                ctx.clip();
                 
-                // Show tile index (same format as existing overlay)
-                ctx.fillText(
-                    `T${debugInfo.tileIndex}`,
-                    Math.floor(pixelX + pixelSize/2), 
-                    Math.floor(pixelY + pixelSize/2)
-                );
-                
-                // Show row,col (same format as existing overlay)
-                ctx.fillText(
-                    `${debugInfo.row},${debugInfo.col}`,
-                    Math.floor(pixelX + pixelSize/2), 
-                    Math.floor(pixelY + 3*pixelSize/4)
+                // Draw the full tile (clipping will mask it)
+                ctx.drawImage(
+                    tilesetImg,
+                    Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
+                    Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
+                    destX, destY,
+                    Math.floor(pixelSize), Math.floor(pixelSize)
                 );
                 
                 ctx.restore();
+            } else {
+                // Normal full-tile rendering
+                ctx.drawImage(
+                    tilesetImg,
+                    Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
+                    Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
+                    destX, destY,
+                    Math.floor(pixelSize), Math.floor(pixelSize)
+                );
             }
-            return;
         }
         
-        // autotileResult.config already contains the correct autotile config
-        // No need to look it up again from TILE_ASSETS
-        
-        // At this point, autotileImg is guaranteed to exist (we returned early if missing)
-        if (!autotileImg) {
-            return; // Type guard for TypeScript
-        }
-        
-        // Get sprite coordinates from the autotile sheet
-        // Pass isSecondaryInterior flag to use row 0 col 0 for Sea/HotSpringWater interior tiles
-        const spriteCoords = getAutotileSpriteCoords(
-            autotileResult.config, 
-            autotileResult.bitmask,
-            autotileResult.isSecondaryInterior ?? false
-        );
-        
-        // Debug logging for autotile rendering (enable for debugging)
-        // if (false) { // Temporarily disabled
-        //     console.log(`[Autotile] ${tileTypeName} at (${tile.worldX}, ${tile.worldY}): ${debugAutotileBitmask(autotileResult.bitmask)}`);
-        //     console.log(`[Autotile] Sprite coords:`, spriteCoords);
-        //     console.log(`[Autotile] Autotile config:`, autotileConfig);
-        //     console.log(`[Autotile] Autotile image dimensions:`, autotileImg.naturalWidth, 'x', autotileImg.naturalHeight);
-        // }
-        
-        // Render the specific sprite from the autotile sheet with pixel-perfect alignment
-        // Use exact source dimensions and destination dimensions
-        ctx.drawImage(
-            autotileImg,
-            Math.floor(spriteCoords.x), Math.floor(spriteCoords.y), 
-            Math.floor(spriteCoords.width), Math.floor(spriteCoords.height), // Source rectangle (16x16 from autotile sheet)
-            Math.floor(pixelX), Math.floor(pixelY), 
-            Math.floor(pixelSize), Math.floor(pixelSize) // Destination rectangle (game tile size)
-        );
-        
-        // DEBUG: Draw bitmask and tile info on tile for easy debugging
-        if (showDebugOverlay) { // Enable visual debugging
-            const debugInfo = getDebugTileInfo(autotileResult.bitmask);
+        // Debug overlay - show info for the TOP layer only
+        if (showDebugOverlay && transitions.length > 0) {
+            const topLayer = transitions[transitions.length - 1];
             
             ctx.save();
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.font = '10px monospace';
+            
+            // Draw tile boundary rectangle
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(pixelX - pixelSize/2, pixelY - pixelSize/2, pixelSize, pixelSize);
+            
+            // Draw dual grid index - large, bold, black with white outline
+            ctx.font = 'bold 24px monospace';
             ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             
-            // Show bitmask number
-            ctx.fillText(
-                `${autotileResult.bitmask}`,
-                Math.floor(pixelX + pixelSize/2), 
-                Math.floor(pixelY + pixelSize/4)
-            );
+            // White outline for visibility
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 4;
+            ctx.strokeText(`${topLayer.dualGridIndex}`, pixelX, pixelY);
             
-            // Show tile index
-            ctx.fillText(
-                `T${debugInfo.tileIndex}`,
-                Math.floor(pixelX + pixelSize/2), 
-                Math.floor(pixelY + pixelSize/2)
-            );
+            // Black fill
+            ctx.fillStyle = 'black';
+            ctx.fillText(`${topLayer.dualGridIndex}`, pixelX, pixelY);
             
-            // Show row,col  
-            ctx.fillText(
-                `${debugInfo.row},${debugInfo.col}`,
-                Math.floor(pixelX + pixelSize/2), 
-                Math.floor(pixelY + 3*pixelSize/4)
-            );
+            // Show layer count if multi-layer (L suffix with count)
+            if (transitions.length > 1) {
+                ctx.font = 'bold 12px monospace';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.strokeText(`L${transitions.length}`, pixelX + 20, pixelY - 15);
+                ctx.fillStyle = 'cyan';
+                ctx.fillText(`L${transitions.length}`, pixelX + 20, pixelY - 15);
+            }
+            
+            // Also show if reversed (R suffix)
+            if (topLayer.isReversedTileset) {
+                ctx.font = 'bold 12px monospace';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                const rX = transitions.length > 1 ? pixelX - 20 : pixelX + 20;
+                ctx.strokeText('R', rX, pixelY - 15);
+                ctx.fillStyle = 'red';
+                ctx.fillText('R', rX, pixelY - 15);
+            }
             
             ctx.restore();
         }
-    }
-    
-    private getTileImage(tile: WorldTile): HTMLImageElement | null {
-        // Handle the tile type (it's a tagged union with a .tag property)
-        const tileTypeName = tile.tileType.tag;
-        
-        // Return base texture (loaded dynamically based on tile type name)
-        return this.tileCache.images.get(`${tileTypeName}_base`) || null;
     }
     
     private getTileTypeAbbreviation(tileType: string): string {
@@ -409,7 +409,8 @@ export class ProceduralWorldRenderer {
             'Asphalt': 'AS',
             'Forest': 'F',
             'Tundra': 'TU',
-            'Alpine': 'AL'
+            'Alpine': 'AL',
+            'TundraGrass': 'TG'
         };
         return abbreviations[tileType] || tileType.substring(0, 2).toUpperCase();
     }
@@ -444,25 +445,28 @@ export class ProceduralWorldRenderer {
                 ctx.fillStyle = '#F4A460';
                 break;
             case 'HotSpringWater':
-                ctx.fillStyle = '#64D4FF'; // Bright cyan for hot spring water (highly visible!)
+                ctx.fillStyle = '#64D4FF';
                 break;
             case 'Quarry':
-                ctx.fillStyle = '#7A6B5C'; // Rocky gray-brown
+                ctx.fillStyle = '#7A6B5C';
                 break;
             case 'Asphalt':
-                ctx.fillStyle = '#3C3C3C'; // Dark gray paved
+                ctx.fillStyle = '#3C3C3C';
                 break;
             case 'Forest':
-                ctx.fillStyle = '#2E5E2E'; // Dark green dense forest
+                ctx.fillStyle = '#2E5E2E';
                 break;
             case 'Tundra':
-                ctx.fillStyle = '#8B9B7A'; // Pale mossy green-gray (arctic)
+                ctx.fillStyle = '#8B9B7A';
                 break;
             case 'Alpine':
-                ctx.fillStyle = '#9B9B9B'; // Light gray rocky terrain
+                ctx.fillStyle = '#9B9B9B';
+                break;
+            case 'TundraGrass':
+                ctx.fillStyle = '#7A8B6A';
                 break;
             default:
-                ctx.fillStyle = '#808080'; // Gray fallback
+                ctx.fillStyle = '#808080';
         }
         
         ctx.fillRect(x, y, size, size);
