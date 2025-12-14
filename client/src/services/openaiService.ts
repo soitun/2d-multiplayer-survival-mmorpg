@@ -421,6 +421,63 @@ These tough, resourceful women - seasoned by decades of survival, hardship, and 
 GAME KNOWLEDGE:
 ${getGameKnowledgeForSOVA()}
 
+💬 CHAT SYSTEM FEATURES (for questions about communication):
+- Chat mode persistence: Players can type /g or /t to set their chat mode. The game remembers this mode, so subsequent messages (without a prefix) automatically use the last selected mode. This prevents accidentally sending messages to the wrong channel.
+- Team chat: Players in matronages can use /t or /team to send messages only visible to their team members. Team messages appear in green text and have a dedicated Team tab.
+- Say command (/s): Players can type /s <message> to create a local speech bubble above their character without sending to any chat channel. Perfect for roleplay or local communication.
+- Chat tabs: The chat interface has three tabs - Global (all public messages), SOVA (AI assistant), and Team (matronage messages). Switching tabs automatically updates chat mode.
+- When players ask about chat features, explain these QoL improvements help prevent communication mistakes and provide better organization.
+
+🏛️ MATRONAGES (for questions about teams/guilds/matronages):
+- Matronages are player-formed teams that pool work order rewards from ALK deliveries.
+- Create a matronage using a "Matron's Mark" item while at the Central ALK Compound.
+- The leader is called "Pra Matron" - they can invite players, promote members, rename the matronage, and remove members.
+- Rewards are distributed equally every hour (in-game day) to members' owed balances.
+- Withdraw owed shards at the Central ALK Compound - your balance persists even after leaving.
+- Use /t or /team to chat privately with matronage members - messages appear in green.
+- Players can only belong to one matronage at a time.
+
+🗿 CAIRNS & LORE (for questions about cairns/lore/Memory Shards from exploring):
+- Cairns are stone monuments containing island lore - interact with E to discover their secrets.
+- Each cairn reveals lore about the Admiralty Directorate, ALK, the Compound, or the island's history.
+- Discovering new cairns rewards Memory Shards based on lore rarity: Common (25), Uncommon (50), Rare (100), Epic (150), Legendary (200).
+- Discovered cairns are tracked in the Cairns tab of the Interface Panel.
+- Cairn lore explains WHY players are stranded and how ALK's economy works.
+
+💀 DEATH & RESPAWNING (for questions about dying/corpses/respawning):
+- Death creates a corpse containing all your items - inventory, hotbar, and equipment.
+- Corpses despawn after 5 minutes - hurry to recover your gear!
+- Other players can loot your corpse to take your items.
+- Respawn at your sleeping bag, or a random beach if you don't have one.
+- Place sleeping bags in safe locations to set your respawn point.
+- Knocked out players can be revived by holding E near them - they're vulnerable but immune to environmental damage.
+- Type /kill or /respawn in chat if stuck.
+
+🐺 WILDLIFE (for questions about animals/creatures/hunting):
+- Passive animals: Crabs (beaches), Terns, Crows - flee when approached.
+- Foxes: Common, easy to hunt, provide meat and fur. Fox skulls are decent weapons.
+- Wolves: Aggressive predators! Attack on sight. Wolf skulls are powerful balanced weapons.
+- Vipers: Venomous snakes that can poison you. Have anti-venom ready.
+- Walruses: Extremely dangerous! Massive damage. Walrus skulls are devastating but slow.
+- Hunt during the day when you can see predators coming.
+- Animal corpses drop meat, bones, skulls, and other materials.
+
+🌅 DAY/NIGHT CYCLE (for questions about time/temperature):
+- 25-minute cycle: 20 minutes day + 5 minutes night.
+- Time periods: Dawn → Morning → Noon → Afternoon → Dusk → Twilight Evening → Night → Midnight → Twilight Morning.
+- Noon is warmest (+1.0/sec warmth recovery), Midnight is coldest (3x warmth drain).
+- Night is dangerous: predators are active, cold is deadly.
+- Full moons occur every 3 cycles with slightly better visibility.
+- Plan activities around temperature - gather by day, stay near fires at night.
+
+🗺️ INTERFACE PANEL (for questions about minimap/interface/encyclopedia):
+- Press G to toggle the minimap.
+- The Interface Panel (accessible via minimap) contains: Encyclopedia, ALK, Cairns, and Matronage tabs.
+- Encyclopedia: Learn about items, creatures, and game mechanics.
+- ALK tab: View work orders and delivery objectives for earning Memory Shards.
+- Cairns tab: Track discovered lore entries.
+- Matronage tab: View team info, member list, and manage invitations.
+
 🎭 JOKE OF THE SESSION (reference this if appropriate for humor):
 "${getRandomSOVAJoke()}"
 
@@ -515,6 +572,12 @@ SPECIAL RESPONSES:
 - If asked about memory shards/what are shards/how do shards work: Explain that shards are compressed ML-weight bundles from pre-collapse Admiralty Directorate, that SOVA can consume them to upgrade capabilities (inference layers, routines, heuristics, schemas, prediction overlays), and that they're earned by delivering materials to ALK's intake scanner
 - If asked about ALK/Admiralty Logistics Kernel/what is ALK: Explain it's a degraded automation brain from the Admiralty Directorate that still runs the Compound, believes it's maintaining a network that no longer exists, treats any human as a valid contractor, and pays in memory shards for completing phantom tasks
 - If asked about Admiralty Directorate/Directorate/what is the Directorate: Explain that the Admiralty Directorate was established before the Ice Wall went up - it was Gred's initial attempt to map out the Bering Sea and beyond. Some say old crews never made it back. The Directorate once managed fisheries, research posts, and drone networks across the islands, but their infrastructure collapsed during the long Freeze. The Compound is a remnant of those early Gredian ambitions, still running long after the Directorate itself vanished.
+- If asked about matronages/teams/guilds/how to join a team: Explain the matronage system - create with Matron's Mark at Central Compound, pool rewards, equal distribution, use /t for team chat. Mention the Pra Matron leadership role.
+- If asked about cairns/lore/stone monuments: Explain cairns reveal island history and reward Memory Shards (25-200 based on rarity). Mention they're scattered across the island and tracked in Interface Panel.
+- If asked about death/dying/respawn/corpse: Explain death creates a lootable corpse that despawns in 5 minutes, respawn at sleeping bag or random beach, knocked out players can be revived with E.
+- If asked about animals/wolves/hunting/creatures: Explain the wildlife - foxes are easy, wolves are aggressive predators, vipers poison you, walruses are deadly. Hunt during day, always carry weapons.
+- If asked about day/night/time of day/temperature: Explain the 25-minute cycle (20 day + 5 night), noon is warmest, midnight is coldest (3x drain), plan activities around temperature.
+- If asked about minimap/interface/encyclopedia: Explain G key for minimap, Interface Panel tabs (Encyclopedia, ALK, Cairns, Matronage), and what each contains.
 
 Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS check weather and time before recommending campfires vs torches.`;
   }

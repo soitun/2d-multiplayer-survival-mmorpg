@@ -145,6 +145,8 @@ function AppContent() {
     const [isRegistering, setIsRegistering] = useState<boolean>(false);
     const [uiError, setUiError] = useState<string | null>(null);
     const [isMinimapOpen, setIsMinimapOpen] = useState<boolean>(false);
+    // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
+    const [interfaceInitialView, setInterfaceInitialView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | undefined>(undefined);
     const [isChatting, setIsChatting] = useState<boolean>(false);
     const [isCraftingSearchFocused, setIsCraftingSearchFocused] = useState(false);
     // Auto-walking state is now managed by PlayerActionsContext via usePredictedMovement
@@ -1169,6 +1171,8 @@ function AppContent() {
                             canvasRef={canvasRef}
                             isMinimapOpen={isMinimapOpen}
                             setIsMinimapOpen={setIsMinimapOpen}
+                            interfaceInitialView={interfaceInitialView}
+                            setInterfaceInitialView={setInterfaceInitialView}
                             isChatting={isChatting}
                             setIsChatting={setIsChatting}
                             messages={messages}

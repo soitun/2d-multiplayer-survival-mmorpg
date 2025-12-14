@@ -179,7 +179,8 @@ function getCollisionCandidates(
   
   for (const player of nearbyPlayers) {
     const playerId = player.identity.toHexString();
-    if (playerId === localPlayerId || player.isDead) continue;
+    // Skip: self, dead players, and OFFLINE players (offline players have no collision)
+    if (playerId === localPlayerId || player.isDead || !player.isOnline) continue;
     
     shapes.push({
       id: playerId,

@@ -212,6 +212,11 @@ interface GameScreenProps {
     // Reducer Actions (from usePlayerActions)
     isMinimapOpen: boolean;
     setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
+    interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+    setInterfaceInitialView?: React.Dispatch<React.SetStateAction<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | undefined>>;
+    // Callback to reset interface initial view (called when interface closes)
+    onInterfaceClose?: () => void;
     isChatting: boolean;
     setIsChatting: React.Dispatch<React.SetStateAction<boolean>>;
 
@@ -369,6 +374,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         draggedItemInfo, onItemDragStart, onItemDrop,
         isMinimapOpen,
         setIsMinimapOpen,
+        interfaceInitialView,
+        setInterfaceInitialView,
         isChatting,
         setIsChatting,
         activeConsumableEffects,
@@ -428,6 +435,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Mobile chat visibility state (separate from isChatting which controls input focus)
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+    
+    // Local speech bubbles for /s (say) command
+    const [localBubbles, setLocalBubbles] = useState<Array<{id: string, message: string, playerId: string, timestamp: number}>>([]);
 
     // SOVA loading bar state
     const [sovaLoadingState, setSOVALoadingState] = useState({
@@ -444,6 +454,20 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const handleSOVALoadingStateChange = useCallback((state: typeof sovaLoadingState) => {
         setSOVALoadingState(state);
     }, []);
+
+    // Handle matronage creation - close delivery panel and open interface to matronage page
+    const handleMatronageCreated = useCallback(() => {
+        // Close the ALK delivery panel
+        handleSetInteractingWith(null);
+        // Open interface container to matronage tab
+        setInterfaceInitialView?.('matronage');
+        setIsMinimapOpen(true);
+    }, [handleSetInteractingWith, setInterfaceInitialView, setIsMinimapOpen]);
+
+    // Reset interface initial view when interface closes (so next open defaults to minimap)
+    const handleInterfaceClose = useCallback(() => {
+        setInterfaceInitialView?.(undefined);
+    }, [setInterfaceInitialView]);
 
     // You can also add a useEffect here if the above doesn't show up
     useEffect(() => {
@@ -868,6 +892,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onSetInteractingWith={handleSetInteractingWith}
                 isMinimapOpen={isMinimapOpen}
                 setIsMinimapOpen={setIsMinimapOpen}
+                interfaceInitialView={interfaceInitialView}
+                onInterfaceClose={handleInterfaceClose}
                 isChatting={isChatting}
                 messages={messages}
                 isSearchingCraftRecipes={isCraftingSearchFocused}
@@ -931,6 +957,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 cameraOffsetX={cameraOffsetX}
                 cameraOffsetY={cameraOffsetY}
                 localPlayerId={localPlayerId}
+                localBubbles={localBubbles}
             />
 
             {/* PlayerUI - Always render for status bars, but inventory only when opened on mobile */}
@@ -1014,6 +1041,27 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isMobileChatOpen={isMobileChatOpen}
                 matronageMembers={props.matronageMembers}
                 matronages={props.matronages}
+                onSayCommand={(message: string) => {
+                    // Create a local-only speech bubble for /s command
+                    if (localPlayerId) {
+                        const bubbleId = `local-${Date.now()}-${Math.random()}`;
+                        const newBubble = {
+                            id: bubbleId,
+                            message: message,
+                            playerId: localPlayerId,
+                            timestamp: Date.now()
+                        };
+                        setLocalBubbles(prev => {
+                            // Remove any existing bubbles from the same player
+                            const filtered = prev.filter(b => b.playerId !== localPlayerId);
+                            return [...filtered, newBubble];
+                        });
+                        // Auto-remove after 8 seconds
+                        setTimeout(() => {
+                            setLocalBubbles(prev => prev.filter(b => b.id !== bubbleId));
+                        }, 8000);
+                    }
+                }}
             />
 
             {/* TargetingReticle - Hidden on mobile */}
@@ -1161,6 +1209,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     inventoryItems={inventoryItems}
                     matronageMembers={props.matronageMembers}
                     matronages={props.matronages}
+                    onMatronageCreated={handleMatronageCreated}
                 />
             )}
 

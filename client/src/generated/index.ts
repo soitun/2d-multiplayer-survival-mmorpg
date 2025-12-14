@@ -887,6 +887,8 @@ import { StatThresholdsConfigTableHandle } from "./stat_thresholds_config_table.
 export { StatThresholdsConfigTableHandle };
 import { StoneTableHandle } from "./stone_table.ts";
 export { StoneTableHandle };
+import { TeamMessageTableHandle } from "./team_message_table.ts";
+export { TeamMessageTableHandle };
 import { ThunderEventTableHandle } from "./thunder_event_table.ts";
 export { ThunderEventTableHandle };
 import { ThunderEventCleanupScheduleTableHandle } from "./thunder_event_cleanup_schedule_table.ts";
@@ -1221,6 +1223,8 @@ import { Stone } from "./stone_type.ts";
 export { Stone };
 import { TargetType } from "./target_type_type.ts";
 export { TargetType };
+import { TeamMessage } from "./team_message_type.ts";
+export { TeamMessage };
 import { ThunderEvent } from "./thunder_event_type.ts";
 export { ThunderEvent };
 import { ThunderEventCleanupSchedule } from "./thunder_event_cleanup_schedule_type.ts";
@@ -2268,6 +2272,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Stone.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    team_message: {
+      tableName: "team_message" as const,
+      rowType: TeamMessage.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TeamMessage.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     thunder_event: {
@@ -11011,6 +11024,11 @@ export class RemoteTables {
   get stone(): StoneTableHandle<'stone'> {
     // clientCache is a private property
     return new StoneTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Stone>(REMOTE_MODULE.tables.stone));
+  }
+
+  get teamMessage(): TeamMessageTableHandle<'team_message'> {
+    // clientCache is a private property
+    return new TeamMessageTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TeamMessage>(REMOTE_MODULE.tables.team_message));
   }
 
   get thunderEvent(): ThunderEventTableHandle<'thunder_event'> {

@@ -240,7 +240,9 @@ export const drawNameTag = (
   if (!showLabel) return; // Skip rendering if not showing label
   
   // --- MODIFIED: Use passed isOnline flag ---
-  const usernameText = isOnline
+  // Don't add "(offline)" if username already contains it (e.g., offline corpses from server)
+  const alreadyHasOfflineTag = player.username.toLowerCase().includes('(offline)');
+  const usernameText = isOnline || alreadyHasOfflineTag
     ? player.username
     : `${player.username} (offline)`;
   // --- END MODIFICATION ---
@@ -1056,12 +1058,19 @@ export const renderPlayer = (
   }
   // --- End Draw Sprite ---
 
-  if (!isCorpse && !player.isDead) {
-    // Restore the logic using both hover and shouldShowLabel
-    const showingDueToCurrentHover = isHovered; // Use the direct hover state
-    const showingDueToPersistentState = shouldShowLabel; // Restore persistent state check
+  // Show nametag for:
+  // - Living players: when hovered or shouldShowLabel is true
+  // - Corpses: when shouldShowLabel is true (so players can identify whose corpse it is)
+  if (isCorpse) {
+    // Corpses always show nametag if shouldShowLabel is true
+    if (shouldShowLabel) {
+      drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, true);
+    }
+  } else if (!player.isDead) {
+    // Living players: show based on hover or persistent label state
+    const showingDueToCurrentHover = isHovered;
+    const showingDueToPersistentState = shouldShowLabel;
     const willShowLabel = showingDueToCurrentHover || showingDueToPersistentState;
-    
-    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel); 
+    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel);
   }
 };

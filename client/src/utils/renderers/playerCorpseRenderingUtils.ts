@@ -16,10 +16,33 @@ interface RenderPlayerCorpseProps {
   heroImageRef: React.RefObject<HTMLImageElement | null>;
   heroWaterImageRef: React.RefObject<HTMLImageElement | null>;
   heroCrouchImageRef: React.RefObject<HTMLImageElement | null>;
-  heroSwimImageRef: React.RefObject<HTMLImageElement | null>; // NEW: Add swim sprite ref
+  heroSwimImageRef: React.RefObject<HTMLImageElement | null>;
+  isHovered?: boolean; // Whether this corpse is being hovered (closest interactable target)
 }
 
 export const PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Reduced from 96px to 64px for tighter interaction range that matches server expectations
+
+// Hover detection radius for corpses (similar to players)
+const corpseHoverRadius = 24;
+
+/**
+ * Checks if the mouse cursor is hovering over a corpse based on world coordinates.
+ * Uses distance-based detection similar to player hover.
+ */
+export const isCorpseHovered = (
+  worldMouseX: number | null,
+  worldMouseY: number | null,
+  corpse: SpacetimeDBPlayerCorpse
+): boolean => {
+  if (worldMouseX === null || worldMouseY === null) return false;
+  
+  const hoverDX = worldMouseX - corpse.posX;
+  const hoverDY = worldMouseY - corpse.posY;
+  const distSq = hoverDX * hoverDX + hoverDY * hoverDY;
+  const radiusSq = corpseHoverRadius * corpseHoverRadius;
+  
+  return distSq <= radiusSq;
+};
 
 /**
  * Renders a player corpse entity onto the canvas using player sprite logic.
@@ -34,6 +57,7 @@ export function renderPlayerCorpse({
   heroWaterImageRef,
   heroCrouchImageRef,
   heroSwimImageRef,
+  isHovered = false,
 }: RenderPlayerCorpseProps): void {
   
   // 1. Corpse Disappearance on Zero Health
@@ -72,7 +96,7 @@ export function renderPlayerCorpse({
     username: corpse.username,
     positionX: renderPosX, // Use potentially shaken position
     positionY: renderPosY, // Use potentially shaken position
-    direction: 'up', // Corpses usually face up or a fixed direction
+    direction: 'left', // Corpses use left-facing sprite rotated 90° right to appear on their back
     health: 0, // Mock player health is 0 as it's a corpse
     isDead: true,
     lastHitTime: undefined, // Mock player doesn't have its own last hit time for rendering
@@ -123,14 +147,14 @@ export function renderPlayerCorpse({
     heroImg, // heroDodgeImg - corpses don't dodge but need parameter
     false, // isOnline
     false, // isMoving (corpse is static)
-    false, // isHovered
+    isHovered, // isHovered - show nametag when this corpse is closest interactable
     IDLE_FRAME_INDEX, // currentAnimationFrame
     nowMs,
     0, // jumpOffsetY (corpse doesn't jump)
-    false, // shouldShowLabel
+    isHovered, // shouldShowLabel - show nametag when hovered (like players)
     undefined, // activeConsumableEffects
     undefined, // localPlayerId
     true, // isCorpse
     cycleProgress // cycleProgress
   );
-} 
+}

@@ -218,7 +218,9 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
         // Handle special cases
         if (containerType === 'player_corpse' && containerEntity) {
             const corpse = containerEntity as PlayerCorpse;
-            return corpse.username ? `${corpse.username}'s Backpack` : 'Player Corpse';
+            // Strip "(Offline)" suffix from username for cleaner title display
+            const cleanUsername = corpse.username?.replace(/\s*\(Offline\)\s*$/i, '') || '';
+            return cleanUsername ? `${cleanUsername}'s Backpack` : 'Player Corpse';
         }
         
         if (containerType === 'stash' && containerEntity) {

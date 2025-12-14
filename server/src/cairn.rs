@@ -40,12 +40,12 @@ pub(crate) const REWARD_LEGENDARY: u32 = 200; // Legendary: meta (SOVA/system lo
 /// Uses explicit mapping since lore_id naming isn't consistent with categories
 fn get_cairn_reward_for_lore_id(lore_id: &str) -> u32 {
     match lore_id {
-        // LEGENDARY (200) - meta: SOVA/system lore
-        "cairn_my_adaptation" |
-        "cairn_encoded_markers" |
+        // LEGENDARY (200) - meta: SOVA/system lore (rarest tier)
         "cairn_shared_substrate" => REWARD_LEGENDARY,
         
-        // EPIC (150) - philosophy: deep thematic content
+        // EPIC (150) - philosophy & SOVA meta: deep thematic content
+        "cairn_my_adaptation" |
+        "cairn_encoded_markers" |
         "cairn_unplanned_system" => REWARD_EPIC,
         
         // RARE (100) - aleuts, admiralty, compound: cultural/historical/location lore

@@ -22,6 +22,8 @@ import {
 import { Identity } from 'spacetimedb';
 import './InterfaceContainer.css';
 
+type InterfaceView = 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+
 interface InterfaceContainerProps {
   children: React.ReactNode;
   canvasWidth: number;
@@ -32,6 +34,8 @@ interface InterfaceContainerProps {
   onToggleWeatherOverlay?: (checked: boolean) => void;
   showNames?: boolean;
   onToggleShowNames?: (checked: boolean) => void;
+  // Initial view to open to (defaults to 'minimap')
+  initialView?: InterfaceView;
   // ALK Panel data props
   alkContracts?: Map<string, AlkContract>;
   alkPlayerContracts?: Map<string, AlkPlayerContract>;
@@ -63,6 +67,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   onToggleWeatherOverlay: externalToggleWeatherOverlay,
   showNames: externalShowNames,
   onToggleShowNames: externalToggleShowNames,
+  initialView,
   // ALK Panel data props
   alkContracts,
   alkPlayerContracts,
@@ -84,8 +89,15 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   playerUsername = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage'>('minimap');
+  const [currentView, setCurrentView] = useState<InterfaceView>(initialView || 'minimap');
   const [isMinimapLoading, setIsMinimapLoading] = useState(false);
+  
+  // Update currentView when initialView changes (e.g., reopening to a specific tab)
+  useEffect(() => {
+    if (initialView) {
+      setCurrentView(initialView);
+    }
+  }, [initialView]);
   
   // Grid coordinates visibility preference (stored in localStorage)
   const [showGridCoordinates, setShowGridCoordinates] = useState<boolean>(() => {
@@ -345,7 +357,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   }, [connection.connection, connection.isConnected, updateMemoryGridData]);
 
   // Handle view changes with loading state for minimap
-  const handleViewChange = (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns') => {
+  const handleViewChange = (view: InterfaceView) => {
     if (view === 'minimap' && currentView !== 'minimap') {
       // Show loading when switching TO minimap from another tab
       setIsMinimapLoading(true);

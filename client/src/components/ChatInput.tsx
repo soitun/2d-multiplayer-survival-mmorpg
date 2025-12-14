@@ -8,6 +8,7 @@ interface ChatInputProps {
   onCloseChat: () => void; // Callback to close the chat input
   isActive: boolean; // To focus when activated
   onlinePlayerNames?: string[]; // List of online player names for autocomplete
+  placeholder?: string; // Optional custom placeholder
 }
 
 const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
@@ -17,6 +18,7 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
   onCloseChat,
   isActive,
   onlinePlayerNames = [],
+  placeholder = "Enter message...",
 }, ref) => {
   const [autocompleteIndex, setAutocompleteIndex] = useState<number>(-1);
   const [autocompleteMatches, setAutocompleteMatches] = useState<string[]>([]);
@@ -169,7 +171,7 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(({
       onChange={(e) => onInputChange(e.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
-      placeholder="Enter message..."
+      placeholder={placeholder}
       maxLength={200} // Increased max length
       autoComplete="off"
       autoCorrect="off"

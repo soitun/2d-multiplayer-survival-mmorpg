@@ -556,7 +556,7 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     itemDefinitions,
     inventoryItems,
 }) => {
-    const [activeTab, setActiveTab] = useState<AlkTab>('my-contracts');
+    const [activeTab, setActiveTab] = useState<AlkTab>('seasonal');
     const [nearbyStationId, setNearbyStationId] = useState<number | null>(null);
     const [isQuantityInputFocused, setIsQuantityInputFocused] = useState(false);
 

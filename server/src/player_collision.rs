@@ -9,8 +9,9 @@ use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_RADIUS, RUNE_STONE_COLLISION_Y_OFFSET};
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
-use crate::player_corpse::{PlayerCorpse, CORPSE_COLLISION_RADIUS, PLAYER_CORPSE_COLLISION_DISTANCE_SQUARED, CORPSE_COLLISION_Y_OFFSET}; // Assuming CORPSE_COLLISION_RADIUS is what we need for simple circle vs circle.
-use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // Ensure trait for fetching
+// Player corpses have NO collision - players can walk over them to loot
+// Keeping minimal imports for spatial grid entity type matching only
+use crate::player_corpse::player_corpse as PlayerCorpseTableTrait;
 use crate::shelter::{
     Shelter, SHELTER_COLLISION_WIDTH, SHELTER_COLLISION_HEIGHT,
     SHELTER_AABB_HALF_WIDTH, SHELTER_AABB_HALF_HEIGHT,
@@ -597,58 +598,10 @@ pub fn calculate_slide_collision_with_grid(
                     }
                 }
             },
-            spatial_grid::EntityType::PlayerCorpse(corpse_id) => { // ADDED PlayerCorpse slide logic
-                if let Some(corpse) = player_corpses.id().find(corpse_id) {
-                    // Player corpses are static obstacles; player should slide around them.
-                    // Using simple circle collision similar to stones/trees for sliding.
-                    let corpse_collision_y = corpse.pos_y - CORPSE_COLLISION_Y_OFFSET;
-                    let dx = final_x - corpse.pos_x;
-                    let dy = final_y - corpse_collision_y;
-                    let dist_sq = dx * dx + dy * dy;
-                    let min_dist = current_player_radius + CORPSE_COLLISION_RADIUS + SLIDE_SEPARATION_DISTANCE; // Add separation
-                    let min_dist_sq = min_dist * min_dist;
-
-                    if dist_sq < min_dist_sq {
-                        log::debug!("Player-Corpse collision for slide: {:?} vs corpse {}", sender_id, corpse.id);
-                        let collision_normal_x = dx;
-                        let collision_normal_y = dy;
-                        let normal_mag_sq = dist_sq;
-                        if normal_mag_sq > 0.0 {
-                            let normal_mag = normal_mag_sq.sqrt();
-                            let norm_x = collision_normal_x / normal_mag;
-                            let norm_y = collision_normal_y / normal_mag;
-                            let dot_product = server_dx * norm_x + server_dy * norm_y;
-                            
-                            // Only slide if moving toward the object (dot_product < 0)
-                            if dot_product < 0.0 {
-                                let projection_x = dot_product * norm_x;
-                                let projection_y = dot_product * norm_y;
-                                let slide_dx = server_dx - projection_x;
-                                let slide_dy = server_dy - projection_y;
-                                final_x = current_player_pos_x + slide_dx;
-                                final_y = current_player_pos_y + slide_dy;
-                                
-                                // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
-                                let final_dx = final_x - corpse.pos_x;
-                                let final_dy = final_y - corpse_collision_y;
-                                let final_dist = (final_dx * final_dx + final_dy * final_dy).sqrt();
-                                if final_dist < min_dist {
-                                    let separation_direction = if final_dist > 0.001 {
-                                        (final_dx / final_dist, final_dy / final_dist)
-                                    } else {
-                                        (1.0, 0.0) // Default direction
-                                    };
-                                    final_x = corpse.pos_x + separation_direction.0 * min_dist;
-                                    final_y = corpse_collision_y + separation_direction.1 * min_dist;
-                                }
-                            }
-                        } else {
-                            // Fallback: ensure minimum separation
-                            final_x = corpse.pos_x + SLIDE_SEPARATION_DISTANCE;
-                            final_y = corpse_collision_y;
-                        }
-                    }
-                }
+            spatial_grid::EntityType::PlayerCorpse(_corpse_id) => {
+                // Player corpses have NO collision - players can walk over them to loot
+                // This allows easy looting of offline player corpses and death corpses
+                continue;
             },
             spatial_grid::EntityType::Furnace(furnace_id) => { // ADDED Furnace slide logic
                 if let Some(furnace) = furnaces.id().find(furnace_id) {
@@ -1238,27 +1191,9 @@ pub fn resolve_push_out_collision_with_grid(
                         }
                     }
                 },
-                spatial_grid::EntityType::PlayerCorpse(corpse_id) => {
-                    log::debug!("[PushOutEntityType] Found PlayerCorpse: {}", corpse_id);
-                    if let Some(corpse) = player_corpses.id().find(corpse_id) {
-                        let corpse_collision_y = corpse.pos_y - CORPSE_COLLISION_Y_OFFSET;
-                        let dx = resolved_x - corpse.pos_x;
-                        let dy = resolved_y - corpse_collision_y;
-                        let dist_sq = dx * dx + dy * dy;
-                        let min_dist = current_player_radius + CORPSE_COLLISION_RADIUS + separation_distance;
-                        let min_dist_sq = min_dist * min_dist;
-                        
-                        // OPTIMIZATION: Early exit with exact distance check
-                        if dist_sq >= min_dist_sq || dist_sq <= 0.0 {
-                            continue;
-                        }
-                        
-                        overlap_found_in_iter = true;
-                        let distance = dist_sq.sqrt();
-                        let overlap = (min_dist - distance) + separation_distance;
-                        resolved_x += (dx / distance) * overlap;
-                        resolved_y += (dy / distance) * overlap;
-                    }
+                spatial_grid::EntityType::PlayerCorpse(_corpse_id) => {
+                    // Player corpses have NO collision - players can walk over them to loot
+                    continue;
                 },
                 spatial_grid::EntityType::Furnace(furnace_id) => {
                     log::debug!("[PushOutEntityType] Found Furnace: {}", furnace_id);

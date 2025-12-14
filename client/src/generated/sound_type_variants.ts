@@ -95,4 +95,5 @@ export type BarbecueOn = { tag: "BarbecueOn" };
 export type BarbecueOff = { tag: "BarbecueOff" };
 export type CrowStealing = { tag: "CrowStealing" };
 export type CairnUnlock = { tag: "CairnUnlock" };
+export type GrassCut = { tag: "GrassCut" };
 

@@ -15,6 +15,9 @@ use crate::PrivateMessage; // Struct for private messages
 use crate::private_message as PrivateMessageTableTrait; // Trait for private messages
 use crate::death_marker; // <<< ADDED for DeathMarker
 use crate::death_marker::death_marker as DeathMarkerTableTrait; // <<< ADDED DeathMarker table trait
+// Import matronage table traits for team chat
+use crate::matronage::matronage_member as MatronageMemberTableTrait;
+use crate::chat::team_message as TeamMessageTableTrait;
 
 // --- Configuration Constants ---
 /// Set to false to disable kill command cooldown (useful for testing)
@@ -43,6 +46,29 @@ pub struct LastWhisperFrom {
     pub last_whisper_from_player_id: Identity,
     pub last_whisper_from_username: String,
     pub last_whisper_timestamp: Timestamp,
+}
+
+/// Team (Matronage) chat messages - visible only to matronage members
+#[spacetimedb::table(
+    name = team_message, 
+    public,
+    index(name = idx_team_message_matronage, btree(columns = [matronage_id]))
+)]
+#[derive(Clone, Debug)]
+pub struct TeamMessage {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// The matronage this message belongs to
+    pub matronage_id: u64,
+    /// The sender's identity
+    pub sender: Identity,
+    /// The sender's username (for display)
+    pub sender_username: String,
+    /// The message text
+    pub text: String,
+    /// When the message was sent
+    pub sent: Timestamp,
 }
 
 // --- Reducers ---
@@ -339,6 +365,54 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                     }
                     None => {
                         return Err("No one has whispered you yet. Use /w <player> <message> first.".to_string());
+                    }
+                }
+            }
+            "/t" | "/team" => {
+                // Team (Matronage) chat - send message to all matronage members
+                if parts.len() < 2 {
+                    return Err("Usage: /t <message>".to_string());
+                }
+                
+                let message_text = parts[1..].join(" ");
+                
+                if message_text.is_empty() {
+                    return Err("Team message cannot be empty.".to_string());
+                }
+                
+                if message_text.len() > 200 {
+                    return Err("Team message too long (max 200 characters).".to_string());
+                }
+                
+                // Check if sender is in a matronage
+                let member = ctx.db.matronage_member().player_id().find(&sender_id);
+                match member {
+                    Some(membership) => {
+                        // Get sender username
+                        let sender_username = ctx.db.player()
+                            .identity()
+                            .find(&sender_id)
+                            .map(|p| p.username.clone())
+                            .unwrap_or_else(|| format!("{:?}", sender_id));
+                        
+                        // Create team message
+                        let team_msg = TeamMessage {
+                            id: 0, // Auto-incremented
+                            matronage_id: membership.matronage_id,
+                            sender: sender_id,
+                            sender_username: sender_username.clone(),
+                            text: message_text.clone(),
+                            sent: current_time,
+                        };
+                        
+                        ctx.db.team_message().insert(team_msg);
+                        
+                        log::info!("[TeamChat] {} ({:?}) in matronage {} sent: {}", 
+                            sender_username, sender_id, membership.matronage_id, message_text);
+                        return Ok(());
+                    }
+                    None => {
+                        return Err("You are not in a matronage. Join or create one first.".to_string());
                     }
                 }
             }

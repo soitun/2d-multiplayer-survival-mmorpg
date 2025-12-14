@@ -279,6 +279,30 @@
   text-shadow: 0 0 4px rgba(255, 105, 180, 0.5) !important;
 }
 
+/* Team (Matronage) message styling - green like World of Warcraft guild/party chat */
+.teamMessage {
+  background: linear-gradient(135deg, rgba(64, 255, 64, 0.15), rgba(64, 255, 64, 0.1)) !important;
+  border-left: 3px solid #40FF40 !important;
+  padding-left: 8px !important;
+}
+
+.teamSenderName {
+  color: #40FF40 !important;
+  text-shadow: 0 0 6px rgba(64, 255, 64, 0.8) !important;
+}
+
+.teamMessageText {
+  color: #40FF40 !important;
+  text-shadow: 0 0 4px rgba(64, 255, 64, 0.5) !important;
+}
+
+.teamPrefix {
+  color: #32CD32 !important;
+  font-weight: bold;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
 /* Chat Input Styling */
 .chatInput {
   width: 100%;

@@ -357,7 +357,7 @@ export function renderInteractionLabels({
                 }
                 const labelPos = getLabelPosition(box.posX, box.posY, config);
                 // Show different label text for backpacks
-                const labelText = box.boxType === 4 ? 'E - Open Backpack' : text;
+                const labelText = box.boxType === 4 ? 'E' : text;
                 renderStyledInteractionLabel(ctx, labelText, labelPos.x, labelPos.y);
             }
             break;

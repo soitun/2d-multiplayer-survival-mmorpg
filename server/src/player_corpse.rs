@@ -871,25 +871,33 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         Err(e) => log::warn!("[OfflineCorpse] Failed to clear active item for player {}: {}", player_id, e),
     }
 
-    // 1. Collect all items to be transferred from the player
-    let mut items_to_transfer: Vec<InventoryItem> = Vec::new();
+    // 1. Collect all items to be transferred from the player, organized by location type
+    // Corpse slot mapping to preserve original locations:
+    // - Slots 0-23: Inventory items (corpse slot = original inventory slot)
+    // - Slots 24-29: Hotbar items (corpse slot = 24 + original hotbar slot)
+    // - Slots 30-34: Equipped items (corpse slot = 30 + equipment slot index)
+    let mut inventory_items: Vec<(u16, InventoryItem)> = Vec::new(); // (original_slot, item)
+    let mut hotbar_items: Vec<(u8, InventoryItem)> = Vec::new();     // (original_slot, item)
+    let mut equipped_items: Vec<InventoryItem> = Vec::new();
+    
     for item in inventory_table.iter() {
         match &item.location {
             ItemLocation::Inventory(data) if data.owner_id == player_id => {
-                items_to_transfer.push(item.clone());
+                inventory_items.push((data.slot_index, item.clone()));
             }
             ItemLocation::Hotbar(data) if data.owner_id == player_id => {
-                items_to_transfer.push(item.clone());
+                hotbar_items.push((data.slot_index, item.clone()));
             }
             ItemLocation::Equipped(data) if data.owner_id == player_id => {
-                items_to_transfer.push(item.clone());
+                equipped_items.push(item.clone());
             }
             _ => {}
         }
     }
 
-    log::info!("[OfflineCorpse] Player {} has {} items to transfer to offline corpse.", 
-               player.username, items_to_transfer.len());
+    let total_items = inventory_items.len() + hotbar_items.len() + equipped_items.len();
+    log::info!("[OfflineCorpse] Player {} has {} items to transfer ({} inv, {} hotbar, {} equipped).", 
+               player.username, total_items, inventory_items.len(), hotbar_items.len(), equipped_items.len());
 
     // 2. Create a new PlayerCorpse instance (no despawn scheduled)
     let spawned_at = player.last_respawn_time;
@@ -897,7 +905,7 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
     let mut new_corpse = PlayerCorpse {
         id: 0, // Will be auto-incremented
         player_identity: player_id,
-        username: format!("{} (Sleeping)", player.username), // Mark as sleeping in UI
+        username: format!("{} (Offline)", player.username), // Mark as offline in UI
         pos_x: player.position_x,
         pos_y: player.position_y,
         chunk_index: calculate_chunk_index(player.position_x, player.position_y),
@@ -944,25 +952,57 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         slot_instance_id_34: None, slot_def_id_34: None,
     };
 
-    // 3. Populate corpse slots and prepare items for location update
+    // 3. Populate corpse slots preserving original slot locations
+    // Slots 0-23: Inventory, Slots 24-29: Hotbar, Slots 30-34: Equipped
     let mut updated_item_locations: Vec<(u64, ItemLocation)> = Vec::new();
-    let mut corpse_slot_idx: u8 = 0;
+    let mut items_placed: u32 = 0;
 
-    for item in items_to_transfer {
-        if corpse_slot_idx < NUM_CORPSE_SLOTS as u8 {
-            new_corpse.set_slot(corpse_slot_idx, Some(item.instance_id), Some(item.item_def_id));
+    // Place inventory items in their original slots (0-23)
+    for (original_slot, item) in inventory_items {
+        let corpse_slot = original_slot as u8; // Same slot index
+        if corpse_slot < NUM_CORPSE_SLOTS as u8 {
+            new_corpse.set_slot(corpse_slot, Some(item.instance_id), Some(item.item_def_id));
             updated_item_locations.push((item.instance_id, ItemLocation::Container(ContainerLocationData {
                 container_type: ContainerType::PlayerCorpse,
                 container_id: 0, // Placeholder, will be updated after insert
-                slot_index: corpse_slot_idx,
+                slot_index: corpse_slot,
             })));
-            corpse_slot_idx += 1;
+            items_placed += 1;
         } else {
-            log::warn!("[OfflineCorpse] Corpse full for player {}. Item {} lost.", player_id, item.instance_id);
-            if let Some(mut excess_item) = inventory_table.instance_id().find(item.instance_id) {
-                excess_item.location = ItemLocation::Unknown;
-                inventory_table.instance_id().update(excess_item);
-            }
+            log::warn!("[OfflineCorpse] Invalid inventory slot {} for player {}. Item {} lost.", original_slot, player_id, item.instance_id);
+        }
+    }
+
+    // Place hotbar items in slots 24-29 (preserving original hotbar slot)
+    for (original_slot, item) in hotbar_items {
+        let corpse_slot = 24 + original_slot; // Hotbar slot 0 -> corpse slot 24, etc.
+        if corpse_slot < NUM_CORPSE_SLOTS as u8 {
+            new_corpse.set_slot(corpse_slot, Some(item.instance_id), Some(item.item_def_id));
+            updated_item_locations.push((item.instance_id, ItemLocation::Container(ContainerLocationData {
+                container_type: ContainerType::PlayerCorpse,
+                container_id: 0, // Placeholder, will be updated after insert
+                slot_index: corpse_slot,
+            })));
+            items_placed += 1;
+        } else {
+            log::warn!("[OfflineCorpse] Invalid hotbar slot {} for player {}. Item {} lost.", original_slot, player_id, item.instance_id);
+        }
+    }
+
+    // Place equipped items in slots 30-34
+    let mut equipped_slot_idx: u8 = 30;
+    for item in equipped_items {
+        if equipped_slot_idx < NUM_CORPSE_SLOTS as u8 {
+            new_corpse.set_slot(equipped_slot_idx, Some(item.instance_id), Some(item.item_def_id));
+            updated_item_locations.push((item.instance_id, ItemLocation::Container(ContainerLocationData {
+                container_type: ContainerType::PlayerCorpse,
+                container_id: 0, // Placeholder, will be updated after insert
+                slot_index: equipped_slot_idx,
+            })));
+            equipped_slot_idx += 1;
+            items_placed += 1;
+        } else {
+            log::warn!("[OfflineCorpse] Equipped slot overflow for player {}. Item {} lost.", player_id, item.instance_id);
         }
     }
 
@@ -991,7 +1031,7 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
     // They persist until the player reconnects or the corpse is destroyed.
 
     log::info!("[OfflineCorpse] Successfully created offline corpse {} with {} items for player {}", 
-               inserted_corpse.id, corpse_slot_idx, player.username);
+               inserted_corpse.id, items_placed, player.username);
     Ok(inserted_corpse.id)
 }
 
@@ -1037,60 +1077,95 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     log::debug!("[OfflineCorpse] Player {} has {} occupied inventory slots and {} occupied hotbar slots",
                player_id, occupied_inventory_slots.len(), occupied_hotbar_slots.len());
 
-    // 3. Collect all items from the corpse and prepare to restore them
+    // 3. Restore items based on corpse slot ranges to preserve original locations
+    // Corpse slot mapping:
+    // - Slots 0-23: Originally inventory items (restore to same inventory slot)
+    // - Slots 24-29: Originally hotbar items (restore to hotbar slot = corpse_slot - 24)
+    // - Slots 30-34: Originally equipped items (restore to inventory - equipment auto-equips separately)
     let mut items_restored = 0u32;
     let mut items_not_found = 0u32;
-    
-    // Find the first available inventory slot
-    let find_next_inventory_slot = |occupied: &std::collections::HashSet<u16>, start: u16| -> Option<u16> {
-        for slot in start..NUM_PLAYER_INVENTORY_SLOTS as u16 {
-            if !occupied.contains(&slot) {
-                return Some(slot);
-            }
-        }
-        None
-    };
-    
-    // Find the first available hotbar slot
-    let find_next_hotbar_slot = |occupied: &std::collections::HashSet<u8>, start: u8| -> Option<u8> {
-        for slot in start..NUM_PLAYER_HOTBAR_SLOTS as u8 {
-            if !occupied.contains(&slot) {
-                return Some(slot);
-            }
-        }
-        None
-    };
-    
-    let mut next_inventory_slot: u16 = 0;
-    let mut next_hotbar_slot: u8 = 0;
 
     for slot_idx in 0..corpse.num_slots() as u8 {
         if let Some(item_instance_id) = corpse.get_slot_instance_id(slot_idx) {
             if let Some(mut item) = inventory_table.instance_id().find(item_instance_id) {
-                // Try to place in inventory first, then hotbar
-                if let Some(inv_slot) = find_next_inventory_slot(&occupied_inventory_slots, next_inventory_slot) {
-                    item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
-                        owner_id: player_id,
-                        slot_index: inv_slot,
-                    });
-                    occupied_inventory_slots.insert(inv_slot);
-                    next_inventory_slot = inv_slot + 1;
-                    log::debug!("[OfflineCorpse] Restored item {} (def {}) to inventory slot {}", 
-                               item_instance_id, item.item_def_id, inv_slot);
-                } else if let Some(hotbar_slot) = find_next_hotbar_slot(&occupied_hotbar_slots, next_hotbar_slot) {
-                    item.location = ItemLocation::Hotbar(crate::models::HotbarLocationData {
-                        owner_id: player_id,
-                        slot_index: hotbar_slot,
-                    });
-                    occupied_hotbar_slots.insert(hotbar_slot);
-                    next_hotbar_slot = hotbar_slot + 1;
-                    log::debug!("[OfflineCorpse] Restored item {} (def {}) to hotbar slot {}", 
-                               item_instance_id, item.item_def_id, hotbar_slot);
+                // Determine original location based on corpse slot index
+                if slot_idx < 24 {
+                    // Was in inventory - restore to same inventory slot if available
+                    let original_inv_slot = slot_idx as u16;
+                    if !occupied_inventory_slots.contains(&original_inv_slot) {
+                        item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                            owner_id: player_id,
+                            slot_index: original_inv_slot,
+                        });
+                        occupied_inventory_slots.insert(original_inv_slot);
+                        log::debug!("[OfflineCorpse] Restored item {} (def {}) to original inventory slot {}", 
+                                   item_instance_id, item.item_def_id, original_inv_slot);
+                    } else {
+                        // Original slot occupied, find any available inventory slot
+                        if let Some(alt_slot) = (0..NUM_PLAYER_INVENTORY_SLOTS as u16).find(|s| !occupied_inventory_slots.contains(s)) {
+                            item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                                owner_id: player_id,
+                                slot_index: alt_slot,
+                            });
+                            occupied_inventory_slots.insert(alt_slot);
+                            log::debug!("[OfflineCorpse] Restored item {} (def {}) to alternate inventory slot {} (original {} was occupied)", 
+                                       item_instance_id, item.item_def_id, alt_slot, original_inv_slot);
+                        } else {
+                            log::warn!("[OfflineCorpse] No inventory room for item {}. Marking as Unknown.", item_instance_id);
+                            item.location = ItemLocation::Unknown;
+                        }
+                    }
+                } else if slot_idx < 30 {
+                    // Was in hotbar - restore to same hotbar slot if available
+                    let original_hotbar_slot = (slot_idx - 24) as u8;
+                    if !occupied_hotbar_slots.contains(&original_hotbar_slot) {
+                        item.location = ItemLocation::Hotbar(crate::models::HotbarLocationData {
+                            owner_id: player_id,
+                            slot_index: original_hotbar_slot,
+                        });
+                        occupied_hotbar_slots.insert(original_hotbar_slot);
+                        log::debug!("[OfflineCorpse] Restored item {} (def {}) to original hotbar slot {}", 
+                                   item_instance_id, item.item_def_id, original_hotbar_slot);
+                    } else {
+                        // Original hotbar slot occupied, find any available hotbar slot
+                        if let Some(alt_slot) = (0..NUM_PLAYER_HOTBAR_SLOTS as u8).find(|s| !occupied_hotbar_slots.contains(s)) {
+                            item.location = ItemLocation::Hotbar(crate::models::HotbarLocationData {
+                                owner_id: player_id,
+                                slot_index: alt_slot,
+                            });
+                            occupied_hotbar_slots.insert(alt_slot);
+                            log::debug!("[OfflineCorpse] Restored item {} (def {}) to alternate hotbar slot {} (original {} was occupied)", 
+                                       item_instance_id, item.item_def_id, alt_slot, original_hotbar_slot);
+                        } else {
+                            // Hotbar full, try inventory
+                            if let Some(inv_slot) = (0..NUM_PLAYER_INVENTORY_SLOTS as u16).find(|s| !occupied_inventory_slots.contains(s)) {
+                                item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                                    owner_id: player_id,
+                                    slot_index: inv_slot,
+                                });
+                                occupied_inventory_slots.insert(inv_slot);
+                                log::debug!("[OfflineCorpse] Restored hotbar item {} (def {}) to inventory slot {} (hotbar full)", 
+                                           item_instance_id, item.item_def_id, inv_slot);
+                            } else {
+                                log::warn!("[OfflineCorpse] No room for hotbar item {}. Marking as Unknown.", item_instance_id);
+                                item.location = ItemLocation::Unknown;
+                            }
+                        }
+                    }
                 } else {
-                    // No room - item stays in limbo (shouldn't happen with proper slot counts)
-                    log::warn!("[OfflineCorpse] No room for item {} (def {}) when restoring from corpse {}. Marking as Unknown.", 
-                              item_instance_id, item.item_def_id, corpse_id);
-                    item.location = ItemLocation::Unknown;
+                    // Was equipped (slots 30-34) - restore to inventory (equipment will auto-equip if needed)
+                    if let Some(inv_slot) = (0..NUM_PLAYER_INVENTORY_SLOTS as u16).find(|s| !occupied_inventory_slots.contains(s)) {
+                        item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                            owner_id: player_id,
+                            slot_index: inv_slot,
+                        });
+                        occupied_inventory_slots.insert(inv_slot);
+                        log::debug!("[OfflineCorpse] Restored equipped item {} (def {}) to inventory slot {}", 
+                                   item_instance_id, item.item_def_id, inv_slot);
+                    } else {
+                        log::warn!("[OfflineCorpse] No inventory room for equipped item {}. Marking as Unknown.", item_instance_id);
+                        item.location = ItemLocation::Unknown;
+                    }
                 }
                 inventory_table.instance_id().update(item);
                 items_restored += 1;

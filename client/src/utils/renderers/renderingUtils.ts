@@ -70,7 +70,7 @@ import { renderWildAnimal, renderTamingThoughtBubbles } from './wildAnimalRender
 // Import animal corpse renderer
 import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 // Import player corpse renderer
-import { renderPlayerCorpse } from './playerCorpseRenderingUtils';
+import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
 // Import barrel renderer
 import { renderBarrel } from './barrelRenderingUtils';
 // Import entity visual config for centralized bounds
@@ -400,6 +400,7 @@ interface RenderYSortedEntitiesProps {
       heroWaterImageRef: React.RefObject<HTMLImageElement | null>;
       heroCrouchImageRef: React.RefObject<HTMLImageElement | null>;
       heroSwimImageRef: React.RefObject<HTMLImageElement | null>;
+      isHovered?: boolean; // Whether this corpse is being hovered
   }) => void;
   localPlayerPosition?: { x: number; y: number } | null; // This is the predicted position
   remotePlayerInterpolation?: {
@@ -1022,6 +1023,14 @@ export const renderYSortedEntities = ({
       } else if (type === 'player_corpse') {
           const corpse = entity as SpacetimeDBPlayerCorpse;
           
+          // Check if mouse is hovering over this corpse (for nametag display)
+          const isMouseHoveringCorpse = isCorpseHovered(worldMouseX, worldMouseY, corpse);
+          
+          // Check if this corpse is the closest interactable target (for blue outline)
+          const isTheClosestTarget = closestInteractableTarget && 
+                                   closestInteractableTarget.type === 'corpse' && 
+                                   closestInteractableTarget.id.toString() === corpse.id.toString();
+          
           renderCorpse({ 
               ctx, 
               corpse, 
@@ -1030,13 +1039,9 @@ export const renderYSortedEntities = ({
               heroImageRef,
               heroWaterImageRef,
               heroCrouchImageRef,
-              heroSwimImageRef: heroSwimImageRef || { current: null }
+              heroSwimImageRef: heroSwimImageRef || { current: null },
+              isHovered: isMouseHoveringCorpse, // Show nametag when mouse hovers (not just closest target)
           });
-          
-          // Check if this corpse is the closest interactable target
-          const isTheClosestTarget = closestInteractableTarget && 
-                                   closestInteractableTarget.type === 'corpse' && 
-                                   closestInteractableTarget.id.toString() === corpse.id.toString();
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {

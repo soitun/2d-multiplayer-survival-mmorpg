@@ -55,6 +55,8 @@ interface AlkDeliveryPanelProps {
     // Matronage system - optional, only passed if player might be in a matronage
     matronageMembers?: Map<string, any>;
     matronages?: Map<string, any>;
+    // Callback when a matronage is created - opens matronage page
+    onMatronageCreated?: () => void;
 }
 
 export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
@@ -69,6 +71,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
     inventoryItems,
     matronageMembers,
     matronages,
+    onMatronageCreated,
 }) => {
     const { connection } = useGameConnection();
     const [deliveryStatus, setDeliveryStatus] = useState<string | null>(null);
@@ -133,11 +136,15 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
         try {
             await connection.reducers.useMatronsMark(matronageName.trim());
             setMatronageName(''); // Clear input on success
+            // Close this panel and open the matronage page so user can see their new matronage
+            if (onMatronageCreated) {
+                onMatronageCreated();
+            }
         } catch (e: any) {
             setMatronageError(e.message || 'Failed to create matronage');
         }
         setIsCreatingMatronage(false);
-    }, [connection, matronageName]);
+    }, [connection, matronageName, onMatronageCreated]);
     
     // Count Memory Shards in player's inventory (this is the real shard count)
     const inventoryShardCount = useMemo(() => {

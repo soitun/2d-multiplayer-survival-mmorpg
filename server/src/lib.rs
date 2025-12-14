@@ -246,7 +246,7 @@ pub struct PrivateMessage {
 }
 
 // Re-export chat types and reducers for use in other modules
-pub use chat::{Message, LastWhisperFrom};
+pub use chat::{Message, LastWhisperFrom, TeamMessage};
 
 // Re-export player movement reducer for client bindings
 pub use player_movement::update_player_position_simple;
@@ -889,19 +889,62 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
     }
     // --- End Track Active Connection ---
 
-    // --- Set Player Online Status ---
-    let mut players = ctx.db.player();
+    // --- Set Player Online Status and Handle Offline Corpse Restoration ---
+    let players = ctx.db.player();
     if let Some(mut player) = players.identity().find(&client_identity) {
+        let mut player_updated = false;
+        
+        // Set player online if they weren't already
         if !player.is_online {
             player.is_online = true;
-            players.identity().update(player);
+            player_updated = true;
             log::info!("[Connect] Set player {:?} to online.", client_identity);
+        }
+        
+        // Handle Offline Corpse Restoration - restore items and delete corpse when player reconnects
+        if let Some(corpse_id) = player.offline_corpse_id {
+            log::info!("[Connect] Player {} has offline corpse ID {}. Checking if it still exists...", 
+                      player.username, corpse_id);
+            
+            if ctx.db.player_corpse().id().find(corpse_id).is_some() {
+                // Corpse still exists - restore items to player and move them back to corpse position
+                log::info!("[Connect] Offline corpse {} found. Restoring items to player {}.", 
+                          corpse_id, player.username);
+                
+                match player_corpse::restore_from_offline_corpse(ctx, client_identity, corpse_id) {
+                    Ok((corpse_x, corpse_y)) => {
+                        // Restore player position to where their corpse was
+                        player.position_x = corpse_x;
+                        player.position_y = corpse_y;
+                        log::info!("[Connect] Successfully restored items from offline corpse {} to player {} at ({:.1}, {:.1}).", 
+                                  corpse_id, player.username, corpse_x, corpse_y);
+                    }
+                    Err(e) => {
+                        log::error!("[Connect] Failed to restore items from offline corpse {}: {}", corpse_id, e);
+                    }
+                }
+                player.offline_corpse_id = None;
+                player_updated = true;
+            } else {
+                // Corpse was destroyed - player died while offline
+                log::info!("[Connect] Offline corpse {} was destroyed. Player {} died while offline.", 
+                          corpse_id, player.username);
+                player.is_dead = true;
+                player.death_timestamp = Some(ctx.timestamp);
+                player.offline_corpse_id = None;
+                player_updated = true;
+            }
+        }
+        
+        // Only update if something changed
+        if player_updated {
+            players.identity().update(player);
         }
     } else {
         // Player might not be registered yet, which is fine. is_online will be set during registration.
         log::debug!("[Connect] Player {:?} not found in Player table yet (likely needs registration).", client_identity);
     }
-    // --- End Set Player Online Status ---
+    // --- End Set Player Online Status and Offline Corpse Restoration ---
 
     // Note: Initial scheduling for player stats happens in register_player
     // Note: Initial scheduling for global ticks happens in init_module
@@ -969,10 +1012,12 @@ pub fn identity_disconnected(ctx: &ReducerContext) {
             // This means the player reconnected quickly before the old disconnect processed fully.
             // In this case, DO NOTHING. The new connection is already active, 
             // and we don't want to mark them offline or mess with their new state.
-                        }
-                    } else {
+            log::debug!("[Disconnect] Connection ID mismatch for {:?}. Likely reconnected quickly.", sender_id);
+        }
+    } else {
         // No active connection found for this identity, maybe they disconnected before fully registering?
         // Or maybe the disconnect arrived *very* late after a new connection replaced the record.
+        log::debug!("[Disconnect] No active connection found for {:?}. May have disconnected before registering.", sender_id);
     }
 }
 

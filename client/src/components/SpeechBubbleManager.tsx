@@ -15,6 +15,7 @@ interface SpeechBubbleManagerProps {
   cameraOffsetX: number;
   cameraOffsetY: number;
   localPlayerId?: string;
+  localBubbles?: SpeechBubbleData[]; // Local-only bubbles (e.g., from /s command)
 }
 
 const SpeechBubbleManager: React.FC<SpeechBubbleManagerProps> = ({
@@ -22,7 +23,8 @@ const SpeechBubbleManager: React.FC<SpeechBubbleManagerProps> = ({
   players,
   cameraOffsetX,
   cameraOffsetY,
-  localPlayerId
+  localPlayerId,
+  localBubbles = []
 }) => {
   const [activeBubbles, setActiveBubbles] = useState<SpeechBubbleData[]>([]);
   const [lastMessageCount, setLastMessageCount] = useState<number>(0);
@@ -84,6 +86,19 @@ const SpeechBubbleManager: React.FC<SpeechBubbleManagerProps> = ({
       setLastMessageCount(messages.size);
     }
   }, [messages, lastMessageCount, processedMessageIds]);
+  
+  // Merge local bubbles with active bubbles
+  useEffect(() => {
+    if (localBubbles.length > 0) {
+      setActiveBubbles(prev => {
+        // Remove any existing bubbles from the same players as local bubbles
+        const localPlayerIds = new Set(localBubbles.map(b => b.playerId));
+        const filteredBubbles = prev.filter(bubble => !localPlayerIds.has(bubble.playerId));
+        // Add local bubbles
+        return [...filteredBubbles, ...localBubbles];
+      });
+    }
+  }, [localBubbles]);
   
   // Clean up expired bubbles
   useEffect(() => {

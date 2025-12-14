@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ChatMessageHistory from './ChatMessageHistory';
 import ChatInput from './ChatInput';
-import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, EventContext, LastWhisperFrom } from '../generated'; // Assuming types
+import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage, EventContext, LastWhisperFrom } from '../generated'; // Assuming types
 import { Identity } from 'spacetimedb';
 import styles from './Chat.module.css';
 import sovaIcon from '../assets/ui/sova.png';
@@ -30,9 +30,12 @@ interface ChatProps {
   // Matronage system for chat tags
   matronageMembers?: Map<string, any>;
   matronages?: Map<string, any>;
+  // Callback for /s (say) command - emits local speech bubble
+  onSayCommand?: (message: string) => void;
 }
 
-type ChatTab = 'global' | 'sova';
+type ChatTab = 'global' | 'sova' | 'team';
+type ChatMode = 'global' | 'team' | null; // null means no prefix (defaults to global)
 
 // SOVA Message Component - moved outside to prevent re-renders
 const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean, timestamp: Date}}> = React.memo(({ message }) => (
@@ -51,10 +54,11 @@ const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean
   </div>
 ));
 
-const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages }) => {
+const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages, onSayCommand }) => {
   // console.log("[Chat Component Render] Props - Connection:", !!connection, "LocalPlayerIdentity:", localPlayerIdentity);
   const [inputValue, setInputValue] = useState('');
   const [privateMessages, setPrivateMessages] = useState<Map<string, SpacetimeDBPrivateMessage>>(new Map());
+  const [teamMessages, setTeamMessages] = useState<Map<string, SpacetimeDBTeamMessage>>(new Map());
   const [lastWhisperFrom, setLastWhisperFrom] = useState<LastWhisperFrom | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState<ChatTab>('global');
@@ -62,12 +66,18 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const [sovaInputValue, setSovaInputValue] = useState('');
   const [showPerformanceReport, setShowPerformanceReport] = useState(false);
   const [isSOVALoading, setIsSOVALoading] = useState(false);
+  // Chat mode persistence - remember last used mode (/g or /t)
+  const [chatMode, setChatMode] = useState<ChatMode>(() => {
+    const saved = localStorage.getItem('lastChatMode');
+    return (saved === 'global' || saved === 'team') ? saved : null;
+  });
   const chatInputRef = useRef<HTMLInputElement>(null);
   const sovaInputRef = useRef<HTMLInputElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const sovaMessageEndRef = useRef<HTMLDivElement>(null);
   const lastMessageCountRef = useRef<number>(0);
   const privateMessageSubscriptionRef = useRef<any | null>(null); // Changed back to any for now
+  const teamMessageSubscriptionRef = useRef<any | null>(null);
   const lastWhisperSubscriptionRef = useRef<any | null>(null);
   const isAnimating = useRef(false);
 
@@ -85,6 +95,16 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   // Handle tab switching
   const handleTabSwitch = useCallback((tab: ChatTab) => {
     setActiveTab(tab);
+    // When switching to team tab, set chat mode to team
+    if (tab === 'team') {
+      setChatMode('team');
+      localStorage.setItem('lastChatMode', 'team');
+    } else if (tab === 'global') {
+      // When switching to global tab, set chat mode to global
+      setChatMode('global');
+      localStorage.setItem('lastChatMode', 'global');
+    }
+    // SOVA tab doesn't affect chat mode
   }, []);
 
   // Toggle minimize/maximize with smooth animation
@@ -322,12 +342,65 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const handleSendMessage = useCallback(() => {
     if (!connection?.reducers || !inputValue.trim()) return;
 
-    const trimmedInput = inputValue.trim();
+    let trimmedInput = inputValue.trim();
     
-    // Client-side validation for commands
+    // Handle /s (say) command - client-side only speech bubble
+    if (trimmedInput.startsWith('/s ') || trimmedInput === '/s') {
+      const sayText = trimmedInput.substring(3).trim();
+      if (sayText) {
+        // Emit local speech bubble
+        if (onSayCommand) {
+          onSayCommand(sayText);
+        }
+        // Clear input and close chat
+        setInputValue('');
+        setIsChatting(false);
+        return;
+      } else {
+        // Empty /s command - just close chat
+        setInputValue('');
+        setIsChatting(false);
+        return;
+      }
+    }
+    
+    // Handle chat mode persistence
     if (trimmedInput.startsWith('/')) {
       const parts = trimmedInput.split(/\s+/);
       const command = parts[0].toLowerCase();
+      
+      // Check if user is switching chat modes
+      if (command === '/g' || command === '/global') {
+        setChatMode('global');
+        localStorage.setItem('lastChatMode', 'global');
+        // Switch to global tab if not already there
+        if (activeTab !== 'global') {
+          setActiveTab('global');
+        }
+        // Remove the command prefix and send the rest
+        trimmedInput = parts.slice(1).join(' ');
+        if (!trimmedInput) {
+          // Just switching mode, don't send empty message
+          setInputValue('');
+          setIsChatting(false);
+          return;
+        }
+      } else if (command === '/t' || command === '/team') {
+        setChatMode('team');
+        localStorage.setItem('lastChatMode', 'team');
+        // Switch to team tab if not already there
+        if (activeTab !== 'team') {
+          setActiveTab('team');
+        }
+        // Remove the command prefix and send the rest
+        trimmedInput = parts.slice(1).join(' ');
+        if (!trimmedInput) {
+          // Just switching mode, don't send empty message
+          setInputValue('');
+          setIsChatting(false);
+          return;
+        }
+      }
       
       // Validate /w command has enough arguments
       if ((command === '/w' || command === '/whisper') && parts.length < 3) {
@@ -343,6 +416,13 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       
       // Log command usage for debugging
       console.log(`[Chat] Command used: ${command}`);
+    } else {
+      // No command prefix - apply persistent chat mode
+      if (chatMode === 'team') {
+        // Prepend /t to the message
+        trimmedInput = `/t ${trimmedInput}`;
+      }
+      // If chatMode is 'global' or null, send as-is (defaults to global)
     }
 
     try {
@@ -360,7 +440,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     } catch (error) {
       console.error("[Chat] Error sending message:", error);
     }
-  }, [connection, inputValue, setIsChatting]);
+  }, [connection, inputValue, setIsChatting, chatMode, onSayCommand, activeTab]);
 
   // Create the addSOVAMessage function to pass to parent
   const addSOVAMessage = useCallback((message: { id: string; text: string; isUser: boolean; timestamp: Date }) => {
@@ -517,11 +597,87 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     };
   }, [connection, localPlayerIdentity]);
 
-  // Track new messages (public or private) and scroll to bottom
+  // Subscribe to team (matronage) messages
   useEffect(() => {
-    const currentPublicCount = messages.size;
-    const currentPrivateCount = privateMessages.size;
-    const totalCurrentCount = currentPublicCount + currentPrivateCount;
+    if (!connection || !localPlayerIdentity) {
+      if (teamMessageSubscriptionRef.current) {
+        try {
+          teamMessageSubscriptionRef.current.unsubscribe();
+        } catch (e) {
+          console.warn("[Chat] TeamMsgEffect: Error unsubscribing:", e);
+        }
+        teamMessageSubscriptionRef.current = null;
+      }
+      setTeamMessages(new Map());
+      return;
+    }
+
+    // Get the player's matronage ID from matronageMembers
+    const membership = matronageMembers?.get(localPlayerIdentity);
+    if (!membership) {
+      // Player is not in a matronage, clear team messages
+      setTeamMessages(new Map());
+      return;
+    }
+
+    const matronageId = membership.matronageId;
+    
+    // Subscribe to team messages for this matronage
+    const query = `SELECT * FROM team_message WHERE matronage_id = ${matronageId}`;
+    
+    const subHandle = connection.subscriptionBuilder()
+      .onError((errorContext) => console.error("[Chat] TeamMsgEffect: Subscription ERROR:", errorContext))
+      .subscribe([query]);
+    teamMessageSubscriptionRef.current = subHandle;
+
+    const handleTeamMessageInsert = (ctx: EventContext, msg: SpacetimeDBTeamMessage) => {
+      setTeamMessages(prev => new Map(prev).set(String(msg.id), msg));
+    };
+
+    const handleTeamMessageDelete = (ctx: EventContext, msg: SpacetimeDBTeamMessage) => {
+      setTeamMessages(prev => {
+        const next = new Map(prev);
+        next.delete(String(msg.id));
+        return next;
+      });
+    };
+    
+    const teamMessageTable = connection.db.teamMessage;
+    if (teamMessageTable) {
+      teamMessageTable.onInsert(handleTeamMessageInsert);
+      teamMessageTable.onDelete(handleTeamMessageDelete);
+    } else {
+      console.warn("[Chat] TeamMsgEffect: teamMessage table NOT FOUND in DB bindings");
+    }
+
+    return () => {
+      if (teamMessageSubscriptionRef.current) {
+        try {
+          teamMessageSubscriptionRef.current.unsubscribe();
+        } catch (e) {
+          console.warn("[Chat] TeamMsgEffect: Error during cleanup:", e);
+        }
+        teamMessageSubscriptionRef.current = null;
+      }
+      if (teamMessageTable) {
+        teamMessageTable.removeOnInsert(handleTeamMessageInsert);
+        teamMessageTable.removeOnDelete(handleTeamMessageDelete);
+      }
+    };
+  }, [connection, localPlayerIdentity, matronageMembers]);
+
+  // Track new messages (public, private, or team) and scroll to bottom
+  useEffect(() => {
+    // Calculate count based on active tab
+    let totalCurrentCount = 0;
+    if (activeTab === 'global') {
+      totalCurrentCount = messages.size + privateMessages.size;
+    } else if (activeTab === 'team') {
+      totalCurrentCount = teamMessages.size;
+    } else {
+      // SOVA tab - don't scroll based on message count
+      return;
+    }
     
     if (totalCurrentCount > lastMessageCountRef.current || (isChatting && totalCurrentCount > 0)) {
         if (messageEndRef.current) {
@@ -529,7 +685,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         }
     }
     lastMessageCountRef.current = totalCurrentCount;
-  }, [messages, privateMessages, isChatting]);
+  }, [messages, privateMessages, teamMessages, isChatting, activeTab]);
 
   // Track new SOVA messages and scroll to bottom
   useEffect(() => {
@@ -615,6 +771,14 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         >
           SOVA
         </button>
+        {matronageMembers?.get(localPlayerIdentity || '') && (
+          <button 
+            className={`${styles.tab} ${activeTab === 'team' ? styles.activeTab : ''}`}
+            onClick={() => handleTabSwitch('team')}
+          >
+            Team
+          </button>
+        )}
       </div>
 
       {/* Conditional Content Based on Active Tab */}
@@ -624,6 +788,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
           <ChatMessageHistory
             messages={messages}
             privateMessages={privateMessages}
+            teamMessages={new Map()} // Don't show team messages in global tab
             players={players}
             localPlayerIdentity={localPlayerIdentity}
             messageEndRef={messageEndRef as React.RefObject<HTMLDivElement>}
@@ -641,13 +806,49 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
               onCloseChat={handleCloseChat}
               isActive={isChatting}
               onlinePlayerNames={onlinePlayerNames}
+              placeholder={chatMode === 'team' ? 'Type message (Team mode) or /g for global...' : 'Type message or /t for team, /s to say locally...'}
             />
           ) : (
             <div 
               className={styles.chatPlaceholder} 
               onClick={handlePlaceholderClick}
             >
-              Press Enter to chat...
+              {chatMode === 'team' ? 'Press Enter to chat (Team mode)...' : 'Press Enter to chat...'}
+            </div>
+          )}
+        </>
+      ) : activeTab === 'team' ? (
+        <>
+          {/* Team Chat - Only show team messages */}
+          <ChatMessageHistory
+            messages={new Map()} // Don't show global messages in team tab
+            privateMessages={new Map()} // Don't show private messages in team tab
+            teamMessages={teamMessages}
+            players={players}
+            localPlayerIdentity={localPlayerIdentity}
+            messageEndRef={messageEndRef as React.RefObject<HTMLDivElement>}
+            matronageMembers={matronageMembers}
+            matronages={matronages}
+          />
+          
+          {/* Render either the input or the placeholder */}
+          {isChatting ? (
+            <ChatInput
+              ref={chatInputRef}
+              inputValue={inputValue}
+              onInputChange={setInputValue}
+              onSendMessage={handleSendMessage}
+              onCloseChat={handleCloseChat}
+              isActive={isChatting}
+              onlinePlayerNames={onlinePlayerNames}
+              placeholder="Type message (Team) or /g for global, /s to say locally..."
+            />
+          ) : (
+            <div 
+              className={styles.chatPlaceholder} 
+              onClick={handlePlaceholderClick}
+            >
+              Press Enter to chat (Team)...
             </div>
           )}
         </>

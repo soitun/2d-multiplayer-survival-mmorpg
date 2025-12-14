@@ -1,14 +1,19 @@
 import React, { useEffect, useRef, RefObject, useMemo } from 'react';
-import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage } from '../generated'; // Assuming Message and Player types are generated
+import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage } from '../generated'; // Assuming Message and Player types are generated
 import { Identity } from 'spacetimedb'; // Import Identity directly from SDK
 import styles from './Chat.module.css';
 
 // Combined message type for internal use
-type CombinedMessage = (SpacetimeDBMessage | SpacetimeDBPrivateMessage) & { isPrivate?: boolean; senderDisplayNameOverride?: string };
+type CombinedMessage = (SpacetimeDBMessage | SpacetimeDBPrivateMessage | SpacetimeDBTeamMessage) & { 
+  isPrivate?: boolean; 
+  isTeam?: boolean;
+  senderDisplayNameOverride?: string; 
+};
 
 interface ChatMessageHistoryProps {
   messages: Map<string, SpacetimeDBMessage>; // Pass the messages map
   privateMessages: Map<string, SpacetimeDBPrivateMessage>; // Add privateMessages prop
+  teamMessages: Map<string, SpacetimeDBTeamMessage>; // Team (matronage) messages
   players: Map<string, SpacetimeDBPlayer>; // Pass players map to look up names
   localPlayerIdentity: string | undefined; // Changed from string | null
   messageEndRef: RefObject<HTMLDivElement>; // Add the ref parameter
@@ -19,7 +24,8 @@ interface ChatMessageHistoryProps {
 
 const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ 
   messages, 
-  privateMessages, 
+  privateMessages,
+  teamMessages, 
   players, 
   localPlayerIdentity, 
   messageEndRef,
@@ -28,12 +34,13 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
 }) => {
   const historyRef = useRef<HTMLDivElement>(null);
 
-  // Memoize and sort all messages (public and private)
+  // Memoize and sort all messages (public, private, and team)
   const allSortedMessages = useMemo(() => {
     const combined: CombinedMessage[] = [];
 
     messages.forEach(msg => combined.push(msg));
     privateMessages.forEach(msg => combined.push({ ...msg, isPrivate: true }));
+    teamMessages.forEach(msg => combined.push({ ...msg, isTeam: true }));
 
     combined.sort((a, b) => {
       const timeA = a.sent?.microsSinceUnixEpoch ?? 0n;
@@ -43,7 +50,7 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
       return 0;
     });
     return combined;
-  }, [messages, privateMessages]);
+  }, [messages, privateMessages, teamMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -93,12 +100,21 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
         let messageStyle: React.CSSProperties = {};
         const systemMessageColor = '#FFD700'; // Gold color for system messages
         const whisperColor = '#FF69B4'; // Hot pink for whispers
+        const teamColor = '#40FF40'; // Green for team/matronage chat (WoW style)
         let isSystemMsg = false;
         let isWhisper = false;
+        let isTeamMessage = false;
 
         let matronageTag: string | null = null;
 
-        if (msg.isPrivate) {
+        if (msg.isTeam) {
+          // Team (Matronage) message
+          const teamMsg = msg as SpacetimeDBTeamMessage;
+          senderName = teamMsg.senderUsername;
+          isTeamMessage = true;
+          // Get matronage tag for sender
+          matronageTag = getMatronageTag(teamMsg.sender);
+        } else if (msg.isPrivate) {
           const privateMsg = msg as SpacetimeDBPrivateMessage;
           if (privateMsg.senderDisplayName === 'SYSTEM') {
             senderName = 'SYSTEM';
@@ -131,10 +147,17 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
               borderLeft: '3px solid ' + whisperColor,
               paddingLeft: '8px'
             };
+        } else if (isTeamMessage) {
+            messageStyle = { 
+              color: teamColor,
+              backgroundColor: 'rgba(64, 255, 64, 0.1)',
+              borderLeft: '3px solid ' + teamColor,
+              paddingLeft: '8px'
+            };
         }
 
         // Use msg.id if it exists on both types and is unique, otherwise use index or generate key
-        const key = msg.id ? msg.id.toString() : Math.random().toString(); 
+        const key = msg.id ? `${msg.isTeam ? 'team-' : msg.isPrivate ? 'priv-' : ''}${msg.id.toString()}` : Math.random().toString(); 
 
         // Convert microseconds to Date for timestamp display
         const timestamp = new Date(Number(msg.sent?.microsSinceUnixEpoch ?? 0n) / 1000);
@@ -143,22 +166,29 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
         const messageClasses = [styles.message];
         if (isWhisper) {
           messageClasses.push(styles.whisperMessage);
+        } else if (isTeamMessage) {
+          messageClasses.push(styles.teamMessage);
         }
         
         const senderNameClasses = [styles.senderName];
         if (isWhisper) {
           senderNameClasses.push(styles.whisperSenderName);
+        } else if (isTeamMessage) {
+          senderNameClasses.push(styles.teamSenderName);
         }
         
         const messageTextClasses = [styles.messageText];
         if (isWhisper) {
           messageTextClasses.push(styles.whisperMessageText);
+        } else if (isTeamMessage) {
+          messageTextClasses.push(styles.teamMessageText);
         }
 
         return (
           <div key={key} className={messageClasses.join(' ')} style={messageStyle}>
             <div className={styles.messageHeader}>
               <span className={senderNameClasses.join(' ')}>
+                {isTeamMessage && <span className={styles.teamPrefix}>[Team] </span>}
                 {matronageTag && (
                   <span className={styles.matronageTag}>{matronageTag} </span>
                 )}

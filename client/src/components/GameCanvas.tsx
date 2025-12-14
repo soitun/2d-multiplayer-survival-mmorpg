@@ -207,6 +207,10 @@ interface GameCanvasProps {
   onSetInteractingWith: (target: { type: string; id: number | bigint } | null) => void;
   isMinimapOpen: boolean;
   setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
+  interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+  // Callback to reset the initial view after interface closes
+  onInterfaceClose?: () => void;
   isChatting: boolean;
   messages: any;
   isSearchingCraftRecipes?: boolean;
@@ -332,6 +336,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onSetInteractingWith,
   isMinimapOpen,
   setIsMinimapOpen,
+  interfaceInitialView,
+  onInterfaceClose,
   isChatting,
   messages,
   isSearchingCraftRecipes,
@@ -3807,7 +3813,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             style={{
               zIndex: 9998, // Just below MobileControlBar (9999) so it's clickable but stays below control bar
             }}
-            onClose={() => setIsMinimapOpen(false)}
+            onClose={() => {
+              setIsMinimapOpen(false);
+              onInterfaceClose?.(); // Reset the initial view for next open
+            }}
+            initialView={interfaceInitialView}
             showWeatherOverlay={minimapShowWeatherOverlay}
             onToggleWeatherOverlay={(checked) => {
               setMinimapShowWeatherOverlay(checked);

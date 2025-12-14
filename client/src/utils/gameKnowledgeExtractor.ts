@@ -29,11 +29,12 @@ export const controlSections: ControlSection[] = [
         title: 'Interaction',
         controls: [
             { key: 'Left Click', description: 'Use equipped tool/weapon' },
-            { key: 'E (Hold)', description: 'Pick up empty wooden storage boxes' },
-            { key: 'E (Hold)', description: 'Toggle campfire on/off' },
+            { key: 'E (Hold)', description: 'Pick up empty containers (wooden storage boxes, compost, refrigerator)' },
+            { key: 'E (Hold)', description: 'Toggle fire pits on/off' },
             { key: 'E (Hold)', description: 'Hide/surface stashes' },
             { key: 'E (Hold)', description: 'Revive knocked out players' },
             { key: 'E (Hold)', description: 'Drink water from bodies of water' },
+            { key: 'F', description: 'Fill equipped water container from water sources' },
         ]
     },
     {
@@ -49,6 +50,7 @@ export const controlSections: ControlSection[] = [
         title: 'Interface',
         controls: [
             { key: 'Enter', description: 'Open chat' },
+            { key: 'B', description: 'Toggle crafting screen (full-screen crafting panel)' },
             { key: 'Escape', description: 'Close menus/cancel actions' },
             { key: 'G', description: 'Toggle minimap' },
             { key: 'V (Hold)', description: 'Talk to SOVA personal AI assistant' },
@@ -340,7 +342,14 @@ const tipSectionDefinitions = {
     buildingCrafting: {
         title: '🔨 Building & Crafting',
         tips: [
-            'Use the crafting menu (Tab) to see available recipes.',
+            'Press B to open the full-screen crafting screen - a dedicated crafting panel with category filters and search.',
+            'The crafting screen (B key) shows all recipes organized by category: Tools, Melee, Ranged, Armor, Consumables, Materials, Building, and Ammo.',
+            'Use the search bar in the crafting screen to quickly find recipes by name or ingredient.',
+            'The crafting screen remembers your last selected category and search term between sessions.',
+            'Click on a category in the sidebar to filter recipes - "All Items" shows everything.',
+            'The crafting screen displays your current inventory resources and shows which recipes you can afford.',
+            'Recipes you can\'t craft are grayed out - check what resources you\'re missing.',
+            'You can also access crafting through the inventory panel (Tab key) - both use the same recipes and queue.',
             'Build shelters to protect your campfires from rain and other players.',
             'Shelters cost 3,200 wood and 10 rope - a significant investment for base protection.',
             'Shelters provide an ambient warmth bonus so you won\'t freeze as quickly during the night.',
@@ -387,6 +396,29 @@ const tipSectionDefinitions = {
             'Whispers are completely private - they never appear as speech bubbles.',
             'Commands (starting with /) don\'t show as speech bubbles either.',
             
+            // Chat tabs
+            'The chat has three tabs: Global (all messages), SOVA (AI assistant), and Team (matronage chat).',
+            'The Team tab only appears when you\'re in a matronage (team).',
+            'Switch between tabs by clicking the tab buttons at the top of the chat window.',
+            'Each tab shows different messages - Global shows public chat, Team shows only your matronage messages.',
+            
+            // Chat mode persistence
+            'Chat mode persistence: The game remembers your last chat mode (/g for global or /t for team).',
+            'Type /g or /global to switch to global chat mode - subsequent messages will go to global chat.',
+            'Type /t or /team to switch to team chat mode - subsequent messages will go to your matronage.',
+            'After typing /g or /t, your next messages (without a prefix) will automatically use that mode.',
+            'The chat input placeholder shows your current mode: "Press Enter to chat (Team mode)..." when in team mode.',
+            'This prevents accidentally sending messages to the wrong channel - no more forgetting you were in team chat!',
+            'Switching tabs automatically updates your chat mode - Team tab sets team mode, Global tab sets global mode.',
+            
+            // /s (say) command
+            'Type /s <message> to create a local speech bubble without sending to any chat channel.',
+            'Example: /s Hello there! (creates a speech bubble above your character for 8 seconds).',
+            'The /s command is perfect for roleplay or local communication - only shows as a speech bubble, no chat log entry.',
+            '/s messages are client-side only - they don\'t appear in any chat tab or get sent to the server.',
+            'Use /s for quick local interactions without cluttering global or team chat.',
+            'Speech bubbles from /s last 8 seconds, just like regular chat messages.',
+            
             // /who command
             'Type /who to see a list of all currently online players.',
             '/who displays the total player count and their usernames.',
@@ -409,6 +441,13 @@ const tipSectionDefinitions = {
             'You can use /reply instead of /r if you prefer the full command.',
             'If no one has whispered you yet, /r will show an error message.',
             
+            // Team chat (/t command)
+            'Type /t <message> or /team <message> to send a message to your matronage (team) chat.',
+            'Team messages appear in green text and are only visible to members of your matronage.',
+            'Team messages have a [Team] prefix and appear in the Team tab.',
+            'You must be in a matronage to use team chat - join or create one first.',
+            'Team chat is perfect for coordinating with your matronage members privately.',
+            
             // Other commands
             'Type /players to see how many players are currently online.',
             'Type /kill or /respawn to respawn at your sleeping bag (useful if stuck).',
@@ -417,7 +456,9 @@ const tipSectionDefinitions = {
             'Whispers are perfect for coordinating with allies without alerting enemies.',
             'Use /who to scout for potential allies or threats in your area.',
             'The chat history shows timestamps for all messages.',
-            'System messages appear in gold text, whispers in pink, regular chat in white.',
+            'System messages appear in gold text, whispers in pink, team messages in green, regular chat in white.',
+            'Remember: Chat mode persists between messages - check the placeholder to see your current mode!',
+            'Use /s for local roleplay without spamming chat channels.',
         ]
     },
 
@@ -431,6 +472,260 @@ const tipSectionDefinitions = {
             'Coordinate with allies using whispers to avoid revealing your plans.',
             'Scout the player list with /who before venturing into dangerous areas.',
         ]
+    },
+
+    matronages: {
+        title: '🏛️ Matronages (Teams)',
+        tips: [
+            // What are Matronages
+            'Matronages are player-formed teams that pool work order rewards and share resources.',
+            'Join a matronage to earn Memory Shards together - rewards are distributed equally among all members.',
+            'A Matronage can have one leader called the "Pra Matron" and multiple regular members.',
+            
+            // Creating a Matronage
+            'To create a Matronage, you need a "Matron\'s Mark" item and must be at the Central ALK Compound.',
+            'Use the Matron\'s Mark while standing near the ALK station to create your new matronage.',
+            'You can choose a unique name (1-32 characters), icon, and description for your matronage.',
+            'Creating a matronage consumes the Matron\'s Mark item - they are valuable!',
+            
+            // Joining and Invitations
+            'The Pra Matron can invite players by username - invitations work even for offline players.',
+            'You can only belong to one matronage at a time - leave your current one before joining another.',
+            'Accept or decline pending invitations from the matronage interface panel.',
+            'Accepting an invitation automatically clears all other pending invitations.',
+            
+            // Shard Pooling System
+            'Work order rewards from ALK deliveries go into the matronage\'s shared pool.',
+            'Every hour (in-game day), the pool is distributed equally among all members.',
+            'Your share goes to an "owed balance" that you can withdraw at the Central Compound.',
+            'Withdraw your owed shards by interacting with ALK while at the Central Compound.',
+            
+            // Management
+            'The Pra Matron can rename the matronage, change its icon, and update the description.',
+            'The Pra Matron can promote another member to Pra Matron (transfers leadership).',
+            'The Pra Matron can remove members from the matronage.',
+            'To leave as Pra Matron, you must either promote someone else or dissolve the matronage.',
+            
+            // Dissolution
+            'Dissolving a matronage requires being at the Central ALK Compound.',
+            'When dissolved, any remaining pool balance is distributed to members\' owed balances.',
+            'Your owed balance persists even after leaving or dissolution - you can still withdraw it.',
+            
+            // Team Chat
+            'Use /t or /team to send messages only visible to your matronage members.',
+            'Team messages appear in green text with a [Team] prefix.',
+            'The Team chat tab only appears when you\'re in a matronage.',
+        ]
+    },
+
+    dayNightCycle: {
+        title: '🌅 Day/Night Cycle',
+        tips: [
+            // Time Periods
+            'The game has a 25-minute day/night cycle: 20 minutes of daytime, 5 minutes of nighttime.',
+            'Time periods: Dawn → Morning → Noon → Afternoon → Dusk → Twilight Evening → Night → Midnight → Twilight Morning.',
+            'Dawn and Dusk are brief transition periods with orange lighting.',
+            'Twilight periods (morning and evening) have purple hues and reduced visibility.',
+            
+            // Temperature Changes
+            'Noon is the warmest part of the day - your warmth recovers fastest around midday.',
+            'Night and Midnight are coldest - warmth drains 2-3x faster than daytime.',
+            'Dawn and Dusk have moderate warmth drain (1.5x normal rate).',
+            'Plan your activities around temperature - gather resources during day, stay near fires at night.',
+            
+            // Visibility
+            'Visibility is highest at Noon and lowest at Midnight.',
+            'Torches and campfires provide essential light during dark periods.',
+            'Full moons occur every 3 cycles and provide slightly better night visibility.',
+            
+            // Survival Tips
+            'Stockpile fuel before nightfall - you\'ll need it to survive the cold.',
+            'Night is the most dangerous time - predators are more active and cold is deadly.',
+            'Consider timing your adventures to return to base before dusk.',
+            'Build campfires under tree cover or in shelters to protect them from rain during the night.',
+        ]
+    },
+
+    seasons: {
+        title: '🍂 Seasons & Weather',
+        tips: [
+            // Season Overview
+            'The game has four seasons: Spring, Summer, Autumn, and Winter.',
+            'Each season lasts 90 in-game days and affects weather patterns and plant growth.',
+            
+            // Spring
+            'Spring: Frequent light showers, moderate temperatures, good for exploration.',
+            'Spring plants grow faster and resources are moderately available.',
+            
+            // Summer
+            'Summer: Driest season with rare but intense afternoon storms.',
+            'Summer has 50% less rain overall and storms clear faster.',
+            'Best season for outdoor activities and long expeditions.',
+            
+            // Autumn
+            'Autumn: Wettest season with long persistent storms and frequent heavy rain.',
+            'Autumn storms spread quickly and last much longer - prepare extra fuel.',
+            '80% more likely to rain in autumn - keep fires protected!',
+            
+            // Winter
+            'Winter: Cold intense storms that persist for extended periods.',
+            'Winter storms clear very slowly - a single storm can last most of the night.',
+            'Warmth is critical in winter - stock up on fuel and warm clothing.',
+            
+            // Weather Types
+            'Weather types: Clear, Light Rain, Moderate Rain, Heavy Rain, Heavy Storm.',
+            'Heavy rain and storms extinguish unprotected campfires.',
+            'Build campfires under trees or in shelters for rain protection.',
+            'Different areas of the map can have different weather - weather moves in fronts.',
+        ]
+    },
+
+    minimapInterface: {
+        title: '🗺️ Minimap & Interface',
+        tips: [
+            // Minimap
+            'Press G to toggle the minimap view.',
+            'The minimap shows your current position and nearby landmarks.',
+            'Other players appear as icons on the minimap when in range.',
+            'Campfires and other light sources are visible on the minimap from long distances.',
+            
+            // Interface Panel
+            'Access the Interface Panel through the minimap (click the expand button).',
+            'The Interface Panel contains: Encyclopedia, ALK, Cairns, and Matronage tabs.',
+            
+            // Encyclopedia
+            'The Encyclopedia contains information about items, creatures, and game mechanics.',
+            'Use the Encyclopedia to learn about crafting recipes and survival strategies.',
+            
+            // ALK Interface
+            'The ALK tab shows your current work orders and delivery objectives.',
+            'Complete work orders by delivering materials to ALK stations for Memory Shards.',
+            'Memory Shards are the island\'s currency - use them to upgrade SOVA\'s capabilities.',
+            
+            // Cairns Tab
+            'The Cairns tab tracks which lore cairns you\'ve discovered.',
+            'Each cairn you discover is recorded with its lore entry.',
+            'Discovering cairns rewards Memory Shards based on lore rarity.',
+            
+            // Matronage Tab
+            'The Matronage tab shows your team information if you\'re in a matronage.',
+            'View member list, pool balance, and manage invitations from this tab.',
+        ]
+    },
+
+    wildlife: {
+        title: '🐺 Wildlife & Creatures',
+        tips: [
+            // Creature Overview
+            'The island is home to various wild animals - some friendly, some dangerous.',
+            'Animals include: Foxes, Wolves, Vipers, Walruses, Crabs, Terns, and Crows.',
+            
+            // Passive Animals
+            'Crabs, Terns, and Crows are generally passive and flee when approached.',
+            'Crabs can be found near beaches and provide food when hunted.',
+            'Birds provide feathers useful for crafting arrows.',
+            
+            // Foxes
+            'Foxes are common and relatively easy to hunt.',
+            'Fox skulls make decent early-game melee weapons.',
+            'Foxes provide meat and fur when killed.',
+            
+            // Wolves
+            'Wolves are aggressive predators - they will attack players on sight.',
+            'Wolves hunt in the area and can be very dangerous to unprepared survivors.',
+            'Wolf skulls are powerful balanced weapons.',
+            'Wolves provide excellent meat and valuable pelts.',
+            
+            // Vipers
+            'Vipers are venomous snakes that can poison you with their bite.',
+            'Viper venom causes damage over time - have bandages ready.',
+            'Viper skulls make unique weapons.',
+            
+            // Walruses
+            'Walruses are massive and incredibly dangerous.',
+            'Walrus skulls are the most powerful melee weapons but swing very slowly.',
+            'Approach walruses with extreme caution - they can kill quickly.',
+            'Walruses provide large amounts of meat and valuable materials.',
+            
+            // General Tips
+            'Animals respawn over time after being killed.',
+            'Hunt during the day when you can see predators coming.',
+            'Always carry a weapon when exploring - animal attacks can be sudden.',
+            'Animal corpses can be harvested for meat, bones, and other materials.',
+        ]
+    },
+
+    deathRespawn: {
+        title: '💀 Death & Respawning',
+        tips: [
+            // Death Mechanics
+            'When your health reaches zero, you die and leave behind a corpse.',
+            'Your corpse contains all items you were carrying - inventory, hotbar, and equipment.',
+            'Other players can loot your corpse to take your items.',
+            'Corpses despawn after 5 minutes by default - hurry to recover your items!',
+            
+            // Respawning
+            'After death, you respawn at your sleeping bag if you have one placed.',
+            'Without a sleeping bag, you respawn at a random beach location.',
+            'Type /kill or /respawn in chat to respawn if you get stuck.',
+            
+            // Sleeping Bags
+            'Craft and place sleeping bags to set your respawn point.',
+            'Place a sleeping bag inside your shelter for a safe respawn.',
+            'Consider placing backup sleeping bags in hidden locations.',
+            'Multiple sleeping bags give you options if your base is raided.',
+            
+            // Corpse Looting
+            'Approach a corpse and interact to open its inventory.',
+            'You can take individual items or transfer everything quickly.',
+            'Enemy corpses may contain valuable gear - always check!',
+            
+            // Knocked Out State
+            'Before full death, you enter a "knocked out" state where allies can revive you.',
+            'Hold E near a knocked out player to revive them.',
+            'Knocked out players are immune to environmental damage but vulnerable to direct attacks.',
+            'Revived players return with low health - give them time to heal.',
+            
+            // Cannibalism
+            'Human corpses can be harvested for flesh - a grim but effective survival option.',
+            'Cooking human flesh makes it safer to eat but doesn\'t remove moral implications.',
+        ]
+    },
+
+    cairnsLore: {
+        title: '🗿 Cairns & Lore',
+        tips: [
+            // What are Cairns
+            'Cairns are stone monuments scattered across the island containing lore entries.',
+            'Each cairn tells a piece of the island\'s history and the Admiralty Directorate\'s past.',
+            'Discovering cairns reveals information about ALK, the Compound, and why you\'re stranded here.',
+            
+            // Discovering Cairns
+            'Approach a cairn and press E to interact and discover its lore.',
+            'Each cairn can only be discovered once per player - the lore plays automatically.',
+            'Discovered cairns are tracked in the Cairns tab of your Interface Panel.',
+            
+            // Rewards
+            'Discovering a new cairn rewards you with Memory Shards.',
+            'Rarer lore categories give more shards: Common (25) → Uncommon (50) → Rare (100) → Epic (150) → Legendary (200).',
+            'Island geography and infrastructure lore is common.',
+            'ALK and shard mechanics lore is uncommon.',
+            'Cultural history and the Compound\'s purpose are rare.',
+            'Philosophical insights and meta-knowledge are epic and legendary.',
+            
+            // Lore Categories
+            'Island lore: Learn about the volcanic geography, coastlines, and weather patterns.',
+            'Infrastructure lore: Discover radio towers, geothermal taps, and drop-off stations.',
+            'ALK lore: Understand the Admiralty Logistics Kernel and ghost network.',
+            'Shard lore: Learn what Memory Shards are and how SOVA uses them.',
+            'Cultural lore: Discover the Aleuts who once lived here and their fate.',
+            'Compound lore: Understand the intake scanner and the survival loop.',
+            
+            // Tips
+            'Explore thoroughly - cairns are often hidden in remote areas.',
+            'Check your Cairns tab to see which lore entries you\'re still missing.',
+            'Discovering all cairns provides a complete picture of the island\'s mystery.',
+        ]
     }
 };
 
@@ -438,6 +733,8 @@ const tipSectionDefinitions = {
 const tipSectionOrder = [
     'gettingStarted',
     'survival',
+    'dayNightCycle',
+    'seasons',
     'resourceGathering',
     'farming',
     'waterSources',
@@ -447,8 +744,13 @@ const tipSectionOrder = [
     'fumaroles',
     'foodCooking',
     'fishing',
+    'wildlife',
     'buildingCrafting',
     'combat',
+    'deathRespawn',
+    'minimapInterface',
+    'cairnsLore',
+    'matronages',
     'chatCommands',
     'multiplayer'
 ];

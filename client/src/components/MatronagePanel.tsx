@@ -780,7 +780,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
 
                     {/* Description */}
                     <div className="management-section">
-                        <h4>Description {descriptionSuccess && <span className="success-indicator">✓ Saved!</span>}</h4>
+                        <h4>Description</h4>
                         <textarea
                             placeholder="Describe your matronage..."
                             value={newDescription}
@@ -799,7 +799,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
                                 onClick={handleUpdateDescription}
                                 disabled={isLoading}
                             >
-                                {descriptionSuccess ? '✓ Saved' : 'Save Description'}
+                                {descriptionSuccess ? '✓' : 'Save Description'}
                             </button>
                         </div>
                     </div>

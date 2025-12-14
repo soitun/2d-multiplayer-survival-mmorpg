@@ -40,6 +40,7 @@ todos:
 # Backpack Auto-Consolidation System (Box Type Variant)
 
 ## Overview
+
 Implement backpacks as `BOX_TYPE_BACKPACK = 4` within the existing `WoodenStorageBox` system, reusing all inventory management reducers. Backpacks auto-spawn when dropped items cluster, using `burlap_sack.png` sprite.
 
 ## Architecture
@@ -73,6 +74,7 @@ flowchart TD
 ## Key Insight: Reuse Existing Infrastructure
 
 Instead of creating a separate `backpack.rs` module, we extend `WoodenStorageBox`:
+
 - Add `BOX_TYPE_BACKPACK = 4` constant
 - All existing reducers (`move_item_from_box`, `quick_move_from_box`, etc.) work automatically
 - Only need to add backpack-specific logic: auto-spawning, consolidation, auto-despawn
@@ -82,6 +84,7 @@ Instead of creating a separate `backpack.rs` module, we extend `WoodenStorageBox
 ### 1. Server-Side: Extend WoodenStorageBox ([server/src/wooden_storage_box.rs](server/src/wooden_storage_box.rs))
 
 **Add constants** (after line 32):
+
 ```rust
 pub const BOX_TYPE_BACKPACK: u8 = 4;
 pub const NUM_BACKPACK_SLOTS: usize = 36;
@@ -90,6 +93,7 @@ pub const BACKPACK_MAX_HEALTH: f32 = 100.0;
 ```
 
 **Update `ItemContainer` trait implementation** (around line 752):
+
 ```rust
 fn num_slots(&self) -> usize {
     match self.box_type {
@@ -103,6 +107,7 @@ fn num_slots(&self) -> usize {
 ```
 
 **Update `place_wooden_storage_box` reducer** (around line 468):
+
 ```rust
 let box_type = if item_def.name == "Wooden Storage Box" {
     BOX_TYPE_NORMAL
@@ -120,6 +125,7 @@ let box_type = if item_def.name == "Wooden Storage Box" {
 ```
 
 **Update health initialization** (around line 514):
+
 ```rust
 let (initial_health, max_health) = match box_type {
     BOX_TYPE_LARGE => (LARGE_WOODEN_STORAGE_BOX_INITIAL_HEALTH, LARGE_WOODEN_STORAGE_BOX_MAX_HEALTH),
@@ -447,10 +453,12 @@ Repeat for: `quick_move_from_box`, `drop_item_from_box_slot_to_world`, `split_an
 ### 5. Server-Side: Integration
 
 **[`server/src/lib.rs`](server/src/lib.rs):**
+
 - Add `mod backpack;` (around line 80)
 - Call `backpack::init_backpack_consolidation_schedule(ctx)` in `init()` reducer (around line 650)
 
 **[`server/src/models.rs`](server/src/models.rs):**
+
 - No changes needed! `ContainerType::WoodenStorageBox` already covers backpacks
 
 ### 6. Client-Side: Rendering
@@ -458,11 +466,13 @@ Repeat for: `quick_move_from_box`, `drop_item_from_box_slot_to_world`, `split_an
 **[`client/src/utils/renderers/woodenStorageBoxRenderingUtils.ts`](client/src/utils/renderers/woodenStorageBoxRenderingUtils.ts):**
 
 Import backpack image (after line 4):
+
 ```typescript
 import backpackImage from '../../assets/doodads/burlap_sack.png';
 ```
 
 Add backpack constants (after line 11):
+
 ```typescript
 export const BACKPACK_WIDTH = 48;
 export const BACKPACK_HEIGHT = 48;
@@ -470,6 +480,7 @@ export const BOX_TYPE_BACKPACK = 4;
 ```
 
 Update `getImageSource` in `boxConfig` (around line 37):
+
 ```typescript
 getImageSource: (entity) => {
     if (entity.isDestroyed) return null;
@@ -484,6 +495,7 @@ getImageSource: (entity) => {
 ```
 
 Update `getTargetDimensions` (around line 54):
+
 ```typescript
 getTargetDimensions: (img, entity) => {
     switch (entity.boxType) {
@@ -496,6 +508,7 @@ getTargetDimensions: (img, entity) => {
 ```
 
 Preload image (after line 173):
+
 ```typescript
 imageManager.preloadImage(backpackImage);
 ```
@@ -541,9 +554,11 @@ if (closestInteractableTarget?.type === 'box') {
 5. **Type Safety**: Uses existing `WoodenStorageBox` table and `ItemContainer` trait
 
 ## Files to Create
+
 - `server/src/backpack.rs` (~300 lines - consolidation logic only)
 
 ## Files to Modify
+
 - `server/src/wooden_storage_box.rs` (add `BOX_TYPE_BACKPACK` constant, update match statements, add auto-despawn hooks)
 - `server/src/lib.rs` (module declaration + init call)
 - `server/src/dropped_item.rs` (hybrid trigger on drop)
@@ -552,6 +567,7 @@ if (closestInteractableTarget?.type === 'box') {
 - `client/src/utils/renderers/interactionLabelUtils.ts` (update label text)
 
 ## Testing Checklist
+
 1. Drop 5+ items in cluster → backpack spawns instantly
 2. Drop 10+ items → multiple backpacks spawn 160px apart
 3. Open backpack → see 36 slots (6x6 grid)
