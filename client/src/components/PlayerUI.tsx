@@ -16,6 +16,7 @@ import { NotificationItem } from '../types/notifications';
 import ItemAcquisitionNotificationUI from './ItemAcquisitionNotificationUI';
 import ActiveCraftingQueueUI from './ActiveCraftingQueueUI';
 import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
+import CraftingScreen from './CraftingScreen';
 // --- END NEW IMPORTS ---
 
 // Import status icons for mobile UI
@@ -63,6 +64,9 @@ interface PlayerUIProps {
   chunkWeather: Map<string, any>; // ADDED: Chunk-based weather
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>; // ADDED: Memory Grid unlocks
   isMobile?: boolean; // ADDED: Mobile detection for responsive layout
+  // Crafting Screen props
+  showCraftingScreen: boolean;
+  onToggleCraftingScreen: () => void;
 }
 
 const PlayerUI: React.FC<PlayerUIProps> = ({
@@ -104,7 +108,9 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     isGameMenuOpen,
     chunkWeather,
     memoryGridProgress,
-    isMobile = false
+    isMobile = false,
+    showCraftingScreen,
+    onToggleCraftingScreen,
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
@@ -459,13 +465,42 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 if (showInventory) {
                      onSetInteractingWith(null);
                 }
+                // Close crafting screen when opening inventory
+                if (showCraftingScreen) {
+                    onToggleCraftingScreen();
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [showInventory, onToggleInventory, onSetInteractingWith]);
+    }, [showInventory, onToggleInventory, onSetInteractingWith, showCraftingScreen, onToggleCraftingScreen]);
+
+    // Effect for crafting screen toggle keybind (B key)
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'b' || event.key === 'B') {
+                // Don't trigger if typing in an input field
+                const target = event.target as HTMLElement;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                    return;
+                }
+                event.preventDefault();
+                // Toggle crafting screen
+                onToggleCraftingScreen();
+                // Close inventory if open when opening crafting screen
+                if (!showCraftingScreen && showInventory) {
+                    onToggleInventory();
+                    onSetInteractingWith(null);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showCraftingScreen, onToggleCraftingScreen, showInventory, onToggleInventory, onSetInteractingWith]);
 
     // Effect to disable background scrolling when inventory is open
     useEffect(() => {
@@ -1349,6 +1384,21 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     purchasedMemoryNodes={purchasedMemoryNodes}
                  />
              )}
+
+            {/* Crafting Screen - Full screen crafting panel opened with B key */}
+            {showCraftingScreen && (
+                <CraftingScreen
+                    playerIdentity={identity}
+                    recipes={recipes}
+                    craftingQueueItems={craftingQueueItems}
+                    itemDefinitions={itemDefinitions}
+                    inventoryItems={inventoryItems}
+                    connection={connection}
+                    onClose={onToggleCraftingScreen}
+                    onSearchFocusChange={onCraftingSearchFocusChange}
+                    purchasedMemoryNodes={purchasedMemoryNodes}
+                />
+            )}
 
             {/* Hotbar Area - Desktop only, hidden on mobile */}
             {!isMobile && (

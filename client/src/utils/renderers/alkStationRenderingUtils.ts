@@ -23,7 +23,8 @@ export const ALK_STATION_BUILDING_WIDTH = ALK_STATION_WIDTH * ALK_STATION_BUILDI
 
 // Collision bounds - for the actual building part (bottom portion)
 export const ALK_STATION_COLLISION_WIDTH = 240; // Collision width for walkable area around station
-export const ALK_STATION_COLLISION_HEIGHT = 160; // Collision height
+export const ALK_STATION_COLLISION_HEIGHT = 160; // Collision height (substations - bottom 1/3)
+export const ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT = 80; // Central compound collision height (half height from top - bottom 1/6)
 export const ALK_STATION_COLLISION_RADIUS = 120; // Circular collision radius (reduced for easier navigation and Y-sorting)
 export const PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED = 280 * 280; // 280px interaction radius (larger for big structure)
 

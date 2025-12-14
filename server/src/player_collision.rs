@@ -36,7 +36,9 @@ use crate::alk::{
     ALK_STATION_COLLISION_Y_OFFSET,
     ALK_STATION_AABB_HALF_WIDTH,
     ALK_STATION_AABB_HALF_HEIGHT,
-    ALK_STATION_COLLISION_HEIGHT
+    ALK_STATION_COLLISION_HEIGHT,
+    ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT,
+    ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET
 };
 use crate::alk::alk_station as AlkStationTableTrait;
 // Import wall cell table trait for collision detection
@@ -309,14 +311,20 @@ pub fn calculate_slide_collision_with_grid(
            spatial_grid::EntityType::AlkStation(station_id) => {
                 if let Some(station) = alk_stations.station_id().find(station_id) {
                     if station.is_active {
-                        // AABB collision - bottom 1/3 height, 1/2 width (matches compound buildings)
+                        // AABB collision - central compound uses half height from top, substations use bottom 1/3
+                        let is_central_compound = station.station_id == 0;
                         let station_aabb_center_x = station.world_pos_x;
                         let sprite_bottom = station.world_pos_y + 0.0; // ALK_STATION_Y_OFFSET is 0
-                        let station_aabb_center_y = sprite_bottom - ALK_STATION_AABB_HALF_HEIGHT;
+                        let (aabb_half_height, aabb_half_width, y_offset) = if is_central_compound {
+                            (ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET)
+                        } else {
+                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, 0.0)
+                        };
+                        let station_aabb_center_y = sprite_bottom - aabb_half_height - y_offset;
                         
                         // AABB collision detection
-                        let closest_x = final_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
-                        let closest_y = final_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                        let closest_x = final_x.max(station_aabb_center_x - aabb_half_width).min(station_aabb_center_x + aabb_half_width);
+                        let closest_y = final_y.max(station_aabb_center_y - aabb_half_height).min(station_aabb_center_y + aabb_half_height);
                         
                         let dx_aabb = final_x - closest_x;
                         let dy_aabb = final_y - closest_y;
@@ -345,8 +353,8 @@ pub fn calculate_slide_collision_with_grid(
                                     final_y = current_player_pos_y + slide_dy;
                                     
                                     // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
-                                    let final_closest_x = final_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
-                                    let final_closest_y = final_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                                    let final_closest_x = final_x.max(station_aabb_center_x - aabb_half_width).min(station_aabb_center_x + aabb_half_width);
+                                    let final_closest_y = final_y.max(station_aabb_center_y - aabb_half_height).min(station_aabb_center_y + aabb_half_height);
                                     let final_dx = final_x - final_closest_x;
                                     let final_dy = final_y - final_closest_y;
                                     let final_dist_sq = final_dx * final_dx + final_dy * final_dy;
@@ -1021,14 +1029,20 @@ pub fn resolve_push_out_collision_with_grid(
                     if let Some(station) = alk_stations.station_id().find(station_id) {
                         if !station.is_active { continue; }
                         
-                        // AABB collision - bottom 1/3 height, 1/2 width (matches compound buildings)
+                        // AABB collision - central compound uses half height from top, substations use bottom 1/3
+                        let is_central_compound = station.station_id == 0;
                         let station_aabb_center_x = station.world_pos_x;
                         let sprite_bottom = station.world_pos_y + 0.0; // ALK_STATION_Y_OFFSET is 0
-                        let station_aabb_center_y = sprite_bottom - ALK_STATION_AABB_HALF_HEIGHT;
+                        let (aabb_half_height, aabb_half_width, y_offset) = if is_central_compound {
+                            (ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET)
+                        } else {
+                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, 0.0)
+                        };
+                        let station_aabb_center_y = sprite_bottom - aabb_half_height - y_offset;
                         
                         // AABB collision detection for push-out
-                        let closest_x = resolved_x.max(station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH).min(station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH);
-                        let closest_y = resolved_y.max(station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT).min(station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT);
+                        let closest_x = resolved_x.max(station_aabb_center_x - aabb_half_width).min(station_aabb_center_x + aabb_half_width);
+                        let closest_y = resolved_y.max(station_aabb_center_y - aabb_half_height).min(station_aabb_center_y + aabb_half_height);
                         
                         let dx_resolve = resolved_x - closest_x;
                         let dy_resolve = resolved_y - closest_y;
@@ -1048,10 +1062,10 @@ pub fn resolve_push_out_collision_with_grid(
                             resolved_y += (dy_resolve / distance) * overlap;
                         } else {
                             // Player center is inside the AABB - push to nearest face
-                            let aabb_left = station_aabb_center_x - ALK_STATION_AABB_HALF_WIDTH;
-                            let aabb_right = station_aabb_center_x + ALK_STATION_AABB_HALF_WIDTH;
-                            let aabb_top = station_aabb_center_y - ALK_STATION_AABB_HALF_HEIGHT;
-                            let aabb_bottom = station_aabb_center_y + ALK_STATION_AABB_HALF_HEIGHT;
+                            let aabb_left = station_aabb_center_x - aabb_half_width;
+                            let aabb_right = station_aabb_center_x + aabb_half_width;
+                            let aabb_top = station_aabb_center_y - aabb_half_height;
+                            let aabb_bottom = station_aabb_center_y + aabb_half_height;
                             
                             let dist_to_left = resolved_x - aabb_left;
                             let dist_to_right = aabb_right - resolved_x;

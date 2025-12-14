@@ -1140,6 +1140,7 @@ const Hotbar: React.FC<HotbarProps> = ({
   // Added handleWheel and updated useEffect for listeners
   const handleWheel = useCallback((event: WheelEvent) => {
     const inventoryPanel = document.querySelector('[data-id="inventory-panel"]'); // Use the data-id selector
+    const craftingScreen = document.querySelector('[data-id="crafting-screen"]'); // Check for CraftingScreen using data-id
     
     // If inventory is open, or chat input is focused, or other UI elements that might use wheel scroll, or game menu is open, do nothing.
     const chatInputIsFocused = document.activeElement?.matches('[data-is-chat-input="true"]');
@@ -1149,9 +1150,12 @@ const Hotbar: React.FC<HotbarProps> = ({
     const target = event.target as Element;
     const chatContainer = target.closest('[data-chat-container="true"]'); // Check if we're inside a chat container
     const isOverChat = chatContainer !== null;
+    
+    // Check if mouse is over CraftingScreen to allow scrolling (using data-id for CSS modules compatibility)
+    const isOverCraftingScreen = target.closest('[data-id="crafting-screen"]') !== null;
 
-    if (inventoryPanel || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || event.deltaY === 0) {
-      return; // Don't interfere if inventory/chat/search/game menu is open, over chat, or no vertical scroll
+    if (inventoryPanel || craftingScreen || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || isOverCraftingScreen || event.deltaY === 0) {
+      return; // Don't interfere if inventory/crafting screen/chat/search/game menu is open, over chat/crafting screen, or no vertical scroll
     }
 
     event.preventDefault(); // Prevent page scrolling (only if inventory is NOT open)

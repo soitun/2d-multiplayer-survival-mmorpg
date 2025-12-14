@@ -74,6 +74,7 @@ pub enum SoundType {
     BarbecueOff,             // barbecue_off.mp3 (1 variation - when barbecue is turned off)
     CrowStealing,            // crow_stealing.mp3 (1 variation - when crow successfully steals from player)
     CairnUnlock,             // cairn_unlock.mp3 (1 variation - when player discovers a new cairn)
+    GrassCut,                // grass_cut.mp3 (1 variation - when grass is chopped by player)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -149,6 +150,7 @@ impl SoundType {
             SoundType::BarbecueOff => "barbecue_off",
             SoundType::CrowStealing => "crow_stealing",
             SoundType::CairnUnlock => "cairn_unlock",
+            SoundType::GrassCut => "grass_cut",
         }
     }
 
@@ -222,6 +224,7 @@ impl SoundType {
             SoundType::ReloadPistol => 1, // reload_pistol.mp3 (single variation)
             SoundType::CrowStealing => 1, // crow_stealing.mp3 (single variation)
             SoundType::CairnUnlock => 1, // cairn_unlock.mp3 (single variation)
+            SoundType::GrassCut => 1, // grass_cut.mp3 (single variation)
         }
     }
 

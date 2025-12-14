@@ -55,10 +55,6 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     const [searchTerm, setSearchTerm] = useState<string>(() => {
         return localStorage.getItem('craftingSearchTerm') || '';
     });
-    // Initialize selectedCategory from localStorage, fallback to 'All'
-    const [selectedCategory, setSelectedCategory] = useState<string>(() => {
-        return localStorage.getItem('craftingCategoryFilter') || 'All';
-    });
     const [craftedRecipeIdsThisSession, setCraftedRecipeIdsThisSession] = useState<Set<string>>(new Set()); // New state
 
     // Timer to update queue times
@@ -285,23 +281,6 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         localStorage.setItem('craftingSearchTerm', newSearchTerm);
     };
 
-    // --- Category Filter Handler with localStorage persistence ---
-    const handleCategoryChange = (category: string) => {
-        setSelectedCategory(category);
-        // Save to localStorage for persistence
-        localStorage.setItem('craftingCategoryFilter', category);
-    };
-
-    // Helper function to check if a recipe matches the selected category
-    const matchesCategory = (recipe: Recipe): boolean => {
-        if (selectedCategory === 'All') return true;
-        
-        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
-        if (!outputDef) return false;
-        
-        return outputDef.category.tag === selectedCategory;
-    };
-
     // State for filtered recipes from the search bar
     const [filteredRecipes, setFilteredRecipes] = useState<Array<{
         recipe: Recipe;
@@ -377,20 +356,19 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
             `}</style>
             {/* Craftable Items Section - Now a List */}
             <div className={styles.craftingHeader}>
-                <h3 className={styles.sectionTitle}>CRAFTING</h3>
+                <h3 className={styles.sectionTitle}>QUICK CRAFT</h3>
             </div>
-            {/* Add Search Bar with Category Filter */}
+            {/* Add Search Bar (no category filter - use full CraftingScreen for categories) */}
             <CraftingSearchBar 
                 searchTerm={searchTerm}
                 onSearchChange={handleSearchChange}
-                selectedCategory={selectedCategory}
-                onCategoryChange={handleCategoryChange}
                 placeholder="Search by item or ingredient name..."
                 onFocus={() => onCraftingSearchFocusChange?.(true)}
                 onBlur={() => onCraftingSearchFocusChange?.(false)}
                 recipes={recipeList}
                 playerInventory={inventoryForFiltering}
                 onFilteredRecipesChange={handleFilteredRecipesChange}
+                showCategoryFilter={false}
             />
             {/* Added scrollable class and data-attribute */}
             <div data-scrollable-region="crafting-items" className={`${styles.craftableItemsSection} ${styles.scrollableSection}`}> 

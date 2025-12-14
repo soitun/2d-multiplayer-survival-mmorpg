@@ -14,9 +14,9 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 
 // --- Cairn Constants ---
 
-// Collision and interaction settings - reduced for better gameplay feel
+// Collision and interaction settings
 pub(crate) const CAIRN_RADIUS: f32 = 30.0; // Reduced from 40.0 for smaller collision
-pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE: f32 = 80.0; // Reduced from 100.0
+pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE: f32 = 200.0; // Matches client-side distance for larger visual
 pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_CAIRN_INTERACTION_DISTANCE * PLAYER_CAIRN_INTERACTION_DISTANCE;
 

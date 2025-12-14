@@ -33,6 +33,8 @@ import {
 // Import and reexport all reducer arg types
 import { AcceptAlkContract } from "./accept_alk_contract_reducer.ts";
 export { AcceptAlkContract };
+import { AcceptMatronageInvitation } from "./accept_matronage_invitation_reducer.ts";
+export { AcceptMatronageInvitation };
 import { ApplyFertilizer } from "./apply_fertilizer_reducer.ts";
 export { ApplyFertilizer };
 import { CancelAlkContract } from "./cancel_alk_contract_reducer.ts";
@@ -99,14 +101,20 @@ import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
 export { DebugSetWeather };
 import { DebugUpdateCloudIntensity } from "./debug_update_cloud_intensity_reducer.ts";
 export { DebugUpdateCloudIntensity };
+import { DeclineMatronageInvitation } from "./decline_matronage_invitation_reducer.ts";
+export { DeclineMatronageInvitation };
 import { DeliverAlkContract } from "./deliver_alk_contract_reducer.ts";
 export { DeliverAlkContract };
+import { DeliverAlkContractToMatronage } from "./deliver_alk_contract_to_matronage_reducer.ts";
+export { DeliverAlkContractToMatronage };
 import { DespawnExpiredItems } from "./despawn_expired_items_reducer.ts";
 export { DespawnExpiredItems };
 import { DestroyFoundation } from "./destroy_foundation_reducer.ts";
 export { DestroyFoundation };
 import { DestroyWall } from "./destroy_wall_reducer.ts";
 export { DestroyWall };
+import { DissolveMatronage } from "./dissolve_matronage_reducer.ts";
+export { DissolveMatronage };
 import { DodgeRoll } from "./dodge_roll_reducer.ts";
 export { DodgeRoll };
 import { DrinkWater } from "./drink_water_reducer.ts";
@@ -195,8 +203,12 @@ import { InteractWithSleepingBag } from "./interact_with_sleeping_bag_reducer.ts
 export { InteractWithSleepingBag };
 import { InteractWithStorageBox } from "./interact_with_storage_box_reducer.ts";
 export { InteractWithStorageBox };
+import { InviteToMatronage } from "./invite_to_matronage_reducer.ts";
+export { InviteToMatronage };
 import { Jump } from "./jump_reducer.ts";
 export { Jump };
+import { LeaveMatronage } from "./leave_matronage_reducer.ts";
+export { LeaveMatronage };
 import { LightLantern } from "./light_lantern_reducer.ts";
 export { LightLantern };
 import { LoadRangedWeapon } from "./load_ranged_weapon_reducer.ts";
@@ -365,6 +377,8 @@ import { ProcessKnockedOutRecovery } from "./process_knocked_out_recovery_reduce
 export { ProcessKnockedOutRecovery };
 import { ProcessLanternLogicScheduled } from "./process_lantern_logic_scheduled_reducer.ts";
 export { ProcessLanternLogicScheduled };
+import { ProcessMatronagePayout } from "./process_matronage_payout_reducer.ts";
+export { ProcessMatronagePayout };
 import { ProcessPlayerStats } from "./process_player_stats_reducer.ts";
 export { ProcessPlayerStats };
 import { ProcessSleepingBagDeterioration } from "./process_sleeping_bag_deterioration_reducer.ts";
@@ -373,6 +387,8 @@ import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
 export { ProcessTorchDurability };
 import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
+import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
+export { PromoteToPraMatron };
 import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
 export { PurchaseMemoryGridNode };
 import { QueryHearthUpkeepCosts } from "./query_hearth_upkeep_costs_reducer.ts";
@@ -433,6 +449,10 @@ import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reduc
 export { RegenerateCompressedChunks };
 import { RegisterPlayer } from "./register_player_reducer.ts";
 export { RegisterPlayer };
+import { RemoveFromMatronage } from "./remove_from_matronage_reducer.ts";
+export { RemoveFromMatronage };
+import { RenameMatronage } from "./rename_matronage_reducer.ts";
+export { RenameMatronage };
 import { ResetFaction } from "./reset_faction_reducer.ts";
 export { ResetFaction };
 import { RespawnAtSleepingBag } from "./respawn_at_sleeping_bag_reducer.ts";
@@ -617,6 +637,10 @@ import { UpdateCloudPositions } from "./update_cloud_positions_reducer.ts";
 export { UpdateCloudPositions };
 import { UpdateFlashlightAim } from "./update_flashlight_aim_reducer.ts";
 export { UpdateFlashlightAim };
+import { UpdateMatronageDescription } from "./update_matronage_description_reducer.ts";
+export { UpdateMatronageDescription };
+import { UpdateMatronageIcon } from "./update_matronage_icon_reducer.ts";
+export { UpdateMatronageIcon };
 import { UpdatePlayerPositionSimple } from "./update_player_position_simple_reducer.ts";
 export { UpdatePlayerPositionSimple };
 import { UpdateProjectiles } from "./update_projectiles_reducer.ts";
@@ -629,10 +653,14 @@ import { UpgradeWall } from "./upgrade_wall_reducer.ts";
 export { UpgradeWall };
 import { UseEquippedItem } from "./use_equipped_item_reducer.ts";
 export { UseEquippedItem };
+import { UseMatronsMark } from "./use_matrons_mark_reducer.ts";
+export { UseMatronsMark };
 import { WaterCrops } from "./water_crops_reducer.ts";
 export { WaterCrops };
 import { WipeAllBuildingPrivileges } from "./wipe_all_building_privileges_reducer.ts";
 export { WipeAllBuildingPrivileges };
+import { WithdrawMatronageShards } from "./withdraw_matronage_shards_reducer.ts";
+export { WithdrawMatronageShards };
 
 // Import and reexport all table handle types
 import { ActiveConnectionTableHandle } from "./active_connection_table.ts";
@@ -769,6 +797,16 @@ import { LargeQuarryTableHandle } from "./large_quarry_table.ts";
 export { LargeQuarryTableHandle };
 import { LastWhisperFromTableHandle } from "./last_whisper_from_table.ts";
 export { LastWhisperFromTableHandle };
+import { MatronageTableHandle } from "./matronage_table.ts";
+export { MatronageTableHandle };
+import { MatronageInvitationTableHandle } from "./matronage_invitation_table.ts";
+export { MatronageInvitationTableHandle };
+import { MatronageMemberTableHandle } from "./matronage_member_table.ts";
+export { MatronageMemberTableHandle };
+import { MatronageOwedShardsTableHandle } from "./matronage_owed_shards_table.ts";
+export { MatronageOwedShardsTableHandle };
+import { MatronagePayoutScheduleTableHandle } from "./matronage_payout_schedule_table.ts";
+export { MatronagePayoutScheduleTableHandle };
 import { MemoryGridProgressTableHandle } from "./memory_grid_progress_table.ts";
 export { MemoryGridProgressTableHandle };
 import { MemoryGridPurchasesTableHandle } from "./memory_grid_purchases_table.ts";
@@ -1069,6 +1107,18 @@ import { LargeQuarryType } from "./large_quarry_type_type.ts";
 export { LargeQuarryType };
 import { LastWhisperFrom } from "./last_whisper_from_type.ts";
 export { LastWhisperFrom };
+import { Matronage } from "./matronage_type.ts";
+export { Matronage };
+import { MatronageInvitation } from "./matronage_invitation_type.ts";
+export { MatronageInvitation };
+import { MatronageMember } from "./matronage_member_type.ts";
+export { MatronageMember };
+import { MatronageOwedShards } from "./matronage_owed_shards_type.ts";
+export { MatronageOwedShards };
+import { MatronagePayoutSchedule } from "./matronage_payout_schedule_type.ts";
+export { MatronagePayoutSchedule };
+import { MatronageRole } from "./matronage_role_type.ts";
+export { MatronageRole };
 import { MemoryGridProgress } from "./memory_grid_progress_type.ts";
 export { MemoryGridProgress };
 import { MemoryGridPurchase } from "./memory_grid_purchase_type.ts";
@@ -1815,6 +1865,51 @@ const REMOTE_MODULE = {
         colType: (LastWhisperFrom.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    matronage: {
+      tableName: "matronage" as const,
+      rowType: Matronage.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Matronage.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    matronage_invitation: {
+      tableName: "matronage_invitation" as const,
+      rowType: MatronageInvitation.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (MatronageInvitation.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    matronage_member: {
+      tableName: "matronage_member" as const,
+      rowType: MatronageMember.getTypeScriptAlgebraicType(),
+      primaryKey: "playerId",
+      primaryKeyInfo: {
+        colName: "playerId",
+        colType: (MatronageMember.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    matronage_owed_shards: {
+      tableName: "matronage_owed_shards" as const,
+      rowType: MatronageOwedShards.getTypeScriptAlgebraicType(),
+      primaryKey: "playerId",
+      primaryKeyInfo: {
+        colName: "playerId",
+        colType: (MatronageOwedShards.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    matronage_payout_schedule: {
+      tableName: "matronage_payout_schedule" as const,
+      rowType: MatronagePayoutSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (MatronagePayoutSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     memory_grid_progress: {
       tableName: "memory_grid_progress" as const,
       rowType: MemoryGridProgress.getTypeScriptAlgebraicType(),
@@ -2307,6 +2402,10 @@ const REMOTE_MODULE = {
       reducerName: "accept_alk_contract",
       argsType: AcceptAlkContract.getTypeScriptAlgebraicType(),
     },
+    accept_matronage_invitation: {
+      reducerName: "accept_matronage_invitation",
+      argsType: AcceptMatronageInvitation.getTypeScriptAlgebraicType(),
+    },
     apply_fertilizer: {
       reducerName: "apply_fertilizer",
       argsType: ApplyFertilizer.getTypeScriptAlgebraicType(),
@@ -2439,9 +2538,17 @@ const REMOTE_MODULE = {
       reducerName: "debug_update_cloud_intensity",
       argsType: DebugUpdateCloudIntensity.getTypeScriptAlgebraicType(),
     },
+    decline_matronage_invitation: {
+      reducerName: "decline_matronage_invitation",
+      argsType: DeclineMatronageInvitation.getTypeScriptAlgebraicType(),
+    },
     deliver_alk_contract: {
       reducerName: "deliver_alk_contract",
       argsType: DeliverAlkContract.getTypeScriptAlgebraicType(),
+    },
+    deliver_alk_contract_to_matronage: {
+      reducerName: "deliver_alk_contract_to_matronage",
+      argsType: DeliverAlkContractToMatronage.getTypeScriptAlgebraicType(),
     },
     despawn_expired_items: {
       reducerName: "despawn_expired_items",
@@ -2454,6 +2561,10 @@ const REMOTE_MODULE = {
     destroy_wall: {
       reducerName: "destroy_wall",
       argsType: DestroyWall.getTypeScriptAlgebraicType(),
+    },
+    dissolve_matronage: {
+      reducerName: "dissolve_matronage",
+      argsType: DissolveMatronage.getTypeScriptAlgebraicType(),
     },
     dodge_roll: {
       reducerName: "dodge_roll",
@@ -2631,9 +2742,17 @@ const REMOTE_MODULE = {
       reducerName: "interact_with_storage_box",
       argsType: InteractWithStorageBox.getTypeScriptAlgebraicType(),
     },
+    invite_to_matronage: {
+      reducerName: "invite_to_matronage",
+      argsType: InviteToMatronage.getTypeScriptAlgebraicType(),
+    },
     jump: {
       reducerName: "jump",
       argsType: Jump.getTypeScriptAlgebraicType(),
+    },
+    leave_matronage: {
+      reducerName: "leave_matronage",
+      argsType: LeaveMatronage.getTypeScriptAlgebraicType(),
     },
     light_lantern: {
       reducerName: "light_lantern",
@@ -2971,6 +3090,10 @@ const REMOTE_MODULE = {
       reducerName: "process_lantern_logic_scheduled",
       argsType: ProcessLanternLogicScheduled.getTypeScriptAlgebraicType(),
     },
+    process_matronage_payout: {
+      reducerName: "process_matronage_payout",
+      argsType: ProcessMatronagePayout.getTypeScriptAlgebraicType(),
+    },
     process_player_stats: {
       reducerName: "process_player_stats",
       argsType: ProcessPlayerStats.getTypeScriptAlgebraicType(),
@@ -2986,6 +3109,10 @@ const REMOTE_MODULE = {
     process_wild_animal_ai: {
       reducerName: "process_wild_animal_ai",
       argsType: ProcessWildAnimalAi.getTypeScriptAlgebraicType(),
+    },
+    promote_to_pra_matron: {
+      reducerName: "promote_to_pra_matron",
+      argsType: PromoteToPraMatron.getTypeScriptAlgebraicType(),
     },
     purchase_memory_grid_node: {
       reducerName: "purchase_memory_grid_node",
@@ -3106,6 +3233,14 @@ const REMOTE_MODULE = {
     register_player: {
       reducerName: "register_player",
       argsType: RegisterPlayer.getTypeScriptAlgebraicType(),
+    },
+    remove_from_matronage: {
+      reducerName: "remove_from_matronage",
+      argsType: RemoveFromMatronage.getTypeScriptAlgebraicType(),
+    },
+    rename_matronage: {
+      reducerName: "rename_matronage",
+      argsType: RenameMatronage.getTypeScriptAlgebraicType(),
     },
     reset_faction: {
       reducerName: "reset_faction",
@@ -3475,6 +3610,14 @@ const REMOTE_MODULE = {
       reducerName: "update_flashlight_aim",
       argsType: UpdateFlashlightAim.getTypeScriptAlgebraicType(),
     },
+    update_matronage_description: {
+      reducerName: "update_matronage_description",
+      argsType: UpdateMatronageDescription.getTypeScriptAlgebraicType(),
+    },
+    update_matronage_icon: {
+      reducerName: "update_matronage_icon",
+      argsType: UpdateMatronageIcon.getTypeScriptAlgebraicType(),
+    },
     update_player_position_simple: {
       reducerName: "update_player_position_simple",
       argsType: UpdatePlayerPositionSimple.getTypeScriptAlgebraicType(),
@@ -3499,6 +3642,10 @@ const REMOTE_MODULE = {
       reducerName: "use_equipped_item",
       argsType: UseEquippedItem.getTypeScriptAlgebraicType(),
     },
+    use_matrons_mark: {
+      reducerName: "use_matrons_mark",
+      argsType: UseMatronsMark.getTypeScriptAlgebraicType(),
+    },
     water_crops: {
       reducerName: "water_crops",
       argsType: WaterCrops.getTypeScriptAlgebraicType(),
@@ -3506,6 +3653,10 @@ const REMOTE_MODULE = {
     wipe_all_building_privileges: {
       reducerName: "wipe_all_building_privileges",
       argsType: WipeAllBuildingPrivileges.getTypeScriptAlgebraicType(),
+    },
+    withdraw_matronage_shards: {
+      reducerName: "withdraw_matronage_shards",
+      argsType: WithdrawMatronageShards.getTypeScriptAlgebraicType(),
     },
   },
   versionInfo: {
@@ -3538,6 +3689,7 @@ const REMOTE_MODULE = {
 // A type representing all the possible variants of a reducer.
 export type Reducer = never
 | { name: "AcceptAlkContract", args: AcceptAlkContract }
+| { name: "AcceptMatronageInvitation", args: AcceptMatronageInvitation }
 | { name: "ApplyFertilizer", args: ApplyFertilizer }
 | { name: "CancelAlkContract", args: CancelAlkContract }
 | { name: "CancelAllCrafting", args: CancelAllCrafting }
@@ -3571,10 +3723,13 @@ export type Reducer = never
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
+| { name: "DeclineMatronageInvitation", args: DeclineMatronageInvitation }
 | { name: "DeliverAlkContract", args: DeliverAlkContract }
+| { name: "DeliverAlkContractToMatronage", args: DeliverAlkContractToMatronage }
 | { name: "DespawnExpiredItems", args: DespawnExpiredItems }
 | { name: "DestroyFoundation", args: DestroyFoundation }
 | { name: "DestroyWall", args: DestroyWall }
+| { name: "DissolveMatronage", args: DissolveMatronage }
 | { name: "DodgeRoll", args: DodgeRoll }
 | { name: "DrinkWater", args: DrinkWater }
 | { name: "DropItem", args: DropItem }
@@ -3619,7 +3774,9 @@ export type Reducer = never
 | { name: "InteractWithLantern", args: InteractWithLantern }
 | { name: "InteractWithSleepingBag", args: InteractWithSleepingBag }
 | { name: "InteractWithStorageBox", args: InteractWithStorageBox }
+| { name: "InviteToMatronage", args: InviteToMatronage }
 | { name: "Jump", args: Jump }
+| { name: "LeaveMatronage", args: LeaveMatronage }
 | { name: "LightLantern", args: LightLantern }
 | { name: "LoadRangedWeapon", args: LoadRangedWeapon }
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
@@ -3704,10 +3861,12 @@ export type Reducer = never
 | { name: "ProcessHearthUpkeep", args: ProcessHearthUpkeep }
 | { name: "ProcessKnockedOutRecovery", args: ProcessKnockedOutRecovery }
 | { name: "ProcessLanternLogicScheduled", args: ProcessLanternLogicScheduled }
+| { name: "ProcessMatronagePayout", args: ProcessMatronagePayout }
 | { name: "ProcessPlayerStats", args: ProcessPlayerStats }
 | { name: "ProcessSleepingBagDeterioration", args: ProcessSleepingBagDeterioration }
 | { name: "ProcessTorchDurability", args: ProcessTorchDurability }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
+| { name: "PromoteToPraMatron", args: PromoteToPraMatron }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
 | { name: "QuickMoveFromBarbecue", args: QuickMoveFromBarbecue }
@@ -3738,6 +3897,8 @@ export type Reducer = never
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
+| { name: "RemoveFromMatronage", args: RemoveFromMatronage }
+| { name: "RenameMatronage", args: RenameMatronage }
 | { name: "ResetFaction", args: ResetFaction }
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
@@ -3830,14 +3991,18 @@ export type Reducer = never
 | { name: "UpdateCloudIntensities", args: UpdateCloudIntensities }
 | { name: "UpdateCloudPositions", args: UpdateCloudPositions }
 | { name: "UpdateFlashlightAim", args: UpdateFlashlightAim }
+| { name: "UpdateMatronageDescription", args: UpdateMatronageDescription }
+| { name: "UpdateMatronageIcon", args: UpdateMatronageIcon }
 | { name: "UpdatePlayerPositionSimple", args: UpdatePlayerPositionSimple }
 | { name: "UpdateProjectiles", args: UpdateProjectiles }
 | { name: "UpdateViewport", args: UpdateViewport }
 | { name: "UpgradeFoundation", args: UpgradeFoundation }
 | { name: "UpgradeWall", args: UpgradeWall }
 | { name: "UseEquippedItem", args: UseEquippedItem }
+| { name: "UseMatronsMark", args: UseMatronsMark }
 | { name: "WaterCrops", args: WaterCrops }
 | { name: "WipeAllBuildingPrivileges", args: WipeAllBuildingPrivileges }
+| { name: "WithdrawMatronageShards", args: WithdrawMatronageShards }
 ;
 
 export class RemoteReducers {
@@ -3857,6 +4022,22 @@ export class RemoteReducers {
 
   removeOnAcceptAlkContract(callback: (ctx: ReducerEventContext, contractId: bigint, targetQuantity: number, preferredStationId: number | undefined) => void) {
     this.connection.offReducer("accept_alk_contract", callback);
+  }
+
+  acceptMatronageInvitation(invitationId: bigint) {
+    const __args = { invitationId };
+    let __writer = new __BinaryWriter(1024);
+    AcceptMatronageInvitation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("accept_matronage_invitation", __argsBuffer, this.setCallReducerFlags.acceptMatronageInvitationFlags);
+  }
+
+  onAcceptMatronageInvitation(callback: (ctx: ReducerEventContext, invitationId: bigint) => void) {
+    this.connection.onReducer("accept_matronage_invitation", callback);
+  }
+
+  removeOnAcceptMatronageInvitation(callback: (ctx: ReducerEventContext, invitationId: bigint) => void) {
+    this.connection.offReducer("accept_matronage_invitation", callback);
   }
 
   applyFertilizer(fertilizerInstanceId: bigint) {
@@ -4359,6 +4540,22 @@ export class RemoteReducers {
     this.connection.offReducer("debug_update_cloud_intensity", callback);
   }
 
+  declineMatronageInvitation(invitationId: bigint) {
+    const __args = { invitationId };
+    let __writer = new __BinaryWriter(1024);
+    DeclineMatronageInvitation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("decline_matronage_invitation", __argsBuffer, this.setCallReducerFlags.declineMatronageInvitationFlags);
+  }
+
+  onDeclineMatronageInvitation(callback: (ctx: ReducerEventContext, invitationId: bigint) => void) {
+    this.connection.onReducer("decline_matronage_invitation", callback);
+  }
+
+  removeOnDeclineMatronageInvitation(callback: (ctx: ReducerEventContext, invitationId: bigint) => void) {
+    this.connection.offReducer("decline_matronage_invitation", callback);
+  }
+
   deliverAlkContract(playerContractId: bigint, stationId: number) {
     const __args = { playerContractId, stationId };
     let __writer = new __BinaryWriter(1024);
@@ -4373,6 +4570,22 @@ export class RemoteReducers {
 
   removeOnDeliverAlkContract(callback: (ctx: ReducerEventContext, playerContractId: bigint, stationId: number) => void) {
     this.connection.offReducer("deliver_alk_contract", callback);
+  }
+
+  deliverAlkContractToMatronage(playerContractId: bigint, stationId: number) {
+    const __args = { playerContractId, stationId };
+    let __writer = new __BinaryWriter(1024);
+    DeliverAlkContractToMatronage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("deliver_alk_contract_to_matronage", __argsBuffer, this.setCallReducerFlags.deliverAlkContractToMatronageFlags);
+  }
+
+  onDeliverAlkContractToMatronage(callback: (ctx: ReducerEventContext, playerContractId: bigint, stationId: number) => void) {
+    this.connection.onReducer("deliver_alk_contract_to_matronage", callback);
+  }
+
+  removeOnDeliverAlkContractToMatronage(callback: (ctx: ReducerEventContext, playerContractId: bigint, stationId: number) => void) {
+    this.connection.offReducer("deliver_alk_contract_to_matronage", callback);
   }
 
   despawnExpiredItems(schedule: DroppedItemDespawnSchedule) {
@@ -4421,6 +4634,18 @@ export class RemoteReducers {
 
   removeOnDestroyWall(callback: (ctx: ReducerEventContext, wallId: bigint) => void) {
     this.connection.offReducer("destroy_wall", callback);
+  }
+
+  dissolveMatronage() {
+    this.connection.callReducer("dissolve_matronage", new Uint8Array(0), this.setCallReducerFlags.dissolveMatronageFlags);
+  }
+
+  onDissolveMatronage(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("dissolve_matronage", callback);
+  }
+
+  removeOnDissolveMatronage(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("dissolve_matronage", callback);
   }
 
   dodgeRoll(moveX: number, moveY: number) {
@@ -5083,6 +5308,22 @@ export class RemoteReducers {
     this.connection.offReducer("interact_with_storage_box", callback);
   }
 
+  inviteToMatronage(targetUsername: string) {
+    const __args = { targetUsername };
+    let __writer = new __BinaryWriter(1024);
+    InviteToMatronage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("invite_to_matronage", __argsBuffer, this.setCallReducerFlags.inviteToMatronageFlags);
+  }
+
+  onInviteToMatronage(callback: (ctx: ReducerEventContext, targetUsername: string) => void) {
+    this.connection.onReducer("invite_to_matronage", callback);
+  }
+
+  removeOnInviteToMatronage(callback: (ctx: ReducerEventContext, targetUsername: string) => void) {
+    this.connection.offReducer("invite_to_matronage", callback);
+  }
+
   jump() {
     this.connection.callReducer("jump", new Uint8Array(0), this.setCallReducerFlags.jumpFlags);
   }
@@ -5093,6 +5334,18 @@ export class RemoteReducers {
 
   removeOnJump(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("jump", callback);
+  }
+
+  leaveMatronage() {
+    this.connection.callReducer("leave_matronage", new Uint8Array(0), this.setCallReducerFlags.leaveMatronageFlags);
+  }
+
+  onLeaveMatronage(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("leave_matronage", callback);
+  }
+
+  removeOnLeaveMatronage(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("leave_matronage", callback);
   }
 
   lightLantern(lanternId: number) {
@@ -6431,6 +6684,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_lantern_logic_scheduled", callback);
   }
 
+  processMatronagePayout(args: MatronagePayoutSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessMatronagePayout.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_matronage_payout", __argsBuffer, this.setCallReducerFlags.processMatronagePayoutFlags);
+  }
+
+  onProcessMatronagePayout(callback: (ctx: ReducerEventContext, args: MatronagePayoutSchedule) => void) {
+    this.connection.onReducer("process_matronage_payout", callback);
+  }
+
+  removeOnProcessMatronagePayout(callback: (ctx: ReducerEventContext, args: MatronagePayoutSchedule) => void) {
+    this.connection.offReducer("process_matronage_payout", callback);
+  }
+
   processPlayerStats(schedule: PlayerStatSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -6493,6 +6762,22 @@ export class RemoteReducers {
 
   removeOnProcessWildAnimalAi(callback: (ctx: ReducerEventContext, schedule: WildAnimalAiSchedule) => void) {
     this.connection.offReducer("process_wild_animal_ai", callback);
+  }
+
+  promoteToPraMatron(targetPlayerId: __Identity) {
+    const __args = { targetPlayerId };
+    let __writer = new __BinaryWriter(1024);
+    PromoteToPraMatron.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("promote_to_pra_matron", __argsBuffer, this.setCallReducerFlags.promoteToPraMatronFlags);
+  }
+
+  onPromoteToPraMatron(callback: (ctx: ReducerEventContext, targetPlayerId: __Identity) => void) {
+    this.connection.onReducer("promote_to_pra_matron", callback);
+  }
+
+  removeOnPromoteToPraMatron(callback: (ctx: ReducerEventContext, targetPlayerId: __Identity) => void) {
+    this.connection.offReducer("promote_to_pra_matron", callback);
   }
 
   purchaseMemoryGridNode(nodeId: string) {
@@ -6969,6 +7254,38 @@ export class RemoteReducers {
 
   removeOnRegisterPlayer(callback: (ctx: ReducerEventContext, username: string) => void) {
     this.connection.offReducer("register_player", callback);
+  }
+
+  removeFromMatronage(targetPlayerId: __Identity) {
+    const __args = { targetPlayerId };
+    let __writer = new __BinaryWriter(1024);
+    RemoveFromMatronage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("remove_from_matronage", __argsBuffer, this.setCallReducerFlags.removeFromMatronageFlags);
+  }
+
+  onRemoveFromMatronage(callback: (ctx: ReducerEventContext, targetPlayerId: __Identity) => void) {
+    this.connection.onReducer("remove_from_matronage", callback);
+  }
+
+  removeOnRemoveFromMatronage(callback: (ctx: ReducerEventContext, targetPlayerId: __Identity) => void) {
+    this.connection.offReducer("remove_from_matronage", callback);
+  }
+
+  renameMatronage(newName: string) {
+    const __args = { newName };
+    let __writer = new __BinaryWriter(1024);
+    RenameMatronage.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("rename_matronage", __argsBuffer, this.setCallReducerFlags.renameMatronageFlags);
+  }
+
+  onRenameMatronage(callback: (ctx: ReducerEventContext, newName: string) => void) {
+    this.connection.onReducer("rename_matronage", callback);
+  }
+
+  removeOnRenameMatronage(callback: (ctx: ReducerEventContext, newName: string) => void) {
+    this.connection.offReducer("rename_matronage", callback);
   }
 
   resetFaction() {
@@ -8379,6 +8696,38 @@ export class RemoteReducers {
     this.connection.offReducer("update_flashlight_aim", callback);
   }
 
+  updateMatronageDescription(newDescription: string) {
+    const __args = { newDescription };
+    let __writer = new __BinaryWriter(1024);
+    UpdateMatronageDescription.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("update_matronage_description", __argsBuffer, this.setCallReducerFlags.updateMatronageDescriptionFlags);
+  }
+
+  onUpdateMatronageDescription(callback: (ctx: ReducerEventContext, newDescription: string) => void) {
+    this.connection.onReducer("update_matronage_description", callback);
+  }
+
+  removeOnUpdateMatronageDescription(callback: (ctx: ReducerEventContext, newDescription: string) => void) {
+    this.connection.offReducer("update_matronage_description", callback);
+  }
+
+  updateMatronageIcon(newIcon: string) {
+    const __args = { newIcon };
+    let __writer = new __BinaryWriter(1024);
+    UpdateMatronageIcon.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("update_matronage_icon", __argsBuffer, this.setCallReducerFlags.updateMatronageIconFlags);
+  }
+
+  onUpdateMatronageIcon(callback: (ctx: ReducerEventContext, newIcon: string) => void) {
+    this.connection.onReducer("update_matronage_icon", callback);
+  }
+
+  removeOnUpdateMatronageIcon(callback: (ctx: ReducerEventContext, newIcon: string) => void) {
+    this.connection.offReducer("update_matronage_icon", callback);
+  }
+
   updatePlayerPositionSimple(newX: number, newY: number, clientTimestampMs: bigint, isSprinting: boolean, facingDirection: string, clientSequence: bigint) {
     const __args = { newX, newY, clientTimestampMs, isSprinting, facingDirection, clientSequence };
     let __writer = new __BinaryWriter(1024);
@@ -8471,6 +8820,22 @@ export class RemoteReducers {
     this.connection.offReducer("use_equipped_item", callback);
   }
 
+  useMatronsMark(matronageName: string) {
+    const __args = { matronageName };
+    let __writer = new __BinaryWriter(1024);
+    UseMatronsMark.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("use_matrons_mark", __argsBuffer, this.setCallReducerFlags.useMatronsMarkFlags);
+  }
+
+  onUseMatronsMark(callback: (ctx: ReducerEventContext, matronageName: string) => void) {
+    this.connection.onReducer("use_matrons_mark", callback);
+  }
+
+  removeOnUseMatronsMark(callback: (ctx: ReducerEventContext, matronageName: string) => void) {
+    this.connection.offReducer("use_matrons_mark", callback);
+  }
+
   waterCrops(containerInstanceId: bigint) {
     const __args = { containerInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -8503,12 +8868,29 @@ export class RemoteReducers {
     this.connection.offReducer("wipe_all_building_privileges", callback);
   }
 
+  withdrawMatronageShards() {
+    this.connection.callReducer("withdraw_matronage_shards", new Uint8Array(0), this.setCallReducerFlags.withdrawMatronageShardsFlags);
+  }
+
+  onWithdrawMatronageShards(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("withdraw_matronage_shards", callback);
+  }
+
+  removeOnWithdrawMatronageShards(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("withdraw_matronage_shards", callback);
+  }
+
 }
 
 export class SetReducerFlags {
   acceptAlkContractFlags: __CallReducerFlags = 'FullUpdate';
   acceptAlkContract(flags: __CallReducerFlags) {
     this.acceptAlkContractFlags = flags;
+  }
+
+  acceptMatronageInvitationFlags: __CallReducerFlags = 'FullUpdate';
+  acceptMatronageInvitation(flags: __CallReducerFlags) {
+    this.acceptMatronageInvitationFlags = flags;
   }
 
   applyFertilizerFlags: __CallReducerFlags = 'FullUpdate';
@@ -8676,9 +9058,19 @@ export class SetReducerFlags {
     this.debugUpdateCloudIntensityFlags = flags;
   }
 
+  declineMatronageInvitationFlags: __CallReducerFlags = 'FullUpdate';
+  declineMatronageInvitation(flags: __CallReducerFlags) {
+    this.declineMatronageInvitationFlags = flags;
+  }
+
   deliverAlkContractFlags: __CallReducerFlags = 'FullUpdate';
   deliverAlkContract(flags: __CallReducerFlags) {
     this.deliverAlkContractFlags = flags;
+  }
+
+  deliverAlkContractToMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  deliverAlkContractToMatronage(flags: __CallReducerFlags) {
+    this.deliverAlkContractToMatronageFlags = flags;
   }
 
   despawnExpiredItemsFlags: __CallReducerFlags = 'FullUpdate';
@@ -8694,6 +9086,11 @@ export class SetReducerFlags {
   destroyWallFlags: __CallReducerFlags = 'FullUpdate';
   destroyWall(flags: __CallReducerFlags) {
     this.destroyWallFlags = flags;
+  }
+
+  dissolveMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  dissolveMatronage(flags: __CallReducerFlags) {
+    this.dissolveMatronageFlags = flags;
   }
 
   dodgeRollFlags: __CallReducerFlags = 'FullUpdate';
@@ -8906,9 +9303,19 @@ export class SetReducerFlags {
     this.interactWithStorageBoxFlags = flags;
   }
 
+  inviteToMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  inviteToMatronage(flags: __CallReducerFlags) {
+    this.inviteToMatronageFlags = flags;
+  }
+
   jumpFlags: __CallReducerFlags = 'FullUpdate';
   jump(flags: __CallReducerFlags) {
     this.jumpFlags = flags;
+  }
+
+  leaveMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  leaveMatronage(flags: __CallReducerFlags) {
+    this.leaveMatronageFlags = flags;
   }
 
   lightLanternFlags: __CallReducerFlags = 'FullUpdate';
@@ -9331,6 +9738,11 @@ export class SetReducerFlags {
     this.processLanternLogicScheduledFlags = flags;
   }
 
+  processMatronagePayoutFlags: __CallReducerFlags = 'FullUpdate';
+  processMatronagePayout(flags: __CallReducerFlags) {
+    this.processMatronagePayoutFlags = flags;
+  }
+
   processPlayerStatsFlags: __CallReducerFlags = 'FullUpdate';
   processPlayerStats(flags: __CallReducerFlags) {
     this.processPlayerStatsFlags = flags;
@@ -9349,6 +9761,11 @@ export class SetReducerFlags {
   processWildAnimalAiFlags: __CallReducerFlags = 'FullUpdate';
   processWildAnimalAi(flags: __CallReducerFlags) {
     this.processWildAnimalAiFlags = flags;
+  }
+
+  promoteToPraMatronFlags: __CallReducerFlags = 'FullUpdate';
+  promoteToPraMatron(flags: __CallReducerFlags) {
+    this.promoteToPraMatronFlags = flags;
   }
 
   purchaseMemoryGridNodeFlags: __CallReducerFlags = 'FullUpdate';
@@ -9499,6 +9916,16 @@ export class SetReducerFlags {
   registerPlayerFlags: __CallReducerFlags = 'FullUpdate';
   registerPlayer(flags: __CallReducerFlags) {
     this.registerPlayerFlags = flags;
+  }
+
+  removeFromMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  removeFromMatronage(flags: __CallReducerFlags) {
+    this.removeFromMatronageFlags = flags;
+  }
+
+  renameMatronageFlags: __CallReducerFlags = 'FullUpdate';
+  renameMatronage(flags: __CallReducerFlags) {
+    this.renameMatronageFlags = flags;
   }
 
   resetFactionFlags: __CallReducerFlags = 'FullUpdate';
@@ -9961,6 +10388,16 @@ export class SetReducerFlags {
     this.updateFlashlightAimFlags = flags;
   }
 
+  updateMatronageDescriptionFlags: __CallReducerFlags = 'FullUpdate';
+  updateMatronageDescription(flags: __CallReducerFlags) {
+    this.updateMatronageDescriptionFlags = flags;
+  }
+
+  updateMatronageIconFlags: __CallReducerFlags = 'FullUpdate';
+  updateMatronageIcon(flags: __CallReducerFlags) {
+    this.updateMatronageIconFlags = flags;
+  }
+
   updatePlayerPositionSimpleFlags: __CallReducerFlags = 'FullUpdate';
   updatePlayerPositionSimple(flags: __CallReducerFlags) {
     this.updatePlayerPositionSimpleFlags = flags;
@@ -9991,6 +10428,11 @@ export class SetReducerFlags {
     this.useEquippedItemFlags = flags;
   }
 
+  useMatronsMarkFlags: __CallReducerFlags = 'FullUpdate';
+  useMatronsMark(flags: __CallReducerFlags) {
+    this.useMatronsMarkFlags = flags;
+  }
+
   waterCropsFlags: __CallReducerFlags = 'FullUpdate';
   waterCrops(flags: __CallReducerFlags) {
     this.waterCropsFlags = flags;
@@ -9999,6 +10441,11 @@ export class SetReducerFlags {
   wipeAllBuildingPrivilegesFlags: __CallReducerFlags = 'FullUpdate';
   wipeAllBuildingPrivileges(flags: __CallReducerFlags) {
     this.wipeAllBuildingPrivilegesFlags = flags;
+  }
+
+  withdrawMatronageShardsFlags: __CallReducerFlags = 'FullUpdate';
+  withdrawMatronageShards(flags: __CallReducerFlags) {
+    this.withdrawMatronageShardsFlags = flags;
   }
 
 }
@@ -10339,6 +10786,31 @@ export class RemoteTables {
   get lastWhisperFrom(): LastWhisperFromTableHandle<'last_whisper_from'> {
     // clientCache is a private property
     return new LastWhisperFromTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LastWhisperFrom>(REMOTE_MODULE.tables.last_whisper_from));
+  }
+
+  get matronage(): MatronageTableHandle<'matronage'> {
+    // clientCache is a private property
+    return new MatronageTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Matronage>(REMOTE_MODULE.tables.matronage));
+  }
+
+  get matronageInvitation(): MatronageInvitationTableHandle<'matronage_invitation'> {
+    // clientCache is a private property
+    return new MatronageInvitationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MatronageInvitation>(REMOTE_MODULE.tables.matronage_invitation));
+  }
+
+  get matronageMember(): MatronageMemberTableHandle<'matronage_member'> {
+    // clientCache is a private property
+    return new MatronageMemberTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MatronageMember>(REMOTE_MODULE.tables.matronage_member));
+  }
+
+  get matronageOwedShards(): MatronageOwedShardsTableHandle<'matronage_owed_shards'> {
+    // clientCache is a private property
+    return new MatronageOwedShardsTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MatronageOwedShards>(REMOTE_MODULE.tables.matronage_owed_shards));
+  }
+
+  get matronagePayoutSchedule(): MatronagePayoutScheduleTableHandle<'matronage_payout_schedule'> {
+    // clientCache is a private property
+    return new MatronagePayoutScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MatronagePayoutSchedule>(REMOTE_MODULE.tables.matronage_payout_schedule));
   }
 
   get memoryGridProgress(): MemoryGridProgressTableHandle<'memory_grid_progress'> {

@@ -146,6 +146,7 @@ mod barbecue; // <<< ADDED: Barbecue cooking appliance system
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
+mod matronage; // <<< ADDED: Matronage pooled rewards system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
@@ -209,6 +210,14 @@ pub use homestead_hearth::{
     split_stack_into_hearth, split_stack_from_hearth, split_stack_within_hearth,
     quick_move_from_hearth, quick_move_to_hearth,
     drop_item_from_hearth_slot_to_world, split_and_drop_item_from_hearth_slot_to_world
+};
+
+// ADD: Re-export matronage reducers for client bindings
+pub use matronage::{
+    use_matrons_mark, invite_to_matronage, accept_matronage_invitation, 
+    decline_matronage_invitation, leave_matronage, remove_from_matronage,
+    promote_to_pra_matron, rename_matronage, dissolve_matronage,
+    withdraw_matronage_shards
 };
 
 // Define a constant for the /kill command cooldown (e.g., 5 minutes)
@@ -338,7 +347,7 @@ pub use ai_brewing::{check_brew_cache, create_generated_brew};
 // Re-export ALK (Automated Logistics Kompound) reducers for client bindings
 pub use alk::{
     get_available_contracts, accept_alk_contract, cancel_alk_contract,
-    deliver_alk_contract, get_shard_balance, check_alk_station_proximity,
+    deliver_alk_contract, deliver_alk_contract_to_matronage, get_shard_balance, check_alk_station_proximity,
     debug_refresh_alk_contracts, debug_grant_shards, process_alk_contract_refresh,
     // Types
     AlkState, AlkStation, AlkContract, AlkPlayerContract, PlayerShardBalance,
@@ -451,8 +460,8 @@ pub fn get_effective_player_radius(is_crouching: bool) -> f32 {
 pub const WATER_SPEED_PENALTY: f32 = 0.5; // 50% speed reduction (50% of normal speed)
 
 // World Dimensions
-pub const WORLD_WIDTH_TILES: u32 = 1000;
-pub const WORLD_HEIGHT_TILES: u32 = 1000;
+pub const WORLD_WIDTH_TILES: u32 = 500;
+pub const WORLD_HEIGHT_TILES: u32 = 500;
 // Change back to f32 as they are used in float calculations
 pub const WORLD_WIDTH_PX: f32 = (WORLD_WIDTH_TILES * TILE_SIZE_PX) as f32;
 pub const WORLD_HEIGHT_PX: f32 = (WORLD_HEIGHT_TILES * TILE_SIZE_PX) as f32;
@@ -756,7 +765,14 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
                     Ok(_) => log::info!("ALK system initialized successfully"),
                     Err(e) => log::error!("Failed to initialize ALK system: {}", e),
                 }
-                
+
+                // Initialize Matronage system (pooled rewards)
+                log::info!("Initializing Matronage system...");
+                match crate::matronage::init_matronage_system(ctx) {
+                    Ok(_) => log::info!("Matronage system initialized successfully"),
+                    Err(e) => log::error!("Failed to initialize Matronage system: {}", e),
+                }
+
                 // CRITICAL: Seed environment AFTER world tiles exist
                 log::info!("Seeding environment (trees, stones, plants) now that world tiles exist...");
                 match crate::environment::seed_environment(ctx) {
@@ -790,7 +806,14 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
             Ok(_) => log::info!("ALK system initialized successfully"),
             Err(e) => log::error!("Failed to initialize ALK system: {}", e),
         }
-        
+
+        // Initialize Matronage system (pooled rewards)
+        log::info!("Initializing Matronage system...");
+        match crate::matronage::init_matronage_system(ctx) {
+            Ok(_) => log::info!("Matronage system initialized successfully"),
+            Err(e) => log::error!("Failed to initialize Matronage system: {}", e),
+        }
+
         // Check if minimap cache exists, generate if missing
         let existing_minimap_count = ctx.db.minimap_cache().iter().count();
         if existing_minimap_count == 0 {

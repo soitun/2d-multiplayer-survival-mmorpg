@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './InterfaceTabs.css';
 
 interface InterfaceTabsProps {
-  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns';
-  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns') => void;
+  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage') => void;
   className?: string;
   hideEncyclopedia?: boolean;
 }
@@ -21,6 +21,7 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
   const isMemoryGridActive = currentView === 'memory-grid';
   const isAlkActive = currentView === 'alk';
   const isCairnsActive = currentView === 'cairns';
+  const isMatronageActive = currentView === 'matronage';
 
   return (
     <div className={`interface-tabs ${className}`}>
@@ -74,6 +75,16 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         onMouseLeave={() => setHoveredTab(null)}
       >
         CAIRNS
+      </button>
+      
+      {/* MATRONAGE Tab */}
+      <button
+        className={`tab matronage-tab ${isMatronageActive ? 'active' : 'inactive'} ${hoveredTab === 'matronage' ? 'hovered' : ''}`}
+        onClick={() => onViewChange('matronage')}
+        onMouseEnter={() => setHoveredTab('matronage')}
+        onMouseLeave={() => setHoveredTab(null)}
+      >
+        MATRONAGE
       </button>
     </div>
   );

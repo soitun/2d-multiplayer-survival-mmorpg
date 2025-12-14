@@ -3,6 +3,7 @@ import InterfaceTabs from './InterfaceTabs';
 import MemoryGrid from './MemoryGrid';
 import AlkPanel from './AlkPanel';
 import CairnsPanel from './CairnsPanel';
+import MatronagePanel from './MatronagePanel';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
@@ -43,6 +44,13 @@ interface InterfaceContainerProps {
   // Cairns Panel data props
   cairns?: Map<string, Cairn>;
   playerDiscoveredCairns?: Map<string, PlayerDiscoveredCairn>;
+  // Matronage Panel data props
+  matronages?: Map<string, any>;
+  matronageMembers?: Map<string, any>;
+  matronageInvitations?: Map<string, any>;
+  matronageOwedShards?: Map<string, any>;
+  players?: Map<string, any>;
+  playerUsername?: string;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -67,9 +75,16 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   // Cairns Panel data props
   cairns,
   playerDiscoveredCairns,
+  // Matronage Panel data props
+  matronages,
+  matronageMembers,
+  matronageInvitations,
+  matronageOwedShards,
+  players,
+  playerUsername = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns'>('minimap');
+  const [currentView, setCurrentView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage'>('minimap');
   const [isMinimapLoading, setIsMinimapLoading] = useState(false);
   
   // Grid coordinates visibility preference (stored in localStorage)
@@ -857,7 +872,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         );
       case 'cairns':
         return (
-          <div className="cairns-content" style={{ 
+          <div className="cairns-content" style={{
             ...contentContainerStyle,
             padding: '0',
             background: 'transparent',
@@ -868,6 +883,27 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               cairns={cairns || new Map()}
               playerDiscoveredCairns={playerDiscoveredCairns || new Map()}
               currentPlayerIdentity={connection.dbIdentity || null}
+            />
+          </div>
+        );
+      case 'matronage':
+        return (
+          <div className="matronage-content" style={{
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
+            <MatronagePanel
+              playerIdentity={connection.dbIdentity || null}
+              playerUsername={playerUsername}
+              onClose={onClose}
+              matronages={matronages || new Map()}
+              matronageMembers={matronageMembers || new Map()}
+              matronageInvitations={matronageInvitations || new Map()}
+              matronageOwedShards={matronageOwedShards || new Map()}
+              players={players || new Map()}
             />
           </div>
         );

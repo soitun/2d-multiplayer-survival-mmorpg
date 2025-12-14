@@ -36,6 +36,11 @@ const PLAYER_ICON_OUTLINE_COLOR = '#000000'; // Pure black outline for maximum c
 const PLAYER_ICON_OUTLINE_WIDTH = 2.5; // Thick outline for instant recognition
 const REMOTE_PLAYER_DOT_COLOR = '#FF3366'; // BRIGHT PINK/RED - ENEMY THREAT COLOR
 const REMOTE_PLAYER_GLOW = '0 0 10px #FF3366'; // Pulsing glow for threats
+// Matronage member color (same matronage = friendly)
+const MATRONAGE_MEMBER_COLOR = '#00AAFF'; // Bright blue for same-matronage players
+// Vicinity radius for showing remote players (only if in matronage)
+const PLAYER_VISIBILITY_RADIUS = 2500; // 2500 pixels for vicinity check
+const PLAYER_VISIBILITY_RADIUS_SQ = PLAYER_VISIBILITY_RADIUS * PLAYER_VISIBILITY_RADIUS;
 // Resource colors - TACTICAL VISIBILITY (cover, landmarks, loot)
 // PvP Note: Resources are CRITICAL for tactical awareness - they're cover, ambush points, and landmarks
 const TREE_DOT_COLOR = 'rgba(55, 255, 122, 0.6)'; // Medium-bright green - COVER and CONCEALMENT
@@ -242,6 +247,9 @@ interface MinimapProps {
   chunkWeatherData?: Map<number, ChunkWeather>; // Map of chunk indices to weather data
   // Show names prop
   showNames?: boolean; // Whether to show names for shipwrecks and other entities
+  // Matronage system props for player visibility
+  matronageMembers?: Map<string, any>; // Matronage membership tracking
+  matronages?: Map<string, any>; // Matronage organizations
 }
 
 // Bright, clear terrain colors for easy readability
@@ -618,6 +626,9 @@ export function drawMinimapOntoCanvas({
   chunkWeatherData, // Weather data map
   // Destructure show names prop
   showNames = true, // Default to true (show names by default)
+  // Destructure matronage props
+  matronageMembers, // Matronage membership tracking
+  matronages, // Matronage organizations
 }: MinimapProps) {
   // On mobile (smaller canvas), use full canvas dimensions; on desktop, use fixed dimensions
   const isMobile = canvasWidth <= 768 || canvasHeight <= 768;
@@ -1335,165 +1346,217 @@ export function drawMinimapOntoCanvas({
   }
 
   // --- Draw Remote Players (THREAT INDICATORS) ---
-  // PvP Tactical Note: Remote players are THE PRIMARY THREAT - always visible with high contrast
+  // PvP Tactical Note: Remote players visibility is now controlled by matronage membership
+  // Only players in a matronage can see other players on minimap
   // Night visibility: Only show if torch is lit (tactical advantage for stealth)
+  
+  // Check if local player is in a matronage (needed for both day and night)
+  const localPlayerMatronageIdForNight = localPlayerId && matronageMembers 
+    ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
+    : null;
+  const isLocalPlayerInMatronageForNight = !!localPlayerMatronageIdForNight;
+  
   if (showNightLights) {
-    players.forEach((player, playerId) => {
-      if (localPlayerId && playerId === localPlayerId) {
-        return; // Skip local player, handled separately
-      }
-      
-      // Only show remote players if they have torch lit (night stealth mechanic)
-      if (player.isTorchLit) {
+    // Only show remote players if local player is in a matronage
+    if (isLocalPlayerInMatronageForNight && localPlayer) {
+      players.forEach((player, playerId) => {
+        if (localPlayerId && playerId === localPlayerId) {
+          return; // Skip local player, handled separately
+        }
+
+        // Vicinity check - only show players within radius
+        const dx = player.positionX - localPlayer.positionX;
+        const dy = player.positionY - localPlayer.positionY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > PLAYER_VISIBILITY_RADIUS_SQ) {
+          return; // Player too far away
+        }
+        
+        // Only show remote players if they have torch lit (night stealth mechanic)
+        if (player.isTorchLit) {
+          const screenCoords = worldToMinimap(player.positionX, player.positionY);
+          if (screenCoords) {
+            const x = screenCoords.x;
+            const y = screenCoords.y;
+            const size = PLAYER_ICON_SIZE * 1.5; // Larger for torch-lit players
+
+            // Determine player color based on matronage membership
+            const remotePlayerMatronageId = matronageMembers?.get(playerId)?.matronageId?.toString();
+            const isSameMatronage = remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageIdForNight;
+            const torchColor = isSameMatronage ? '#66AAFF' : '#FF6600'; // Blue-tinted for allies, orange for others
+            
+            ctx.save();
+            
+            // === PULSING RING EFFECT ===
+            const time = Date.now();
+            
+            // Outer pulsing ring
+            const pulsePhase1 = (time % 2000) / 2000;
+            const pulseRadius1 = size + pulsePhase1 * 20;
+            const pulseAlpha1 = 1 - pulsePhase1;
+            
+            ctx.strokeStyle = torchColor;
+            ctx.lineWidth = 2 - pulsePhase1 * 1.5;
+            ctx.globalAlpha = pulseAlpha1 * 0.6;
+            ctx.beginPath();
+            ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Second pulsing ring (offset timing)
+            const pulsePhase2 = ((time + 1000) % 2000) / 2000;
+            const pulseRadius2 = size + pulsePhase2 * 20;
+            const pulseAlpha2 = 1 - pulsePhase2;
+            
+            ctx.lineWidth = 2 - pulsePhase2 * 1.5;
+            ctx.globalAlpha = pulseAlpha2 * 0.5;
+            ctx.beginPath();
+            ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Reset alpha for main icon
+            ctx.globalAlpha = 1.0;
+            
+            // Add glow for players at night
+            ctx.shadowColor = torchColor;
+            ctx.shadowBlur = 12;
+            
+            // Use torch image if available, otherwise fallback to drawn player icon
+            if (torchOnImage && torchOnImage.complete && torchOnImage.naturalHeight !== 0) {
+              // Draw the torch image centered at the player location
+              ctx.drawImage(
+                torchOnImage,
+                x - size / 2,   // Center horizontally
+                y - size / 2,   // Center vertically
+                size,
+                size
+              );
+            } else {
+              // Fallback to drawn player icon if image not loaded
+              // Convert player direction to rotation angle (radians)
+              let rotation = 0;
+              switch (player.direction) {
+                case 'right': rotation = 0; break;           // Point right (0°)
+                case 'down': rotation = Math.PI / 2; break;  // Point down (90°)
+                case 'left': rotation = Math.PI; break;      // Point left (180°)
+                case 'up': rotation = -Math.PI / 2; break;   // Point up (-90°)
+                default: rotation = 0; break;                // Default to right
+              }
+              
+              // Draw torch-lit players with appropriate color
+              const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : REMOTE_PLAYER_DOT_COLOR;
+              drawPlayerIcon(
+                ctx, 
+                x, 
+                y, 
+                rotation, 
+                playerColor,
+                size
+              );
+            }
+            
+            ctx.restore();
+          }
+        }
+      });
+    }
+    // If not in a matronage, no remote players are shown on minimap at night either
+  } else {
+    // DAYTIME: Players visibility now controlled by matronage membership
+    // Only show remote players if local player is in a matronage
+    // Players in same matronage = blue, others = red
+    // Only show players within vicinity radius
+    
+    // Check if local player is in a matronage
+    const localPlayerMatronageId = localPlayerId && matronageMembers 
+      ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
+      : null;
+    const isLocalPlayerInMatronage = !!localPlayerMatronageId;
+
+    // Only render remote players if local player is in a matronage
+    if (isLocalPlayerInMatronage && localPlayer) {
+      players.forEach((player, playerId) => {
+        if (localPlayerId && playerId === localPlayerId) {
+          return; // Skip local player, handled separately
+        }
+
+        // Vicinity check - only show players within radius
+        const dx = player.positionX - localPlayer.positionX;
+        const dy = player.positionY - localPlayer.positionY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > PLAYER_VISIBILITY_RADIUS_SQ) {
+          return; // Player too far away
+        }
+
         const screenCoords = worldToMinimap(player.positionX, player.positionY);
         if (screenCoords) {
           const x = screenCoords.x;
           const y = screenCoords.y;
-          const size = PLAYER_ICON_SIZE * 1.5; // Larger for torch-lit players
-          
+
+          // Determine player color based on matronage membership
+          const remotePlayerMatronageId = matronageMembers?.get(playerId)?.matronageId?.toString();
+          const isSameMatronage = remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageId;
+          const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : REMOTE_PLAYER_DOT_COLOR;
+
           ctx.save();
-          
-          // === PULSING RING EFFECT (Orange for torch-lit threats) ===
+
+          // === PULSING RING EFFECT ===
           const time = Date.now();
-          const torchColor = '#FF6600'; // Orange for torch
-          
-          // Outer pulsing ring
-          const pulsePhase1 = (time % 2000) / 2000;
-          const pulseRadius1 = size + pulsePhase1 * 20;
+
+          // Outer pulsing ring (expands and fades)
+          const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
+          const pulseRadius1 = PLAYER_ICON_SIZE + pulsePhase1 * 20;
           const pulseAlpha1 = 1 - pulsePhase1;
-          
-          ctx.strokeStyle = torchColor;
+
+          ctx.strokeStyle = playerColor;
           ctx.lineWidth = 2 - pulsePhase1 * 1.5;
           ctx.globalAlpha = pulseAlpha1 * 0.6;
           ctx.beginPath();
           ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
           ctx.stroke();
-          
+
           // Second pulsing ring (offset timing)
           const pulsePhase2 = ((time + 1000) % 2000) / 2000;
-          const pulseRadius2 = size + pulsePhase2 * 20;
+          const pulseRadius2 = PLAYER_ICON_SIZE + pulsePhase2 * 20;
           const pulseAlpha2 = 1 - pulsePhase2;
-          
+
           ctx.lineWidth = 2 - pulsePhase2 * 1.5;
           ctx.globalAlpha = pulseAlpha2 * 0.5;
           ctx.beginPath();
           ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
           ctx.stroke();
-          
+
           // Reset alpha for main icon
           ctx.globalAlpha = 1.0;
-          
-          // Add THREAT GLOW for enemy players at night
-          ctx.shadowColor = torchColor;
-          ctx.shadowBlur = 12;
-          
-          // Use torch image if available, otherwise fallback to drawn player icon
-          if (torchOnImage && torchOnImage.complete && torchOnImage.naturalHeight !== 0) {
-            // Draw the torch image centered at the player location
-            ctx.drawImage(
-              torchOnImage,
-              x - size / 2,   // Center horizontally
-              y - size / 2,   // Center vertically
-              size,
-              size
-            );
-          } else {
-            // Fallback to drawn player icon if image not loaded
-            // Convert player direction to rotation angle (radians)
-            let rotation = 0;
-            switch (player.direction) {
-              case 'right': rotation = 0; break;           // Point right (0°)
-              case 'down': rotation = Math.PI / 2; break;  // Point down (90°)
-              case 'left': rotation = Math.PI; break;      // Point left (180°)
-              case 'up': rotation = -Math.PI / 2; break;   // Point up (-90°)
-              default: rotation = 0; break;                // Default to right
-            }
-            
-            // Draw torch-lit players with THREAT COLOR
-            drawPlayerIcon(
-              ctx, 
-              x, 
-              y, 
-              rotation, 
-              REMOTE_PLAYER_DOT_COLOR, // Use threat color
-              size
-            );
+
+          // Add glow to the player icon
+          ctx.shadowColor = playerColor;
+          ctx.shadowBlur = 10;
+
+          // Convert player direction to rotation angle (radians)
+          let rotation = 0;
+          switch (player.direction) {
+            case 'right': rotation = 0; break;
+            case 'down': rotation = Math.PI / 2; break;
+            case 'left': rotation = Math.PI; break;
+            case 'up': rotation = -Math.PI / 2; break;
+            default: rotation = 0; break;
           }
+
+          // Draw player with appropriate color (blue for same matronage, red for others)
+          drawPlayerIcon(
+            ctx, 
+            x, 
+            y, 
+            rotation, 
+            playerColor,
+            PLAYER_ICON_SIZE
+          );
           
           ctx.restore();
         }
-      }
-    });
-  } else {
-    // DAYTIME: All players visible (no stealth advantage)
-    players.forEach((player, playerId) => {
-      if (localPlayerId && playerId === localPlayerId) {
-        return; // Skip local player, handled separately
-      }
-      
-      const screenCoords = worldToMinimap(player.positionX, player.positionY);
-      if (screenCoords) {
-        const x = screenCoords.x;
-        const y = screenCoords.y;
-        
-        ctx.save();
-        
-        // === PULSING RING EFFECT (Same style as local player, but RED for threat) ===
-        const time = Date.now();
-        
-        // Outer pulsing ring (expands and fades)
-        const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
-        const pulseRadius1 = PLAYER_ICON_SIZE + pulsePhase1 * 20; // Slightly smaller than local player
-        const pulseAlpha1 = 1 - pulsePhase1;
-        
-        ctx.strokeStyle = REMOTE_PLAYER_DOT_COLOR;
-        ctx.lineWidth = 2 - pulsePhase1 * 1.5;
-        ctx.globalAlpha = pulseAlpha1 * 0.6;
-        ctx.beginPath();
-        ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Second pulsing ring (offset timing)
-        const pulsePhase2 = ((time + 1000) % 2000) / 2000;
-        const pulseRadius2 = PLAYER_ICON_SIZE + pulsePhase2 * 20;
-        const pulseAlpha2 = 1 - pulsePhase2;
-        
-        ctx.lineWidth = 2 - pulsePhase2 * 1.5;
-        ctx.globalAlpha = pulseAlpha2 * 0.5;
-        ctx.beginPath();
-        ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Reset alpha for main icon
-        ctx.globalAlpha = 1.0;
-        
-        // Add glow to the player icon
-        ctx.shadowColor = REMOTE_PLAYER_DOT_COLOR;
-        ctx.shadowBlur = 10;
-        
-        // Convert player direction to rotation angle (radians)
-        let rotation = 0;
-        switch (player.direction) {
-          case 'right': rotation = 0; break;
-          case 'down': rotation = Math.PI / 2; break;
-          case 'left': rotation = Math.PI; break;
-          case 'up': rotation = -Math.PI / 2; break;
-          default: rotation = 0; break;
-        }
-        
-        // Draw enemy player with BRIGHT THREAT COLOR
-        drawPlayerIcon(
-          ctx, 
-          x, 
-          y, 
-          rotation, 
-          REMOTE_PLAYER_DOT_COLOR, // Bright pink/red threat indicator
-          PLAYER_ICON_SIZE
-        );
-        
-        ctx.restore();
-      }
-    });
+      });
+    }
+    // If not in a matronage, no remote players are shown on minimap
   }
 
   // --- Draw Sleeping Bags ---

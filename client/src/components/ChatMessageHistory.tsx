@@ -12,9 +12,20 @@ interface ChatMessageHistoryProps {
   players: Map<string, SpacetimeDBPlayer>; // Pass players map to look up names
   localPlayerIdentity: string | undefined; // Changed from string | null
   messageEndRef: RefObject<HTMLDivElement>; // Add the ref parameter
+  // Matronage system for chat tags
+  matronageMembers?: Map<string, any>;
+  matronages?: Map<string, any>;
 }
 
-const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, privateMessages, players, localPlayerIdentity, messageEndRef }) => {
+const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ 
+  messages, 
+  privateMessages, 
+  players, 
+  localPlayerIdentity, 
+  messageEndRef,
+  matronageMembers,
+  matronages,
+}) => {
   const historyRef = useRef<HTMLDivElement>(null);
 
   // Memoize and sort all messages (public and private)
@@ -47,6 +58,19 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
     return player?.username ?? identityHex.substring(0, 8); // Fallback to short ID
   };
 
+  // Get matronage tag for a player (e.g., "[MatronageName]")
+  const getMatronageTag = (identity: Identity): string | null => {
+    if (!matronageMembers || !matronages) return null;
+    const identityHex = identity.toHexString();
+    const membership = matronageMembers.get(identityHex);
+    if (!membership) return null;
+    const matronageId = membership.matronageId?.toString();
+    const matronage = Array.from(matronages.values()).find(
+      (m: any) => m.id?.toString() === matronageId
+    );
+    return matronage?.name ? `[${matronage.name}]` : null;
+  };
+
   // Function to determine if a sender is the module (SYSTEM for public messages)
   // This is a placeholder. A robust way would be to get the module identity from the connection.
   const isSenderSystemModule = (senderIdentity: Identity): boolean => {
@@ -72,6 +96,8 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
         let isSystemMsg = false;
         let isWhisper = false;
 
+        let matronageTag: string | null = null;
+
         if (msg.isPrivate) {
           const privateMsg = msg as SpacetimeDBPrivateMessage;
           if (privateMsg.senderDisplayName === 'SYSTEM') {
@@ -81,6 +107,8 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
             // It's a whisper from another player
             senderName = privateMsg.senderDisplayName;
             isWhisper = true;
+            // Try to get matronage tag for whisper sender
+            // Note: We don't have sender identity for whispers, so we can't show matronage tag
           }
         } else {
           const publicMsg = msg as SpacetimeDBMessage;
@@ -89,6 +117,7 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
             isSystemMsg = true;
           } else {
             senderName = getPlayerName(publicMsg.sender);
+            matronageTag = getMatronageTag(publicMsg.sender);
           }
         }
 
@@ -129,7 +158,12 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({ messages, priva
         return (
           <div key={key} className={messageClasses.join(' ')} style={messageStyle}>
             <div className={styles.messageHeader}>
-              <span className={senderNameClasses.join(' ')}>{senderName}:</span>
+              <span className={senderNameClasses.join(' ')}>
+                {matronageTag && (
+                  <span className={styles.matronageTag}>{matronageTag} </span>
+                )}
+                {senderName}:
+              </span>
               <span className={styles.timestamp}>
                 {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>

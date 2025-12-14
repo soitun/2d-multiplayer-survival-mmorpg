@@ -292,17 +292,36 @@ export class ProceduralWorldRenderer {
             }
             
             // Get sprite coordinates from Dual Grid lookup
-            const { spriteCoords, clipCorners } = tileInfo;
+            const { spriteCoords, clipCorners, flipHorizontal, flipVertical } = tileInfo;
             
             const destX = Math.floor(pixelX - pixelSize / 2);
             const destY = Math.floor(pixelY - pixelSize / 2);
             const halfSize = Math.floor(pixelSize / 2);
             
+            // Apply transformations if flipping is needed
+            const needsTransform = flipHorizontal || flipVertical;
+            
+            ctx.save();
+            
+            if (needsTransform) {
+                // Move to center of destination, apply flip, then move back
+                const centerX = destX + pixelSize / 2;
+                const centerY = destY + pixelSize / 2;
+                
+                ctx.translate(centerX, centerY);
+                if (flipHorizontal) {
+                    ctx.scale(-1, 1);
+                }
+                if (flipVertical) {
+                    ctx.scale(1, -1);
+                }
+                ctx.translate(-centerX, -centerY);
+            }
+            
             if (clipCorners && clipCorners.length > 0) {
                 // Corner clipping mode: only render specified corners
                 // This is used for 3+ terrain junctions where upper layers
                 // should only show where their higherTerrain actually exists
-                ctx.save();
                 
                 // Create clipping path for specified corners
                 ctx.beginPath();
@@ -323,27 +342,18 @@ export class ProceduralWorldRenderer {
                     }
                 }
                 ctx.clip();
-                
-                // Draw the full tile (clipping will mask it)
-                ctx.drawImage(
-                    tilesetImg,
-                    Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
-                    Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
-                    destX, destY,
-                    Math.floor(pixelSize), Math.floor(pixelSize)
-                );
-                
-                ctx.restore();
-            } else {
-                // Normal full-tile rendering
-                ctx.drawImage(
-                    tilesetImg,
-                    Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
-                    Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
-                    destX, destY,
-                    Math.floor(pixelSize), Math.floor(pixelSize)
-                );
             }
+            
+            // Draw the tile (clipping will mask it if clipCorners is set)
+            ctx.drawImage(
+                tilesetImg,
+                Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
+                Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
+                destX, destY,
+                Math.floor(pixelSize), Math.floor(pixelSize)
+            );
+            
+            ctx.restore();
         }
         
         // Debug overlay - show info for the TOP layer only

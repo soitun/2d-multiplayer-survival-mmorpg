@@ -229,6 +229,72 @@ function getTerrainPriority(terrainType: string): number {
 }
 
 /**
+ * Determine if a diagonal tile (index 6 or 9) needs horizontal flipping
+ * based on the surrounding tile context.
+ * 
+ * Index 6 (0110): TR+BL are secondary → diagonal from TR to BL
+ * Index 9 (1001): TL+BR are secondary → diagonal from TL to BR
+ * 
+ * Heuristic: Check the neighbors of the secondary corners to determine
+ * which diagonal orientation creates better connections.
+ * 
+ * For index 6: Check neighbors of TR and BL (the secondary corners)
+ * - If the neighbor to the right of TR is primary, and neighbor below BL is primary,
+ *   the current TR→BL diagonal is correct (don't flip)
+ * - If those neighbors suggest TL→BR would connect better, flip
+ * 
+ * For index 9: Similar logic but for TL and BR neighbors
+ */
+function shouldFlipDiagonalHorizontal(
+    dualGridIndex: number,
+    logicalX: number,
+    logicalY: number,
+    worldTiles: Map<string, WorldTile>,
+    primaryTerrain: string
+): boolean {
+    // Only applies to diagonal tiles: 6 (TR+BL) and 9 (TL+BR)
+    if (dualGridIndex !== 6 && dualGridIndex !== 9) {
+        return false;
+    }
+    
+    // TEMPORARY: Always flip index 6 to test if flipping works
+    // TODO: Replace with proper heuristic based on neighbor analysis
+    if (dualGridIndex === 6) {
+        return true; // Always flip index 6 for now
+    }
+    
+    // For index 9, use neighbor-based logic
+    if (dualGridIndex === 9) {
+        // Get the 4 corner tiles
+        const tlTile = worldTiles.get(`${logicalX}_${logicalY}`);
+        const trTile = worldTiles.get(`${logicalX + 1}_${logicalY}`);
+        const blTile = worldTiles.get(`${logicalX}_${logicalY + 1}`);
+        const brTile = worldTiles.get(`${logicalX + 1}_${logicalY + 1}`);
+        
+        const trType = getTileType(trTile);
+        const blType = getTileType(blTile);
+        
+        // Index 9: TL and BR are secondary, TR and BL are primary
+        // Check if TR and BL neighbors suggest TR→BL diagonal would connect better
+        const rightOfTR = worldTiles.get(`${logicalX + 2}_${logicalY}`);
+        const belowBL = worldTiles.get(`${logicalX}_${logicalY + 2}`);
+        
+        const rightOfTRType = getTileType(rightOfTR);
+        const belowBLType = getTileType(belowBL);
+        
+        // If neighbors of TR and BL are also primary, flip to create TR→BL diagonal
+        const trNeighborIsPrimary = !rightOfTR || rightOfTRType === primaryTerrain;
+        const blNeighborIsPrimary = !belowBL || belowBLType === primaryTerrain;
+        
+        if (trNeighborIsPrimary && blNeighborIsPrimary) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
  * Determine the primary terrain from 4 corners based on priority.
  * The primary terrain is the one with highest priority (highest number).
  */
@@ -325,6 +391,10 @@ export interface DualGridTileInfo {
      * Array of corner names: 'TL', 'TR', 'BL', 'BR'
      */
     clipCorners: ('TL' | 'TR' | 'BL' | 'BR')[] | null;
+    /** Whether to flip the tile horizontally when rendering */
+    flipHorizontal: boolean;
+    /** Whether to flip the tile vertically when rendering */
+    flipVertical: boolean;
 }
 
 /**
@@ -396,6 +466,9 @@ export function getDualGridTileInfo(
     if (blType !== primaryTerrain) dualGridIndex |= 2;
     if (brType !== primaryTerrain) dualGridIndex |= 1;
     
+    // Store original index before potential inversion (needed for flip detection)
+    const originalDualGridIndex = dualGridIndex;
+    
     // CRITICAL: If the tileset was found via reversed lookup (Secondary_Primary key),
     // it means the tileset was designed with the opposite primary/secondary convention.
     // We need to INVERT the bitmask to get the correct tile variant.
@@ -407,6 +480,17 @@ export function getDualGridTileInfo(
     
     // Look up tile position in tileset
     const tilePos = DUAL_GRID_LOOKUP[dualGridIndex];
+    
+    // Check if diagonal tiles need horizontal flipping for better connections
+    // Use original index before inversion to determine flip, since flip is about
+    // the actual pattern, not the tileset orientation
+    const flipHorizontal = shouldFlipDiagonalHorizontal(
+        originalDualGridIndex,
+        logicalX,
+        logicalY,
+        worldTiles,
+        primaryTerrain
+    );
     
     // Calculate sprite coordinates
     const spriteCoords = {
@@ -425,6 +509,8 @@ export function getDualGridTileInfo(
         isTransition: true,
         isReversedTileset: isReversed,
         clipCorners: null, // Full tile rendering for 2-terrain case
+        flipHorizontal,
+        flipVertical: false,
     };
 }
 
@@ -532,6 +618,9 @@ export function getDualGridTileInfoMultiLayer(
         if (getTerrainPriority(blType) <= lowerPriority) dualGridIndex |= 2;
         if (getTerrainPriority(brType) <= lowerPriority) dualGridIndex |= 1;
         
+        // Store original index before potential inversion (needed for flip detection)
+        const originalDualGridIndex = dualGridIndex;
+        
         // Invert if tileset was found via reversed lookup
         if (isReversed) {
             dualGridIndex = 15 - dualGridIndex;
@@ -543,6 +632,18 @@ export function getDualGridTileInfoMultiLayer(
         }
         
         const tilePos = DUAL_GRID_LOOKUP[dualGridIndex];
+        
+        // Check if diagonal tiles need horizontal flipping for better connections
+        // Use original index before inversion to determine flip, since flip is about
+        // the actual pattern, not the tileset orientation
+        const flipHorizontal = shouldFlipDiagonalHorizontal(
+            originalDualGridIndex,
+            logicalX,
+            logicalY,
+            worldTiles,
+            higherTerrain
+        );
+        
         const spriteCoords = {
             x: tilePos.col * TILE_SIZE,
             y: tilePos.row * TILE_SIZE,
@@ -559,6 +660,8 @@ export function getDualGridTileInfoMultiLayer(
             isTransition: true,
             isReversedTileset: isReversed,
             clipCorners,
+            flipHorizontal,
+            flipVertical: false,
         });
     }
     

@@ -52,9 +52,15 @@ pub const ALK_STATION_Y_OFFSET: f32 = 0.0; // Anchor point offset (worldPosY is 
 
 /// AABB collision dimensions - bottom 1/3 height, 1/2 width (matches compound buildings)
 pub const ALK_STATION_COLLISION_WIDTH: f32 = ALK_STATION_WIDTH * 0.5;  // 50% of building width
-pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height
+pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height (substations)
 pub const ALK_STATION_AABB_HALF_WIDTH: f32 = ALK_STATION_COLLISION_WIDTH / 2.0;
 pub const ALK_STATION_AABB_HALF_HEIGHT: f32 = ALK_STATION_COLLISION_HEIGHT / 2.0;
+
+/// Central compound collision dimensions - half height from top (bottom 1/6 height, 1/2 width)
+pub const ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 6.0; // Bottom 1/6 of building height (half of substation height)
+pub const ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT: f32 = ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT / 2.0;
+/// Central compound collision Y offset - pushed up by its height to position higher on building
+pub const ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET: f32 = ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT; // Push up by full height
 
 /// Legacy circular collision constants (kept for compatibility, but AABB is used instead)
 pub const ALK_STATION_COLLISION_RADIUS: f32 = 120.0;
@@ -2313,6 +2319,156 @@ pub fn deliver_alk_contract(
     player_contracts_table.id().update(player_contract.clone());
     
     log::info!("📦 Player {:?} delivered {} {} ({} bundles) at {} for {} shards (fee: {})",
+              player_id, items_consumed, contract.item_name, bundles_delivered, 
+              station.name, net_reward, fee);
+    
+    if player_contract.status == AlkContractStatus::Completed {
+        log::info!("✅ Contract {} completed!", player_contract_id);
+    }
+    
+    Ok(())
+}
+
+/// Deliver items to fulfill a contract, depositing rewards to matronage pool instead of player
+/// This is the alternative to deliver_alk_contract that routes shards to the matronage pool
+#[spacetimedb::reducer]
+pub fn deliver_alk_contract_to_matronage(
+    ctx: &ReducerContext, 
+    player_contract_id: u64,
+    station_id: u32,
+) -> Result<(), String> {
+    let player_id = ctx.sender;
+    
+    // Verify player is in a matronage first
+    use crate::matronage::matronage_member as MatronageMemberTableTrait;
+    let _member = ctx.db.matronage_member().player_id().find(&player_id)
+        .ok_or("You must be in a matronage to assign rewards to the pool")?;
+    
+    // Get player
+    let player = ctx.db.player().identity().find(&player_id)
+        .ok_or("Player not found")?;
+    
+    // Get station and validate player is in range
+    let stations_table = ctx.db.alk_station();
+    let station = stations_table.station_id().find(&station_id)
+        .ok_or("Station not found")?;
+    
+    if !station.is_active {
+        return Err("Station is not operational".to_string());
+    }
+    
+    // Check player is in range
+    let dx = player.position_x - station.world_pos_x;
+    let dy = player.position_y - station.world_pos_y;
+    let distance_sq = dx * dx + dy * dy;
+    let interaction_radius_sq = station.interaction_radius * station.interaction_radius;
+    
+    if distance_sq > interaction_radius_sq {
+        return Err("You must be at the station to deliver".to_string());
+    }
+    
+    // Get player contract
+    let player_contracts_table = ctx.db.alk_player_contract();
+    let mut player_contract = player_contracts_table.id().find(&player_contract_id)
+        .ok_or("Player contract not found")?;
+    
+    if player_contract.player_id != player_id {
+        return Err("You can only deliver your own contracts".to_string());
+    }
+    
+    if player_contract.status != AlkContractStatus::Active {
+        return Err("Contract is not active".to_string());
+    }
+    
+    // Get contract template
+    let contracts_table = ctx.db.alk_contract();
+    let contract = contracts_table.contract_id().find(&player_contract.contract_id)
+        .ok_or("Contract template not found")?;
+    
+    // Validate station is allowed for this contract
+    let station_allowed = match contract.allowed_stations {
+        AlkStationAllowance::CompoundOnly => station_id == 0,
+        AlkStationAllowance::SubstationsOnly => station_id > 0,
+        AlkStationAllowance::AllStations => true,
+    };
+    
+    if !station_allowed {
+        return Err(format!("This contract cannot be delivered at {}", station.name));
+    }
+    
+    // Check player has the required items
+    let items_table = ctx.db.inventory_item();
+    let remaining_to_deliver = player_contract.target_quantity - player_contract.delivered_quantity;
+    
+    // Find matching items in player inventory
+    let player_items: Vec<_> = items_table.iter()
+        .filter(|item| {
+            item.item_def_id == contract.item_def_id &&
+            (matches!(&item.location, ItemLocation::Inventory(loc) if loc.owner_id == player_id) ||
+            matches!(&item.location, ItemLocation::Hotbar(loc) if loc.owner_id == player_id))
+        })
+        .collect();
+    
+    let total_available: u32 = player_items.iter().map(|i| i.quantity).sum();
+    
+    if total_available < contract.bundle_size {
+        return Err(format!("You need at least {} {} to deliver (have {})", 
+                          contract.bundle_size, contract.item_name, total_available));
+    }
+    
+    // Calculate how much to deliver (up to remaining target, limited by inventory)
+    let to_deliver = remaining_to_deliver.min(total_available);
+    let bundles_delivered = to_deliver / contract.bundle_size;
+    let items_consumed = bundles_delivered * contract.bundle_size;
+    
+    if bundles_delivered == 0 {
+        return Err("Not enough items for even one bundle".to_string());
+    }
+    
+    // Consume items from inventory
+    let mut items_to_consume = items_consumed;
+    for item in player_items {
+        if items_to_consume == 0 { break; }
+        
+        let consume_from_stack = item.quantity.min(items_to_consume);
+        items_to_consume -= consume_from_stack;
+        
+        if consume_from_stack >= item.quantity {
+            // Delete entire stack
+            items_table.instance_id().delete(item.instance_id);
+        } else {
+            // Reduce stack
+            let mut updated_item = item.clone();
+            updated_item.quantity -= consume_from_stack;
+            items_table.instance_id().update(updated_item);
+        }
+    }
+    
+    // Calculate reward
+    let gross_reward = bundles_delivered * contract.shard_reward_per_bundle;
+    let fee = (gross_reward as f32 * station.delivery_fee_rate) as u32;
+    let net_reward = gross_reward.saturating_sub(fee);
+    
+    // Deposit to matronage pool instead of giving directly to player
+    match crate::matronage::deposit_to_matronage_pool(ctx, &player_id, net_reward as u64) {
+        Ok(_) => {
+            log::info!("💰 Deposited {} shards to matronage pool for player {:?}", net_reward, player_id);
+        }
+        Err(e) => {
+            log::error!("Failed to deposit to matronage pool: {}", e);
+            return Err(format!("Failed to deposit to matronage pool: {}", e));
+        }
+    }
+    
+    // Update player contract
+    player_contract.delivered_quantity += items_consumed;
+    if player_contract.delivered_quantity >= player_contract.target_quantity {
+        player_contract.status = AlkContractStatus::Completed;
+        player_contract.completed_at = Some(ctx.timestamp);
+    }
+    player_contracts_table.id().update(player_contract.clone());
+    
+    log::info!("📦🏛️ Player {:?} delivered {} {} ({} bundles) at {} -> MATRONAGE POOL (+{} shards, fee: {})",
               player_id, items_consumed, contract.item_name, bundles_delivered, 
               station.name, net_reward, fee);
     

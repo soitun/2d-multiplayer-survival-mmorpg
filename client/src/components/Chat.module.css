@@ -243,6 +243,13 @@
   font-size: 13px; /* Increased from 10px to 13px */
 }
 
+.matronageTag {
+  color: #b464ff;
+  font-weight: normal;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
 .messageText {
   color: #ffffff;
   font-size: 14px; /* Increased from 11px to 14px */

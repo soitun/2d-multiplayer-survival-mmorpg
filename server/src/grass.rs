@@ -7,13 +7,16 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
+use crate::sound_events::{emit_sound_at_position, SoundType};
 
 // --- Grass-Specific Constants ---
 
 // Plant Fiber Drop Constants
-pub(crate) const PLANT_FIBER_DROP_CHANCE: f32 = 0.005; // 0.5% chance to drop fiber
-pub(crate) const PLANT_FIBER_MIN_DROP: u32 = 10; // Minimum fiber dropped
-pub(crate) const PLANT_FIBER_MAX_DROP: u32 = 15; // Maximum fiber dropped
+// Balanced as SUPPLEMENTAL source - not primary (Nettle gives 40-50, Flax gives 25-30)
+// At 4% chance with 8-12 drop, ~100 grass cuts = ~40 fiber (less than one Nettle)
+pub(crate) const PLANT_FIBER_DROP_CHANCE: f32 = 0.04; // 4% chance to drop fiber (was 0.5%)
+pub(crate) const PLANT_FIBER_MIN_DROP: u32 = 8; // Minimum fiber dropped
+pub(crate) const PLANT_FIBER_MAX_DROP: u32 = 12; // Maximum fiber dropped
 pub(crate) const GRASS_INTERACTION_DISTANCE: f32 = 80.0; // Max distance to interact with grass
 pub(crate) const GRASS_INTERACTION_DISTANCE_SQ: f32 = GRASS_INTERACTION_DISTANCE * GRASS_INTERACTION_DISTANCE;
 
@@ -251,7 +254,7 @@ pub fn process_grass_respawn(ctx: &spacetimedb::ReducerContext, schedule_entry: 
 }
 
 /// Damage grass entity - called when player attacks grass
-/// Destroys grass (1 HP), schedules respawn, and has 0.5% chance to drop 10-15 Plant Fiber
+/// Destroys grass (1 HP), schedules respawn, and has 4% chance to drop 8-12 Plant Fiber
 #[spacetimedb::reducer]
 pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     let sender_id = ctx.sender;
@@ -331,6 +334,11 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     grass_table.id().delete(grass_id);
     
     log::info!("Player {:?} destroyed grass {} at ({:.1}, {:.1})", sender_id, grass_id, grass_pos_x, grass_pos_y);
+    
+    // 8b. Play grass cutting sound
+    if let Err(e) = emit_sound_at_position(ctx, SoundType::GrassCut, grass_pos_x, grass_pos_y, 0.6, sender_id) {
+        log::warn!("Failed to emit grass cut sound: {}", e);
+    }
     
     // 9. Roll for Plant Fiber drop (0.5% chance)
     let drop_roll: f32 = ctx.rng().gen();

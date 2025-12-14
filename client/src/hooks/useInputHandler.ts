@@ -605,7 +605,10 @@ export const useInputHandler = ({
                 
                 // If user is trying to use space but chat input is blocking, try to clear focus
                 // Note: Removed F key from this check as it interferes with typing 'f' in inputs
-                if (key === ' ' && isChatInputFocused && !isChatting && !isSearchingCraftRecipes) {
+                // Skip clearing if the input explicitly allows spacebar (e.g., matronage name input)
+                const allowsSpacebar = target?.getAttribute('data-allow-spacebar') === 'true' ||
+                    document.activeElement?.getAttribute('data-allow-spacebar') === 'true';
+                if (key === ' ' && isChatInputFocused && !isChatting && !isSearchingCraftRecipes && !allowsSpacebar) {
                     console.log('[InputHandler] Attempting to clear stuck chat input focus');
                     forceClearInputFocus();
                 }

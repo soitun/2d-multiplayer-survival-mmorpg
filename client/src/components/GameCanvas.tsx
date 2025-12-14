@@ -270,7 +270,13 @@ interface GameCanvasProps {
   showWeatherOverlay?: boolean;
   // Status overlays toggle for cold/low health screen effects
   showStatusOverlays?: boolean;
-  
+
+  // Matronage system
+  matronages?: Map<string, any>;
+  matronageMembers?: Map<string, any>;
+  matronageInvitations?: Map<string, any>;
+  matronageOwedShards?: Map<string, any>;
+
   // Mobile controls
   isMobile?: boolean;
   onMobileTap?: (worldX: number, worldY: number) => void;
@@ -375,6 +381,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerShardBalance, // Player shard balances
   memoryGridProgress, // Memory Grid progress for crafting unlocks
   showWeatherOverlay, // Weather overlay toggle for main game canvas atmospheric effects (managed internally if not provided)
+  // Matronage system
+  matronages, // Matronage pooled rewards organizations
+  matronageMembers, // Matronage membership tracking
+  matronageInvitations, // Pending matronage invitations
+  matronageOwedShards, // Owed shard balances from matronage
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
   isMobile = false,
@@ -3669,6 +3680,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       largeQuarries: largeQuarries,
       // Show names toggle for minimap labels
       showNames: minimapShowNames,
+      // Matronage system for player visibility
+      matronageMembers: matronageMembers,
+      matronages: matronages,
     });
   }, [
     isMinimapOpen,
@@ -3816,6 +3830,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             // Cairns Panel data props
             cairns={cairns}
             playerDiscoveredCairns={playerDiscoveredCairns}
+            // Matronage Panel data props
+            matronages={matronages}
+            matronageMembers={matronageMembers}
+            matronageInvitations={matronageInvitations}
+            matronageOwedShards={matronageOwedShards}
+            players={players}
+            playerUsername={localPlayer?.username || ''}
           >
             <canvas
               ref={minimapCanvasRef}

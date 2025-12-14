@@ -39,6 +39,9 @@ import viperScaleIcon from '../assets/items/viper_scale.png';
 // Technological materials
 import memoryShardIcon from '../assets/items/memory_shard.png';
 
+// Ceremonial materials
+import matronsMarkIcon from '../assets/items/matrons_mark.png';
+
 // === TOOLS ===
 // Gathering tools, utility tools, medical tools, light sources
 
@@ -413,6 +416,9 @@ const iconMap: { [key: string]: string | undefined } = {
 
   // Technological materials
   'memory_shard.png': memoryShardIcon,
+
+  // Ceremonial materials
+  'matrons_mark.png': matronsMarkIcon,
 
   // === TOOLS ===
   'stone_hatchet.png': stoneHatchetIcon,

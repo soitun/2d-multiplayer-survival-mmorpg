@@ -281,7 +281,13 @@ interface GameScreenProps {
     playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
     // Memory Grid progress for crafting unlocks
     memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
-    
+
+    // Matronage system
+    matronages?: Map<string, any>;
+    matronageMembers?: Map<string, any>;
+    matronageInvitations?: Map<string, any>;
+    matronageOwedShards?: Map<string, any>;
+
     // Mobile controls
     isMobile?: boolean;
     onMobileTap?: (worldX: number, worldY: number) => void;
@@ -294,6 +300,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // ADD THIS LOG AT THE VERY BEGINNING OF THE COMPONENT
     // console.log("[GameScreen.tsx] Received props including activeConsumableEffects:", props.activeConsumableEffects);
     const [showInventoryState, setShowInventoryState] = useState(false);
+    const [showCraftingScreenState, setShowCraftingScreenState] = useState(false);
 
     // Add menu state management
     const [currentMenu, setCurrentMenu] = useState<MenuType>(null);
@@ -416,7 +423,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         isEnabled: true,
         isChatting,
         isGameMenuOpen: currentMenu !== null,
-        isInventoryOpen: showInventoryState,
+        isInventoryOpen: showInventoryState || showCraftingScreenState,
     });
 
     // Mobile chat visibility state (separate from isChatting which controls input focus)
@@ -865,7 +872,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 messages={messages}
                 isSearchingCraftRecipes={isCraftingSearchFocused}
                 activeConsumableEffects={activeConsumableEffects}
-                showInventory={showInventoryState}
+                showInventory={showInventoryState || showCraftingScreenState}
                 grass={grass}
                 gameCanvasRef={canvasRef}
                 projectiles={projectiles}
@@ -904,6 +911,11 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 alkState={props.alkState}
                 playerShardBalance={props.playerShardBalance}
                 memoryGridProgress={props.memoryGridProgress}
+                // Matronage system
+                matronages={props.matronages}
+                matronageMembers={props.matronageMembers}
+                matronageInvitations={props.matronageInvitations}
+                matronageOwedShards={props.matronageOwedShards}
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}
@@ -966,6 +978,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isGameMenuOpen={currentMenu !== null}
                 memoryGridProgress={props.memoryGridProgress}
                 isMobile={props.isMobile}
+                showCraftingScreen={showCraftingScreenState}
+                onToggleCraftingScreen={() => setShowCraftingScreenState(prev => !prev)}
             />
             {/* DayNightCycleTracker - Mobile version is compact and positioned below status bars */}
             <DayNightCycleTracker
@@ -998,6 +1012,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 inventoryItems={inventoryItems}
                 isMobile={props.isMobile}
                 isMobileChatOpen={isMobileChatOpen}
+                matronageMembers={props.matronageMembers}
+                matronages={props.matronages}
             />
 
             {/* TargetingReticle - Hidden on mobile */}
@@ -1011,7 +1027,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     gameCanvasRef={canvasRef}
                     cameraOffsetX={cameraOffsetX}
                     cameraOffsetY={cameraOffsetY}
-                    isInventoryOpen={showInventoryState}
+                    isInventoryOpen={showInventoryState || showCraftingScreenState}
                     isGameMenuOpen={currentMenu !== null}
                 />
             )}
@@ -1137,12 +1153,14 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     alkContracts={props.alkContracts || new Map()}
                     alkPlayerContracts={props.alkPlayerContracts || new Map()}
                     playerShardBalance={
-                        playerIdentity && props.playerShardBalance 
-                            ? props.playerShardBalance.get(playerIdentity.toHexString()) || null 
+                        playerIdentity && props.playerShardBalance
+                            ? props.playerShardBalance.get(playerIdentity.toHexString()) || null
                             : null
                     }
                     itemDefinitions={itemDefinitions}
                     inventoryItems={inventoryItems}
+                    matronageMembers={props.matronageMembers}
+                    matronages={props.matronages}
                 />
             )}
 

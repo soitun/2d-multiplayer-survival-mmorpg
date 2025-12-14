@@ -159,6 +159,11 @@ export interface SpacetimeTableStates {
     memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
     shipwreckParts: Map<string, any>; // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
     largeQuarries: Map<string, any>; // ADDED: Large quarry locations with types for minimap labels
+    // Matronage system tables
+    matronages: Map<string, any>; // ADDED: Matronage pooled rewards organizations
+    matronageMembers: Map<string, any>; // ADDED: Matronage membership tracking
+    matronageInvitations: Map<string, any>; // ADDED: Pending matronage invitations
+    matronageOwedShards: Map<string, any>; // ADDED: Owed shard balances from matronage
 }
 
 // Define the props the hook accepts
@@ -246,6 +251,11 @@ export const useSpacetimeTables = ({
     const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
     const [shipwreckParts, setShipwreckParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
     const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map()); // ADDED: Large quarry locations with types for minimap labels
+    // Matronage system state
+    const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage pooled rewards organizations
+    const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage membership tracking
+    const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map()); // ADDED: Pending matronage invitations
+    const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map()); // ADDED: Owed shard balances from matronage
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1680,6 +1690,50 @@ export const useSpacetimeTables = ({
                 setMemoryGridProgress(prev => { const newMap = new Map(prev); newMap.delete(progress.playerId.toString()); return newMap; });
             };
 
+            // Matronage handlers
+            const handleMatronageInsert = (ctx: any, matronage: any) => {
+                setMatronages(prev => new Map(prev).set(matronage.id.toString(), matronage));
+            };
+            const handleMatronageUpdate = (ctx: any, oldMatronage: any, newMatronage: any) => {
+                setMatronages(prev => new Map(prev).set(newMatronage.id.toString(), newMatronage));
+            };
+            const handleMatronageDelete = (ctx: any, matronage: any) => {
+                setMatronages(prev => { const newMap = new Map(prev); newMap.delete(matronage.id.toString()); return newMap; });
+            };
+
+            // Matronage Member handlers
+            const handleMatronageMemberInsert = (ctx: any, member: any) => {
+                setMatronageMembers(prev => new Map(prev).set(member.playerId.toHexString(), member));
+            };
+            const handleMatronageMemberUpdate = (ctx: any, oldMember: any, newMember: any) => {
+                setMatronageMembers(prev => new Map(prev).set(newMember.playerId.toHexString(), newMember));
+            };
+            const handleMatronageMemberDelete = (ctx: any, member: any) => {
+                setMatronageMembers(prev => { const newMap = new Map(prev); newMap.delete(member.playerId.toHexString()); return newMap; });
+            };
+
+            // Matronage Invitation handlers
+            const handleMatronageInvitationInsert = (ctx: any, invitation: any) => {
+                setMatronageInvitations(prev => new Map(prev).set(invitation.id.toString(), invitation));
+            };
+            const handleMatronageInvitationUpdate = (ctx: any, oldInvitation: any, newInvitation: any) => {
+                setMatronageInvitations(prev => new Map(prev).set(newInvitation.id.toString(), newInvitation));
+            };
+            const handleMatronageInvitationDelete = (ctx: any, invitation: any) => {
+                setMatronageInvitations(prev => { const newMap = new Map(prev); newMap.delete(invitation.id.toString()); return newMap; });
+            };
+
+            // Matronage Owed Shards handlers
+            const handleMatronageOwedShardsInsert = (ctx: any, owed: any) => {
+                setMatronageOwedShards(prev => new Map(prev).set(owed.playerId.toHexString(), owed));
+            };
+            const handleMatronageOwedShardsUpdate = (ctx: any, oldOwed: any, newOwed: any) => {
+                setMatronageOwedShards(prev => new Map(prev).set(newOwed.playerId.toHexString(), newOwed));
+            };
+            const handleMatronageOwedShardsDelete = (ctx: any, owed: any) => {
+                setMatronageOwedShards(prev => { const newMap = new Map(prev); newMap.delete(owed.playerId.toHexString()); return newMap; });
+            };
+
             // --- Register Callbacks ---
             connection.db.player.onInsert(handlePlayerInsert); connection.db.player.onUpdate(handlePlayerUpdate); connection.db.player.onDelete(handlePlayerDelete);
             connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
@@ -1915,6 +1969,26 @@ export const useSpacetimeTables = ({
             connection.db.memoryGridProgress.onUpdate(handleMemoryGridProgressUpdate);
             connection.db.memoryGridProgress.onDelete(handleMemoryGridProgressDelete);
 
+            // Register Matronage callbacks
+            connection.db.matronage.onInsert(handleMatronageInsert);
+            connection.db.matronage.onUpdate(handleMatronageUpdate);
+            connection.db.matronage.onDelete(handleMatronageDelete);
+
+            // Register Matronage Member callbacks
+            connection.db.matronageMember.onInsert(handleMatronageMemberInsert);
+            connection.db.matronageMember.onUpdate(handleMatronageMemberUpdate);
+            connection.db.matronageMember.onDelete(handleMatronageMemberDelete);
+
+            // Register Matronage Invitation callbacks
+            connection.db.matronageInvitation.onInsert(handleMatronageInvitationInsert);
+            connection.db.matronageInvitation.onUpdate(handleMatronageInvitationUpdate);
+            connection.db.matronageInvitation.onDelete(handleMatronageInvitationDelete);
+
+            // Register Matronage Owed Shards callbacks
+            connection.db.matronageOwedShards.onInsert(handleMatronageOwedShardsInsert);
+            connection.db.matronageOwedShards.onUpdate(handleMatronageOwedShardsUpdate);
+            connection.db.matronageOwedShards.onDelete(handleMatronageOwedShardsDelete);
+
             isSubscribingRef.current = true;
 
             // --- Create Initial Non-Spatial Subscriptions ---
@@ -2050,6 +2124,19 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[LARGE_QUARRY Sub Error]:", err))
                     .subscribe('SELECT * FROM large_quarry'),
+                // ADDED Matronage system subscriptions - NON-SPATIAL
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[MATRONAGE Sub Error]:", err))
+                    .subscribe('SELECT * FROM matronage'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[MATRONAGE_MEMBER Sub Error]:", err))
+                    .subscribe('SELECT * FROM matronage_member'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[MATRONAGE_INVITATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM matronage_invitation'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[MATRONAGE_OWED_SHARDS Sub Error]:", err))
+                    .subscribe('SELECT * FROM matronage_owed_shards'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2423,5 +2510,10 @@ export const useSpacetimeTables = ({
         memoryGridProgress, // ADDED: Memory Grid unlocks
         shipwreckParts, // ADDED: Shipwreck monument parts
         largeQuarries, // ADDED: Large quarry locations with types for minimap labels
+        // Matronage system
+        matronages, // ADDED: Matronage pooled rewards organizations
+        matronageMembers, // ADDED: Matronage membership tracking
+        matronageInvitations, // ADDED: Pending matronage invitations
+        matronageOwedShards, // ADDED: Owed shard balances from matronage
     };
 }; 

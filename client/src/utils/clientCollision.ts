@@ -455,12 +455,17 @@ function getCollisionCandidates(
       if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
       
       // AABB collision at the building base (bottom 1/3 height, 1/2 width)
+      // Central compound (stationId 0) uses half height from top, pushed up by its height
       // Similar to compound buildings
+      const isCentralCompound = station.stationId === 0;
       const collisionWidth = ALK_STATION_WIDTH * 0.5;  // 50% of building width
-      const collisionHeight = ALK_STATION_HEIGHT / 3;   // Bottom 1/3 of building height
+      const collisionHeight = isCentralCompound 
+        ? ALK_STATION_HEIGHT / 6  // Central compound: half height from top (bottom 1/6)
+        : ALK_STATION_HEIGHT / 3; // Substations: bottom 1/3 of building height
+      const collisionYOffset = isCentralCompound ? collisionHeight : 0; // Push central compound up by its height
       const spriteBottom = station.worldPosY + ALK_STATION_Y_OFFSET;  // Anchor point = sprite bottom
       const collisionCenterX = station.worldPosX;  // Centered horizontally
-      const collisionCenterY = spriteBottom - collisionHeight / 2;  // Center of bottom 1/3
+      const collisionCenterY = spriteBottom - collisionHeight / 2 - collisionYOffset;  // Center of collision box
       
       shapes.push({
         id: `alk_station-${station.stationId.toString()}`,

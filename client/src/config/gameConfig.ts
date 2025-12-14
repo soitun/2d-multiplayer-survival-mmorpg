@@ -15,8 +15,8 @@ export const FOUNDATION_TILE_SIZE = 96; // 2x TILE_SIZE
 
 // --- Server World & Chunk Configuration (Client-Side Assumption - TODO: Make Server-Driven) ---
 // These values MUST match the server's current world generation settings.
-const SERVER_WORLD_WIDTH_TILES = 1000; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
-const SERVER_WORLD_HEIGHT_TILES = 1000; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
+const SERVER_WORLD_WIDTH_TILES = 500; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
+const SERVER_WORLD_HEIGHT_TILES = 500; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
 // OPTIMIZED: Changed from 5×5 to 16×16 based on performance testing
 // Results: 60-70% reduction in subscriptions, eliminated performance spikes
 // See CHUNK_SIZE_TESTING.md for detailed test results

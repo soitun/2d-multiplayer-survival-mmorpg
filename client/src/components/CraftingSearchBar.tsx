@@ -9,23 +9,47 @@ const CATEGORY_LABELS: Record<string, string> = {
   'All': 'All Items',
   'Tool': 'Tools',
   'Material': 'Materials',
-  'Placeable': 'Placeables',
+  'Placeable': 'Building',
   'Armor': 'Armor',
   'Consumable': 'Consumables',
-  'Ammunition': 'Ammunition',
+  'Ammunition': 'Ammo',
   'Weapon': 'Melee Weapons',
   'RangedWeapon': 'Ranged Weapons',
 };
 
-// Category multipliers for different situations
-const CATEGORY_MULTIPLIERS: Record<string, number> = {
-  'Tool': 1.5,
-  'Weapon': 1.4,
-  'Armor': 1.2,
-  'Consumable': 1.1,
-  'Material': 0.8,
-  'Placeable': 0.9,
-  'Ammunition': 1.0,
+// === SURVIVAL ESSENTIALS: Critical items players need first ===
+const SURVIVAL_ESSENTIAL_TOOLS: Set<string> = new Set([
+  'Stone Pickaxe', 'Stone Axe', 'Stone Hoe', 'Wooden Pickaxe', 'Wooden Axe',
+  'Flint Knife', 'Torch', 'Campfire', 'Reed Water Bottle'
+]);
+
+const CRITICAL_FIRST_ITEMS: Set<string> = new Set([
+  'Bandage', 'Torch', 'Campfire', 'Stone Pickaxe', 'Stone Axe', 'Flint Knife',
+  'Reed Water Bottle', 'Wooden Storage Box'
+]);
+
+// === TOOL UPGRADE TIERS: Maps basic tools to their upgrades ===
+const TOOL_UPGRADE_PATHS: Record<string, string[]> = {
+  'Wooden Pickaxe': ['Stone Pickaxe', 'Iron Pickaxe', 'Steel Pickaxe'],
+  'Stone Pickaxe': ['Iron Pickaxe', 'Steel Pickaxe'],
+  'Iron Pickaxe': ['Steel Pickaxe'],
+  'Wooden Axe': ['Stone Axe', 'Iron Axe', 'Steel Axe'],
+  'Stone Axe': ['Iron Axe', 'Steel Axe'],
+  'Iron Axe': ['Steel Axe'],
+  'Flint Knife': ['Iron Knife', 'Steel Knife'],
+  'Iron Knife': ['Steel Knife'],
+};
+
+// === RESOURCE CATEGORIES for smart grouping ===
+const RESOURCE_TIERS: Record<string, number> = {
+  // Basic resources (tier 1)
+  'Grass Fiber': 1, 'Stick': 1, 'Stone': 1, 'Flint': 1, 'Clay': 1,
+  // Processed basics (tier 2)
+  'Reed': 2, 'Wood': 2, 'Leather': 2, 'Bone': 2, 'Feather': 2,
+  // Advanced resources (tier 3)
+  'Iron Ore': 3, 'Iron Ingot': 3, 'Charcoal': 3,
+  // High-tier resources (tier 4)
+  'Steel Ingot': 4, 'Gold': 4,
 };
 
 interface Recipe {
@@ -40,89 +64,149 @@ interface PlayerInventory {
   [itemId: string]: number; // itemId -> quantity
 }
 
-// Advanced prediction scoring system
+// === OPTIMIZED QUICK CRAFT PREDICTION ALGORITHM ===
 export const calculateRecipePredictionScore = (
   recipe: Recipe,
   playerInventory: PlayerInventory,
   playerHotbar: PlayerInventory = {}
 ): number => {
-  // Category multiplier (base score)
-  const categoryMultiplier = CATEGORY_MULTIPLIERS[recipe.category.tag] || 1.0;
+  const outputName = recipe.output.itemId;
+  const categoryTag = recipe.category.tag;
   
-
+  // === STEP 1: CRAFTABILITY CHECK (Most Important) ===
+  // Can we craft this RIGHT NOW? This is the #1 priority.
+  let canCraftNow = true;
+  let craftabilityRatio = 1.0;
+  let maxCraftableCount = Infinity;
   
-  // Craftability score (0-1): how much of the materials we have
-  const craftabilityScore = recipe.materials.reduce((score, material) => {
-    const available = playerInventory[material.itemId] || 0;
-    const needed = material.quantity;
-    const materialRatio = Math.min(available / needed, 1.0);
-    return score * materialRatio;
-  }, 1.0);
-  
-  // Need multiplier: boost if we don't have this item
-  const inventoryQuantity = playerInventory[recipe.output.itemId] || 0;
-  const hotbarQuantity = playerHotbar[recipe.output.itemId] || 0;
-  const totalOwned = inventoryQuantity + hotbarQuantity;
-  
-  // Exponential decay for items we already have
-  const needMultiplier = Math.exp(-totalOwned * 0.5) + 0.1; // Never goes to 0
-  
-  // High-value item boost: expensive items get priority when perfectly craftable
-  const totalMaterialCost = recipe.materials.reduce((sum, material) => sum + material.quantity, 0);
-  const expensiveItemMultiplier = craftabilityScore === 1.0 ? 
-    Math.min(1 + (totalMaterialCost / 500), 4.0) : // More aggressive scaling, cap at 4x
-    1.0;
-  
-  // Tools and weapons: higher boost when we have 0, but reduced if item is very expensive
-  const isToolOrWeapon = recipe.category.tag === 'Tool' || recipe.category.tag === 'Weapon';
-  const toolBoost = isToolOrWeapon && totalOwned === 0 ? 
-    Math.max(1.5, 3.0 - (expensiveItemMultiplier - 1.0)) : // Reduce tool boost for expensive items
-    1.0;
-  
-  // Perfect craft bonus: much bigger boost for expensive items you can craft exactly
-  const perfectCraftBonus = craftabilityScore === 1.0 ? 
-    Math.min(10.0 + (totalMaterialCost / 100), 50.0) : // Much bigger bonus, scale with cost
-    0;
-  
-  // Rare materials multiplier: huge boost for items requiring uncommon materials
-  const rareMaterialsMultiplier = recipe.materials.reduce((multiplier, material) => {
+  for (const material of recipe.materials) {
     const available = playerInventory[material.itemId] || 0;
     const needed = material.quantity;
     
-    // Only consider if we can actually craft it
-    if (available < needed) return multiplier;
+    if (available < needed) {
+      canCraftNow = false;
+      craftabilityRatio *= (available / needed);
+    }
     
-    // Calculate rarity based on how much we have relative to what we need
-    // If we have exactly what we need, it's rare. If we have tons extra, it's common.
-    const ratio = available / needed;
-    const rarityBonus = ratio <= 2.0 ? 3.0 :  // Very rare: we have ≤2x what we need
-                       ratio <= 5.0 ? 2.0 :  // Somewhat rare: we have ≤5x what we need  
-                       ratio <= 10.0 ? 1.5 : // Common: we have ≤10x what we need
-                       1.0;               // Very common: we have >10x what we need
+    if (needed > 0) {
+      maxCraftableCount = Math.min(maxCraftableCount, Math.floor(available / needed));
+    }
+  }
+  
+  // If we can't craft it at all, it gets a much lower base score
+  const craftableBonus = canCraftNow ? 100 : 0;
+  
+  // === STEP 2: SCARCITY CHECK ===
+  // Do we already have this item? Less relevant if we have many.
+  const inventoryCount = playerInventory[outputName] || 0;
+  const hotbarCount = playerHotbar[outputName] || 0;
+  const totalOwned = inventoryCount + hotbarCount;
+  
+  // Exponential decay - items we have lots of get deprioritized
+  // 0 owned = 1.0, 1 owned = 0.6, 2 owned = 0.36, 5 owned = 0.08
+  const scarcityMultiplier = Math.pow(0.6, totalOwned);
+  
+  // === STEP 3: SURVIVAL ESSENTIALS ===
+  // Critical items get massive boost if we don't have them
+  let survivalBonus = 0;
+  
+  if (CRITICAL_FIRST_ITEMS.has(outputName) && totalOwned === 0 && canCraftNow) {
+    survivalBonus = 200; // Massive boost for first critical item
+  } else if (SURVIVAL_ESSENTIAL_TOOLS.has(outputName) && totalOwned === 0 && canCraftNow) {
+    survivalBonus = 150;
+  }
+  
+  // === STEP 4: CATEGORY PRIORITY ===
+  // Tools and weapons are more important than materials
+  const categoryPriority: Record<string, number> = {
+    'Tool': 25,
+    'Weapon': 22,
+    'RangedWeapon': 20,
+    'Armor': 18,
+    'Consumable': 15,
+    'Ammunition': 12,
+    'Placeable': 10,
+    'Material': 5,
+  };
+  const categoryBonus = categoryPriority[categoryTag] || 8;
+  
+  // === STEP 5: UPGRADE PATH DETECTION ===
+  // If we have a lower-tier tool, boost the next upgrade
+  let upgradeBonus = 0;
+  
+  for (const [basicTool, upgrades] of Object.entries(TOOL_UPGRADE_PATHS)) {
+    const haveBasicTool = (playerInventory[basicTool] || 0) > 0;
     
-    return Math.max(multiplier, rarityBonus); // Take the highest rarity bonus from any material
-  }, 1.0);
+    if (haveBasicTool && upgrades.includes(outputName) && canCraftNow && totalOwned === 0) {
+      // This is a direct upgrade from a tool we have!
+      const upgradeIndex = upgrades.indexOf(outputName);
+      upgradeBonus = 80 - (upgradeIndex * 15); // First upgrade = 80, second = 65, etc.
+      break;
+    }
+  }
   
-  // Material availability bonus: small bonus for excess, but prioritize exact matches
-  const materialExcessBonus = recipe.materials.reduce((bonus, material) => {
-    const available = playerInventory[material.itemId] || 0;
-    const needed = material.quantity;
-    const excess = Math.max(0, available - needed);
-    // Much smaller bonus for excess, and cap it to prevent overwhelming other factors
-    return bonus + Math.min(excess * 0.001, 2.0); // Capped at 2 points max
-  }, 0);
+  // === STEP 6: RESOURCE UTILIZATION ===
+  // Boost recipes that use resources we have a LOT of
+  let resourceUtilizationBonus = 0;
   
-  // Combine all factors
+  if (canCraftNow) {
+    for (const material of recipe.materials) {
+      const available = playerInventory[material.itemId] || 0;
+      const needed = material.quantity;
+      
+      // If we have 10x+ what we need, bonus for using up resources
+      if (available >= needed * 10) {
+        resourceUtilizationBonus += 5;
+      } else if (available >= needed * 5) {
+        resourceUtilizationBonus += 2;
+      }
+    }
+  }
+  
+  // === STEP 7: MATERIAL TIER CONSIDERATION ===
+  // Higher tier materials = more valuable craft
+  let tierBonus = 0;
+  
+  for (const material of recipe.materials) {
+    const tier = RESOURCE_TIERS[material.itemId] || 1;
+    if (canCraftNow) {
+      tierBonus += tier * 3;
+    }
+  }
+  
+  // === STEP 8: QUANTITY OUTPUT BONUS ===
+  // Recipes that produce more items get slight bonus
+  const outputQuantityBonus = Math.min(recipe.output.quantity * 2, 10);
+  
+  // === STEP 9: PARTIAL CRAFTABILITY ===
+  // If we're close to being able to craft, slight boost
+  let almostCraftableBonus = 0;
+  if (!canCraftNow && craftabilityRatio >= 0.75) {
+    almostCraftableBonus = 15; // We're 75%+ there
+  } else if (!canCraftNow && craftabilityRatio >= 0.5) {
+    almostCraftableBonus = 8; // We're 50%+ there
+  }
+  
+  // === STEP 10: STACK COMPLETION ===
+  // If crafting this would complete a stack or reach a nice number
+  let stackBonus = 0;
+  const afterCraftCount = totalOwned + recipe.output.quantity;
+  if (canCraftNow && (afterCraftCount === 10 || afterCraftCount === 20 || afterCraftCount === 50)) {
+    stackBonus = 5;
+  }
+  
+  // === FINAL SCORE CALCULATION ===
   const finalScore = (
-    categoryMultiplier * 
-    (craftabilityScore ** 1.2) * // Slightly less emphasis on partial craftability
-    needMultiplier * 
-    toolBoost *
-    expensiveItemMultiplier *
-    rareMaterialsMultiplier       // HUGE boost for rare materials
-  ) + perfectCraftBonus + materialExcessBonus;
-  
-
+    craftableBonus +           // +100 if craftable now
+    survivalBonus +            // +150-200 for critical first items
+    upgradeBonus +             // +65-80 for tool upgrades
+    (categoryBonus * scarcityMultiplier) + // Category priority adjusted by how many we have
+    resourceUtilizationBonus + // +2-5 per abundant material used
+    tierBonus +                // Higher tier materials = better
+    outputQuantityBonus +      // Recipes that produce more
+    almostCraftableBonus +     // Almost craftable items
+    stackBonus                 // Nice round numbers
+  );
   
   return finalScore;
 };
@@ -179,6 +263,7 @@ interface CraftingSearchBarProps {
   // New props for category filtering
   selectedCategory?: string;
   onCategoryChange?: (category: string) => void;
+  showCategoryFilter?: boolean; // Whether to show the category dropdown (default: true)
   // New props for prediction
   recipes?: Recipe[];
   playerInventory?: PlayerInventory;
@@ -195,6 +280,7 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
     onBlur,
     selectedCategory = 'All',
     onCategoryChange,
+    showCategoryFilter = true,
     recipes = [],
     playerInventory = {},
     playerHotbar = {},
@@ -277,71 +363,73 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
         autoCapitalize="off"
         spellCheck="false"
       />
-      <div className={styles.filterButtonContainer}>
-        <button
-          className={styles.filterButton}
-          onClick={handleFilterClick}
-          title="Filter by category"
-        >
-          <FontAwesomeIcon icon={faChevronDown} />
-        </button>
-        {isDropdownOpen && (
-          <div 
-            className={styles.filterDropdown}
-            onBlur={handleDropdownBlur}
-            tabIndex={-1}
-            style={{
-              background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.99))',
-              border: '2px solid #00aaff',
-              borderRadius: '8px',
-              boxShadow: '0 0 30px rgba(0, 170, 255, 0.4), inset 0 0 20px rgba(0, 170, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              zIndex: 1000,
-              minWidth: '160px',
-              maxHeight: '300px',
-              overflowY: 'auto'
-            }}
+      {showCategoryFilter && (
+        <div className={styles.filterButtonContainer}>
+          <button
+            className={styles.filterButton}
+            onClick={handleFilterClick}
+            title="Filter by category"
           >
-            {Object.entries(CATEGORY_LABELS).map(([categoryKey, label]) => (
-              <div
-                key={categoryKey}
-                className={`${styles.filterOption} ${selectedCategory === categoryKey ? styles.filterOptionSelected : ''}`}
-                onClick={() => handleCategorySelect(categoryKey)}
-                style={{
-                  padding: '12px 16px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: selectedCategory === categoryKey ? '#00ff88' : '#00ffff',
-                  background: selectedCategory === categoryKey ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 200, 100, 0.3))' : 'transparent',
-                  cursor: 'pointer',
-                  borderBottom: '2px solid rgba(0, 170, 255, 0.2)',
-                  transition: 'all 0.2s ease',
-                  userSelect: 'none',
-                  lineHeight: '1.4',
-                  textShadow: selectedCategory === categoryKey ? '0 0 8px rgba(0, 255, 136, 0.6)' : '0 0 5px rgba(0, 255, 255, 0.4)',
-                  boxShadow: selectedCategory === categoryKey ? 'inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none'
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedCategory !== categoryKey) {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 170, 255, 0.2), rgba(0, 150, 220, 0.3))';
-                    e.currentTarget.style.color = '#00aaff';
-                    e.currentTarget.style.boxShadow = 'inset 0 0 10px rgba(0, 170, 255, 0.1)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedCategory !== categoryKey) {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#00ffff';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                {label}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+            <FontAwesomeIcon icon={faChevronDown} />
+          </button>
+          {isDropdownOpen && (
+            <div 
+              className={styles.filterDropdown}
+              onBlur={handleDropdownBlur}
+              tabIndex={-1}
+              style={{
+                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.99))',
+                border: '2px solid #00aaff',
+                borderRadius: '8px',
+                boxShadow: '0 0 30px rgba(0, 170, 255, 0.4), inset 0 0 20px rgba(0, 170, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                zIndex: 1000,
+                minWidth: '160px',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}
+            >
+              {Object.entries(CATEGORY_LABELS).map(([categoryKey, label]) => (
+                <div
+                  key={categoryKey}
+                  className={`${styles.filterOption} ${selectedCategory === categoryKey ? styles.filterOptionSelected : ''}`}
+                  onClick={() => handleCategorySelect(categoryKey)}
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: selectedCategory === categoryKey ? '#00ff88' : '#00ffff',
+                    background: selectedCategory === categoryKey ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 200, 100, 0.3))' : 'transparent',
+                    cursor: 'pointer',
+                    borderBottom: '2px solid rgba(0, 170, 255, 0.2)',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none',
+                    lineHeight: '1.4',
+                    textShadow: selectedCategory === categoryKey ? '0 0 8px rgba(0, 255, 136, 0.6)' : '0 0 5px rgba(0, 255, 255, 0.4)',
+                    boxShadow: selectedCategory === categoryKey ? 'inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedCategory !== categoryKey) {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 170, 255, 0.2), rgba(0, 150, 220, 0.3))';
+                      e.currentTarget.style.color = '#00aaff';
+                      e.currentTarget.style.boxShadow = 'inset 0 0 10px rgba(0, 170, 255, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedCategory !== categoryKey) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#00ffff';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

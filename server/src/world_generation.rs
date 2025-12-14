@@ -1719,7 +1719,6 @@ fn create_quarry_access_road(
 
 /// Generate asphalt compound areas
 /// - Central compound: The main paved area at the center of the map (DOUBLED in size)
-/// - Mini-compounds: Smaller paved areas at road terminals (where roads meet beaches)
 fn generate_asphalt_compounds(
     _config: &WorldGenConfig,
     _noise: &Perlin,
@@ -1744,66 +1743,9 @@ fn generate_asphalt_compounds(
     log::info!("Created central compound at ({}, {}) with size {} ({}x{} tiles)", 
                center_x, center_y, compound_size, compound_size * 2 + 1, compound_size * 2 + 1);
     
-    // Find road terminals (road tiles near beaches where roads "end")
-    // These are positions where roads are adjacent to beach tiles
-    let mini_compound_radius = 10; // INCREASED: Larger terminal compounds for visibility (was 5, now 10)
-    let beach_threshold = 12.0; // Shore distance threshold for beach
-    let water_threshold = 0.0; // Don't place on actual water
+    // Mini-compounds at road terminals have been removed - only central compound remains
     
-    // Check all road tiles
-    for y in 0..height {
-        for x in 0..width {
-            if !road_network[y][x] {
-                continue;
-            }
-            
-            // Check if this road tile is near beach (potential terminal)
-            let near_beach = shore_distance[y][x] > 0.0 && shore_distance[y][x] < beach_threshold + 5.0;
-            
-            if !near_beach {
-                continue;
-            }
-            
-            // Check if there's beach in adjacent tiles (actual terminal)
-            let mut has_adjacent_beach = false;
-            for dy in -2..=2i32 {
-                for dx in -2..=2i32 {
-                    let check_x = (x as i32 + dx) as usize;
-                    let check_y = (y as i32 + dy) as usize;
-                    if check_x < width && check_y < height {
-                        if shore_distance[check_y][check_x] >= 0.0 && shore_distance[check_y][check_x] < beach_threshold {
-                            has_adjacent_beach = true;
-                            break;
-                        }
-                    }
-                }
-                if has_adjacent_beach { break; }
-            }
-            
-            if has_adjacent_beach {
-                // Create mini-compound at this road terminal
-                // Terminal compounds CAN overlap beach tiles (but not water) for clear visibility
-                for dy in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
-                    for dx in -(mini_compound_radius as i32)..=(mini_compound_radius as i32) {
-                        let dist_sq = dx * dx + dy * dy;
-                        if dist_sq <= (mini_compound_radius * mini_compound_radius) as i32 {
-                            let compound_x = (x as i32 + dx) as usize;
-                            let compound_y = (y as i32 + dy) as usize;
-                            if compound_x < width && compound_y < height {
-                                // Place asphalt on any land tile (including beach, but not water)
-                                // This makes terminal compounds clearly visible and take priority
-                                if shore_distance[compound_y][compound_x] > water_threshold {
-                                    asphalt[compound_y][compound_x] = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    log::info!("Generated asphalt compounds (central + mini-compounds at road terminals)");
+    log::info!("Generated asphalt compounds (central compound only)");
     asphalt
 }
 

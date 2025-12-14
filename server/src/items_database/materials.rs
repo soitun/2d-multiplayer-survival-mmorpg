@@ -194,5 +194,17 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
 
         // NOTE: Animal skulls (Fox, Wolf, Viper) moved to weapons.rs as they are weapons like Human Skull
 
+        // === CEREMONIAL MATERIALS ===
+
+        // Matron's Mark - Founding token for creating a Matronage
+        ItemBuilder::new("Matron's Mark", "A ceremonial token used to found a Matronage at the ALK Central Compound. Consumed upon use.", ItemCategory::Material)
+            .icon("matrons_mark.png")
+            .stackable(10)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 100 },
+            ])
+            .crafting_output(1, 1)
+            .build(),
+
     ]
 }

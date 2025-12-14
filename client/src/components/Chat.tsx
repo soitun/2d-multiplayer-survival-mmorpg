@@ -27,6 +27,9 @@ interface ChatProps {
   // Mobile support - when true, chat visibility is controlled externally
   isMobile?: boolean;
   isMobileChatOpen?: boolean; // Controls visibility on mobile instead of internal isMinimized
+  // Matronage system for chat tags
+  matronageMembers?: Map<string, any>;
+  matronages?: Map<string, any>;
 }
 
 type ChatTab = 'global' | 'sova';
@@ -48,7 +51,7 @@ const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean
   </div>
 ));
 
-const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false }) => {
+const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages }) => {
   // console.log("[Chat Component Render] Props - Connection:", !!connection, "LocalPlayerIdentity:", localPlayerIdentity);
   const [inputValue, setInputValue] = useState('');
   const [privateMessages, setPrivateMessages] = useState<Map<string, SpacetimeDBPrivateMessage>>(new Map());
@@ -618,12 +621,14 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       {activeTab === 'global' ? (
         <>
           {/* Global Chat - Always render message history for gameplay awareness */}
-          <ChatMessageHistory 
-            messages={messages} 
+          <ChatMessageHistory
+            messages={messages}
             privateMessages={privateMessages}
             players={players}
             localPlayerIdentity={localPlayerIdentity}
             messageEndRef={messageEndRef as React.RefObject<HTMLDivElement>}
+            matronageMembers={matronageMembers}
+            matronages={matronages}
           />
           
           {/* Render either the input or the placeholder */}

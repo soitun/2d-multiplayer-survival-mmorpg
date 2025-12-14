@@ -136,6 +136,102 @@
     image-rendering: pixelated;
 }
 
+/* Matronage Creation Section */
+.alk-delivery-panel .alk-matronage-section {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(180, 100, 255, 0.15) 0%, rgba(100, 50, 200, 0.1) 100%);
+    border-bottom: 2px solid rgba(180, 100, 255, 0.4);
+    box-shadow: inset 0 0 20px rgba(180, 100, 255, 0.1);
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-icon {
+    font-size: 18px;
+}
+
+.alk-delivery-panel .alk-matronage-section h3 {
+    margin: 0;
+    color: #b464ff;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(180, 100, 255, 0.5);
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-desc {
+    margin: 0 0 10px 0;
+    color: #d0a0ff;
+    font-size: 11px;
+    opacity: 0.9;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-error {
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 80, 80, 0.2);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    border-radius: 4px;
+    color: #ff8888;
+    font-size: 11px;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-form {
+    display: flex;
+    gap: 8px;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-name-input {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(180, 100, 255, 0.4);
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-name-input:focus {
+    outline: none;
+    border-color: rgba(180, 100, 255, 0.8);
+    box-shadow: 0 0 10px rgba(180, 100, 255, 0.3);
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-name-input::placeholder {
+    color: #888;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-create-btn {
+    padding: 8px 16px;
+    background: linear-gradient(180deg, #b464ff 0%, #8844cc 100%);
+    border: 1px solid #b464ff;
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-create-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #d088ff 0%, #a066ee 100%);
+    box-shadow: 0 0 15px rgba(180, 100, 255, 0.5);
+}
+
+.alk-delivery-panel .alk-matronage-section .matronage-create-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Contract List */
 .alk-delivery-contracts {
     flex: 1;
@@ -310,6 +406,30 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #666;
     cursor: not-allowed;
+}
+
+/* Deliver Buttons Container */
+.deliver-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.deliver-buttons .deliver-button {
+    flex: 1;
+}
+
+.deliver-buttons .deliver-button.matronage-deliver {
+    flex: 0;
+    width: 36px;
+    padding: 8px;
+    font-size: 14px;
+    background: linear-gradient(180deg, #b464ff 0%, #8844cc 100%);
+    border: 1px solid #b464ff;
+}
+
+.deliver-buttons .deliver-button.matronage-deliver:hover:not(:disabled) {
+    background: linear-gradient(180deg, #d088ff 0%, #a066ee 100%);
+    box-shadow: 0 0 10px rgba(180, 100, 255, 0.5);
 }
 
 /* Footer */

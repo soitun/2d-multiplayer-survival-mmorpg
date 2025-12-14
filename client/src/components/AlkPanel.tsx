@@ -559,7 +559,7 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     const [activeTab, setActiveTab] = useState<AlkTab>('my-contracts');
     const [nearbyStationId, setNearbyStationId] = useState<number | null>(null);
     const [isQuantityInputFocused, setIsQuantityInputFocused] = useState(false);
-    
+
     const connection = useGameConnection();
     
     // Block movement keys while panel is open to prevent character movement during UI interaction
@@ -638,7 +638,7 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
         }
         return 0;
     }, [worldState, alkState]);
-    
+
     // Filter contracts by type (supporting both new and legacy kind names)
     // Use string casting for forward compatibility with regenerated bindings
     const getKindTag = (kind: AlkContractKind | undefined | null): string => 

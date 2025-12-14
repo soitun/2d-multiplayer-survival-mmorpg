@@ -292,6 +292,11 @@ function AppContent() {
       memoryGridProgress, // ADDED: Memory Grid unlocks
       shipwreckParts, // ADDED: Shipwreck monument parts (one-time read of static world gen data)
       largeQuarries, // ADDED: Large quarry locations with types for minimap labels
+      // Matronage system
+      matronages, // ADDED: Matronage pooled rewards organizations
+      matronageMembers, // ADDED: Matronage membership tracking
+      matronageInvitations, // ADDED: Pending matronage invitations
+      matronageOwedShards, // ADDED: Owed shard balances from matronage
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1214,6 +1219,11 @@ function AppContent() {
                             memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
+                            // Matronage system
+                            matronages={matronages}
+                            matronageMembers={matronageMembers}
+                            matronageInvitations={matronageInvitations}
+                            matronageOwedShards={matronageOwedShards}
                             // Mobile controls
                             isMobile={isMobile}
                             onMobileTap={handleMobileTap}
