@@ -109,6 +109,11 @@ interface InventoryUIProps {
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
     chunkWeather?: Map<string, any>; // ADDED: Chunk-based weather
     purchasedMemoryNodes?: Set<string>; // ADDED: Memory Grid unlocks for crafting
+    // Hot loot props (from parent PlayerUI)
+    isHotLootActive?: boolean;
+    getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
+    handleHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
+    setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
 }
 
 // Represents an item instance with its definition for rendering
@@ -170,6 +175,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     activeConsumableEffects,
     chunkWeather,
     purchasedMemoryNodes,
+    isHotLootActive,
+    getSlotIndicator,
+    handleHotLootSlotHover,
+    setHotLootCurrentHover,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -1197,6 +1206,22 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             {/* Middle Pane: Inventory & Containers */} 
             <div className={styles.middlePane}>
                 <h3 className={styles.sectionTitle}>INVENTORY</h3>
+                {/* Hot loot hint - only show when container is open */}
+                {interactionTarget && (
+                    <div 
+                        style={{
+                            fontSize: '10px',
+                            color: isHotLootActive ? '#00ffff' : 'rgba(0, 255, 255, 0.6)',
+                            textAlign: 'center',
+                            marginBottom: '8px',
+                            fontFamily: '"Press Start 2P", cursive',
+                            textShadow: isHotLootActive ? '0 0 8px rgba(0, 255, 255, 0.8)' : 'none',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        {isHotLootActive ? '⚡ HOT LOOT ACTIVE ⚡' : '[ Hold H to hot loot ]'}
+                    </div>
+                )}
                 <InventorySearchBar
                     searchTerm={inventorySearchTerm}
                     onSearchChange={setInventorySearchTerm}
@@ -1209,6 +1234,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         const isSelected = item && selectedInventoryItem?.instance.instanceId === item.instance.instanceId;
                         const matchesSearch = itemMatchesSearch(item, inventorySearchTerm);
                         const hasSearchTerm = inventorySearchTerm.trim().length > 0;
+                        
+                        // Hot loot indicator for this slot
+                        const hotLootIndicator = getSlotIndicator?.('inventory', index);
                         
                         return (
                             <DroppableSlot
@@ -1227,6 +1255,11 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                         boxShadow: '0 0 8px rgba(76, 175, 80, 0.5)'
                                     } : {})
                                 }}
+                                isHotLootActive={isHotLootActive && !!interactionTarget && !!item}
+                                hotLootIndicatorProgress={hotLootIndicator?.progress}
+                                onHotLootHover={item && handleHotLootSlotHover ? () => handleHotLootSlotHover(item, currentSlotInfo, 'player') : undefined}
+                                onHotLootEnter={setHotLootCurrentHover ? () => setHotLootCurrentHover(item || null, currentSlotInfo, 'player') : undefined}
+                                onHotLootLeave={setHotLootCurrentHover ? () => setHotLootCurrentHover(null, null, null) : undefined}
                             >
                                 {item && (
                                     <DraggableItem
@@ -1396,6 +1429,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             players={players}
                             activeConsumableEffects={activeConsumableEffects}
                             chunkWeather={chunkWeather}
+                            isHotLootActive={isHotLootActive}
+                            getSlotIndicator={getSlotIndicator}
+                            onHotLootSlotHover={handleHotLootSlotHover || undefined}
+                            setHotLootCurrentHover={setHotLootCurrentHover || undefined}
                         />
                     ) : (
                         // Otherwise, show the crafting UI

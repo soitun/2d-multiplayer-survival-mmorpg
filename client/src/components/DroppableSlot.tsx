@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { DragSourceSlotInfo } from '../types/dragDropTypes'; // Corrected import path
 import styles from './DroppableSlot.module.css'; // We'll create this CSS file
+import HotLootIndicator from './HotLootIndicator';
 
 interface DroppableSlotProps {
   children?: React.ReactNode; // Will contain DraggableItem if item exists
@@ -15,6 +16,12 @@ interface DroppableSlotProps {
   overlayProgress?: number; // 0-1, progress of the overlay (0 = full overlay, 1 = no overlay)
   overlayColor?: string; // Color of the overlay
   overlayType?: 'consumable' | 'weapon'; // Type of overlay for styling
+  // Hot loot props
+  hotLootIndicatorProgress?: number; // 0-1, progress of hot loot indicator
+  isHotLootActive?: boolean; // Whether H is currently held
+  onHotLootHover?: () => void; // Callback when slot is hovered with H held
+  onHotLootEnter?: () => void; // Called when mouse enters slot (for tracking current hover)
+  onHotLootLeave?: () => void; // Called when mouse leaves slot
 }
 
 const DroppableSlot: React.FC<DroppableSlotProps> = ({
@@ -28,14 +35,36 @@ const DroppableSlot: React.FC<DroppableSlotProps> = ({
   overlayProgress,
   overlayColor = 'rgba(0, 0, 0, 0.4)',
   overlayType = 'consumable',
+  hotLootIndicatorProgress,
+  isHotLootActive,
+  onHotLootHover,
+  onHotLootEnter,
+  onHotLootLeave,
 }) => {
   const slotRef = useRef<HTMLDivElement>(null);
 
+  // Handle mouse enter for hot loot
+  // Always call both callbacks - let the hook decide what to do
+  const handleMouseEnter = useCallback(() => {
+    // Notify about hover enter (for tracking current hover state when H is pressed)
+    onHotLootEnter?.();
+    
+    // Notify that this slot was hovered - hook will check if H is held
+    onHotLootHover?.();
+  }, [onHotLootHover, onHotLootEnter]);
+
+  // Handle mouse leave
+  const handleMouseLeave = useCallback(() => {
+    onHotLootLeave?.();
+  }, [onHotLootLeave]);
+
   // Basic class construction
-  const combinedClassName = `${styles.droppableSlot} ${className}`;
+  const combinedClassName = `${styles.droppableSlot} ${className} ${isHotLootActive ? styles.hotLootActive : ''}`;
 
   // Prepare parentId attribute conditionally
   const parentIdAttr = slotInfo.parentId ? { 'data-slot-parent-id': slotInfo.parentId.toString() } : {};
+
+  const showHotLootIndicator = hotLootIndicatorProgress !== undefined && hotLootIndicatorProgress >= 0;
 
   return (
     <div
@@ -46,8 +75,19 @@ const DroppableSlot: React.FC<DroppableSlotProps> = ({
       data-slot-index={slotInfo.index}
       {...parentIdAttr} // Spread the parentId attribute if it exists
       onClick={onClick} // <-- Pass onClick to the div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {children}
+      
+      {/* Hot loot indicator */}
+      {showHotLootIndicator && (
+        <HotLootIndicator
+          progress={hotLootIndicatorProgress}
+          isActive={true}
+          size={24}
+        />
+      )}
       
       {/* Render overlay directly in the slot */}
       {overlayProgress !== undefined && overlayProgress < 1 && (

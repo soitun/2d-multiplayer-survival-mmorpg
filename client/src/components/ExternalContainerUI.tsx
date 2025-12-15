@@ -140,6 +140,11 @@ interface ExternalContainerUIProps {
     players?: Map<string, Player>; // ADDED: Players for building privilege list
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
     chunkWeather?: Map<string, any>; // ADDED: Chunk-based weather
+    // Hot loot props
+    isHotLootActive?: boolean;
+    getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
+    onHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
+    setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
 }
 
 const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
@@ -171,6 +176,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     players,
     activeConsumableEffects,
     chunkWeather,
+    isHotLootActive,
+    getSlotIndicator,
+    onHotLootSlotHover,
+    setHotLootCurrentHover,
 }) => {
     // Add ref to track when drag operations complete
     const lastDragCompleteTime = useRef<number>(0);
@@ -1202,6 +1211,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         : undefined
                 }
                 slotProgress={slotProgress}
+                isHotLootActive={isHotLootActive}
+                getSlotIndicator={getSlotIndicator}
+                onHotLootSlotHover={onHotLootSlotHover}
+                setHotLootCurrentHover={setHotLootCurrentHover}
             />
 
             {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}

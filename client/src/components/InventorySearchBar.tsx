@@ -12,6 +12,11 @@ const InventorySearchBar: React.FC<InventorySearchBarProps> = ({
     onSearchChange,
     placeholder = "Search inventory..."
 }) => {
+    // Handler to stop keyboard events from propagating to game input handlers
+    const handleKeyEvent = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        e.stopPropagation();
+    };
+
     return (
         <div style={{ marginBottom: '12px' }}>
             <input
@@ -38,6 +43,10 @@ const InventorySearchBar: React.FC<InventorySearchBarProps> = ({
                     e.target.style.borderColor = '#555';
                     e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
                 }}
+                // Prevent keyboard events from propagating to game controls
+                onKeyDown={handleKeyEvent}
+                onKeyUp={handleKeyEvent}
+                onKeyPress={handleKeyEvent}
             />
         </div>
     );

@@ -4,8 +4,7 @@
  * Renders the main game view after the player has successfully logged in.
  * Composes the core game UI components:
  *  - `GameCanvas`: Renders the game world, players, entities.
- *  - `PlayerUI`: Renders inventory, equipment, crafting, container UIs.
- *  - `Hotbar`: Renders the player's quick-access item slots.
+ *  - `PlayerUI`: Renders inventory, equipment, crafting, container UIs, and Hotbar.
  *  - `DayNightCycleTracker`: Displays the current time of day visually.
  * Receives all necessary game state and action handlers as props from `App.tsx` 
  * and passes them down to the relevant child components.
@@ -14,7 +13,6 @@
 // Import child components
 import GameCanvas from './GameCanvas';
 import PlayerUI from './PlayerUI';
-import Hotbar from './Hotbar';
 import DayNightCycleTracker from './DayNightCycleTracker';
 import Chat from './Chat';
 import SpeechBubbleManager from './SpeechBubbleManager';
@@ -1167,32 +1165,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 />
             )}
 
-            {/* Hotbar - Desktop only. Mobile uses simplified UI without inventory hotbar */}
-            {!props.isMobile && (
-                <Hotbar
-                    playerIdentity={playerIdentity}
-                    localPlayer={localPlayer || null}
-                    itemDefinitions={itemDefinitions}
-                    inventoryItems={inventoryItems}
-                    rangedWeaponStats={rangedWeaponStats}
-                    connection={connection}
-                    onItemDragStart={onItemDragStart}
-                    onItemDrop={onItemDrop}
-                    draggedItemInfo={draggedItemInfo}
-                    interactingWith={interactingWith}
-                    campfires={campfires}
-                    fumaroles={props.fumaroles}
-                    stashes={stashes}
-                    brothPots={brothPots}
-                    startPlacement={startPlacement}
-                    cancelPlacement={cancelPlacement}
-                    activeConsumableEffects={activeConsumableEffects}
-                    activeEquipment={playerIdentity ? activeEquipments.get(playerIdentity.toHexString()) || null : null}
-                    isGameMenuOpen={currentMenu !== null}
-                    placementInfo={placementInfo}
-                    isMobile={false}
-                />
-            )}
+            {/* Hotbar is now rendered in PlayerUI with hot loot support */}
 
             {/* ALK Delivery Panel - Shows when interacting with an ALK station */}
             {interactingWith?.type === 'alk_station' && props.alkStations && (

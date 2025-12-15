@@ -46,6 +46,12 @@ interface ContainerSlotsProps {
     
     // Optional progress data for cooking/fertilizing overlays (slot index -> progress 0.0-1.0)
     slotProgress?: Map<number, number>;
+    
+    // Hot loot props
+    isHotLootActive?: boolean;
+    getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
+    onHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
+    setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
 }
 
 const ContainerSlots: React.FC<ContainerSlotsProps> = ({
@@ -63,7 +69,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     style,
     disabledSlots,
     containerEntity,
-    slotProgress
+    slotProgress,
+    isHotLootActive,
+    getSlotIndicator,
+    onHotLootSlotHover,
+    setHotLootCurrentHover,
 }) => {
     // Track slot element refs for overlay positioning
     const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -133,6 +143,9 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                 const progress = slotProgress?.get(index) ?? 0;
                 const hasProgress = progress > 0 && progress < 1.0;
                 
+                // Hot loot indicator for this slot
+                const hotLootIndicator = getSlotIndicator?.(slotInfo.type, slotInfo.index, slotInfo.parentId);
+                
                 return (
                     <div
                         key={`slot-wrapper-${slotKey}`}
@@ -157,6 +170,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                                 filter: 'grayscale(100%)',
                                 cursor: 'not-allowed'
                             } : undefined}
+                            isHotLootActive={isHotLootActive && !isDisabled && !!itemInSlot}
+                            hotLootIndicatorProgress={hotLootIndicator?.progress}
+                            onHotLootHover={itemInSlot && onHotLootSlotHover ? () => onHotLootSlotHover(itemInSlot, slotInfo, 'container') : undefined}
+                            onHotLootEnter={setHotLootCurrentHover ? () => setHotLootCurrentHover(itemInSlot || null, slotInfo, 'container') : undefined}
+                            onHotLootLeave={setHotLootCurrentHover ? () => setHotLootCurrentHover(null, null, null) : undefined}
                         >
                         {itemInSlot && (
                             <DraggableItem

@@ -63,6 +63,11 @@ interface HotbarProps {
   isGameMenuOpen?: boolean;
   placementInfo: PlacementItemInfo | null; // Add placement state info
   isMobile?: boolean; // Mobile layout flag
+  // Hot loot props
+  isHotLootActive?: boolean;
+  getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
+  handleHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
+  setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
 }
 
 // Add tooltip interface
@@ -135,8 +140,11 @@ const Hotbar: React.FC<HotbarProps> = ({
     isGameMenuOpen,
     placementInfo,
     isMobile = false,
+    isHotLootActive,
+    getSlotIndicator,
+    handleHotLootSlotHover,
+    setHotLootCurrentHover,
 }) => {
-  // console.log('[Hotbar] Rendering. CLIENT_ANIMATION_DURATION_MS:', CLIENT_ANIMATION_DURATION_MS); // Added log
   const [selectedSlot, setSelectedSlot] = useState<number>(-1);
   const [isVisualCooldownActive, setIsVisualCooldownActive] = useState<boolean>(false);
   const [visualCooldownStartTime, setVisualCooldownStartTime] = useState<number | null>(null);
@@ -1394,6 +1402,9 @@ const Hotbar: React.FC<HotbarProps> = ({
         const populatedItem = findItemForSlot(index);
         const currentSlotInfo: DragSourceSlotInfo = { type: 'hotbar', index: index };
         const isDisabledByWater = isSlotDisabledByWater(index);
+        
+        // Hot loot indicator for this slot
+        const hotLootIndicator = getSlotIndicator?.('hotbar', index);
 
         return (
           <div
@@ -1442,6 +1453,11 @@ const Hotbar: React.FC<HotbarProps> = ({
                 (isVisualCooldownActive && cooldownSlot === index) ? 'consumable' :
                 'consumable'
               }
+              isHotLootActive={isHotLootActive && !!interactingWith && !!populatedItem}
+              hotLootIndicatorProgress={hotLootIndicator?.progress}
+              onHotLootHover={populatedItem && handleHotLootSlotHover ? () => handleHotLootSlotHover(populatedItem, currentSlotInfo, 'player') : undefined}
+              onHotLootEnter={setHotLootCurrentHover ? () => setHotLootCurrentHover(populatedItem || null, currentSlotInfo, 'player') : undefined}
+              onHotLootLeave={setHotLootCurrentHover ? () => setHotLootCurrentHover(null, null, null) : undefined}
             >
               <span
                   style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)', userSelect: 'none', pointerEvents: 'none', zIndex: 3 }}

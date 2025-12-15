@@ -17,6 +17,8 @@ import ItemAcquisitionNotificationUI from './ItemAcquisitionNotificationUI';
 import ActiveCraftingQueueUI from './ActiveCraftingQueueUI';
 import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 import CraftingScreen from './CraftingScreen';
+// Hot loot hook
+import { useHotLoot } from '../hooks/useHotLoot';
 // --- END NEW IMPORTS ---
 
 // Import status icons for mobile UI
@@ -123,6 +125,25 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
 
     // Reference to store the previous state of inventory items for comparison
     const prevInventoryRef = useRef<Map<string, InventoryItem>>(new Map());
+
+    // Hot loot hook - enables "hold H to quickly move items" feature
+    const {
+        isHotLootActive,
+        indicators: hotLootIndicators,
+        handleSlotHover: handleHotLootSlotHover,
+        getSlotIndicator,
+        setCurrentHover: setHotLootCurrentHover,
+    } = useHotLoot({
+        connection,
+        playerIdentity: identity,
+        interactingWith: interactingWith,
+        // Pass container data for smart routing
+        woodenStorageBoxes,
+        stashes,
+        campfires,
+        fumaroles,
+        brothPots,
+    });
 
     // Determine if there's an active health regen effect for the local player
     const isHealthHealingOverTime = React.useMemo(() => {
@@ -1393,6 +1414,10 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     activeConsumableEffects={activeConsumableEffects}
                     chunkWeather={chunkWeather}
                     purchasedMemoryNodes={purchasedMemoryNodes}
+                    isHotLootActive={isHotLootActive}
+                    getSlotIndicator={getSlotIndicator}
+                    handleHotLootSlotHover={handleHotLootSlotHover}
+                    setHotLootCurrentHover={setHotLootCurrentHover}
                  />
              )}
 
@@ -1434,6 +1459,10 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     activeEquipment={localPlayerActiveEquipment}
                     isGameMenuOpen={isGameMenuOpen}
                     placementInfo={placementInfo}
+                    isHotLootActive={isHotLootActive}
+                    getSlotIndicator={getSlotIndicator}
+                    handleHotLootSlotHover={handleHotLootSlotHover}
+                    setHotLootCurrentHover={setHotLootCurrentHover}
                 />
             )}
 
