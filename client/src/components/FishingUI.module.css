@@ -19,32 +19,46 @@
   backdrop-filter: blur(10px);
 }
 
-/* Animated scan line effect */
-.fishingPanel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00ffff, transparent);
-  animation: scanLine 3s linear infinite;
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 8px 8px 0 0;
+/* Wide panel variant for active fishing (fish on line) */
+.fishingPanelWide {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
+  border: 2px solid #00aaff;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 18px;
+  z-index: 50;
+  color: #ffffff;
+  font-family: 'Press Start 2P', cursive;
+  width: 480px;
+  backdrop-filter: blur(10px);
 }
 
-@keyframes scanLine {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+.fishingPanelWide .panelTitle {
+  font-size: 12px;
+  margin-bottom: 8px;
 }
+
+.fishingPanelWide .meterLabel {
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.fishingPanelWide .tensionMeterTrack {
+  height: 28px;
+}
+
+/* Scan line removed */
 
 /* Panel Title */
 .panelTitle {
   color: #00ffff;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-top: 0;
@@ -63,8 +77,8 @@
 
 /* Status Text */
 .statusText {
-  font-size: 10px;
-  margin-bottom: 10px;
+  font-size: 12px;
+  margin-bottom: 12px;
   color: #00ffff;
   text-align: center;
   text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
@@ -91,8 +105,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 9px;
+  margin-bottom: 10px;
+  font-size: 11px;
 }
 
 .infoLabel {
@@ -125,9 +139,9 @@
 }
 
 .meterLabel {
-  font-size: 9px;
+  font-size: 11px;
   color: rgba(0, 255, 255, 0.8);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -179,13 +193,72 @@
 
 /* Tension Balance Meter - Special Styling */
 .tensionMeterContainer {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   position: relative;
+}
+
+/* Wide layout: Progress bars side by side */
+.progressRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.progressRow .meterContainer {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Compact status for wide panel */
+.statusTextCompact {
+  font-size: 11px;
+  margin-bottom: 8px;
+  color: #00ffff;
+  text-align: center;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+/* Compact instruction row for wide panel */
+.instructionRowCompact {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, rgba(10, 20, 40, 0.5), rgba(5, 15, 35, 0.6));
+  border-radius: 6px;
+  border: 1px solid rgba(0, 170, 255, 0.2);
+}
+
+.instructionRowCompact .instructionLeft,
+.instructionRowCompact .instructionRight {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.instructionRowCompact .instructionLeft .instructionHighlight {
+  color: #44ff88;
+  font-size: 10px;
+  text-shadow: 0 0 5px rgba(68, 255, 136, 0.5);
+}
+
+.instructionRowCompact .instructionRight .instructionHighlight {
+  color: #ff8844;
+  font-size: 10px;
+  text-shadow: 0 0 5px rgba(255, 136, 68, 0.5);
+}
+
+.instructionRowCompact .instructionAction {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
 }
 
 .tensionMeterTrack {
   width: 100%;
-  height: 28px;
+  height: 32px;
   background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(15, 25, 50, 0.95));
   border: 2px solid rgba(0, 170, 255, 0.5);
   border-radius: 8px;
@@ -204,6 +277,26 @@
   border-radius: 4px;
   transition: left 0.3s ease-out, width 0.3s ease-out;
   box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Fish icon inside sweet spot - Font Awesome */
+.sweetSpotFishIcon {
+  font-size: 18px;
+  color: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 1)) drop-shadow(0 0 6px rgba(0, 255, 136, 0.9)) drop-shadow(0 0 12px rgba(0, 170, 255, 0.6));
+  animation: fishSwim 1.2s ease-in-out infinite;
+  opacity: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+@keyframes fishSwim {
+  0%, 100% { transform: translateX(-3px) rotate(-5deg); }
+  50% { transform: translateX(3px) rotate(5deg); }
 }
 
 /* Tension Indicator (Player's current tension) */
@@ -251,10 +344,10 @@
 
 /* Instructions Text */
 .instructionText {
-  font-size: 8px;
+  font-size: 10px;
   color: rgba(0, 255, 255, 0.6);
   text-align: center;
-  margin-top: 12px;
+  margin-top: 14px;
   font-style: italic;
 }
 
@@ -262,6 +355,45 @@
   color: #00ffff;
   font-weight: bold;
   font-style: normal;
+}
+
+/* Instructions Row - Left/Right layout */
+.instructionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding: 10px 8px;
+  background: linear-gradient(135deg, rgba(10, 20, 40, 0.6), rgba(5, 15, 35, 0.7));
+  border-radius: 6px;
+  border: 1px solid rgba(0, 170, 255, 0.25);
+}
+
+.instructionLeft,
+.instructionRight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.instructionLeft .instructionHighlight {
+  color: #44ff88;
+  font-size: 11px;
+  text-shadow: 0 0 6px rgba(68, 255, 136, 0.6);
+}
+
+.instructionRight .instructionHighlight {
+  color: #ff8844;
+  font-size: 11px;
+  text-shadow: 0 0 6px rgba(255, 136, 68, 0.6);
+}
+
+.instructionAction {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 /* Result Notification */
@@ -337,36 +469,24 @@
   text-align: center;
 }
 
-.reticlePanel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00ffff, transparent);
-  animation: scanLine 3s linear infinite;
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 8px 8px 0 0;
-}
+/* Scan line removed */
 
 .reticleTitle {
   color: #00ffff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
 }
 
 .reticleInstruction {
-  font-size: 9px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .reticleStatus {
-  font-size: 8px;
+  font-size: 12px;
   opacity: 0.8;
   font-style: italic;
 }

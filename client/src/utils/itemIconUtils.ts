@@ -20,6 +20,16 @@ import metalOreIcon from '../assets/items/metal_ore.png';
 import metalFragmentsIcon from '../assets/items/metal_fragments.png';
 import tinCanIcon from '../assets/items/tin_can.png';
 import scrapBatteriesIcon from '../assets/items/scrap_batteries.png';
+
+// Fishing junk items
+import oldBootIcon from '../assets/items/old_boot.png';
+import rustyHookIcon from '../assets/items/rusty_hook.png';
+import seaweedIcon from '../assets/items/seaweed.png';
+import driedSeaweedIcon from '../assets/items/dried_seaweed.png';
+import aleutCharmIcon from '../assets/items/aleut_charm.png';
+import shellFragmentIcon from '../assets/items/shell_fragment.png';
+import seaGlassIcon from '../assets/items/sea_glass.png';
+import whaleBoneFragmentIcon from '../assets/items/whale_bone_fragment.png';
 import sulfurIcon from '../assets/items/sulfur.png';
 import sulfurOreIcon from '../assets/items/sulfur_ore.png';
 import gunpowderIcon from '../assets/items/gunpowder.png';
@@ -281,8 +291,25 @@ import rawTernMeatIcon from '../assets/items/raw_tern_meat.png';
 import cookedTernMeatIcon from '../assets/items/cooked_tern_meat.png';
 import burntTernMeatIcon from '../assets/items/burnt_tern_meat.png';
 
-// Fish
+// Fish - Raw fish icons
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
+import rawHerringIcon from '../assets/items/raw_herring.png';
+import rawSmeltIcon from '../assets/items/raw_smelt.png';
+import rawBlackKatyChitonIcon from '../assets/items/raw_black_katy_chiton.png';
+import rawSeaUrchinIcon from '../assets/items/raw_sea_urchin.png';
+import rawBlueMusselIcon from '../assets/items/raw_blue_mussel.png';
+import rawGreenlingIcon from '../assets/items/raw_greenling.png';
+import rawSculpinIcon from '../assets/items/raw_sculpin.png';
+import rawPacificCodIcon from '../assets/items/raw_pacific_cod.png';
+import rawDollyVardenIcon from '../assets/items/raw_dolly_varden.png';
+import rawRockfishIcon from '../assets/items/raw_rockfish.png';
+import rawSteelheadIcon from '../assets/items/raw_steelhead.png';
+import rawPinkSalmonIcon from '../assets/items/raw_pink_salmon.png';
+import rawSockeyeSalmonIcon from '../assets/items/raw_sockeye_salmon.png';
+import rawKingSalmonIcon from '../assets/items/raw_king_salmon.png';
+import rawHalibutIcon from '../assets/items/raw_halibut.png';
+
+// Fish - Cooked and burnt versions (keeping existing Twigfish)
 import cookedTwigfishIcon from '../assets/items/cooked_twigfish.png';
 import burntTwigfishIcon from '../assets/items/burnt_twigfish.png';
 
@@ -396,6 +423,16 @@ const iconMap: { [key: string]: string | undefined } = {
   'metal_fragments.png': metalFragmentsIcon,
   'tin_can.png': tinCanIcon,
   'scrap_batteries.png': scrapBatteriesIcon,
+  
+  // Fishing junk items
+  'old_boot.png': oldBootIcon,
+  'rusty_hook.png': rustyHookIcon,
+  'seaweed.png': seaweedIcon,
+  'dried_seaweed.png': driedSeaweedIcon,
+  'aleut_charm.png': aleutCharmIcon,
+  'shell_fragment.png': shellFragmentIcon,
+  'sea_glass.png': seaGlassIcon,
+  'whale_bone_fragment.png': whaleBoneFragmentIcon,
   
   // Sulfur materials
   'sulfur.png': sulfurIcon, // Used for both Sulfur Ore and refined Sulfur
@@ -653,8 +690,25 @@ const iconMap: { [key: string]: string | undefined } = {
   'cooked_tern_meat.png': cookedTernMeatIcon,
   'burnt_tern_meat.png': burntTernMeatIcon,
   
-  // Fish
+  // Fish - Raw fish
   'raw_twigfish.png': rawTwigfishIcon,
+  'raw_herring.png': rawHerringIcon,
+  'raw_smelt.png': rawSmeltIcon,
+  'raw_black_katy_chiton.png': rawBlackKatyChitonIcon,
+  'raw_sea_urchin.png': rawSeaUrchinIcon,
+  'raw_blue_mussel.png': rawBlueMusselIcon,
+  'raw_greenling.png': rawGreenlingIcon,
+  'raw_sculpin.png': rawSculpinIcon,
+  'raw_pacific_cod.png': rawPacificCodIcon,
+  'raw_dolly_varden.png': rawDollyVardenIcon,
+  'raw_rockfish.png': rawRockfishIcon,
+  'raw_steelhead.png': rawSteelheadIcon,
+  'raw_pink_salmon.png': rawPinkSalmonIcon,
+  'raw_sockeye_salmon.png': rawSockeyeSalmonIcon,
+  'raw_king_salmon.png': rawKingSalmonIcon,
+  'raw_halibut.png': rawHalibutIcon,
+  
+  // Fish - Cooked and burnt (keeping existing Twigfish)
   'cooked_twigfish.png': cookedTwigfishIcon,
   'burnt_twigfish.png': burntTwigfishIcon,
   

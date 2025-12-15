@@ -3,7 +3,7 @@ use crate::items::InventoryItem;
 use crate::player;
 use crate::active_equipment::active_equipment;
 use crate::items::{inventory_item, item_definition};
-use crate::dropped_item::{create_dropped_item_entity, calculate_drop_position};
+use crate::dropped_item::give_item_to_player_or_drop;
 use crate::world_state::{world_state as WorldStateTableTrait, TimeOfDay, WeatherType, get_weather_for_position};
 use rand::Rng;
 
@@ -457,9 +457,26 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
     }
     
     // Junk chance (lower during good conditions)
-    let junk_chance = 0.25 * (2.0 - total_effectiveness); // 25% base, down to ~0% in perfect conditions
+    // Formula: 25% base chance, reduced by effectiveness (down to ~0% in perfect conditions)
+    // Perfect conditions (effectiveness > 3.0): ~0% junk chance
+    // Poor conditions (effectiveness < 1.0): up to 25% junk chance
+    let junk_chance = 0.25 * (2.0 - total_effectiveness).max(0.0);
     if ctx.rng().gen_range(0.0..1.0) < junk_chance {
-        loot.push("Tin Can".to_string());
+        // Randomly select from junk items (Aleutian Islands themed)
+        let junk_items = vec![
+            "Tin Can",
+            "Old Boot",
+            "Rusty Hook",
+            "Seaweed",
+            "Aleut Charm",      // Small carved amulet lost in the waters
+            "Shell Fragment",  // Small broken shell piece
+            "Sea Glass",        // Natural glass fragments
+            "Whale Bone Fragment", // Small bone fragment (too small to craft with)
+        ];
+        let selected_junk = junk_items[ctx.rng().gen_range(0..junk_items.len())];
+        loot.push(selected_junk.to_string());
+        log::info!("🗑️ Junk caught: {} (effectiveness: {:.2}x, junk chance: {:.1}%)", 
+                  selected_junk, total_effectiveness, junk_chance * 100.0);
     }
     
     // Very rare extra premium fish during perfect conditions (dawn/dusk + heavy rain/storm)
@@ -667,19 +684,13 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
             return Err("No loot generated despite successful fishing".to_string());
         }
         
-        // Get player for drop position calculation
-        let player = match ctx.db.player().identity().find(&player_id) {
-            Some(p) => p,
-            None => return Err("Player not found for item drop".to_string()),
-        };
+        // Track successful additions
+        let mut added_items = Vec::new();
+        let mut dropped_items = Vec::new();
         
-        // Track successful spawns
-        let mut spawned_items = Vec::new();
+        log::info!("Attempting to add {} caught items to player {} inventory", generated_loot.len(), player_id);
         
-        // Spawn caught items as dropped items with proper spacing
-        log::info!("Attempting to spawn {} items near player position ({:.1}, {:.1})", generated_loot.len(), player.position_x, player.position_y);
-        
-        for (item_index, item_name) in generated_loot.iter().enumerate() {
+        for item_name in generated_loot.iter() {
             log::info!("Looking for item definition for: '{}'", item_name);
             
             // Find the item definition by name
@@ -690,21 +701,21 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
                 Some(def) => {
                     log::info!("Found item definition for '{}' with ID: {}", item_name, def.id);
                     
-                    // Calculate offset position for this item to spread them out visually
-                    let base_distance = 48.0; // Base distance from player
-                    let angle_offset = (item_index as f32) * (std::f32::consts::PI * 2.0 / generated_loot.len() as f32); // Spread items in a circle
-                    let drop_x = player.position_x + (base_distance * angle_offset.cos());
-                    let drop_y = player.position_y + (base_distance * angle_offset.sin());
-                    
-                    // Create dropped item at calculated offset position
-                    match create_dropped_item_entity(ctx, def.id, 1, drop_x, drop_y) {
-                        Ok(_) => {
-                            log::info!("SUCCESS: Player {} caught: {} (spawned as dropped item at {:.1}, {:.1})", 
-                                     player_id, item_name, drop_x, drop_y);
-                            spawned_items.push(item_name.clone());
+                    // Add to player inventory, drop near player if inventory is full
+                    match give_item_to_player_or_drop(ctx, player_id, def.id, 1) {
+                        Ok(added_to_inventory) => {
+                            if added_to_inventory {
+                                log::info!("SUCCESS: Player {} caught: {} (added to inventory)", 
+                                         player_id, item_name);
+                                added_items.push(item_name.clone());
+                            } else {
+                                log::info!("SUCCESS: Player {} caught: {} (inventory full, dropped near player)", 
+                                         player_id, item_name);
+                                dropped_items.push(item_name.clone());
+                            }
                         }
                         Err(e) => {
-                            log::error!("FAILED to spawn caught item '{}' as dropped item: {}", item_name, e);
+                            log::error!("FAILED to give caught item '{}' to player: {}", item_name, e);
                         }
                     }
                 }
@@ -719,12 +730,14 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
             }
         }
         
-        if spawned_items.is_empty() {
-            log::error!("Player {} successful fishing but no items were spawned!", player_id);
-            return Err("Failed to spawn any caught items".to_string());
+        if added_items.is_empty() && dropped_items.is_empty() {
+            log::error!("Player {} successful fishing but no items were given!", player_id);
+            return Err("Failed to give any caught items".to_string());
         }
         
-        log::info!("Player {} successfully caught {} items: {:?}", player_id, spawned_items.len(), spawned_items);
+        log::info!("Player {} fishing complete: {} items to inventory, {} items dropped: {:?}", 
+                  player_id, added_items.len(), dropped_items.len(), 
+                  [added_items.clone(), dropped_items.clone()].concat());
     }
     
     log::info!("Player {} finished fishing. Success: {}", player_id, success);

@@ -106,6 +106,45 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
+        // === FISHING JUNK ITEMS ===
+        // Items that can be caught while fishing (junk catches)
+        
+        // Old Boot - Worthless junk from fishing
+        basic_material("Old Boot", "A waterlogged, tattered boot pulled from the depths. Completely useless.", 10)
+            .icon("old_boot.png")
+            .build(),
+
+        // Rusty Hook - Can be smelted into metal fragments (like tin can)
+        ItemBuilder::new("Rusty Hook", "An old, rusted fishing hook. Could be smelted down for metal fragments.", ItemCategory::Material)
+            .icon("rusty_hook.png")
+            .stackable(10)
+            .cook_time(12.0)
+            .cooked_item("Metal Fragments")
+            .crafting_output(2, 10) // 2 metal fragments per hook
+            .build(),
+
+        // NOTE: Seaweed moved to consumables.rs - it's an edible item, not a material
+
+        // Aleut Charm - Small carved amulet lost in the waters
+        basic_material("Aleut Charm", "A small, weathered charm carved from bone or stone. Once held significance to Aleut peoples, now just a lost trinket.", 4)
+            .icon("aleut_charm.png")
+            .build(),
+
+        // Shell Fragment - Small broken shell piece
+        basic_material("Shell Fragment", "A small fragment of shell worn smooth by the Aleutian tides. Too broken to be of any use.", 3)
+            .icon("shell_fragment.png")
+            .build(),
+
+        // Sea Glass - Natural glass fragments smoothed by the ocean
+        basic_material("Sea Glass", "Smooth, frosted glass fragments worn by the Aleutian tides. Beautiful but useless.", 5)
+            .icon("sea_glass.png")
+            .build(),
+
+        // Whale Bone Fragment - Small bone piece from Aleutian waters, can be crushed into bone fragments
+        basic_material("Whale Bone Fragment", "A small fragment of whale bone pulled from the Aleutian depths. Can be crushed into bone fragments.", 20)
+            .icon("whale_bone_fragment.png")
+            .build(),
+
         // === ADVANCED CRAFTING MATERIALS ===
 
         // Gunpowder - Made from charcoal and sulfur (essential for ammunition)

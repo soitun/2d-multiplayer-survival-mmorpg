@@ -1438,5 +1438,23 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(2000)
             .build(),
 
+        // === FISHING JUNK FOOD ===
+        // Seaweed - Edible fishing junk, can be dried for better nutrition
+        ItemBuilder::new("Seaweed", "Slimy, waterlogged seaweed pulled from the ocean. Edible but not very appetizing. Can be dried for better taste.", ItemCategory::Consumable)
+            .icon("seaweed.png")
+            .stackable(20)
+            .consumable(2.0, 5.0, 8.0) // Low health/hunger, decent thirst (it's wet)
+            .cookable(25.0, "Dried Seaweed") // Dries into better food
+            .respawn_time(120)
+            .build(),
+
+        ItemBuilder::new("Dried Seaweed", "Crispy dried seaweed. A salty, crunchy snack rich in minerals.", ItemCategory::Consumable)
+            .icon("dried_seaweed.png")
+            .stackable(20)
+            .consumable(8.0, 18.0, -5.0) // Better nutrition, but salty so reduces thirst
+            .cookable(40.0, "Charcoal") // Burns to charcoal if overcooked
+            .respawn_time(180)
+            .build(),
+
     ]
 }

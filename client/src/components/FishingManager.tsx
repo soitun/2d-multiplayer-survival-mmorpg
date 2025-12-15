@@ -5,6 +5,8 @@ import FishingReticle from './FishingReticle';
 import { FishingState, FISHING_CONSTANTS } from '../types/fishing';
 import bobberImage from '../assets/doodads/primitive_reed_bobble.png';
 import styles from './FishingUI.module.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFish } from '@fortawesome/free-solid-svg-icons';
 
 interface FishingManagerProps {
   localPlayer: Player | null;
@@ -266,7 +268,8 @@ interface TensionState {
   fishPullDirection: number; // 1 = pulling away (increase tension), -1 = swimming toward (decrease)
   catchProgress: number; // 0-100, progress toward catching the fish
   escapeProgress: number; // 0-100, progress toward fish escaping
-  isReeling: boolean; // Is player holding right-click
+  isReeling: boolean; // Is player holding right-click (increases tension)
+  isGivingSlack: boolean; // Is player holding left-click (actively decreases tension)
 }
 
 const FishingSystem: React.FC<FishingSystemProps> = ({
@@ -306,6 +309,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     catchProgress: 0,
     escapeProgress: 0,
     isReeling: false,
+    isGivingSlack: false,
   });
 
   // Tension Balance Mini-Game Constants
@@ -313,7 +317,8 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
   const TENSION_MAX = 95; // Maximum tension before line breaks
   const SWEET_SPOT_MIN_WIDTH = 15; // Minimum sweet spot width (harder as fish tires)
   const REEL_TENSION_RATE = 45; // How fast tension increases when reeling (per second)
-  const SLACK_TENSION_RATE = 35; // How fast tension decreases when giving slack (per second)
+  const PASSIVE_SLACK_RATE = 25; // How fast tension decreases passively (neither button held)
+  const ACTIVE_SLACK_RATE = 55; // How fast tension decreases when actively giving slack (left-click)
   const FISH_PULL_BASE = 20; // Base fish pull strength (per second)
   const FISH_PULL_VARIANCE = 25; // Random variance in fish pull
   const SWEET_SPOT_MOVE_SPEED = 30; // How fast sweet spot can move (per second)
@@ -490,6 +495,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
           catchProgress: 0,
           escapeProgress: 0,
           isReeling: false,
+          isGivingSlack: false,
         });
         
         setTimer(0);
@@ -553,12 +559,21 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
         const fishPullEffect = newTension.fishPullStrength * newTension.fishPullDirection * deltaTime;
         newTension.currentTension += fishPullEffect;
         
-        // 2. Player reeling increases tension, releasing decreases it
-        if (newTension.isReeling) {
+        // 2. Player controls tension:
+        // - Right-click (reeling) increases tension
+        // - Left-click (active slack) decreases tension fast
+        // - Neither button: passive slack decrease (slower)
+        if (newTension.isReeling && !newTension.isGivingSlack) {
+          // Reeling - tension increases
           newTension.currentTension += REEL_TENSION_RATE * deltaTime;
-        } else {
-          newTension.currentTension -= SLACK_TENSION_RATE * deltaTime;
+        } else if (newTension.isGivingSlack && !newTension.isReeling) {
+          // Active slack - tension decreases fast
+          newTension.currentTension -= ACTIVE_SLACK_RATE * deltaTime;
+        } else if (!newTension.isReeling && !newTension.isGivingSlack) {
+          // Passive - tension decreases slowly
+          newTension.currentTension -= PASSIVE_SLACK_RATE * deltaTime;
         }
+        // If both buttons held, they cancel out (no change from player input)
         
         // Clamp tension to valid range
         newTension.currentTension = Math.max(0, Math.min(100, newTension.currentTension));
@@ -643,26 +658,37 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     }, 16); // 60fps
 
     return () => clearInterval(gameLoopInterval);
-  }, [phase, playerX, playerY, isWaterTile, onFailure, onSuccess, isRemotePlayer, tension.isReeling]);
+  }, [phase, playerX, playerY, isWaterTile, onFailure, onSuccess, isRemotePlayer, tension.isReeling, tension.isGivingSlack]);
 
-  // Handle right-click HOLD for reeling (tension balance system)
+  // Handle mouse controls for tension balance system
+  // Right-click HOLD = Reel in (increase tension)
+  // Left-click HOLD = Give slack (actively decrease tension)
   React.useEffect(() => {
     if (phase !== 'caught' || isRemotePlayer) return;
 
     const handleMouseDown = (event: MouseEvent) => {
       if (event.button === 2) {
+        // Right-click: Start reeling - increase tension
         event.preventDefault();
         event.stopPropagation();
-        // Start reeling - increase tension
         setTension(prev => ({ ...prev, isReeling: true }));
+      } else if (event.button === 0) {
+        // Left-click: Start giving slack - decrease tension fast
+        event.preventDefault();
+        event.stopPropagation();
+        setTension(prev => ({ ...prev, isGivingSlack: true }));
       }
     };
 
     const handleMouseUp = (event: MouseEvent) => {
       if (event.button === 2) {
+        // Right-click released: Stop reeling
         event.preventDefault();
-        // Stop reeling - decrease tension (give slack)
         setTension(prev => ({ ...prev, isReeling: false }));
+      } else if (event.button === 0) {
+        // Left-click released: Stop giving slack
+        event.preventDefault();
+        setTension(prev => ({ ...prev, isGivingSlack: false }));
       }
     };
 
@@ -831,7 +857,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
       
       {/* Fishing UI - SOVA Diegetic Style */}
       {!isRemotePlayer && (
-        <div className={styles.fishingPanel}>
+        <div className={phase === 'caught' ? styles.fishingPanelWide : styles.fishingPanel}>
           <div className={styles.panelTitle}>
             🎣 {phase === 'waiting' ? 'Waiting for bite...' : 'FISH ON!'}
           </div>
@@ -889,8 +915,8 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
           
           {phase === 'caught' && (
             <>
-              {/* Status text */}
-              <div className={`${styles.statusText} ${
+              {/* Status text - compact */}
+              <div className={`${styles.statusTextCompact} ${
                 tension.currentTension > 85 ? styles.statusTextDanger : 
                 tension.escapeProgress > 50 ? styles.statusTextWarning : ''
               }`}>
@@ -914,14 +940,16 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
                   <div className={`${styles.breakZoneMarker} ${styles.breakZoneMarkerLeft}`} />
                   <div className={`${styles.breakZoneMarker} ${styles.breakZoneMarkerRight}`} />
                   
-                  {/* Sweet spot zone */}
-                  <div 
+                  {/* Sweet spot zone with fish icon */}
+                  <div
                     className={styles.sweetSpotZone}
                     style={{
                       left: `${tension.sweetSpotCenter - tension.sweetSpotWidth / 2}%`,
                       width: `${tension.sweetSpotWidth}%`,
                     }}
-                  />
+                  >
+                    <FontAwesomeIcon icon={faFish} className={styles.sweetSpotFishIcon} />
+                  </div>
                   
                   {/* Tension indicator (player's current tension) */}
                   <div 
@@ -935,25 +963,26 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
                 </div>
               </div>
               
-              {/* Catch Progress */}
-              <div className={styles.meterContainer}>
-                <div className={styles.meterLabel}>
-                  <span>🐟 Catch Progress</span>
-                  <span className={styles.meterLabelValue}>{Math.round(tension.catchProgress)}%</span>
-                </div>
-                <div className={styles.meterTrack}>
-                  <div 
-                    className={`${styles.meterFill} ${styles.meterFillGood}`}
-                    style={{ width: `${tension.catchProgress}%` }}
-                  />
-                </div>
-              </div>
-              
-              {/* Escape Progress (danger meter) */}
-              {tension.escapeProgress > 0 && (
+              {/* Progress bars side by side */}
+              <div className={styles.progressRow}>
+                {/* Catch Progress */}
                 <div className={styles.meterContainer}>
                   <div className={styles.meterLabel}>
-                    <span>⚠️ Escape Risk</span>
+                    <span>🐟 Catch</span>
+                    <span className={styles.meterLabelValue}>{Math.round(tension.catchProgress)}%</span>
+                  </div>
+                  <div className={styles.meterTrack}>
+                    <div 
+                      className={`${styles.meterFill} ${styles.meterFillGood}`}
+                      style={{ width: `${tension.catchProgress}%` }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Escape Progress (danger meter) */}
+                <div className={styles.meterContainer}>
+                  <div className={styles.meterLabel}>
+                    <span>⚠️ Escape</span>
                     <span className={styles.meterLabelValue}>{Math.round(tension.escapeProgress)}%</span>
                   </div>
                   <div className={styles.meterTrack}>
@@ -963,11 +992,17 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
                     />
                   </div>
                 </div>
-              )}
+              </div>
               
-              <div className={styles.instructionText}>
-                <span className={styles.instructionHighlight}>HOLD Right-Click</span> to reel, 
-                <span className={styles.instructionHighlight}> RELEASE</span> for slack
+              <div className={styles.instructionRowCompact}>
+                <div className={styles.instructionLeft}>
+                  <span className={styles.instructionHighlight}>Left-Click</span>
+                  <span className={styles.instructionAction}>Slack</span>
+                </div>
+                <div className={styles.instructionRight}>
+                  <span className={styles.instructionHighlight}>Right-Click</span>
+                  <span className={styles.instructionAction}>Reel</span>
+                </div>
               </div>
             </>
           )}

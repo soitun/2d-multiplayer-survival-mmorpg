@@ -1742,6 +1742,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                                     { name: "🍲 Cauldron & Procedural Brewing System", status: "100%" },
                                                                     { name: "🎣 Simple Fishing", status: "100%" },
                                                                     { name: "🔧 Tool & Weapon Durability", status: "100%" },
+                                                                    { name: "👥 Social & Team Features", status: "100%" },
                                                                 ].map((feature, index) => (
                                                                     <tr key={index} style={{
                                                                         backgroundColor: 'rgba(0, 100, 0, 0.2)',
@@ -1779,51 +1780,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                                 </tr>
                                                                 ))}
 
-                                                                {/* In Progress Features */}
-                                                                {[
-                                                                    { name: "👥 Social & Team Features", status: "60%" },
-                                                                ].map((feature, index) => (
-                                                                    <tr key={index} style={{
-                                                                        backgroundColor: 'rgba(255, 165, 0, 0.15)',
-                                                                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                                                                    }}>
-                                                                        <td style={{
-                                                                            padding: '12px 16px',
-                                                                            textAlign: 'left',
-                                                                            color: 'rgba(255, 255, 255, 0.9)',
-                                                                            fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                                                            fontSize: '14px',
-                                                                            fontWeight: '500',
-                                                                        }}>
-                                                                            {feature.name}
-                                                                        </td>
-                                                                        <td style={{
-                                                                            padding: '12px 16px',
-                                                                            textAlign: 'center',
-                                                                            fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                                                            fontSize: '12px',
-                                                                            fontWeight: 'bold',
-                                                                        }}>
-                                                                            <span style={{
-                                                                                backgroundColor: 'rgba(255, 140, 0, 0.8)',
-                                                                                color: 'white',
-                                                                                padding: '4px 12px',
-                                                                                borderRadius: '12px',
-                                                                                fontSize: '11px',
-                                                                                textTransform: 'uppercase',
-                                                                                letterSpacing: '0.5px',
-                                                                            }}>
-                                                                                {feature.status}
-                                                                            </span>
-                                                                        </td>
-                                                                </tr>
-                                                                ))}
-
                                                                 {/* Planned Features */}
                                                                 {[
-                                                                    { name: "🔫 Firearms & Advanced Combat", status: "20%" },
+                                                                    { name: "🔫 Firearms & Advanced Combat", status: "50%" },
                                                                     { name: "🤖 Neutral Faction & NPCs", status: "10%" },
-                                                                    { name: "🌍 Better Graphics", status: "0%" },
+                                                                    { name: "🔑 Social Auth (Steam, Discord, Twitch)", status: "0%" },
+                                                                    { name: "🔬 Advanced Tech Tree", status: "0%" },
+                                                                    { name: "🎨 Graphical Overhaul (Hiring Pixel Artists!)", status: "0%" },
                                                                 ].map((feature, index) => (
                                                                     <tr key={index} style={{
                                                                         backgroundColor: 'rgba(150, 0, 0, 0.2)',

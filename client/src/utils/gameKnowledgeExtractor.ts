@@ -30,7 +30,7 @@ export const controlSections: ControlSection[] = [
         controls: [
             { key: 'Left Click', description: 'Use equipped tool/weapon' },
             { key: 'E (Hold)', description: 'Pick up empty containers (wooden storage boxes, compost, refrigerator)' },
-            { key: 'E (Hold)', description: 'Toggle fire pits on/off' },
+            { key: 'E (Hold)', description: 'Toggle fire pits, barbecue grills, and lanterns on/off' },
             { key: 'E (Hold)', description: 'Hide/surface stashes' },
             { key: 'E (Hold)', description: 'Revive knocked out players' },
             { key: 'E (Hold)', description: 'Drink water from bodies of water' },
@@ -65,6 +65,15 @@ export const controlSections: ControlSection[] = [
             { key: 'Right Click', description: 'Throw equipped melee weapons' },
             { key: 'Z', description: 'Toggle auto attack' },
             { key: 'Consumables', description: 'Click twice on hotbar to consume' },
+        ]
+    },
+    {
+        title: 'Fishing',
+        controls: [
+            { key: 'Left Click', description: 'Cast fishing line (with rod equipped, aim at water)' },
+            { key: 'Right Click (Hold)', description: 'Reel in - increases line tension' },
+            { key: 'Left Click (Hold)', description: 'Give slack - decreases line tension fast' },
+            { key: 'Neither Button', description: 'Passive slack - tension decreases slowly' },
         ]
     }
 ];
@@ -319,20 +328,56 @@ const tipSectionDefinitions = {
     fishing: {
         title: '🎣 Fishing',
         tips: [
+            // Basics
             'Craft a fishing rod using common reed stalks, plant fiber, and a Bone Gaff Hook to start fishing.',
             'Find bodies of water like lakes, rivers, or coastal areas to fish.',
             'Cast your line by left-clicking with the fishing rod equipped.',
-            'Wait for the bobber to move or change color - this indicates a bite.',
-            'Right-click quickly when you see the bite indicator to reel in the fish.',
-            'Different water sources may have different types of fish.',
+            'Wait for the bobber to indicate a bite - then the Tension Balance mini-game begins!',
+            
+            // Tension Balance Mini-Game
+            'The fishing mini-game requires you to balance line tension - keep the white indicator inside the green "fish zone".',
+            'HOLD Right-Click to REEL IN - this increases tension (moves indicator right).',
+            'HOLD Left-Click to GIVE SLACK - this decreases tension fast (moves indicator left).',
+            'Release both buttons for passive slack - tension decreases slowly on its own.',
+            'The green zone (with the fish icon 🐟) moves around - you must follow it with your tension!',
+            'If tension goes too HIGH (right edge) - your line SNAPS and you lose the fish!',
+            'If tension stays too LOW for too long - the fish ESCAPES!',
+            'The green zone shrinks as you make progress - the fish fights harder as it tires!',
+            'Watch both the Catch Progress (green) and Escape Risk (red) bars to gauge your success.',
+            'Successfully keeping tension in the sweet spot fills the catch progress bar.',
+            'Being outside the sweet spot builds escape progress - don\'t let it fill up!',
+            
+            // Fish Types & Environmental Bonuses
+            'Different water sources have different types of fish - from common Twigfish to legendary King Salmon.',
+            'Fish are categorized into tiers: Common, Uncommon, Rare, and Premium - better conditions give better fish!',
+            'Caught fish go directly into your inventory - no risk of other players stealing them!',
+            'If your inventory is full, fish will drop at your feet as usual.',
+            
+            // Time of Day Bonuses
+            'Dawn and dusk are the best fishing times - fish are most active during twilight (1.8x effectiveness).',
+            'Morning and afternoon provide decent fishing (1.1x), while night fishing is more challenging (0.6-0.8x).',
+            'Some fish only appear at specific times - King Salmon is dawn-only and extremely rare!',
+            
+            // Weather Bonuses
+            'Rain dramatically improves fishing - the heavier the rain, the better the catch!',
+            'Light Rain: 1.3x | Moderate Rain: 1.6x | Heavy Rain: 2.0x | Heavy Storm: 2.5x effectiveness!',
+            'Weather and time bonuses stack together - fishing during storms at dawn is incredibly productive!',
+            'Different fish prefer different weather - Storm fish (Sculpin, Rockfish) thrive in Heavy Storms!',
+            'The weather at your fishing spot matters - chunk-based weather means local conditions affect your catch.',
+            
+            // Deep Water & Location
+            'Fishing in deeper water (farther from shore) gives better chances at rare and premium fish.',
+            'Fish like Halibut and Rockfish strongly prefer deep water (0.5-0.8x bonus).',
+            'Some fish like Black Katy Chiton and Blue Mussel prefer shallow rocky areas near shore.',
+            
+            // Fishing Village Bonus
+            'Fishing near the Aleut Fishing Village grants special bonuses when you have the village effect active.',
+            'Village bonus provides 2x fish haul (doubled catches) and increased premium tier chances!',
+            'The Aleut fishing village is a strategic location for serious anglers.',
+            
+            // General Tips
             'Cook your caught fish at a campfire for better nutrition and health restoration.',
             'Fishing is a quiet, sustainable way to gather food without alerting other players.',
-            'Fish provide excellent nutrition and are more reliable than foraging.',
-            'Consider fishing at dawn or dusk when fish are more active.',
-            'Rain dramatically improves fishing - the heavier the rain, the better the catch!',
-            'Dawn and dusk are the best fishing times - fish are most active during twilight.',
-            'Morning and afternoon provide decent fishing, while night fishing is more challenging.',
-            'Weather and time bonuses stack together - fishing during storms at dawn is incredibly productive!',
             'Better fishing conditions mean less junk (tin cans) and more bonus fish in your catch.',
             'Risk vs reward: venture out in dangerous storms for the best fishing, but stay warm and dry!',
             'Being wet drains warmth faster and doubles cold damage - wear protective clothing when fishing in storms!',

@@ -198,10 +198,10 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
       
       {/* Fishing instructions - SOVA Style */}
       <div className={styles.reticlePanel}>
-        <div className={styles.reticleTitle}>🎣 FISHING MODE</div>
-        <div className={styles.reticleInstruction}>Left-click on water to cast</div>
+        <div className={styles.reticleTitle}>FISHING MODE</div>
+        <div className={styles.reticleInstruction}>Left-Click on water to cast your line</div>
         <div className={`${styles.reticleStatus} ${isValidTarget ? styles.reticleStatusValid : styles.reticleStatusInvalid}`}>
-          {isValidTarget ? '✓ Valid target' : '⚠ Move to water within range'}
+          {isValidTarget ? '✓ Ready to cast' : '⚠ Move to water within range'}
         </div>
       </div>
     </>

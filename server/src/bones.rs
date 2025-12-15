@@ -16,6 +16,7 @@ const WOLF_SKULL_FRAGMENTS: u32 = 20;    // Baseline
 const VIPER_SKULL_FRAGMENTS: u32 = 22;   // Moderate
 const HUMAN_SKULL_FRAGMENTS: u32 = 25;   // Strong
 const WALRUS_SKULL_FRAGMENTS: u32 = 30;  // Largest skull, most material
+const WHALE_BONE_FRAGMENT_FRAGMENTS: u32 = 3; // Small fishing junk, yields fewer fragments
 
 /// Crushes a bone or skull item into bone fragments.
 /// If inventory is full, fragments will be dropped near the player.
@@ -34,7 +35,7 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
 
     // 2. Validate item ownership and type
     match item_def.name.as_str() {
-        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" => {
+        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Whale Bone Fragment" => {
             // Validate ownership through location
             match &item_to_crush.location {
                 crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
@@ -46,7 +47,7 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
         _ => return Err(format!("Cannot crush item '{}'. Only bones and skulls can be crushed.", item_def.name)),
     }
 
-    // 3. Calculate number of fragments to create based on skull size
+    // 3. Calculate number of fragments to create based on bone/skull size
     let fragments_to_create = match item_def.name.as_str() {
         "Animal Bone" => {
             // Use gen_range for a more idiomatic way to generate random numbers
@@ -57,6 +58,7 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
         "Viper Skull" => VIPER_SKULL_FRAGMENTS,
         "Human Skull" => HUMAN_SKULL_FRAGMENTS,
         "Walrus Skull" => WALRUS_SKULL_FRAGMENTS,
+        "Whale Bone Fragment" => WHALE_BONE_FRAGMENT_FRAGMENTS, // Small fishing junk
         _ => unreachable!(), // We already validated the item type
     };
 
