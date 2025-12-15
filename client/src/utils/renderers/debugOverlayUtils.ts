@@ -71,7 +71,7 @@ export function renderChunkBoundaries(
 ): void {
   const { chunkSizePx, cameraOffsetX, cameraOffsetY, canvasWidth, canvasHeight } = options;
 
-  ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)'; // Orange with transparency
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black with transparency
   ctx.lineWidth = 2;
   ctx.setLineDash([10, 5]); // Dashed line pattern
 
