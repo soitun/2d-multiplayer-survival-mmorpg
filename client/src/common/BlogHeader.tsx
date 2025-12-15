@@ -79,7 +79,7 @@ const BlogHeader: React.FC = () => {
                         }}
                     >
                         <img
-                            src="/images/blog/logo_new.png"
+                            src="/images/blog/logo_alt.png"
                             alt="Broth & Bullets"
                             style={{
                                 height: isMobile ? '40px' : '50px',

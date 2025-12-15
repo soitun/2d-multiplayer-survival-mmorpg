@@ -491,22 +491,23 @@ pub fn generate_fishing_village(
         // Positive offset_along_shore = "right" when facing water
         // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
         //       offsets must be very small or negative to stay on land!
+        // SPACING: ~1.4x original for comfortable spacing with 512px rendered buildings
         let structure_configs: [(&str, &str, f32, f32); 7] = [
             // Huts - set back INLAND from campfire (negative = away from water)
-            ("hut", "fv_hut1.png", -350.0, -350.0),    // Inland-left
-            ("hut", "fv_hut2.png", 350.0, -350.0),     // Inland-right
-            ("hut", "fv_hut3.png", 0.0, -500.0),       // Far inland center
+            ("hut", "fv_hut1.png", -480.0, -480.0),    // Inland-left
+            ("hut", "fv_hut2.png", 480.0, -480.0),     // Inland-right
+            ("hut", "fv_hut3.png", 0.0, -700.0),       // Far inland center
             
             // Smoke racks - slightly inland, spread left/right
-            ("smokerack", "fv_smokerack1.png", -200.0, -120.0),
-            ("smokerack", "fv_smokerack2.png", 200.0, -120.0),
+            ("smokerack", "fv_smokerack1.png", -280.0, -160.0),
+            ("smokerack", "fv_smokerack2.png", 280.0, -160.0),
             
             // Dock - ON THE BEACH, offset along shore (not into water!)
             // Campfire is already at water's edge, so dock stays on beach
-            ("dock", "fv_dock.png", 280.0, 0.0),       // Right of campfire, on beach
+            ("dock", "fv_dock.png", 400.0, 0.0),       // Right of campfire, on beach
             
             // Kayak - ON THE BEACH, other side from dock
-            ("kayak", "fv_kayak.png", -250.0, 50.0),   // Left of campfire, on beach
+            ("kayak", "fv_kayak.png", -350.0, 70.0),   // Left of campfire, on beach
         ];
         
         // Calculate perpendicular direction (along the shore)

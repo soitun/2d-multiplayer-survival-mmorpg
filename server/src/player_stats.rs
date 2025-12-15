@@ -478,11 +478,18 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         // <<< END FUMAROLE WARMTH PROTECTION EFFECT MANAGEMENT >>>
 
         // <<< ADD SAFE ZONE EFFECT MANAGEMENT >>>
-        // Update safe zone status based on player position (near ALK monuments)
+        // Update safe zone status based on player position (near ALK monuments and fishing village)
         if let Err(e) = crate::active_effects::update_player_safe_zone_status(ctx, player_id, player.position_x, player.position_y) {
             log::warn!("Failed to update safe zone status for player {:?}: {}", player_id, e);
         }
         // <<< END SAFE ZONE EFFECT MANAGEMENT >>>
+        
+        // <<< ADD FISHING VILLAGE BONUS EFFECT MANAGEMENT >>>
+        // Update fishing village bonus status based on player position (2x fishing hauls near Aleut village)
+        if let Err(e) = crate::active_effects::update_player_fishing_village_status(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update fishing village bonus status for player {:?}: {}", player_id, e);
+        }
+        // <<< END FISHING VILLAGE BONUS EFFECT MANAGEMENT >>>
 
         // <<< HOT SPRING COLD IMMUNITY & WARMTH RECOVERY >>>
         // Players in hot springs are immune to ALL cold effects AND gain warmth rapidly

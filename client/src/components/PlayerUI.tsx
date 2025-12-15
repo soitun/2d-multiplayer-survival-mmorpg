@@ -940,8 +940,19 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             name: 'Safe Zone',
                             emoji: '🛡️',
                             type: 'positive' as const,
-                            description: 'Protected from player, animal, and projectile damage while near ALK stations.',
+                            description: 'Protected from player, animal, and projectile damage while near ALK stations or fishing village.',
                             // No duration - permanent while in safe zone
+                        };
+                        break;
+                    case 'FishingVillageBonus':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'fishing_village_bonus',
+                            name: 'Aleut Fishing Waters',
+                            emoji: '🎣',
+                            type: 'positive' as const,
+                            description: '2x fishing hauls and better premium fish chance near the Aleut fishing village.',
+                            // No duration - permanent while in fishing village zone
                         };
                         break;
                     case 'BuildingPrivilege':

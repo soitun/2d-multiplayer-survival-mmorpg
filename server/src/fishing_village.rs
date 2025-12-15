@@ -1,6 +1,6 @@
 // server/src/fishing_village.rs
 // ------------------------------------
-// Fishing village monument collision definitions.
+// Fishing village monument collision definitions and fishing bonuses.
 // Fishing villages are dynamically placed during world generation and stored in fishing_village_part table.
 // Client-side rendering, server-side collision validation.
 // NOTE: Per user request, fishing village buildings have NO collision (collision_radius = 0)
@@ -9,6 +9,60 @@
 use crate::ReducerContext;
 use crate::fishing_village_part as FishingVillagePartTableTrait;
 use spacetimedb::Table;
+
+// =============================================================================
+// FISHING VILLAGE BONUS CONSTANTS
+// =============================================================================
+
+/// Radius around the fishing village center where fishing bonuses apply (in pixels)
+/// This is larger than the village itself to cover nearby fishing waters
+/// 1200px = ~25 tiles of fishing area around the village
+pub const FISHING_VILLAGE_BONUS_RADIUS: f32 = 1200.0;
+pub const FISHING_VILLAGE_BONUS_RADIUS_SQ: f32 = FISHING_VILLAGE_BONUS_RADIUS * FISHING_VILLAGE_BONUS_RADIUS;
+
+/// Fishing haul multiplier when fishing near the village (2x catches)
+pub const FISHING_VILLAGE_HAUL_MULTIPLIER: f32 = 2.0;
+
+/// Bonus fish chance multiplier when fishing near the village
+pub const FISHING_VILLAGE_BONUS_FISH_CHANCE_MULTIPLIER: f32 = 1.5;
+
+/// Premium tier chance bonus when fishing near the village (Aleut fishing expertise)
+pub const FISHING_VILLAGE_PREMIUM_TIER_BONUS: f32 = 0.05; // +5% chance for premium fish
+
+// =============================================================================
+// FISHING VILLAGE BONUS CHECKS
+// =============================================================================
+
+/// Checks if a position is within the fishing village bonus zone
+/// The bonus zone is larger than the village itself to cover nearby fishing waters
+/// Returns true if the position qualifies for fishing bonuses
+pub fn is_position_in_fishing_village_zone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    for part in ctx.db.fishing_village_part().iter() {
+        // Only check against the campfire (center piece) for zone determination
+        if part.is_center {
+            let dx = pos_x - part.world_x;
+            let dy = pos_y - part.world_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq <= FISHING_VILLAGE_BONUS_RADIUS_SQ {
+                return true;
+            }
+        }
+    }
+    
+    false
+}
+
+/// Gets the fishing village center position if it exists
+/// Returns Some((x, y)) of the village center, or None if not found
+pub fn get_fishing_village_center(ctx: &ReducerContext) -> Option<(f32, f32)> {
+    for part in ctx.db.fishing_village_part().iter() {
+        if part.is_center {
+            return Some((part.world_x, part.world_y));
+        }
+    }
+    None
+}
 
 /// Check if a position collides with any fishing village part.
 /// NOTE: Currently returns false since fishing village has no collision per user request.

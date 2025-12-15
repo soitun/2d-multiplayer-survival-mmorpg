@@ -425,6 +425,7 @@ interface UseDayNightCycleProps {
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
+    fishingVillageParts: Map<string, any>; // ADDED: Fishing village parts for campfire light
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -456,6 +457,7 @@ export function useDayNightCycle({
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
     fumaroles, // ADDED: Fumaroles
+    fishingVillageParts, // ADDED: Fishing village parts for campfire light
     players,
     activeEquipments,
     itemDefinitions,
@@ -601,6 +603,41 @@ export function useDayNightCycle({
                         { stop: 1, alpha: 0 },       // Complete fade to darkness
                     ],
                     enclosingCluster,
+                    cameraOffsetX,
+                    cameraOffsetY
+                );
+            }
+        });
+
+        // Render fishing village campfire light cutouts (Aleut-style central campfire)
+        // This is a LARGE communal campfire - cozy safe zone with warm light
+        // Y offset to center light on the firepit in the 1024x1024 image (rendered at half size)
+        const FV_CAMPFIRE_Y_OFFSET = -250;
+        fishingVillageParts.forEach(part => {
+            if (part.partType === 'campfire') {
+                const screenX = part.worldX + cameraOffsetX;
+                const screenY = part.worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET; // Apply offset
+                
+                // LARGE FISHING VILLAGE CAMPFIRE - bigger and warmer than regular campfires
+                // Creates a cozy, safe atmosphere in the village
+                const FISHING_VILLAGE_CAMPFIRE_RADIUS = CAMPFIRE_LIGHT_RADIUS_BASE * 3.0; // Communal fire light
+                const flicker = (Math.random() - 0.5) * 2 * CAMPFIRE_FLICKER_AMOUNT * 0.8; // Slightly more stable
+                const lightRadius = Math.max(0, FISHING_VILLAGE_CAMPFIRE_RADIUS + flicker);
+                
+                // No building clusters for outdoor village campfire
+                renderClippedLightCutout(
+                    maskCtx,
+                    screenX,
+                    screenY,
+                    lightRadius,
+                    [
+                        { stop: 0.05, alpha: 1 },    // Full cutout at center - cozy warm core
+                        { stop: 0.25, alpha: 0.85 }, // Strong cutout - safe zone area
+                        { stop: 0.5, alpha: 0.6 },   // Gentle transition
+                        { stop: 0.75, alpha: 0.3 },  // Fading edge
+                        { stop: 1, alpha: 0 },       // Complete fade to darkness
+                    ],
+                    null, // No building cluster (outdoor)
                     cameraOffsetX,
                     cameraOffsetY
                 );

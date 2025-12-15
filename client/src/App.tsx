@@ -539,12 +539,25 @@ function AppContent() {
     }, [connection]);
 
     // --- Music System ---
+    // Get player position for zone-based music (uses predicted position if available)
+    const playerMusicPosition = useMemo(() => {
+        if (!localPlayer) return null;
+        // Use position from localPlayer (predicted position is handled in movement hooks)
+        return {
+            x: localPlayer.positionX,
+            y: localPlayer.positionY
+        };
+    }, [localPlayer?.positionX, localPlayer?.positionY]);
+
     const musicSystem = useMusicSystem({
         enabled: true,
         volume: musicVolume,
         crossfadeDuration: 3000, // 3 second crossfade
         shuffleMode: true,
         preloadAll: true,
+        // Pass player position and fishing village parts for zone-based music
+        playerPosition: playerMusicPosition,
+        fishingVillageParts: fishingVillageParts,
     });
     
     // Update music volume when state changes

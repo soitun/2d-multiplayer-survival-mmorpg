@@ -15,7 +15,7 @@ interface CairnUnlockNotificationProps {
   onDismiss: () => void;
 }
 
-const NOTIFICATION_DURATION_MS = 4000; // Show for 4 seconds
+const NOTIFICATION_DURATION_MS = 6000; // Show for 6 seconds before fading
 
 const CairnUnlockNotification: React.FC<CairnUnlockNotificationProps> = ({ 
   notification,
@@ -39,11 +39,11 @@ const CairnUnlockNotification: React.FC<CairnUnlockNotificationProps> = ({
       // Start fade out timer
       timeoutRef.current = setTimeout(() => {
         setIsFadingOut(true);
-        // Dismiss after fade animation
+        // Dismiss after fade animation (matches CSS animation duration)
         setTimeout(() => {
           setIsVisible(false);
           onDismiss();
-        }, 500);
+        }, 800);
       }, NOTIFICATION_DURATION_MS);
     }
 
@@ -289,7 +289,7 @@ const styles = `
   }
 
   .cairn-notification.fading-out {
-    animation: cairnFadeOut 0.5s ease-out forwards;
+    animation: cairnFadeOut 0.8s ease-out forwards;
   }
 `;
 

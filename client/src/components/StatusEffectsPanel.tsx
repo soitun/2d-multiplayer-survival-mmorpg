@@ -191,7 +191,8 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
                 zIndex: 100,
                 fontFamily: '"Courier New", monospace',
                 animation: 'tooltipFadeIn 0.2s ease-out',
-                textAlign: 'left'
+                textAlign: 'left',
+                pointerEvents: 'none'
               }}>
                 {/* Tooltip Header */}
                 <div style={{

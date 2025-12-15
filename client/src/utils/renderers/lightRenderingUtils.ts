@@ -1004,3 +1004,95 @@ export function renderAllPlayerLights(options: RenderAllPlayerLightsOptions): vo
         }
     });
 }
+
+// ===== FISHING VILLAGE CAMPFIRE LIGHT RENDERING =====
+// Constants for fishing village communal campfire (larger than regular campfires)
+export const FV_CAMPFIRE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 2.0; // Communal fire
+export const FV_CAMPFIRE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.7; // More stable (well-tended fire)
+// Y offset to center light on the firepit in the 1024x1024 image (rendered at half size)
+export const FV_CAMPFIRE_Y_OFFSET = -250; // Push light up to match firepit center
+
+interface RenderFishingVillageCampfireLightProps {
+    ctx: CanvasRenderingContext2D;
+    worldX: number;
+    worldY: number;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+}
+
+/**
+ * Renders the warm, cozy light from the fishing village central campfire.
+ * This is a communal Aleut-style fire - larger, warmer, and more stable than player-placed campfires.
+ * Creates a safe, inviting atmosphere in the village.
+ */
+export const renderFishingVillageCampfireLight = ({
+    ctx,
+    worldX,
+    worldY,
+    cameraOffsetX,
+    cameraOffsetY,
+}: RenderFishingVillageCampfireLightProps) => {
+    const lightScreenX = worldX + cameraOffsetX;
+    // Apply Y offset to center light on the firepit in the image
+    const lightScreenY = worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET;
+    const baseFlicker = (Math.random() - 0.5) * 2 * FV_CAMPFIRE_FLICKER_AMOUNT;
+
+    // Add more pronounced asymmetry for crackling communal campfire effect
+    const campfireAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.5;
+    const campfireAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
+    const rusticCampfireX = lightScreenX + campfireAsymmetryX;
+    const rusticCampfireY = lightScreenY + campfireAsymmetryY;
+
+    // FISHING VILLAGE CAMPFIRE LIGHTING SYSTEM - Warm, inviting communal fire
+    const FV_SCALE = 2.0; // Communal fire atmosphere
+
+    // Layer 1: Large ambient glow (wood-burning communal fire - deep warm oranges)
+    const ambientRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 3.5 * FV_SCALE + baseFlicker * 0.3);
+    const ambientGradient = ctx.createRadialGradient(
+        rusticCampfireX, rusticCampfireY, 0,
+        rusticCampfireX, rusticCampfireY, ambientRadius
+    );
+    ambientGradient.addColorStop(0, 'rgba(230, 90, 30, 0.05)'); // Warm orange-red center
+    ambientGradient.addColorStop(0.25, 'rgba(200, 70, 20, 0.035)'); // Deep ember glow
+    ambientGradient.addColorStop(0.6, 'rgba(160, 50, 15, 0.02)'); // Natural wood-burning red
+    ambientGradient.addColorStop(1, 'rgba(120, 35, 10, 0)'); // Cozy ember fade
+    
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(rusticCampfireX, rusticCampfireY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (authentic communal fire warmth)
+    const mainRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 2.4 * FV_SCALE + baseFlicker * 0.8);
+    const mainGradient = ctx.createRadialGradient(
+        rusticCampfireX, rusticCampfireY, 0,
+        rusticCampfireX, rusticCampfireY, mainRadius
+    );
+    mainGradient.addColorStop(0, 'rgba(240, 140, 60, 0.20)'); // Warm orange center
+    mainGradient.addColorStop(0.15, 'rgba(220, 110, 35, 0.17)'); // Rich cozy orange
+    mainGradient.addColorStop(0.4, 'rgba(200, 80, 25, 0.12)'); // Deep orange warmth
+    mainGradient.addColorStop(0.65, 'rgba(170, 55, 18, 0.07)'); // Natural ember
+    mainGradient.addColorStop(0.85, 'rgba(140, 40, 12, 0.03)'); // Gentle fade
+    mainGradient.addColorStop(1, 'rgba(100, 25, 8, 0)'); // Cozy rustic fade
+    
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(rusticCampfireX, rusticCampfireY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (intense communal fire heart) 
+    const coreRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 0.6 * FV_SCALE + baseFlicker * 1.2);
+    const coreGradient = ctx.createRadialGradient(
+        rusticCampfireX, rusticCampfireY, 0,
+        rusticCampfireX, rusticCampfireY, coreRadius
+    );
+    coreGradient.addColorStop(0, 'rgba(250, 180, 100, 0.28)'); // Bright warm center
+    coreGradient.addColorStop(0.3, 'rgba(235, 130, 50, 0.20)'); // Rich golden orange
+    coreGradient.addColorStop(0.6, 'rgba(210, 90, 30, 0.12)'); // Warm orange glow
+    coreGradient.addColorStop(1, 'rgba(180, 60, 20, 0)'); // Cozy rustic fade
+    
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+};

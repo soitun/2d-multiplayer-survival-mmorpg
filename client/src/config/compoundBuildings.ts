@@ -607,35 +607,37 @@ export function getFishingVillageBuildings(fishingVillageParts: Array<{
     const offsetX = part.worldX - center.x;
     const offsetY = part.worldY - center.y;
     
-    // Size based on part type (smaller structures for fishing village)
-    let width = 256;
-    let height = 256;
+    // Size based on part type 
+    // Images are 1024x1024 square - render at half size (512x512) for good visibility
+    let width = 512;
+    let height = 512;
     
-    // Adjust sizes based on part type
+    // Adjust sizes based on part type - all images are 1024x1024 square
+    // Rendering at half size (512x512) makes them properly visible
     switch (part.partType) {
       case 'campfire':
-        width = 128;
-        height = 128;
+        width = 384;   // Campfire slightly smaller
+        height = 384;
         break;
       case 'hut':
-        width = 256;
-        height = 256;
+        width = 512;   // Huts at half original (1024 -> 512)
+        height = 512;
         break;
       case 'dock':
-        width = 384;  // Longer for dock
-        height = 192;
+        width = 512;   // Dock at half original
+        height = 512;
         break;
       case 'smokerack':
-        width = 128;
-        height = 192;
+        width = 384;   // Smokeracks slightly smaller
+        height = 384;
         break;
       case 'kayak':
-        width = 192;
-        height = 96;
+        width = 384;   // Kayak slightly smaller
+        height = 384;
         break;
       default:
-        width = 256;
-        height = 256;
+        width = 512;   // Default to half size
+        height = 512;
     }
     
     const anchorYOffset = 0; // Anchor at bottom of sprite

@@ -324,9 +324,10 @@ fn get_tier_spawn_chance(tier: FishTier, effectiveness: f32, deep_water_factor: 
     base_chance.clamp(0.0, 1.0)
 }
 
-// Generate loot for a successful fishing attempt with time-of-day, weather, and depth bonuses
+// Generate loot for a successful fishing attempt with time-of-day, weather, depth, and location bonuses
 // Uses chunk-based weather at the fishing target location for accurate local conditions
-pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32) -> Vec<String> {
+// Includes fishing village bonus when player has the FishingVillageBonus effect (standing in Aleut village)
+pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32, player_id: spacetimedb::Identity) -> Vec<String> {
     let mut loot = Vec::new();
     
     // Get current time of day (global)
@@ -336,6 +337,17 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32)
     // This ensures fishing in a rainy chunk gives rain bonuses even if other areas are clear
     let chunk_weather = get_weather_for_position(ctx, target_x, target_y);
     let current_weather = chunk_weather.current_weather;
+    
+    // Check if player has the fishing village bonus effect (Aleut village expertise)
+    // Effect is granted when player is standing in the fishing village zone
+    let has_fishing_village_bonus = crate::active_effects::player_has_fishing_village_effect(ctx, player_id);
+    let _fishing_village_multiplier = if has_fishing_village_bonus {
+        log::info!("🏘️🎣 Player has Fishing Village Bonus! Applying {}x haul bonus", 
+                  crate::fishing_village::FISHING_VILLAGE_HAUL_MULTIPLIER);
+        crate::fishing_village::FISHING_VILLAGE_HAUL_MULTIPLIER
+    } else {
+        1.0
+    };
     
     // Calculate effectiveness multipliers
     let time_effectiveness = get_fishing_effectiveness_multiplier(&time_of_day);
@@ -350,8 +362,15 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32)
     let fish_database = get_fish_database();
     
     // Determine which tier of fish to catch (roll from highest to lowest)
+    // Fishing village bonus effect provides a bonus to premium tier chances (Aleut fishing expertise)
+    let village_premium_bonus = if has_fishing_village_bonus { 
+        crate::fishing_village::FISHING_VILLAGE_PREMIUM_TIER_BONUS 
+    } else { 
+        0.0 
+    };
+    
     let selected_tier = {
-        let premium_chance = get_tier_spawn_chance(FishTier::Premium, total_effectiveness, deep_water_factor);
+        let premium_chance = get_tier_spawn_chance(FishTier::Premium, total_effectiveness, deep_water_factor) + village_premium_bonus;
         let rare_chance = get_tier_spawn_chance(FishTier::Rare, total_effectiveness, deep_water_factor);
         let uncommon_chance = get_tier_spawn_chance(FishTier::Uncommon, total_effectiveness, deep_water_factor);
         
@@ -407,11 +426,23 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32)
     loot.push(selected_fish.to_string());
     
     // Log the catch with details (including chunk weather info)
-    log::info!("🎣 Fish caught: {} (Tier: {:?}, Time: {:?}, ChunkWeather: {:?}, Effectiveness: {:.2}x, Depth: {:.2}, Pos: {:.0},{:.0})",
-              selected_fish, selected_tier, time_of_day, current_weather, total_effectiveness, deep_water_factor, target_x, target_y);
+    log::info!("🎣 Fish caught: {} (Tier: {:?}, Time: {:?}, ChunkWeather: {:?}, Effectiveness: {:.2}x, Depth: {:.2}, VillageBonus: {}, Pos: {:.0},{:.0})",
+              selected_fish, selected_tier, time_of_day, current_weather, total_effectiveness, deep_water_factor, has_fishing_village_bonus, target_x, target_y);
     
-    // Bonus fish chance during excellent conditions
-    let bonus_fish_chance = 0.15 * total_effectiveness; // 15% base, up to ~37% in perfect conditions
+    // === FISHING VILLAGE 2X HAUL BONUS ===
+    // When player has fishing village bonus effect, duplicate the main catch for 2x haul
+    if has_fishing_village_bonus {
+        loot.push(selected_fish.to_string());
+        log::info!("🏘️ Village fishing bonus! Doubled catch: +1 {}", selected_fish);
+    }
+    
+    // Bonus fish chance during excellent conditions (enhanced by fishing village bonus)
+    let village_bonus_mult = if has_fishing_village_bonus { 
+        crate::fishing_village::FISHING_VILLAGE_BONUS_FISH_CHANCE_MULTIPLIER 
+    } else { 
+        1.0 
+    };
+    let bonus_fish_chance = 0.15 * total_effectiveness * village_bonus_mult; // 15% base, up to ~37% in perfect conditions, 1.5x in village
     if ctx.rng().gen_range(0.0..1.0) < bonus_fish_chance {
         // Bonus fish is always common tier (can't stack premium catches too easily)
         let common_fish: Vec<&FishEntry> = fish_database
@@ -628,7 +659,8 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
     if success {
         // Generate loot server-side to ensure fairness and prevent cheating
         // Pass fishing target position for accurate chunk-based weather calculations
-        let generated_loot = generate_fishing_loot(ctx, fishing_session.target_x, fishing_session.target_y);
+        // Pass player_id for fishing village bonus effect check
+        let generated_loot = generate_fishing_loot(ctx, fishing_session.target_x, fishing_session.target_y, player_id);
         
         if generated_loot.is_empty() {
             log::error!("Player {} successful fishing but no loot generated! This should never happen!", player_id);

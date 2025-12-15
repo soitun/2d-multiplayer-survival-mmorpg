@@ -89,14 +89,28 @@ const FIRE_EMISSION_ZONES = [
     }
 ];
 
+// Static campfire position (e.g., fishing village communal campfire - always burning)
+interface StaticCampfirePosition {
+    id: string;
+    posX: number;
+    posY: number;
+}
+
+// ADDED: Y offset for static campfires (fishing village) to center particles on firepit
+// The fishing village campfire image has the firepit centered higher in the 1024x1024 image
+// This offset moves particles up to match the visual firepit center
+const STATIC_CAMPFIRE_Y_OFFSET = -250; // Push particles up by ~250px to match firepit center
+
 interface UseCampfireParticlesProps {
     visibleCampfiresMap: Map<string, SpacetimeDBCampfire>;
     deltaTime: number; // Delta time in milliseconds
+    staticCampfires?: StaticCampfirePosition[]; // ADDED: Static always-burning campfires (e.g., fishing village)
 }
 
 export function useCampfireParticles({
     visibleCampfiresMap,
     deltaTime,
+    staticCampfires = [], // ADDED: Static always-burning campfires (e.g., fishing village)
 }: UseCampfireParticlesProps): Particle[] {
     // OPTIMIZED: Use ref instead of state to avoid re-renders every frame
     const particlesRef = useRef<Particle[]>([]);
@@ -297,6 +311,71 @@ export function useCampfireParticles({
                     } else {
                         smokeBurstEmissionAccumulatorRef.current.set(campfireId, 0); // Reset if not in hot zone or campfire not burning
                     }
+                });
+            }
+
+            // ADDED: Static campfires (e.g., fishing village communal campfire) - always burning
+            // These don't have isBurning state, they're always active monument pieces
+            if (staticCampfires && staticCampfires.length > 0) {
+                staticCampfires.forEach((campfire) => {
+                    const campfireId = `static_${campfire.id}`;
+                    currentVisibleCampfireIds.add(campfireId);
+                    
+                    // Static campfires are always burning - no state tracking needed
+                    // Apply Y offset to center particles on the firepit in the image
+                    const visualCenterX = campfire.posX;
+                    const visualCenterY = campfire.posY + STATIC_CAMPFIRE_Y_OFFSET;
+                    
+                    // Generate fire particles - slightly scaled up for communal fire feel
+                    FIRE_EMISSION_ZONES.forEach((zone) => {
+                        let fireAcc = fireEmissionAccumulatorRef.current.get(`${campfireId}_${zone.name}`) || 0;
+                        // Slightly higher emission rate for larger communal fire
+                        fireAcc += zone.emissionRate * 1.3 * deltaTimeFactor;
+                        
+                        while (fireAcc >= 1) {
+                            fireAcc -= 1;
+                            const lifetime = PARTICLE_FIRE_LIFETIME_MIN + Math.random() * (PARTICLE_FIRE_LIFETIME_MAX - PARTICLE_FIRE_LIFETIME_MIN);
+                            
+                            // Slightly wider spread for communal fire
+                            const spreadMultiplier = 1.4;
+                            
+                            newGeneratedParticles.push({
+                                id: `fire_static_${zone.name}_${now}_${Math.random()}`, 
+                                type: 'fire',
+                                x: visualCenterX + (Math.random() - 0.5) * zone.spread.x * spreadMultiplier,
+                                y: visualCenterY + zone.yOffset + (Math.random() - 0.5) * zone.spread.y * spreadMultiplier,
+                                vx: (Math.random() - 0.5) * PARTICLE_FIRE_SPEED_X_SPREAD,
+                                vy: (PARTICLE_FIRE_SPEED_Y_MIN + Math.random() * (PARTICLE_FIRE_SPEED_Y_MAX - PARTICLE_FIRE_SPEED_Y_MIN)) * zone.speedMultiplier,
+                                spawnTime: now, 
+                                initialLifetime: lifetime, 
+                                lifetime,
+                                size: Math.floor(PARTICLE_FIRE_SIZE_MIN + Math.random() * (PARTICLE_FIRE_SIZE_MAX - PARTICLE_FIRE_SIZE_MIN)) + 1,
+                                color: PARTICLE_FIRE_COLORS[Math.floor(Math.random() * PARTICLE_FIRE_COLORS.length)],
+                                alpha: 1.0, 
+                            });
+                        }
+                        fireEmissionAccumulatorRef.current.set(`${campfireId}_${zone.name}`, fireAcc);
+                    });
+
+                    // Generate smoke particles - cozy communal smoke
+                    let smokeAcc = smokeEmissionAccumulatorRef.current.get(campfireId) || 0;
+                    smokeAcc += SMOKE_PARTICLES_PER_CAMPFIRE_FRAME * 1.2 * deltaTimeFactor; // Slightly more smoke
+                    while (smokeAcc >= 1) {
+                        smokeAcc -= 1;
+                        const lifetime = PARTICLE_SMOKE_LIFETIME_MIN + Math.random() * (PARTICLE_SMOKE_LIFETIME_MAX - PARTICLE_SMOKE_LIFETIME_MIN);
+                        newGeneratedParticles.push({
+                            id: `smoke_static_${now}_${Math.random()}`, type: 'smoke',
+                            x: visualCenterX + (Math.random() - 0.5) * 10, // Wider spread
+                            y: visualCenterY + SMOKE_EMISSION_CENTER_Y_OFFSET + (Math.random() - 0.5) * 8,
+                            vx: (Math.random() - 0.5) * PARTICLE_SMOKE_SPEED_X_SPREAD,
+                            vy: PARTICLE_SMOKE_SPEED_Y_MIN + Math.random() * (PARTICLE_SMOKE_SPEED_Y_MAX - PARTICLE_SMOKE_SPEED_Y_MIN),
+                            spawnTime: now, initialLifetime: lifetime, lifetime,
+                            size: Math.floor(PARTICLE_SMOKE_SIZE_MIN + Math.random() * (PARTICLE_SMOKE_SIZE_MAX - PARTICLE_SMOKE_SIZE_MIN)) + 1,
+                            color: PARTICLE_SMOKE_COLORS[Math.floor(Math.random() * PARTICLE_SMOKE_COLORS.length)],
+                            alpha: SMOKE_INITIAL_ALPHA,
+                        });
+                    }
+                    smokeEmissionAccumulatorRef.current.set(campfireId, smokeAcc);
                 });
             }
 

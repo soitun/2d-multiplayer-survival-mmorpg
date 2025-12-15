@@ -112,7 +112,7 @@ import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights } from '../utils/renderers/lightRenderingUtils';
+import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
@@ -761,6 +761,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night
+    fishingVillageParts: fishingVillageParts ?? new Map(), // ADDED: Fishing village campfire light
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -1794,9 +1795,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isAutoAttacking, onAutoActionStatesChange]);
 
   // Use the particle hooks - they now run independently
+  // Compute static campfire positions from fishing village parts (always burning)
+  const staticCampfires = useMemo(() => {
+    if (!fishingVillageParts || fishingVillageParts.size === 0) return [];
+    const campfires: { id: string; posX: number; posY: number }[] = [];
+    fishingVillageParts.forEach((part: any) => {
+      if (part.partType === 'campfire') {
+        campfires.push({ id: part.id.toString(), posX: part.worldX, posY: part.worldY });
+      }
+    });
+    return campfires;
+  }, [fishingVillageParts]);
+
   const campfireParticles = useCampfireParticles({
     visibleCampfiresMap,
     deltaTime: 0, // Not used anymore, but kept for compatibility
+    staticCampfires, // ADDED: Fishing village campfire (always burning)
   });
 
   const torchParticles = useTorchParticles({
@@ -3270,6 +3284,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         buildingClusters,
       });
     });
+
+    // Fishing Village Campfire Light - Always burning communal fire
+    // Renders the warm, cozy light from the Aleut-style central campfire
+    if (fishingVillageParts && fishingVillageParts.size > 0) {
+      fishingVillageParts.forEach((part: any) => {
+        if (part.partType === 'campfire') {
+          renderFishingVillageCampfireLight({
+            ctx,
+            worldX: part.worldX,
+            worldY: part.worldY,
+            cameraOffsetX: currentCameraOffsetX,
+            cameraOffsetY: currentCameraOffsetY,
+          });
+        }
+      });
+    }
 
     // Lantern Lights - Only draw for visible lanterns
     visibleLanternsMap.forEach((lantern: SpacetimeDBLantern) => {

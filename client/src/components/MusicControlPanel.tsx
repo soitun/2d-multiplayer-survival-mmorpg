@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { useMusicSystem } from '../hooks/useMusicSystem';
+import { useMusicSystem, MUSIC_ZONE_INFO, MusicZone } from '../hooks/useMusicSystem';
 
 // Style constants matching DayNightCycleTracker
 const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))';
 const UI_BORDER_COLOR = '#00aaff';
 const UI_SHADOW = '0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)';
 const UI_FONT_FAMILY = '"Press Start 2P", cursive';
+
+// Zone-specific colors for visual feedback
+const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow: string }> = {
+    normal: { primary: '#ff6b9d', secondary: '#4ecdc4', glow: 'rgba(255, 107, 157, 0.8)' },
+    fishing_village: { primary: '#4fc3f7', secondary: '#81d4fa', glow: 'rgba(79, 195, 247, 0.8)' },
+    alk_compound: { primary: '#ffc107', secondary: '#ff9800', glow: 'rgba(255, 193, 7, 0.8)' },
+};
 
 interface MusicControlPanelProps {
     musicSystem: ReturnType<typeof useMusicSystem>;
@@ -113,8 +120,13 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
         error,
         setVolume,
         shuffleMode,
-        playSpecificTrack
+        playSpecificTrack,
+        currentZone,
+        zoneInfo
     } = musicSystem;
+
+    // Get zone-specific colors
+    const zoneColors = ZONE_COLORS[currentZone] || ZONE_COLORS.normal;
 
     // Toggle play/pause
     const togglePlayPause = () => {
@@ -365,7 +377,7 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                 marginBottom: '16px', // Increased margin
                 fontSize: '16px' // Increased header font
             }}>
-                <span style={{ color: '#ff6b9d', textShadow: '0 0 8px #ff6b9d' }}>
+                <span style={{ color: zoneColors.primary, textShadow: `0 0 8px ${zoneColors.glow}` }}>
                     🎵 NEURAL HARMONY
                 </span>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -387,6 +399,30 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                 </div>
             </div>
 
+            {/* Zone Indicator - only show when in special zone */}
+            {currentZone !== 'normal' && zoneInfo && (
+                <div style={{
+                    marginBottom: '12px',
+                    padding: '8px 12px',
+                    background: `linear-gradient(135deg, ${zoneColors.primary}20, ${zoneColors.secondary}10)`,
+                    border: `1px solid ${zoneColors.primary}60`,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '11px',
+                }}>
+                    <span style={{ fontSize: '14px' }}>{zoneInfo.icon}</span>
+                    <span style={{ 
+                        color: zoneColors.primary, 
+                        textShadow: `0 0 4px ${zoneColors.glow}`,
+                        fontWeight: 'bold'
+                    }}>
+                        {zoneInfo.name.toUpperCase()} ZONE
+                    </span>
+                </div>
+            )}
+
             {/* Current Track Info */}
             <div style={{ marginBottom: '16px' }}>
                 <div style={{ 
@@ -402,7 +438,7 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                 <div style={{ 
                     fontSize: '12px', // Increased from 10px
                     opacity: 0.6,
-                    color: '#4ecdc4'
+                    color: zoneColors.secondary
                 }}>
                     Track {currentPosition} of {totalTracks} {shuffleMode ? '(Shuffled)' : '(Sequential)'}
                 </div>
@@ -528,10 +564,13 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                 <div style={{ 
                     fontSize: '12px', // Increased from 10px
                     marginBottom: '10px', // Increased margin
-                    color: '#90ee90',
+                    color: currentZone !== 'normal' ? zoneColors.secondary : '#90ee90',
                     textAlign: 'center'
                 }}>
-                    TRACKLIST
+                    {currentZone !== 'normal' && zoneInfo 
+                        ? `${zoneInfo.icon} ${zoneInfo.name.toUpperCase()} TRACKS`
+                        : 'TRACKLIST'
+                    }
                 </div>
                 {MUSIC_TRACKS.map((track, trackIndex) => {
                     const displaySelectedTrack = getDisplaySelectedTrack();

@@ -63,6 +63,7 @@ pub enum EffectType {
     HotSpring, // Healing effect from standing in a hot spring
     Fumarole, // Warmth protection from standing near a fumarole (nullifies warmth decay)
     SafeZone, // Protection from player/animal/projectile damage when near ALK monuments (shield emoji)
+    FishingVillageBonus, // 2x fishing hauls and premium tier bonus when near fishing village (fish+village emoji)
     
     // === BREWING SYSTEM EFFECTS - 1 hour buffs that don't persist through death ===
     Intoxicated,       // Drunk effect from alcoholic brews - blurred vision, movement wobble (1 hour)
@@ -140,9 +141,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             continue;
         }
 
-    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, and safe zone - they are managed by other systems, not the effect tick system
+    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, safe zone, and fishing village bonus - they are managed by other systems, not the effect tick system
     // These effects are permanent until removed by other systems, so skip them entirely
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus {
         continue;
     }
     
@@ -188,7 +189,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -599,6 +600,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // This effect doesn't consume amount_applied_so_far
                             amount_this_tick = 0.0;
                         },
+                        EffectType::FishingVillageBonus => {
+                            // FishingVillageBonus provides 2x fishing hauls and premium tier bonus
+                            // The bonus is checked in fishing loot generation
+                            // This effect doesn't consume amount_applied_so_far
+                            amount_this_tick = 0.0;
+                        },
                         // === ADDITIONAL BROTH EFFECTS ===
                         EffectType::PoisonCoating => {
                             // PoisonCoating makes all player attacks inflict poison on targets
@@ -995,6 +1002,12 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
     // Import necessary traits
     use crate::campfire::{campfire as CampfireTableTrait, WARMTH_RADIUS_SQUARED};
     use crate::shelter::{shelter as ShelterTableTrait, is_player_inside_shelter};
+    use crate::fishing_village_part as FishingVillagePartTableTrait;
+    
+    // Fishing village communal campfire cozy radius (larger than regular campfires)
+    // This is a public safe zone - cozy effect is available to all players
+    const FISHING_VILLAGE_COZY_RADIUS: f32 = 450.0; // Larger radius for communal campfire
+    const FISHING_VILLAGE_COZY_RADIUS_SQ: f32 = FISHING_VILLAGE_COZY_RADIUS * FISHING_VILLAGE_COZY_RADIUS;
     
     // Check for nearby burning campfires
     for campfire in ctx.db.campfire().iter() {
@@ -1005,6 +1018,21 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
             
             if distance_squared <= WARMTH_RADIUS_SQUARED {
                 log::debug!("Player {:?} is cozy near burning campfire {}", player_id, campfire.id);
+                return true;
+            }
+        }
+    }
+    
+    // Check for fishing village communal campfire (always burning, public cozy zone)
+    for part in ctx.db.fishing_village_part().iter() {
+        // Only the campfire (center piece) provides cozy effect
+        if part.part_type == "campfire" {
+            let dx = player_x - part.world_x;
+            let dy = player_y - part.world_y;
+            let distance_squared = dx * dx + dy * dy;
+            
+            if distance_squared <= FISHING_VILLAGE_COZY_RADIUS_SQ {
+                log::debug!("Player {:?} is cozy near fishing village campfire (communal warmth)", player_id);
                 return true;
             }
         }
@@ -2217,6 +2245,11 @@ pub const SAFE_ZONE_RADIUS_MULTIPLIER_SUBSTATION: f32 = 3.0; // 3x for substatio
 /// Safe zone radius matches building restriction radius to prevent abuse
 pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
     use crate::alk::alk_station as AlkStationTableTrait;
+    use crate::fishing_village_part as FishingVillagePartTableTrait;
+    
+    // Fishing village safe zone radius - communal protection area
+    const FISHING_VILLAGE_SAFE_ZONE_RADIUS: f32 = 600.0; // Protective radius around the campfire
+    const FISHING_VILLAGE_SAFE_ZONE_RADIUS_SQ: f32 = FISHING_VILLAGE_SAFE_ZONE_RADIUS * FISHING_VILLAGE_SAFE_ZONE_RADIUS;
     
     // Check all ALK stations (central compound + 4 substations)
     for station in ctx.db.alk_station().iter() {
@@ -2244,6 +2277,21 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
         // Check if player is within safe zone radius
         if distance_sq <= safe_zone_radius_sq {
             return true;
+        }
+    }
+    
+    // Check fishing village communal campfire safe zone
+    // The village campfire provides protection from PvP and hostile animal attacks
+    for part in ctx.db.fishing_village_part().iter() {
+        // Only the campfire (center piece) creates the safe zone
+        if part.part_type == "campfire" {
+            let dx = player_x - part.world_x;
+            let dy = player_y - part.world_y;
+            let distance_sq = dx * dx + dy * dy;
+            
+            if distance_sq <= FISHING_VILLAGE_SAFE_ZONE_RADIUS_SQ {
+                return true;
+            }
         }
     }
     
@@ -2327,6 +2375,95 @@ fn remove_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) {
     for effect_id in effects_to_remove {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed safe zone effect {} from player {:?}", effect_id, player_id);
+    }
+}
+
+// Fishing Village Bonus Effect Management
+// ============================
+
+/// Checks if a player is currently within a fishing village bonus zone
+/// Uses the fishing_village module to check position
+pub fn is_player_in_fishing_village_zone(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
+    crate::fishing_village::is_position_in_fishing_village_zone(ctx, player_x, player_y)
+}
+
+/// Updates fishing village bonus effect for a player based on their position
+/// Fishing village bonus provides 2x fishing hauls and premium tier bonus
+pub fn update_player_fishing_village_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    let is_in_fishing_village = is_player_in_fishing_village_zone(ctx, player_x, player_y);
+    let has_fishing_village_effect = player_has_fishing_village_effect(ctx, player_id);
+    
+    log::debug!("Fishing village status check for player {:?}: in_zone={}, has_effect={}", 
+        player_id, is_in_fishing_village, has_fishing_village_effect);
+    
+    if is_in_fishing_village {
+        // Apply fishing village bonus effect if not present
+        if !has_fishing_village_effect {
+            log::info!("Applying fishing village bonus effect to player {:?} (2x fishing hauls)", player_id);
+            apply_fishing_village_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove fishing village bonus effect when player leaves
+        if has_fishing_village_effect {
+            log::info!("Removing fishing village bonus effect from player {:?}", player_id);
+            remove_fishing_village_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the fishing village bonus effect active
+pub fn player_has_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::FishingVillageBonus)
+}
+
+/// Applies fishing village bonus effect to a player
+fn apply_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent while in zone
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let fishing_village_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future, // Effectively permanent while in zone
+        total_amount: None, // No accumulation for fishing village bonus effect
+        amount_applied_so_far: None,
+        effect_type: EffectType::FishingVillageBonus,
+        tick_interval_micros: 1_000_000, // 1 second ticks (not really used)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(fishing_village_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied fishing village bonus effect {} to player {:?}", inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply fishing village bonus effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply fishing village bonus effect".to_string())
+        }
+    }
+}
+
+/// Removes fishing village bonus effect from a player
+fn remove_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::FishingVillageBonus {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed fishing village bonus effect {} from player {:?}", effect_id, player_id);
     }
 }
 

@@ -84,7 +84,7 @@ const BlogFooter: React.FC = () => {
                     textAlign: isMobile ? 'center' : 'left',
                 }}>
                     <img
-                        src="/images/blog/logo_new.png"
+                        src="/images/blog/logo_alt.png"
                         alt="Broth & Bullets Logo"
                         style={{
                             width: isMobile ? '140px' : '160px',

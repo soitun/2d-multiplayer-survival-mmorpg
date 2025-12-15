@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 
 interface MusicSystemConfig {
     enabled: boolean;
@@ -12,23 +12,58 @@ interface MusicTrack {
     filename: string;
     displayName: string;
     duration?: number; // Will be set after loading
+    path: string; // Full path from /music/
 }
 
-// All music tracks found in /public/music
-const MUSIC_TRACKS: MusicTrack[] = [
-    { filename: 'Aleut_Ashfall.mp3', displayName: 'Aleut Ashfall' },
-    { filename: 'Babushka_Circuit.mp3', displayName: 'Babushka Circuit' },
-    { filename: 'Deadwomans_Harbor.mp3', displayName: 'Deadwoman\'s Harbor' },
-    { filename: 'Inlet Fog.mp3', displayName: 'Inlet Fog' },
-    { filename: 'Derge_Soupline.mp3', displayName: 'Derge Soupline' },
-    { filename: 'Kindling_Ritual.mp3', displayName: 'Kindling Ritual' },
-    { filename: 'Latchkey_Depths.mp3', displayName: 'Latchkey Depths' },
-    { filename: 'Low_Tide_Cache.mp3', displayName: 'Low Tide Cache' },
-    { filename: 'Saltwind.mp3', displayName: 'Saltwind' },
-    { filename: 'Snowblind_Signal.mp3', displayName: 'Snowblind Signal' },
-    { filename: 'Spoiled_Tallow.mp3', displayName: 'Spoiled Tallow' },
-    { filename: 'Whalebone_Relay.mp3', displayName: 'Whalebone Relay' },
+// Music zone types - extensible for future monuments
+export type MusicZone = 'normal' | 'fishing_village' | 'alk_compound';
+
+// Zone metadata for UI display
+export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> = {
+    normal: { name: 'Wilderness', icon: '🌲' },
+    fishing_village: { name: 'Fishing Village', icon: '🎣' },
+    alk_compound: { name: 'ALK Compound', icon: '🏭' },
+};
+
+// Zone detection radius in pixels (matches server clearance::FISHING_VILLAGE)
+const FISHING_VILLAGE_ZONE_RADIUS = 500;
+
+// Normal world music tracks (in /public/music/)
+const NORMAL_TRACKS: MusicTrack[] = [
+    { filename: 'Aleut_Ashfall.mp3', displayName: 'Aleut Ashfall', path: 'Aleut_Ashfall.mp3' },
+    { filename: 'Babushka_Circuit.mp3', displayName: 'Babushka Circuit', path: 'Babushka_Circuit.mp3' },
+    { filename: 'Deadwomans_Harbor.mp3', displayName: 'Deadwoman\'s Harbor', path: 'Deadwomans_Harbor.mp3' },
+    { filename: 'Inlet Fog.mp3', displayName: 'Inlet Fog', path: 'Inlet_Fog.mp3' },
+    { filename: 'Derge_Soupline.mp3', displayName: 'Derge Soupline', path: 'Derge_Soupline.mp3' },
+    { filename: 'Kindling_Ritual.mp3', displayName: 'Kindling Ritual', path: 'Kindling_Ritual.mp3' },
+    { filename: 'Latchkey_Depths.mp3', displayName: 'Latchkey Depths', path: 'Latchkey_Depths.mp3' },
+    { filename: 'Low_Tide_Cache.mp3', displayName: 'Low Tide Cache', path: 'Low_Tide_Cache.mp3' },
+    { filename: 'Saltwind.mp3', displayName: 'Saltwind', path: 'Saltwind.mp3' },
+    { filename: 'Snowblind_Signal.mp3', displayName: 'Snowblind Signal', path: 'Snowblind_Signal.mp3' },
+    { filename: 'Spoiled_Tallow.mp3', displayName: 'Spoiled Tallow', path: 'Spoiled_Tallow.mp3' },
+    { filename: 'Whalebone_Relay.mp3', displayName: 'Whalebone Relay', path: 'Whalebone_Relay.mp3' },
 ];
+
+// Fishing Village music tracks (in /public/music/fv/)
+const FISHING_VILLAGE_TRACKS: MusicTrack[] = [
+    { filename: 'Ancestors_Watch.mp3', displayName: 'Ancestors Watch', path: 'fv/Ancestors_Watch.mp3' },
+    { filename: 'Bering_Fog.mp3', displayName: 'Bering Fog', path: 'fv/Bering_Fog.mp3' },
+    { filename: 'Unagan_Tides.mp3', displayName: 'Unagan Tides', path: 'fv/Unagan_Tides.mp3' },
+    { filename: 'Whale_Bone_Drums.mp3', displayName: 'Whale Bone Drums', path: 'fv/Whale_Bone_Drums.mp3' },
+];
+
+// Zone-based track mapping
+const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
+    normal: NORMAL_TRACKS,
+    fishing_village: FISHING_VILLAGE_TRACKS,
+    alk_compound: NORMAL_TRACKS, // Placeholder until ALK music is added
+};
+
+// All tracks for preloading
+const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS];
+
+// Legacy export for backward compatibility
+const MUSIC_TRACKS = NORMAL_TRACKS;
 
 const DEFAULT_CONFIG: MusicSystemConfig = {
     enabled: true,
@@ -46,10 +81,30 @@ interface MusicSystemState {
     isLoading: boolean;
     preloadProgress: number; // 0-1
     error: string | null;
-    playlist: number[]; // Shuffled track indices
+    playlist: number[]; // Shuffled track indices (relative to current zone's tracks)
     playlistPosition: number;
     volume: number; // Current volume (0-1)
     shuffleMode: boolean; // Track shuffle mode in state
+    currentZone: MusicZone; // Current music zone
+}
+
+// Player position for zone detection
+interface PlayerPosition {
+    x: number;
+    y: number;
+}
+
+// Fishing village part interface (matching SpacetimeDB type)
+interface FishingVillagePart {
+    id: bigint;
+    world_x: number;
+    world_y: number;
+    worldX?: number; // Alternative naming
+    worldY?: number;
+    part_type: string;
+    partType?: string; // Alternative naming
+    is_center: boolean;
+    isCenter?: boolean; // Alternative naming
 }
 
 // Audio cache for preloaded tracks
@@ -57,42 +112,42 @@ class MusicCache {
     private cache = new Map<string, HTMLAudioElement>();
     private loadingPromises = new Map<string, Promise<HTMLAudioElement>>();
 
-    async get(filename: string): Promise<HTMLAudioElement> {
+    async get(path: string): Promise<HTMLAudioElement> {
         // Check cache first
-        const cached = this.cache.get(filename);
+        const cached = this.cache.get(path);
         if (cached) {
             return cached;
         }
 
         // Check if already loading
-        const loadingPromise = this.loadingPromises.get(filename);
+        const loadingPromise = this.loadingPromises.get(path);
         if (loadingPromise) {
             return loadingPromise;
         }
 
         // Start loading
-        const promise = this.loadTrack(filename);
-        this.loadingPromises.set(filename, promise);
+        const promise = this.loadTrack(path);
+        this.loadingPromises.set(path, promise);
 
         try {
             const audio = await promise;
-            this.cache.set(filename, audio);
-            this.loadingPromises.delete(filename);
+            this.cache.set(path, audio);
+            this.loadingPromises.delete(path);
             return audio;
         } catch (error) {
-            this.loadingPromises.delete(filename);
+            this.loadingPromises.delete(path);
             throw error;
         }
     }
 
-    private async loadTrack(filename: string): Promise<HTMLAudioElement> {
+    private async loadTrack(path: string): Promise<HTMLAudioElement> {
         return new Promise((resolve, reject) => {
-            const audio = new Audio(`/music/${filename}`);
+            const audio = new Audio(`/music/${path}`);
             audio.preload = 'auto';
             audio.loop = false; // We'll handle looping manually
             
             const loadTimeout = setTimeout(() => {
-                reject(new Error(`Music load timeout: ${filename}`));
+                reject(new Error(`Music load timeout: ${path}`));
             }, 10000); // 10 second timeout for large files
 
             audio.addEventListener('loadeddata', () => {
@@ -102,8 +157,8 @@ class MusicCache {
 
             audio.addEventListener('error', (e) => {
                 clearTimeout(loadTimeout);
-                console.error(`🎵 Music load error: ${filename}`, e);
-                reject(new Error(`Failed to load music: ${filename}`));
+                console.error(`🎵 Music load error: ${path}`, e);
+                reject(new Error(`Failed to load music: ${path}`));
             }, { once: true });
 
             // Start loading
@@ -111,8 +166,8 @@ class MusicCache {
         });
     }
 
-    has(filename: string): boolean {
-        return this.cache.has(filename);
+    has(path: string): boolean {
+        return this.cache.has(path);
     }
 
     clear(): void {
@@ -167,7 +222,70 @@ const fadeAudio = async (audio: HTMLAudioElement, fromVolume: number, toVolume: 
     });
 };
 
-export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
+// Helper function to detect which music zone the player is in
+const detectMusicZone = (
+    playerPos: PlayerPosition | null,
+    fishingVillageParts: Map<string, any> | null
+): MusicZone => {
+    if (!playerPos || !fishingVillageParts || fishingVillageParts.size === 0) {
+        return 'normal';
+    }
+
+    // Find the fishing village center (campfire)
+    let centerX: number | null = null;
+    let centerY: number | null = null;
+
+    for (const part of fishingVillageParts.values()) {
+        // Check for center piece using both naming conventions
+        const isCenter = part.is_center || part.isCenter;
+        if (isCenter) {
+            centerX = part.world_x ?? part.worldX;
+            centerY = part.world_y ?? part.worldY;
+            break;
+        }
+    }
+
+    // If no center found, use average of all parts
+    if (centerX === null || centerY === null) {
+        let sumX = 0, sumY = 0, count = 0;
+        for (const part of fishingVillageParts.values()) {
+            const x = part.world_x ?? part.worldX;
+            const y = part.world_y ?? part.worldY;
+            if (x !== undefined && y !== undefined) {
+                sumX += x;
+                sumY += y;
+                count++;
+            }
+        }
+        if (count > 0) {
+            centerX = sumX / count;
+            centerY = sumY / count;
+        }
+    }
+
+    // Check if player is within zone radius
+    if (centerX !== null && centerY !== null) {
+        const dx = playerPos.x - centerX;
+        const dy = playerPos.y - centerY;
+        const distSq = dx * dx + dy * dy;
+        
+        if (distSq < FISHING_VILLAGE_ZONE_RADIUS * FISHING_VILLAGE_ZONE_RADIUS) {
+            return 'fishing_village';
+        }
+    }
+
+    // Future: Add ALK compound zone detection here
+    // For now, return normal
+    return 'normal';
+};
+
+interface MusicSystemOptions extends Partial<MusicSystemConfig> {
+    playerPosition?: PlayerPosition | null;
+    fishingVillageParts?: Map<string, any> | null;
+}
+
+export const useMusicSystem = (options: MusicSystemOptions = {}) => {
+    const { playerPosition, fishingVillageParts, ...config } = options;
     const finalConfig = { ...DEFAULT_CONFIG, ...config };
     
     const [state, setState] = useState<MusicSystemState>({
@@ -181,6 +299,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         playlistPosition: 0,
         volume: finalConfig.volume,
         shuffleMode: finalConfig.shuffleMode,
+        currentZone: 'normal',
     });
 
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -209,19 +328,19 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         configRef.current = finalConfig;
     }, [finalConfig]);
 
-    // Preload all music tracks
+    // Preload all music tracks (including zone-specific tracks)
     const preloadAllTracks = useCallback(async () => {
         if (!finalConfig.preloadAll) return;
 
-        // console.log('🎵 Starting music preload...');
+        // console.log('🎵 Starting music preload (including zone tracks)...');
         setState(prev => ({ ...prev, isLoading: true, preloadProgress: 0 }));
 
         let loadedCount = 0;
-        const totalTracks = MUSIC_TRACKS.length;
+        const totalTracks = ALL_TRACKS.length;
 
-        const loadPromises = MUSIC_TRACKS.map(async (track, index) => {
+        const loadPromises = ALL_TRACKS.map(async (track, index) => {
             try {
-                await musicCache.get(track.filename);
+                await musicCache.get(track.path);
                 loadedCount++;
                 const progress = loadedCount / totalTracks;
                 setState(prev => ({ ...prev, preloadProgress: progress }));
@@ -245,21 +364,28 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         // console.log(`🎵 Music preload complete! Loaded ${loadedCount}/${totalTracks} tracks`);
     }, [finalConfig.preloadAll]);
 
-    // Play a specific track
-    const playTrack = useCallback(async (trackIndex: number, crossfade = true): Promise<void> => {
+    // Get current zone's tracks
+    const getCurrentZoneTracks = useCallback((): MusicTrack[] => {
+        return ZONE_TRACKS[stateRef.current.currentZone] || NORMAL_TRACKS;
+    }, []);
+
+    // Play a specific track (using index within current zone's tracklist)
+    const playTrack = useCallback(async (trackIndex: number, crossfade = true, zone?: MusicZone): Promise<void> => {
         try {
-            const track = MUSIC_TRACKS[trackIndex];
+            const zoneToUse = zone ?? stateRef.current.currentZone;
+            const zoneTracks = ZONE_TRACKS[zoneToUse] || NORMAL_TRACKS;
+            const track = zoneTracks[trackIndex];
             if (!track) {
-                throw new Error(`Invalid track index: ${trackIndex}`);
+                throw new Error(`Invalid track index: ${trackIndex} for zone: ${zoneToUse}`);
             }
 
-            // console.log(`🎵 Playing: ${track.displayName}`);
+            // console.log(`🎵 Playing: ${track.displayName} (Zone: ${zoneToUse})`);
 
             // Clean up previous event listeners to prevent multiple tracks from auto-advancing
             cleanupEventListeners();
 
-            // Get the audio element
-            const audio = await musicCache.get(track.filename);
+            // Get the audio element using the path
+            const audio = await musicCache.get(track.path);
             const newAudio = audio.cloneNode() as HTMLAudioElement;
             newAudio.volume = 0; // Start silent for crossfade
             newAudio.currentTime = 0;
@@ -347,20 +473,24 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         }
     }, [cleanupEventListeners]);
 
-    // Start music system
-    const startMusic = useCallback(async () => {
+    // Start music system (with optional zone override)
+    const startMusic = useCallback(async (forceZone?: MusicZone) => {
         // console.log('🎵 Starting music system...');
         
         // Use stateRef to get the most current state
         const currentState = stateRef.current;
+        const zoneToUse = forceZone ?? currentState.currentZone;
+        const zoneTracks = ZONE_TRACKS[zoneToUse] || NORMAL_TRACKS;
+        
         let currentPlaylist = currentState.playlist;
         let startPosition = currentState.playlistPosition;
         
-        // If no playlist exists, create a new shuffled one
-        if (currentPlaylist.length === 0) {
-            // console.log('🎵 No existing playlist, creating new shuffled playlist');
-            currentPlaylist = createShuffledPlaylist(MUSIC_TRACKS.length);
-            setState(prev => ({ ...prev, playlist: currentPlaylist }));
+        // If no playlist exists or zone changed, create a new shuffled one
+        if (currentPlaylist.length === 0 || currentPlaylist.length !== zoneTracks.length) {
+            // console.log(`🎵 Creating new shuffled playlist for zone: ${zoneToUse}`);
+            currentPlaylist = createShuffledPlaylist(zoneTracks.length);
+            startPosition = 0;
+            setState(prev => ({ ...prev, playlist: currentPlaylist, playlistPosition: 0, currentZone: zoneToUse }));
         }
         
         // If we're at the beginning (position 0), randomize the starting position
@@ -372,8 +502,8 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         }
 
         const firstTrackIndex = currentPlaylist[startPosition];
-        // console.log(`🎵 Starting with track: ${MUSIC_TRACKS[firstTrackIndex]?.displayName}`);
-        await playTrack(firstTrackIndex, false); // No crossfade for first track
+        // console.log(`🎵 Starting with track: ${zoneTracks[firstTrackIndex]?.displayName}`);
+        await playTrack(firstTrackIndex, false, zoneToUse); // No crossfade for first track
     }, [playTrack]); // Removed state dependencies to prevent stale closures
 
     // Stop music
@@ -408,6 +538,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
             return;
         }
 
+        const zoneTracks = ZONE_TRACKS[currentState.currentZone] || NORMAL_TRACKS;
         // console.log(`🎵 Moving to next track. Current position: ${currentState.playlistPosition}/${currentState.playlist.length}`);
 
         let nextPosition = currentState.playlistPosition + 1;
@@ -416,7 +547,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         // If we've reached the end of the playlist, shuffle a new one
         if (nextPosition >= currentState.playlist.length) {
             // console.log('🎵 End of playlist reached, creating new shuffled playlist');
-            const newPlaylist = createShuffledPlaylist(MUSIC_TRACKS.length);
+            const newPlaylist = createShuffledPlaylist(zoneTracks.length);
             playlistToUse = newPlaylist;
             nextPosition = 0;
             
@@ -433,7 +564,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         }
 
         const nextTrackIndex = playlistToUse[nextPosition];
-        // console.log(`🎵 Playing track ${nextPosition + 1}/${playlistToUse.length}: ${MUSIC_TRACKS[nextTrackIndex]?.displayName}`);
+        // console.log(`🎵 Playing track ${nextPosition + 1}/${playlistToUse.length}: ${zoneTracks[nextTrackIndex]?.displayName}`);
         
         await playTrack(nextTrackIndex);
     }, [playTrack]);
@@ -460,7 +591,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         setState(prev => ({ ...prev, playlistPosition: prevPosition }));
         const prevTrackIndex = currentState.playlist[prevPosition];
         await playTrack(prevTrackIndex);
-    }, [playTrack]); // Removed state dependencies to prevent stale closures
+    }, [playTrack]);
 
     // Set volume
     const setVolume = useCallback((volume: number) => {
@@ -483,6 +614,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         const currentState = stateRef.current;
         const currentConfig = configRef.current;
         const newShuffleMode = !currentState.shuffleMode; // Use state instead of config
+        const zoneTracks = ZONE_TRACKS[currentState.currentZone] || NORMAL_TRACKS;
         
         // console.log(`🎵 Toggling shuffle mode: ${currentState.shuffleMode} → ${newShuffleMode}`);
         
@@ -495,7 +627,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         if (newShuffleMode) {
             // Create new shuffled playlist, but keep current track at the front if playing
             // console.log('🎵 Creating shuffled playlist');
-            let newPlaylist = createShuffledPlaylist(MUSIC_TRACKS.length);
+            let newPlaylist = createShuffledPlaylist(zoneTracks.length);
             
             // If we're currently playing a track, move it to the front of the new playlist
             if (currentTrackIndex >= 0 && currentState.isPlaying) {
@@ -513,7 +645,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         } else {
             // Create ordered playlist (0, 1, 2, 3...)
             // console.log('🎵 Creating sequential playlist');
-            const orderedPlaylist = Array.from({ length: MUSIC_TRACKS.length }, (_, i) => i);
+            const orderedPlaylist = Array.from({ length: zoneTracks.length }, (_, i) => i);
             
             // Set position to current track index if playing, otherwise start at 0
             const newPosition = currentState.isPlaying && currentTrackIndex >= 0 ? currentTrackIndex : 0;
@@ -527,7 +659,7 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         }
         
         // console.log(`🎵 Shuffle mode is now: ${newShuffleMode ? 'ON' : 'OFF'}`);
-    }, []); // Keep empty dependency array since we're using refs
+    }, []);
 
     // Initialize music system
     useEffect(() => {
@@ -549,17 +681,69 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         };
     }, [finalConfig.enabled, preloadAllTracks]);
 
-    // Play specific track by index
+    // Zone detection and switching
+    const detectedZone = useMemo(() => {
+        return detectMusicZone(playerPosition ?? null, fishingVillageParts ?? null);
+    }, [playerPosition?.x, playerPosition?.y, fishingVillageParts]);
+
+    // Switch zones when detected zone changes and music is playing
+    const previousZoneRef = useRef<MusicZone>('normal');
+    useEffect(() => {
+        const currentState = stateRef.current;
+        
+        // Only switch if the zone actually changed
+        if (detectedZone !== previousZoneRef.current) {
+            // console.log(`🎵 Zone changed: ${previousZoneRef.current} → ${detectedZone}`);
+            previousZoneRef.current = detectedZone;
+            
+            // If music is playing, switch to the new zone's playlist
+            if (currentState.isPlaying) {
+                const newZoneTracks = ZONE_TRACKS[detectedZone] || NORMAL_TRACKS;
+                const newPlaylist = createShuffledPlaylist(newZoneTracks.length);
+                const randomStart = Math.floor(Math.random() * newPlaylist.length);
+                
+                setState(prev => ({
+                    ...prev,
+                    currentZone: detectedZone,
+                    playlist: newPlaylist,
+                    playlistPosition: randomStart,
+                }));
+                
+                // Play the first track of the new zone's playlist with crossfade
+                const firstTrackIndex = newPlaylist[randomStart];
+                playTrack(firstTrackIndex, true, detectedZone).catch(err => {
+                    console.error('🎵 Failed to switch zone music:', err);
+                });
+            } else {
+                // Just update the zone without playing
+                setState(prev => ({
+                    ...prev,
+                    currentZone: detectedZone,
+                    playlist: [],
+                    playlistPosition: 0,
+                }));
+            }
+        }
+    }, [detectedZone, playTrack]);
+
+    // Get the current zone's tracklist for UI
+    const currentZoneTracks = useMemo(() => {
+        return ZONE_TRACKS[state.currentZone] || NORMAL_TRACKS;
+    }, [state.currentZone]);
+
+    // Play specific track by index (within current zone's tracklist)
     const playSpecificTrack = useCallback(async (trackIndex: number): Promise<void> => {
-        if (trackIndex < 0 || trackIndex >= MUSIC_TRACKS.length) {
+        const currentState = stateRef.current;
+        const zoneTracks = ZONE_TRACKS[currentState.currentZone] || NORMAL_TRACKS;
+        
+        if (trackIndex < 0 || trackIndex >= zoneTracks.length) {
             console.error('🎵 Invalid track index:', trackIndex);
             return;
         }
 
-        // console.log(`🎵 Playing specific track: ${MUSIC_TRACKS[trackIndex]?.displayName}`);
+        // console.log(`🎵 Playing specific track: ${zoneTracks[trackIndex]?.displayName}`);
         
         // Update playlist position to match the selected track
-        const currentState = stateRef.current;
         let newPosition = currentState.playlist.indexOf(trackIndex);
         
         // If the track isn't in the current playlist, add it or create a new playlist
@@ -602,10 +786,14 @@ export const useMusicSystem = (config: Partial<MusicSystemConfig> = {}) => {
         setVolume,
         toggleShuffle,
         
-        // Info
-        tracklist: MUSIC_TRACKS,
+        // Info - use current zone's tracklist
+        tracklist: currentZoneTracks,
         currentPosition: state.playlistPosition + 1,
-        totalTracks: MUSIC_TRACKS.length,
+        totalTracks: currentZoneTracks.length,
+        
+        // Zone info
+        currentZone: state.currentZone,
+        zoneInfo: MUSIC_ZONE_INFO[state.currentZone],
         
         // New function
         playSpecificTrack,

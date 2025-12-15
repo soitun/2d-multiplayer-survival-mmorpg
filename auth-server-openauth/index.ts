@@ -196,25 +196,25 @@ async function success(ctx: any, value: any): Promise<Response> {
   });
   const app  = new Hono();
 
-  // --- Static File Serving for logo_new.png ---
-  app.get('/logo_new.png', async (c) => {
+  // --- Static File Serving for logo_alt.png ---
+  app.get('/logo_alt.png', async (c) => {
     try {
-      const imagePath = path.join(process.cwd(), 'logo_new.png');
+      const imagePath = path.join(process.cwd(), 'logo_alt.png');
       const imageBuffer = fs.readFileSync(imagePath);
       return new Response(new Uint8Array(imageBuffer), { headers: { 'Content-Type': 'image/png' } });
     } catch (error) {
-      console.error('[Static] Failed to serve logo_new.png:', error);
+      console.error('[Static] Failed to serve logo_alt.png:', error);
       return new Response('Image not found', { status: 404 });
     }
   });
 
-  app.get('/auth/password/logo_new.png', async (c) => {
+  app.get('/auth/password/logo_alt.png', async (c) => {
     try {
-      const imagePath = path.join(process.cwd(), 'logo_new.png');
+      const imagePath = path.join(process.cwd(), 'logo_alt.png');
       const imageBuffer = fs.readFileSync(imagePath);
       return new Response(new Uint8Array(imageBuffer), { headers: { 'Content-Type': 'image/png' } });
     } catch (error) {
-      console.error('[Static] Failed to serve logo_new.png:', error);
+      console.error('[Static] Failed to serve logo_alt.png:', error);
       return new Response('Image not found', { status: 404 });
     }
   });
@@ -521,7 +521,7 @@ async function success(ctx: any, value: any): Promise<Response> {
     <body>
         <div class="container">
             <div class="game-title">
-                <img src="logo_new.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+                <img src="logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
             </div>
             <div class="game-subtitle">2D Multiplayer Survival</div>
             
@@ -826,7 +826,7 @@ async function success(ctx: any, value: any): Promise<Response> {
     <body>
         <div class="container">
             <div class="game-title">
-                <img src="logo_new.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+                <img src="logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
             </div>
             <div class="game-subtitle">2D Multiplayer Survival</div>
             
@@ -1093,7 +1093,7 @@ async function success(ctx: any, value: any): Promise<Response> {
             <body>
                 <div class="container">
                     <div class="game-title">
-                        <img src="logo_new.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+                        <img src="logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
                     </div>
                     <div class="game-subtitle">2D Multiplayer Survival</div>
                     <h1 class="form-title">Sign In</h1>
