@@ -1,0 +1,382 @@
+/* FishingUI.module.css - SOVA Diegetic Style Fishing Interface */
+
+/* Main Fishing Panel - Centered below player, above hotbar */
+.fishingPanel {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
+  border: 2px solid #00aaff;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  z-index: 50;
+  color: #ffffff;
+  font-family: 'Press Start 2P', cursive;
+  min-width: 260px;
+  max-width: 300px;
+  backdrop-filter: blur(10px);
+}
+
+/* Animated scan line effect */
+.fishingPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00ffff, transparent);
+  animation: scanLine 3s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+}
+
+@keyframes scanLine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Panel Title */
+.panelTitle {
+  color: #00ffff;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 0;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  0% { 
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+  }
+  100% { 
+    text-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 0.6);
+  }
+}
+
+/* Status Text */
+.statusText {
+  font-size: 10px;
+  margin-bottom: 10px;
+  color: #00ffff;
+  text-align: center;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.statusTextWarning {
+  color: #ff6644;
+  text-shadow: 0 0 5px rgba(255, 102, 68, 0.5);
+}
+
+.statusTextDanger {
+  color: #ff3333;
+  animation: pulseWarning 0.5s ease-in-out infinite;
+  text-shadow: 0 0 8px rgba(255, 51, 51, 0.8);
+}
+
+@keyframes pulseWarning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Info Row */
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 9px;
+}
+
+.infoLabel {
+  color: rgba(0, 255, 255, 0.7);
+}
+
+.infoValue {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.infoValueGood {
+  color: #44ff44;
+  text-shadow: 0 0 5px rgba(68, 255, 68, 0.5);
+}
+
+.infoValueMedium {
+  color: #ffaa44;
+  text-shadow: 0 0 5px rgba(255, 170, 68, 0.5);
+}
+
+.infoValueBad {
+  color: #ff4444;
+  text-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+}
+
+/* Meter Container */
+.meterContainer {
+  margin-bottom: 12px;
+}
+
+.meterLabel {
+  font-size: 9px;
+  color: rgba(0, 255, 255, 0.8);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meterLabelValue {
+  color: #ffffff;
+}
+
+/* Progress Bar Track */
+.meterTrack {
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9));
+  border: 2px solid rgba(0, 170, 255, 0.4);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.1);
+}
+
+/* Progress Bar Fill */
+.meterFill {
+  height: 100%;
+  transition: width 0.1s ease-out, background-color 0.2s ease-out;
+  border-radius: 4px;
+}
+
+.meterFillGood {
+  background: linear-gradient(90deg, #00ff88, #44ffaa);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.meterFillMedium {
+  background: linear-gradient(90deg, #ffaa44, #ffcc66);
+  box-shadow: 0 0 10px rgba(255, 170, 68, 0.5);
+}
+
+.meterFillBad {
+  background: linear-gradient(90deg, #ff4444, #ff6666);
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+  animation: pulseBad 0.3s ease-in-out infinite;
+}
+
+@keyframes pulseBad {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Tension Balance Meter - Special Styling */
+.tensionMeterContainer {
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.tensionMeterTrack {
+  width: 100%;
+  height: 28px;
+  background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(15, 25, 50, 0.95));
+  border: 2px solid rgba(0, 170, 255, 0.5);
+  border-radius: 8px;
+  overflow: visible;
+  position: relative;
+  box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.15);
+}
+
+/* Sweet Spot Zone */
+.sweetSpotZone {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.3), rgba(0, 255, 136, 0.5), rgba(0, 255, 136, 0.3));
+  border: 1px solid rgba(0, 255, 136, 0.8);
+  border-radius: 4px;
+  transition: left 0.3s ease-out, width 0.3s ease-out;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
+/* Tension Indicator (Player's current tension) */
+.tensionIndicator {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 6px;
+  background: linear-gradient(180deg, #ffffff, #00ffff);
+  border: 2px solid #ffffff;
+  border-radius: 3px;
+  transition: left 0.05s linear;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 25px rgba(0, 255, 255, 0.5);
+  z-index: 5;
+}
+
+.tensionIndicatorDanger {
+  background: linear-gradient(180deg, #ff4444, #ff6666);
+  border-color: #ff4444;
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.8), 0 0 25px rgba(255, 0, 0, 0.5);
+  animation: indicatorPulse 0.2s ease-in-out infinite;
+}
+
+@keyframes indicatorPulse {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.1); }
+}
+
+/* Break Zone Warning Markers */
+.breakZoneMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255, 0, 0, 0.8), rgba(255, 0, 0, 0.4));
+}
+
+.breakZoneMarkerLeft {
+  left: 5%;
+}
+
+.breakZoneMarkerRight {
+  right: 5%;
+}
+
+/* Instructions Text */
+.instructionText {
+  font-size: 8px;
+  color: rgba(0, 255, 255, 0.6);
+  text-align: center;
+  margin-top: 12px;
+  font-style: italic;
+}
+
+.instructionHighlight {
+  color: #00ffff;
+  font-weight: bold;
+  font-style: normal;
+}
+
+/* Result Notification */
+.resultNotification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 24px 36px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 150;
+  text-align: center;
+  animation: fadeInScale 0.3s ease-out;
+  font-family: 'Press Start 2P', cursive;
+  backdrop-filter: blur(10px);
+}
+
+.resultSuccess {
+  background: linear-gradient(135deg, rgba(0, 100, 50, 0.95), rgba(0, 80, 40, 0.98));
+  border: 3px solid #00ff88;
+  color: #ffffff;
+  box-shadow: 0 0 40px rgba(0, 255, 136, 0.4), inset 0 0 20px rgba(0, 255, 136, 0.1);
+}
+
+.resultFailure {
+  background: linear-gradient(135deg, rgba(100, 20, 20, 0.95), rgba(80, 15, 15, 0.98));
+  border: 3px solid #ff4444;
+  color: #ffffff;
+  box-shadow: 0 0 40px rgba(255, 68, 68, 0.4), inset 0 0 20px rgba(255, 68, 68, 0.1);
+}
+
+.resultIcon {
+  font-size: 28px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.resultMessage {
+  font-size: 11px;
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Fishing Reticle Panel (Mode indicator) - Centered below player, above hotbar */
+.reticlePanel {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
+  border: 2px solid #00aaff;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.3), inset 0 0 20px rgba(0, 170, 255, 0.1);
+  border-radius: 8px;
+  padding: 14px 18px;
+  z-index: 50;
+  color: #ffffff;
+  font-family: 'Press Start 2P', cursive;
+  min-width: 200px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.reticlePanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00ffff, transparent);
+  animation: scanLine 3s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+}
+
+.reticleTitle {
+  color: #00ffff;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+}
+
+.reticleInstruction {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 6px;
+}
+
+.reticleStatus {
+  font-size: 8px;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.reticleStatusValid {
+  color: #44ff44;
+  text-shadow: 0 0 5px rgba(68, 255, 68, 0.5);
+}
+
+.reticleStatusInvalid {
+  color: #ff6644;
+  text-shadow: 0 0 5px rgba(255, 102, 68, 0.5);
+}

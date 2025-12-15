@@ -4,6 +4,7 @@ import { Identity } from 'spacetimedb';
 import FishingReticle from './FishingReticle';
 import { FishingState, FISHING_CONSTANTS } from '../types/fishing';
 import bobberImage from '../assets/doodads/primitive_reed_bobble.png';
+import styles from './FishingUI.module.css';
 
 interface FishingManagerProps {
   localPlayer: Player | null;
@@ -218,6 +219,7 @@ const FishingManager: React.FC<FishingManagerProps> = ({
             onCancel={() => {}} // No-op for other players
             isWaterTile={isWaterTile}
             worldState={worldState}
+            isRemotePlayer={true}
           />
         );
       })}
@@ -227,7 +229,7 @@ const FishingManager: React.FC<FishingManagerProps> = ({
   );
 };
 
-// Enhanced fishing system with bobber, timer, and reeling mechanics
+// Enhanced fishing system with tension balance mini-game
 interface FishingSystemProps {
   playerX: number;
   playerY: number;
@@ -243,6 +245,8 @@ interface FishingSystemProps {
   isWaterTile: (worldX: number, worldY: number) => boolean;
   // Add worldState for weather information
   worldState: WorldState | null;
+  // NEW: Whether this is a remote player's fishing (readonly view)
+  isRemotePlayer?: boolean;
 }
 
 interface BobberState {
@@ -251,14 +255,18 @@ interface BobberState {
   targetX: number;
   targetY: number;
   isMoving: boolean;
-  // Fish fighting mechanics
-  fishDirection: number; // -1 (left) or 1 (right) for zig-zag movement
-  lastDirectionChange: number; // timestamp of last direction change
-  driftAccumulator: number; // accumulated drift movement
-  // Smooth swimming targets
-  zigZagTargetX: number; // Target X position for current zig-zag movement
-  zigZagTargetY: number; // Target Y position for current zig-zag movement
-  hasReachedTarget: boolean; // Whether fish has reached its current target
+}
+
+// NEW: Tension Balance Mini-Game State
+interface TensionState {
+  currentTension: number; // 0-100, player's current line tension
+  sweetSpotCenter: number; // 0-100, where the sweet spot is centered
+  sweetSpotWidth: number; // Width of the sweet spot (gets smaller as fish tires)
+  fishPullStrength: number; // How hard the fish is currently pulling
+  fishPullDirection: number; // 1 = pulling away (increase tension), -1 = swimming toward (decrease)
+  catchProgress: number; // 0-100, progress toward catching the fish
+  escapeProgress: number; // 0-100, progress toward fish escaping
+  isReeling: boolean; // Is player holding right-click
 }
 
 const FishingSystem: React.FC<FishingSystemProps> = ({
@@ -275,6 +283,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
   onCancel,
   isWaterTile,
   worldState,
+  isRemotePlayer = false,
 }) => {
   const [phase, setPhase] = useState<'waiting' | 'caught' | 'reeling'>('waiting');
   const [timer, setTimer] = useState(100); // 100% -> 0%
@@ -284,29 +293,34 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     targetX: castTargetX,
     targetY: castTargetY,
     isMoving: false,
-    fishDirection: 0,
-    lastDirectionChange: 0,
-    driftAccumulator: 0,
-    zigZagTargetX: castTargetX,
-    zigZagTargetY: castTargetY,
-    hasReachedTarget: true,
   });
-  const [reelProgress, setReelProgress] = useState(0); // 0% -> 100% (distance to shore)
   const [showResult, setShowResult] = useState<{ type: 'success' | 'failure', message: string, loot?: string[] } | null>(null);
+  
+  // NEW: Tension Balance Mini-Game State
+  const [tension, setTension] = useState<TensionState>({
+    currentTension: 50, // Start in middle
+    sweetSpotCenter: 50, // Sweet spot starts in middle
+    sweetSpotWidth: 30, // Initial sweet spot width (percentage)
+    fishPullStrength: 0,
+    fishPullDirection: 1,
+    catchProgress: 0,
+    escapeProgress: 0,
+    isReeling: false,
+  });
 
-  const WAIT_DURATION = 8000; // 8 seconds to wait for bite
-  const BOBBER_MOVE_RADIUS = 80; // How far bobber can move from cast point
-  const REEL_DISTANCE_PER_CLICK = 30; // How much closer bobber gets per right-click (doubled for easier fishing)
-
-  // Fish fighting mechanics constants
-  const FISH_ZIG_ZAG_SPEED = 120; // pixels per second - much more dramatic movement
-  const FISH_DIRECTION_CHANGE_INTERVAL = 3500; // milliseconds between direction changes - much longer commits
-  const FISH_DRIFT_SPEED = 15; // pixels per second away from player - reduced for catchability
-  const LINE_BREAK_THRESHOLD = 0.95; // Break line at 95% stress instead of 100%
-  const FISH_BURST_CHANCE = 0.01; // 1% chance per frame for sudden burst movement (very rare)
-  const FISH_BURST_DISTANCE = 60; // Distance for burst movements
-  const FISH_SWIM_SPEED = 70; // pixels per second - slower to give player more time to react
-  const ZIG_ZAG_DISTANCE = 280;
+  // Tension Balance Mini-Game Constants
+  const TENSION_MIN = 5; // Minimum tension before fish escapes
+  const TENSION_MAX = 95; // Maximum tension before line breaks
+  const SWEET_SPOT_MIN_WIDTH = 15; // Minimum sweet spot width (harder as fish tires)
+  const REEL_TENSION_RATE = 45; // How fast tension increases when reeling (per second)
+  const SLACK_TENSION_RATE = 35; // How fast tension decreases when giving slack (per second)
+  const FISH_PULL_BASE = 20; // Base fish pull strength (per second)
+  const FISH_PULL_VARIANCE = 25; // Random variance in fish pull
+  const SWEET_SPOT_MOVE_SPEED = 30; // How fast sweet spot can move (per second)
+  const CATCH_PROGRESS_RATE = 12; // Progress gain when in sweet spot (per second)
+  const ESCAPE_PROGRESS_RATE = 8; // Progress toward escape when out of sweet spot (per second)
+  const ESCAPE_THRESHOLD = 100; // Fish escapes at this progress
+  const CATCH_THRESHOLD = 100; // Fish caught at this progress
 
   // 🚀 PERFORMANCE: Cache shore distance calculation
   const shoreDistanceCacheRef = useRef<{ 
@@ -442,7 +456,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
 
   // Handle bite timer and phase transitions
   React.useEffect(() => {
-    if (phase !== 'waiting') return;
+    if (phase !== 'waiting' || isRemotePlayer) return;
 
     // Random bite chance - fish can bite at any time during waiting period
     // Higher chance as time progresses (more likely to bite later)
@@ -458,21 +472,25 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
       const finalBiteChance = baseBiteChance * progressMultiplier * totalBiteMultiplier;
       
       if (Math.random() < finalBiteChance) {
-        //console.log('[FishingSystem] Fish took the bait! Distance multiplier:', distanceBiteMultiplier.toFixed(2) + 'x', 
-        //           'Final chance:', (finalBiteChance * 100).toFixed(2) + '%', 'Time progress:', (timeProgress * 100).toFixed(1) + '%');
         setPhase('caught');
         
-        // Initialize fish fighting mechanics
+        // Initialize fish fighting mechanics - start bobber moving
         setBobber(prev => ({
           ...prev,
           isMoving: true,
-          fishDirection: Math.random() > 0.5 ? 1 : -1,
-          lastDirectionChange: Date.now(),
-          driftAccumulator: 0,
-          zigZagTargetX: prev.x,
-          zigZagTargetY: prev.y,
-          hasReachedTarget: true, // Start by needing a new target
         }));
+        
+        // Initialize tension mini-game state
+        setTension({
+          currentTension: 50,
+          sweetSpotCenter: 50,
+          sweetSpotWidth: 30,
+          fishPullStrength: FISH_PULL_BASE,
+          fishPullDirection: 1,
+          catchProgress: 0,
+          escapeProgress: 0,
+          isReeling: false,
+        });
         
         setTimer(0);
         clearInterval(biteCheckInterval);
@@ -481,7 +499,6 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
 
     // Automatic failure if timer fully expires
     const failureTimer = setTimeout(() => {
-      // console.log('[FishingSystem] Bite timer expired - no fish bit the bait');
       setShowResult({ type: 'failure', message: 'No fish bit the bait. Try again!' });
       setTimeout(() => onFailure(), 2000);
       clearInterval(biteCheckInterval);
@@ -501,7 +518,7 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
       clearInterval(biteCheckInterval);
       clearInterval(timerInterval);
     };
-  }, [phase, onFailure]);
+  }, [phase, onFailure, isRemotePlayer, totalBiteMultiplier]);
 
   // Track timer start for countdown
   const timerStartRef = React.useRef(Date.now());
@@ -511,211 +528,141 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     }
   }, [phase]);
 
-  // Handle bobber movement during fight
+  // NEW: Tension Balance Mini-Game - Main game loop during 'caught' phase
   React.useEffect(() => {
-    if (phase !== 'caught') return;
+    if (phase !== 'caught' || isRemotePlayer) return;
 
-    const moveInterval = setInterval(() => {
-      setBobber(prev => {
-        const now = Date.now();
-        let newBobber = { ...prev };
+    const gameLoopInterval = setInterval(() => {
+      const deltaTime = 16 / 1000; // 60fps = 16ms
+      
+      setTension(prev => {
+        let newTension = { ...prev };
         
-        // Calculate current distance and direction to player
+        // 1. Fish pulls on the line (random pull strength and occasional direction changes)
+        if (Math.random() < 0.02) { // 2% chance per frame to change behavior
+          newTension.fishPullStrength = FISH_PULL_BASE + Math.random() * FISH_PULL_VARIANCE;
+          // Occasionally fish swims toward player (reduces tension)
+          if (Math.random() < 0.15) {
+            newTension.fishPullDirection = -1;
+          } else {
+            newTension.fishPullDirection = 1;
+          }
+        }
+        
+        // Apply fish pull to tension
+        const fishPullEffect = newTension.fishPullStrength * newTension.fishPullDirection * deltaTime;
+        newTension.currentTension += fishPullEffect;
+        
+        // 2. Player reeling increases tension, releasing decreases it
+        if (newTension.isReeling) {
+          newTension.currentTension += REEL_TENSION_RATE * deltaTime;
+        } else {
+          newTension.currentTension -= SLACK_TENSION_RATE * deltaTime;
+        }
+        
+        // Clamp tension to valid range
+        newTension.currentTension = Math.max(0, Math.min(100, newTension.currentTension));
+        
+        // 3. Move the sweet spot (fish fighting - makes it harder)
+        if (Math.random() < 0.03) { // 3% chance per frame to adjust sweet spot
+          const moveDirection = Math.random() > 0.5 ? 1 : -1;
+          const moveAmount = (Math.random() * SWEET_SPOT_MOVE_SPEED + 10) * moveDirection;
+          newTension.sweetSpotCenter = Math.max(
+            TENSION_MIN + newTension.sweetSpotWidth / 2,
+            Math.min(TENSION_MAX - newTension.sweetSpotWidth / 2, newTension.sweetSpotCenter + moveAmount)
+          );
+        }
+        
+        // 4. Sweet spot shrinks as catch progress increases (fish tires but becomes desperate)
+        const progressRatio = newTension.catchProgress / CATCH_THRESHOLD;
+        newTension.sweetSpotWidth = Math.max(
+          SWEET_SPOT_MIN_WIDTH,
+          30 - (progressRatio * 15) // Shrinks from 30 to 15 as progress increases
+        );
+        
+        // 5. Check if tension is in sweet spot
+        const sweetSpotMin = newTension.sweetSpotCenter - newTension.sweetSpotWidth / 2;
+        const sweetSpotMax = newTension.sweetSpotCenter + newTension.sweetSpotWidth / 2;
+        const inSweetSpot = newTension.currentTension >= sweetSpotMin && newTension.currentTension <= sweetSpotMax;
+        
+        // 6. Update progress based on sweet spot status
+        if (inSweetSpot) {
+          // In sweet spot = gaining catch progress, resetting escape progress
+          newTension.catchProgress += CATCH_PROGRESS_RATE * deltaTime;
+          newTension.escapeProgress = Math.max(0, newTension.escapeProgress - (ESCAPE_PROGRESS_RATE * 0.5 * deltaTime));
+        } else {
+          // Out of sweet spot = fish is escaping
+          newTension.escapeProgress += ESCAPE_PROGRESS_RATE * deltaTime;
+        }
+        
+        // 7. Check for line break (tension too high)
+        if (newTension.currentTension >= TENSION_MAX) {
+          setShowResult({ type: 'failure', message: 'Line snapped! Too much tension!' });
+          setTimeout(() => onFailure(), 2000);
+          return prev; // Don't update, we're done
+        }
+        
+        // 8. Check for fish escape (tension too low for too long, or escape progress full)
+        if (newTension.escapeProgress >= ESCAPE_THRESHOLD) {
+          setShowResult({ type: 'failure', message: 'Fish got away! Keep tension balanced!' });
+          setTimeout(() => onFailure(), 2000);
+          return prev;
+        }
+        
+        // 9. Check for successful catch
+        if (newTension.catchProgress >= CATCH_THRESHOLD) {
+          onSuccess([]);
+          return prev;
+        }
+        
+        return newTension;
+      });
+      
+      // Update bobber position based on tension (visual feedback)
+      setBobber(prev => {
         const dx = playerX - prev.x;
         const dy = playerY - prev.y;
-        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Check if line should break from stress
-        const stressRatio = distanceToPlayer / FISHING_CONSTANTS.BREAK_DISTANCE;
-        if (stressRatio >= LINE_BREAK_THRESHOLD) {
-          // console.log('[FishingSystem] Line broke from stress! Distance:', distanceToPlayer.toFixed(1));
-          onFailure();
-          return prev;
-        }
-        
-        // Initialize fish direction and timing if needed
-        if (prev.lastDirectionChange === 0) {
-          newBobber.fishDirection = Math.random() > 0.5 ? 1 : -1;
-          newBobber.lastDirectionChange = now;
-          newBobber.hasReachedTarget = true; // Start by needing a new target
-        }
-        
-        // Calculate distance to current zig-zag target
-        const targetDx = prev.zigZagTargetX - prev.x;
-        const targetDy = prev.zigZagTargetY - prev.y;
-        const distanceToTarget = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
-        
-        // Check if fish has reached its current target or needs a new direction
-        // Prioritize completing the current sweep over timing
-        const hasTimedOut = (now - prev.lastDirectionChange >= FISH_DIRECTION_CHANGE_INTERVAL);
-        const hasCompletedSweep = prev.hasReachedTarget || distanceToTarget < 25;
-        
-        if (hasCompletedSweep || (hasTimedOut && distanceToTarget < 100)) {
-          // Pick new zig-zag target perpendicular to player-bobber line
-          if (distanceToPlayer > 0) {
-            // Calculate perpendicular vector
-            const perpX = -dy / distanceToPlayer;
-            const perpY = dx / distanceToPlayer;
-            
-            // Flip direction for zig-zag
-            newBobber.fishDirection *= -1;
-            newBobber.lastDirectionChange = now;
-            
-            // Set new target position - dramatic long sweeps
-            newBobber.zigZagTargetX = prev.x + perpX * ZIG_ZAG_DISTANCE * newBobber.fishDirection;
-            newBobber.zigZagTargetY = prev.y + perpY * ZIG_ZAG_DISTANCE * newBobber.fishDirection;
-            newBobber.hasReachedTarget = false;
-            
-            // console.log('[FishingSystem] Fish committed to new dramatic sweep, distance:', ZIG_ZAG_DISTANCE, 
-            //            'target:', newBobber.zigZagTargetX.toFixed(1), newBobber.zigZagTargetY.toFixed(1));
+        if (distance > 0) {
+          // Bobber moves toward player when reeling, away when giving slack
+          const moveSpeed = tension.isReeling ? 15 : -8;
+          const moveX = (dx / distance) * moveSpeed * (16 / 1000);
+          const moveY = (dy / distance) * moveSpeed * (16 / 1000);
+          
+          const newX = prev.x + moveX;
+          const newY = prev.y + moveY;
+          
+          // Check if new position is water
+          if (isWaterTile(newX, newY)) {
+            return { ...prev, x: newX, y: newY };
           }
         }
-        
-        const deltaTime = 16 / 1000; // 60fps = 16ms
-        
-        // Smooth swimming toward zig-zag target
-        if (!newBobber.hasReachedTarget && distanceToPlayer > 0) {
-          const targetDx = newBobber.zigZagTargetX - prev.x;
-          const targetDy = newBobber.zigZagTargetY - prev.y;
-          const distanceToTarget = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
-          
-          if (distanceToTarget > 20) { // Fish must complete most of the dramatic sweep
-            // Swim toward target smoothly and determinedly
-            const swimDistance = FISH_SWIM_SPEED * deltaTime;
-            const moveX = (targetDx / distanceToTarget) * swimDistance;
-            const moveY = (targetDy / distanceToTarget) * swimDistance;
-            
-            newBobber.x += moveX;
-            newBobber.y += moveY;
-          } else {
-            // Completed dramatic sweep - fish has made its run
-            newBobber.hasReachedTarget = true;
-            // console.log('[FishingSystem] Fish completed dramatic sweep - ready for about-face');
-          }
-        }
-        
-        // Apply drift away from player (fish trying to escape)
-        if (distanceToPlayer > 0) {
-          // Increase drift speed as stress increases (fish panics more)
-          const stressMultiplier = 1 + (stressRatio * 2); // 1x to 3x drift speed
-          const driftDistance = FISH_DRIFT_SPEED * deltaTime * stressMultiplier;
-          const driftX = -dx / distanceToPlayer; // Away from player X
-          const driftY = -dy / distanceToPlayer; // Away from player Y
-          
-          newBobber.x += driftX * driftDistance;
-          newBobber.y += driftY * driftDistance;
-          
-          // Also drift the target so the fish doesn't immediately swim back
-          newBobber.zigZagTargetX += driftX * driftDistance;
-          newBobber.zigZagTargetY += driftY * driftDistance;
-        }
-        
-        // Random burst movements for extra drama
-        if (Math.random() < FISH_BURST_CHANCE) {
-          const burstAngle = Math.random() * Math.PI * 2; // Random direction
-          const burstX = Math.cos(burstAngle) * FISH_BURST_DISTANCE;
-          const burstY = Math.sin(burstAngle) * FISH_BURST_DISTANCE;
-          
-          // Burst changes the target position, fish will swim there
-          newBobber.zigZagTargetX = prev.x + burstX;
-          newBobber.zigZagTargetY = prev.y + burstY;
-          newBobber.hasReachedTarget = false;
-          // console.log('[FishingSystem] Fish made a burst movement to:', 
-          //            newBobber.zigZagTargetX.toFixed(1), newBobber.zigZagTargetY.toFixed(1));
-        }
-        
-        // Ensure bobber stays in water (basic bounds check)
-        if (!isWaterTile(newBobber.x, newBobber.y)) {
-          // If fish would move to land, just skip this movement
-          return prev;
-        }
-        
-        return newBobber;
+        return prev;
       });
     }, 16); // 60fps
 
-    return () => clearInterval(moveInterval);
-  }, [phase, playerX, playerY, isWaterTile, onFailure]);
+    return () => clearInterval(gameLoopInterval);
+  }, [phase, playerX, playerY, isWaterTile, onFailure, onSuccess, isRemotePlayer, tension.isReeling]);
 
-  // Handle right-click for reeling
+  // Handle right-click HOLD for reeling (tension balance system)
   React.useEffect(() => {
-    if (phase !== 'caught') return;
+    if (phase !== 'caught' || isRemotePlayer) return;
 
-    const handleRightClick = (event: MouseEvent) => {
+    const handleMouseDown = (event: MouseEvent) => {
       if (event.button === 2) {
         event.preventDefault();
         event.stopPropagation();
-        
-        // Move bobber closer to player
-        setBobber(prev => {
-          const dx = playerX - prev.x;
-          const dy = playerY - prev.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance > REEL_DISTANCE_PER_CLICK) {
-            const moveX = (dx / distance) * REEL_DISTANCE_PER_CLICK;
-            const moveY = (dy / distance) * REEL_DISTANCE_PER_CLICK;
-            
-            const newX = prev.x + moveX;
-            const newY = prev.y + moveY;
-            
-            // Check multiple points along the reeling path for land intersection
-            let foundLand = false;
-            const numChecks = 5; // Check 5 points along the path
-            for (let i = 0; i <= numChecks; i++) {
-              const checkRatio = i / numChecks;
-              const checkX = prev.x + (moveX * checkRatio);
-              const checkY = prev.y + (moveY * checkRatio);
-              
-              if (!isWaterTile(checkX, checkY)) {
-                foundLand = true;
-                break;
-              }
-            }
-            
-            // Also check if bobber has been reeled close enough to shore
-            // Success condition: either hit land OR reeled close enough that we're near shore
-            const totalCastDistance = Math.sqrt(
-              Math.pow(castTargetX - playerX, 2) + Math.pow(castTargetY - playerY, 2)
-            );
-            const currentDistanceFromPlayer = distance;
-            const reelProgress = 1 - (currentDistanceFromPlayer / totalCastDistance);
-            
-            // If we've reeled in at least 80% of the way, or if we hit land, trigger success
-            if (foundLand || reelProgress >= 0.8) {
-              // console.log('[FishingSystem] Fishing success! Found land:', foundLand, 'Reel progress:', (reelProgress * 100).toFixed(1) + '%');
-              // console.log('[FishingSystem] Bobber position:', newX.toFixed(1), newY.toFixed(1));
-              // console.log('[FishingSystem] Player position:', playerX.toFixed(1), playerY.toFixed(1));
-              // console.log('[FishingSystem] Distance from player:', currentDistanceFromPlayer.toFixed(1));
-              onSuccess([]);
-              return prev; // Don't move bobber further
-            }
-            
-            return {
-              ...prev,
-              x: newX,
-              y: newY,
-            };
-          } else {
-            // Bobber is very close to player - always success at this point
-            // console.log('[FishingSystem] Bobber reached player position - success!');
-            // console.log('[FishingSystem] Final distance:', distance.toFixed(1));
-            onSuccess([]);
-            return prev;
-          }
-        });
+        // Start reeling - increase tension
+        setTension(prev => ({ ...prev, isReeling: true }));
+      }
+    };
 
-        // Update reel progress
-        setReelProgress(prev => {
-          const totalDistance = Math.sqrt(
-            Math.pow(castTargetX - playerX, 2) + Math.pow(castTargetY - playerY, 2)
-          );
-          const currentDistance = Math.sqrt(
-            Math.pow(bobber.x - playerX, 2) + Math.pow(bobber.y - playerY, 2)
-          );
-          const progress = Math.max(0, Math.min(100, ((totalDistance - currentDistance) / totalDistance) * 100));
-          return progress;
-        });
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button === 2) {
+        event.preventDefault();
+        // Stop reeling - decrease tension (give slack)
+        setTension(prev => ({ ...prev, isReeling: false }));
       }
     };
 
@@ -723,14 +670,16 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
       event.preventDefault();
     };
 
-    window.addEventListener('mousedown', handleRightClick, true);
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
     window.addEventListener('contextmenu', handleContextMenu);
     
     return () => {
-      window.removeEventListener('mousedown', handleRightClick, true);
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [phase, playerX, playerY, bobber.x, bobber.y, castTargetX, castTargetY, onSuccess]);
+  }, [phase, isRemotePlayer]);
 
   // Calculate screen positions
   const canvas = gameCanvasRef.current;
@@ -775,11 +724,12 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
   const bobberScreenX = bobber.x + cameraOffsetX + canvasRect.left;
   const bobberScreenY = bobber.y + cameraOffsetY + canvasRect.top;
 
-  // Calculate line stress based on current bobber position, not original cast target
+  // Calculate line stress based on tension (new system) or distance (fallback)
   const currentDistance = Math.sqrt(
     Math.pow(playerX - bobber.x, 2) + Math.pow(playerY - bobber.y, 2)
   );
-  const stressRatio = currentDistance / FISHING_CONSTANTS.BREAK_DISTANCE;
+  // Use tension for stress visualization in caught phase, distance for waiting phase
+  const stressRatio = phase === 'caught' ? tension.currentTension / 100 : currentDistance / FISHING_CONSTANTS.BREAK_DISTANCE;
   
   // Keep fishing line always white as requested
   const lineColor = 'rgba(255, 255, 255, 0.9)';
@@ -790,12 +740,13 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     const dy = bobberScreenY - playerScreenY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Line gets straighter as stress increases (more taut under tension)
-    // Base arc when caught, but reduces dramatically as stress increases
+    // Line gets straighter as tension increases (more taut under tension)
+    // Base arc when caught, but reduces dramatically as tension increases
+    const tensionNormalized = tension.currentTension / 100;
     let arcIntensity = phase === 'caught' ? 0.4 : 0.1;
     if (phase === 'caught') {
-      // Reduce arc intensity as stress increases (0.4 at 0% stress → 0.05 at 100% stress)
-      arcIntensity = 0.4 * (1 - stressRatio * 0.9); // Line gets very straight under high stress
+      // Reduce arc intensity as tension increases (0.4 at 0% tension → 0.05 at 100% tension)
+      arcIntensity = 0.4 * (1 - tensionNormalized * 0.9); // Line gets very straight under high tension
     }
     
     const midX = playerScreenX + dx * 0.5;
@@ -806,9 +757,9 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
     const perpY = dx / distance;
     let arcOffset = distance * arcIntensity;
     
-    // Add line vibration when stress is high
-    if (phase === 'caught' && stressRatio > 0.7) {
-      const vibrationIntensity = (stressRatio - 0.7) * 15; // Stronger vibration at higher stress
+    // Add line vibration when tension is high (line stress)
+    if (phase === 'caught' && tensionNormalized > 0.7) {
+      const vibrationIntensity = (tensionNormalized - 0.7) * 20; // Stronger vibration at higher tension
       const vibrationX = (Math.random() - 0.5) * vibrationIntensity;
       const vibrationY = (Math.random() - 0.5) * vibrationIntensity;
       arcOffset += Math.sqrt(vibrationX * vibrationX + vibrationY * vibrationY);
@@ -856,216 +807,172 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
           pointerEvents: 'none',
           zIndex: 45,
           transform: phase === 'caught' ? 
-            `rotate(${15 + stressRatio * 30}deg)` : 
+            `rotate(${15 + (tension.currentTension / 100) * 30}deg)` : 
             'none',
           transition: phase === 'caught' ? 'transform 0.05s ease-out' : 'transform 0.2s ease-out',
           filter: phase === 'caught' ? 
-            `drop-shadow(0 0 12px rgba(255, 100, 100, ${0.8 + stressRatio * 0.2})) drop-shadow(0 0 6px rgba(100, 200, 255, 0.6))` : 
+            `drop-shadow(0 0 12px rgba(255, 100, 100, ${0.8 + (tension.currentTension / 100) * 0.2})) drop-shadow(0 0 6px rgba(100, 200, 255, 0.6))` : 
             'drop-shadow(0 0 8px rgba(100, 200, 255, 0.8))',
-          animation: phase === 'caught' && stressRatio > 0.6 ? 
-            `bobberShake ${0.2 - stressRatio * 0.1}s infinite` : 'none',
+          animation: phase === 'caught' && tension.currentTension > 60 ? 
+            `bobberShake ${0.2 - (tension.currentTension / 100) * 0.1}s infinite` : 'none',
         }}
       />
       
       {/* Result notification */}
       {showResult && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: showResult.type === 'success' ? 'rgba(0, 100, 0, 0.9)' : 'rgba(100, 0, 0, 0.9)',
-            color: 'white',
-            padding: '20px 30px',
-            borderRadius: '12px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            zIndex: 150,
-            textAlign: 'center',
-            border: `3px solid ${showResult.type === 'success' ? '#64ff64' : '#ff6464'}`,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-            animation: 'fadeInScale 0.3s ease-out',
-          }}
-        >
-          <div style={{ marginBottom: '10px', fontSize: '24px' }}>
-            {showResult.type === 'success' ? '🎣 Success!' : '😞 Nothing Caught'}
-          </div>
-          <div>
-            {showResult.message}
-          </div>
+        <div className={`${styles.resultNotification} ${showResult.type === 'success' ? styles.resultSuccess : styles.resultFailure}`}>
+          <span className={styles.resultIcon}>
+            {showResult.type === 'success' ? '🎣' : '😞'}
+          </span>
+          <div>{showResult.type === 'success' ? 'Success!' : 'Fish Lost!'}</div>
+          <div className={styles.resultMessage}>{showResult.message}</div>
         </div>
       )}
       
-      {/* Fishing UI */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '130px',
-          right: '15px',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          color: '#64c8ff',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '13px',
-          zIndex: 50,
-          border: '2px solid #64c8ff',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(4px)',
-          minWidth: '180px',
-        }}
-      >
-        <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-          🎣 {phase === 'waiting' ? 'Waiting for bite...' : 'Fish on the line!'}
-        </div>
-        
-        {phase === 'waiting' && (
-          <>
-            {/* Fishing depth and bite chance indicator */}
-            <div style={{ marginBottom: '8px', fontSize: '12px' }}>
-              <div style={{ color: '#64c8ff', marginBottom: '4px' }}>
-                📏 Depth: <span style={{ fontWeight: 'bold' }}>{Math.round(calculateBobberToShoreDistance(bobber.x, bobber.y, isWaterTile) / 10)}m from shore</span>
-                <span style={{ 
-                  marginLeft: '8px',
-                  color: distanceBiteMultiplier > 1.5 ? '#44ff44' : distanceBiteMultiplier > 1.0 ? '#ffaa44' : '#ff6464',
-                  fontWeight: 'bold'
-                }}>
-                  ({distanceBiteMultiplier.toFixed(1)}x)
+      {/* Fishing UI - SOVA Diegetic Style */}
+      {!isRemotePlayer && (
+        <div className={styles.fishingPanel}>
+          <div className={styles.panelTitle}>
+            🎣 {phase === 'waiting' ? 'Waiting for bite...' : 'FISH ON!'}
+          </div>
+          
+          {phase === 'waiting' && (
+            <>
+              {/* Fishing depth and conditions */}
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>📏 Depth:</span>
+                <span className={`${styles.infoValue} ${distanceBiteMultiplier > 1.5 ? styles.infoValueGood : distanceBiteMultiplier > 1.0 ? styles.infoValueMedium : styles.infoValueBad}`}>
+                  {Math.round(calculateBobberToShoreDistance(bobber.x, bobber.y, isWaterTile) / 10)}m ({distanceBiteMultiplier.toFixed(1)}x)
                 </span>
               </div>
               
-              {/* Weather multiplier display */}
-              <div style={{ color: '#64c8ff', marginBottom: '4px' }}>
-                {worldState?.currentWeather?.tag === 'Clear' && '☀️ Weather: Clear '}
-                {worldState?.currentWeather?.tag === 'LightRain' && '🌦️ Weather: Light Rain '}
-                {worldState?.currentWeather?.tag === 'ModerateRain' && '🌧️ Weather: Moderate Rain '}
-                {worldState?.currentWeather?.tag === 'HeavyRain' && '⛈️ Weather: Heavy Rain '}
-                {worldState?.currentWeather?.tag === 'HeavyStorm' && '🌩️ Weather: Heavy Storm '}
-                {!worldState?.currentWeather && '☀️ Weather: Clear '}
-                <span style={{ 
-                  marginLeft: '8px',
-                  color: rainBiteMultiplier > 2.0 ? '#44ff44' : rainBiteMultiplier > 1.5 ? '#88ff44' : rainBiteMultiplier > 1.0 ? '#ffaa44' : '#ffffff',
-                  fontWeight: 'bold'
-                }}>
-                  ({rainBiteMultiplier.toFixed(1)}x)
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>
+                  {worldState?.currentWeather?.tag === 'Clear' && '☀️ Weather:'}
+                  {worldState?.currentWeather?.tag === 'LightRain' && '🌦️ Weather:'}
+                  {worldState?.currentWeather?.tag === 'ModerateRain' && '🌧️ Weather:'}
+                  {worldState?.currentWeather?.tag === 'HeavyRain' && '⛈️ Weather:'}
+                  {worldState?.currentWeather?.tag === 'HeavyStorm' && '🌩️ Weather:'}
+                  {!worldState?.currentWeather && '☀️ Weather:'}
+                </span>
+                <span className={`${styles.infoValue} ${rainBiteMultiplier > 2.0 ? styles.infoValueGood : rainBiteMultiplier > 1.0 ? styles.infoValueMedium : ''}`}>
+                  {rainBiteMultiplier.toFixed(1)}x
                 </span>
               </div>
               
-              {/* Total multiplier */}
-              <div style={{ color: '#64c8ff', marginBottom: '4px' }}>
-                🎣 Total bite chance: <span style={{ 
-                  color: totalBiteMultiplier > 3.0 ? '#44ff44' : totalBiteMultiplier > 2.0 ? '#88ff44' : totalBiteMultiplier > 1.5 ? '#ffaa44' : '#ffffff',
-                  fontWeight: 'bold'
-                }}>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>🎣 Bite Chance:</span>
+                <span className={`${styles.infoValue} ${totalBiteMultiplier > 3.0 ? styles.infoValueGood : totalBiteMultiplier > 1.5 ? styles.infoValueMedium : styles.infoValueBad}`}>
                   {totalBiteMultiplier.toFixed(1)}x
                 </span>
               </div>
               
-              <div style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
-                {totalBiteMultiplier < 0.8 ? '🏖️ Poor conditions - fish are scarce' :
-                 totalBiteMultiplier < 1.5 ? '🌊 Fair conditions - some fish around' :
-                 totalBiteMultiplier < 2.5 ? '🌊 Good conditions - fish are active' :
-                 totalBiteMultiplier < 4.0 ? '🐟 Excellent conditions - feeding frenzy!' :
-                 '🐟🌧️ PERFECT storm - fish paradise!'}
+              {/* Timer bar */}
+              <div className={styles.meterContainer}>
+                <div className={styles.meterLabel}>
+                  <span>Bite Timer</span>
+                  <span className={styles.meterLabelValue}>{Math.round(timer)}%</span>
+                </div>
+                <div className={styles.meterTrack}>
+                  <div 
+                    className={`${styles.meterFill} ${timer > 30 ? styles.meterFillGood : styles.meterFillBad}`}
+                    style={{ width: `${timer}%` }}
+                  />
+                </div>
               </div>
-            </div>
-            
-            {/* Timer bar */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '4px' }}>Bite Timer</div>
-              <div
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${timer}%`,
-                    height: '100%',
-                    backgroundColor: timer > 30 ? '#64c8ff' : '#ff6464',
-                    transition: 'width 0.1s ease-out',
-                  }}
-                />
+              
+              <div className={styles.instructionText}>
+                Wait for a bite...
               </div>
-            </div>
-          </>
-        )}
-        
-        {phase === 'caught' && (
-          <>
-            <div style={{ marginBottom: '6px', color: stressRatio > 0.8 ? '#ff6464' : '#64c8ff' }}>
-              {stressRatio > 0.9 ? '💀 LINE BREAKING!' : 
-               stressRatio > 0.8 ? '🚨 Fish making desperate runs!' : 
-               stressRatio > 0.6 ? '⚡ Fish fighting with long sweeps!' :
-               '🎣 Fish swimming - reel it in!'}
-            </div>
-            
-            {/* Line stress indicator with warning colors */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '4px' }}>
-                Line Stress: <span style={{ 
-                  color: stressRatio > 0.8 ? '#ff4444' : stressRatio > 0.6 ? '#ffaa44' : '#44ff44',
-                  fontWeight: 'bold'
-                }}>
-                  {(stressRatio * 100).toFixed(0)}%
-                </span>
-                {stressRatio > LINE_BREAK_THRESHOLD && ' - BREAKING!'}
+            </>
+          )}
+          
+          {phase === 'caught' && (
+            <>
+              {/* Status text */}
+              <div className={`${styles.statusText} ${
+                tension.currentTension > 85 ? styles.statusTextDanger : 
+                tension.escapeProgress > 50 ? styles.statusTextWarning : ''
+              }`}>
+                {tension.currentTension > 90 ? '💀 LINE BREAKING!' : 
+                 tension.currentTension > 80 ? '⚠️ Too much tension!' :
+                 tension.currentTension < 20 ? '⚠️ Give less slack!' :
+                 tension.escapeProgress > 70 ? '🐟 Fish escaping!' :
+                 '🎣 Keep it in the zone!'}
               </div>
-              <div
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                  border: stressRatio > 0.8 ? '1px solid #ff4444' : 'none',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.min(100, stressRatio * 100)}%`,
-                    height: '100%',
-                    backgroundColor: stressRatio > 0.8 ? '#ff4444' : stressRatio > 0.6 ? '#ffaa44' : '#44ff44',
-                    transition: 'width 0.1s ease-out, background-color 0.2s ease-out',
-                    animation: stressRatio > 0.8 ? 'pulse 0.5s infinite' : 'none',
-                  }}
-                />
+              
+              {/* TENSION BALANCE METER - The main mini-game! */}
+              <div className={styles.tensionMeterContainer}>
+                <div className={styles.meterLabel}>
+                  <span>Line Tension</span>
+                  <span className={styles.meterLabelValue}>
+                    {tension.isReeling ? '🔄 REELING' : '〰️ SLACK'}
+                  </span>
+                </div>
+                <div className={styles.tensionMeterTrack}>
+                  {/* Break zone markers */}
+                  <div className={`${styles.breakZoneMarker} ${styles.breakZoneMarkerLeft}`} />
+                  <div className={`${styles.breakZoneMarker} ${styles.breakZoneMarkerRight}`} />
+                  
+                  {/* Sweet spot zone */}
+                  <div 
+                    className={styles.sweetSpotZone}
+                    style={{
+                      left: `${tension.sweetSpotCenter - tension.sweetSpotWidth / 2}%`,
+                      width: `${tension.sweetSpotWidth}%`,
+                    }}
+                  />
+                  
+                  {/* Tension indicator (player's current tension) */}
+                  <div 
+                    className={`${styles.tensionIndicator} ${
+                      tension.currentTension > 85 || tension.currentTension < 15 ? styles.tensionIndicatorDanger : ''
+                    }`}
+                    style={{
+                      left: `calc(${tension.currentTension}% - 3px)`,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-            
-            {/* Reel progress bar */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '4px' }}>Progress to Shore</div>
-              <div
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${reelProgress}%`,
-                    height: '100%',
-                    backgroundColor: '#64ff64',
-                    transition: 'width 0.2s ease-out',
-                  }}
-                />
+              
+              {/* Catch Progress */}
+              <div className={styles.meterContainer}>
+                <div className={styles.meterLabel}>
+                  <span>🐟 Catch Progress</span>
+                  <span className={styles.meterLabelValue}>{Math.round(tension.catchProgress)}%</span>
+                </div>
+                <div className={styles.meterTrack}>
+                  <div 
+                    className={`${styles.meterFill} ${styles.meterFillGood}`}
+                    style={{ width: `${tension.catchProgress}%` }}
+                  />
+                </div>
               </div>
-            </div>
-          </>
-        )}
-        
-        <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '8px' }}>
-          Right-click to reel in the fish!
+              
+              {/* Escape Progress (danger meter) */}
+              {tension.escapeProgress > 0 && (
+                <div className={styles.meterContainer}>
+                  <div className={styles.meterLabel}>
+                    <span>⚠️ Escape Risk</span>
+                    <span className={styles.meterLabelValue}>{Math.round(tension.escapeProgress)}%</span>
+                  </div>
+                  <div className={styles.meterTrack}>
+                    <div 
+                      className={`${styles.meterFill} ${tension.escapeProgress > 70 ? styles.meterFillBad : styles.meterFillMedium}`}
+                      style={{ width: `${tension.escapeProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className={styles.instructionText}>
+                <span className={styles.instructionHighlight}>HOLD Right-Click</span> to reel, 
+                <span className={styles.instructionHighlight}> RELEASE</span> for slack
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Add CSS animation for result popup */}
       <style>{`
@@ -1084,11 +991,11 @@ const FishingSystem: React.FC<FishingSystemProps> = ({
       {/* Custom shake animation that only translates, no scaling */}
       <style>{`
         @keyframes bobberShake {
-          0% { transform: translate(0, 0) rotate(${phase === 'caught' ? 15 + stressRatio * 30 : 0}deg); }
-          25% { transform: translate(2px, -1px) rotate(${phase === 'caught' ? 15 + stressRatio * 30 : 0}deg); }
-          50% { transform: translate(-1px, 2px) rotate(${phase === 'caught' ? 15 + stressRatio * 30 : 0}deg); }
-          75% { transform: translate(-2px, -1px) rotate(${phase === 'caught' ? 15 + stressRatio * 30 : 0}deg); }
-          100% { transform: translate(0, 0) rotate(${phase === 'caught' ? 15 + stressRatio * 30 : 0}deg); }
+          0% { transform: translate(0, 0) rotate(${phase === 'caught' ? 15 + (tension.currentTension / 100) * 30 : 0}deg); }
+          25% { transform: translate(2px, -1px) rotate(${phase === 'caught' ? 15 + (tension.currentTension / 100) * 30 : 0}deg); }
+          50% { transform: translate(-1px, 2px) rotate(${phase === 'caught' ? 15 + (tension.currentTension / 100) * 30 : 0}deg); }
+          75% { transform: translate(-2px, -1px) rotate(${phase === 'caught' ? 15 + (tension.currentTension / 100) * 30 : 0}deg); }
+          100% { transform: translate(0, 0) rotate(${phase === 'caught' ? 15 + (tension.currentTension / 100) * 30 : 0}deg); }
         }
       `}</style>
 

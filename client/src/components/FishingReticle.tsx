@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { Player, ItemDefinition } from '../generated';
 import { Identity } from 'spacetimedb';
 import { FISHING_CONSTANTS } from '../types/fishing';
+import styles from './FishingUI.module.css';
 
 interface FishingReticleProps {
   localPlayer: Player | null;
@@ -135,7 +136,7 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
 
   return (
     <>
-      {/* Fishing reticle */}
+      {/* Fishing reticle - SOVA style colors */}
       <div
         ref={reticleRef}
         style={{
@@ -145,12 +146,12 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
           width: '40px',
           height: '40px',
           borderRadius: '50%',
-          border: `3px solid ${isValidTarget ? '#64c8ff' : '#ff6464'}`,
-          backgroundColor: `${isValidTarget ? 'rgba(100, 200, 255, 0.2)' : 'rgba(255, 100, 100, 0.2)'}`,
+          border: `3px solid ${isValidTarget ? '#00ffff' : '#ff4444'}`,
+          backgroundColor: `${isValidTarget ? 'rgba(0, 255, 255, 0.15)' : 'rgba(255, 68, 68, 0.15)'}`,
           pointerEvents: 'none',
           zIndex: 10000,
           transition: 'all 0.1s ease-out',
-          boxShadow: `0 0 10px ${isValidTarget ? '#64c8ff' : '#ff6464'}`,
+          boxShadow: `0 0 15px ${isValidTarget ? 'rgba(0, 255, 255, 0.6)' : 'rgba(255, 68, 68, 0.6)'}, inset 0 0 8px ${isValidTarget ? 'rgba(0, 255, 255, 0.2)' : 'rgba(255, 68, 68, 0.2)'}`,
         }}
       >
         {/* Center dot */}
@@ -159,11 +160,12 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
             position: 'absolute',
             top: '50%',
             left: '50%',
-            width: '4px',
-            height: '4px',
-            backgroundColor: isValidTarget ? '#64c8ff' : '#ff6464',
+            width: '6px',
+            height: '6px',
+            backgroundColor: isValidTarget ? '#00ffff' : '#ff4444',
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
+            boxShadow: `0 0 8px ${isValidTarget ? '#00ffff' : '#ff4444'}`,
           }}
         />
         
@@ -174,9 +176,10 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
             top: '50%',
             left: '2px',
             right: '2px',
-            height: '1px',
-            backgroundColor: isValidTarget ? '#64c8ff' : '#ff6464',
+            height: '2px',
+            backgroundColor: isValidTarget ? '#00ffff' : '#ff4444',
             transform: 'translateY(-50%)',
+            opacity: 0.8,
           }}
         />
         <div
@@ -185,34 +188,19 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
             left: '50%',
             top: '2px',
             bottom: '2px',
-            width: '1px',
-            backgroundColor: isValidTarget ? '#64c8ff' : '#ff6464',
+            width: '2px',
+            backgroundColor: isValidTarget ? '#00ffff' : '#ff4444',
             transform: 'translateX(-50%)',
+            opacity: 0.8,
           }}
         />
       </div>
       
-      {/* Fishing instructions */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '130px',
-          right: '15px',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          color: '#64c8ff',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '13px',
-          zIndex: 50,
-          border: '2px solid #64c8ff',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(4px)',
-          minWidth: '180px',
-        }}
-      >
-        <div style={{ marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>🎣 Fishing Mode</div>
-        <div style={{ marginBottom: '4px' }}>Left-click on water to cast</div>
-        <div style={{ fontSize: '11px', opacity: 0.8, fontStyle: 'italic' }}>
+      {/* Fishing instructions - SOVA Style */}
+      <div className={styles.reticlePanel}>
+        <div className={styles.reticleTitle}>🎣 FISHING MODE</div>
+        <div className={styles.reticleInstruction}>Left-click on water to cast</div>
+        <div className={`${styles.reticleStatus} ${isValidTarget ? styles.reticleStatusValid : styles.reticleStatusInvalid}`}>
           {isValidTarget ? '✓ Valid target' : '⚠ Move to water within range'}
         </div>
       </div>
