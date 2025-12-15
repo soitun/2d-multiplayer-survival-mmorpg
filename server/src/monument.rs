@@ -15,6 +15,7 @@
 
 use spacetimedb::{ReducerContext, Table};
 use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::fishing_village_part as FishingVillagePartTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
 use crate::barrel::barrel as BarrelTableTrait;
@@ -28,6 +29,9 @@ use log;
 pub mod clearance {
     /// Shipwreck parts - clear a 12-tile radius (600px)
     pub const SHIPWRECK: f32 = 600.0;
+    
+    /// Fishing village parts - clear a 10-tile radius (500px)
+    pub const FISHING_VILLAGE: f32 = 500.0;
     
     // Future monument types can be added here:
     // pub const RUINS: f32 = 400.0;
@@ -45,6 +49,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
         return true;
     }
     
+    // Check fishing village monuments
+    if is_near_fishing_village(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
     // Future monument checks can be added here:
     // if is_near_ruins(ctx, pos_x, pos_y) { return true; }
     // if is_near_crash_site(ctx, pos_x, pos_y) { return true; }
@@ -58,6 +67,23 @@ fn is_near_shipwreck(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     let clearance_sq = clearance::SHIPWRECK * clearance::SHIPWRECK;
     
     for part in ctx.db.shipwreck_part().iter() {
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near any fishing village part
+fn is_near_fishing_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::FISHING_VILLAGE * clearance::FISHING_VILLAGE;
+    
+    for part in ctx.db.fishing_village_part().iter() {
         let dx = pos_x - part.world_x;
         let dy = pos_y - part.world_y;
         let dist_sq = dx * dx + dy * dy;
@@ -297,6 +323,253 @@ pub fn generate_shipwreck(
     }
     
     (shipwreck_centers, shipwreck_parts)
+}
+
+/// Generate fishing village monument on south beach (opposite side from shipwreck)
+/// Aleut-style fishing village with huts, dock, smoke racks, and central campfire.
+/// Returns (center_position, village_parts) where:
+/// - center_position: (x, y) in world pixels for campfire center piece
+/// - village_parts: Vec of (x, y, image_path, part_type) for all village structures
+pub fn generate_fishing_village(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    shipwreck_centers: &[(f32, f32)], // Avoid placing near shipwreck
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut village_center: Option<(f32, f32)> = None;
+    let mut village_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("🏘️ Generating fishing village monument on south beach...");
+    
+    // Find south beach tiles - VERY close to shore (2-6 tiles from water)
+    let map_height_third = height * 2 / 3; // Start at 2/3 down the map (bottom third)
+    let min_shore_dist = 2.0;  // At least 2 tiles from water (not IN water)
+    let max_shore_dist = 6.0;  // At most 6 tiles from water (right on the beach!)
+    let min_distance_from_edge = 25;
+    let min_distance_from_shipwreck = 80.0; // Minimum tiles away from shipwreck
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search bottom third of map for beach tiles RIGHT at the shore
+    for y in (map_height_third + min_distance_from_edge)..(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be very close to shore - right on the beach!
+            if shore_dist >= min_shore_dist && shore_dist <= max_shore_dist {
+                // Must not be on river or lake
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check distance from shipwreck - must be far away
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close_to_shipwreck = false;
+                for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
+                    let dx = tile_world_x - shipwreck_x;
+                    let dy = tile_world_y - shipwreck_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_shipwreck {
+                        too_close_to_shipwreck = true;
+                        break;
+                    }
+                }
+                
+                if too_close_to_shipwreck {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("🏘️ No valid south beach positions found for fishing village");
+        return (village_center, village_parts);
+    }
+    
+    log::info!("🏘️ Found {} candidate positions for fishing village (shore_dist {}-{})", 
+               candidate_positions.len(), min_shore_dist, max_shore_dist);
+    
+    // Select position using noise - prefer positions closer to water
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        // Score: noise value + bonus for being closer to water
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 20000.0]);
+        let shore_bonus = (max_shore_dist - shore_dist) / max_shore_dist * 0.5; // Bonus for closer to water
+        let score = noise_val + shore_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        // Determine which direction the water is using shore_distance gradient
+        // Just sample 8 directions and find which has lowest shore_distance
+        let sample_dist = 8; // Sample 8 tiles away
+        let directions: [(i32, i32); 8] = [
+            (1, 0), (1, 1), (0, 1), (-1, 1),  // E, SE, S, SW
+            (-1, 0), (-1, -1), (0, -1), (1, -1), // W, NW, N, NE
+        ];
+        
+        let mut water_direction_x = 0.0f32;
+        let mut water_direction_y = 0.0f32;
+        
+        for &(dx, dy) in &directions {
+            let nx = (center_x as i32 + dx * sample_dist).clamp(0, width as i32 - 1) as usize;
+            let ny = (center_y as i32 + dy * sample_dist).clamp(0, height as i32 - 1) as usize;
+            let dist = shore_distance[ny][nx];
+            
+            // Weight by how much closer to water this direction is (lower = closer)
+            // Negative shore_dist means water, so lower values = more towards water
+            let weight = (shore_distance[center_y][center_x] - dist).max(0.0) as f32;
+            water_direction_x += dx as f32 * weight;
+            water_direction_y += dy as f32 * weight;
+        }
+        
+        // Normalize water direction
+        let water_dir_len = (water_direction_x * water_direction_x + water_direction_y * water_direction_y).sqrt();
+        if water_dir_len > 0.01 {
+            water_direction_x /= water_dir_len;
+            water_direction_y /= water_dir_len;
+        } else {
+            // Default: assume water is to the south
+            water_direction_x = 0.0;
+            water_direction_y = 1.0;
+        }
+        
+        // Calculate angle to water (for orienting the village)
+        let water_angle = water_direction_y.atan2(water_direction_x);
+        let inland_angle = water_angle + std::f32::consts::PI; // Opposite direction
+        
+        log::info!("🏘️ Water direction: ({:.2}, {:.2}), angle: {:.2} rad", 
+                   water_direction_x, water_direction_y, water_angle);
+        
+        village_center = Some((center_world_x, center_world_y));
+        
+        log::info!("🏘️✨ PLACED FISHING VILLAGE CENTER (campfire) at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // Village layout - spread out along the beach with PROPER spacing
+        // =============================================================================
+        // SIMPLE GRID-BASED LAYOUT - Fixed offsets from campfire center
+        // Much more reliable than angle-based placement!
+        // =============================================================================
+        // Layout (in local coords where +X is perpendicular to shore, +Y is along shore):
+        //
+        //     HUT1 (-350, -350)     HUT3 (0, -500)     HUT2 (+350, -350)   <- INLAND
+        //                                    
+        //     SMOKE1 (-200, -120)  CAMPFIRE (0, 0)   SMOKE2 (+200, -120)
+        //                                    
+        //          KAYAK (-180, +180)    DOCK (0, +220)                    <- WATER
+        //
+        // We rotate these offsets based on water_direction to orient the village
+        // =============================================================================
+        
+        // Add campfire first (at center position)
+        village_parts.push((center_world_x, center_world_y, "fv_campfire.png".to_string(), "campfire".to_string()));
+        
+        log::info!("🏘️ Using grid layout with water direction ({:.2}, {:.2})", 
+                   water_direction_x, water_direction_y);
+        
+        // Structure definitions: (part_type, image_name, offset_along_shore, offset_towards_water)
+        // Positive offset_towards_water = towards water
+        // Positive offset_along_shore = "right" when facing water
+        // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
+        //       offsets must be very small or negative to stay on land!
+        let structure_configs: [(&str, &str, f32, f32); 7] = [
+            // Huts - set back INLAND from campfire (negative = away from water)
+            ("hut", "fv_hut1.png", -350.0, -350.0),    // Inland-left
+            ("hut", "fv_hut2.png", 350.0, -350.0),     // Inland-right
+            ("hut", "fv_hut3.png", 0.0, -500.0),       // Far inland center
+            
+            // Smoke racks - slightly inland, spread left/right
+            ("smokerack", "fv_smokerack1.png", -200.0, -120.0),
+            ("smokerack", "fv_smokerack2.png", 200.0, -120.0),
+            
+            // Dock - ON THE BEACH, offset along shore (not into water!)
+            // Campfire is already at water's edge, so dock stays on beach
+            ("dock", "fv_dock.png", 280.0, 0.0),       // Right of campfire, on beach
+            
+            // Kayak - ON THE BEACH, other side from dock
+            ("kayak", "fv_kayak.png", -250.0, 50.0),   // Left of campfire, on beach
+        ];
+        
+        // Calculate perpendicular direction (along the shore)
+        // If water is (wx, wy), perpendicular is (-wy, wx)
+        let shore_dir_x = -water_direction_y;
+        let shore_dir_y = water_direction_x;
+        
+        for (part_type, image_name, offset_along_shore, offset_towards_water) in structure_configs.iter() {
+            // Transform local offsets to world coordinates using water direction
+            // offset_towards_water uses water_direction
+            // offset_along_shore uses perpendicular direction
+            let world_offset_x = water_direction_x * offset_towards_water + shore_dir_x * offset_along_shore;
+            let world_offset_y = water_direction_y * offset_towards_water + shore_dir_y * offset_along_shore;
+            
+            let part_world_x = center_world_x + world_offset_x;
+            let part_world_y = center_world_y + world_offset_y;
+            
+            // Convert to tile coords for validation
+            let part_tile_x = (part_world_x / tile_size_px) as i32;
+            let part_tile_y = (part_world_y / tile_size_px) as i32;
+            
+            // Bounds check
+            if part_tile_x < 5 || part_tile_y < 5 || 
+               part_tile_x >= (width as i32 - 5) || part_tile_y >= (height as i32 - 5) {
+                log::warn!("🏘️ {} out of bounds at tile ({}, {})", part_type, part_tile_x, part_tile_y);
+                continue;
+            }
+            
+            let px = part_tile_x as usize;
+            let py = part_tile_y as usize;
+            
+            // Check terrain - RELAXED constraints (we trust the grid layout)
+            let part_shore_dist = shore_distance[py][px];
+            
+            // Skip only if in deep water or on river/lake
+            if *part_type == "dock" || *part_type == "kayak" {
+                // Dock/kayak can be in shallow water
+                if part_shore_dist < -5.0 || river_network[py][px] || lake_map[py][px] {
+                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
+                    continue;
+                }
+            } else {
+                // Huts and smoke racks must be on land
+                if part_shore_dist < -1.0 || river_network[py][px] || lake_map[py][px] {
+                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
+                    continue;
+                }
+            }
+            
+            // Place the structure!
+            village_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            
+            log::info!("🏘️✨ PLACED {} ({}) at ({:.0}, {:.0}), offset=({:.0}, {:.0}) ✨",
+                       part_type.to_uppercase(), image_name, part_world_x, part_world_y,
+                       offset_along_shore, offset_towards_water);
+        }
+        
+        log::info!("🏘️ Fishing village generation complete: {} total structures", village_parts.len());
+    } else {
+        log::warn!("🏘️ Failed to select fishing village position");
+    }
+    
+    (village_center, village_parts)
 }
 
 // =============================================================================

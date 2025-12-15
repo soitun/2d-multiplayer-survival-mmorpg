@@ -149,6 +149,7 @@ mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 mod matronage; // <<< ADDED: Matronage pooled rewards system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
+mod fishing_village; // <<< ADDED: Fishing village monument collision system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 
@@ -1751,6 +1752,28 @@ pub struct ShipwreckPart {
     /// Whether this is the center piece (hull1.png)
     pub is_center: bool,
     /// Collision radius in pixels
+    pub collision_radius: f32,
+}
+
+/// Fishing village monument positions (dynamically placed during world generation)
+/// Aleut-style fishing village with huts, dock, smoke racks, and campfire
+#[spacetimedb::table(name = fishing_village_part, public)]
+#[derive(Clone, Debug)]
+pub struct FishingVillagePart {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// World X position in pixels
+    pub world_x: f32,
+    /// World Y position in pixels
+    pub world_y: f32,
+    /// Image filename (e.g., "hut1.png", "dock.png", "smokerack.png")
+    pub image_path: String,
+    /// Part type for identification (campfire, hut, dock, smokerack, kayak)
+    pub part_type: String,
+    /// Whether this is the center piece (campfire)
+    pub is_center: bool,
+    /// Collision radius in pixels (0 = no collision per user request)
     pub collision_radius: f32,
 }
 

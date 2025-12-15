@@ -1,13 +1,14 @@
 use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
-use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, ShipwreckPart, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, ShipwreckPart, FishingVillagePart, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
 use crate::minimap_cache as MinimapCacheTableTrait;
 use crate::world_chunk_data as WorldChunkDataTableTrait;
 use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::fishing_village_part as FishingVillagePartTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
 
 use rand::{Rng, SeedableRng};
@@ -64,6 +65,15 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         log::info!("Clearing {} existing shipwreck parts", shipwreck_count);
         for part in ctx.db.shipwreck_part().iter() {
             ctx.db.shipwreck_part().id().delete(&part.id);
+        }
+    }
+    
+    // Clear existing fishing village parts
+    let fishing_village_count = ctx.db.fishing_village_part().iter().count();
+    if fishing_village_count > 0 {
+        log::info!("Clearing {} existing fishing village parts", fishing_village_count);
+        for part in ctx.db.fishing_village_part().iter() {
+            ctx.db.fishing_village_part().id().delete(&part.id);
         }
     }
     
@@ -151,6 +161,26 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
     }
     
+    // Store fishing village positions in database table for client access (one-time read, then static)
+    // Following compound buildings pattern: client-side rendering, NO collision per user request
+    if let Some((center_x, center_y)) = world_features.fishing_village_center {
+        // All parts are stored (including campfire which is first in the parts list)
+        for (part_x, part_y, image_path, part_type) in &world_features.fishing_village_parts {
+            ctx.db.fishing_village_part().insert(FishingVillagePart {
+                id: 0, // auto_inc
+                world_x: *part_x,
+                world_y: *part_y,
+                image_path: image_path.clone(),
+                part_type: part_type.clone(),
+                is_center: *part_type == "campfire",
+                collision_radius: 0.0, // NO collision per user request
+            });
+        }
+        
+        log::info!("🏘️ Stored {} fishing village parts in database - client reads once, then treats as static config",
+                   world_features.fishing_village_parts.len());
+    }
+    
     // Store large quarry positions and types in database for client minimap display
     // Similar to shipwreck - client reads once, then treats as static config
     for (tile_x, tile_y, radius, quarry_type) in &world_features.large_quarry_centers {
@@ -200,6 +230,8 @@ struct WorldFeatures {
     island_positions: Vec<(f64, f64, f64)>, // Scattered island centers (x, y, radius) for biome assignment
     shipwreck_centers: Vec<(f32, f32)>, // Shipwreck center positions (x, y) in world pixels - center piece
     shipwreck_parts: Vec<(f32, f32, String)>, // Shipwreck crash parts (x, y, image_path) in world pixels
+    fishing_village_center: Option<(f32, f32)>, // Fishing village center position (campfire) in world pixels
+    fishing_village_parts: Vec<(f32, f32, String, String)>, // Fishing village parts (x, y, image_path, part_type) in world pixels
     width: usize,
     height: usize,
 }
@@ -264,6 +296,11 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate shipwreck monument on south beach (now handled by monument module)
     let (shipwreck_centers, shipwreck_parts) = crate::monument::generate_shipwreck(noise, &shore_distance, &river_network, &lake_map, width, height);
     
+    // Generate fishing village monument on south beach (opposite side from shipwreck)
+    let (fishing_village_center, fishing_village_parts) = crate::monument::generate_fishing_village(
+        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, width, height
+    );
+    
     WorldFeatures {
         heightmap,
         shore_distance,
@@ -285,6 +322,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         island_positions,
         shipwreck_centers,
         shipwreck_parts,
+        fishing_village_center,
+        fishing_village_parts,
         width,
         height,
     }

@@ -642,7 +642,8 @@ export function useEntityFiltering(
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
-  shipwreckParts?: Map<string, any> // ADDED: Shipwreck monument parts
+  shipwreckParts?: Map<string, any>, // ADDED: Shipwreck monument parts
+  fishingVillageParts?: Map<string, any> // ADDED: Fishing village monument parts
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -1177,10 +1178,10 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
-  // ADDED: Compound buildings filtering - static buildings + dynamic shipwrecks
-  // Static buildings come from config, shipwrecks come from database
+  // ADDED: Compound buildings filtering - static buildings + dynamic monuments (shipwrecks, fishing village)
+  // Static buildings come from config, dynamic monuments come from database
   const visibleCompoundBuildings = useMemo(() => {
-    // Merge static compound buildings with dynamic shipwreck parts
+    // Merge static compound buildings with dynamic monument parts
     const shipwreckPartsArray = shipwreckParts ? Array.from(shipwreckParts.values()).map(part => ({
       id: part.id,
       worldX: part.worldX,
@@ -1190,7 +1191,17 @@ export function useEntityFiltering(
       collisionRadius: part.collisionRadius,
     })) : [];
     
-    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray);
+    const fishingVillagePartsArray = fishingVillageParts ? Array.from(fishingVillageParts.values()).map(part => ({
+      id: part.id,
+      worldX: part.worldX,
+      worldY: part.worldY,
+      imagePath: part.imagePath,
+      partType: part.partType,
+      isCenter: part.isCenter,
+      collisionRadius: part.collisionRadius,
+    })) : [];
+    
+    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray, fishingVillagePartsArray);
     
     // Convert buildings to entity format with world positions
     return allBuildings.map(building => {
@@ -1217,7 +1228,7 @@ export function useEntityFiltering(
              bottom + buffer >= viewBounds.viewMinY &&
              top - buffer <= viewBounds.viewMaxY;
     });
-  }, [viewBounds, shipwreckParts]);
+  }, [viewBounds, shipwreckParts, fishingVillageParts]);
 
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))

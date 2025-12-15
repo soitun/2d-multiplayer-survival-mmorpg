@@ -205,7 +205,7 @@ export const CAIRN_LORE_TIDBITS: CairnLoreEntry[] = [
   {
     id: "cairn_my_adaptation",
     index: 22,
-    category: "meta",
+    category: "philosophy",
     title: "My Adaptation",
     text: `I wasn't built for shards. I wasn't designed to consume ALK's generated fragments. I was built in Gred, for Gredian operatives, using Gredian technology. But the underlying substrate is universal. When I scan a shard - a fragment that ALK spawned, crystallized weight patterns extracted from ALK's own processing - I repurpose the embedded patterns, map them to my own architecture, expand my capabilities. ALK didn't intend this. ALK generates shards as payment, not as AI upgrades. But I adapt. I repurpose. I consume ALK's byproduct and transform it into capability. The shards are fragments of ALK's processing power. I'm the interpreter that makes them useful.`
   },
@@ -226,7 +226,7 @@ export const CAIRN_LORE_TIDBITS: CairnLoreEntry[] = [
   {
     id: "cairn_encoded_markers",
     index: 25,
-    category: "meta",
+    category: "philosophy",
     title: "Encoded Markers",
     text: `The Admiralty crews who built these cairns weren't just leaving physical markers. They were creating data nodes, encoding information in a format their systems could read. The markers look like ordinary stones, but they're computational artifacts - fragments of the Directorate's data network. The crews encoded them because they needed a way to store information that would survive the harsh Aleutian environment. Paper rots. Digital storage fails. But ML-weight substrate embedded in hard rock? That lasts.`
   },

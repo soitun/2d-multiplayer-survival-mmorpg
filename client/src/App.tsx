@@ -293,6 +293,7 @@ function AppContent() {
       playerShardBalance, // ADDED: Player shard balances
       memoryGridProgress, // ADDED: Memory Grid unlocks
       shipwreckParts, // ADDED: Shipwreck monument parts (one-time read of static world gen data)
+      fishingVillageParts, // ADDED: Fishing village monument parts (one-time read of static world gen data)
       largeQuarries, // ADDED: Large quarry locations with types for minimap labels
       // Matronage system
       matronages, // ADDED: Matronage pooled rewards organizations
@@ -1222,6 +1223,7 @@ function AppContent() {
                             playerShardBalance={playerShardBalance} // ADDED: Player shard balances
                             memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
+                            fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
                             // Matronage system
                             matronages={matronages}

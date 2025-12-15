@@ -268,6 +268,8 @@ interface GameCanvasProps {
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
   // Shipwreck monument parts (dynamically placed during world generation)
   shipwreckParts?: Map<string, any>;
+  // Fishing village monument parts (dynamically placed during world generation)
+  fishingVillageParts?: Map<string, any>;
   // Large quarry locations with types for minimap labels (Stone/Sulfur/Metal Quarry)
   largeQuarries?: Map<string, any>;
   // Weather overlay toggle for main game canvas atmospheric effects
@@ -380,6 +382,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   chunkWeather, // Chunk-based weather data
   alkStations, // ALK delivery stations for minimap
   shipwreckParts, // Shipwreck monument parts
+  fishingVillageParts, // Fishing village monument parts
   largeQuarries, // Large quarry locations with types for minimap labels
   alkContracts, // ALK contracts for provisioning board
   alkPlayerContracts, // Player's accepted ALK contracts
@@ -743,7 +746,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
     alkStations, // ADDED: ALK delivery stations
-  shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
+    shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
+    fishingVillageParts, // ADDED: Fishing village monument parts for rendering
   );
 
   // --- Day/Night Cycle with Indoor Light Containment ---
@@ -3682,6 +3686,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       alkStations: alkStations,
       // Shipwreck monument parts for minimap
       shipwreckParts: shipwreckParts,
+      // Fishing village monument parts for minimap
+      fishingVillageParts: fishingVillageParts,
       // Large quarry locations with types for minimap labels
       largeQuarries: largeQuarries,
       // Show names toggle for minimap labels
@@ -3787,6 +3793,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           torchOnImage={torchOnImg}
           // Shipwreck monument parts for minimap
           shipwreckParts={shipwreckParts}
+          // Fishing village monument parts for minimap
+          fishingVillageParts={fishingVillageParts}
           // Large quarry locations with types for minimap labels
           largeQuarries={largeQuarries}
         />

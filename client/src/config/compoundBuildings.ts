@@ -586,20 +586,101 @@ export function getShipwreckBuildings(shipwreckParts: Array<{
 }
 
 /**
- * Get all compound buildings including shipwrecks.
- * Shipwrecks are read once from database during world load, then treated as static config.
- * This matches the compound buildings pattern: client-side rendering, server-side collision only.
+ * Convert fishing village parts from database to compound building format.
+ * Fishing villages are dynamically placed during world generation, but then treated as static config.
+ * Client reads fishing village positions once on world load, then treats them like compound buildings.
+ * NOTE: Fishing village has NO collision per user request (collisionRadius = 0)
  */
-export function getAllCompoundBuildings(shipwreckParts?: Array<{
+export function getFishingVillageBuildings(fishingVillageParts: Array<{
   id: bigint;
   worldX: number;
   worldY: number;
   imagePath: string;
+  partType: string;
   isCenter: boolean;
   collisionRadius: number;
 }>): CompoundBuilding[] {
+  const center = getWorldCenter();
+  
+  return fishingVillageParts.map((part, index) => {
+    // Calculate offset from world center (matching compound building pattern)
+    const offsetX = part.worldX - center.x;
+    const offsetY = part.worldY - center.y;
+    
+    // Size based on part type (smaller structures for fishing village)
+    let width = 256;
+    let height = 256;
+    
+    // Adjust sizes based on part type
+    switch (part.partType) {
+      case 'campfire':
+        width = 128;
+        height = 128;
+        break;
+      case 'hut':
+        width = 256;
+        height = 256;
+        break;
+      case 'dock':
+        width = 384;  // Longer for dock
+        height = 192;
+        break;
+      case 'smokerack':
+        width = 128;
+        height = 192;
+        break;
+      case 'kayak':
+        width = 192;
+        height = 96;
+        break;
+      default:
+        width = 256;
+        height = 256;
+    }
+    
+    const anchorYOffset = 0; // Anchor at bottom of sprite
+    
+    return {
+      id: `fishing_village_${part.id}`,
+      offsetX,
+      offsetY,
+      imagePath: part.imagePath,
+      width,
+      height,
+      anchorYOffset,
+      collisionRadius: part.collisionRadius, // 0 = no collision per user request
+      collisionYOffset: 0,
+    };
+  });
+}
+
+/**
+ * Get all compound buildings including shipwrecks and fishing village.
+ * Dynamic monuments are read once from database during world load, then treated as static config.
+ * This matches the compound buildings pattern: client-side rendering, server-side collision only.
+ */
+export function getAllCompoundBuildings(
+  shipwreckParts?: Array<{
+    id: bigint;
+    worldX: number;
+    worldY: number;
+    imagePath: string;
+    isCenter: boolean;
+    collisionRadius: number;
+  }>,
+  fishingVillageParts?: Array<{
+    id: bigint;
+    worldX: number;
+    worldY: number;
+    imagePath: string;
+    partType: string;
+    isCenter: boolean;
+    collisionRadius: number;
+  }>
+): CompoundBuilding[] {
   const staticBuildings = COMPOUND_BUILDINGS;
   const shipwreckBuildings = shipwreckParts ? getShipwreckBuildings(shipwreckParts) : [];
-  return [...staticBuildings, ...shipwreckBuildings];
+  const fishingVillageBuildings = fishingVillageParts ? getFishingVillageBuildings(fishingVillageParts) : [];
+  return [...staticBuildings, ...shipwreckBuildings, ...fishingVillageBuildings];
 }
 

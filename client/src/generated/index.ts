@@ -751,6 +751,8 @@ import { FirePatchDamageScheduleTableHandle } from "./fire_patch_damage_schedule
 export { FirePatchDamageScheduleTableHandle };
 import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
+import { FishingVillagePartTableHandle } from "./fishing_village_part_table.ts";
+export { FishingVillagePartTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
 import { FoodSpoilageScheduleTableHandle } from "./food_spoilage_schedule_table.ts";
@@ -1049,6 +1051,8 @@ import { FirePatchDamageSchedule } from "./fire_patch_damage_schedule_type.ts";
 export { FirePatchDamageSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
+import { FishingVillagePart } from "./fishing_village_part_type.ts";
+export { FishingVillagePart };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
 import { FoodSpoilageSchedule } from "./food_spoilage_schedule_type.ts";
@@ -1660,6 +1664,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "playerId",
         colType: (FishingSession.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fishing_village_part: {
+      tableName: "fishing_village_part" as const,
+      rowType: FishingVillagePart.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FishingVillagePart.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     food_poisoning_risk: {
@@ -10684,6 +10697,11 @@ export class RemoteTables {
   get fishingSession(): FishingSessionTableHandle<'fishing_session'> {
     // clientCache is a private property
     return new FishingSessionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishingSession>(REMOTE_MODULE.tables.fishing_session));
+  }
+
+  get fishingVillagePart(): FishingVillagePartTableHandle<'fishing_village_part'> {
+    // clientCache is a private property
+    return new FishingVillagePartTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishingVillagePart>(REMOTE_MODULE.tables.fishing_village_part));
   }
 
   get foodPoisoningRisk(): FoodPoisoningRiskTableHandle<'food_poisoning_risk'> {

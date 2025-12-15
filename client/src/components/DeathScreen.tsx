@@ -31,6 +31,7 @@ interface DeathScreenProps {
   campfireWarmthImage?: HTMLImageElement | null;
   torchOnImage?: HTMLImageElement | null;
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
+  fishingVillageParts?: Map<string, any>; // Fishing village monument parts
   largeQuarries?: Map<string, any>; // Large quarry locations with types for minimap labels
 }
 
@@ -80,6 +81,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   playerPin,
   sleepingBagImage,
   shipwreckParts, // Shipwreck monument parts
+  fishingVillageParts, // Fishing village monument parts
   largeQuarries, // Large quarry locations with types for minimap labels
   // Destructure new props
   localPlayerDeathMarker,
@@ -248,6 +250,8 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       showGridCoordinates,
       // Shipwreck monument parts for minimap
       shipwreckParts,
+      // Fishing village monument parts for minimap
+      fishingVillageParts,
       // Large quarry locations with types for minimap labels
       largeQuarries,
     });

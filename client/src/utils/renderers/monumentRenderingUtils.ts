@@ -70,6 +70,17 @@ export function preloadMonumentImages(): void {
     loadImage('hull5.png', import('../../assets/doodads/hull5.png?url'));
     loadImage('hull6.png', import('../../assets/doodads/hull6.png?url'));
     loadImage('hull7.png', import('../../assets/doodads/hull7.png?url'));
+    
+    // Fishing village monument images (Aleut-style village)
+    // TODO: Uncomment when images are added to assets/doodads/
+    // loadImage('fv_campfire.png', import('../../assets/doodads/fv_campfire.png?url'));
+    // loadImage('fv_hut1.png', import('../../assets/doodads/fv_hut1.png?url'));
+    // loadImage('fv_hut2.png', import('../../assets/doodads/fv_hut2.png?url'));
+    // loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
+    // loadImage('fv_dock.png', import('../../assets/doodads/fv_dock.png?url'));
+    // loadImage('fv_smokerack1.png', import('../../assets/doodads/fv_smokerack1.png?url'));
+    // loadImage('fv_smokerack2.png', import('../../assets/doodads/fv_smokerack2.png?url'));
+    // loadImage('fv_kayak.png', import('../../assets/doodads/fv_kayak.png?url'));
 }
 
 /**
@@ -103,6 +114,17 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hull5.png': () => import('../../assets/doodads/hull5.png?url'),
             'hull6.png': () => import('../../assets/doodads/hull6.png?url'),
             'hull7.png': () => import('../../assets/doodads/hull7.png?url'),
+            
+            // Fishing village monument images (Aleut-style village)
+            // TODO: Uncomment when images are added to assets/doodads/
+            // 'fv_campfire.png': () => import('../../assets/doodads/fv_campfire.png?url'),
+            // 'fv_hut1.png': () => import('../../assets/doodads/fv_hut1.png?url'),
+            // 'fv_hut2.png': () => import('../../assets/doodads/fv_hut2.png?url'),
+            // 'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
+            // 'fv_dock.png': () => import('../../assets/doodads/fv_dock.png?url'),
+            // 'fv_smokerack1.png': () => import('../../assets/doodads/fv_smokerack1.png?url'),
+            // 'fv_smokerack2.png': () => import('../../assets/doodads/fv_smokerack2.png?url'),
+            // 'fv_kayak.png': () => import('../../assets/doodads/fv_kayak.png?url'),
         };
     
         const loader = imageMap[imagePath];

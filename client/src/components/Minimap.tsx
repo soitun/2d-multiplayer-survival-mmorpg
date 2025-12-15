@@ -215,6 +215,7 @@ interface MinimapProps {
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
   alkStations?: Map<string, SpacetimeDBAlkStation>; // ALK delivery stations
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
+  fishingVillageParts?: Map<string, any>; // Fishing village monument parts
   largeQuarries?: Map<string, any>; // Large quarry locations with types for labels (Stone/Sulfur/Metal Quarry)
 
   localPlayer: SpacetimeDBPlayer | undefined; // Extracted local player
@@ -593,6 +594,7 @@ export function drawMinimapOntoCanvas({
   sleepingBags,
   alkStations, // ALK delivery stations
   shipwreckParts, // Shipwreck monument parts
+  fishingVillageParts, // Fishing village monument parts
   largeQuarries, // Large quarry locations with types for labels
 
   localPlayer, // Destructure localPlayer
@@ -1210,6 +1212,62 @@ export function drawMinimapOntoCanvas({
         // Fill with shipwreck color
         ctx.fillStyle = SHIPWRECK_COLOR;
         ctx.fillText('SHIPWRECK', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Fishing Village Parts (EXPLORATION LANDMARKS) ---
+  // Show ONE representative "FISHING VILLAGE" label for the entire structure
+  if (fishingVillageParts && fishingVillageParts.size > 0 && showNames === true) {
+    // Find ONE representative fishing village part (prefer center part/campfire, otherwise use first part)
+    let representativePart: any | null = null;
+    
+    // First, try to find a center part (campfire)
+    fishingVillageParts.forEach((part) => {
+      if (part.isCenter || part.partType === 'campfire') {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && fishingVillageParts.size > 0) {
+      representativePart = Array.from(fishingVillageParts.values())[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw "FISHING VILLAGE" text with warm/earthy styling - LARGER SIZE
+        ctx.font = 'bold 14px "Courier New", monospace'; // Same size as shipwreck
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Warm brown/tan color for fishing village (earthy Aleut style)
+        const FISHING_VILLAGE_COLOR = '#D2691E'; // Chocolate brown
+        const FISHING_VILLAGE_GLOW_COLOR = '#FFD700'; // Gold glow (from campfire)
+        
+        // Add glow effect for visibility
+        ctx.shadowColor = FISHING_VILLAGE_GLOW_COLOR;
+        ctx.shadowBlur = 10; // Increased glow
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4; // Thicker outline for larger text
+        ctx.strokeText('FISHING VILLAGE', x, y);
+        
+        // Fill with fishing village color
+        ctx.fillStyle = FISHING_VILLAGE_COLOR;
+        ctx.fillText('FISHING VILLAGE', x, y);
         
         ctx.restore();
       }
