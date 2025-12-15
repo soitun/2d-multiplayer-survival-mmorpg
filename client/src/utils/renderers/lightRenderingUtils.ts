@@ -1009,8 +1009,8 @@ export function renderAllPlayerLights(options: RenderAllPlayerLightsOptions): vo
 // Constants for fishing village communal campfire (larger than regular campfires)
 export const FV_CAMPFIRE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE * 2.0; // Communal fire
 export const FV_CAMPFIRE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.7; // More stable (well-tended fire)
-// Y offset to center light on the firepit in the 1024x1024 image (rendered at half size)
-export const FV_CAMPFIRE_Y_OFFSET = -250; // Push light up to match firepit center
+// Y offset to center light on the firepit in the 1024x1024 image (rendered at 256x256)
+export const FV_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment with 256x256 firepit
 
 interface RenderFishingVillageCampfireLightProps {
     ctx: CanvasRenderingContext2D;

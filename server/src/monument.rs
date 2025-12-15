@@ -490,24 +490,24 @@ pub fn generate_fishing_village(
         // Positive offset_towards_water = towards water
         // Positive offset_along_shore = "right" when facing water
         // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
-        //       offsets must be very small or negative to stay on land!
-        // SPACING: ~1.4x original for comfortable spacing with 512px rendered buildings
+        //       offsets need careful tuning - positive values go INTO water!
+        // LAYOUT: Tightened for cohesive village feel with smaller buildings
         let structure_configs: [(&str, &str, f32, f32); 7] = [
             // Huts - set back INLAND from campfire (negative = away from water)
-            ("hut", "fv_hut1.png", -480.0, -480.0),    // Inland-left
-            ("hut", "fv_hut2.png", 480.0, -480.0),     // Inland-right
-            ("hut", "fv_hut3.png", 0.0, -700.0),       // Far inland center
+            ("hut", "fv_hut1.png", -380.0, -400.0),    // Inland-left
+            ("hut", "fv_hut2.png", 380.0, -400.0),     // Inland-right
+            ("hut", "fv_hut3.png", 0.0, -580.0),       // Far inland center
             
-            // Smoke racks - slightly inland, spread left/right
-            ("smokerack", "fv_smokerack1.png", -280.0, -160.0),
-            ("smokerack", "fv_smokerack2.png", 280.0, -160.0),
+            // Smoke racks - closer to campfire, flanking it
+            ("smokerack", "fv_smokerack1.png", -180.0, -100.0),
+            ("smokerack", "fv_smokerack2.png", 180.0, -100.0),
             
-            // Dock - ON THE BEACH, offset along shore (not into water!)
-            // Campfire is already at water's edge, so dock stays on beach
-            ("dock", "fv_dock.png", 400.0, 0.0),       // Right of campfire, on beach
+            // Dock - EXTENDING INTO WATER, positioned away from smokeracks
+            // Positive towards_water pushes it into the water
+            ("dock", "fv_dock.png", 320.0, 350.0),     // Right of campfire, extending well into water
             
             // Kayak - ON THE BEACH, other side from dock
-            ("kayak", "fv_kayak.png", -350.0, 70.0),   // Left of campfire, on beach
+            ("kayak", "fv_kayak.png", -280.0, 120.0),  // Left of campfire, at water's edge
         ];
         
         // Calculate perpendicular direction (along the shore)

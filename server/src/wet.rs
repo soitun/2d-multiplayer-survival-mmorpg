@@ -146,6 +146,11 @@ pub fn should_player_be_wet(ctx: &ReducerContext, player_id: Identity, player: &
 fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool {
     use crate::shelter::shelter as ShelterTableTrait;
     use crate::campfire::campfire as CampfireTableTrait;
+    use crate::fishing_village_part as FishingVillagePartTableTrait;
+    
+    // Fishing village campfire warmth radius for rain protection (same as cozy radius)
+    const FISHING_VILLAGE_WARMTH_RADIUS: f32 = 450.0;
+    const FISHING_VILLAGE_WARMTH_RADIUS_SQ: f32 = FISHING_VILLAGE_WARMTH_RADIUS * FISHING_VILLAGE_WARMTH_RADIUS;
     
     // Check if player is inside any shelter
     for shelter in ctx.db.shelter().iter() {
@@ -175,6 +180,20 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool 
         
         if distance_squared <= crate::campfire::WARMTH_RADIUS_SQUARED {
             return true;
+        }
+    }
+    
+    // Check if player is near the fishing village communal campfire (always burning, provides rain protection)
+    for part in ctx.db.fishing_village_part().iter() {
+        if part.part_type == "campfire" {
+            let dx = player.position_x - part.world_x;
+            let dy = player.position_y - part.world_y;
+            let distance_squared = dx * dx + dy * dy;
+            
+            if distance_squared <= FISHING_VILLAGE_WARMTH_RADIUS_SQ {
+                log::debug!("Player {:?} is protected from rain by fishing village campfire", player.identity);
+                return true;
+            }
         }
     }
     

@@ -32,7 +32,7 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         // ("Potato", 5000, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
-        // ("Hunting Bow", 1, None, Some(0u16)),
+        ("Primitive Reed Fishing Rod", 1, None, Some(0u16)),
         // ("Crossbow", 1, None, Some(1u16)),
         // ("Makarov PM", 1, None, Some(2u16)),
         // ("Wooden Arrow", 50, None, Some(3u16)),

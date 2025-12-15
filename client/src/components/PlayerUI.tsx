@@ -951,7 +951,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             name: 'Aleut Fishing Waters',
                             emoji: '🎣',
                             type: 'positive' as const,
-                            description: '2x fishing hauls and better premium fish chance near the Aleut fishing village.',
+                            description: 'The waters teem with life, and the villagers share secret fishing spots to those who listen.',
                             // No duration - permanent while in fishing village zone
                         };
                         break;

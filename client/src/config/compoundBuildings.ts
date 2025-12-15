@@ -608,32 +608,31 @@ export function getFishingVillageBuildings(fishingVillageParts: Array<{
     const offsetY = part.worldY - center.y;
     
     // Size based on part type 
-    // Images are 1024x1024 square - render at half size (512x512) for good visibility
+    // Images are 1024x1024 square - sizes tuned for visual balance
     let width = 512;
     let height = 512;
     
     // Adjust sizes based on part type - all images are 1024x1024 square
-    // Rendering at half size (512x512) makes them properly visible
     switch (part.partType) {
       case 'campfire':
-        width = 384;   // Campfire slightly smaller
-        height = 384;
+        width = 256;   // Smaller firepit
+        height = 256;
         break;
       case 'hut':
-        width = 512;   // Huts at half original (1024 -> 512)
+        width = 512;   // Huts at half original (1024 -> 512) - PERFECT
         height = 512;
         break;
       case 'dock':
-        width = 512;   // Dock at half original
-        height = 512;
+        width = 384;   // Dock slightly smaller
+        height = 384;
         break;
       case 'smokerack':
-        width = 384;   // Smokeracks slightly smaller
-        height = 384;
+        width = 256;   // Smaller smoke racks
+        height = 256;
         break;
       case 'kayak':
-        width = 384;   // Kayak slightly smaller
-        height = 384;
+        width = 320;   // Kayak medium size
+        height = 320;
         break;
       default:
         width = 512;   // Default to half size

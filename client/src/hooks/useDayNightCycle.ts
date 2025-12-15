@@ -611,8 +611,8 @@ export function useDayNightCycle({
 
         // Render fishing village campfire light cutouts (Aleut-style central campfire)
         // This is a LARGE communal campfire - cozy safe zone with warm light
-        // Y offset to center light on the firepit in the 1024x1024 image (rendered at half size)
-        const FV_CAMPFIRE_Y_OFFSET = -250;
+        // Y offset to center light on the firepit in the 1024x1024 image (rendered at 256x256)
+        const FV_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
         fishingVillageParts.forEach(part => {
             if (part.partType === 'campfire') {
                 const screenX = part.worldX + cameraOffsetX;

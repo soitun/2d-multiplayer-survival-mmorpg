@@ -57,6 +57,10 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
+// Monument table traits for cairn avoidance checks
+use crate::alk::alk_station as AlkStationTableTrait;
+use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::fishing_village_part as FishingVillagePartTableTrait;
 
 // Import utils helpers and macro
 use crate::utils::{calculate_tile_bounds, attempt_single_spawn};
@@ -1223,6 +1227,39 @@ fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
         });
         
         if too_close_to_rune_stone {
+            continue;
+        }
+        
+        // Check minimum distance from ALK stations (central compound + substations)
+        let too_close_to_alk = ctx.db.alk_station().iter().any(|station| {
+            let dx = pos_x - station.world_pos_x;
+            let dy = pos_y - station.world_pos_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_ALK_STATION_DISTANCE_SQ
+        });
+        
+        if too_close_to_alk {
+            continue;
+        }
+        
+        // Check minimum distance from shipwreck parts
+        let too_close_to_shipwreck = ctx.db.shipwreck_part().iter().any(|part| {
+            let dx = pos_x - part.world_x;
+            let dy = pos_y - part.world_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_SHIPWRECK_DISTANCE_SQ
+        });
+        
+        if too_close_to_shipwreck {
+            continue;
+        }
+        
+        // Check minimum distance from fishing village parts
+        let too_close_to_fishing_village = ctx.db.fishing_village_part().iter().any(|part| {
+            let dx = pos_x - part.world_x;
+            let dy = pos_y - part.world_y;
+            dx * dx + dy * dy < crate::cairn::MIN_CAIRN_FISHING_VILLAGE_DISTANCE_SQ
+        });
+        
+        if too_close_to_fishing_village {
             continue;
         }
         

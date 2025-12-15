@@ -27,6 +27,11 @@ pub(crate) const MIN_CAIRN_TREE_DISTANCE_SQ: f32 = 300.0 * 300.0; // Minimum dis
 pub(crate) const MIN_CAIRN_STONE_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance from stones
 pub(crate) const MIN_CAIRN_RUNE_STONE_DISTANCE_SQ: f32 = 800.0 * 800.0; // Minimum distance from rune stones
 
+// Monument avoidance distances - keep cairns away from major monuments
+pub(crate) const MIN_CAIRN_ALK_STATION_DISTANCE_SQ: f32 = 600.0 * 600.0; // Keep away from ALK stations
+pub(crate) const MIN_CAIRN_SHIPWRECK_DISTANCE_SQ: f32 = 500.0 * 500.0; // Keep away from shipwreck hulls
+pub(crate) const MIN_CAIRN_FISHING_VILLAGE_DISTANCE_SQ: f32 = 800.0 * 800.0; // Keep away from fishing village (larger zone)
+
 // --- Rarity Reward Constants ---
 
 // Rarity tiers for variable rewards (dopamine engagement)

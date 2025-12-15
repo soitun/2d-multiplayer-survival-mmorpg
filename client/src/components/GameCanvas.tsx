@@ -1894,46 +1894,118 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     
     // Separate particles by type for batched rendering
     const fireParticlesLocal: any[] = [];
+    const emberParticles: any[] = [];
+    const sparkParticles: any[] = [];
     const otherParticles: any[] = [];
     
     for (let i = 0; i < particles.length; i++) {
-      if (particles[i].type === 'fire') {
-        fireParticlesLocal.push(particles[i]);
+      const p = particles[i];
+      if (p.type === 'fire') {
+        fireParticlesLocal.push(p);
+      } else if (p.type === 'ember') {
+        emberParticles.push(p);
+      } else if (p.type === 'spark') {
+        sparkParticles.push(p);
       } else {
-        otherParticles.push(particles[i]);
+        otherParticles.push(p);
       }
     }
     
-    // Render fire particles with glow (single save/restore for all fire particles)
+    // Render fire particles with AAA pixel art style (Sea of Stars inspired)
+    // Use square pixels instead of circles for crisp pixel art look
     if (fireParticlesLocal.length > 0) {
       ctx.save();
+      // Disable anti-aliasing for crisp pixel art
+      ctx.imageSmoothingEnabled = false;
       for (let i = 0; i < fireParticlesLocal.length; i++) {
         const particle = fireParticlesLocal[i];
+        const isStaticCampfire = particle.id && particle.id.startsWith('fire_static_');
+        
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#ff4500';
-        ctx.shadowColor = particle.color || '#ff4500';
-        ctx.shadowBlur = particle.size * 0.5;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size / 2, 0, Math.PI * 2);
-        ctx.fill();
+        
+        if (isStaticCampfire) {
+          // AAA pixel art style: larger square pixels with subtle glow for fishing village fire
+          ctx.shadowColor = particle.color || '#ff4500';
+          ctx.shadowBlur = particle.size * 0.3; // Subtle glow for pixel art
+        } else {
+          // Regular campfire: smaller glow
+          ctx.shadowColor = particle.color || '#ff4500';
+          ctx.shadowBlur = particle.size * 0.5;
+        }
+        
+        // Use square pixels for pixel art style (Sea of Stars)
+        const pixelSize = Math.max(1, Math.floor(particle.size));
+        const pixelX = Math.floor(particle.x - pixelSize / 2);
+        const pixelY = Math.floor(particle.y - pixelSize / 2);
+        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
       }
       ctx.restore();
     }
     
-    // Render other particles without glow (single save/restore for all)
+    // Render ember particles - glowing floating embers with warm glow
+    if (emberParticles.length > 0) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      for (let i = 0; i < emberParticles.length; i++) {
+        const particle = emberParticles[i];
+        
+        ctx.globalAlpha = particle.alpha || 1;
+        ctx.fillStyle = particle.color || '#FFE066';
+        // Embers have a warm, pulsing glow
+        ctx.shadowColor = particle.color || '#FFE066';
+        ctx.shadowBlur = particle.size * 2 + Math.sin(Date.now() * 0.01 + i) * 2;
+        
+        // Small square pixels for embers
+        const pixelSize = Math.max(1, Math.floor(particle.size));
+        const pixelX = Math.floor(particle.x - pixelSize / 2);
+        const pixelY = Math.floor(particle.y - pixelSize / 2);
+        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+      }
+      ctx.restore();
+    }
+    
+    // Render spark particles - bright, fast-moving sparks
+    if (sparkParticles.length > 0) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      for (let i = 0; i < sparkParticles.length; i++) {
+        const particle = sparkParticles[i];
+        
+        ctx.globalAlpha = particle.alpha || 1;
+        ctx.fillStyle = particle.color || '#FFFFFF';
+        // Sparks have a bright, intense glow
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = particle.size * 4;
+        
+        // Tiny square pixels for sparks
+        const pixelSize = Math.max(1, Math.floor(particle.size));
+        const pixelX = Math.floor(particle.x - pixelSize / 2);
+        const pixelY = Math.floor(particle.y - pixelSize / 2);
+        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+      }
+      ctx.restore();
+    }
+    
+    // Render other particles (smoke, smoke_burst) with AAA pixel art style
     if (otherParticles.length > 0) {
       ctx.save();
-      ctx.shadowBlur = 0; // Ensure no shadow for non-fire particles
+      // Disable anti-aliasing for crisp pixel art
+      ctx.imageSmoothingEnabled = false;
+      ctx.shadowBlur = 0; // No shadow for smoke particles
       for (let i = 0; i < otherParticles.length; i++) {
         const particle = otherParticles[i];
+        const isStaticCampfireSmoke = particle.id && particle.id.startsWith('smoke_static_');
+        
         ctx.globalAlpha = particle.alpha || 1;
-        ctx.fillStyle = particle.color || '#ff4500';
-        ctx.fillRect(
-          particle.x - particle.size / 2,
-          particle.y - particle.size / 2,
-          particle.size,
-          particle.size
-        );
+        ctx.fillStyle = particle.color || '#888888';
+        
+        // Use square pixels for pixel art style (Sea of Stars)
+        // Static campfire smoke uses larger pixels for dramatic effect
+        const pixelSize = Math.max(1, Math.floor(particle.size));
+        const pixelX = Math.floor(particle.x - pixelSize / 2);
+        const pixelY = Math.floor(particle.y - pixelSize / 2);
+        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
       }
       ctx.restore();
     }
