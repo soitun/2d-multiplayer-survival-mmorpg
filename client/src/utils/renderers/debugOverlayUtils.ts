@@ -103,7 +103,7 @@ export function renderChunkBoundaries(
 
   // Draw chunk coordinates at intersections (only for visible chunks)
   ctx.font = '12px monospace';
-  ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'; // Black for better visibility
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.setLineDash([]); // Reset dash pattern
