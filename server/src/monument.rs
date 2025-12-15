@@ -504,7 +504,7 @@ pub fn generate_fishing_village(
             
             // Dock - EXTENDING INTO WATER, positioned away from smokeracks
             // Positive towards_water pushes it into the water
-            ("dock", "fv_dock.png", 320.0, 350.0),     // Right of campfire, extending well into water
+            ("dock", "fv_dock.png", 320.0, 450.0),     // Right of campfire, extending well into water
             
             // Kayak - ON THE BEACH, other side from dock
             ("kayak", "fv_kayak.png", -280.0, 120.0),  // Left of campfire, at water's edge
