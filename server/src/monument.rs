@@ -608,34 +608,16 @@ pub struct MonumentHarvestableConfig {
 }
 
 /// Shipwreck-specific decoration configuration
-/// Spawns Memory Shards as one-time loot around shipwreck parts (similar to driftwood placement)
-/// These are thematic "washed up cargo" - ancient technology scattered in the wreckage
+/// Currently empty - shipwrecks use harvestable resources instead of one-time decorations
 pub fn get_shipwreck_decorations() -> Vec<MonumentDecorationConfig> {
     vec![
-        // Memory Shards - scattered ancient tech washed up with the wreckage
-        // Low quantity per spawn, moderate chance - rewards exploration but not game-breaking
-        MonumentDecorationConfig {
-            item_name: "Memory Shard".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.35, // 35% per shipwreck part = ~2-4 shard spawns per shipwreck
-            min_distance: 60.0,
-            max_distance: 180.0,
-        },
-        // Second Memory Shard spawn - rarer additional chance
-        MonumentDecorationConfig {
-            item_name: "Memory Shard".to_string(),
-            min_quantity: 1,
-            max_quantity: 1,
-            spawn_chance: 0.20, // 20% chance for bonus shard spawn
-            min_distance: 80.0,
-            max_distance: 220.0,
-        },
+        // Memory Shards are now spawned as harvestable resources (respawn!)
+        // See get_shipwreck_harvestables() for Memory Shard spawning
     ]
 }
 
 /// Shipwreck-specific harvestable resource configuration
-/// Spawns Beach Wood Piles around shipwreck parts
+/// Spawns Beach Wood Piles and Memory Shards around shipwreck parts
 pub fn get_shipwreck_harvestables() -> Vec<MonumentHarvestableConfig> {
     vec![
         // Beach Wood Pile - common, scattered around wreckage
@@ -652,6 +634,21 @@ pub fn get_shipwreck_harvestables() -> Vec<MonumentHarvestableConfig> {
             spawn_chance: 0.50, // 50% chance for second pile per part
             min_distance: 100.0,
             max_distance: 250.0,
+        },
+        // Memory Shard - ancient tech debris washed up with the wreckage (RESPAWNS!)
+        // Shipwrecks become reliable Memory Shard farming spots
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.45, // 45% per part = ~3-4 shards per shipwreck
+            min_distance: 60.0,
+            max_distance: 180.0,
+        },
+        // Second Memory Shard spawn - bonus chance for extra shards
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.25, // 25% chance for bonus spawn
+            min_distance: 90.0,
+            max_distance: 220.0,
         },
     ]
 }
@@ -767,10 +764,12 @@ pub fn spawn_monument_harvestables(
     // Spawn all collected harvestables
     let mut spawned_count = 0;
     for (spawn_x, spawn_y, plant_type) in harvestables_to_spawn {
-        // Validate position: must be on beach for Beach Wood Pile
-        if plant_type == crate::plants_database::PlantType::BeachWoodPile {
+        // Validate position: coastal resources must be on beach tiles
+        let is_coastal_resource = plant_type == crate::plants_database::PlantType::BeachWoodPile ||
+                                   plant_type == crate::plants_database::PlantType::MemoryShard;
+        if is_coastal_resource {
             if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
-                log::debug!("[MonumentHarvestables] Skipping Beach Wood Pile at ({:.1}, {:.1}) - not on beach", spawn_x, spawn_y);
+                log::debug!("[MonumentHarvestables] Skipping {:?} at ({:.1}, {:.1}) - not on beach", plant_type, spawn_x, spawn_y);
                 continue;
             }
         }
