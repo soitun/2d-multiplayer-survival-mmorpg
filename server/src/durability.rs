@@ -100,6 +100,78 @@ pub fn get_durability(item: &InventoryItem) -> Option<f32> {
     })
 }
 
+/// Gets the max durability from an item's item_data JSON field
+/// Returns MAX_DURABILITY (100.0) if not set (default for new items)
+pub fn get_max_durability(item: &InventoryItem) -> f32 {
+    item.item_data.as_ref().and_then(|data| {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+            parsed.get("max_durability").and_then(|v| v.as_f64()).map(|v| v as f32)
+        } else {
+            None
+        }
+    }).unwrap_or(MAX_DURABILITY)
+}
+
+/// Sets the max durability value in an item's item_data JSON field
+/// Preserves any existing data (like water_liters, durability) while updating max_durability
+pub fn set_max_durability(item: &mut InventoryItem, max_durability: f32) {
+    let new_max = max_durability.max(0.0).min(MAX_DURABILITY);
+    
+    // Parse existing data or create new object
+    let mut json_obj = if let Some(ref data) = item.item_data {
+        serde_json::from_str::<serde_json::Value>(data)
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Ensure it's an object
+    if !json_obj.is_object() {
+        json_obj = serde_json::json!({});
+    }
+    
+    // Update max_durability
+    json_obj["max_durability"] = serde_json::json!(new_max);
+    
+    // Serialize back
+    item.item_data = Some(json_obj.to_string());
+}
+
+/// Gets the repair count from an item's item_data JSON field
+/// Returns 0 if not set (item has never been repaired)
+pub fn get_repair_count(item: &InventoryItem) -> u32 {
+    item.item_data.as_ref().and_then(|data| {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+            parsed.get("repair_count").and_then(|v| v.as_u64()).map(|v| v as u32)
+        } else {
+            None
+        }
+    }).unwrap_or(0)
+}
+
+/// Sets the repair count value in an item's item_data JSON field
+/// Preserves any existing data while updating repair_count
+pub fn set_repair_count(item: &mut InventoryItem, repair_count: u32) {
+    // Parse existing data or create new object
+    let mut json_obj = if let Some(ref data) = item.item_data {
+        serde_json::from_str::<serde_json::Value>(data)
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Ensure it's an object
+    if !json_obj.is_object() {
+        json_obj = serde_json::json!({});
+    }
+    
+    // Update repair_count
+    json_obj["repair_count"] = serde_json::json!(repair_count);
+    
+    // Serialize back
+    item.item_data = Some(json_obj.to_string());
+}
+
 /// Sets the durability value in an item's item_data JSON field
 /// Preserves any existing data (like water_liters) while updating durability
 pub fn set_durability(item: &mut InventoryItem, durability: f32) {
@@ -768,6 +840,229 @@ fn is_item_in_refrigerator(ctx: &ReducerContext, item: &InventoryItem) -> bool {
         }
     }
     false
+}
+
+// --- Repair Bench Functions ---
+
+/// Maximum number of times an item can be repaired
+pub const MAX_REPAIR_COUNT: u32 = 3;
+
+/// Minimum max durability (25% of original) - items can't be repaired below this
+pub const MIN_MAX_DURABILITY: f32 = 25.0;
+
+/// Durability reduction per repair (25% of original max)
+pub const DURABILITY_REDUCTION_PER_REPAIR: f32 = 25.0;
+
+use crate::items::CostIngredient;
+
+/// Checks if an item can be repaired in the repair bench
+/// Returns Ok(()) if repairable, Err(reason) if not
+pub fn can_item_be_repaired(item: &InventoryItem, item_def: &ItemDefinition) -> Result<(), String> {
+    // Check if item has durability system
+    if !has_durability_system(item_def) {
+        return Err("Item cannot be repaired - it doesn't have a durability system".to_string());
+    }
+    
+    // Check repair count
+    let repair_count = get_repair_count(item);
+    if repair_count >= MAX_REPAIR_COUNT {
+        return Err(format!("Item is too degraded to repair ({}/{} repairs used)", repair_count, MAX_REPAIR_COUNT));
+    }
+    
+    // Check max durability hasn't fallen too low
+    let max_durability = get_max_durability(item);
+    if max_durability <= MIN_MAX_DURABILITY {
+        return Err("Item is too degraded to repair - max durability too low".to_string());
+    }
+    
+    // Check that item actually needs repair (durability < max)
+    let current_durability = get_durability(item).unwrap_or(MAX_DURABILITY);
+    if current_durability >= max_durability {
+        return Err("Item doesn't need repair - durability is already at maximum".to_string());
+    }
+    
+    // Check if item has a crafting cost (needed to calculate repair cost)
+    if item_def.crafting_cost.is_none() || item_def.crafting_cost.as_ref().map(|c| c.is_empty()).unwrap_or(true) {
+        return Err("Item cannot be repaired - no crafting cost defined".to_string());
+    }
+    
+    Ok(())
+}
+
+/// Calculates the repair cost for an item based on its crafting cost and repair count
+/// Repair costs scale down with each repair:
+/// - First repair (count=0): 50% of crafting cost
+/// - Second repair (count=1): 25% of crafting cost
+/// - Third repair (count=2): 12.5% of crafting cost
+/// Returns the scaled cost ingredients
+pub fn calculate_repair_cost(item: &InventoryItem, item_def: &ItemDefinition) -> Result<Vec<CostIngredient>, String> {
+    // Get the item's crafting cost
+    let crafting_cost = item_def.crafting_cost.as_ref()
+        .ok_or("Item has no crafting cost defined")?;
+    
+    if crafting_cost.is_empty() {
+        return Err("Item has empty crafting cost".to_string());
+    }
+    
+    // Get repair count to determine cost scaling
+    let repair_count = get_repair_count(item);
+    
+    // Calculate cost multiplier: 0.5 -> 0.25 -> 0.125
+    let cost_multiplier = match repair_count {
+        0 => 0.5,    // First repair: 50%
+        1 => 0.25,   // Second repair: 25%
+        2 => 0.125,  // Third repair: 12.5%
+        _ => return Err(format!("Item has been repaired too many times ({}/{})", repair_count, MAX_REPAIR_COUNT)),
+    };
+    
+    // Scale each ingredient
+    let scaled_cost: Vec<CostIngredient> = crafting_cost.iter()
+        .map(|ingredient| {
+            // Calculate scaled quantity, minimum 1 if original quantity > 0
+            let scaled_qty = (ingredient.quantity as f32 * cost_multiplier).ceil() as u32;
+            let final_qty = if ingredient.quantity > 0 && scaled_qty == 0 { 1 } else { scaled_qty };
+            
+            CostIngredient {
+                item_name: ingredient.item_name.clone(),
+                quantity: final_qty,
+            }
+        })
+        .filter(|ingredient| ingredient.quantity > 0)
+        .collect();
+    
+    if scaled_cost.is_empty() {
+        return Err("Calculated repair cost is empty".to_string());
+    }
+    
+    Ok(scaled_cost)
+}
+
+/// Checks if a player has all the required materials for repair
+/// Returns Ok(()) if player has all materials, Err with details if not
+pub fn check_player_has_repair_materials(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    required_materials: &[CostIngredient],
+) -> Result<(), String> {
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    // Build a map of available materials
+    let mut available: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    
+    for item in inventory_items.iter() {
+        if let Some(owner_id) = item.location.is_player_bound() {
+            if owner_id == player_id {
+                if let Some(item_def) = item_defs.id().find(item.item_def_id) {
+                    *available.entry(item_def.name.clone()).or_insert(0) += item.quantity;
+                }
+            }
+        }
+    }
+    
+    // Check each required material
+    let mut missing: Vec<String> = Vec::new();
+    for material in required_materials {
+        let have = available.get(&material.item_name).copied().unwrap_or(0);
+        if have < material.quantity {
+            missing.push(format!("Need {} {}, have {}", material.quantity, material.item_name, have));
+        }
+    }
+    
+    if !missing.is_empty() {
+        return Err(format!("Insufficient materials: {}", missing.join(", ")));
+    }
+    
+    Ok(())
+}
+
+/// Consumes repair materials from a player's inventory
+/// Returns Ok(()) on success, Err on failure
+pub fn consume_repair_materials(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    required_materials: &[CostIngredient],
+) -> Result<(), String> {
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    // First, verify player has all materials
+    check_player_has_repair_materials(ctx, player_id, required_materials)?;
+    
+    // Consume each material type
+    for material in required_materials {
+        // Find the item definition ID for this material
+        let material_def_id = item_defs.iter()
+            .find(|def| def.name == material.item_name)
+            .map(|def| def.id)
+            .ok_or_else(|| format!("Material '{}' not found in item definitions", material.item_name))?;
+        
+        let mut remaining_to_consume = material.quantity;
+        let mut items_to_update: Vec<InventoryItem> = Vec::new();
+        let mut items_to_delete: Vec<u64> = Vec::new();
+        
+        // Find items to consume from
+        for item in inventory_items.iter() {
+            if remaining_to_consume == 0 {
+                break;
+            }
+            
+            if let Some(owner_id) = item.location.is_player_bound() {
+                if owner_id == player_id && item.item_def_id == material_def_id {
+                    if item.quantity <= remaining_to_consume {
+                        remaining_to_consume -= item.quantity;
+                        items_to_delete.push(item.instance_id);
+                    } else {
+                        let mut updated_item = item.clone();
+                        updated_item.quantity -= remaining_to_consume;
+                        remaining_to_consume = 0;
+                        items_to_update.push(updated_item);
+                    }
+                }
+            }
+        }
+        
+        // Apply updates
+        for item in items_to_update {
+            inventory_items.instance_id().update(item);
+        }
+        for item_id in items_to_delete {
+            inventory_items.instance_id().delete(item_id);
+        }
+        
+        if remaining_to_consume > 0 {
+            return Err(format!("Failed to consume enough {}", material.item_name));
+        }
+        
+        log::debug!("[RepairBench] Consumed {} {}", material.quantity, material.item_name);
+    }
+    
+    Ok(())
+}
+
+/// Performs the actual repair on an item
+/// - Increments repair_count
+/// - Reduces max_durability by 25%
+/// - Restores current durability to new max_durability
+pub fn perform_item_repair(item: &mut InventoryItem) {
+    // Get current values
+    let current_repair_count = get_repair_count(item);
+    let current_max_durability = get_max_durability(item);
+    
+    // Calculate new values
+    let new_repair_count = current_repair_count + 1;
+    let new_max_durability = (current_max_durability - DURABILITY_REDUCTION_PER_REPAIR).max(MIN_MAX_DURABILITY);
+    
+    // Apply updates
+    set_repair_count(item, new_repair_count);
+    set_max_durability(item, new_max_durability);
+    set_durability(item, new_max_durability); // Restore to full (new max)
+    
+    log::info!(
+        "[RepairBench] Repaired item {}. Repair count: {} -> {}, Max durability: {:.1} -> {:.1}, Restored to {:.1}",
+        item.instance_id, current_repair_count, new_repair_count, 
+        current_max_durability, new_max_durability, new_max_durability
+    );
 }
 
 /// Scheduled reducer that processes food spoilage for all food items

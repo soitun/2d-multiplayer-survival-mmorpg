@@ -680,7 +680,9 @@ export const BOX_TYPE_LARGE = 1;
 export const BOX_TYPE_REFRIGERATOR = 2;
 export const BOX_TYPE_COMPOST = 3;
 export const BOX_TYPE_BACKPACK = 4;
+export const BOX_TYPE_REPAIR_BENCH = 5;
 export const NUM_BOX_SLOTS = 18;
+export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_LARGE_BOX_SLOTS = 48;
 export const NUM_REFRIGERATOR_SLOTS = 30;
 export const NUM_COMPOST_SLOTS = 20;
@@ -713,6 +715,10 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
             case BOX_TYPE_BACKPACK:
                 slots = NUM_BACKPACK_SLOTS;
                 break;
+            case BOX_TYPE_REPAIR_BENCH:
+                slots = NUM_REPAIR_BENCH_SLOTS;
+                gridCols = 1; // Single slot, centered with flexbox
+                break;
             default:
                 slots = NUM_BOX_SLOTS;
         }
@@ -739,6 +745,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'COMPOST';
             case BOX_TYPE_BACKPACK:
                 return 'BACKPACK';
+            case BOX_TYPE_REPAIR_BENCH:
+                return 'REPAIR BENCH';
             default:
                 return 'WOODEN STORAGE BOX';
         }

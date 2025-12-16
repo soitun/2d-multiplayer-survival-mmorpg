@@ -62,6 +62,17 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(450)
             .build(),
 
+        // Repair Bench - Workbench for repairing damaged items
+        ItemBuilder::new("Repair Bench", "A workbench for repairing damaged items. Each repair reduces max durability by 25%.", ItemCategory::Placeable)
+            .icon("repair_bench.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 25 },
+            ])
+            .crafting_output(1, 15)
+            .respawn_time(300)
+            .build(),
+
         // Refrigerator - Food preservation container (30 slots, stops spoilage)
         ItemBuilder::new("Refrigerator", "A refrigerated container that preserves food. Holds 30 stacks of food, seeds, and water containers.", ItemCategory::Placeable)
             .icon("refrigerator.png")

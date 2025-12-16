@@ -62,7 +62,8 @@ import ItemInteractionPanel from './ItemInteractionPanel';
 // Import water container helpers
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 // Import durability helpers
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, getMaxDurability, MAX_DURABILITY } from '../utils/durabilityHelpers';
+import DurabilityBar from './DurabilityBar';
 // Import arrow damage calculation helpers
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
 // Import InventorySearchBar component
@@ -1124,43 +1125,15 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                             );
                                         })()}
                                         
-                                        {/* Durability bar indicator for weapons, tools, torches, food in equipment slots (RIGHT side, GREEN) */}
-                                        {item && hasDurabilitySystem(item.definition) && (() => {
-                                            const durabilityPercentage = getDurabilityPercentage(item.instance);
-                                            const hasDurability = durabilityPercentage > 0;
-                                            const durabilityColor = getDurabilityColor(item.instance, item.definition);
-                                            
-                                            return (
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        right: '4px',
-                                                        top: '4px',
-                                                        bottom: '14px', // Raised to avoid covering any slot indicators
-                                                        width: '3px',
-                                                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                                        borderRadius: '1px',
-                                                        zIndex: 4,
-                                                        pointerEvents: 'none',
-                                                    }}
-                                                >
-                                                    {hasDurability && (
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                bottom: '0px',
-                                                                left: '0px',
-                                                                right: '0px',
-                                                                height: `${durabilityPercentage * 100}%`,
-                                                                backgroundColor: durabilityColor,
-                                                                borderRadius: '1px',
-                                                                transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
-                                                            }}
-                                                        />
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
+                                        {/* Durability bar indicator for weapons, tools, torches, food in equipment slots (RIGHT side) */}
+                                        {/* Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top */}
+                                        {item && hasDurabilitySystem(item.definition) && (
+                                            <DurabilityBar 
+                                                item={item.instance} 
+                                                itemDef={item.definition}
+                                                style={{ bottom: '14px' }} // Raised to avoid covering any slot indicators
+                                            />
+                                        )}
                                         
                                         {/* Broken item overlay for equipment slots or Spoiled food overlay */}
                                         {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (
@@ -1312,43 +1285,15 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                     );
                                 })()}
                                 
-                                {/* Durability bar indicator for weapons, tools, torches, food (RIGHT side, GREEN) */}
-                                {item && hasDurabilitySystem(item.definition) && (() => {
-                                    const durabilityPercentage = getDurabilityPercentage(item.instance);
-                                    const hasDurability = durabilityPercentage > 0;
-                                    const durabilityColor = getDurabilityColor(item.instance, item.definition);
-                                    
-                                    return (
-                                        <div
-                                            style={{
-                                                position: 'absolute',
-                                                right: '4px',
-                                                top: '4px',
-                                                bottom: '14px', // Raised to avoid covering any slot indicators
-                                                width: '3px',
-                                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                                borderRadius: '1px',
-                                                zIndex: 4,
-                                                pointerEvents: 'none',
-                                            }}
-                                        >
-                                            {hasDurability && (
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        bottom: '0px',
-                                                        left: '0px',
-                                                        right: '0px',
-                                                        height: `${durabilityPercentage * 100}%`,
-                                                        backgroundColor: durabilityColor,
-                                                        borderRadius: '1px',
-                                                        transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                    );
-                                })()}
+                                {/* Durability bar indicator for weapons, tools, torches, food (RIGHT side) */}
+                                {/* Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top */}
+                                {item && hasDurabilitySystem(item.definition) && (
+                                    <DurabilityBar 
+                                        item={item.instance} 
+                                        itemDef={item.definition}
+                                        style={{ bottom: '14px' }} // Raised to avoid covering any slot indicators
+                                    />
+                                )}
                                 
                                 {/* Broken item overlay or Spoiled food overlay */}
                                 {item && hasDurabilitySystem(item.definition) && isItemBroken(item.instance) && (

@@ -16,6 +16,7 @@ import ContainerSlots from './ContainerSlots';
 import ContainerButtons from './ContainerButtons';
 import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
+import DurabilityBar from './DurabilityBar';
 import { getAllSlotProgress } from '../utils/containerProgressUtils';
 
 // Import Types
@@ -43,8 +44,18 @@ import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability, getDurability, getMaxDurability, getRepairCount, canItemBeRepaired, getRepairBlockedReason, calculateRepairCost, formatRepairCost, MAX_REPAIR_COUNT, MAX_DURABILITY } from '../utils/durabilityHelpers';
+import { BOX_TYPE_REPAIR_BENCH } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { getItemIcon } from '../utils/itemIconUtils';
 import { playImmediateSound } from '../hooks/useSoundSystem';
+
+/**
+ * Convert item display name to icon asset name
+ * e.g. "Wood" -> "wood.png", "Metal Fragments" -> "metal_fragments.png"
+ */
+function getIconAssetFromName(itemName: string): string {
+    return itemName.toLowerCase().replace(/ /g, '_') + '.png';
+}
 
 // Import AI Brewing Service
 import { 
@@ -533,6 +544,18 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             connection.reducers.fillWaterContainer(rainCollectorIdNum);
         } catch (e: any) {
             console.error("Error filling water container:", e);
+        }
+    }, [connection, container.containerId, container.containerEntity]);
+
+    // Handle repair bench item repair
+    const handleRepairItem = useCallback(() => {
+        if (!connection?.reducers || container.containerId === null || !container.containerEntity) return;
+        
+        const boxId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+        try {
+            connection.reducers.repairItem(boxId);
+        } catch (e: any) {
+            console.error("Error repairing item:", e);
         }
     }, [connection, container.containerId, container.containerEntity]);
 
@@ -2154,6 +2177,234 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         
                 </>
             )}
+
+                {/* Repair Bench UI - only show for wooden_storage_box with boxType === 5 */}
+                {container.containerType === 'wooden_storage_box' && 
+                 (container.containerEntity as SpacetimeDBWoodenStorageBox).boxType === BOX_TYPE_REPAIR_BENCH && (
+                    <>
+                        {/* Repair Bench Info Section */}
+                        <div style={{ marginTop: '12px', marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px', border: '1px solid rgba(255, 166, 77, 0.3)' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffa64d', marginBottom: '8px', textAlign: 'center' }}>
+                                🔧 Repair Bench
+                            </div>
+                            
+                            {/* Show item info if there's an item in the slot */}
+                            {container.items[0] && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    {(() => {
+                                        const repairItem = container.items[0];
+                                        const itemDef = repairItem.definition;
+                                        const currentDurability = getDurability(repairItem.instance) ?? MAX_DURABILITY;
+                                        const maxDurability = getMaxDurability(repairItem.instance);
+                                        const repairCount = getRepairCount(repairItem.instance);
+                                        const canRepair = canItemBeRepaired(repairItem.instance, itemDef);
+                                        const blockedReason = getRepairBlockedReason(repairItem.instance, itemDef);
+                                        
+                                        return (
+                                            <>
+                                                {/* Durability display */}
+                                                <div style={{ 
+                                                    display: 'flex', 
+                                                    justifyContent: 'space-between', 
+                                                    fontSize: '12px',
+                                                    marginBottom: '6px',
+                                                    color: '#ccc'
+                                                }}>
+                                                    <span>Durability:</span>
+                                                    <span style={{ 
+                                                        color: currentDurability <= maxDurability * 0.25 ? '#ff6b6b' : 
+                                                               currentDurability <= maxDurability * 0.5 ? '#ffc94d' : '#66d966' 
+                                                    }}>
+                                                        {Math.round(currentDurability)} / {Math.round(maxDurability)}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Durability bar with red "lost" segment */}
+                                                <div style={{
+                                                    position: 'relative',
+                                                    width: '100%',
+                                                    height: '10px',
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                    borderRadius: '4px',
+                                                    overflow: 'hidden',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    {/* Current durability fill (from left) */}
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        left: 0,
+                                                        top: 0,
+                                                        bottom: 0,
+                                                        width: `${(currentDurability / MAX_DURABILITY) * 100}%`,
+                                                        backgroundColor: currentDurability <= maxDurability * 0.25 ? '#ff6b6b' : 
+                                                                         currentDurability <= maxDurability * 0.5 ? '#ffc94d' : '#66d966',
+                                                        borderRadius: '4px 0 0 4px',
+                                                        transition: 'width 0.3s ease',
+                                                    }} />
+                                                    
+                                                    {/* Red "lost" durability segment (at right) */}
+                                                    {maxDurability < MAX_DURABILITY && (
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            right: 0,
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: `${((MAX_DURABILITY - maxDurability) / MAX_DURABILITY) * 100}%`,
+                                                            backgroundColor: 'rgba(180, 50, 50, 0.9)',
+                                                            borderRadius: '0 4px 4px 0',
+                                                        }} />
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Repair count */}
+                                                <div style={{ 
+                                                    display: 'flex', 
+                                                    justifyContent: 'space-between', 
+                                                    fontSize: '12px',
+                                                    marginBottom: '8px',
+                                                    color: '#ccc'
+                                                }}>
+                                                    <span>Repairs Used:</span>
+                                                    <span style={{ 
+                                                        color: repairCount >= MAX_REPAIR_COUNT ? '#ff6b6b' : 
+                                                               repairCount >= 2 ? '#ffc94d' : '#66d966' 
+                                                    }}>
+                                                        {repairCount} / {MAX_REPAIR_COUNT}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Repair cost display */}
+                                                {canRepair && (() => {
+                                                    const repairCost = calculateRepairCost(repairItem.instance, itemDef);
+                                                    if (repairCost.length > 0) {
+                                                        return (
+                                                            <div style={{
+                                                                marginBottom: '8px',
+                                                                padding: '6px 8px',
+                                                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid rgba(255, 166, 77, 0.2)'
+                                                            }}>
+                                                                <div style={{ 
+                                                                    fontSize: '11px', 
+                                                                    color: '#aaa',
+                                                                    marginBottom: '4px'
+                                                                }}>
+                                                                    Repair Cost:
+                                                                </div>
+                                                                <div style={{ 
+                                                                    fontSize: '12px', 
+                                                                    color: '#ffa64d',
+                                                                    display: 'flex',
+                                                                    flexWrap: 'wrap',
+                                                                    gap: '6px'
+                                                                }}>
+                                                                    {repairCost.map((ingredient, idx) => (
+                                                                        <span key={idx} style={{
+                                                                            padding: '2px 6px',
+                                                                            backgroundColor: 'rgba(255, 166, 77, 0.1)',
+                                                                            borderRadius: '3px',
+                                                                            border: '1px solid rgba(255, 166, 77, 0.3)',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px'
+                                                                        }}>
+                                                                            <img 
+                                                                                src={getItemIcon(getIconAssetFromName(ingredient.itemName))}
+                                                                                alt={ingredient.itemName}
+                                                                                style={{
+                                                                                    width: '16px',
+                                                                                    height: '16px',
+                                                                                    objectFit: 'contain',
+                                                                                    imageRendering: 'pixelated'
+                                                                                }}
+                                                                            />
+                                                                            {ingredient.quantity}× {ingredient.itemName}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                                
+                                                {/* Blocked reason message */}
+                                                {blockedReason && (
+                                                    <div style={{
+                                                        fontSize: '11px',
+                                                        color: '#ff8888',
+                                                        textAlign: 'center',
+                                                        marginBottom: '8px',
+                                                        padding: '4px 8px',
+                                                        backgroundColor: 'rgba(255, 100, 100, 0.1)',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid rgba(255, 100, 100, 0.3)'
+                                                    }}>
+                                                        ⚠️ {blockedReason}
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                            
+                            {/* Empty slot message */}
+                            {!container.items[0] && (
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: '#888',
+                                    textAlign: 'center',
+                                    marginBottom: '8px',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Place an item in the slot to repair it
+                                </div>
+                            )}
+                            
+                            {/* Repair button */}
+                            <button
+                                onClick={handleRepairItem}
+                                disabled={!container.items[0] || !canItemBeRepaired(container.items[0]!.instance, container.items[0]!.definition)}
+                                className={styles.interactionButton}
+                                style={{ 
+                                    width: '100%', 
+                                    textShadow: 'none', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: '8px',
+                                    background: container.items[0] && canItemBeRepaired(container.items[0].instance, container.items[0].definition)
+                                        ? 'linear-gradient(135deg, rgba(255, 166, 77, 0.3), rgba(255, 140, 0, 0.2))'
+                                        : 'rgba(100, 100, 100, 0.2)',
+                                    border: container.items[0] && canItemBeRepaired(container.items[0].instance, container.items[0].definition)
+                                        ? '2px solid rgba(255, 166, 77, 0.6)'
+                                        : '2px solid rgba(100, 100, 100, 0.4)',
+                                    color: container.items[0] && canItemBeRepaired(container.items[0].instance, container.items[0].definition)
+                                        ? '#ffa64d'
+                                        : '#888',
+                                    boxShadow: container.items[0] && canItemBeRepaired(container.items[0].instance, container.items[0].definition)
+                                        ? '0 0 8px rgba(255, 166, 77, 0.3)'
+                                        : 'none',
+                                }}
+                            >
+                                🔧 Repair Item
+                            </button>
+                            
+                            {/* Repair info */}
+                            <div style={{
+                                fontSize: '12px',
+                                color: '#777',
+                                textAlign: 'center',
+                                marginTop: '8px',
+                                lineHeight: '1.4'
+                            }}>
+                                Each repair restores durability but reduces max durability by 25%
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {/* Broth pot pickup button - show with warning if has contents */}
                 {container.containerType === 'broth_pot' && (

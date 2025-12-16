@@ -13,7 +13,8 @@ import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { ContainerType, ContainerEntity, getContainerConfig } from '../utils/containerUtils';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
+import DurabilityBar from './DurabilityBar';
 import styles from './InventoryUI.module.css';
 
 interface ContainerSlotsProps {
@@ -290,44 +291,22 @@ const WaterLevelIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
     );
 };
 
-// Durability indicator component - for weapons, tools, torches (RIGHT side, GREEN)
+// Durability indicator component - for weapons, tools, torches (RIGHT side)
+// Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top
 const DurabilityIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
-    const durabilityPercentage = getDurabilityPercentage(item.instance);
-    const hasDurability = durabilityPercentage > 0;
-    const durabilityColor = getDurabilityColor(item.instance, item.definition);
     const broken = isItemBroken(item.instance);
+    const isFood = isFoodItem(item.definition);
     
     return (
         <>
-            <div
-                style={{
-                    position: 'absolute',
-                    right: '4px',
-                    top: '4px',
-                    bottom: '14px', // Raised to avoid covering any slot indicators
-                    width: '3px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    borderRadius: '1px',
-                    zIndex: 4,
-                    pointerEvents: 'none',
-                }}
-            >
-                {hasDurability && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            bottom: '0px',
-                            left: '0px',
-                            right: '0px',
-                            height: `${durabilityPercentage * 100}%`,
-                            backgroundColor: durabilityColor,
-                            borderRadius: '1px',
-                            transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
-                        }}
-                    />
-                )}
-            </div>
-            {/* Broken item overlay */}
+            {/* Durability bar with red "lost" segment */}
+            <DurabilityBar 
+                item={item.instance}
+                itemDef={item.definition}
+                style={{ bottom: '14px' }} // Raised to avoid covering any slot indicators
+            />
+            
+            {/* Broken item overlay or Spoiled food overlay */}
             {broken && (
                 <div style={{
                     position: 'absolute',
@@ -335,7 +314,9 @@ const DurabilityIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
                     left: '0px',
                     width: '100%',
                     height: '100%',
-                    backgroundColor: 'rgba(80, 80, 80, 0.6)',
+                    backgroundColor: isFood
+                        ? 'rgba(139, 69, 19, 0.6)' // Brownish overlay for spoiled food
+                        : 'rgba(80, 80, 80, 0.6)', // Gray overlay for broken items
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -345,11 +326,13 @@ const DurabilityIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
                 }}>
                     <span style={{
                         fontSize: '16px',
-                        color: 'rgba(255, 100, 100, 0.9)',
+                        color: isFood
+                            ? 'rgba(255, 200, 100, 0.9)' // Yellowish for spoiled food
+                            : 'rgba(255, 100, 100, 0.9)', // Red for broken items
                         textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                         userSelect: 'none'
                     }}>
-                        ✖
+                        {isFood ? '🦠' : '✖'}
                     </span>
                 </div>
             )}

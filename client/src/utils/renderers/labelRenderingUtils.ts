@@ -348,10 +348,12 @@ export function renderInteractionLabels({
             if (box) {
                 // Use appropriate config for each box type
                 let config;
-                if (box.boxType === 3) {
+                if (box.boxType === 3) { // BOX_TYPE_COMPOST
                     config = ENTITY_VISUAL_CONFIG.compost;
-                } else if (box.boxType === 2) {
+                } else if (box.boxType === 2) { // BOX_TYPE_REFRIGERATOR
                     config = ENTITY_VISUAL_CONFIG.refrigerator;
+                } else if (box.boxType === 5) { // BOX_TYPE_REPAIR_BENCH
+                    config = ENTITY_VISUAL_CONFIG.repair_bench;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }

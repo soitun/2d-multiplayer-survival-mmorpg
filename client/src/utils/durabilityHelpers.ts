@@ -5,12 +5,22 @@
  * Items with durability include weapons, tools, ranged weapons, torches, flashlights, headlamps, and food.
  */
 
-import { InventoryItem, ItemDefinition, DbConnection } from '../generated';
+import { InventoryItem, ItemDefinition, DbConnection, CostIngredient } from '../generated';
 
 /**
  * Maximum durability value for all items (100%)
  */
 export const MAX_DURABILITY = 100.0;
+
+/**
+ * Maximum number of times an item can be repaired
+ */
+export const MAX_REPAIR_COUNT = 3;
+
+/**
+ * Minimum max durability (25% of original) - items can't be repaired below this
+ */
+export const MIN_MAX_DURABILITY = 25.0;
 
 /**
  * Food spoilage tick interval in seconds (matches server: 300 seconds = 5 minutes)
@@ -44,6 +54,112 @@ export function getDurability(item: InventoryItem): number | null {
         console.error('Failed to parse item data for durability:', error);
         return null;
     }
+}
+
+/**
+ * Get the max durability value from an item's itemData JSON field
+ * Returns MAX_DURABILITY (100.0) if not set (default for new items)
+ */
+export function getMaxDurability(item: InventoryItem): number {
+    if (!item.itemData) {
+        return MAX_DURABILITY;
+    }
+
+    try {
+        const data = JSON.parse(item.itemData);
+        const maxDurability = data.max_durability;
+        return typeof maxDurability === 'number' ? maxDurability : MAX_DURABILITY;
+    } catch (error) {
+        console.error('Failed to parse item data for max_durability:', error);
+        return MAX_DURABILITY;
+    }
+}
+
+/**
+ * Get the repair count from an item's itemData JSON field
+ * Returns 0 if not set (item has never been repaired)
+ */
+export function getRepairCount(item: InventoryItem): number {
+    if (!item.itemData) {
+        return 0;
+    }
+
+    try {
+        const data = JSON.parse(item.itemData);
+        const repairCount = data.repair_count;
+        return typeof repairCount === 'number' ? repairCount : 0;
+    } catch (error) {
+        console.error('Failed to parse item data for repair_count:', error);
+        return 0;
+    }
+}
+
+/**
+ * Check if an item can be repaired
+ * Returns true if item has durability system and hasn't been repaired too many times
+ */
+export function canItemBeRepaired(item: InventoryItem, itemDef: ItemDefinition): boolean {
+    // Must have durability system
+    if (!hasDurabilitySystem(itemDef)) {
+        return false;
+    }
+    
+    // Must not be repaired too many times
+    const repairCount = getRepairCount(item);
+    if (repairCount >= MAX_REPAIR_COUNT) {
+        return false;
+    }
+    
+    // Max durability must be above minimum
+    const maxDurability = getMaxDurability(item);
+    if (maxDurability <= MIN_MAX_DURABILITY) {
+        return false;
+    }
+    
+    // Must actually need repair (current < max)
+    const currentDurability = getDurability(item) ?? MAX_DURABILITY;
+    if (currentDurability >= maxDurability) {
+        return false;
+    }
+    
+    // Must have crafting cost defined (needed to calculate repair cost)
+    if (!itemDef.craftingCost || itemDef.craftingCost.length === 0) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Get the reason why an item cannot be repaired (if it cannot be repaired)
+ * Returns null if item can be repaired
+ */
+export function getRepairBlockedReason(item: InventoryItem, itemDef: ItemDefinition): string | null {
+    if (!hasDurabilitySystem(itemDef)) {
+        return "Item doesn't have a durability system";
+    }
+    
+    const repairCount = getRepairCount(item);
+    if (repairCount >= MAX_REPAIR_COUNT) {
+        return `Item is too degraded to repair (${repairCount}/${MAX_REPAIR_COUNT} repairs used)`;
+    }
+    
+    const maxDurability = getMaxDurability(item);
+    if (maxDurability <= MIN_MAX_DURABILITY) {
+        return "Item is too degraded - max durability too low";
+    }
+    
+    const currentDurability = getDurability(item) ?? MAX_DURABILITY;
+    if (currentDurability >= maxDurability) {
+        return "Item doesn't need repair - durability is at maximum";
+    }
+    
+    // Must have crafting cost defined (needed to calculate repair cost)
+    if (!itemDef.craftingCost || itemDef.craftingCost.length === 0) {
+        return "Item cannot be repaired - no crafting recipe";
+    }
+    
+    return null;
 }
 
 /**
@@ -319,5 +435,71 @@ export function getDurabilityColor(item: InventoryItem, itemDef?: ItemDefinition
     }
     
     return 'rgba(50, 205, 50, 0.8)'; // Green for good
+}
+
+/**
+ * Repair cost fraction based on repair count
+ * 1st repair (repair_count 0 → 1): 50% of crafting cost
+ * 2nd repair (repair_count 1 → 2): 25% of crafting cost
+ * 3rd repair (repair_count 2 → 3): 12.5% of crafting cost
+ */
+function getRepairCostFraction(repairCount: number): number {
+    switch (repairCount) {
+        case 0: return 0.5;      // 50%
+        case 1: return 0.25;     // 25%
+        case 2: return 0.125;    // 12.5%
+        default: return 0;       // No more repairs allowed
+    }
+}
+
+/**
+ * Calculate the repair cost for an item based on its crafting cost and repair count.
+ * Returns an array of CostIngredient objects representing the materials needed.
+ * Returns empty array if item cannot be repaired or has no crafting cost.
+ */
+export function calculateRepairCost(item: InventoryItem, itemDef: ItemDefinition): CostIngredient[] {
+    // Check if item can be repaired
+    if (!canItemBeRepaired(item, itemDef)) {
+        return [];
+    }
+    
+    // Check if item has crafting cost
+    const craftingCost = itemDef.craftingCost;
+    if (!craftingCost || craftingCost.length === 0) {
+        return [];
+    }
+    
+    // Get repair cost fraction based on current repair count
+    const repairCount = getRepairCount(item);
+    const fraction = getRepairCostFraction(repairCount);
+    
+    if (fraction <= 0) {
+        return [];
+    }
+    
+    // Calculate repair cost (fraction of crafting cost, minimum 1 of each ingredient)
+    const repairCost: CostIngredient[] = [];
+    
+    for (const ingredient of craftingCost) {
+        const cost = Math.max(1, Math.ceil(ingredient.quantity * fraction));
+        repairCost.push({
+            itemName: ingredient.itemName,
+            quantity: cost,
+        });
+    }
+    
+    return repairCost;
+}
+
+/**
+ * Format repair cost for display
+ * Returns a string like "5 Wood, 2 Stone" or "No repair cost"
+ */
+export function formatRepairCost(repairCost: CostIngredient[]): string {
+    if (repairCost.length === 0) {
+        return 'No repair cost';
+    }
+    
+    return repairCost.map(c => `${c.quantity} ${c.itemName}`).join(', ');
 }
 

@@ -1637,6 +1637,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.src = module.default;
     });
 
+    // Load repair bench image
+    import('../assets/doodads/repair_bench.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('repair_bench.png', img);
+      };
+      img.onerror = () => console.error('Failed to load repair_bench.png');
+      img.src = module.default;
+    });
+
     // Monument images are now loaded via static imports in monumentRenderingUtils.ts
     // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
     // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)

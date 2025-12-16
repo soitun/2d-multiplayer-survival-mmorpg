@@ -4,7 +4,8 @@ import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCam
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater, getWaterCapacity } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
-import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, MAX_DURABILITY, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
+import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, getMaxDurability, MAX_DURABILITY, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
+import DurabilityBar from './DurabilityBar';
 
 // Import Custom Components
 import DraggableItem from './DraggableItem';
@@ -1239,9 +1240,10 @@ const Hotbar: React.FC<HotbarProps> = ({
     let spoilageTimeRemaining: string | undefined = undefined;
     if (hasDurabilitySystem(item.definition)) {
       const currentDurability = getDurability(item.instance);
+      const itemMaxDurability = getMaxDurability(item.instance);
       // Show durability as current value (null means full/unused)
-      durability = currentDurability !== null ? Math.round(currentDurability) : MAX_DURABILITY;
-      maxDurability = MAX_DURABILITY;
+      durability = currentDurability !== null ? Math.round(currentDurability) : Math.round(itemMaxDurability);
+      maxDurability = Math.round(itemMaxDurability);
       
       // For food items, also show time remaining until spoilage
       if (isFoodItem(item.definition)) {
@@ -1581,45 +1583,16 @@ const Hotbar: React.FC<HotbarProps> = ({
                 );
               })()}
               
-              {/* Durability bar indicator for weapons, tools, torches, food, etc. (RIGHT side, GREEN) */}
+              {/* Durability bar indicator for weapons, tools, torches, food, etc. (RIGHT side) */}
+              {/* Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top */}
               {/* Positioned to avoid covering the hotbar slot number in bottom-right corner */}
-              {populatedItem && hasDurabilitySystem(populatedItem.definition) && (() => {
-                const durabilityPercentage = getDurabilityPercentage(populatedItem.instance);
-                const hasDurability = durabilityPercentage > 0;
-                const isBroken = isItemBroken(populatedItem.instance);
-                const durabilityColor = getDurabilityColor(populatedItem.instance, populatedItem.definition);
-                
-                return (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      right: '4px',
-                      top: '4px',
-                      bottom: '14px', // Raised to avoid hotbar number
-                      width: '3px',
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                      borderRadius: '1px',
-                      zIndex: 4,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {hasDurability && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '0px',
-                          left: '0px',
-                          right: '0px',
-                          height: `${durabilityPercentage * 100}%`,
-                          backgroundColor: durabilityColor,
-                          borderRadius: '1px',
-                          transition: 'height 0.3s ease-in-out, background-color 0.3s ease-in-out',
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })()}
+              {populatedItem && hasDurabilitySystem(populatedItem.definition) && (
+                <DurabilityBar 
+                  item={populatedItem.instance} 
+                  itemDef={populatedItem.definition}
+                  style={{ bottom: '14px' }} // Raised to avoid hotbar number
+                />
+              )}
               
               {/* Broken item overlay (weapons/tools) or Spoiled food overlay */}
               {populatedItem && hasDurabilitySystem(populatedItem.definition) && isItemBroken(populatedItem.instance) && (

@@ -273,6 +273,8 @@ import { MoveItemToRainCollector } from "./move_item_to_rain_collector_reducer.t
 export { MoveItemToRainCollector };
 import { MoveItemToRefrigerator } from "./move_item_to_refrigerator_reducer.ts";
 export { MoveItemToRefrigerator };
+import { MoveItemToRepairBench } from "./move_item_to_repair_bench_reducer.ts";
+export { MoveItemToRepairBench };
 import { MoveItemToStash } from "./move_item_to_stash_reducer.ts";
 export { MoveItemToStash };
 import { MoveItemWithinBarbecue } from "./move_item_within_barbecue_reducer.ts";
@@ -309,6 +311,8 @@ import { PickupDroppedItem } from "./pickup_dropped_item_reducer.ts";
 export { PickupDroppedItem };
 import { PickupLantern } from "./pickup_lantern_reducer.ts";
 export { PickupLantern };
+import { PickupRepairBench } from "./pickup_repair_bench_reducer.ts";
+export { PickupRepairBench };
 import { PickupStorageBox } from "./pickup_storage_box_reducer.ts";
 export { PickupStorageBox };
 import { PlaceBarbecue } from "./place_barbecue_reducer.ts";
@@ -331,6 +335,8 @@ import { PlaceLantern } from "./place_lantern_reducer.ts";
 export { PlaceLantern };
 import { PlaceRainCollector } from "./place_rain_collector_reducer.ts";
 export { PlaceRainCollector };
+import { PlaceRepairBench } from "./place_repair_bench_reducer.ts";
+export { PlaceRepairBench };
 import { PlaceShelter } from "./place_shelter_reducer.ts";
 export { PlaceShelter };
 import { PlaceSleepingBag } from "./place_sleeping_bag_reducer.ts";
@@ -443,6 +449,8 @@ import { QuickMoveToLantern } from "./quick_move_to_lantern_reducer.ts";
 export { QuickMoveToLantern };
 import { QuickMoveToRefrigerator } from "./quick_move_to_refrigerator_reducer.ts";
 export { QuickMoveToRefrigerator };
+import { QuickMoveToRepairBench } from "./quick_move_to_repair_bench_reducer.ts";
+export { QuickMoveToRepairBench };
 import { QuickMoveToStash } from "./quick_move_to_stash_reducer.ts";
 export { QuickMoveToStash };
 import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reducer.ts";
@@ -453,6 +461,8 @@ import { RemoveFromMatronage } from "./remove_from_matronage_reducer.ts";
 export { RemoveFromMatronage };
 import { RenameMatronage } from "./rename_matronage_reducer.ts";
 export { RenameMatronage };
+import { RepairItem } from "./repair_item_reducer.ts";
+export { RepairItem };
 import { ResetFaction } from "./reset_faction_reducer.ts";
 export { ResetFaction };
 import { RespawnAtSleepingBag } from "./respawn_at_sleeping_bag_reducer.ts";
@@ -2908,6 +2918,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_to_refrigerator",
       argsType: MoveItemToRefrigerator.getTypeScriptAlgebraicType(),
     },
+    move_item_to_repair_bench: {
+      reducerName: "move_item_to_repair_bench",
+      argsType: MoveItemToRepairBench.getTypeScriptAlgebraicType(),
+    },
     move_item_to_stash: {
       reducerName: "move_item_to_stash",
       argsType: MoveItemToStash.getTypeScriptAlgebraicType(),
@@ -2980,6 +2994,10 @@ const REMOTE_MODULE = {
       reducerName: "pickup_lantern",
       argsType: PickupLantern.getTypeScriptAlgebraicType(),
     },
+    pickup_repair_bench: {
+      reducerName: "pickup_repair_bench",
+      argsType: PickupRepairBench.getTypeScriptAlgebraicType(),
+    },
     pickup_storage_box: {
       reducerName: "pickup_storage_box",
       argsType: PickupStorageBox.getTypeScriptAlgebraicType(),
@@ -3023,6 +3041,10 @@ const REMOTE_MODULE = {
     place_rain_collector: {
       reducerName: "place_rain_collector",
       argsType: PlaceRainCollector.getTypeScriptAlgebraicType(),
+    },
+    place_repair_bench: {
+      reducerName: "place_repair_bench",
+      argsType: PlaceRepairBench.getTypeScriptAlgebraicType(),
     },
     place_shelter: {
       reducerName: "place_shelter",
@@ -3248,6 +3270,10 @@ const REMOTE_MODULE = {
       reducerName: "quick_move_to_refrigerator",
       argsType: QuickMoveToRefrigerator.getTypeScriptAlgebraicType(),
     },
+    quick_move_to_repair_bench: {
+      reducerName: "quick_move_to_repair_bench",
+      argsType: QuickMoveToRepairBench.getTypeScriptAlgebraicType(),
+    },
     quick_move_to_stash: {
       reducerName: "quick_move_to_stash",
       argsType: QuickMoveToStash.getTypeScriptAlgebraicType(),
@@ -3267,6 +3293,10 @@ const REMOTE_MODULE = {
     rename_matronage: {
       reducerName: "rename_matronage",
       argsType: RenameMatronage.getTypeScriptAlgebraicType(),
+    },
+    repair_item: {
+      reducerName: "repair_item",
+      argsType: RepairItem.getTypeScriptAlgebraicType(),
     },
     reset_faction: {
       reducerName: "reset_faction",
@@ -3835,6 +3865,7 @@ export type Reducer = never
 | { name: "MoveItemToLantern", args: MoveItemToLantern }
 | { name: "MoveItemToRainCollector", args: MoveItemToRainCollector }
 | { name: "MoveItemToRefrigerator", args: MoveItemToRefrigerator }
+| { name: "MoveItemToRepairBench", args: MoveItemToRepairBench }
 | { name: "MoveItemToStash", args: MoveItemToStash }
 | { name: "MoveItemWithinBarbecue", args: MoveItemWithinBarbecue }
 | { name: "MoveItemWithinBox", args: MoveItemWithinBox }
@@ -3853,6 +3884,7 @@ export type Reducer = never
 | { name: "PickupDoor", args: PickupDoor }
 | { name: "PickupDroppedItem", args: PickupDroppedItem }
 | { name: "PickupLantern", args: PickupLantern }
+| { name: "PickupRepairBench", args: PickupRepairBench }
 | { name: "PickupStorageBox", args: PickupStorageBox }
 | { name: "PlaceBarbecue", args: PlaceBarbecue }
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
@@ -3864,6 +3896,7 @@ export type Reducer = never
 | { name: "PlaceHomesteadHearth", args: PlaceHomesteadHearth }
 | { name: "PlaceLantern", args: PlaceLantern }
 | { name: "PlaceRainCollector", args: PlaceRainCollector }
+| { name: "PlaceRepairBench", args: PlaceRepairBench }
 | { name: "PlaceShelter", args: PlaceShelter }
 | { name: "PlaceSleepingBag", args: PlaceSleepingBag }
 | { name: "PlaceStash", args: PlaceStash }
@@ -3920,11 +3953,13 @@ export type Reducer = never
 | { name: "QuickMoveToHearth", args: QuickMoveToHearth }
 | { name: "QuickMoveToLantern", args: QuickMoveToLantern }
 | { name: "QuickMoveToRefrigerator", args: QuickMoveToRefrigerator }
+| { name: "QuickMoveToRepairBench", args: QuickMoveToRepairBench }
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
 | { name: "RemoveFromMatronage", args: RemoveFromMatronage }
 | { name: "RenameMatronage", args: RenameMatronage }
+| { name: "RepairItem", args: RepairItem }
 | { name: "ResetFaction", args: ResetFaction }
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
@@ -5878,6 +5913,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_refrigerator", callback);
   }
 
+  moveItemToRepairBench(boxId: number, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { boxId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToRepairBench.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_repair_bench", __argsBuffer, this.setCallReducerFlags.moveItemToRepairBenchFlags);
+  }
+
+  onMoveItemToRepairBench(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_repair_bench", callback);
+  }
+
+  removeOnMoveItemToRepairBench(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_repair_bench", callback);
+  }
+
   moveItemToStash(stashId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { stashId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -6166,6 +6217,22 @@ export class RemoteReducers {
     this.connection.offReducer("pickup_lantern", callback);
   }
 
+  pickupRepairBench(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    PickupRepairBench.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pickup_repair_bench", __argsBuffer, this.setCallReducerFlags.pickupRepairBenchFlags);
+  }
+
+  onPickupRepairBench(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("pickup_repair_bench", callback);
+  }
+
+  removeOnPickupRepairBench(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("pickup_repair_bench", callback);
+  }
+
   pickupStorageBox(boxId: number) {
     const __args = { boxId };
     let __writer = new __BinaryWriter(1024);
@@ -6340,6 +6407,22 @@ export class RemoteReducers {
 
   removeOnPlaceRainCollector(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
     this.connection.offReducer("place_rain_collector", callback);
+  }
+
+  placeRepairBench(itemInstanceId: bigint, posX: number, posY: number) {
+    const __args = { itemInstanceId, posX, posY };
+    let __writer = new __BinaryWriter(1024);
+    PlaceRepairBench.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_repair_bench", __argsBuffer, this.setCallReducerFlags.placeRepairBenchFlags);
+  }
+
+  onPlaceRepairBench(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, posX: number, posY: number) => void) {
+    this.connection.onReducer("place_repair_bench", callback);
+  }
+
+  removeOnPlaceRepairBench(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, posX: number, posY: number) => void) {
+    this.connection.offReducer("place_repair_bench", callback);
   }
 
   placeShelter(itemInstanceId: bigint, worldX: number, worldY: number) {
@@ -7238,6 +7321,22 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_to_refrigerator", callback);
   }
 
+  quickMoveToRepairBench(boxId: number, itemInstanceId: bigint) {
+    const __args = { boxId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToRepairBench.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_repair_bench", __argsBuffer, this.setCallReducerFlags.quickMoveToRepairBenchFlags);
+  }
+
+  onQuickMoveToRepairBench(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_repair_bench", callback);
+  }
+
+  removeOnQuickMoveToRepairBench(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_repair_bench", callback);
+  }
+
   quickMoveToStash(stashId: number, itemInstanceId: bigint) {
     const __args = { stashId, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -7312,6 +7411,22 @@ export class RemoteReducers {
 
   removeOnRenameMatronage(callback: (ctx: ReducerEventContext, newName: string) => void) {
     this.connection.offReducer("rename_matronage", callback);
+  }
+
+  repairItem(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    RepairItem.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("repair_item", __argsBuffer, this.setCallReducerFlags.repairItemFlags);
+  }
+
+  onRepairItem(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("repair_item", callback);
+  }
+
+  removeOnRepairItem(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("repair_item", callback);
   }
 
   resetFaction() {
@@ -9504,6 +9619,11 @@ export class SetReducerFlags {
     this.moveItemToRefrigeratorFlags = flags;
   }
 
+  moveItemToRepairBenchFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToRepairBench(flags: __CallReducerFlags) {
+    this.moveItemToRepairBenchFlags = flags;
+  }
+
   moveItemToStashFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToStash(flags: __CallReducerFlags) {
     this.moveItemToStashFlags = flags;
@@ -9594,6 +9714,11 @@ export class SetReducerFlags {
     this.pickupLanternFlags = flags;
   }
 
+  pickupRepairBenchFlags: __CallReducerFlags = 'FullUpdate';
+  pickupRepairBench(flags: __CallReducerFlags) {
+    this.pickupRepairBenchFlags = flags;
+  }
+
   pickupStorageBoxFlags: __CallReducerFlags = 'FullUpdate';
   pickupStorageBox(flags: __CallReducerFlags) {
     this.pickupStorageBoxFlags = flags;
@@ -9647,6 +9772,11 @@ export class SetReducerFlags {
   placeRainCollectorFlags: __CallReducerFlags = 'FullUpdate';
   placeRainCollector(flags: __CallReducerFlags) {
     this.placeRainCollectorFlags = flags;
+  }
+
+  placeRepairBenchFlags: __CallReducerFlags = 'FullUpdate';
+  placeRepairBench(flags: __CallReducerFlags) {
+    this.placeRepairBenchFlags = flags;
   }
 
   placeShelterFlags: __CallReducerFlags = 'FullUpdate';
@@ -9929,6 +10059,11 @@ export class SetReducerFlags {
     this.quickMoveToRefrigeratorFlags = flags;
   }
 
+  quickMoveToRepairBenchFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToRepairBench(flags: __CallReducerFlags) {
+    this.quickMoveToRepairBenchFlags = flags;
+  }
+
   quickMoveToStashFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToStash(flags: __CallReducerFlags) {
     this.quickMoveToStashFlags = flags;
@@ -9952,6 +10087,11 @@ export class SetReducerFlags {
   renameMatronageFlags: __CallReducerFlags = 'FullUpdate';
   renameMatronage(flags: __CallReducerFlags) {
     this.renameMatronageFlags = flags;
+  }
+
+  repairItemFlags: __CallReducerFlags = 'FullUpdate';
+  repairItem(flags: __CallReducerFlags) {
+    this.repairItemFlags = flags;
   }
 
   resetFactionFlags: __CallReducerFlags = 'FullUpdate';

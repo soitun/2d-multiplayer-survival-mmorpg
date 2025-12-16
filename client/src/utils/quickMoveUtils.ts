@@ -11,6 +11,7 @@ import { isWaterContainer } from './waterContainerHelpers';
 // Box type constants (must match server)
 const BOX_TYPE_REFRIGERATOR = 2;
 const BOX_TYPE_COMPOST = 3;
+const BOX_TYPE_REPAIR_BENCH = 5;
 
 export interface QuickMoveContext {
     connection: DbConnection;
@@ -51,12 +52,14 @@ export function quickMoveToContainer(
                 return true;
 
             case 'wooden_storage_box':
-                // Check box type for compost/refrigerator variants
+                // Check box type for compost/refrigerator/repair_bench variants
                 const boxEntity = woodenStorageBoxes?.get(containerId.toString());
                 if (boxEntity?.boxType === BOX_TYPE_COMPOST) {
                     connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
                 } else if (boxEntity?.boxType === BOX_TYPE_REFRIGERATOR) {
                     connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
+                } else if (boxEntity?.boxType === BOX_TYPE_REPAIR_BENCH) {
+                    connection.reducers.quickMoveToRepairBench(containerId, itemInstanceId);
                 } else {
                     connection.reducers.quickMoveToBox(containerId, itemInstanceId);
                 }

@@ -36,6 +36,12 @@ pub const NUM_BACKPACK_SLOTS: usize = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 
 pub const BACKPACK_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
 pub const BACKPACK_MAX_HEALTH: f32 = 100.0;
 
+// --- Repair Bench ---
+pub const BOX_TYPE_REPAIR_BENCH: u8 = 5;
+pub const NUM_REPAIR_BENCH_SLOTS: usize = 1;
+pub const REPAIR_BENCH_INITIAL_HEALTH: f32 = 500.0;
+pub const REPAIR_BENCH_MAX_HEALTH: f32 = 500.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -708,6 +714,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_LARGE => "Large Wooden Storage Box",
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
         BOX_TYPE_COMPOST => "Compost",
+        BOX_TYPE_REPAIR_BENCH => "Repair Bench",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -836,6 +843,7 @@ impl ItemContainer for WoodenStorageBox {
                 NUM_COMPOST_SLOTS
             },
             BOX_TYPE_BACKPACK => NUM_BACKPACK_SLOTS,
+            BOX_TYPE_REPAIR_BENCH => NUM_REPAIR_BENCH_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }
