@@ -324,6 +324,23 @@ import mysteryCanIcon from '../assets/items/mystery_can.png';
 // Brewed soups
 import soupStoneSoupIcon from '../assets/items/soup_stone_soup.png';
 
+// === COOKING STATION RECIPES ===
+// Advanced gourmet meals that require a Cooking Station
+import vegetableStewIcon from '../assets/items/vegetable_stew.png';
+import rootMashIcon from '../assets/items/root_mash.png';
+import stuffedPumpkinIcon from '../assets/items/stuffed_pumpkin.png';
+import fishPieIcon from '../assets/items/fish_pie.png';
+import seafoodPlatterIcon from '../assets/items/seafood_platter.png';
+import salmonBakeIcon from '../assets/items/salmon_bake.png';
+import crabCakesIcon from '../assets/items/crab_cakes.png';
+import huntersFeastIcon from '../assets/items/hunters_feast.png';
+import herbCrustedMeatIcon from '../assets/items/herb_crusted_meat.png';
+import bearRoastIcon from '../assets/items/bear_roast.png';
+import mushroomMedleyIcon from '../assets/items/mushroom_medley.png';
+import stuffedMushroomsIcon from '../assets/items/stuffed_mushrooms.png';
+import berryTartIcon from '../assets/items/berry_tart.png';
+import mixedBerryBowlIcon from '../assets/items/mixed_berry_bowl.png';
+
 // === SEEDS ===
 // All plantable items
 
@@ -801,6 +818,23 @@ const iconMap: { [key: string]: string | undefined } = {
 
   // === BREWED SOUPS ===
   'soup_stone_soup.png': soupStoneSoupIcon,
+
+  // === COOKING STATION RECIPES ===
+  // Advanced gourmet meals
+  'vegetable_stew.png': vegetableStewIcon,
+  'root_mash.png': rootMashIcon,
+  'stuffed_pumpkin.png': stuffedPumpkinIcon,
+  'fish_pie.png': fishPieIcon,
+  'seafood_platter.png': seafoodPlatterIcon,
+  'salmon_bake.png': salmonBakeIcon,
+  'crab_cakes.png': crabCakesIcon,
+  'hunters_feast.png': huntersFeastIcon,
+  'herb_crusted_meat.png': herbCrustedMeatIcon,
+  'bear_roast.png': bearRoastIcon,
+  'mushroom_medley.png': mushroomMedleyIcon,
+  'stuffed_mushrooms.png': stuffedMushroomsIcon,
+  'berry_tart.png': berryTartIcon,
+  'mixed_berry_bowl.png': mixedBerryBowlIcon,
 };
 
 // Export a function that provides the fallback logic

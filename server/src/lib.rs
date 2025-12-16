@@ -313,6 +313,17 @@ pub use wooden_storage_box::{
     interact_with_storage_box, pickup_storage_box
 };
 
+// Re-export repair bench reducers for client bindings
+pub use repair_bench::{
+    place_repair_bench, move_item_to_repair_bench, quick_move_to_repair_bench,
+    repair_item, pickup_repair_bench
+};
+
+// Re-export cooking station reducers for client bindings
+pub use cooking_station::{
+    place_cooking_station, pickup_cooking_station
+};
+
 // Re-export stash reducers for client bindings  
 pub use stash::{
     place_stash, move_item_to_stash, quick_move_from_stash,

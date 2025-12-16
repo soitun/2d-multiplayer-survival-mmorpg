@@ -1563,6 +1563,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Cooked Wolf Meat".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Cooked Fox Meat".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Tern Meat".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 0)
