@@ -46,9 +46,14 @@ app = FastAPI(title="Kokoro TTS Service", version="1.0.0", lifespan=lifespan)
 # CORS middleware for browser access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=[
+        "https://www.brothandbullets.com",
+        "https://brothandbullets.com",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
