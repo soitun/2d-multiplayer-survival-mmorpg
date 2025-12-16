@@ -488,9 +488,22 @@ fn apply_brewing_recipe_effect(
 
 /// Helper function to find plant type from item name (by checking primary yield)
 /// Returns Some(PlantType) if the item is produced by a plant, None otherwise
+/// Checks both primary and secondary yields (e.g., Nettle Leaves is a secondary yield from Boreal Nettle)
 fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
     PLANT_CONFIGS.iter()
-        .find(|(_, config)| config.primary_yield.0 == item_name)
+        .find(|(_, config)| {
+            // Check primary yield
+            if config.primary_yield.0 == item_name {
+                return true;
+            }
+            // Check secondary yield (e.g., Nettle Leaves from Boreal Nettle)
+            if let Some(ref secondary) = config.secondary_yield {
+                if secondary.0 == item_name {
+                    return true;
+                }
+            }
+            false
+        })
         .map(|(plant_type, _)| *plant_type)
 }
 
