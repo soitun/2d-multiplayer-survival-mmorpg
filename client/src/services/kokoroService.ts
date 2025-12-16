@@ -129,16 +129,26 @@ class KokoroService {
 
       let response: Response;
       try {
+        // Create abort controller for timeout (90 seconds for TTS which can be slow)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        
         response = await fetch(KOKORO_SYNTHESIZE_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         console.log('[KokoroService] ✅ Fetch request completed');
       } catch (error) {
         console.error('[KokoroService] ❌ Fetch request failed:', error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          return { success: false, error: 'Request timed out - TTS server may be busy' };
+        }
         const errorMessage = error instanceof Error ? error.message : 'Unknown network error';
         return { success: false, error: `Network request failed: ${errorMessage}` };
       }
