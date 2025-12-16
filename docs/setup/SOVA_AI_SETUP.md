@@ -130,7 +130,7 @@ VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini' (default: 'grok')
 
 ## 🔧 Fallback System
 
-If OpenAI is unavailable or not configured:
+If the AI provider is unavailable or not configured:
 - SOVA automatically uses predefined responses
 - Still includes easter eggs and basic game tips
 - No interruption to gameplay experience
@@ -237,4 +237,5 @@ Once configured, SOVA will:
 - ✅ Include lore-based easter eggs
 - ✅ Fall back gracefully if AI is unavailable
 
-Your tactical AI assistant is ready for deployment, Operative! 🎖️ 
+Your tactical AI assistant is ready for deployment, Operative! 🎖️
+

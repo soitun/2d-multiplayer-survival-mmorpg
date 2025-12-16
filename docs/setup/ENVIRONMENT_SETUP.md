@@ -25,16 +25,18 @@ VITE_API_PROXY_URL=http://localhost:8002
 VITE_KOKORO_BASE_URL=http://localhost:8001
 # AI Provider Selection (optional - defaults to 'grok'):
 VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini'
+# TTS Provider Selection (optional - defaults to 'kokoro'):
+VITE_TTS_PROVIDER=kokoro  # Options: 'kokoro', 'auto'
 ```
 
 **Note:** 
 - **AI Provider Selection**: Choose which AI provider to use for SOVA responses via `VITE_AI_PROVIDER` (defaults to `grok`)
+- **TTS Provider Selection**: Choose TTS provider via `VITE_TTS_PROVIDER` (defaults to `kokoro`)
 - **OpenAI API key** is **required** for Whisper (speech-to-text) - Whisper always uses OpenAI regardless of `VITE_AI_PROVIDER`
 - **OpenAI API key** can also be used for GPT-4o (AI personality) if `VITE_AI_PROVIDER=openai`
 - **Grok API key** is used for Grok model (AI personality) if `VITE_AI_PROVIDER=grok` - uses `grok-4-1-fast-reasoning` model (cheapest, 2M context) - handled by secure proxy
 - **Gemini API key** is used for Gemini-2.0-flash (AI personality) if `VITE_AI_PROVIDER=gemini` - handled by secure proxy
 - **Kokoro TTS** runs locally - no API key needed!
-- **No ElevenLabs** - we use Kokoro for text-to-speech
 - **Mixed Providers**: You can use OpenAI for Whisper (speech-to-text) while using Grok/Gemini for SOVA responses!
 
 ## 🚀 Setup Methods
@@ -60,6 +62,8 @@ VITE_API_PROXY_URL=http://localhost:8002
 VITE_KOKORO_BASE_URL=http://localhost:8001
 # Optional: Select AI provider (defaults to 'grok')
 VITE_AI_PROVIDER=grok    # Options: 'openai', 'grok', 'gemini'
+# Optional: Select TTS provider (defaults to 'kokoro')
+VITE_TTS_PROVIDER=kokoro  # Options: 'kokoro', 'auto'
 ```
 
 **Important:** All API keys stay on the server - never exposed to the browser!
@@ -196,9 +200,8 @@ npm run dev
 
 ## 📚 Related Documentation
 
-- [SECURE_API_SETUP.md](./SECURE_API_SETUP.md) - Secure proxy setup guide
-- [KOKORO_INTEGRATION.md](./KOKORO_INTEGRATION.md) - Kokoro TTS setup
-- [OPENAI_SETUP.md](./OPENAI_SETUP.md) - OpenAI configuration details
+- [SOVA_AI_SETUP.md](./SOVA_AI_SETUP.md) - SOVA AI provider configuration and personality
+- [KOKORO_INTEGRATION.md](../audio/KOKORO_INTEGRATION.md) - Kokoro TTS setup
 - [Vite Environment Variables](https://vitejs.dev/guide/env-and-mode.html)
 
 ## 🎯 Quick Reference
@@ -211,7 +214,8 @@ npm run dev
 | `PROXY_PORT` | `.env` (root) | Proxy server port | `8002` |
 | `VITE_API_PROXY_URL` | `.env` (root) | Proxy server URL | `http://localhost:8002` |
 | `VITE_KOKORO_BASE_URL` | `.env` (root) | Kokoro backend URL | `http://localhost:8001` |
-| `VITE_AI_PROVIDER` | `.env` (root) | AI provider for SOVA responses (client-side). Whisper always uses OpenAI | `grok` (default) |
+| `VITE_AI_PROVIDER` | `.env` (root) | AI provider for SOVA responses. Whisper always uses OpenAI | `grok` (default) |
+| `VITE_TTS_PROVIDER` | `.env` (root) | TTS provider for voice responses | `kokoro` (default) |
 
 ## 🎯 What Each Service Does
 
