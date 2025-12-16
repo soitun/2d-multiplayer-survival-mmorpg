@@ -1,3 +1,6 @@
+// Silence console.log in production - MUST be first import
+import './utils/productionLogger';
+
 import ReactDOM from 'react-dom/client';
 import App from './App';
 

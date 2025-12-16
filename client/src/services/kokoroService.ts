@@ -473,10 +473,27 @@ class KokoroService {
     this.performanceData = [];
     console.log('[KokoroService] Performance data cleared');
   }
+
+  /**
+   * Warm up the TTS service by pinging health endpoint
+   * Call this early to wake up the Railway service from sleep
+   */
+  warmup(): void {
+    // Fire and forget - don't await
+    fetch(`${KOKORO_BASE_URL}/health`, { method: 'GET' })
+      .then(() => console.log('[KokoroService] 🔥 Warmup ping sent'))
+      .catch(() => {}); // Silently ignore errors
+  }
 }
 
 // Export singleton instance
 const kokoroService = new KokoroService();
+
+// Auto-warmup on import (helps wake Railway from sleep early)
+if (typeof window !== 'undefined') {
+  // Delay warmup slightly to not block initial page load
+  setTimeout(() => kokoroService.warmup(), 2000);
+}
 
 export { kokoroService };
 export default kokoroService;
