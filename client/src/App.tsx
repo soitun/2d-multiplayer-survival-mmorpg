@@ -48,6 +48,8 @@ import { useEntrainmentSovaSounds } from './hooks/useEntrainmentSovaSounds';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
 
+// Asset Preloading
+import { preloadAllAssets, AssetLoadingProgress } from './services/assetPreloader';
 
 // Assets & Styles
 import './App.css';
@@ -153,6 +155,11 @@ function AppContent() {
     const [loadingSequenceComplete, setLoadingSequenceComplete] = useState<boolean>(false);
     // 🎣 FISHING INPUT FIX: Add fishing state to App level
     const [isFishing, setIsFishing] = useState(false);
+    
+    // Asset preloading state
+    const [assetProgress, setAssetProgress] = useState<AssetLoadingProgress | null>(null);
+    const [assetsLoaded, setAssetsLoaded] = useState(false);
+    const assetPreloadStarted = useRef(false);
     // Music panel state
     const [isMusicPanelVisible, setIsMusicPanelVisible] = useState(false);
     
@@ -566,6 +573,28 @@ function AppContent() {
             musicSystem.setVolume(musicVolume);
         }
     }, [musicVolume, musicSystem.setVolume]);
+
+    // --- Asset Preloading ---
+    useEffect(() => {
+        // Only start preloading once
+        if (assetPreloadStarted.current) return;
+        assetPreloadStarted.current = true;
+        
+        console.log('[App] Starting asset preloading...');
+        
+        preloadAllAssets((progress) => {
+            setAssetProgress(progress);
+            
+            if (progress.phase === 'complete') {
+                console.log('[App] ✅ Asset preloading complete!');
+                setAssetsLoaded(true);
+            }
+        }).catch((error) => {
+            console.error('[App] Asset preloading failed:', error);
+            // Still mark as loaded to not block the game
+            setAssetsLoaded(true);
+        });
+    }, []); // Empty deps - run once on mount
 
     // --- Game Performance Monitor ---
     useEffect(() => {
@@ -1094,6 +1123,8 @@ function AppContent() {
                     onSequenceComplete={handleSequenceComplete}
                     musicPreloadProgress={musicSystem.preloadProgress}
                     musicPreloadComplete={musicSystem.preloadProgress >= 1 && !musicSystem.isLoading}
+                    assetProgress={assetProgress}
+                    assetsLoaded={assetsLoaded}
                 />
             )}
 

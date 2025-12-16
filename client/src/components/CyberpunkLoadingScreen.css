@@ -313,6 +313,113 @@
     }
 }
 
+/* Loading state for status dots */
+.status-dot.loading {
+    background: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.6);
+    animation: pulse-blue 1s infinite;
+}
+
+@keyframes pulse-blue {
+    0%, 100% { 
+        box-shadow: 0 0 10px rgba(0, 170, 255, 0.6);
+        opacity: 1;
+    }
+    50% { 
+        box-shadow: 0 0 20px rgba(0, 170, 255, 0.9);
+        opacity: 0.6;
+    }
+}
+
+/* Asset Loading Progress Bar */
+.asset-progress-container {
+    margin: 15px 0;
+    padding: 12px 15px;
+    background: rgba(0, 20, 40, 0.6);
+    border: 1px solid #00aaff;
+    border-radius: 4px;
+    box-shadow: 
+        0 0 10px rgba(0, 170, 255, 0.2),
+        inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.asset-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.asset-progress-label {
+    color: #00ddff;
+    font-weight: bold;
+}
+
+.asset-progress-percent {
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+}
+
+.asset-progress-bar {
+    position: relative;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #004466;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.asset-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, 
+        #00aaff 0%, 
+        #00ddff 40%, 
+        #00ff88 70%, 
+        #00ff00 100%
+    );
+    border-radius: 1px;
+    transition: width 0.15s ease-out;
+    box-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.5),
+        inset 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+.asset-progress-glow {
+    position: absolute;
+    top: 0;
+    width: 30px;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.4), 
+        transparent
+    );
+    transform: translateX(-50%);
+    animation: progress-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-shimmer {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+.asset-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #668899;
+}
+
+.cache-indicator {
+    color: #ffaa00;
+    font-weight: bold;
+}
+
 /* Responsive design - Tablet and Mobile */
 @media (max-width: 768px) {
     .cyberpunk-loading {

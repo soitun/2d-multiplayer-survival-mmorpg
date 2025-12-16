@@ -60,6 +60,32 @@ window.addEventListener('error', (event) => {
   }
 });
 
+// Register Service Worker for asset caching
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('[SW] Service Worker registered successfully:', registration.scope);
+        
+        // Check for updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] New content available, will be used on next reload');
+              }
+            });
+          }
+        });
+      })
+      .catch((error) => {
+        console.warn('[SW] Service Worker registration failed:', error);
+        // Don't block the app if SW fails
+      });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <App />
 );

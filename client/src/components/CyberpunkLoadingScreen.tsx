@@ -50,12 +50,27 @@ export const CyberpunkErrorBar: React.FC<CyberpunkErrorBarProps> = ({ message })
     );
 };
 
+// Asset loading progress type (from assetPreloader)
+export interface AssetLoadingProgress {
+    phase: 'critical' | 'important' | 'secondary' | 'complete';
+    phaseName: string;
+    phaseProgress: number;
+    totalProgress: number;
+    loadedCount: number;
+    totalCount: number;
+    currentAsset: string;
+    fromCache: number;
+}
+
 interface CyberpunkLoadingScreenProps {
     authLoading: boolean;
     spacetimeLoading?: boolean; // Add SpacetimeDB loading state
     onSequenceComplete?: () => void;
     musicPreloadProgress?: number; // 0-1 for music preload progress
     musicPreloadComplete?: boolean;
+    // NEW: Real asset loading progress
+    assetProgress?: AssetLoadingProgress | null;
+    assetsLoaded?: boolean;
 }
 
 // Audio preloading and management
@@ -187,11 +202,20 @@ const preloadAudio = async () => {
     }
 };
 
-const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoading, spacetimeLoading = false, onSequenceComplete, musicPreloadProgress = 0, musicPreloadComplete = false }) => {
+const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ 
+    authLoading, 
+    spacetimeLoading = false, 
+    onSequenceComplete, 
+    musicPreloadProgress = 0, 
+    musicPreloadComplete = false,
+    assetProgress = null,
+    assetsLoaded = false,
+}) => {
 
     const [visibleLogs, setVisibleLogs] = useState<string[]>([]);
     const [currentLogIndex, setCurrentLogIndex] = useState(0);
     const [isSequenceComplete, setIsSequenceComplete] = useState(false);
+    const [lastAssetLog, setLastAssetLog] = useState<string>('');
     
     // Mobile detection
     const isMobile = useMobileDetection();
@@ -227,14 +251,37 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
             "└─ Handshaking with distributed survivor network...",
             "└─ [MESH] P2P connection protocols active...",
             "└─ [READY] Babachain connection established. Initializing world access...",
-        ] : [
-            "└─ Loading encrypted world state from distributed cache...",
-            "└─ [WORLD] Verifying territorial claims and resource deposits...",
-            "└─ Initializing real-time consensus mechanisms...",
-        ];
+        ] : [];
+
+        // Add REAL asset loading progress when not in auth/spacetime loading phases
+        if (!authLoading && !spacetimeLoading && assetProgress) {
+            const percentage = Math.round(assetProgress.totalProgress * 100);
+            const cacheInfo = assetProgress.fromCache > 0 ? ` (${assetProgress.fromCache} cached)` : '';
+            
+            if (assetProgress.phase === 'critical') {
+                baseLogs.push("└─ [INIT] Initializing core rendering systems...");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
+                if (percentage > 10) {
+                    baseLogs.push(`└─ [LOAD] Core systems: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
+                }
+            } else if (assetProgress.phase === 'important') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
+                baseLogs.push(`└─ [LOAD] Environment textures: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
+            } else if (assetProgress.phase === 'secondary') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push("└─ [ENV] Environment textures loaded.");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
+                baseLogs.push(`└─ [LOAD] Item database: ${assetProgress.loadedCount}/${assetProgress.totalCount} assets${cacheInfo}`);
+            } else if (assetProgress.phase === 'complete') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push("└─ [ENV] Environment textures loaded.");
+                baseLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
+            }
+        }
 
         // Add music preload status for non-auth loading
-        if (!authLoading) {
+        if (!authLoading && !spacetimeLoading) {
             if (musicPreloadProgress > 0 && musicPreloadProgress < 1) {
                 const percentage = Math.round(musicPreloadProgress * 100);
                 baseLogs.push(`└─ [AUDIO] Preloading ambient soundtrack... ${percentage}%`);
@@ -242,11 +289,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
                 baseLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
             }
             
-            baseLogs.push("└─ [READY] Connection to Babachain established. Entering world...");
+            // Only show ready message when assets are actually loaded
+            if (assetsLoaded) {
+                baseLogs.push("└─ [READY] All systems nominal. Entering world...");
+            }
         }
 
         return baseLogs;
-    }, [authLoading, spacetimeLoading, musicPreloadProgress, musicPreloadComplete]);
+    }, [authLoading, spacetimeLoading, musicPreloadProgress, musicPreloadComplete, assetProgress, assetsLoaded]);
 
     // Auto-scroll to bottom function
     const scrollToBottom = () => {
@@ -527,26 +577,29 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
     useEffect(() => {
         if (currentLogIndex < logs.length) {
             console.log(`[CyberpunkLoadingScreen] Showing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
+            // Show logs faster when assets are loading (real progress), slower for simulated auth/spacetime
+            const baseDelay = assetProgress ? 100 : 300;
+            const randomDelay = assetProgress ? 50 : 200;
             const timer = setTimeout(() => {
                 setVisibleLogs(prev => [...prev, logs[currentLogIndex]]);
                 setCurrentLogIndex(prev => prev + 1);
                 // Scroll to bottom after adding new log
                 setTimeout(scrollToBottom, 100);
-            }, 300 + Math.random() * 200); // Faster timing: 300-500ms instead of 800-1200ms
+            }, baseDelay + Math.random() * randomDelay);
 
             return () => clearTimeout(timer);
-        } else if (currentLogIndex >= logs.length && !isSequenceComplete) {
-            // Sequence is complete, add a small delay then show click to continue
-            console.log(`[CyberpunkLoadingScreen] All logs complete, setting sequence complete`);
+        } else if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
+            // Sequence is complete AND assets are loaded - show click to continue
+            console.log(`[CyberpunkLoadingScreen] All logs complete and assets loaded, setting sequence complete`);
             const timer = setTimeout(() => {
                 setIsSequenceComplete(true);
                 // Scroll to bottom to show the continue button
                 setTimeout(scrollToBottom, 200);
-            }, 500); // Shorter delay
+            }, 500);
 
             return () => clearTimeout(timer);
         }
-    }, [currentLogIndex, logs, isSequenceComplete]);
+    }, [currentLogIndex, logs, isSequenceComplete, assetProgress, assetsLoaded]);
 
     // Handle click to continue - always allow continuation regardless of player state
     const handleContinueClick = () => {
@@ -555,16 +608,17 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
     };
     
     // Fallback: If sequence gets stuck, auto-complete after a timeout
+    // BUT only if assets are loaded - we never want to show the game without assets!
     useEffect(() => {
-        if (currentLogIndex >= logs.length && !isSequenceComplete) {
+        if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
             const fallbackTimer = setTimeout(() => {
-                console.log('[CyberpunkLoadingScreen] Fallback: Force completing sequence');
+                console.log('[CyberpunkLoadingScreen] Fallback: Force completing sequence (assets loaded)');
                 setIsSequenceComplete(true);
             }, 2000); // 2 second fallback
             
             return () => clearTimeout(fallbackTimer);
         }
-    }, [currentLogIndex, logs.length, isSequenceComplete]);
+    }, [currentLogIndex, logs.length, isSequenceComplete, assetsLoaded]);
 
     // Reset when authLoading changes, but only if we haven't started the sequence at all
     // Once started, let the sequence complete regardless of player state (including death)
@@ -812,19 +866,49 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ authLoa
                     )}
                 </div>
 
+                {/* Asset Loading Progress Bar */}
+                {assetProgress && assetProgress.phase !== 'complete' && (
+                    <div className="asset-progress-container">
+                        <div className="asset-progress-header">
+                            <span className="asset-progress-label">
+                                {assetProgress.phaseName.toUpperCase()}
+                            </span>
+                            <span className="asset-progress-percent">
+                                {Math.round(assetProgress.totalProgress * 100)}%
+                            </span>
+                        </div>
+                        <div className="asset-progress-bar">
+                            <div 
+                                className="asset-progress-fill"
+                                style={{ width: `${assetProgress.totalProgress * 100}%` }}
+                            />
+                            <div 
+                                className="asset-progress-glow"
+                                style={{ left: `${assetProgress.totalProgress * 100}%` }}
+                            />
+                        </div>
+                        <div className="asset-progress-stats">
+                            <span>{assetProgress.loadedCount}/{assetProgress.totalCount} assets</span>
+                            {assetProgress.fromCache > 0 && (
+                                <span className="cache-indicator">⚡ {assetProgress.fromCache} cached</span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="console-footer">
                     <div className="status-indicators">
                         <div className="status-item">
-                            <span className="status-dot active"></span>
+                            <span className={`status-dot ${!authLoading ? 'active' : 'loading'}`}></span>
                             <span>NEURAL LINK</span>
                         </div>
                         <div className="status-item">
-                            <span className="status-dot active"></span>
+                            <span className={`status-dot ${!spacetimeLoading ? 'active' : 'loading'}`}></span>
                             <span>QUANTUM TUNNEL</span>
                         </div>
                         <div className="status-item">
-                            <span className="status-dot active"></span>
-                            <span>MESH PROTOCOL</span>
+                            <span className={`status-dot ${assetsLoaded ? 'active' : 'loading'}`}></span>
+                            <span>ASSET MATRIX</span>
                         </div>
                     </div>
                 </div>
