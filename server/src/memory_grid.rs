@@ -180,13 +180,21 @@ fn is_node_available(purchased_nodes: &str, node_id: &str, prerequisites: &[&str
 /// 
 /// - TIER 1: Day 1-3 (60-100 shards) - first unlocks require real effort
 /// - TIER 2: Day 3-7 (200-280 shards) - early specialization
-/// - TIER 3: Day 7-14 (480-720 shards) - mid-game progression
+/// - TIER 3: Day 7-14 (480-720 shards) - mid-game progression (SPLITS happen here)
 /// - TIER 4: Day 14-21 (1000-1600 shards) - late early-game
 /// - TIER 5: Day 21-35 (2400-3000 shards) - mid-late game
 /// - TIER 6: Day 35-45 (3200-3400 shards) - late game
 /// - TIER 7: Day 45+ (4000 shards) - end game
 /// - FACTION UNLOCK: Major milestone (1600 shards) - requires 8000 total shards spent
 /// - FACTION BRANCHES: Long-term goals (1600-10000 shards) - many weeks to complete
+/// 
+/// BRANCH STRUCTURE (v4 - Clean Radial Splits):
+/// - Branch 1 (0°): Ranged Combat - linear
+/// - Branch 2 (60°): Building - linear  
+/// - Branch 3 (120°): Water - SPLITS at bone-gaff-hook into Fishing (upper) / Water Collection (lower)
+/// - Branch 4 (180°): Food - SPLITS at flashlight into Cooking (upper) / Storage (lower)
+/// - Branch 5 (240°): Crafting - SPLITS at reed-bellows into Passives (upper) / Maintenance (lower)
+/// - Branch 6 (300°): Melee - linear (short for now)
 /// 
 /// Players are locked into ONE faction after unlock - reset costs 5000 shards
 fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
@@ -197,68 +205,90 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // TIER 1 - Basic Improvements (60-100 shards)
         // Day 1-3 - first unlocks require real commitment
-        // 6 nodes evenly distributed - clean radial layout
+        // 6 nodes evenly distributed at 60° intervals
         // ============================================
-        "crossbow" => Some((100, vec!["center"])),          // Branch 1: Ranged combat (arrows → ammo → gun → drone)
-        "metal-hatchet" => Some((60, vec!["center"])),      // Branch 2: Building (wood → storage → shelter → harvester)
-        "reed-harpoon" => Some((75, vec!["center"])),       // Branch 3: Fishing/Water
-        "lantern" => Some((80, vec!["center"])),            // Branch 4: Food/Survival (light → food → broth)
-        "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5: Mining/Crafting
-        "stone-spear" => Some((80, vec!["center"])),        // Branch 6: Movement/Armor
+        "crossbow" => Some((100, vec!["center"])),          // Branch 1 (0°): Ranged combat
+        "metal-hatchet" => Some((60, vec!["center"])),      // Branch 2 (60°): Building
+        "reed-harpoon" => Some((75, vec!["center"])),       // Branch 3 (120°): Water (splits later)
+        "lantern" => Some((80, vec!["center"])),            // Branch 4 (180°): Food (splits later)
+        "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5 (240°): Crafting (splits later)
+        "stone-spear" => Some((80, vec!["center"])),        // Branch 6 (300°): Melee
         
         // ============================================
         // TIER 2 - Specialization (200-280 shards)
-        // Day 3-7 - LINEAR CHAINS, single prerequisite each
+        // Day 3-7 - Split points for branches 3, 4, 5
         // ============================================
         "bone-arrow" => Some((200, vec!["crossbow"])),          // Branch 1: Crossbow → bone-arrow
         "bush-knife" => Some((220, vec!["metal-hatchet"])),     // Branch 2: Metal-hatchet → bush-knife
-        "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook
-        "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight
-        "reed-bellows" => Some((280, vec!["metal-pickaxe"])),   // Branch 5: Metal-pickaxe → reed-bellows
+        "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook (SPLIT POINT)
+        "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight (SPLIT POINT)
+        "reed-bellows" => Some((280, vec!["metal-pickaxe"])),   // Branch 5: Metal-pickaxe → reed-bellows (SPLIT POINT)
         
         // ============================================
         // TIER 3 - Advanced Gear (480-720 shards)
-        // Day 7-14 - LINEAR CHAINS continue
+        // Day 7-14 - Branches split into upper/lower paths
         // ============================================
-        "fire-arrow" => Some((480, vec!["bone-arrow"])),                // Branch 1: bone-arrow → fire-arrow
-        "large-wooden-storage-box" => Some((600, vec!["bush-knife"])),  // Branch 2: bush-knife → large-wooden-storage-box
-        "reed-fishing-rod" => Some((520, vec!["bone-gaff-hook"])),      // Branch 3: bone-gaff-hook → reed-fishing-rod
-        "reed-rain-collector" => Some((560, vec!["flashlight"])),       // Branch 4: flashlight → reed-rain-collector
-        "mining-efficiency" => Some((720, vec!["reed-bellows"])),       // Branch 5: reed-bellows → mining-efficiency
+        // Branch 1 (linear)
+        "fire-arrow" => Some((480, vec!["bone-arrow"])),
+        // Branch 2 (linear)
+        "large-wooden-storage-box" => Some((600, vec!["bush-knife"])),
+        // Branch 3 UPPER (Fishing path @ 112°)
+        "reed-fishing-rod" => Some((520, vec!["bone-gaff-hook"])),
+        // Branch 3 LOWER (Water Collection path @ 128°)
+        "reed-rain-collector" => Some((560, vec!["bone-gaff-hook"])),
+        // Branch 4 UPPER (Cooking path @ 172°)
+        "barbecue" => Some((600, vec!["flashlight"])),
+        // Branch 4 LOWER (Food Storage path @ 188°)
+        "refrigerator" => Some((680, vec!["flashlight"])),
+        // Branch 5 UPPER (Passive Bonuses path @ 232°)
+        "mining-efficiency" => Some((720, vec!["reed-bellows"])),
+        // Branch 5 LOWER (Maintenance path @ 248°)
+        "repair-bench" => Some((560, vec!["reed-bellows"])),
         
         // ============================================
         // TIER 4 - Late Early-Game (1000-1600 shards)
-        // Day 14-21 - LINEAR CHAINS continue
+        // Day 14-21 - Split paths continue outward
         // ============================================
-        "hollow-reed-arrow" => Some((1200, vec!["fire-arrow"])),         // Branch 1: fire-arrow → hollow-reed-arrow
-        "metal-door" => Some((1280, vec!["large-wooden-storage-box"])),  // Branch 2: large-wooden-storage-box → metal-door
-        "reed-snorkel" => Some((1400, vec!["reed-fishing-rod"])),        // Branch 3: reed-fishing-rod → reed-snorkel
-        "barbecue" => Some((1000, vec!["reed-rain-collector"])),         // Branch 4: reed-rain-collector → barbecue
-        "refrigerator" => Some((1520, vec!["barbecue"])),                // Branch 4: barbecue → refrigerator
-        "compost" => Some((1600, vec!["refrigerator"])),                 // Branch 4: refrigerator → compost
-        "crafting-speed-1" => Some((1600, vec!["mining-efficiency"])),   // Branch 5: mining-efficiency → crafting-speed-1
+        // Branch 1 (linear)
+        "hollow-reed-arrow" => Some((1200, vec!["fire-arrow"])),
+        // Branch 2 (linear)
+        "metal-door" => Some((1280, vec!["large-wooden-storage-box"])),
+        // Branch 3 UPPER (Fishing)
+        "reed-snorkel" => Some((1400, vec!["reed-fishing-rod"])),
+        // Branch 3 LOWER (Water Collection)
+        "plastic-water-jug" => Some((1200, vec!["reed-rain-collector"])),
+        // Branch 4 LOWER (Food Storage)
+        "compost" => Some((1200, vec!["refrigerator"])),
+        // Branch 5 UPPER (Passive Bonuses)
+        "crafting-speed-1" => Some((1600, vec!["mining-efficiency"])),
         
         // ============================================
         // TIER 5 - Mid-Late Game (2400-3000 shards)
-        // Day 21-35 - LINEAR CHAINS conclude
+        // Day 21-35 - Split paths conclude
         // ============================================
-        "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),      // Branch 1: hollow-reed-arrow → 9x18mm-round
-        "shelter" => Some((2600, vec!["metal-door"])),                  // Branch 2: metal-door → shelter
-        "broth-mastery" => Some((2800, vec!["compost"])),               // Branch 4: compost → broth-mastery
-        "crafting-speed-2" => Some((3000, vec!["crafting-speed-1"])),   // Branch 5: crafting-speed-1 → crafting-speed-2
+        // Branch 1 (linear)
+        "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),
+        // Branch 2 (linear)
+        "shelter" => Some((2600, vec!["metal-door"])),
+        // Branch 4 UPPER (Cooking)
+        "cooking-station" => Some((1400, vec!["barbecue"])),
+        // Branch 4 (Cooking) - capstone
+        "broth-mastery" => Some((2800, vec!["cooking-station"])),
+        // Branch 5 UPPER (Passive Bonuses)
+        "crafting-speed-2" => Some((3000, vec!["crafting-speed-1"])),
         
         // ============================================
         // TIER 6 - Late Game (3200-3400 shards)
         // Day 35-45 - Final upgrades before factions
         // ============================================
-        "makarov-pm" => Some((3200, vec!["9x18mm-round"])),             // Branch 1: 9x18mm-round → makarov-pm
-        "harvester-drone" => Some((3400, vec!["shelter"])),             // Branch 2: shelter → harvester-drone
+        "makarov-pm" => Some((3200, vec!["9x18mm-round"])),
+        "harvester-drone" => Some((3400, vec!["shelter"])),
         
         // ============================================
         // TIER 7 - End Game (4000 shards)
         // Day 45+ - Final node before factions
         // ============================================
-        "combat-drone" => Some((4000, vec!["makarov-pm"])),             // Branch 1: makarov-pm → combat-drone
+        "combat-drone" => Some((4000, vec!["makarov-pm"])),
         
         // ============================================
         // FACTION UNLOCK NODES (1600 shards each)
@@ -456,7 +486,6 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 1
         "metal-hatchet" => "Metal Hatchet".to_string(),
         "metal-pickaxe" => "Metal Pickaxe".to_string(),
-        "mining-efficiency" => "Mining Efficiency".to_string(),
         "crossbow" => "Crossbow".to_string(),
         "stone-spear" => "Stone Spear".to_string(),
         "reed-harpoon" => "Reed Harpoon".to_string(),
@@ -464,33 +493,42 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 2
         "bone-arrow" => "Bone Arrow".to_string(),
-        "fire-arrow" => "Fire Arrow".to_string(),
         "bush-knife" => "Bush Knife".to_string(),
-        "flashlight" => "Flashlight".to_string(),
-        "compost" => "Compost".to_string(),
-        "reed-bellows" => "Reed Bellows".to_string(),
-        "crafting-speed-1" => "Crafting Speed I".to_string(),
         "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
+        "flashlight" => "Flashlight".to_string(),
+        "reed-bellows" => "Reed Bellows".to_string(),
         
         // Tier 3
-        "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
-        "reed-snorkel" => "Primitive Reed Snorkel".to_string(),
+        "fire-arrow" => "Fire Arrow".to_string(),
+        "large-wooden-storage-box" => "Large Wooden Storage Box".to_string(),
         "reed-fishing-rod" => "Primitive Reed Fishing Rod".to_string(),
         "reed-rain-collector" => "Reed Rain Collector".to_string(),
-        "large-wooden-storage-box" => "Large Wooden Storage Box".to_string(),
+        "barbecue" => "Barbecue".to_string(),
+        "refrigerator" => "Refrigerator".to_string(),
+        "mining-efficiency" => "Mining Efficiency".to_string(),
+        "repair-bench" => "Repair Bench".to_string(),
         
         // Tier 4
+        "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
         "metal-door" => "Metal Door".to_string(),
-        "shelter" => "Shelter".to_string(),
-        "9x18mm-round" => "9x18mm Round".to_string(),
-        "metal-armor" => "Metal Armor".to_string(),
-        "refrigerator" => "Refrigerator".to_string(),
-        "crafting-speed-2" => "Crafting Speed II".to_string(),
+        "reed-snorkel" => "Primitive Reed Snorkel".to_string(),
+        "plastic-water-jug" => "Plastic Water Jug".to_string(),
+        "cooking-station" => "Cooking Station".to_string(),
+        "compost" => "Compost".to_string(),
+        "crafting-speed-1" => "Crafting Speed I".to_string(),
         
         // Tier 5
-        "makarov-pm" => "Makarov PM".to_string(),
-        "combat-drone" => "Combat Drone".to_string(),
+        "9x18mm-round" => "9x18mm Round".to_string(),
+        "shelter" => "Shelter".to_string(),
         "broth-mastery" => "Broth Mastery".to_string(),
+        "crafting-speed-2" => "Crafting Speed II".to_string(),
+        
+        // Tier 6
+        "makarov-pm" => "Makarov PM".to_string(),
+        "harvester-drone" => "Harvester Drone".to_string(),
+        
+        // Tier 7
+        "combat-drone" => "Combat Drone".to_string(),
         
         // Faction unlocks
         "unlock-black-wolves" => "Unlock Black Wolves".to_string(),
@@ -525,9 +563,9 @@ pub fn player_has_node(ctx: &spacetimedb::ReducerContext, player_id: Identity, n
 /// 
 /// ITEMS THAT ARE ALWAYS CRAFTABLE (no Memory Grid required):
 /// - Camp Fire, Furnace, Sleeping Bag, Wooden Storage Box, Stash
-/// - Hunting Bow, Wooden Arrow, Wooden Spear, Stone Spear
+/// - Hunting Bow, Wooden Arrow, Wooden Spear
 /// - Stone Hatchet, Stone Pickaxe, Torch, Rock, Blueprint
-/// - Bandage, Bone Club, Bone Knife, Bone Gaff Hook
+/// - Bandage, Bone Club, Bone Knife, Reed Water Bottle
 /// - Rope, Cloth, Combat Ladle, Matron's Chest
 pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
     match item_name {
@@ -541,27 +579,33 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 2 items
         "Bone Arrow" => Some("bone-arrow"),
-        "Fire Arrow" => Some("fire-arrow"),
         "Bush Knife" => Some("bush-knife"),
-        "Flashlight" => Some("flashlight"),
-        "Compost" => Some("compost"),
-        "Reed Bellows" => Some("reed-bellows"),
         "Bone Gaff Hook" => Some("bone-gaff-hook"),
+        "Flashlight" => Some("flashlight"),
+        "Reed Bellows" => Some("reed-bellows"),
         
         // Tier 3 items
-        "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
-        "Primitive Reed Snorkel" => Some("reed-snorkel"),
+        "Fire Arrow" => Some("fire-arrow"),
+        "Large Wooden Storage Box" => Some("large-wooden-storage-box"),
         "Primitive Reed Fishing Rod" => Some("reed-fishing-rod"),
         "Reed Rain Collector" => Some("reed-rain-collector"),
-        "Large Wooden Storage Box" => Some("large-wooden-storage-box"),
+        "Barbecue" => Some("barbecue"),
+        "Refrigerator" => Some("refrigerator"),
+        "Repair Bench" => Some("repair-bench"),
         
         // Tier 4 items
+        "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
         "Metal Door" => Some("metal-door"),
-        "Shelter" => Some("shelter"),
-        "9x18mm Round" => Some("9x18mm-round"),
-        "Refrigerator" => Some("refrigerator"),
+        "Primitive Reed Snorkel" => Some("reed-snorkel"),
+        "Plastic Water Jug" => Some("plastic-water-jug"),
+        "Cooking Station" => Some("cooking-station"),
+        "Compost" => Some("compost"),
         
         // Tier 5 items
+        "9x18mm Round" => Some("9x18mm-round"),
+        "Shelter" => Some("shelter"),
+        
+        // Tier 6 items
         "Makarov PM" => Some("makarov-pm"),
         
         // ALWAYS CRAFTABLE - No Memory Grid requirement
@@ -569,14 +613,12 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Camp Fire" | "Furnace" | "Sleeping Bag" | "Wooden Storage Box" |
         "Stash" | "Matron's Chest" | "Cerametal Field Cauldron Mk. II" | "Wood Door" | "Reed Water Bottle" => None,
         
-        // Note: Refrigerator requires memory grid unlock (Tier 4)
-        
         // Basic weapons
-        "Hunting Bow" | "Wooden Arrow" | "Wooden Spear" | "Stone Spear" => None,
+        "Hunting Bow" | "Wooden Arrow" | "Wooden Spear" => None,
         
         // Basic tools
         "Stone Hatchet" | "Stone Pickaxe" | "Torch" | "Rock" | "Blueprint" |
-        "Bandage" | "Bone Club" | "Bone Knife" | "Bone Gaff Hook" | 
+        "Bandage" | "Bone Club" | "Bone Knife" | 
         "Combat Ladle" | "Repair Hammer" => None,
         
         // Basic materials/crafting

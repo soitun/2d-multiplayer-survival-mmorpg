@@ -92,6 +92,19 @@ const getRadialPosition = (angle: number, radius: number): { x: number; y: numbe
   y: Math.sin(angle) * radius
 });
 
+// Branch angle constants for clean radial layout
+const BRANCH_ANGLES = {
+  BRANCH_1: 0,                    // 0° - Ranged Combat
+  BRANCH_2: Math.PI / 3,          // 60° - Building
+  BRANCH_3: 2 * Math.PI / 3,      // 120° - Water (splits)
+  BRANCH_4: Math.PI,              // 180° - Food (splits)
+  BRANCH_5: 4 * Math.PI / 3,      // 240° - Crafting (splits)
+  BRANCH_6: 5 * Math.PI / 3,      // 300° - Melee
+};
+
+// Split offset for sub-branches (±8.6°)
+const SPLIT_OFFSET = 0.15;
+
 const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'crafting' | 'vehicle' | 'technology' | 'passive' => {
   // Passive abilities
   if (nodeId.includes('speed') || nodeId.includes('efficiency') || nodeId.includes('mastery') ||
@@ -159,10 +172,8 @@ export const MEMORY_GRID_NODES = [
 
   // ============================================
   // TIER 1 - Basic Improvements (60-100 shards)
-  // Day 1-3 - first unlocks require real commitment
-  // 6 nodes - each starts a distinct progression branch
+  // Day 1-3 - 6 branches at 60° intervals
   // Radius: 120
-  // BRANCH SECTORS: Each T1 node "owns" a 60° sector (2π/6)
   // ============================================
   { 
     id: 'crossbow', 
@@ -171,7 +182,7 @@ export const MEMORY_GRID_NODES = [
     cost: 100, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(0, 120), // 0° - BRANCH 1: Arrows → Ammo → Gun → Drone
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 120), // 0° - BRANCH 1: Ranged Combat (linear)
     category: 'weapon' as const, 
     status: 'available' as const,
     unlocksItems: ['Crossbow']
@@ -183,7 +194,7 @@ export const MEMORY_GRID_NODES = [
     cost: 60, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 120), // 60° - BRANCH 2: Building → Storage → Shelter → Harvester
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 120), // 60° - BRANCH 2: Building (linear)
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Hatchet']
@@ -195,7 +206,7 @@ export const MEMORY_GRID_NODES = [
     cost: 75, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(2 * 2 * Math.PI / 6, 120), // 120° - BRANCH 3: Fishing/Water
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3, 120), // 120° - BRANCH 3: Water (splits at T2)
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Harpoon']
@@ -207,7 +218,7 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 120), // 180° - BRANCH 4: Food/Survival → Broth
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4, 120), // 180° - BRANCH 4: Food (splits at T2)
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Lantern']
@@ -219,7 +230,7 @@ export const MEMORY_GRID_NODES = [
     cost: 60, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(4 * 2 * Math.PI / 6, 120), // 240° - BRANCH 5: Mining/Crafting
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5, 120), // 240° - BRANCH 5: Crafting (splits at T2)
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Pickaxe']
@@ -231,7 +242,7 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(5 * 2 * Math.PI / 6, 120), // 300° - BRANCH 6: Movement/Armor
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee (short)
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
@@ -239,8 +250,7 @@ export const MEMORY_GRID_NODES = [
 
   // ============================================
   // TIER 2 - Specialization (200-280 shards)
-  // Day 3-7 - LINEAR CHAINS, single prerequisite each
-  // Each T1 node spawns its own progression branch
+  // Day 3-7 - SPLIT POINTS for branches 3, 4, 5
   // Radius: 220
   // ============================================
   { 
@@ -250,7 +260,7 @@ export const MEMORY_GRID_NODES = [
     cost: 200, 
     tier: 2, 
     prerequisites: ['crossbow'], 
-    position: getRadialPosition(0, 220), // Branch 1: Straight from crossbow
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 220), // Branch 1: linear
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bone Arrow']
@@ -262,7 +272,7 @@ export const MEMORY_GRID_NODES = [
     cost: 220, 
     tier: 2, 
     prerequisites: ['metal-hatchet'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 220), // Branch 2: Straight from metal-hatchet
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 220), // Branch 2: linear
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bush Knife']
@@ -270,11 +280,11 @@ export const MEMORY_GRID_NODES = [
   { 
     id: 'bone-gaff-hook', 
     name: 'Bone Gaff Hook', 
-    description: 'Unlocks crafting Bone Gaff Hooks - a sharp, curved bone hook for fishing and combat. Component for crafting fishing rods.', 
+    description: 'Unlocks crafting Bone Gaff Hooks - a sharp, curved bone hook for fishing and combat.', 
     cost: 260, 
     tier: 2, 
     prerequisites: ['reed-harpoon'], 
-    position: getRadialPosition(2 * 2 * Math.PI / 6, 220), // Branch 3: Straight from reed-harpoon
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3, 220), // Branch 3: SPLIT POINT
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bone Gaff Hook']
@@ -286,7 +296,7 @@ export const MEMORY_GRID_NODES = [
     cost: 220, 
     tier: 2, 
     prerequisites: ['lantern'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 220), // Branch 4: Straight from lantern
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4, 220), // Branch 4: SPLIT POINT
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Flashlight']
@@ -294,11 +304,11 @@ export const MEMORY_GRID_NODES = [
   { 
     id: 'reed-bellows', 
     name: 'Reed Bellows', 
-    description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.', 
+    description: 'Unlocks crafting Reed Bellows - fuel burns 50% slower, cooking/smelting 20% faster.',
     cost: 280, 
     tier: 2, 
     prerequisites: ['metal-pickaxe'], 
-    position: getRadialPosition(4 * 2 * Math.PI / 6, 220), // Branch 5: Straight from metal-pickaxe
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5, 220), // Branch 5: SPLIT POINT
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Bellows']
@@ -306,10 +316,10 @@ export const MEMORY_GRID_NODES = [
 
   // ============================================
   // TIER 3 - Advanced Gear (480-720 shards)
-  // Day 7-14 - LINEAR CHAINS continue
-  // Each branch extends independently
+  // Day 7-14 - SPLITS happen here
   // Radius: 320
   // ============================================
+  // Branch 1 (linear)
   { 
     id: 'fire-arrow', 
     name: 'Fire Arrow', 
@@ -317,11 +327,12 @@ export const MEMORY_GRID_NODES = [
     cost: 480, 
     tier: 3, 
     prerequisites: ['bone-arrow'], 
-    position: getRadialPosition(0, 320), // Branch 1: Continues from bone-arrow
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 320),
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Fire Arrow']
   },
+  // Branch 2 (linear)
   { 
     id: 'large-wooden-storage-box', 
     name: 'Large Wooden Storage Box', 
@@ -329,11 +340,12 @@ export const MEMORY_GRID_NODES = [
     cost: 600, 
     tier: 3, 
     prerequisites: ['bush-knife'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 320), // Branch 2: Continues from bush-knife
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 320),
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Large Wooden Storage Box']
   },
+  // Branch 3 UPPER (Fishing path @ 112°)
   { 
     id: 'reed-fishing-rod', 
     name: 'Reed Fishing Rod', 
@@ -341,23 +353,51 @@ export const MEMORY_GRID_NODES = [
     cost: 520, 
     tier: 3, 
     prerequisites: ['bone-gaff-hook'], 
-    position: getRadialPosition(2 * 2 * Math.PI / 6, 320), // Branch 3: Continues from bone-gaff-hook
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 320), // Upper path
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Primitive Reed Fishing Rod']
   },
+  // Branch 3 LOWER (Water Collection path @ 128°)
   { 
     id: 'reed-rain-collector', 
     name: 'Reed Rain Collector', 
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
     cost: 560, 
     tier: 3, 
-    prerequisites: ['flashlight'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from flashlight
+    prerequisites: ['bone-gaff-hook'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 320), // Lower path
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Rain Collector']
   },
+  // Branch 4 UPPER (Cooking path @ 172°)
+  { 
+    id: 'barbecue', 
+    name: 'Barbecue', 
+    description: 'Unlocks crafting Barbecues - a large cooking appliance with 12 slots for cooking food.', 
+    cost: 600, 
+    tier: 3, 
+    prerequisites: ['flashlight'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 - SPLIT_OFFSET, 320), // Upper path
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Barbecue']
+  },
+  // Branch 4 LOWER (Food Storage path @ 188°)
+  { 
+    id: 'refrigerator', 
+    name: 'Refrigerator', 
+    description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks.', 
+    cost: 680, 
+    tier: 3, 
+    prerequisites: ['flashlight'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 + SPLIT_OFFSET, 320), // Lower path
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Refrigerator']
+  },
+  // Branch 5 UPPER (Passive Bonuses path @ 232°)
   { 
     id: 'mining-efficiency', 
     name: 'Mining Efficiency', 
@@ -365,17 +405,30 @@ export const MEMORY_GRID_NODES = [
     cost: 720, 
     tier: 3, 
     prerequisites: ['reed-bellows'], 
-    position: getRadialPosition(4 * 2 * Math.PI / 6, 320), // Branch 5: Continues from reed-bellows
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 320), // Upper path
     category: 'passive' as const, 
     status: 'locked' as const
+  },
+  // Branch 5 LOWER (Maintenance path @ 248°)
+  { 
+    id: 'repair-bench', 
+    name: 'Repair Bench', 
+    description: 'Unlocks crafting the Repair Bench - a specialized workbench for repairing damaged tools, weapons, and armor.', 
+    cost: 560, 
+    tier: 3, 
+    prerequisites: ['reed-bellows'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 + SPLIT_OFFSET, 320), // Lower path
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Repair Bench']
   },
 
   // ============================================
   // TIER 4 - Late Early-Game (1000-1600 shards)
-  // Day 14-21 - LINEAR CHAINS continue
-  // Each branch extends independently
+  // Day 14-21 - Split paths continue outward
   // Radius: 420
   // ============================================
+  // Branch 1 (linear)
   { 
     id: 'hollow-reed-arrow', 
     name: 'Hollow Reed Arrow', 
@@ -383,11 +436,12 @@ export const MEMORY_GRID_NODES = [
     cost: 1200, 
     tier: 4, 
     prerequisites: ['fire-arrow'], 
-    position: getRadialPosition(0, 420), // Branch 1: Continues from fire-arrow
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 420),
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Hollow Reed Arrow']
   },
+  // Branch 2 (linear)
   { 
     id: 'metal-door', 
     name: 'Metal Door', 
@@ -395,11 +449,12 @@ export const MEMORY_GRID_NODES = [
     cost: 1280, 
     tier: 4, 
     prerequisites: ['large-wooden-storage-box'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 420), // Branch 2: Continues from large-wooden-storage-box
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 420),
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Door']
   },
+  // Branch 3 UPPER (Fishing)
   { 
     id: 'reed-snorkel', 
     name: 'Reed Snorkel', 
@@ -407,47 +462,51 @@ export const MEMORY_GRID_NODES = [
     cost: 1400, 
     tier: 4, 
     prerequisites: ['reed-fishing-rod'], 
-    position: getRadialPosition(2 * 2 * Math.PI / 6, 420), // Branch 3: Continues from reed-fishing-rod
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 420), // Upper path
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Primitive Reed Snorkel']
   },
+  // Branch 3 LOWER (Water Collection)
   { 
-    id: 'barbecue', 
-    name: 'Barbecue', 
-    description: 'Unlocks crafting Barbecues - a large cooking appliance with 12 slots for cooking food. Functions like a campfire but with more capacity.', 
-    cost: 1000, 
+    id: 'plastic-water-jug', 
+    name: 'Plastic Water Jug', 
+    description: 'Unlocks crafting Plastic Water Jugs - large 5L water containers with better hydration efficiency than reed bottles.', 
+    cost: 1200, 
     tier: 4, 
     prerequisites: ['reed-rain-collector'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 320), // Branch 4: Continues from reed-rain-collector (between reed-rain-collector and refrigerator)
-    category: 'crafting' as const, 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 420), // Lower path
+    category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Barbecue']
+    unlocksItems: ['Plastic Water Jug']
   },
+  // Branch 4 UPPER (Cooking)
   { 
-    id: 'refrigerator', 
-    name: 'Refrigerator', 
-    description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks of food, seeds, and water containers.', 
-    cost: 1520, 
+    id: 'cooking-station', 
+    name: 'Cooking Station', 
+    description: 'Unlocks crafting the Cooking Station - a kitchen station for preparing advanced gourmet recipes.', 
+    cost: 1400, 
     tier: 4, 
     prerequisites: ['barbecue'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 420), // Branch 4: Continues from barbecue
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 - SPLIT_OFFSET, 420), // Upper path
     category: 'crafting' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Refrigerator']
+    unlocksItems: ['Cooking Station']
   },
+  // Branch 4 LOWER (Food Storage)
   { 
     id: 'compost', 
     name: 'Compost', 
-    description: 'Unlocks crafting Compost containers - converts organic materials (food, plants, plant fiber) into fertilizer over time.', 
-    cost: 1600, 
+    description: 'Unlocks crafting Compost containers - converts organic materials into fertilizer over time.', 
+    cost: 1200, 
     tier: 4, 
     prerequisites: ['refrigerator'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 520), // Branch 4: Continues from refrigerator (evenly spaced, 100 units apart)
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 + SPLIT_OFFSET, 420), // Lower path
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Compost']
   },
+  // Branch 5 UPPER (Passive Bonuses)
   { 
     id: 'crafting-speed-1', 
     name: 'Crafting Speed I', 
@@ -455,7 +514,7 @@ export const MEMORY_GRID_NODES = [
     cost: 1600, 
     tier: 4, 
     prerequisites: ['mining-efficiency'], 
-    position: getRadialPosition(4 * 2 * Math.PI / 6, 420), // Branch 5: Continues from mining-efficiency
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 420), // Upper path
     category: 'passive' as const, 
     status: 'locked' as const
   },
@@ -465,6 +524,7 @@ export const MEMORY_GRID_NODES = [
   // Day 21-35 - Major milestones
   // Radius: 520
   // ============================================
+  // Branch 1 (linear)
   { 
     id: '9x18mm-round', 
     name: '9x18mm Ammunition', 
@@ -472,11 +532,12 @@ export const MEMORY_GRID_NODES = [
     cost: 2400, 
     tier: 5, 
     prerequisites: ['hollow-reed-arrow'], 
-    position: getRadialPosition(0, 520), // Branch 1: Continues from hollow-reed-arrow
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 520),
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['9x18mm Round']
   },
+  // Branch 2 (linear)
   { 
     id: 'shelter', 
     name: 'Shelter', 
@@ -484,22 +545,24 @@ export const MEMORY_GRID_NODES = [
     cost: 2600, 
     tier: 5, 
     prerequisites: ['metal-door'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 520), // Branch 2: Continues from metal-door
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 520),
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Shelter']
   },
+  // Branch 4 UPPER (Cooking) - capstone
   { 
     id: 'broth-mastery', 
     name: 'Broth Mastery', 
     description: 'Master broth recipes. All broth effects last 50% longer.', 
     cost: 2800, 
     tier: 5, 
-    prerequisites: ['compost'], 
-    position: getRadialPosition(3 * 2 * Math.PI / 6, 620), // Branch 4: Continues from compost (evenly spaced, 100 units apart)
+    prerequisites: ['cooking-station'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 - SPLIT_OFFSET, 520), // Cooking capstone (upper path)
     category: 'passive' as const, 
     status: 'locked' as const
   },
+  // Branch 5 UPPER (Passive Bonuses)
   { 
     id: 'crafting-speed-2', 
     name: 'Crafting Speed II', 
@@ -507,7 +570,7 @@ export const MEMORY_GRID_NODES = [
     cost: 3000, 
     tier: 5, 
     prerequisites: ['crafting-speed-1'], 
-    position: getRadialPosition(4 * 2 * Math.PI / 6, 520), // Branch 5: Continues from crafting-speed-1
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 520), // Upper path
     category: 'passive' as const, 
     status: 'locked' as const
   },
@@ -524,7 +587,7 @@ export const MEMORY_GRID_NODES = [
     cost: 3200, 
     tier: 6, 
     prerequisites: ['9x18mm-round'], 
-    position: getRadialPosition(0, 620), // Branch 1: Continues from 9x18mm-round
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 620),
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Makarov PM']
@@ -536,7 +599,7 @@ export const MEMORY_GRID_NODES = [
     cost: 3400, 
     tier: 6, 
     prerequisites: ['shelter'], 
-    position: getRadialPosition(1 * 2 * Math.PI / 6, 620), // Branch 2: Continues from shelter
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 620),
     category: 'technology' as const, 
     status: 'locked' as const
   },
@@ -553,7 +616,7 @@ export const MEMORY_GRID_NODES = [
     cost: 4000, 
     tier: 7, 
     prerequisites: ['makarov-pm'], 
-    position: getRadialPosition(0, 720), // Branch 1: Continues from makarov-pm
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 720),
     category: 'technology' as const, 
     status: 'locked' as const
   },
@@ -869,37 +932,42 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   
   // Tier 2 items
   'Bone Arrow': 'bone-arrow',
-  'Fire Arrow': 'fire-arrow',
   'Bush Knife': 'bush-knife',
-  'Flashlight': 'flashlight',
-  'Compost': 'compost',
-  'Reed Bellows': 'reed-bellows',
   'Bone Gaff Hook': 'bone-gaff-hook',
+  'Flashlight': 'flashlight',
+  'Reed Bellows': 'reed-bellows',
   
   // Tier 3 items
-  'Hollow Reed Arrow': 'hollow-reed-arrow',
-  'Primitive Reed Snorkel': 'reed-snorkel',
+  'Fire Arrow': 'fire-arrow',
+  'Large Wooden Storage Box': 'large-wooden-storage-box',
   'Primitive Reed Fishing Rod': 'reed-fishing-rod',
   'Reed Rain Collector': 'reed-rain-collector',
-  'Large Wooden Storage Box': 'large-wooden-storage-box',
+  'Barbecue': 'barbecue',
+  'Refrigerator': 'refrigerator',
+  'Repair Bench': 'repair-bench',
   
   // Tier 4 items
+  'Hollow Reed Arrow': 'hollow-reed-arrow',
   'Metal Door': 'metal-door',
-  'Shelter': 'shelter',
-  'Barbecue': 'barbecue',
-  '9x18mm Round': '9x18mm-round',
-  'Refrigerator': 'refrigerator',
+  'Primitive Reed Snorkel': 'reed-snorkel',
+  'Plastic Water Jug': 'plastic-water-jug',
+  'Cooking Station': 'cooking-station',
+  'Compost': 'compost',
   
   // Tier 5 items
+  '9x18mm Round': '9x18mm-round',
+  'Shelter': 'shelter',
+  
+  // Tier 6 items
   'Makarov PM': 'makarov-pm',
 };
 
 // ALWAYS CRAFTABLE (not in ITEM_TO_NODE_MAP):
 // Camp Fire, Furnace, Sleeping Bag, Wooden Storage Box, Stash, Matron's Chest
 // Cerametal Field Cauldron Mk. II (Broth Pot), Wood Door, Reed Water Bottle
-// Hunting Bow, Wooden Arrow, Wooden Spear, Stone Spear
+// Hunting Bow, Wooden Arrow, Wooden Spear
 // Stone Hatchet, Stone Pickaxe, Torch, Rock, Blueprint
-// Bandage, Bone Club, Bone Knife, Bone Gaff Hook, Combat Ladle, Repair Hammer
+// Bandage, Bone Club, Bone Knife, Combat Ladle, Repair Hammer
 // Rope, Cloth
 
 export const canCraftItem = (itemName: string, purchasedNodes: Set<string>): boolean => {

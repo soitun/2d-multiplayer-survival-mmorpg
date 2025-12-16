@@ -301,6 +301,12 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Plastic Water Jug", "A large plastic container for storing water. Durable and lightweight with excellent capacity. Can be filled from water sources by pressing F. Capacity: 5L.", ItemCategory::Tool)
             .icon("water_jug.png")
             .equippable(None)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 25 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 30)
             .respawn_time(720)
             .build(),
 
