@@ -125,6 +125,54 @@ Health check endpoint.
 
 - `PORT`: Server port (default: 8001)
 
+## Railway Deployment
+
+### 1. Deploy as a New Service
+
+1. In Railway Dashboard, click **"New"** → **"GitHub Repo"**
+2. Select your repository
+3. Set **Root Directory** to `tts-backend`
+4. Railway will auto-detect the Dockerfile and deploy
+
+### 2. Configure Environment Variables
+
+Set in Railway service settings:
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `PORT` | (auto-set by Railway) | Railway assigns this automatically |
+
+### 3. Configure Client
+
+Set in your **client** Railway service:
+
+| Variable | Value |
+|----------|-------|
+| `VITE_KOKORO_BASE_URL` | `https://your-tts-service.up.railway.app` |
+
+Replace with your actual Railway URL after deployment.
+
+### 4. Resource Requirements
+
+⚠️ **Important:** Kokoro TTS requires:
+- **Memory:** At least 1GB RAM (2GB recommended)
+- **CPU:** Model inference is CPU-bound
+- **Disk:** ~500MB for model weights (downloaded on first run)
+
+Railway's free tier may not have sufficient resources. Consider:
+- Using a paid Railway plan ($5/month Developer tier minimum)
+- Or using the ElevenLabs TTS option instead (set `VITE_TTS_PROVIDER=elevenlabs`)
+
+### 5. Alternative: Use ElevenLabs in Production
+
+If Railway resources are insufficient, switch to ElevenLabs:
+
+```bash
+# In Railway client environment variables:
+VITE_TTS_PROVIDER=elevenlabs
+VITE_ELEVENLABS_API_KEY=your_api_key
+```
+
 ## Notes
 
 - First request may take longer as the model loads
