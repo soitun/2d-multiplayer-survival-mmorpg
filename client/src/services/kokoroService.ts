@@ -56,6 +56,10 @@ class KokoroService {
   private performanceData: KokoroTiming[] = [];
   private maxStoredTimings = 100;
   
+  // Cold start tracking - true after first successful TTS request
+  private isWarmedUp = false;
+  private warmingUpAudioPath = '/sounds/sova_thinking.mp3';
+  
   // Voice mapping: maps voiceStyle strings to Kokoro voice IDs
   private voiceMap: Record<string, string> = {
     'sova': 'af_heart',      // SOVA's tactical voice - use Heart voice
@@ -69,6 +73,40 @@ class KokoroService {
   constructor() {
     console.log('[KokoroService] 🔧 Initializing service...');
     console.log('[KokoroService] ✅ Service initialized successfully');
+  }
+
+  /**
+   * Check if this is the first TTS request (cold start)
+   * Returns true if the service hasn't completed a successful request yet
+   */
+  isCold(): boolean {
+    return !this.isWarmedUp;
+  }
+
+  /**
+   * Get the path to the warmup/thinking audio file
+   * Play this while TTS is processing on cold starts
+   */
+  getWarmupAudioPath(): string {
+    return this.warmingUpAudioPath;
+  }
+
+  /**
+   * Play the warmup audio and return a promise that resolves when done
+   */
+  async playWarmupAudio(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(this.warmingUpAudioPath);
+      audio.onended = () => resolve();
+      audio.onerror = (e) => {
+        console.error('[KokoroService] ❌ Failed to play warmup audio:', e);
+        resolve(); // Don't reject - we still want TTS to proceed
+      };
+      audio.play().catch((e) => {
+        console.error('[KokoroService] ❌ Failed to start warmup audio:', e);
+        resolve();
+      });
+    });
   }
 
   /**
@@ -220,6 +258,12 @@ class KokoroService {
 
       // Store performance data
       this.recordTiming(timing as KokoroTiming);
+
+      // Mark service as warmed up after first successful request
+      if (!this.isWarmedUp) {
+        this.isWarmedUp = true;
+        console.log('[KokoroService] 🔥 Service is now warmed up!');
+      }
 
       return {
         success: true,

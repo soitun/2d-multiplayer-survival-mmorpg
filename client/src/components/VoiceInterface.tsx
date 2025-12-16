@@ -317,6 +317,14 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
         
         console.log(`[VoiceInterface] Using ${serviceName} TTS provider`);
         
+        // Check if TTS service is cold (first request) - play warmup audio while waiting
+        const isServiceCold = ttsService.isCold();
+        if (isServiceCold) {
+          console.log('[VoiceInterface] ❄️ TTS service is cold - playing warmup audio...');
+          // Fire and forget - don't await, let it play while TTS is processing
+          ttsService.playWarmupAudio().catch(() => {});
+        }
+        
         const voiceResponse = await ttsService.synthesizeVoice({
           text: aiResponse.response,
           voiceStyle: 'sova'

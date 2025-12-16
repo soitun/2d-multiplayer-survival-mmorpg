@@ -28,7 +28,9 @@ If you have Python 3.13, you can:
    python3.12 -m venv venv
    ```
 
-## Setup
+---
+
+## Local Development Setup
 
 ### 1. Install Python Dependencies
 
@@ -97,6 +99,81 @@ uvicorn app:app --host 0.0.0.0 --port 8001
 
 The service will be available at `http://localhost:8001`
 
+---
+
+## Production Deployment (Railway)
+
+### Step 1: Deploy as a New Service
+
+1. In Railway Dashboard, click **"New"** → **"Deploy from GitHub repo"**
+2. Select your repository
+3. After deployment, click on the service and go to **Settings**
+4. Set **Root Directory** to: `tts-backend`
+5. Railway will auto-detect the Dockerfile and rebuild
+
+### Step 2: Generate Public Domain
+
+1. Go to **Settings** → **Networking** → **Public Networking**
+2. Click **"Generate Domain"**
+3. Note the URL (e.g., `https://your-service.up.railway.app`)
+
+### Step 3: Configure CORS (Important!)
+
+Before deploying, update `allow_origins` in `app.py` to include your production domain:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://www.yourdomain.com",
+        "https://yourdomain.com",
+        "http://localhost:5173",  # Keep for local dev
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### Step 4: Configure Client Environment Variables
+
+Set in your **client** deployment (Railway/Vercel):
+
+| Variable | Value |
+|----------|-------|
+| `VITE_KOKORO_BASE_URL` | `https://your-tts-service.up.railway.app` |
+| `VITE_TTS_PROVIDER` | `kokoro` |
+
+**⚠️ Include `https://` prefix!**
+
+### Step 5: Prevent Cold Starts (Recommended)
+
+Railway may "sleep" the service after inactivity, causing 30-90 second delays on first request.
+
+**Solution: Set up free monitoring with UptimeRobot:**
+
+1. Go to [uptimerobot.com](https://uptimerobot.com/) (free)
+2. Create account and add monitor:
+   - **Monitor Type:** HTTP(s)
+   - **URL:** `https://your-tts-service.up.railway.app/health`
+   - **Interval:** 5 minutes
+3. This keeps the service warm by pinging it regularly
+
+---
+
+## Resource Requirements
+
+⚠️ **Important:** Kokoro TTS requires:
+- **Memory:** At least 1GB RAM (2GB recommended)
+- **CPU:** Model inference is CPU-bound
+- **Disk:** ~500MB for model weights (downloaded on first run)
+
+Railway's free tier may not have sufficient resources. Consider:
+- Using a paid Railway plan ($5/month Developer tier minimum)
+- Or keeping the service warm with external monitoring
+
+---
+
 ## API Endpoints
 
 ### POST /synthesize
@@ -119,59 +196,51 @@ Synthesize speech from text.
 List available voices.
 
 ### GET /health
-Health check endpoint.
+Health check endpoint. Returns `{"status": "healthy"}`.
+
+---
 
 ## Environment Variables
 
-- `PORT`: Server port (default: 8001)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8001` | Server port (Railway auto-sets this) |
 
-## Railway Deployment
+---
 
-### 1. Deploy as a New Service
+## Troubleshooting
 
-1. In Railway Dashboard, click **"New"** → **"GitHub Repo"**
-2. Select your repository
-3. Set **Root Directory** to `tts-backend`
-4. Railway will auto-detect the Dockerfile and deploy
+### Cold Start Issues
+- First request loads the model into memory (can take 30-90 seconds on Railway)
+- Set up UptimeRobot to keep service warm
+- The client plays `sova_thinking.mp3` while waiting
 
-### 2. Configure Environment Variables
+### CORS Errors
+- Ensure your production domain is in `allow_origins` in `app.py`
+- Include `https://` prefix in all URLs
+- Redeploy after CORS changes
 
-Set in Railway service settings:
+### 405 Method Not Allowed
+- Service may not be fully initialized
+- Wait for logs to show "Application startup complete"
+- Check the URL is correct
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `PORT` | (auto-set by Railway) | Railway assigns this automatically |
+### Memory Issues on Railway
+- Check Railway logs for OOM (Out of Memory) errors
+- Consider upgrading to Developer tier ($5/month)
 
-### 3. Configure Client
+---
 
-Set in your **client** Railway service:
+## Files
 
-| Variable | Value |
-|----------|-------|
-| `VITE_KOKORO_BASE_URL` | `https://your-tts-service.up.railway.app` |
+| File | Purpose |
+|------|---------|
+| `app.py` | FastAPI server with Kokoro TTS integration |
+| `Dockerfile` | Docker container for deployment |
+| `requirements.txt` | Python dependencies |
+| `railway.toml` | Railway-specific configuration |
 
-Replace with your actual Railway URL after deployment.
-
-### 4. Resource Requirements
-
-⚠️ **Important:** Kokoro TTS requires:
-- **Memory:** At least 1GB RAM (2GB recommended)
-- **CPU:** Model inference is CPU-bound
-- **Disk:** ~500MB for model weights (downloaded on first run)
-
-Railway's free tier may not have sufficient resources. Consider:
-- Using a paid Railway plan ($5/month Developer tier minimum)
-- Or using the ElevenLabs TTS option instead (set `VITE_TTS_PROVIDER=elevenlabs`)
-
-### 5. Alternative: Use ElevenLabs in Production
-
-If Railway resources are insufficient, switch to ElevenLabs:
-
-```bash
-# In Railway client environment variables:
-VITE_TTS_PROVIDER=elevenlabs
-VITE_ELEVENLABS_API_KEY=your_api_key
-```
+---
 
 ## Notes
 
@@ -179,4 +248,3 @@ VITE_ELEVENLABS_API_KEY=your_api_key
 - Audio is generated at 24kHz sample rate
 - Supports up to 5000 characters per request
 - See Kokoro documentation for full voice list: https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
-

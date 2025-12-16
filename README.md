@@ -412,7 +412,7 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
    # Should see: "Application startup complete" and running on http://127.0.0.1:8001
    ```
    
-   **See [KOKORO_INTEGRATION.md](./KOKORO_INTEGRATION.md) for detailed setup instructions, troubleshooting, and system requirements.**
+   **See [KOKORO_INTEGRATION.md](./docs/audio/KOKORO_INTEGRATION.md) for detailed setup instructions, troubleshooting, and system requirements.**
 
 3. **Configure Client (No API Keys Needed!):**
    ```bash
@@ -451,7 +451,7 @@ You need **3 services running** for full voice functionality:
 ### Documentation
 - **[ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md)** - Complete environment variable guide
 - **[SECURE_API_SETUP.md](./SECURE_API_SETUP.md)** - Secure proxy setup guide
-- **[KOKORO_INTEGRATION.md](./KOKORO_INTEGRATION.md)** - **Complete Kokoro TTS setup guide** (Python version requirements, troubleshooting, voice options)
+- **[KOKORO_INTEGRATION.md](./docs/audio/KOKORO_INTEGRATION.md)** - **Complete Kokoro TTS setup guide** (Python version requirements, troubleshooting, voice options, production deployment)
 - **[WHISPER_OPTIMIZATION.md](./WHISPER_OPTIMIZATION.md)** - Speech-to-text optimization guide
 
 ## 🌍 World Configuration (Tile Size & Map Dimensions)
