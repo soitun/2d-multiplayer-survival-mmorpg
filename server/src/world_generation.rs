@@ -159,6 +159,13 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         if let Err(e) = crate::monument::spawn_shipwreck_barrels(ctx, &shipwreck_positions) {
             log::warn!("Failed to spawn shipwreck barrels: {}", e);
         }
+        
+        // Spawn decorations (Memory Shards) - one-time loot scattered in the wreckage
+        // These don't respawn but provide initial exploration rewards
+        let decoration_configs = crate::monument::get_shipwreck_decorations();
+        if let Err(e) = crate::monument::spawn_monument_decorations(ctx, &shipwreck_positions, &decoration_configs) {
+            log::warn!("Failed to spawn shipwreck decorations: {}", e);
+        }
     }
     
     // Store fishing village positions in database table for client access (one-time read, then static)

@@ -116,9 +116,12 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
     
     // Define all loot entries as (name, min_qty, max_qty, drop_chance)  
     let loot_definitions = [
+        // --- GUARANTEED TIER - Always drops (barrels are a reliable memory shard source) ---
+        // Memory shards: LOW quantity but HIGH consistency - barrels are "the shard meta"
+        // Players can farm barrels for steady shard income (1-2 per barrel, nearly guaranteed)
+        ("Memory Shard", 1, 2, 0.92),          // BALANCED: 1-2 shards at 92% = reliable, consistent source
+        
         // --- COMMON TIER (40-65% drop rates) - Basic survival items ---
-        // Memory shards are critical for early progression - boosted for "power rush" feeling
-        ("Memory Shard", 5, 10, 0.70),         // BOOSTED: 5-10 shards at 70% = reliable early shard source
         ("Rope", 1, 2, 0.50),                  // Essential crafting material
         ("Metal Fragments", 1, 3, 0.45),       // Crafting material - reduced quantity
         ("Wooden Arrow", 2, 5, 0.50),          // Basic ammunition - reduced quantity

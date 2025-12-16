@@ -608,12 +608,29 @@ pub struct MonumentHarvestableConfig {
 }
 
 /// Shipwreck-specific decoration configuration
-/// NOTE: Shipwrecks don't spawn dropped items - only respawnable resources (barrels and harvestables)
-/// This function exists for future monument types that might want item decorations
+/// Spawns Memory Shards as one-time loot around shipwreck parts (similar to driftwood placement)
+/// These are thematic "washed up cargo" - ancient technology scattered in the wreckage
 pub fn get_shipwreck_decorations() -> Vec<MonumentDecorationConfig> {
     vec![
-        // Empty - shipwrecks only spawn respawnable resources (barrels and harvestables)
-        // Items don't respawn, so we don't spawn them around monuments
+        // Memory Shards - scattered ancient tech washed up with the wreckage
+        // Low quantity per spawn, moderate chance - rewards exploration but not game-breaking
+        MonumentDecorationConfig {
+            item_name: "Memory Shard".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.35, // 35% per shipwreck part = ~2-4 shard spawns per shipwreck
+            min_distance: 60.0,
+            max_distance: 180.0,
+        },
+        // Second Memory Shard spawn - rarer additional chance
+        MonumentDecorationConfig {
+            item_name: "Memory Shard".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.20, // 20% chance for bonus shard spawn
+            min_distance: 80.0,
+            max_distance: 220.0,
+        },
     ]
 }
 
