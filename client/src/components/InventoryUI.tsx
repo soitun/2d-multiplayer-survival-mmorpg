@@ -1393,6 +1393,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             onItemMouseLeave={handleItemMouseLeave}
                             onItemMouseMove={handleItemMouseMove}
                             purchasedMemoryNodes={purchasedMemoryNodes}
+                            activeConsumableEffects={activeConsumableEffects}
                         />
                     );
                 })()}

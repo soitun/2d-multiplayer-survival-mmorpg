@@ -42,6 +42,12 @@ pub const NUM_REPAIR_BENCH_SLOTS: usize = 1;
 pub const REPAIR_BENCH_INITIAL_HEALTH: f32 = 500.0;
 pub const REPAIR_BENCH_MAX_HEALTH: f32 = 500.0;
 
+// --- Cooking Station ---
+pub const BOX_TYPE_COOKING_STATION: u8 = 6;
+pub const NUM_COOKING_STATION_SLOTS: usize = 0; // No inventory - proximity crafting only
+pub const COOKING_STATION_INITIAL_HEALTH: f32 = 400.0;
+pub const COOKING_STATION_MAX_HEALTH: f32 = 400.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -715,6 +721,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
         BOX_TYPE_COMPOST => "Compost",
         BOX_TYPE_REPAIR_BENCH => "Repair Bench",
+        BOX_TYPE_COOKING_STATION => "Cooking Station",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -844,6 +851,7 @@ impl ItemContainer for WoodenStorageBox {
             },
             BOX_TYPE_BACKPACK => NUM_BACKPACK_SLOTS,
             BOX_TYPE_REPAIR_BENCH => NUM_REPAIR_BENCH_SLOTS,
+            BOX_TYPE_COOKING_STATION => NUM_COOKING_STATION_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

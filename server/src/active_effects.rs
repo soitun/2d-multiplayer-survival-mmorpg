@@ -64,6 +64,7 @@ pub enum EffectType {
     Fumarole, // Warmth protection from standing near a fumarole (nullifies warmth decay)
     SafeZone, // Protection from player/animal/projectile damage when near ALK monuments (shield emoji)
     FishingVillageBonus, // 2x fishing hauls and premium tier bonus when near fishing village (fish+village emoji)
+    NearCookingStation, // Near a cooking station - enables advanced food recipe crafting (chef hat emoji)
     
     // === BREWING SYSTEM EFFECTS - 1 hour buffs that don't persist through death ===
     Intoxicated,       // Drunk effect from alcoholic brews - blurred vision, movement wobble (1 hour)
@@ -143,7 +144,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
 
     // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, safe zone, and fishing village bonus - they are managed by other systems, not the effect tick system
     // These effects are permanent until removed by other systems, so skip them entirely
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus || effect.effect_type == EffectType::NearCookingStation {
         continue;
     }
     
@@ -189,7 +190,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -604,6 +605,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // FishingVillageBonus provides 2x fishing hauls and premium tier bonus
                             // The bonus is checked in fishing loot generation
                             // This effect doesn't consume amount_applied_so_far
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::NearCookingStation => {
+                            // NearCookingStation enables advanced food recipe crafting
+                            // The crafting validation is checked in crafting.rs
+                            // This effect is just a flag - no per-tick processing needed
                             amount_this_tick = 0.0;
                         },
                         // === ADDITIONAL BROTH EFFECTS ===
@@ -2464,6 +2471,91 @@ fn remove_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) {
     for effect_id in effects_to_remove {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed fishing village bonus effect {} from player {:?}", effect_id, player_id);
+    }
+}
+
+// ============================================================================
+// COOKING STATION PROXIMITY EFFECT SYSTEM
+// ============================================================================
+// The NearCookingStation effect enables advanced recipe crafting when players
+// are within 100px of a cooking station. The effect is applied/removed based
+// on proximity checks during player stat updates.
+
+/// Updates the NearCookingStation effect for a player based on proximity
+/// Call this during player stat updates or movement processing
+pub fn update_cooking_station_proximity(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    // Check if player is near a cooking station
+    let is_near = crate::cooking_station::is_player_near_cooking_station(ctx, player_x, player_y);
+    let has_cooking_station_effect = player_has_cooking_station_effect(ctx, player_id);
+    
+    if is_near {
+        // Apply cooking station effect if not already active
+        if !has_cooking_station_effect {
+            log::info!("Applying cooking station effect to player {:?}", player_id);
+            apply_cooking_station_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove cooking station effect when player leaves
+        if has_cooking_station_effect {
+            log::info!("Removing cooking station effect from player {:?}", player_id);
+            remove_cooking_station_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the cooking station proximity effect active
+pub fn player_has_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::NearCookingStation)
+}
+
+/// Applies cooking station proximity effect to a player
+fn apply_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent while in range
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let cooking_station_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future, // Effectively permanent while in range
+        total_amount: None, // No accumulation
+        amount_applied_so_far: None,
+        effect_type: EffectType::NearCookingStation,
+        tick_interval_micros: 1_000_000, // 1 second ticks (not really used)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(cooking_station_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied cooking station effect {} to player {:?}", inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply cooking station effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply cooking station effect".to_string())
+        }
+    }
+}
+
+/// Removes cooking station proximity effect from a player
+fn remove_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::NearCookingStation {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed cooking station effect {} from player {:?}", effect_id, player_id);
     }
 }
 

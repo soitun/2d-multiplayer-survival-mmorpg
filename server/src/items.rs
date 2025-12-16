@@ -92,6 +92,7 @@ pub struct ItemDefinition {
     pub crafting_cost: Option<Vec<CostIngredient>>, // MODIFIED HERE
     pub crafting_output_quantity: Option<u32>,      // How many items this recipe produces
     pub crafting_time_secs: Option<u32>,            // Time in seconds to craft
+    pub requires_station: Option<String>,           // Name of station required for crafting (e.g., "Cooking Station")
 
     // Consumable Effects
     pub consumable_health_gain: Option<f32>,

@@ -1647,6 +1647,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.src = module.default;
     });
 
+    // Load cooking station image
+    import('../assets/doodads/cooking_station.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('cooking_station.png', img);
+      };
+      img.onerror = () => console.error('Failed to load cooking_station.png');
+      img.src = module.default;
+    });
+
     // Monument images are now loaded via static imports in monumentRenderingUtils.ts
     // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
     // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)

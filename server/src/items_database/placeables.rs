@@ -73,6 +73,18 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Cooking Station - Advanced food crafting station (no inventory, proximity-based)
+        ItemBuilder::new("Cooking Station", "A kitchen station for preparing advanced recipes. Stand nearby to craft gourmet meals from cooked ingredients.", ItemCategory::Placeable)
+            .icon("cooking_station.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 25 },
+            ])
+            .crafting_output(1, 20)
+            .respawn_time(300)
+            .build(),
+
         // Refrigerator - Food preservation container (30 slots, stops spoilage)
         ItemBuilder::new("Refrigerator", "A refrigerated container that preserves food. Holds 30 stacks of food, seeds, and water containers.", ItemCategory::Placeable)
             .icon("refrigerator.png")

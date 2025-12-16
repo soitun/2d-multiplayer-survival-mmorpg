@@ -491,6 +491,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         }
         // <<< END FISHING VILLAGE BONUS EFFECT MANAGEMENT >>>
 
+        // <<< ADD COOKING STATION PROXIMITY EFFECT MANAGEMENT >>>
+        // Update cooking station status based on player position (enables advanced food recipes)
+        if let Err(e) = crate::active_effects::update_cooking_station_proximity(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update cooking station proximity for player {:?}: {}", player_id, e);
+        }
+        // <<< END COOKING STATION PROXIMITY EFFECT MANAGEMENT >>>
+
         // <<< HOT SPRING COLD IMMUNITY & WARMTH RECOVERY >>>
         // Players in hot springs are immune to ALL cold effects AND gain warmth rapidly
         let is_in_hot_spring = crate::active_effects::player_has_hot_spring_effect(ctx, player_id);

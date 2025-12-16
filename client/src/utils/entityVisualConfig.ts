@@ -115,6 +115,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 128,
   },
   
+  cooking_station: {
+    centerOffsetX: 0,
+    centerOffsetY: -84,   // Sprite is 128x128, renders at posY - 148, center at posY - 84
+    width: 120,           // Interaction box width - covers most of 128px sprite
+    height: 120,          // Interaction box height - covers most of 128px sprite
+    placementYOffset: -32, // Compensate for 128px sprite vs 64px normal box
+    spriteWidth: 128,
+    spriteHeight: 128,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

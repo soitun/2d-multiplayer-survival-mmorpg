@@ -1456,5 +1456,198 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(180)
             .build(),
 
+        // ========================================================================
+        // COOKING STATION RECIPES - Advanced gourmet meals
+        // ========================================================================
+        // These items require standing near a Cooking Station to craft.
+        // They provide significantly better nutrition than basic cooked foods.
+        // Most recipes require pre-cooked ingredients from campfires/barbecues.
+
+        // === VEGETABLE DISHES ===
+        ItemBuilder::new("Vegetable Stew", "A hearty stew of mixed cooked vegetables. Warming and nutritious.", ItemCategory::Consumable)
+            .icon("vegetable_stew.png")
+            .stackable(5)
+            .consumable(60.0, 90.0, 40.0) // High nutrition for veggie dish
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Carrot".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Beet".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0) // Instant crafting
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Root Vegetable Mash", "A comforting mash of root vegetables with roasted garlic. Filling and delicious.", ItemCategory::Consumable)
+            .icon("root_mash.png")
+            .stackable(5)
+            .consumable(50.0, 85.0, 30.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Beet".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Roasted Bear Garlic".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Stuffed Pumpkin", "A cooked pumpkin stuffed with corn and herbs. A festive autumn dish.", ItemCategory::Consumable)
+            .icon("stuffed_pumpkin.png")
+            .stackable(3)
+            .consumable(65.0, 95.0, 35.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Pumpkin".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === SEAFOOD DISHES ===
+        ItemBuilder::new("Fish Pie", "A savory pie filled with flaky cod and potato. Hearty and satisfying.", ItemCategory::Consumable)
+            .icon("fish_pie.png")
+            .stackable(5)
+            .consumable(70.0, 100.0, 30.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Pacific Cod".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Seafood Platter", "A luxurious arrangement of cooked crab, mussels, and sea urchin. A coastal delicacy.", ItemCategory::Consumable)
+            .icon("seafood_platter.png")
+            .stackable(3)
+            .consumable(65.0, 85.0, 25.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Crab Meat".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Blue Mussel".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Sea Urchin".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Salmon Bake", "Fresh salmon baked with potatoes and mint. A refreshing and nutritious meal.", ItemCategory::Consumable)
+            .icon("salmon_bake.png")
+            .stackable(5)
+            .consumable(75.0, 95.0, 35.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Sockeye Salmon".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Mint Leaves".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Crab Cakes", "Crispy crab cakes with corn and seaweed. A savory coastal treat.", ItemCategory::Consumable)
+            .icon("crab_cakes.png")
+            .stackable(8)
+            .consumable(55.0, 70.0, 20.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Crab Meat".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Dried Seaweed".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 0) // Makes 2 crab cakes
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === MEAT DISHES ===
+        ItemBuilder::new("Hunter's Feast", "A massive platter of mixed game meats with corn. A meal fit for a hunter.", ItemCategory::Consumable)
+            .icon("hunters_feast.png")
+            .stackable(3)
+            .consumable(80.0, 110.0, 20.0) // Very filling
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Wolf Meat".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Fox Meat".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Herb-Crusted Meat", "Tender game meat crusted with a mix of aromatic herbs. A gourmet preparation.", ItemCategory::Consumable)
+            .icon("herb_crusted_meat.png")
+            .stackable(5)
+            .consumable(70.0, 80.0, 25.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Wolf Meat".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Mugwort".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Yarrow".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Bear Roast", "A massive roast of bear meat with vegetables. Enough to feed a small party.", ItemCategory::Consumable)
+            .icon("bear_roast.png")
+            .stackable(2)
+            .consumable(90.0, 120.0, 15.0) // Most filling dish
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Bear Meat".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Carrot".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === MUSHROOM DISHES ===
+        ItemBuilder::new("Mushroom Medley", "A fragrant mix of premium forest mushrooms with garlic. An earthy delight.", ItemCategory::Consumable)
+            .icon("mushroom_medley.png")
+            .stackable(5)
+            .consumable(55.0, 75.0, 35.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Porcini".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cooked Chanterelle".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Roasted Bear Garlic".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Stuffed Mushrooms", "Large mushroom caps stuffed with herbs and smaller mushrooms. A savory appetizer.", ItemCategory::Consumable)
+            .icon("stuffed_mushrooms.png")
+            .stackable(8)
+            .consumable(45.0, 55.0, 30.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cooked Porcini".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Mugwort".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 0) // Makes 2 servings
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === BERRY DISHES ===
+        ItemBuilder::new("Berry Tart", "A sweet tart filled with mixed forest berries. A delightful dessert.", ItemCategory::Consumable)
+            .icon("berry_tart.png")
+            .stackable(8)
+            .consumable(40.0, 50.0, 60.0) // High thirst quench due to juicy berries
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Lingonberries".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Mixed Berry Bowl", "A refreshing bowl of seasonal berries. Light but energizing.", ItemCategory::Consumable)
+            .icon("mixed_berry_bowl.png")
+            .stackable(10)
+            .consumable(35.0, 40.0, 55.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Lingonberries".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Crowberries".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
     ]
 }

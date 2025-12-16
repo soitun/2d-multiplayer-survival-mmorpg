@@ -5,6 +5,7 @@ import refrigeratorImage from '../../assets/doodads/refrigerator.png'; // Refrig
 import compostImage from '../../assets/doodads/compost.png'; // Compost image
 import backpackImage from '../../assets/doodads/burlap_sack.png'; // Backpack image
 import repairBenchImage from '../../assets/doodads/repair_bench.png'; // Repair bench image
+import cookingStationImage from '../../assets/doodads/cooking_station.png'; // Cooking station image
 import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
@@ -22,6 +23,8 @@ export const BACKPACK_WIDTH = 48;
 export const BACKPACK_HEIGHT = 48;
 export const REPAIR_BENCH_WIDTH = 128;
 export const REPAIR_BENCH_HEIGHT = 128;
+export const COOKING_STATION_WIDTH = 128;
+export const COOKING_STATION_HEIGHT = 128;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -30,6 +33,7 @@ export const BOX_TYPE_REFRIGERATOR = 2;
 export const BOX_TYPE_COMPOST = 3;
 export const BOX_TYPE_BACKPACK = 4;
 export const BOX_TYPE_REPAIR_BENCH = 5;
+export const BOX_TYPE_COOKING_STATION = 6;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -60,6 +64,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return backpackImage;
             case BOX_TYPE_REPAIR_BENCH:
                 return repairBenchImage;
+            case BOX_TYPE_COOKING_STATION:
+                return cookingStationImage;
             default:
                 return boxImage;
         }
@@ -78,6 +84,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: BACKPACK_WIDTH, height: BACKPACK_HEIGHT };
             case BOX_TYPE_REPAIR_BENCH:
                 return { width: REPAIR_BENCH_WIDTH, height: REPAIR_BENCH_HEIGHT };
+            case BOX_TYPE_COOKING_STATION:
+                return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -197,6 +205,7 @@ imageManager.preloadImage(refrigeratorImage);
 imageManager.preloadImage(compostImage);
 imageManager.preloadImage(backpackImage);
 imageManager.preloadImage(repairBenchImage);
+imageManager.preloadImage(cookingStationImage);
 
 // --- Rendering Function (Refactored) ---
 export function renderWoodenStorageBox(

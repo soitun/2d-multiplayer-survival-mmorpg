@@ -274,7 +274,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench']; // ADDED: Furnace, Barbecue, Matron's Chest, Large Wooden Storage Box, Refrigerator, Repair Bench
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station']; // ADDED: Furnace, Barbecue, Matron's Chest, Large Wooden Storage Box, Refrigerator, Repair Bench, Cooking Station
   
   // Seeds that don't require water or beach (most seeds) cannot be planted on water
   const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -694,6 +694,10 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Repair Bench':
           connection.reducers.placeRepairBench(placementInfo.instanceId, worldX, worldY);
           // Placement will be cancelled when the WoodenStorageBox (boxType=5) is inserted
+          break;
+        case 'Cooking Station':
+          connection.reducers.placeCookingStation(placementInfo.instanceId, worldX, worldY);
+          // Placement will be cancelled when the WoodenStorageBox (boxType=6) is inserted
           break;
         case "Matron's Chest":
           // Adjust Y coordinate to account for entity rendering offset

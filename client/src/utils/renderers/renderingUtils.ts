@@ -41,7 +41,7 @@ import { renderTree } from './treeRenderingUtils';
 import { renderStone } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -1016,6 +1016,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.refrigerator;
               } else if (box.boxType === BOX_TYPE_REPAIR_BENCH) {
                   config = ENTITY_VISUAL_CONFIG.repair_bench;
+              } else if (box.boxType === BOX_TYPE_COOKING_STATION) {
+                  config = ENTITY_VISUAL_CONFIG.cooking_station;
               } else {
                   config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
               }

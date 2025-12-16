@@ -33,6 +33,7 @@ impl ItemBuilder {
                 crafting_cost: None,
                 crafting_output_quantity: None,
                 crafting_time_secs: None,
+                requires_station: None,
                 consumable_health_gain: None,
                 consumable_hunger_satiated: None,
                 consumable_thirst_quenched: None,
@@ -136,6 +137,12 @@ impl ItemBuilder {
     pub fn crafting_output(mut self, quantity: u32, time_secs: u32) -> Self {
         self.inner.crafting_output_quantity = Some(quantity);
         self.inner.crafting_time_secs = Some(time_secs);
+        self
+    }
+    
+    /// Set the station required for crafting this item (e.g., "Cooking Station")
+    pub fn requires_station(mut self, station_name: &str) -> Self {
+        self.inner.requires_station = Some(station_name.to_string());
         self
     }
     

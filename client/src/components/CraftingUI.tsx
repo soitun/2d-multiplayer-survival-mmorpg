@@ -10,6 +10,7 @@ import {
     InventoryLocationData,
     HotbarLocationData,
     ItemCategory,
+    ActiveConsumableEffect,
 } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PopulatedItem } from './InventoryUI'; // Reuse PopulatedItem type
@@ -29,6 +30,7 @@ interface CraftingUIProps {
     onItemMouseLeave: () => void;
     onItemMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
     purchasedMemoryNodes?: Set<string>; // Memory Grid nodes the player has purchased
+    activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // Active effects for station proximity check
 }
 
 // Helper to calculate remaining time
@@ -48,6 +50,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     onItemMouseLeave,
     onItemMouseMove,
     purchasedMemoryNodes = new Set(['center']), // Default: only center node unlocked
+    activeConsumableEffects,
 }) => {
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [craftQuantities, setCraftQuantities] = useState<Map<string, number>>(new Map()); // State for quantity input
@@ -274,6 +277,47 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         return node ? node.name : requiredNodeId;
     }, [itemDefinitions]);
 
+    // --- Helper to check if player is near a cooking station ---
+    const isNearCookingStation = useMemo((): boolean => {
+        if (!activeConsumableEffects || !playerIdentity) return false;
+        
+        const playerIdHex = playerIdentity.toHexString();
+        for (const effect of activeConsumableEffects.values()) {
+            if (effect.playerId.toHexString() === playerIdHex) {
+                const effectTypeTag = effect.effectType ? (effect.effectType as any).tag : undefined;
+                if (effectTypeTag === 'NearCookingStation') {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }, [activeConsumableEffects, playerIdentity]);
+
+    // --- Helper to check if a recipe requires a crafting station ---
+    const getRequiredStation = useCallback((recipe: Recipe): string | null => {
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef) return null;
+        
+        // Check if the item has a requires_station field (from server schema)
+        // Note: This field may be named requiresStation in TypeScript bindings
+        const requires = (outputDef as any).requiresStation || (outputDef as any).requires_station;
+        return requires || null;
+    }, [itemDefinitions]);
+
+    // --- Helper to check if station requirement is met for a recipe ---
+    const isStationRequirementMet = useCallback((recipe: Recipe): boolean => {
+        const requiredStation = getRequiredStation(recipe);
+        if (!requiredStation) return true; // No station required
+        
+        // Check if player has the corresponding effect
+        if (requiredStation === 'Cooking Station') {
+            return isNearCookingStation;
+        }
+        
+        // Unknown station type - default to not met
+        return false;
+    }, [getRequiredStation, isNearCookingStation]);
+
     // --- Search Handler with localStorage persistence ---
     const handleSearchChange = (newSearchTerm: string) => {
         setSearchTerm(newSearchTerm);
@@ -386,8 +430,12 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                         const isMemoryGridUnlocked = isRecipeUnlockedByMemoryGrid(recipe);
                         const requiredNodeName = !isMemoryGridUnlocked ? getRequiredNodeName(recipe) : null;
                         
-                        // Recipe is only craftable if unlocked AND has resources
-                        const isCraftable = isMemoryGridUnlocked && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftableForThisRecipe && currentQuantity > 0;
+                        // Check if recipe requires a crafting station (Cooking Station)
+                        const requiredStation = getRequiredStation(recipe);
+                        const hasStationAccess = isStationRequirementMet(recipe);
+                        
+                        // Recipe is only craftable if unlocked, station available, AND has resources
+                        const isCraftable = isMemoryGridUnlocked && hasStationAccess && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftableForThisRecipe && currentQuantity > 0;
 
                         const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                             let newQuantity = parseInt(e.target.value, 10);
@@ -512,6 +560,25 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                         }}>
                                             <span>⚡</span>
                                             <span>Unlock "<strong>{requiredNodeName}</strong>" in Memory Grid</span>
+                                        </div>
+                                    )}
+
+                                    {/* Crafting Station Requirement Message */}
+                                    {requiredStation && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: hasStationAccess ? '#00ff88' : '#ff9933',
+                                            background: hasStationAccess ? 'rgba(0, 255, 136, 0.15)' : 'rgba(255, 153, 51, 0.15)',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            border: hasStationAccess ? '1px solid rgba(0, 255, 136, 0.3)' : '1px solid rgba(255, 153, 51, 0.3)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            width: 'fit-content'
+                                        }}>
+                                            <span>{hasStationAccess ? '👨‍🍳' : '🔧'}</span>
+                                            <span>{hasStationAccess ? `Near ${requiredStation}` : `Requires ${requiredStation}`}</span>
                                         </div>
                                     )}
 

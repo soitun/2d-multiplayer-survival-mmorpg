@@ -10,7 +10,7 @@ import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingU
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
-import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, and Repair Bench dimensions
+import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, and Cooking Station dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../plantsUtils';
@@ -347,7 +347,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench']; // ADDED: Furnace, Barbecue, Repair Bench
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station']; // ADDED: Furnace, Barbecue, Repair Bench, Cooking Station
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -1176,6 +1176,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'repair_bench.png') {
         // For repair bench, use the repair_bench.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('repair_bench.png');
+    } else if (placementInfo.iconAssetName === 'cooking_station.png') {
+        // For cooking station, use the cooking_station.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('cooking_station.png');
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // For large wooden box, use the large_wood_box.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('large_wood_box.png');
@@ -1213,6 +1216,10 @@ export function renderPlacementPreview({
         // Repair Bench preview dimensions (matches actual rendering - 128x128)
         drawWidth = REPAIR_BENCH_WIDTH; // 128px
         drawHeight = REPAIR_BENCH_HEIGHT; // 128px
+    } else if (placementInfo.iconAssetName === 'cooking_station.png') {
+        // Cooking Station preview dimensions (matches actual rendering - 128x128)
+        drawWidth = COOKING_STATION_WIDTH; // 128px
+        drawHeight = COOKING_STATION_HEIGHT; // 128px
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // Large wooden box preview dimensions (matches actual rendering)
         drawWidth = LARGE_BOX_WIDTH; // 96px
@@ -1503,6 +1510,15 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'repair_bench.png') {
         // Use centralized visual config for repair bench
         const config = ENTITY_VISUAL_CONFIG.repair_bench;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'cooking_station.png') {
+        // Use centralized visual config for cooking station
+        const config = ENTITY_VISUAL_CONFIG.cooking_station;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;

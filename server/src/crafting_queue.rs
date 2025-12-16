@@ -57,10 +57,31 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
     let recipe_table = ctx.db.recipe();
     let inventory_table = ctx.db.inventory_item();
     let queue_table = ctx.db.crafting_queue_item();
+    let item_def_table = ctx.db.item_definition();
 
     // 1. Find the Recipe
     let recipe = recipe_table.recipe_id().find(&recipe_id)
         .ok_or(format!("Recipe with ID {} not found.", recipe_id))?;
+
+    // 1b. Check Station Requirement
+    let output_item_def = item_def_table.id().find(recipe.output_item_def_id)
+        .ok_or(format!("Output item definition not found for recipe {}", recipe_id))?;
+    
+    if let Some(ref station_name) = output_item_def.requires_station {
+        // Check if player has the required station effect
+        let has_required_station = match station_name.as_str() {
+            "Cooking Station" => crate::active_effects::player_has_cooking_station_effect(ctx, sender_id),
+            // Add more station types here as they are implemented
+            _ => {
+                log::warn!("Unknown station requirement: {}", station_name);
+                false
+            }
+        };
+        
+        if !has_required_station {
+            return Err(format!("You must be near a {} to craft {}.", station_name, output_item_def.name));
+        }
+    }
 
     // 2. Check Resources
     let mut required_resources_map: HashMap<u64, u32> = HashMap::new();
@@ -185,6 +206,26 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
     // 1. Find the Recipe
     let recipe = recipe_table.recipe_id().find(&recipe_id)
         .ok_or(format!("Recipe with ID {} not found.", recipe_id))?;
+
+    // 1b. Check Station Requirement
+    let output_item_def = item_def_table.id().find(recipe.output_item_def_id)
+        .ok_or(format!("Output item definition not found for recipe {}", recipe_id))?;
+    
+    if let Some(ref station_name) = output_item_def.requires_station {
+        // Check if player has the required station effect
+        let has_required_station = match station_name.as_str() {
+            "Cooking Station" => crate::active_effects::player_has_cooking_station_effect(ctx, sender_id),
+            // Add more station types here as they are implemented
+            _ => {
+                log::warn!("Unknown station requirement: {}", station_name);
+                false
+            }
+        };
+        
+        if !has_required_station {
+            return Err(format!("You must be near a {} to craft {}.", station_name, output_item_def.name));
+        }
+    }
 
     // 2. Check Resources for the total quantity
     let mut total_required_resources_map: HashMap<u64, u32> = HashMap::new();

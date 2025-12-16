@@ -388,6 +388,7 @@ import largeWoodenStorageBoxIcon from '../assets/items/large_wood_box.png';
 import refrigeratorIcon from '../assets/items/refrigerator.png';
 import compostIcon from '../assets/items/compost.png';
 import repairBenchIcon from '../assets/items/repair_bench.png';
+import cookingStationIcon from '../assets/items/cooking_station.png';
 import barbecueIcon from '../assets/items/barbecue.png';
 import sleepingBagIcon from '../assets/items/sleeping_bag.png';
 import shelterIcon from '../assets/items/shelter.png';
@@ -779,6 +780,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'refrigerator.png': refrigeratorIcon,
   'compost.png': compostIcon,
   'repair_bench.png': repairBenchIcon,
+  'cooking_station.png': cookingStationIcon,
   'barbecue.png': barbecueIcon,
   'sleeping_bag.png': sleepingBagIcon,
   'shelter.png': shelterIcon,

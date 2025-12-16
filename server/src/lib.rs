@@ -153,6 +153,7 @@ mod fishing_village; // <<< ADDED: Fishing village monument collision system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod repair_bench; // <<< ADDED: Repair bench for item repair
+mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;

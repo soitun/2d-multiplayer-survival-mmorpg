@@ -976,6 +976,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent while in fishing village zone
                         };
                         break;
+                    case 'NearCookingStation':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'near_cooking_station',
+                            name: 'Cooking Station',
+                            emoji: '👨‍🍳',
+                            type: 'positive' as const,
+                            description: 'Near a cooking station. Advanced food recipes can now be crafted from the crafting menu.',
+                            // No duration - permanent while near cooking station
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)

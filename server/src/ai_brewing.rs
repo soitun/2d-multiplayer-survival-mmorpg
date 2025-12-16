@@ -409,6 +409,9 @@ pub fn create_generated_brew(
             
             // Ammunition type (not applicable for consumables)
             ammo_type: None,
+            
+            // Station requirement (not applicable for AI-generated brews)
+            requires_station: None,
         };
         
         let inserted = item_defs.insert(new_item_def);
