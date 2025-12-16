@@ -617,15 +617,24 @@ pub fn consume_filled_water_container(ctx: &ReducerContext, item_instance_id: u6
     const CONSUMPTION_AMOUNT_LITERS: f32 = 0.25; // 250mL per right-click
     let actual_consumption = water_content.min(CONSUMPTION_AMOUNT_LITERS);
     
-    // --- Calculate thirst value ---
+    // --- Calculate thirst value based on container type ---
+    // Different containers have different efficiency (rewards preparation!)
+    // Reed Water Bottle: 50 thirst/L (12.5 per 250mL) - portable convenience
+    // Plastic Water Jug: 60 thirst/L (15.0 per 250mL) - best efficiency for prepared players
+    let thirst_per_liter = match item_def.name.as_str() {
+        "Reed Water Bottle" => 50.0,  // 2L bottle = 100 thirst when full (40% of max 250)
+        "Plastic Water Jug" => 60.0,  // 5L jug = 300 thirst when full (fully restores)
+        _ => 50.0, // Default fallback
+    };
+    
     // Salt water: NO immediate thirst change (dehydration happens over time via SeawaterPoisoning effect)
-    // Fresh water: immediate hydration
+    // Fresh water: immediate hydration based on container efficiency
     let thirst_value = if is_salt_water {
         // Salt water causes NO immediate thirst change - the SeawaterPoisoning effect will drain thirst over time
         0.0
     } else {
-        // Fresh water hydrates
-        actual_consumption * 15.0
+        // Fresh water hydrates - rate depends on container type
+        actual_consumption * thirst_per_liter
     };
 
     // --- Apply thirst restoration ---

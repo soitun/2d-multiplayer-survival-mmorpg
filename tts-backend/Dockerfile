@@ -26,6 +26,9 @@ COPY app.py .
 # Expose port (Railway uses PORT env variable)
 EXPOSE 8001
 
+# Ensure Python output is not buffered (logs appear immediately)
+ENV PYTHONUNBUFFERED=1
+
 # Run the application
-CMD ["python", "app.py"]
+CMD ["python", "-u", "app.py"]
 
