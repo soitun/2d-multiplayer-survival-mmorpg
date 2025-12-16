@@ -51,6 +51,7 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.Fumarole |
   EffectTypeVariants.SafeZone |
   EffectTypeVariants.FishingVillageBonus |
+  EffectTypeVariants.NearCookingStation |
   EffectTypeVariants.Intoxicated |
   EffectTypeVariants.Poisoned |
   EffectTypeVariants.SpeedBoost |
@@ -96,6 +97,7 @@ export const EffectType = {
   Fumarole: { tag: "Fumarole" } as const,
   SafeZone: { tag: "SafeZone" } as const,
   FishingVillageBonus: { tag: "FishingVillageBonus" } as const,
+  NearCookingStation: { tag: "NearCookingStation" } as const,
   Intoxicated: { tag: "Intoxicated" } as const,
   Poisoned: { tag: "Poisoned" } as const,
   SpeedBoost: { tag: "SpeedBoost" } as const,
@@ -135,6 +137,7 @@ export const EffectType = {
       { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SafeZone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "FishingVillageBonus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "NearCookingStation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Intoxicated", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Poisoned", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SpeedBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

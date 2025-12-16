@@ -305,6 +305,8 @@ import { PickupBarbecue } from "./pickup_barbecue_reducer.ts";
 export { PickupBarbecue };
 import { PickupBrothPot } from "./pickup_broth_pot_reducer.ts";
 export { PickupBrothPot };
+import { PickupCookingStation } from "./pickup_cooking_station_reducer.ts";
+export { PickupCookingStation };
 import { PickupDoor } from "./pickup_door_reducer.ts";
 export { PickupDoor };
 import { PickupDroppedItem } from "./pickup_dropped_item_reducer.ts";
@@ -323,6 +325,8 @@ import { PlaceBrothPotOnFumarole } from "./place_broth_pot_on_fumarole_reducer.t
 export { PlaceBrothPotOnFumarole };
 import { PlaceCampfire } from "./place_campfire_reducer.ts";
 export { PlaceCampfire };
+import { PlaceCookingStation } from "./place_cooking_station_reducer.ts";
+export { PlaceCookingStation };
 import { PlaceDoor } from "./place_door_reducer.ts";
 export { PlaceDoor };
 import { PlaceFoundation } from "./place_foundation_reducer.ts";
@@ -2982,6 +2986,10 @@ const REMOTE_MODULE = {
       reducerName: "pickup_broth_pot",
       argsType: PickupBrothPot.getTypeScriptAlgebraicType(),
     },
+    pickup_cooking_station: {
+      reducerName: "pickup_cooking_station",
+      argsType: PickupCookingStation.getTypeScriptAlgebraicType(),
+    },
     pickup_door: {
       reducerName: "pickup_door",
       argsType: PickupDoor.getTypeScriptAlgebraicType(),
@@ -3017,6 +3025,10 @@ const REMOTE_MODULE = {
     place_campfire: {
       reducerName: "place_campfire",
       argsType: PlaceCampfire.getTypeScriptAlgebraicType(),
+    },
+    place_cooking_station: {
+      reducerName: "place_cooking_station",
+      argsType: PlaceCookingStation.getTypeScriptAlgebraicType(),
     },
     place_door: {
       reducerName: "place_door",
@@ -3881,6 +3893,7 @@ export type Reducer = never
 | { name: "MoveToFirstAvailableInventorySlot", args: MoveToFirstAvailableInventorySlot }
 | { name: "PickupBarbecue", args: PickupBarbecue }
 | { name: "PickupBrothPot", args: PickupBrothPot }
+| { name: "PickupCookingStation", args: PickupCookingStation }
 | { name: "PickupDoor", args: PickupDoor }
 | { name: "PickupDroppedItem", args: PickupDroppedItem }
 | { name: "PickupLantern", args: PickupLantern }
@@ -3890,6 +3903,7 @@ export type Reducer = never
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
 | { name: "PlaceBrothPotOnFumarole", args: PlaceBrothPotOnFumarole }
 | { name: "PlaceCampfire", args: PlaceCampfire }
+| { name: "PlaceCookingStation", args: PlaceCookingStation }
 | { name: "PlaceDoor", args: PlaceDoor }
 | { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
@@ -6169,6 +6183,22 @@ export class RemoteReducers {
     this.connection.offReducer("pickup_broth_pot", callback);
   }
 
+  pickupCookingStation(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    PickupCookingStation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pickup_cooking_station", __argsBuffer, this.setCallReducerFlags.pickupCookingStationFlags);
+  }
+
+  onPickupCookingStation(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("pickup_cooking_station", callback);
+  }
+
+  removeOnPickupCookingStation(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("pickup_cooking_station", callback);
+  }
+
   pickupDoor(doorId: bigint) {
     const __args = { doorId };
     let __writer = new __BinaryWriter(1024);
@@ -6311,6 +6341,22 @@ export class RemoteReducers {
 
   removeOnPlaceCampfire(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
     this.connection.offReducer("place_campfire", callback);
+  }
+
+  placeCookingStation(itemInstanceId: bigint, posX: number, posY: number) {
+    const __args = { itemInstanceId, posX, posY };
+    let __writer = new __BinaryWriter(1024);
+    PlaceCookingStation.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_cooking_station", __argsBuffer, this.setCallReducerFlags.placeCookingStationFlags);
+  }
+
+  onPlaceCookingStation(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, posX: number, posY: number) => void) {
+    this.connection.onReducer("place_cooking_station", callback);
+  }
+
+  removeOnPlaceCookingStation(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, posX: number, posY: number) => void) {
+    this.connection.offReducer("place_cooking_station", callback);
   }
 
   placeDoor(cellX: bigint, cellY: bigint, worldX: number, worldY: number, doorType: number) {
@@ -9699,6 +9745,11 @@ export class SetReducerFlags {
     this.pickupBrothPotFlags = flags;
   }
 
+  pickupCookingStationFlags: __CallReducerFlags = 'FullUpdate';
+  pickupCookingStation(flags: __CallReducerFlags) {
+    this.pickupCookingStationFlags = flags;
+  }
+
   pickupDoorFlags: __CallReducerFlags = 'FullUpdate';
   pickupDoor(flags: __CallReducerFlags) {
     this.pickupDoorFlags = flags;
@@ -9742,6 +9793,11 @@ export class SetReducerFlags {
   placeCampfireFlags: __CallReducerFlags = 'FullUpdate';
   placeCampfire(flags: __CallReducerFlags) {
     this.placeCampfireFlags = flags;
+  }
+
+  placeCookingStationFlags: __CallReducerFlags = 'FullUpdate';
+  placeCookingStation(flags: __CallReducerFlags) {
+    this.placeCookingStationFlags = flags;
   }
 
   placeDoorFlags: __CallReducerFlags = 'FullUpdate';
