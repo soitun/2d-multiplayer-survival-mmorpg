@@ -3,14 +3,14 @@
 //! This module handles destructible barrels that spawn in three locations:
 //! 1. **Road Barrels** (variants 0-2): Spawn on dirt roads in clusters of 1-3
 //! 2. **Sea Barrels** (variants 3-5): Spawn in ocean water around sea stacks (flotsam/cargo crates)
-//! 3. **Beach Barrels** (variants 3-5): All sea barrel variants can wash up on beaches, but much rarer
+//! 3. **Beach Barrels** (variants 3-5): All sea barrel variants can wash up on beaches
 //!
 //! All types drop loot when destroyed and respawn after being destroyed.
 //!
 //! ## Key Features:
-//! - Road barrels spawn only on dirt road tiles
-//! - Sea barrels (variants 3-5) spawn in ocean water near sea stacks (15% chance per stack)
-//! - Beach barrels (variants 3-5) spawn on beach tiles (much rarer - 0.01% density)
+//! - Road barrels spawn frequently along dirt roads (~22 clusters on 600x600 map)
+//! - Sea barrels (variants 3-5) spawn in ocean water near sea stacks (35% chance per stack, 1-3 barrels)
+//! - Beach barrels (variants 3-5) spawn on beach tiles (0.03% density - washed up flotsam)
 //! - Cluster spawning with proper spacing (road barrels)
 //! - Health-based destruction system
 //! - Configurable loot tables (shared between all types)
@@ -43,21 +43,21 @@ pub const BARREL_BARREL_COLLISION_DISTANCE_SQUARED: f32 = (BARREL_COLLISION_RADI
 // Spawning constants
 pub const BARREL_DENSITY_PERCENT: f32 = 0.001; // 0.1% of total tiles for road density calculation  
 pub const MAX_BARREL_SEEDING_ATTEMPTS_FACTOR: u32 = 5; // Attempt factor for finding valid positions
-pub const MIN_BARREL_CLUSTER_DISTANCE_SQ: f32 = 400.0 * 400.0; // Minimum distance between clusters (PvP balance: wide spacing for contested points)
+pub const MIN_BARREL_CLUSTER_DISTANCE_SQ: f32 = 250.0 * 250.0; // Minimum distance between clusters (closer spacing for more road encounters)
 pub const MIN_BARREL_DISTANCE_SQ: f32 = 60.0 * 60.0; // Minimum distance between individual barrels in cluster
 pub const BARREL_RESPAWN_TIME_SECONDS: u32 = 600; // 10 minutes respawn time
 
 // Sea barrel (flotsam/cargo crate) constants
 pub const SEA_BARREL_VARIANT_START: u8 = 3; // Variants 3, 4, 5 are sea barrels
 pub const SEA_BARREL_VARIANT_END: u8 = 6; // Exclusive end (so 3, 4, 5)
-pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.03; // 3% chance to spawn 1-2 sea barrels near each sea stack (REDUCED from 15%)
-pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 150.0; // Minimum distance from sea stack center
-pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 300.0; // Maximum distance from sea stack center
-pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 100.0 * 100.0; // Minimum distance between sea barrels
+pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.35; // 35% chance to spawn 1-3 sea barrels near each sea stack (balanced: visible loot around coastal landmarks)
+pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 100.0; // Minimum distance from sea stack center (closer for better density)
+pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 350.0; // Maximum distance from sea stack center (wider spread)
+pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance between sea barrels (tighter packing allowed)
 
-// Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches, but much rarer)
-pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.00001; // 0.001% of beach tiles get a barrel (REDUCED from 0.01%)
-pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 150.0 * 150.0; // Minimum distance between beach barrels
+// Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches)
+pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0003; // 0.03% of beach tiles get a barrel (washed up flotsam is common)
+pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 120.0 * 120.0; // Minimum distance between beach barrels
 
 // Damage constants
 // Note: Damage is determined by weapon type through the combat system
@@ -65,12 +65,12 @@ pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 150.0 * 150.0; // Minimum distance
 pub const BARREL_ATTACK_COOLDOWN_MS: u64 = 1000; // 1 second between attacks (used by damage_barrel for cooldown checks)
 
 /// Density of barrel clusters per map tile. Used to scale clusters with map size.
-/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.000005 = ~2 clusters (REDUCED from ~19).
-/// Barrels are rare, contested PvP hotspots - not meant to be everywhere.
-pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.000005; // REDUCED by 90% from 0.000052
+/// Baseline: 600x600 tiles (360,000) -> 360000 * 0.00006 = ~22 clusters.
+/// Road barrels are valuable loot sources - should be common enough to encourage road exploration.
+pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.00006; // Balanced for engaging road gameplay
 /// How many dirt road tiles roughly correspond to one barrel cluster capacity.
 /// Used as an upper bound so road-heavy maps don't explode cluster counts.
-pub const ROAD_TILES_PER_CLUSTER: f32 = 200.0;
+pub const ROAD_TILES_PER_CLUSTER: f32 = 100.0; // More clusters allowed per road tile count
 
 // Define the main barrel table
 #[spacetimedb::table(name = barrel, public)]
@@ -762,11 +762,14 @@ pub fn spawn_sea_barrels_around_stacks(
             continue; // Skip this sea stack
         }
 
-        // Determine how many sea barrels to spawn (1-2)
-        let barrel_count = if ctx.rng().gen::<f32>() < 0.6 {
-            1 // 60% chance for single barrel
-        } else {
+        // Determine how many sea barrels to spawn (1-3)
+        let roll: f32 = ctx.rng().gen();
+        let barrel_count = if roll < 0.35 {
+            1 // 35% chance for single barrel
+        } else if roll < 0.75 {
             2 // 40% chance for 2 barrels
+        } else {
+            3 // 25% chance for 3 barrels (jackpot sea stack!)
         };
 
         let mut barrels_spawned_near_this_stack = 0;

@@ -503,8 +503,8 @@ pub fn generate_fishing_village(
             ("smokerack", "fv_smokerack2.png", 180.0, -100.0),
             
             // Dock - EXTENDING INTO WATER, positioned away from smokeracks
-            // Positive towards_water pushes it into the water
-            ("dock", "fv_dock.png", 320.0, 450.0),     // Right of campfire, extending well into water
+            // Reduced towards_water offset from 450 to 300 for more reliable placement
+            ("dock", "fv_dock.png", 280.0, 300.0),     // Right of campfire, extending into water
             
             // Kayak - ON THE BEACH, other side from dock
             ("kayak", "fv_kayak.png", -280.0, 120.0),  // Left of campfire, at water's edge
@@ -544,13 +544,14 @@ pub fn generate_fishing_village(
             
             // Skip only if in deep water or on river/lake
             if *part_type == "dock" {
-                // Dock extends INTO water - allow up to 12 tiles into water
-                // Campfire at shore_dist 2-6 + dock offset 450px (~9.4 tiles) = dock at -3 to -7 tiles
-                // Must allow shore_dist down to -10 to reliably place the dock
-                if part_shore_dist < -10.0 || river_network[py][px] || lake_map[py][px] {
-                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1} (limit -10.0)", part_type, part_shore_dist);
+                // Dock extends INTO water - allow up to 20 tiles into water
+                // Campfire at shore_dist 2-6 + dock offset 300px (~6.3 tiles) = dock at -0.3 to -4.3 tiles
+                // Being very permissive to ensure dock spawns reliably
+                if part_shore_dist < -20.0 || river_network[py][px] || lake_map[py][px] {
+                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1} (limit -20.0)", part_type, part_shore_dist);
                     continue;
                 }
+                log::info!("🏘️ Dock position check passed: shore_dist={:.1}", part_shore_dist);
             } else if *part_type == "kayak" {
                 // Kayak sits at water's edge - allow up to 5 tiles into water  
                 if part_shore_dist < -5.0 || river_network[py][px] || lake_map[py][px] {
@@ -1081,8 +1082,6 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Two furnaces further back
         MonumentPlaceableConfig::furnace(-200.0, -100.0),
         MonumentPlaceableConfig::furnace(200.0, -100.0),
-        // Cooking station in the middle
-        MonumentPlaceableConfig::cooking_station(0.0, 150.0),
         // Repair bench near the center
         MonumentPlaceableConfig::repair_bench(0.0, -150.0),
         // Rain collector off to the side
@@ -1104,8 +1103,8 @@ pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
         // One functional campfire (the decorational one is the village center campfire)
         MonumentPlaceableConfig::campfire(150.0, -100.0),
-        // Rain collector for fresh water
-        MonumentPlaceableConfig::rain_collector(-180.0, -80.0),
+        // Rain collector for fresh water - placed further from the smokeracks
+        MonumentPlaceableConfig::rain_collector(-320.0, -200.0),
     ]
 }
 
