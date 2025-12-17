@@ -58,6 +58,8 @@ import quarryTundraGrassAutotile from '../assets/tiles/new/tileset_quarry_tundra
 import dirtRoadTundraGrassAutotile from '../assets/tiles/new/tileset_dirtroad_tundragrass_autotile.png';
 import forestTundraGrassAutotile from '../assets/tiles/new/tileset_forest_tundragrass_autotile.png';
 import dirtTundraGrassAutotile from '../assets/tiles/new/tileset_dirt_tundragrass_autotile.png';
+// Underwater autotile for snorkeling mode (beach/land to sea transition when underwater)
+import underwaterSeaAutotile from '../assets/tiles/new/tileset_underwater_sea_autotile.png';
 
 // =============================================================================
 // CONSTANTS
@@ -166,6 +168,9 @@ export const TRANSITION_TILESETS: Readonly<Record<string, string>> = {
     'Beach_Sea': beachSeaAutotile,
     'Beach_HotSpringWater': beachHotSpringWaterAutotile,
     'Beach_DirtRoad': beachDirtRoadAutotile,
+    
+    // === Underwater transitions (snorkeling mode) ===
+    'Underwater_Sea': underwaterSeaAutotile, // Used for land→sea transitions when player is underwater
     
     // === Dirt transitions ===
     'Dirt_Beach': dirtBeachAutotile,

@@ -817,3 +817,79 @@ export function renderSeaStackWaterLineOnly(
 }
 
 // Removed clearSeaStackCache function - no longer needed since sea stacks are server-authoritative 
+
+// === UNDERWATER SNORKELING MODE ===
+// Constants for underwater silhouette rendering
+// Must match values in clientCollision.ts for accurate collision representation
+const UNDERWATER_SILHOUETTE_CONFIG = {
+  // Base radius matches COLLISION_RADII.SEA_STACK in clientCollision.ts
+  BASE_RADIUS: 60, // Same as collision system
+  // Y offset matches COLLISION_OFFSETS.SEA_STACK.y in clientCollision.ts
+  Y_OFFSET: 120, // Collision center is 120px above anchor point
+  // Feather amount (soft edge gradient)
+  FEATHER_RATIO: 0.4, // 40% of radius is feathered
+  // Colors for underwater effect
+  INNER_COLOR: 'rgba(10, 50, 70, 0.85)', // Dark teal center
+  OUTER_COLOR: 'rgba(10, 50, 70, 0)', // Transparent edge
+};
+
+/**
+ * Gets the collision radius for a sea stack - matches the actual collision system
+ * Uses the same base radius as COLLISION_RADII.SEA_STACK scaled by the sea stack's scale
+ */
+function getSeaStackCollisionRadius(scale: number): number {
+  return UNDERWATER_SILHOUETTE_CONFIG.BASE_RADIUS * scale;
+}
+
+/**
+ * Renders a sea stack as an underwater silhouette (feathered dark blue circle)
+ * Used when player is snorkeling - shows where obstacles are from underwater perspective
+ */
+export function renderSeaStackUnderwaterSilhouette(
+  ctx: CanvasRenderingContext2D,
+  seaStack: any, // Server-provided sea stack entity
+  cycleProgress: number = 0.5 // Day/night cycle (affects darkness slightly)
+): void {
+  const scale = seaStack.scale || 1.0;
+  
+  // Calculate radius to match actual collision system (60 * scale)
+  const radius = getSeaStackCollisionRadius(scale);
+  const featherRadius = radius * (1 + UNDERWATER_SILHOUETTE_CONFIG.FEATHER_RATIO);
+  
+  // Position from server data - posX/posY is the base anchor point
+  const x = seaStack.posX;
+  // The silhouette should match the collision circle center exactly
+  // Uses the same offset as COLLISION_OFFSETS.SEA_STACK.y in clientCollision.ts
+  const y = seaStack.posY - UNDERWATER_SILHOUETTE_CONFIG.Y_OFFSET;
+  
+  ctx.save();
+  
+  // Create radial gradient for feathered effect
+  const gradient = ctx.createRadialGradient(x, y, radius * 0.3, x, y, featherRadius);
+  
+  // Adjust darkness slightly based on time of day
+  const nightFactor = Math.abs(cycleProgress - 0.5) * 2; // 0 at noon, 1 at midnight
+  const baseAlpha = 0.75 + nightFactor * 0.15; // Darker at night
+  
+  gradient.addColorStop(0, `rgba(8, 42, 58, ${baseAlpha})`); // Dark center
+  gradient.addColorStop(0.5, `rgba(10, 50, 70, ${baseAlpha * 0.7})`); // Mid transition
+  gradient.addColorStop(0.8, `rgba(12, 58, 80, ${baseAlpha * 0.3})`); // Outer transition
+  gradient.addColorStop(1, 'rgba(12, 58, 80, 0)'); // Transparent edge
+  
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, featherRadius, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Add a subtle darker core for depth
+  const coreGradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 0.5);
+  coreGradient.addColorStop(0, `rgba(5, 30, 45, ${baseAlpha * 0.5})`);
+  coreGradient.addColorStop(1, 'rgba(5, 30, 45, 0)');
+  
+  ctx.fillStyle = coreGradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+}

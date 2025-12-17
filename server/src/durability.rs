@@ -788,7 +788,7 @@ pub fn process_torch_durability(ctx: &ReducerContext, _args: TorchDurabilitySche
         };
         
         // Only process if the head item is actually a snorkel
-        if item_def.name != "Primitive Reed Snorkel" {
+        if item_def.name != "Reed Diver's Helm" {
             // Player is snorkeling but wearing something else - force emerge
             log::debug!("[SnorkelDurability] Player {:?} has is_snorkeling=true but wearing '{}', emerging", 
                 player.identity, item_def.name);

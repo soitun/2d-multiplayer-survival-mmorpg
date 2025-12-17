@@ -3811,7 +3811,7 @@ pub fn play_weapon_hit_sound(
         sound_events::emit_spear_hit_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted spear_hit sound for {} hitting target", item_def.name);
     } else if item_def.name == "Combat Ladle" || item_def.name == "Repair Hammer" || item_def.name == "Rock" || 
-              item_def.name == "Flashlight" || item_def.name == "Primitive Reed Snorkel" || item_def.name == "Primitive Reed Fishing Rod" || item_def.name == "Bone Club" || item_def.name == "Human Skull" {
+              item_def.name == "Flashlight" || item_def.name == "Reed Diver's Helm" || item_def.name == "Primitive Reed Fishing Rod" || item_def.name == "Bone Club" || item_def.name == "Human Skull" {
         sound_events::emit_melee_hit_blunt_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted melee_hit_blunt sound for {} hitting target", item_def.name);
     } else if item_def.name == "Torch" {

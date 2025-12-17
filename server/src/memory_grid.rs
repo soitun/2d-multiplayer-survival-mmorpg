@@ -513,7 +513,7 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 4
         "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
         "metal-door" => "Metal Door".to_string(),
-        "reed-snorkel" => "Primitive Reed Snorkel".to_string(),
+        "reed-snorkel" => "Reed Diver's Helm".to_string(),
         "plastic-water-jug" => "Plastic Water Jug".to_string(),
         "cooking-station" => "Cooking Station".to_string(),
         "compost" => "Compost".to_string(),
@@ -636,7 +636,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         // Tier 4 items
         "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
         "Metal Door" => Some("metal-door"),
-        "Primitive Reed Snorkel" => Some("reed-snorkel"),
+        "Reed Diver's Helm" => Some("reed-snorkel"),
         "Plastic Water Jug" => Some("plastic-water-jug"),
         "Cooking Station" => Some("cooking-station"),
         "Compost" => Some("compost"),

@@ -204,6 +204,211 @@ BARREL_VARIANT_IMAGES.forEach(barrelImg => {
     imageManager.preloadImage(barrelImg);
 });
 
+// === SEA BARREL WATER EFFECTS CONFIGURATION ===
+const SEA_BARREL_WATER_CONFIG = {
+    // Water line position (fraction of sprite height from top)
+    WATER_LINE_OFFSET: 0.55, // 55% down from top = barrel sits about halfway in water
+    // Wave animation for water line
+    WAVE_AMPLITUDE: 1.5, // Gentle wave movement
+    WAVE_FREQUENCY: 0.003, // Slow wave frequency
+    WAVE_SECONDARY_AMPLITUDE: 0.8,
+    WAVE_SECONDARY_FREQUENCY: 0.005,
+    // Swaying animation
+    SWAY_AMPLITUDE: 0.015, // Very gentle rotation (radians) - about 0.86 degrees
+    SWAY_FREQUENCY: 0.0008, // Slow, peaceful swaying
+    SWAY_SECONDARY_FREQUENCY: 0.0012, // Secondary sway for organic feel
+    // Bobbing animation (vertical)
+    BOB_AMPLITUDE: 1.5, // Slight vertical bob in pixels
+    BOB_FREQUENCY: 0.0015, // Slow bob
+    // Underwater tint
+    UNDERWATER_TINT_COLOR: { r: 12, g: 62, b: 79 },
+    UNDERWATER_TINT_INTENSITY: 0.35,
+};
+
+/**
+ * Checks if a barrel variant is a sea barrel
+ */
+function isSeaBarrelVariant(variantIndex: number): boolean {
+    return variantIndex >= SEA_BARREL_VARIANT_START && variantIndex < SEA_BARREL_VARIANT_END;
+}
+
+// Cached offscreen canvas for barrel tinting (reused to avoid allocations)
+let barrelOffscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let barrelOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getBarrelOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
+    if (!barrelOffscreenCanvas || barrelOffscreenCanvas.width < width || barrelOffscreenCanvas.height < height) {
+        try {
+            barrelOffscreenCanvas = new OffscreenCanvas(width, height);
+        } catch {
+            barrelOffscreenCanvas = document.createElement('canvas');
+            barrelOffscreenCanvas.width = width;
+            barrelOffscreenCanvas.height = height;
+        }
+        barrelOffscreenCtx = barrelOffscreenCanvas.getContext('2d');
+    }
+    return { canvas: barrelOffscreenCanvas, ctx: barrelOffscreenCtx! };
+}
+
+/**
+ * Renders a sea barrel with water effects (water line, underwater tinting, swaying)
+ * Uses offscreen canvas and proper compositing to respect PNG transparency
+ */
+function renderSeaBarrelWithWaterEffects(
+    ctx: CanvasRenderingContext2D,
+    barrel: Barrel,
+    nowMs: number,
+    cycleProgress: number
+): void {
+    if (barrel.respawnAt) return; // Don't render if destroyed
+    
+    const variantIndex = Number(barrel.variant ?? 0);
+    const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
+    const img = imageManager.getImage(imageSource);
+    
+    if (!img || !img.complete || img.naturalWidth === 0) {
+        // Fallback color
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(barrel.posX - 20, barrel.posY - 40, 40, 40);
+        return;
+    }
+    
+    // Get dimensions
+    const isLargeVariant = variantIndex === 4;
+    const drawWidth = isLargeVariant ? BARREL5_WIDTH : BARREL_WIDTH;
+    const drawHeight = isLargeVariant ? BARREL5_HEIGHT : BARREL_HEIGHT;
+    const yOffset = isLargeVariant ? 24 : 12;
+    
+    // Calculate sway animation (gentle rotation)
+    const swayPrimary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_FREQUENCY + barrel.posX * 0.01) 
+        * SEA_BARREL_WATER_CONFIG.SWAY_AMPLITUDE;
+    const swaySecondary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_SECONDARY_FREQUENCY + barrel.posY * 0.01 + Math.PI * 0.5) 
+        * SEA_BARREL_WATER_CONFIG.SWAY_AMPLITUDE * 0.5;
+    const totalSway = swayPrimary + swaySecondary;
+    
+    // Calculate bob animation (vertical movement)
+    const bobOffset = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.BOB_FREQUENCY + barrel.posX * 0.02) 
+        * SEA_BARREL_WATER_CONFIG.BOB_AMPLITUDE;
+    
+    // Base position
+    const baseX = barrel.posX;
+    const baseY = barrel.posY + bobOffset;
+    const drawX = baseX - drawWidth / 2;
+    const drawY = baseY - drawHeight - yOffset;
+    
+    // Calculate water line position (in local sprite coordinates)
+    const waterLineLocalY = drawHeight * SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
+    const waterLineWorldY = drawY + waterLineLocalY;
+    
+    // Wave calculation helper
+    const getWaveOffset = (x: number) => {
+        return Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.WAVE_FREQUENCY + x * 0.02) 
+            * SEA_BARREL_WATER_CONFIG.WAVE_AMPLITUDE
+            + Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.WAVE_SECONDARY_FREQUENCY + x * 0.03 + Math.PI * 0.3) 
+            * SEA_BARREL_WATER_CONFIG.WAVE_SECONDARY_AMPLITUDE;
+    };
+    
+    // --- Create tinted underwater version on offscreen canvas ---
+    const { canvas: offscreen, ctx: offCtx } = getBarrelOffscreenCanvas(drawWidth + 4, drawHeight + 4);
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+    
+    // Draw barrel to offscreen
+    offCtx.drawImage(img, 2, 2, drawWidth, drawHeight);
+    
+    // Apply tint using source-atop (only affects existing non-transparent pixels)
+    offCtx.globalCompositeOperation = 'source-atop';
+    const { r, g, b } = SEA_BARREL_WATER_CONFIG.UNDERWATER_TINT_COLOR;
+    const tintIntensity = SEA_BARREL_WATER_CONFIG.UNDERWATER_TINT_INTENSITY;
+    // Create a color that when multiplied gives the teal tint effect
+    offCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${tintIntensity})`;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    
+    // Darken slightly
+    offCtx.fillStyle = `rgba(0, 20, 40, 0.2)`;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    
+    offCtx.globalCompositeOperation = 'source-over';
+    
+    ctx.save();
+    
+    // Apply rotation around the bottom center of the barrel (pivot point)
+    const pivotX = baseX;
+    const pivotY = baseY;
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(totalSway);
+    ctx.translate(-pivotX, -pivotY);
+    
+    const waveSegments = 16;
+    const segmentWidth = drawWidth / waveSegments;
+    
+    // --- Draw underwater portion (tinted) ---
+    ctx.save();
+    ctx.beginPath();
+    
+    // Create wavy clip path for underwater portion
+    ctx.moveTo(drawX - 5, baseY + 50);
+    ctx.lineTo(drawX - 5, waterLineWorldY);
+    
+    for (let i = 0; i <= waveSegments; i++) {
+        const segX = drawX + i * segmentWidth;
+        ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
+    }
+    
+    ctx.lineTo(drawX + drawWidth + 5, baseY + 50);
+    ctx.closePath();
+    ctx.clip();
+    
+    // Draw tinted barrel from offscreen canvas
+    ctx.drawImage(offscreen, drawX - 2, drawY - 2);
+    ctx.restore();
+    
+    // --- Draw above-water portion (normal) ---
+    ctx.save();
+    ctx.beginPath();
+    
+    // Clip to top portion with inverse wave
+    ctx.moveTo(drawX - 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, waterLineWorldY);
+    
+    for (let i = waveSegments; i >= 0; i--) {
+        const segX = drawX + i * segmentWidth;
+        ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
+    }
+    
+    ctx.closePath();
+    ctx.clip();
+    
+    // Draw normal barrel
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+    
+    // --- Draw water line ---
+    ctx.strokeStyle = 'rgba(150, 180, 200, 0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    
+    ctx.beginPath();
+    const lineStartX = drawX + drawWidth * 0.2;
+    const lineEndX = drawX + drawWidth * 0.8;
+    const lineSegments = 8;
+    const lineSegmentWidth = (lineEndX - lineStartX) / lineSegments;
+    
+    for (let i = 0; i <= lineSegments; i++) {
+        const segX = lineStartX + i * lineSegmentWidth;
+        const waveOffset = getWaveOffset(segX);
+        
+        if (i === 0) {
+            ctx.moveTo(segX, waterLineWorldY + waveOffset);
+        } else {
+            ctx.lineTo(segX, waterLineWorldY + waveOffset);
+        }
+    }
+    ctx.stroke();
+    
+    ctx.restore(); // Restore from rotation transform
+}
+
 // --- Rendering Function (Refactored) ---
 export function renderBarrel(
     ctx: CanvasRenderingContext2D, 
@@ -211,6 +416,15 @@ export function renderBarrel(
     nowMs: number, 
     cycleProgress: number
 ) {
+    const variantIndex = Number(barrel.variant ?? 0);
+    
+    // Sea barrels get special water effects rendering
+    if (isSeaBarrelVariant(variantIndex) && !barrel.respawnAt) {
+        renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress);
+        return;
+    }
+    
+    // Normal barrel rendering for road barrels
     renderConfiguredGroundEntity({
         ctx,
         entity: barrel,
@@ -220,4 +434,94 @@ export function renderBarrel(
         entityPosY: barrel.posY,
         cycleProgress,
     });
-} 
+}
+
+// === UNDERWATER SNORKELING MODE ===
+// Constants for underwater silhouette rendering
+// Must match values in clientCollision.ts for accurate collision representation
+const UNDERWATER_BARREL_CONFIG = {
+    // Base radius matches COLLISION_RADII.BARREL in clientCollision.ts
+    BASE_RADIUS: 25,
+    // Y offset matches COLLISION_OFFSETS.BARREL.y in clientCollision.ts
+    Y_OFFSET: 48,
+    // Feather amount (soft edge gradient)
+    FEATHER_RATIO: 0.4, // 40% of radius is feathered
+    // Colors for underwater effect
+    INNER_COLOR: 'rgba(10, 50, 70, 0.85)', // Dark teal center
+    OUTER_COLOR: 'rgba(10, 50, 70, 0)', // Transparent edge
+};
+
+/**
+ * Renders a barrel as an underwater silhouette (feathered dark blue circle)
+ * Used when player is snorkeling - shows where obstacles are from underwater perspective
+ * Only renders for sea barrel variants (3, 4, 5)
+ * Includes sway and bob animation to match the barrel's above-water movement
+ */
+export function renderBarrelUnderwaterSilhouette(
+    ctx: CanvasRenderingContext2D,
+    barrel: Barrel,
+    cycleProgress: number = 0.5,
+    nowMs: number = Date.now()
+): void {
+    const variantIndex = Number(barrel.variant ?? 0);
+    
+    // Only render silhouette for sea barrels (variants 3, 4, 5)
+    if (variantIndex < SEA_BARREL_VARIANT_START || variantIndex >= SEA_BARREL_VARIANT_END) {
+        return;
+    }
+    
+    // Variant 4 (barrel5.png) is 2x larger
+    const scaleFactor = variantIndex === 4 ? 2 : 1;
+    
+    // Calculate radius to match actual collision system
+    const radius = UNDERWATER_BARREL_CONFIG.BASE_RADIUS * scaleFactor;
+    const featherRadius = radius * (1 + UNDERWATER_BARREL_CONFIG.FEATHER_RATIO);
+    
+    // Calculate sway animation (same as barrel rendering)
+    const swayPrimary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_FREQUENCY + barrel.posX * 0.01) 
+        * SEA_BARREL_WATER_CONFIG.SWAY_AMPLITUDE;
+    const swaySecondary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_SECONDARY_FREQUENCY + barrel.posY * 0.01 + Math.PI * 0.5) 
+        * SEA_BARREL_WATER_CONFIG.SWAY_AMPLITUDE * 0.5;
+    const totalSway = swayPrimary + swaySecondary;
+    
+    // Calculate bob animation (same as barrel rendering)
+    const bobOffset = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.BOB_FREQUENCY + barrel.posX * 0.02) 
+        * SEA_BARREL_WATER_CONFIG.BOB_AMPLITUDE;
+    
+    // Base position with bob
+    const baseX = barrel.posX;
+    const baseY = barrel.posY + bobOffset;
+    
+    // Apply sway rotation offset to the silhouette position
+    // The sway rotates around the barrel base, so the collision center moves in an arc
+    const collisionYOffset = UNDERWATER_BARREL_CONFIG.Y_OFFSET * scaleFactor;
+    // Calculate horizontal displacement from sway (simplified arc motion)
+    const swayDisplacementX = Math.sin(totalSway) * collisionYOffset;
+    const swayDisplacementY = (1 - Math.cos(totalSway)) * collisionYOffset * 0.1; // Small vertical component
+    
+    const x = baseX + swayDisplacementX;
+    const y = baseY - collisionYOffset + swayDisplacementY;
+    
+    ctx.save();
+    
+    // Create radial gradient for feathered effect
+    const gradient = ctx.createRadialGradient(x, y, radius * 0.3, x, y, featherRadius);
+    
+    // Adjust darkness slightly based on time of day
+    const nightFactor = Math.abs(cycleProgress - 0.5) * 2; // 0 at noon, 1 at midnight
+    const baseAlpha = 0.75 + nightFactor * 0.15; // Darker at night
+    
+    // Inner solid color
+    const innerColor = UNDERWATER_BARREL_CONFIG.INNER_COLOR.replace('0.85', baseAlpha.toFixed(2));
+    gradient.addColorStop(0, innerColor);
+    gradient.addColorStop(0.6, innerColor);
+    // Feathered edge
+    gradient.addColorStop(1, UNDERWATER_BARREL_CONFIG.OUTER_COLOR);
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, featherRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}

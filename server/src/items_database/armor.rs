@@ -172,7 +172,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
         // Allows player to submerge in water, becoming invisible to animals
         // Durability degrades only while submerged, lasts 45 minutes
         // Frees hands for underwater weapons like reed harpoons
-        ItemBuilder::new("Primitive Reed Snorkel", "A head-mounted breathing device made from hollow reeds sealed with tallow. Equip and press F while in water to submerge - hides you from animals. Lasts 45 minutes underwater. Frees hands for underwater combat.", ItemCategory::Armor)
+        ItemBuilder::new("Reed Diver's Helm", "A breathing helmet made from hollow reeds sealed with tallow. Equip and press F while in water to submerge. Lasts 45 minutes underwater. Frees hands for underwater combat.", ItemCategory::Armor)
             .icon("reed_snorkel.png")
             .equippable(Some(EquipmentSlotType::Head))
             .armor_resistances(ArmorResistances {

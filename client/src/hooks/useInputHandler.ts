@@ -793,30 +793,49 @@ export const useInputHandler = ({
                     }
                 }
                 
-                // === HEADLAMP TOGGLE (head armor slot) ===
-                // Check if player has a headlamp equipped in head armor slot
+                // === HEADLAMP / SNORKEL TOGGLE (head armor slot) ===
+                // Check if player has a headlamp or snorkel equipped in head armor slot
+                let handledSnorkelToggle = false;
                 const activeArmor = activeEquipmentsRef.current?.get(localPlayerId || '');
                 if (activeArmor?.headItemInstanceId && connectionRef.current?.reducers) {
                     // Get the head armor item
                     const headItem = inventoryItems.get(activeArmor.headItemInstanceId.toString());
                     if (headItem) {
                         const headItemDef = itemDefinitionsRef.current?.get(headItem.itemDefId.toString());
-                        if (headItemDef && headItemDef.name === 'Headlamp') {
-                            console.log('[F-Key] Toggling headlamp');
-                            try {
-                                connectionRef.current.reducers.toggleHeadlamp();
-                                console.log('[F-Key] Successfully called toggleHeadlamp');
-                                handledHeadlampToggle = true;
-                            } catch (err) {
-                                console.error('[F-Key] Error toggling headlamp:', err);
+                        if (headItemDef) {
+                            // Check for Headlamp
+                            if (headItemDef.name === 'Headlamp') {
+                                console.log('[F-Key] Toggling headlamp');
+                                try {
+                                    connectionRef.current.reducers.toggleHeadlamp();
+                                    console.log('[F-Key] Successfully called toggleHeadlamp');
+                                    handledHeadlampToggle = true;
+                                } catch (err) {
+                                    console.error('[F-Key] Error toggling headlamp:', err);
+                                }
+                            }
+                            // Check for Snorkel (must be on water to toggle)
+                            else if (headItemDef.name === 'Reed Diver\'s Helm') {
+                                if (localPlayerRef.current?.isOnWater) {
+                                    console.log('[F-Key] Toggling snorkel (player is on water)');
+                                    try {
+                                        connectionRef.current.reducers.toggleSnorkel();
+                                        console.log('[F-Key] Successfully called toggleSnorkel');
+                                        handledSnorkelToggle = true;
+                                    } catch (err) {
+                                        console.error('[F-Key] Error toggling snorkel:', err);
+                                    }
+                                } else {
+                                    console.log('[F-Key] Cannot toggle snorkel - player is not on water');
+                                }
                             }
                         }
                     }
                 }
                 
-                // Log if neither action was taken
-                if (!handledWaterFilling && !handledHeadlampToggle) {
-                    console.log('[F-Key] No water container equipped or not on water, and no headlamp equipped');
+                // Log if no action was taken
+                if (!handledWaterFilling && !handledHeadlampToggle && !handledSnorkelToggle) {
+                    console.log('[F-Key] No applicable action - no water container on water, no headlamp, or no snorkel on water');
                 }
                 
                 return;

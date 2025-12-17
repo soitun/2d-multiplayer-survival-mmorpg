@@ -469,15 +469,15 @@ export const MEMORY_GRID_NODES = [
   // Branch 3 UPPER (Fishing)
   { 
     id: 'reed-snorkel', 
-    name: 'Reed Snorkel', 
-    description: 'Unlocks crafting the Primitive Reed Snorkel - allows limited underwater exploration.', 
+    name: 'Reed Diver\'s Helm',
+    description: 'Unlocks crafting the Reed Diver\'s Helm - allows limited underwater exploration.',
     cost: 1400, 
     tier: 4, 
     prerequisites: ['reed-fishing-rod'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 420), // Upper path
     category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Primitive Reed Snorkel']
+    unlocksItems: ['Reed Diver\'s Helm']
   },
   // Branch 3 LOWER (Water Collection)
   { 
@@ -947,7 +947,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 4 items
   'Hollow Reed Arrow': 'hollow-reed-arrow',
   'Metal Door': 'metal-door',
-  'Primitive Reed Snorkel': 'reed-snorkel',
+  'Reed Diver\'s Helm': 'reed-snorkel',
   'Plastic Water Jug': 'plastic-water-jug',
   'Cooking Station': 'cooking-station',
   'Compost': 'compost',

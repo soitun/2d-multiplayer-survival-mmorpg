@@ -5,7 +5,8 @@ import {
     getAllTransitionTilesets, 
     TILE_SIZE as AUTOTILE_SIZE,
     describeDualGridIndex,
-    DualGridTileInfo
+    DualGridTileInfo,
+    DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
 
 // Helper to get tile base texture path from tile type name
@@ -161,13 +162,20 @@ export class ProceduralWorldRenderer {
         
         // PASS 2: Render Dual Grid transitions at half-tile offset positions
         // Start one tile earlier to catch transitions that overlap visible area
-        // Skip transitions when snorkeling - just show underwater/sea view
-        if (!isSnorkeling) {
-            const dualStartX = Math.max(0, startTileX - 1);
-            const dualStartY = Math.max(0, startTileY - 1);
-            const dualEndX = Math.min(gameConfig.worldWidth - 1, endTileX);
-            const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
-            
+        const dualStartX = Math.max(0, startTileX - 1);
+        const dualStartY = Math.max(0, startTileY - 1);
+        const dualEndX = Math.min(gameConfig.worldWidth - 1, endTileX);
+        const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
+        
+        if (isSnorkeling) {
+            // When snorkeling, render underwater→sea transitions only
+            for (let y = dualStartY; y < dualEndY; y++) {
+                for (let x = dualStartX; x < dualEndX; x++) {
+                    this.renderUnderwaterTransition(ctx, x, y, tileSize, showDebugOverlay);
+                }
+            }
+        } else {
+            // Normal mode: render all transitions
             for (let y = dualStartY; y < dualEndY; y++) {
                 for (let x = dualStartX; x < dualEndX; x++) {
                     this.renderDualGridTransition(ctx, x, y, tileSize, showDebugOverlay);
@@ -200,15 +208,31 @@ export class ProceduralWorldRenderer {
         const pixelY = Math.floor(tileY * tileSize);
         const pixelSize = Math.floor(tileSize) + 1; // Add 1 pixel to eliminate gaps
         
-        // Underwater dark blue color for land when snorkeling
-        const UNDERWATER_LAND_COLOR = '#0a3d4f';
+        // Underwater interior tile extraction from autotile
+        // DUAL_GRID_LOOKUP index 0 (all corners same/primary) = row 1, col 2 (interior tile)
+        const UNDERWATER_INTERIOR_COL = 2;
+        const UNDERWATER_INTERIOR_ROW = 1;
+        const AUTOTILE_TILE_SIZE = 128;
+        const UNDERWATER_FALLBACK_COLOR = '#0a3d4f';
         
         if (!tile) {
             // Fallback when no tile data
             if (isSnorkeling) {
-                // When snorkeling with no tile data, show underwater darkness
-                ctx.fillStyle = UNDERWATER_LAND_COLOR;
-                ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+                // When snorkeling with no tile data, use underwater interior tile
+                const underwaterImg = this.tileCache.images.get('transition_Underwater_Sea');
+                if (underwaterImg && underwaterImg.complete && underwaterImg.naturalHeight !== 0) {
+                    ctx.drawImage(
+                        underwaterImg,
+                        UNDERWATER_INTERIOR_COL * AUTOTILE_TILE_SIZE,
+                        UNDERWATER_INTERIOR_ROW * AUTOTILE_TILE_SIZE,
+                        AUTOTILE_TILE_SIZE,
+                        AUTOTILE_TILE_SIZE,
+                        pixelX, pixelY, pixelSize, pixelSize
+                    );
+                } else {
+                    ctx.fillStyle = UNDERWATER_FALLBACK_COLOR;
+                    ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+                }
             } else {
                 const grassImg = this.tileCache.images.get('Grass_base');
                 if (grassImg && grassImg.complete && grassImg.naturalHeight !== 0) {
@@ -223,8 +247,25 @@ export class ProceduralWorldRenderer {
         
         const tileTypeName = tile.tileType?.tag;
         if (!tileTypeName) {
-            ctx.fillStyle = isSnorkeling ? UNDERWATER_LAND_COLOR : '#808080';
-            ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            if (isSnorkeling) {
+                const underwaterImg = this.tileCache.images.get('transition_Underwater_Sea');
+                if (underwaterImg && underwaterImg.complete && underwaterImg.naturalHeight !== 0) {
+                    ctx.drawImage(
+                        underwaterImg,
+                        UNDERWATER_INTERIOR_COL * AUTOTILE_TILE_SIZE,
+                        UNDERWATER_INTERIOR_ROW * AUTOTILE_TILE_SIZE,
+                        AUTOTILE_TILE_SIZE,
+                        AUTOTILE_TILE_SIZE,
+                        pixelX, pixelY, pixelSize, pixelSize
+                    );
+                } else {
+                    ctx.fillStyle = UNDERWATER_FALLBACK_COLOR;
+                    ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+                }
+            } else {
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            }
             return;
         }
         
@@ -234,9 +275,21 @@ export class ProceduralWorldRenderer {
         const isWaterTile = tileTypeName === 'Sea' || tileTypeName === 'HotSpringWater';
         
         if (isSnorkeling && !isWaterTile) {
-            // Render land tiles as underwater darkness
-            ctx.fillStyle = UNDERWATER_LAND_COLOR;
-            ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            // Render land tiles using underwater interior tile from autotile
+            const underwaterImg = this.tileCache.images.get('transition_Underwater_Sea');
+            if (underwaterImg && underwaterImg.complete && underwaterImg.naturalHeight !== 0) {
+                ctx.drawImage(
+                    underwaterImg,
+                    UNDERWATER_INTERIOR_COL * AUTOTILE_TILE_SIZE,
+                    UNDERWATER_INTERIOR_ROW * AUTOTILE_TILE_SIZE,
+                    AUTOTILE_TILE_SIZE,
+                    AUTOTILE_TILE_SIZE,
+                    pixelX, pixelY, pixelSize, pixelSize
+                );
+            } else {
+                ctx.fillStyle = UNDERWATER_FALLBACK_COLOR;
+                ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            }
             return;
         }
         
@@ -433,6 +486,100 @@ export class ProceduralWorldRenderer {
                 ctx.fillText('R', rX, pixelY - 15);
             }
             
+            ctx.restore();
+        }
+    }
+    
+    /**
+     * Render underwater→sea transitions when snorkeling.
+     * This shows a feathered edge between the dark underwater area (land from below) and the sea.
+     * Uses the Underwater_Sea autotile tileset.
+     */
+    private renderUnderwaterTransition(
+        ctx: CanvasRenderingContext2D,
+        logicalX: number,
+        logicalY: number,
+        tileSize: number,
+        showDebugOverlay: boolean = false
+    ) {
+        // Get the 4 tiles that form this dual grid position
+        const tileKeys = [
+            `${logicalX}_${logicalY}`,     // TL
+            `${logicalX + 1}_${logicalY}`, // TR
+            `${logicalX}_${logicalY + 1}`, // BL
+            `${logicalX + 1}_${logicalY + 1}` // BR
+        ];
+        
+        const tiles = tileKeys.map(key => this.tileCache.tiles.get(key));
+        const tileTypes = tiles.map(tile => tile?.tileType?.tag || 'unknown');
+        
+        // Check which corners are water (Sea or HotSpringWater)
+        const isWater = tileTypes.map(type => type === 'Sea' || type === 'HotSpringWater');
+        
+        // Count water and land corners
+        const waterCount = isWater.filter(Boolean).length;
+        
+        // Only render transition if we have a mix of water and non-water (land viewed from underwater)
+        // All water (4) or all land (0) = no transition needed
+        if (waterCount === 0 || waterCount === 4) {
+            return;
+        }
+        
+        // Get the underwater autotile - this shows transition between underwater darkness and sea
+        const tilesetImg = this.tileCache.images.get('transition_Underwater_Sea');
+        if (!tilesetImg || !tilesetImg.complete || tilesetImg.naturalHeight === 0) {
+            return;
+        }
+        
+        // Calculate the Dual Grid index based on which corners are water
+        // Dual Grid bit ordering: TL(8) + TR(4) + BL(2) + BR(1)
+        // Convention: 1 = secondary terrain (sea), 0 = primary terrain (land/underwater darkness)
+        // So we set bits when the corner IS water (sea)
+        let dualGridIndex = 0;
+        if (isWater[0]) dualGridIndex |= 8; // TL is sea (secondary)
+        if (isWater[1]) dualGridIndex |= 4; // TR is sea
+        if (isWater[2]) dualGridIndex |= 2; // BL is sea
+        if (isWater[3]) dualGridIndex |= 1; // BR is sea
+        
+        // Skip if no actual transition (all same - shouldn't happen due to earlier check)
+        if (dualGridIndex === 0 || dualGridIndex === 15) {
+            return;
+        }
+        
+        // Use the standard DUAL_GRID_LOOKUP table for correct sprite positioning
+        // This table maps the 4-bit index to row/col in the 4x5 tileset
+        const lookup = DUAL_GRID_LOOKUP[dualGridIndex];
+        const TILE_SIZE_SRC = 128; // Source tileset tile size
+        
+        const spriteX = lookup.col * TILE_SIZE_SRC;
+        const spriteY = lookup.row * TILE_SIZE_SRC;
+        
+        // Calculate pixel position with half-tile offset (between the 4 logical tiles)
+        const pixelX = Math.floor((logicalX + 0.5) * tileSize);
+        const pixelY = Math.floor((logicalY + 0.5) * tileSize);
+        const pixelSize = Math.floor(tileSize) + 1;
+        
+        const destX = Math.floor(pixelX - pixelSize / 2);
+        const destY = Math.floor(pixelY - pixelSize / 2);
+        
+        ctx.drawImage(
+            tilesetImg,
+            spriteX, spriteY, TILE_SIZE_SRC, TILE_SIZE_SRC,
+            destX, destY, pixelSize, pixelSize
+        );
+        
+        // Debug overlay
+        if (showDebugOverlay) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(destX, destY, pixelSize, pixelSize);
+            
+            ctx.font = 'bold 16px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'cyan';
+            ctx.fillText(`U${dualGridIndex}`, pixelX, pixelY);
             ctx.restore();
         }
     }

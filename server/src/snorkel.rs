@@ -51,7 +51,7 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
         .ok_or_else(|| "Head item definition not found.".to_string())?;
 
     // Check if the head item is a Snorkel
-    if item_def.name != "Primitive Reed Snorkel" {
+    if item_def.name != "Reed Diver's Helm" {
         return Err(format!("Cannot toggle: {} is not a Reed Snorkel.", item_def.name));
     }
 

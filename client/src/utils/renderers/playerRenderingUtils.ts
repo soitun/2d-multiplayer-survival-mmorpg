@@ -289,7 +289,8 @@ export const renderPlayer = (
   localPlayerIsCrouching?: boolean, // NEW: Add local crouch state for optimistic rendering
   renderHalfMode?: 'top' | 'bottom' | 'full', // NEW: Control which part of sprite to render
   isDodgeRolling?: boolean, // NEW: Whether the player is currently dodge rolling
-  dodgeRollProgress?: number // NEW: Progress of the dodge roll (0.0 to 1.0)
+  dodgeRollProgress?: number, // NEW: Progress of the dodge roll (0.0 to 1.0)
+  isSnorkeling?: boolean // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
 ) => {
   // REMOVE THE NAME TAG RENDERING BLOCK FROM HERE
   // const { positionX, positionY, direction, color, username } = player;
@@ -900,14 +901,16 @@ export const renderPlayer = (
 
       // Apply underwater teal tinting for swimming players
       if (player.isOnWater && !isCorpse && !isCurrentlyJumping) {
-        // Calculate water line position on the sprite (50% down from top)
-        const spriteWaterLineY = Math.floor(offscreenCanvas.height * 0.5);
+        // When snorkeling, apply full underwater tint to entire sprite
+        // Otherwise, only tint bottom half (below water line)
+        const startY = isSnorkeling ? 0 : Math.floor(offscreenCanvas.height * 0.5);
+        const tintHeight = isSnorkeling ? offscreenCanvas.height : (offscreenCanvas.height - startY);
         
-        // Get pixel data for the underwater area
-        const imageData = offscreenCtx.getImageData(0, spriteWaterLineY, offscreenCanvas.width, offscreenCanvas.height - spriteWaterLineY);
+        // Get pixel data for the area to tint
+        const imageData = offscreenCtx.getImageData(0, startY, offscreenCanvas.width, tintHeight);
         const data = imageData.data;
         
-        // Apply pronounced teal tint to each pixel below the water line
+        // Apply pronounced teal tint to each pixel
         for (let y = 0; y < imageData.height; y++) {
           for (let x = 0; x < imageData.width; x++) {
             const pixelIndex = (y * imageData.width + x) * 4;
@@ -915,9 +918,11 @@ export const renderPlayer = (
             
             // Only process pixels that exist (have alpha > 0)
             if (alpha > 0) {
-              // Calculate tinting factor based on depth (0 = water line, 1 = bottom)
-              const depthRatio = y / imageData.height;
-              const baseDarkenFactor = 0.75 - (depthRatio * 0.25); // 0.75 at water line, 0.5 at bottom
+              // Calculate tinting factor based on depth
+              // For snorkeling: full sprite gets uniform deep tint
+              // For normal swimming: gradient from water line to bottom
+              const depthRatio = isSnorkeling ? 0.7 : (y / imageData.height); // Uniform 0.7 depth for snorkeling
+              const baseDarkenFactor = isSnorkeling ? 0.55 : (0.75 - (depthRatio * 0.25)); // Darker when fully submerged
               
               // Get original color values
               const originalRed = data[pixelIndex];
@@ -926,24 +931,24 @@ export const renderPlayer = (
               
               // Apply pronounced teal tint (cyan-green underwater effect)
               // Teal = high blue + moderate green + low red
-              const tealIntensity = 0.6 + (depthRatio * 0.3); // Stronger teal effect deeper underwater
+              const tealIntensity = isSnorkeling ? 0.85 : (0.6 + (depthRatio * 0.3)); // Stronger teal when fully submerged
               
               // Red: Significantly reduced for teal effect
-              data[pixelIndex] = Math.floor(originalRed * baseDarkenFactor * 0.4); // Much less red
+              data[pixelIndex] = Math.floor(originalRed * baseDarkenFactor * 0.35); // Even less red when snorkeling
               
               // Green: Moderately reduced but boosted for teal
-              const greenBase = originalGreen * baseDarkenFactor * 0.7;
-              data[pixelIndex + 1] = Math.floor(greenBase + (tealIntensity * 40)); // Boost green for teal
+              const greenBase = originalGreen * baseDarkenFactor * 0.65;
+              data[pixelIndex + 1] = Math.floor(greenBase + (tealIntensity * 45)); // Boost green for teal
               
               // Blue: Slightly darkened but boosted for teal
-              const blueBase = originalBlue * baseDarkenFactor * 0.8;
-              data[pixelIndex + 2] = Math.floor(Math.min(255, blueBase + (tealIntensity * 60))); // Strong boost blue for teal
+              const blueBase = originalBlue * baseDarkenFactor * 0.75;
+              data[pixelIndex + 2] = Math.floor(Math.min(255, blueBase + (tealIntensity * 70))); // Strong boost blue for teal
             }
           }
         }
         
         // Put the modified pixel data back
-        offscreenCtx.putImageData(imageData, 0, spriteWaterLineY);
+        offscreenCtx.putImageData(imageData, 0, startY);
       }
 
     } else if (!currentSpriteImg) {
@@ -973,7 +978,8 @@ export const renderPlayer = (
     }
 
     // Draw swimming effects that go under the sprite (underwater shadow, wake)
-    if (player.isOnWater && !isCorpse) {
+    // Skip when snorkeling - player is fully underwater, no surface wake effects
+    if (player.isOnWater && !isCorpse && !isSnorkeling) {
       drawSwimmingEffectsUnder(
         ctx, 
         player, 
@@ -1041,7 +1047,8 @@ export const renderPlayer = (
     // --- END MODIFICATION ---
 
     // Draw swimming effects that go over the sprite (water line)
-    if (player.isOnWater && !isCorpse) {
+    // Skip when snorkeling - player is fully underwater, no water line effect
+    if (player.isOnWater && !isCorpse && !isSnorkeling) {
       drawSwimmingEffectsOver(
         ctx, 
         player, 

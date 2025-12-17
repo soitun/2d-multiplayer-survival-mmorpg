@@ -129,11 +129,13 @@ import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
-import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly } from '../utils/renderers/seaStackRenderingUtils';
+import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly, renderSeaStackUnderwaterSilhouette } from '../utils/renderers/seaStackRenderingUtils';
+import { renderBarrelUnderwaterSilhouette } from '../utils/renderers/barrelRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
+import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
 import { renderEquippedItem } from '../utils/renderers/equippedItemRenderingUtils';
@@ -2305,24 +2307,64 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End Ground Items --- 
 
     // --- STEP 0.4: Render sea stack SHADOWS ONLY (below everything) ---
-    visibleSeaStacks.forEach(seaStack => {
-      renderSeaStackShadowOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress);
-    });
-    // --- END SEA STACK SHADOWS ---
+    // Skip normal sea stack rendering when snorkeling - use underwater silhouettes instead
+    if (isSnorkeling) {
+      // When snorkeling, render sea stacks as feathered dark circles (underwater view of obstacles)
+      visibleSeaStacks.forEach(seaStack => {
+        renderSeaStackUnderwaterSilhouette(ctx, seaStack, currentCycleProgress);
+      });
+      
+      // Also render sea barrels (floating barrels) as underwater silhouettes
+      // Only sea barrel variants (3, 4, 5) will be rendered - the function filters internally
+      // Pass nowMs for sway/bob animation sync with above-water barrels
+      visibleBarrels.forEach(barrel => {
+        renderBarrelUnderwaterSilhouette(ctx, barrel, currentCycleProgress, now_ms);
+      });
+    } else {
+      // Normal rendering: shadows, bottom half, and water effects
+      visibleSeaStacks.forEach(seaStack => {
+        renderSeaStackShadowOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress);
+      });
+      // --- END SEA STACK SHADOWS ---
 
-    // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
-    const localPlayerPositionForSeaStacks = currentPredictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
-    visibleSeaStacks.forEach(seaStack => {
-      renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms, localPlayerPositionForSeaStacks);
-    });
-    // --- END SEA STACK BOTTOMS ---
+      // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
+      const localPlayerPositionForSeaStacks = currentPredictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
+      visibleSeaStacks.forEach(seaStack => {
+        renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms, localPlayerPositionForSeaStacks);
+      });
+      // --- END SEA STACK BOTTOMS ---
 
-    // --- STEP 0.6: Render sea stack water effects (blue gradient overlay OVER the rock) ---
-    // This creates the underwater tint over the sea stack base
-    visibleSeaStacks.forEach(seaStack => {
-      renderSeaStackWaterEffectsOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
-    });
-    // --- END SEA STACK WATER EFFECTS ---
+      // --- STEP 0.6: Render sea stack water effects (blue gradient overlay OVER the rock) ---
+      // This creates the underwater tint over the sea stack base
+      visibleSeaStacks.forEach(seaStack => {
+        renderSeaStackWaterEffectsOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
+      });
+    }
+    // --- END SEA STACK RENDERING ---
+
+    // --- UNDERWATER CAUSTIC EFFECTS (snorkeling mode) ---
+    // Render caustic light patterns on the sea floor when snorkeling
+    if (isSnorkeling) {
+      // Update underwater effects system
+      updateUnderwaterEffects(
+        deltaTimeRef.current / 1000, // Convert ms to seconds
+        -currentCameraOffsetX,
+        -currentCameraOffsetY,
+        canvasSize.width,
+        canvasSize.height
+      );
+      
+      // Render caustics below players
+      renderUnderwaterEffectsUnder(
+        ctx,
+        -currentCameraOffsetX,
+        -currentCameraOffsetY,
+        canvasSize.width,
+        canvasSize.height,
+        now_ms
+      );
+    }
+    // --- END UNDERWATER CAUSTIC EFFECTS ---
 
     // MOVED: Water line now renders AFTER sea stack tops (see below after Y-sorted entities)
 
@@ -2330,8 +2372,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
+    // EXCEPTION: When snorkeling, the local player should NOT be split - they render as full sprite
     const swimmingPlayersForBottomHalf = Array.from(players.values())
-      .filter(player => player.isOnWater && !player.isDead && !player.isKnockedOut);
+      .filter(player => {
+        // Basic swimming conditions
+        if (!player.isOnWater || player.isDead || player.isKnockedOut) return false;
+        // Skip local player if they're snorkeling - they render as full sprite in Y-sorted entities
+        if (isSnorkeling && player.identity.toHexString() === localPlayerId) return false;
+        return true;
+      });
 
     // Render swimming player bottom halves using exact same logic as renderYSortedEntities
     swimmingPlayersForBottomHalf.forEach(player => {
@@ -2520,15 +2569,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END UNDERWATER SHADOWS ---
 
     // --- Render water overlay (ABOVE underwater shadows and sea stack bottoms, BELOW sea stack tops and player heads) ---
-    renderWaterOverlay(
-      ctx,
-      -currentCameraOffsetX, // Convert camera offset to world camera position
-      -currentCameraOffsetY,
-      canvasSize.width,
-      canvasSize.height,
-      deltaTimeRef.current / 1000, // Convert ms to seconds
-      visibleWorldTiles
-    );
+    // Skip water overlay when snorkeling - player is underwater so surface effects aren't visible
+    if (!isSnorkeling) {
+      renderWaterOverlay(
+        ctx,
+        -currentCameraOffsetX, // Convert camera offset to world camera position
+        -currentCameraOffsetY,
+        canvasSize.width,
+        canvasSize.height,
+        deltaTimeRef.current / 1000, // Convert ms to seconds
+        visibleWorldTiles
+      );
+    }
     // --- END WATER OVERLAY ---
 
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
@@ -2592,6 +2644,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         buildingClusters,
         playerBuildingClusterId,
         connection, // ADDED: Pass connection for cairn biome lookup
+        isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -2886,6 +2939,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           buildingClusters,
           playerBuildingClusterId,
           connection, // ADDED: Pass connection for cairn biome lookup
+          isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
         });
         currentBatch = [];
       }
@@ -2910,9 +2964,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
     // --- Render sea stack water lines (ABOVE sea stacks) ---
-    visibleSeaStacks.forEach(seaStack => {
-      renderSeaStackWaterLineOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
-    });
+    // Skip water lines when snorkeling - player is underwater, no surface water effects visible
+    if (!isSnorkeling) {
+      visibleSeaStacks.forEach(seaStack => {
+        renderSeaStackWaterLineOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
+      });
+    }
     // --- END SEA STACK WATER LINES ---
 
     // --- Render Hot Springs (ABOVE players for steam/bubbles to show on top) ---
@@ -2925,6 +2982,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       canvasSize.height
     );
     // --- END HOT SPRINGS ---
+
+    // --- UNDERWATER BUBBLE EFFECTS (snorkeling mode) ---
+    // Render bubbles floating upward when snorkeling (only over sea tiles)
+    if (isSnorkeling) {
+      // Create water tile checker using the lookup map
+      // Tiles are 48px each (matches server TILE_SIZE_PX)
+      const TILE_SIZE = 48;
+      const checkIsWaterTile = (worldX: number, worldY: number): boolean => {
+        const tileX = Math.floor(worldX / TILE_SIZE);
+        const tileY = Math.floor(worldY / TILE_SIZE);
+        const key = `${tileX},${tileY}`;
+        return waterTileLookup.get(key) ?? false;
+      };
+      
+      renderUnderwaterEffectsOver(
+        ctx,
+        -currentCameraOffsetX,
+        -currentCameraOffsetY,
+        canvasSize.width,
+        canvasSize.height,
+        now_ms,
+        false, // Don't apply vignette here - do it in screen space after ctx.restore()
+        checkIsWaterTile // Only render bubbles over water tiles
+      );
+    }
+    // --- END UNDERWATER BUBBLE EFFECTS ---
 
     // --- Render Foundation Target Indicator (for upgrade targeting) ---
     if (targetedFoundation && hasRepairHammer && !targetedWall && ctx) {
@@ -2966,7 +3049,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (ctx) {
       // Render shore wave particles (below fire/smoke particles, on ground level)
       // Pass 0,0 for camera offsets since ctx is already translated
-      renderShoreWaves(ctx, shoreWaveParticles, 0, 0);
+      // Skip shore waves when snorkeling - player is underwater, can't see surface effects
+      if (!isSnorkeling) {
+        renderShoreWaves(ctx, shoreWaveParticles, 0, 0);
+      }
       
       // Call without camera offsets, as ctx is already translated
       renderParticlesToCanvas(ctx, campfireParticles);
@@ -3157,7 +3243,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     
     // Only render rain if weather overlay is enabled (performance toggle)
-    if (showWeatherOverlay && rainIntensity > 0) {
+    // Don't render rain when snorkeling - player is underwater!
+    if (showWeatherOverlay && rainIntensity > 0 && !isSnorkeling) {
       renderRain(
         ctx,
         -currentCameraOffsetX, // Convert screen offset to world camera position
@@ -3198,6 +3285,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderParticlesToCanvas(ctx, resourceSparkleParticles);
     ctx.restore();
     // --- End Resource Sparkle Particles ---
+
+    // --- UNDERWATER VIGNETTE (snorkeling mode) ---
+    // Renders a depth vignette around screen edges for underwater immersion
+    if (isSnorkeling) {
+      renderUnderwaterVignette(ctx, currentCanvasWidth, currentCanvasHeight);
+    }
+    // --- END UNDERWATER VIGNETTE ---
 
     // --- Render Health/Frost Overlays (Above Day/Night, Below UI) ---
     // These overlays render AFTER day/night so they're visible at night

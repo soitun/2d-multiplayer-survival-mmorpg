@@ -437,6 +437,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   buildingClusters?: Map<string, any>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
   connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
+  isLocalPlayerSnorkeling?: boolean; // ADDED: Whether local player is snorkeling (underwater mode)
 }
 
 
@@ -505,6 +506,7 @@ export const renderYSortedEntities = ({
   buildingClusters, // ADDED: Building clusters for fog of war
   playerBuildingClusterId, // ADDED: Which building the player is in
   connection, // ADDED: Connection for tile biome lookup
+  isLocalPlayerSnorkeling = false, // ADDED: Whether local player is snorkeling (underwater mode)
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -539,6 +541,16 @@ export const renderYSortedEntities = ({
       // Skip fog overlays, walls, and doors - they render in later passes
       if (type === 'fog_overlay' || type === 'wall_cell' || type === 'door') {
         return;
+      }
+      
+      // === UNDERWATER SNORKELING MODE ===
+      // When snorkeling, hide ALL land-based entities except players and sea stacks
+      // Player is underwater and cannot see anything above the water surface
+      if (isLocalPlayerSnorkeling) {
+        // Only render players (the snorkeling player) - sea stacks are rendered separately as silhouettes
+        if (type !== 'player') {
+          return; // Skip all land-based entities
+        }
       }
       
       if (type === 'player') {
@@ -760,8 +772,12 @@ export const renderYSortedEntities = ({
                   currentAnimFrame = animationFrame; // Use walking animation for normal movement
                 }
               }
+              // Determine if this player should use snorkeling mode rendering
+              const playerIsSnorkeling = playerId === localPlayerId && isLocalPlayerSnorkeling;
+              
               // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
-              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut) ? 'bottom' : 'full';
+              // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
+              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
               
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
@@ -787,9 +803,10 @@ export const renderYSortedEntities = ({
                 false, // isCorpse
                 cycleProgress, // cycleProgress
                 localPlayerIsCrouching, // NEW: pass local crouch state for optimistic rendering
-                renderHalf, // Render full player for normal Y-sorting
+                renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
                 isDodgeRolling, // NEW: pass dodge roll state
-                dodgeRollProgress // NEW: pass dodge roll progress
+                dodgeRollProgress, // NEW: pass dodge roll progress
+                playerIsSnorkeling // NEW: pass snorkeling state for underwater rendering
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} - cannot render`);
@@ -813,8 +830,12 @@ export const renderYSortedEntities = ({
                   currentAnimFrame = animationFrame; // Use walking animation for normal movement
                 }
               }
+              // Determine if this player should use snorkeling mode rendering
+              const playerIsSnorkeling = playerId === localPlayerId && isLocalPlayerSnorkeling;
+              
               // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
-              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut) ? 'bottom' : 'full';
+              // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
+              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
               
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
@@ -840,9 +861,10 @@ export const renderYSortedEntities = ({
                 false, // isCorpse
                 cycleProgress, // cycleProgress
                 localPlayerIsCrouching, // NEW: pass local crouch state for optimistic rendering
-                renderHalf, // Render full player for normal Y-sorting
+                renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
                 isDodgeRolling, // NEW: pass dodge roll state
-                dodgeRollProgress // NEW: pass dodge roll progress
+                dodgeRollProgress, // NEW: pass dodge roll progress
+                playerIsSnorkeling // NEW: pass snorkeling state for underwater rendering
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} (down/right) - cannot render`);
@@ -1157,8 +1179,11 @@ export const renderYSortedEntities = ({
           }
       } else if (type === 'sea_stack') {
           const seaStack = entity as any; // Sea stack from SpacetimeDB
-          // Render ONLY top half - bottom half is rendered separately before swimming players
-          renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top', localPlayerPosition);
+          // Skip top half rendering when snorkeling - underwater silhouettes are rendered elsewhere
+          if (!isLocalPlayerSnorkeling) {
+            // Render ONLY top half - bottom half is rendered separately before swimming players
+            renderSeaStackSingle(ctx, seaStack, doodadImagesRef.current, cycleProgress, nowMs, 'top', localPlayerPosition);
+          }
       } else if (type === 'homestead_hearth') {
           const hearth = entity as SpacetimeDBHomesteadHearth;
           // Check if this hearth is the closest interactable target
