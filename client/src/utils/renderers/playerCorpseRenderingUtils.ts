@@ -126,6 +126,7 @@ export function renderPlayerCorpse({
     insanity: 0, // Corpses have no insanity
     lastInsanityThreshold: 0, // Corpses have no insanity threshold
     shardCarryStartTime: undefined, // Corpses are not carrying shards
+    isSnorkeling: false, // Corpses are not snorkeling
   };
 
   // Choose the appropriate hero sprite based on water status (corpses don't crouch)
