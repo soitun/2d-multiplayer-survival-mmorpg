@@ -722,7 +722,9 @@ This section contains the prompts used for generating game assets with AI tools 
 For generating game item icons (weapons, tools, consumables, etc.):
 
 ```
-A pixel art style SUBJECT (i.e., hammer) with consistent pixel width and clean black outlines, designed as a game item icon. Rendered with a transparent background, PNG format. The object should have a clear silhouette, sharp pixel-level detail, and fit naturally in a top-down RPG game like Secret of Mana. No background, no shadows outside the object. Stylized with a warm palette and light dithering where appropriate.
+A pixel art style icon with consistent pixel width and clean black outlines, designed as a game item icon. Rendered with a transparent background, PNG format. The object should have a clear silhouette, sharp pixel-level detail, and fit naturally in a top-down RPG game like Secret of Mana. No background, no shadows outside the object. Stylized with a warm palette and light dithering where appropriate.
+
+Subject: SUBJECT, i.e. Rope
 ```
 
 **Usage**: Replace "SUBJECT" with the specific item (e.g., "hammer", "health potion", "wooden sword")

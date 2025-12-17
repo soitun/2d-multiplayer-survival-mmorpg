@@ -410,21 +410,36 @@ function renderSeaBarrelWithWaterEffects(
 }
 
 // --- Rendering Function (Refactored) ---
+/**
+ * Renders a barrel with appropriate effects based on variant and location.
+ * @param ctx - Canvas rendering context
+ * @param barrel - The barrel entity to render
+ * @param nowMs - Current time in milliseconds
+ * @param cycleProgress - Day/night cycle progress (0-1)
+ * @param isOnSeaTile - Optional callback to check if barrel position is on a sea tile.
+ *                      If not provided, defaults to assuming sea variants are on sea tiles.
+ */
 export function renderBarrel(
     ctx: CanvasRenderingContext2D, 
     barrel: Barrel, 
     nowMs: number, 
-    cycleProgress: number
+    cycleProgress: number,
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean
 ) {
     const variantIndex = Number(barrel.variant ?? 0);
     
-    // Sea barrels get special water effects rendering
-    if (isSeaBarrelVariant(variantIndex) && !barrel.respawnAt) {
+    // Sea barrels get special water effects rendering ONLY if actually on a sea tile
+    // If isOnSeaTile callback is provided, use it to verify the barrel is on water
+    // If not provided, fall back to variant-only check for backwards compatibility
+    const isSeaVariant = isSeaBarrelVariant(variantIndex);
+    const actuallyOnSea = isOnSeaTile ? isOnSeaTile(barrel.posX, barrel.posY) : isSeaVariant;
+    
+    if (isSeaVariant && actuallyOnSea && !barrel.respawnAt) {
         renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress);
         return;
     }
     
-    // Normal barrel rendering for road barrels
+    // Normal barrel rendering for road barrels OR sea barrels that washed up on land
     renderConfiguredGroundEntity({
         ctx,
         entity: barrel,

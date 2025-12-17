@@ -102,6 +102,7 @@ import { getItemIcon } from '../itemIconUtils';
 import { renderPlayerTorchLight, renderCampfireLight } from './lightRenderingUtils';
 import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionOutlineColor } from './outlineUtils';
 import { drawDynamicGroundShadow } from './shadowUtils';
+import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 
 // Type alias for Y-sortable entities
 import { YSortedEntityType } from '../../hooks/useEntityFiltering';
@@ -1167,8 +1168,18 @@ export const renderYSortedEntities = ({
           const barrel = entity as any; // Use any for now, will be properly typed
           // Check if this barrel is the closest interactable target  
           const isTheClosestTarget = closestInteractableTarget?.type === 'barrel' && closestInteractableTarget?.id === barrel.id;
-          // Render barrel using imported function
-          renderBarrel(ctx, barrel, nowMs, cycleProgress);
+          
+          // Create callback to check if barrel is on a sea tile
+          // This prevents sea barrel water effects from rendering when barrels are on land (e.g., beach)
+          const isOnSeaTile = (worldX: number, worldY: number): boolean => {
+              if (!connection) return false;
+              const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+              const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+              return tileType === 'Sea';
+          };
+          
+          // Render barrel using imported function with sea tile check
+          renderBarrel(ctx, barrel, nowMs, cycleProgress, isOnSeaTile);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
