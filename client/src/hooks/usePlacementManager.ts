@@ -87,6 +87,7 @@ function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number
           case 9: return 'Forest';
           case 10: return 'Tundra';
           case 11: return 'Alpine';
+          case 12: return 'TundraGrass'; // Grassy patches in tundra biome
           default: return 'Grass';
         }
       }
@@ -369,6 +370,14 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
         }
       }
     }
+  }
+  
+  // Check asphalt tiles (compound areas - cannot place anything)
+  const tileAtX = Math.floor(worldX / TILE_SIZE);
+  const tileAtY = Math.floor(worldY / TILE_SIZE);
+  const tileTypeAtPosition = getTileTypeFromChunkData(connection, tileAtX, tileAtY);
+  if (tileTypeAtPosition === 'Asphalt') {
+    return true; // Cannot place on asphalt/compound areas
   }
   
   return false; // Not blocked

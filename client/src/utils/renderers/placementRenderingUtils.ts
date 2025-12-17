@@ -372,6 +372,88 @@ function isSeedPlacementTooClose(connection: DbConnection | null, placementInfo:
 }
 
 /**
+ * Checks if a world position is within a monument zone (ALK stations, rune stones, hot springs, quarries)
+ * Returns true if the position is blocked due to monument proximity
+ * This matches the server-side check_monument_zone_placement logic for consistent preview coloring
+ */
+function isPositionInMonumentZone(
+    connection: DbConnection | null,
+    worldX: number,
+    worldY: number
+): boolean {
+    if (!connection) return false;
+    
+    const MONUMENT_RESTRICTION_RADIUS = 800.0;
+    const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;
+    const TILE_SIZE_LOCAL = 48;
+    
+    // Check ALK stations
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
+    
+    for (const station of connection.db.alkStation.iter()) {
+        if (!station.isActive) continue;
+        const dx = worldX - station.worldPosX;
+        const dy = worldY - station.worldPosY;
+        const distSq = dx * dx + dy * dy;
+        
+        const multiplier = station.stationId === 0 
+            ? ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL 
+            : ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION;
+        const restrictionRadius = station.interactionRadius * multiplier;
+        const restrictionRadiusSq = restrictionRadius * restrictionRadius;
+        
+        if (distSq <= restrictionRadiusSq) {
+            return true; // Too close to ALK station
+        }
+    }
+    
+    // Check rune stones (800px radius)
+    for (const runeStone of connection.db.runeStone.iter()) {
+        const dx = worldX - runeStone.posX;
+        const dy = worldY - runeStone.posY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+            return true; // Too close to rune stone
+        }
+    }
+    
+    // Check hot springs and quarries using tile type lookup
+    const checkRadiusTiles = Math.ceil(MONUMENT_RESTRICTION_RADIUS / TILE_SIZE_LOCAL) + 1;
+    const centerTileX = Math.floor(worldX / TILE_SIZE_LOCAL);
+    const centerTileY = Math.floor(worldY / TILE_SIZE_LOCAL);
+    
+    for (let dy = -checkRadiusTiles; dy <= checkRadiusTiles; dy++) {
+        for (let dx = -checkRadiusTiles; dx <= checkRadiusTiles; dx++) {
+            const checkTileX = centerTileX + dx;
+            const checkTileY = centerTileY + dy;
+            
+            const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
+            if (tileType === 'HotSpringWater' || tileType === 'Quarry') {
+                const tileCenterX = checkTileX * TILE_SIZE_LOCAL + TILE_SIZE_LOCAL / 2;
+                const tileCenterY = checkTileY * TILE_SIZE_LOCAL + TILE_SIZE_LOCAL / 2;
+                const tdx = worldX - tileCenterX;
+                const tdy = worldY - tileCenterY;
+                const distSq = tdx * tdx + tdy * tdy;
+                if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+                    return true; // Too close to hot spring or quarry
+                }
+            }
+        }
+    }
+    
+    // Check asphalt tiles (compound areas)
+    const tileAtX = Math.floor(worldX / TILE_SIZE_LOCAL);
+    const tileAtY = Math.floor(worldY / TILE_SIZE_LOCAL);
+    const tileTypeAtPosition = getTileTypeFromChunkData(connection, tileAtX, tileAtY);
+    if (tileTypeAtPosition === 'Asphalt') {
+        return true; // Cannot place on asphalt/compound areas
+    }
+    
+    return false;
+}
+
+/**
  * Checks if a world position is too close to any wall (with buffer zone)
  * Used to prevent placing placeables on or near walls (client-side validation)
  * Returns true if the position is within the buffer zone around a wall, false otherwise
@@ -1402,6 +1484,10 @@ export function renderPlacementPreview({
     // Check if placement position is on a wall
     const isOnWall = connection ? isPositionOnWall(connection, worldMouseX, worldMouseY) : false;
     
+    // Check if placement position is in a monument zone (ALK stations, rune stones, hot springs, quarries, asphalt)
+    // This now matches the server-side check_monument_zone_placement validation
+    const isInMonumentZone = connection ? isPositionInMonumentZone(connection, worldMouseX, worldMouseY) : false;
+    
     // Check if broth pot is being placed without a nearby heat source or on one that already has a pot
     const isBrothPotInvalid = placementInfo.iconAssetName === 'field_cauldron.png' && (() => {
         if (!nearestHeatSource || !heatSourceType) {
@@ -1455,11 +1541,11 @@ export function renderPlacementPreview({
     // For door, only invalid if no foundation or edge has existing wall/door
     let isInvalidPlacement: boolean;
     if (placementInfo.iconAssetName === 'field_cauldron.png') {
-        isInvalidPlacement = isBrothPotInvalid; // Only check campfire validity for broth pot
+        isInvalidPlacement = isBrothPotInvalid || isInMonumentZone; // Check both campfire validity and monument zone
     } else if (isDoorPlacement) {
-        isInvalidPlacement = isDoorInvalid; // Only check foundation edge validity for doors
+        isInvalidPlacement = isDoorInvalid || isInMonumentZone; // Check both foundation edge validity and monument zone
     } else {
-        isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || !!placementError;
+        isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || !!placementError;
     }
     
     if (isInvalidPlacement) {

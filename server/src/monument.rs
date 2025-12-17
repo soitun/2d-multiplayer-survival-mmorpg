@@ -543,8 +543,16 @@ pub fn generate_fishing_village(
             let part_shore_dist = shore_distance[py][px];
             
             // Skip only if in deep water or on river/lake
-            if *part_type == "dock" || *part_type == "kayak" {
-                // Dock/kayak can be in shallow water
+            if *part_type == "dock" {
+                // Dock extends INTO water - allow up to 12 tiles into water
+                // Campfire at shore_dist 2-6 + dock offset 450px (~9.4 tiles) = dock at -3 to -7 tiles
+                // Must allow shore_dist down to -10 to reliably place the dock
+                if part_shore_dist < -10.0 || river_network[py][px] || lake_map[py][px] {
+                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1} (limit -10.0)", part_type, part_shore_dist);
+                    continue;
+                }
+            } else if *part_type == "kayak" {
+                // Kayak sits at water's edge - allow up to 5 tiles into water  
                 if part_shore_dist < -5.0 || river_network[py][px] || lake_map[py][px] {
                     log::warn!("🏘️ {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
                     continue;
