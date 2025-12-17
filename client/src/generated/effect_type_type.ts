@@ -64,7 +64,8 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.PoisonCoating |
   EffectTypeVariants.PassiveHealthRegen |
   EffectTypeVariants.HarvestBoost |
-  EffectTypeVariants.Entrainment;
+  EffectTypeVariants.Entrainment |
+  EffectTypeVariants.BrewCooldown;
 
 let _cached_EffectType_type_value: __AlgebraicTypeType | null = null;
 
@@ -111,6 +112,7 @@ export const EffectType = {
   PassiveHealthRegen: { tag: "PassiveHealthRegen" } as const,
   HarvestBoost: { tag: "HarvestBoost" } as const,
   Entrainment: { tag: "Entrainment" } as const,
+  BrewCooldown: { tag: "BrewCooldown" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_EffectType_type_value) return _cached_EffectType_type_value;
@@ -151,6 +153,7 @@ export const EffectType = {
       { name: "PassiveHealthRegen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HarvestBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Entrainment", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BrewCooldown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_EffectType_type_value;
   },

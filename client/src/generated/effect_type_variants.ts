@@ -63,4 +63,5 @@ export type PoisonCoating = { tag: "PoisonCoating" };
 export type PassiveHealthRegen = { tag: "PassiveHealthRegen" };
 export type HarvestBoost = { tag: "HarvestBoost" };
 export type Entrainment = { tag: "Entrainment" };
+export type BrewCooldown = { tag: "BrewCooldown" };
 
