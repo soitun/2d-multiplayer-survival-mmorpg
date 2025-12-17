@@ -1832,7 +1832,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         },
                                         {
                                             question: "WHAT'S THE LONG-TERM VISION?",
-                                            answer: "One massive persistent world where thousands of players shape a living economy and evolving civilizations. We're committed to delivering on our promise of deep survival mechanics, complex brewing systems, and emergent gameplay that grows more interesting as our community builds together season after season."
+                                            answer: "A thriving community of persistent, non-wiping servers where players build lasting legacies. Whether you prefer cozy farming and crafting or diving into competitive player-driven economies, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, and emergent gameplay that grows more interesting as our community builds together."
                                         }
                                     ].map((faq, index) => (
                                         <div key={index} style={{
