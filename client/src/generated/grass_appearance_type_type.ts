@@ -54,6 +54,7 @@ export type GrassAppearanceType = GrassAppearanceTypeVariants.PatchA |
   GrassAppearanceTypeVariants.AlpinePatchD |
   GrassAppearanceTypeVariants.TallGrassAlpineA |
   GrassAppearanceTypeVariants.TallGrassAlpineB |
+  GrassAppearanceTypeVariants.BeachGrassA |
   GrassAppearanceTypeVariants.ReedBedsA |
   GrassAppearanceTypeVariants.Bulrushes |
   GrassAppearanceTypeVariants.LilyPads |
@@ -94,6 +95,7 @@ export const GrassAppearanceType = {
   AlpinePatchD: { tag: "AlpinePatchD" } as const,
   TallGrassAlpineA: { tag: "TallGrassAlpineA" } as const,
   TallGrassAlpineB: { tag: "TallGrassAlpineB" } as const,
+  BeachGrassA: { tag: "BeachGrassA" } as const,
   ReedBedsA: { tag: "ReedBedsA" } as const,
   Bulrushes: { tag: "Bulrushes" } as const,
   LilyPads: { tag: "LilyPads" } as const,
@@ -128,6 +130,7 @@ export const GrassAppearanceType = {
       { name: "AlpinePatchD", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TallGrassAlpineA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TallGrassAlpineB", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BeachGrassA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ReedBedsA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Bulrushes", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LilyPads", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

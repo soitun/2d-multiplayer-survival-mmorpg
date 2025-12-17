@@ -46,6 +46,26 @@ interface ArmorStats {
     intimidatesAnimals: boolean;
 }
 
+// Special ability hints for specific items
+interface AbilityHint {
+    icon: string;
+    label: string;
+    hint: string;
+}
+
+const ITEM_ABILITY_HINTS: Record<string, AbilityHint> = {
+    "Reed Diver's Helm": {
+        icon: '🌊',
+        label: 'Dive',
+        hint: 'Press [F] over water to submerge'
+    },
+    "Headlamp": {
+        icon: '💡',
+        label: 'Light',
+        hint: 'Press [F] to toggle light'
+    },
+};
+
 const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
     const stats = useMemo((): ArmorStats => {
         const accumulated: ArmorStats = {
@@ -124,6 +144,18 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
         accumulated.meleeReflection = Math.min(accumulated.meleeReflection, 0.5);
 
         return accumulated;
+    }, [equippedArmor]);
+
+    // Collect ability hints from equipped items
+    const abilityHints = useMemo((): AbilityHint[] => {
+        const hints: AbilityHint[] = [];
+        equippedArmor.forEach(armor => {
+            const hint = ITEM_ABILITY_HINTS[armor.name];
+            if (hint) {
+                hints.push(hint);
+            }
+        });
+        return hints;
     }, [equippedArmor]);
 
     // Helper to format percentage
@@ -333,6 +365,21 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
                             <span className={styles.statValue + ' ' + styles.negative}>✓</span>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Ability Hints Section */}
+            {abilityHints.length > 0 && (
+                <div className={styles.section}>
+                    <div className={styles.sectionTitle}>💡 Abilities</div>
+                    {abilityHints.map((hint, index) => (
+                        <div key={index} className={styles.abilityHint}>
+                            <span className={styles.abilityIcon}>{hint.icon}</span>
+                            <span className={styles.abilityText}>
+                                <strong>{hint.label}:</strong> {hint.hint}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>

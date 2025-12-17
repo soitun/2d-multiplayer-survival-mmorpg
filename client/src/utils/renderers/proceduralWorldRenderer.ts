@@ -8,6 +8,7 @@ import {
     DualGridTileInfo,
     DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
+import { tileDoodadRenderer } from './tileDoodadRenderer';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -182,6 +183,18 @@ export class ProceduralWorldRenderer {
                 }
             }
         }
+        
+        // PASS 3: Render tile doodads (decorative objects on tile centers)
+        // Doodads are deterministically placed based on tile position and type
+        tileDoodadRenderer.renderDoodads(
+            ctx,
+            this.tileCache.tiles,
+            startTileX,
+            endTileX,
+            startTileY,
+            endTileY,
+            isSnorkeling
+        );
     }
     
     /**
@@ -546,6 +559,12 @@ export class ProceduralWorldRenderer {
             return;
         }
         
+        // U6 and U9 need to be flipped horizontally (mirrored on vertical axis)
+        // The tileset has diagonal sprites in the wrong orientation
+        // U6 (0110) and U9 (1001) are geometric opposites - horizontal mirrors
+        // See docs/architecture/DUAL_GRID_AUTOTILE_SYSTEM.md for full explanation
+        const needsFlip = dualGridIndex === 6 || dualGridIndex === 9;
+        
         // Use the standard DUAL_GRID_LOOKUP table for correct sprite positioning
         // This table maps the 4-bit index to row/col in the 4x5 tileset
         const lookup = DUAL_GRID_LOOKUP[dualGridIndex];
@@ -562,11 +581,23 @@ export class ProceduralWorldRenderer {
         const destX = Math.floor(pixelX - pixelSize / 2);
         const destY = Math.floor(pixelY - pixelSize / 2);
         
-        ctx.drawImage(
-            tilesetImg,
-            spriteX, spriteY, TILE_SIZE_SRC, TILE_SIZE_SRC,
-            destX, destY, pixelSize, pixelSize
-        );
+        if (needsFlip) {
+            // Flip U6/U9 horizontally (mirror on vertical axis)
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(
+                tilesetImg,
+                spriteX, spriteY, TILE_SIZE_SRC, TILE_SIZE_SRC,
+                -(destX + pixelSize), destY, pixelSize, pixelSize
+            );
+            ctx.restore();
+        } else {
+            ctx.drawImage(
+                tilesetImg,
+                spriteX, spriteY, TILE_SIZE_SRC, TILE_SIZE_SRC,
+                destX, destY, pixelSize, pixelSize
+            );
+        }
         
         // Debug overlay
         if (showDebugOverlay) {
@@ -578,8 +609,8 @@ export class ProceduralWorldRenderer {
             ctx.font = 'bold 16px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'cyan';
-            ctx.fillText(`U${dualGridIndex}`, pixelX, pixelY);
+            ctx.fillStyle = needsFlip ? 'yellow' : 'cyan';
+            ctx.fillText(`U${dualGridIndex}${needsFlip ? 'F' : ''}`, pixelX, pixelY);
             ctx.restore();
         }
     }

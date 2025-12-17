@@ -86,6 +86,9 @@ pub enum GrassAppearanceType {
     TallGrassAlpineA,  // tall_grass_alpine_a.png
     TallGrassAlpineB,  // tall_grass_alpine_b.png
     
+    // Beach foliage
+    BeachGrassA,     // Coastal dune grass
+    
     // Water foliage
     ReedBedsA,       // Tall swaying reeds
     Bulrushes,       // Classic cattails
@@ -110,6 +113,11 @@ impl GrassAppearanceType {
             GrassAppearanceType::SeaweedForest | 
             GrassAppearanceType::AlgaeMats
         )
+    }
+    
+    /// Returns true if this grass type is beach foliage that should spawn on beach tiles
+    pub fn is_beach_foliage(&self) -> bool {
+        matches!(self, GrassAppearanceType::BeachGrassA)
     }
 }
 

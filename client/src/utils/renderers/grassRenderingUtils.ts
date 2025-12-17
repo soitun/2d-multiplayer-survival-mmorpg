@@ -26,6 +26,9 @@ import grassAlpine4TextureUrl from '../../assets/doodads/grass_alpine4.png';
 import tallGrassAlpineATextureUrl from '../../assets/doodads/tall_grass_alpine_a.png';
 import tallGrassAlpineBTextureUrl from '../../assets/doodads/tall_grass_alpine_b.png';
 
+// Beach grass assets
+import tallGrassBeachATextureUrl from '../../assets/doodads/tall_grass_beach_a.png';
+
 // Water foliage assets
 import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
 import bulrushesTextureUrl from '../../assets/doodads/bulrushes.png';
@@ -127,6 +130,7 @@ const SWAYING_GRASS_TYPES = new Set<string>([
     'AlpinePatchD', // Will be available after bindings regeneration
     'TallGrassAlpineA', // Will be available after bindings regeneration
     'TallGrassAlpineB', // Will be available after bindings regeneration
+    'BeachGrassA', // Beach dune grass - sways in coastal wind
     GrassAppearanceType.ReedBedsA.tag,
     GrassAppearanceType.Bulrushes.tag,
     GrassAppearanceType.SeaweedForest.tag,
@@ -216,6 +220,8 @@ const grassAssetPaths: Record<string, string> = {
     'AlpinePatchD': grassAlpine4TextureUrl,
     'TallGrassAlpineA': tallGrassAlpineATextureUrl,
     'TallGrassAlpineB': tallGrassAlpineBTextureUrl,
+    // Beach grass variants
+    'BeachGrassA': tallGrassBeachATextureUrl,
     // Water foliage
     [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
     [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
@@ -251,7 +257,10 @@ const grassTargetWidths: Record<string, number> = {
     'AlpinePatchD': 128,
     'TallGrassAlpineA': 128,
     'TallGrassAlpineB': 128,
-    
+
+    // Beach grass variants
+    'BeachGrassA': 128,
+
     // Water foliage - distinctive but balanced
     [GrassAppearanceType.ReedBedsA.tag]: 128, // Tall swaying reeds - medium-tall
     [GrassAppearanceType.Bulrushes.tag]: 128,  // Classic cattails - medium size
