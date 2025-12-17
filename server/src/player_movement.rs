@@ -473,20 +473,55 @@ pub fn update_player_position_simple(
     let distance_moved = ((new_x - current_player.position_x).powi(2) + 
                          (new_y - current_player.position_y).powi(2)).sqrt();
     
-    // DISABLED: Teleport and speed validation to prevent rubber banding
-    // Client prediction can legitimately create large movements during:
-    // - Network lag compensation
-    // - Frame rate variations  
-    // - Client prediction corrections
-    // - Server processing delays
-    // 
-    // Only log extremely large movements for debugging
-    if distance_moved > 2000.0 {
-        log::debug!("Player {:?} very large movement: {:.1}px (possible lag compensation)", sender_id, distance_moved);
+    // === DIAGNOSTIC LOGGING: Movement consistency tracking ===
+    // These logs help measure if desync/speed hacking is actually a problem
+    // without rejecting any client movements (non-blocking observation)
+    
+    let now_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+    
+    // Calculate time since last update for speed analysis
+    let last_update_ms = (current_player.last_update.to_micros_since_unix_epoch() / 1000) as u64;
+    let time_delta_ms = now_ms.saturating_sub(last_update_ms);
+    
+    // Calculate theoretical max distance based on sprint speed + buffs
+    // PLAYER_SPEED * SPRINT_MULTIPLIER * delta_seconds * some_tolerance
+    let delta_seconds = time_delta_ms as f32 / 1000.0;
+    let max_expected_speed = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 1.5; // 50% tolerance for lag
+    let max_expected_distance = max_expected_speed * delta_seconds;
+    
+    // === MOVEMENT ANOMALY DETECTION (logging only, no rejection) ===
+    if distance_moved > 50.0 { // Only log significant movements (not micro-movements)
+        let speed_this_frame = if delta_seconds > 0.001 { distance_moved / delta_seconds } else { 0.0 };
+        
+        // Log potential speed anomalies (>2x expected speed)
+        if distance_moved > max_expected_distance * 2.0 && time_delta_ms > 10 {
+            log::warn!(
+                "[MOVEMENT_DIAGNOSTIC] SPEED_ANOMALY: Player {:?} moved {:.1}px in {}ms ({:.0} px/s). Expected max: {:.1}px. Ratio: {:.2}x",
+                sender_id, distance_moved, time_delta_ms, speed_this_frame, max_expected_distance, 
+                if max_expected_distance > 0.0 { distance_moved / max_expected_distance } else { 0.0 }
+            );
+        }
+        
+        // Log teleport-like movements (>500px in single update)
+        if distance_moved > 500.0 {
+            log::warn!(
+                "[MOVEMENT_DIAGNOSTIC] LARGE_JUMP: Player {:?} moved {:.1}px in single update ({}ms delta). From ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                sender_id, distance_moved, time_delta_ms, 
+                current_player.position_x, current_player.position_y, new_x, new_y
+            );
+        }
     }
     
-    // Keep time calculation for other validations below
-    let now_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+    // Log position sequence gaps (potential packet loss/reordering)
+    let expected_sequence = current_player.client_movement_sequence + 1;
+    if client_sequence > expected_sequence + 5 { // Allow small gaps
+        log::info!(
+            "[MOVEMENT_DIAGNOSTIC] SEQUENCE_GAP: Player {:?} sequence jumped from {} to {} (gap: {})",
+            sender_id, current_player.client_movement_sequence, client_sequence, 
+            client_sequence - current_player.client_movement_sequence
+        );
+    }
+    // === END DIAGNOSTIC LOGGING ===
     
     // DISABLED: Speed-based validation causes rubber banding due to client prediction
     // The client has sophisticated prediction that can legitimately exceed speed limits

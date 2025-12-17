@@ -195,6 +195,59 @@ pub fn apply_item_effects_and_consume(
     let old_thirst = player_to_update.thirst;
     let old_warmth = player_to_update.warmth;
 
+    // === BROTH POT BREW SPECIAL HANDLING ===
+    // Brews from the broth pot restore ALL stats to MAX and have a 60-second cooldown
+    let brew_cache = ctx.db.brew_recipe_cache();
+    let is_broth_pot_brew = brew_cache.iter()
+        .any(|recipe| recipe.output_item_def_id == item_def.id);
+    
+    if is_broth_pot_brew {
+        log::info!("[EffectsHelper] 🍲 Detected broth pot brew: '{}' (def_id: {})", item_def.name, item_def.id);
+        
+        // Check for brew cooldown - reject if still on cooldown
+        if crate::active_effects::player_has_brew_cooldown(ctx, player_id) {
+            let remaining = crate::active_effects::get_brew_cooldown_remaining(ctx, player_id)
+                .unwrap_or(0.0);
+            log::warn!("[EffectsHelper] 🍲 Player {:?} tried to consume brew '{}' but is on cooldown ({:.1}s remaining)", 
+                player_id, item_def.name, remaining);
+            // Return a recognizable error code - client will play SOVA voice feedback
+            return Err("BREW_COOLDOWN".to_string());
+        }
+        
+        // Brews restore ALL stats to MAX (this is what justifies the long brew time)
+        log::info!("[EffectsHelper] 🍲 Applying MAX stat restoration from brew '{}'", item_def.name);
+        player_to_update.health = MAX_HEALTH_VALUE;
+        player_to_update.hunger = MAX_HUNGER_VALUE;
+        player_to_update.thirst = MAX_THIRST_VALUE;
+        // Don't max warmth - let the player still need fire/shelter for warmth
+        stat_changed_instantly = true;
+        
+        log::info!(
+            "[EffectsHelper] 🍲 Brew '{}' restored player {:?} to MAX stats: Health {:.1}->{:.1}, Hunger {:.1}->{:.1}, Thirst {:.1}->{:.1}",
+            item_def.name, player_id,
+            old_health, player_to_update.health,
+            old_hunger, player_to_update.hunger,
+            old_thirst, player_to_update.thirst
+        );
+        
+        player_to_update.last_consumed_at = Some(ctx.timestamp);
+        
+        // Apply the brew's special effect (SpeedBoost, NightVision, etc.)
+        if let Err(e) = apply_brewing_recipe_effect(ctx, player_id, item_def, item_instance_id) {
+            log::warn!("[EffectsHelper] 🍲 Brew '{}' special effect failed (but stats were restored): {}", item_def.name, e);
+            // Don't fail - stats were still restored
+        }
+        
+        // Apply 60-second brew cooldown
+        if let Err(e) = crate::active_effects::apply_brew_cooldown(ctx, player_id, item_def.id) {
+            log::error!("[EffectsHelper] 🍲 Failed to apply brew cooldown for '{}': {}", item_def.name, e);
+            // Don't fail the consumption - the brew was consumed
+        }
+        
+        return Ok(());
+    }
+    // === END BROTH POT BREW HANDLING ===
+
     // SPECIAL HANDLING: Anti-Venom instantly cures all venom effects (regardless of duration setting)
     if item_def.name == "Anti-Venom" {
         log::info!("[EffectsHelper] Player {:?} using Anti-Venom. Curing all venom effects.", player_id);

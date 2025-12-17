@@ -84,6 +84,9 @@ pub enum EffectType {
     
     // === INSANITY SYSTEM EFFECTS ===
     Entrainment,       // Permanent debuff from max insanity - slow damage until death (cannot be removed)
+    
+    // === BREW CONSUMPTION COOLDOWN ===
+    BrewCooldown,      // 60-second cooldown after consuming any broth pot brew (prevents spam)
 }
 
 // Table defining food poisoning risks for different food items
@@ -190,7 +193,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -633,6 +636,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // HarvestBoost provides bonus yield from mining and chopping
                             // The yield bonus is applied in tree/stone harvesting code
                             // This effect is just a flag - no per-tick processing needed
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::BrewCooldown => {
+                            // BrewCooldown is just a timer preventing consumption of another brew
+                            // No per-tick stat changes, just a flag that expires after 60 seconds
                             amount_this_tick = 0.0;
                         },
                     }
@@ -3274,10 +3282,75 @@ pub fn clear_broth_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
         EffectType::PoisonCoating,
         EffectType::PassiveHealthRegen,
         EffectType::HarvestBoost,
+        EffectType::BrewCooldown, // Also clear brew cooldown on death
     ];
     
     for effect_type in broth_effect_types {
         cancel_broth_effect(ctx, player_id, effect_type);
     }
     log::info!("[BrothEffect] Cleared all broth effects on death for player {:?}", player_id);
+}
+
+// ============================================================================
+// BREW COOLDOWN SYSTEM
+// ============================================================================
+
+/// Cooldown duration for broth pot brews (60 seconds)
+pub const BREW_COOLDOWN_SECONDS: u64 = 60;
+pub const BREW_COOLDOWN_MICROS: i64 = (BREW_COOLDOWN_SECONDS as i64) * 1_000_000;
+
+/// Checks if a player currently has the brew cooldown effect active
+pub fn player_has_brew_cooldown(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::BrewCooldown)
+}
+
+/// Gets the remaining brew cooldown time in seconds for a player
+/// Returns None if no cooldown is active, Some(seconds) otherwise
+pub fn get_brew_cooldown_remaining(ctx: &ReducerContext, player_id: Identity) -> Option<f32> {
+    let current_time = ctx.timestamp;
+    ctx.db.active_consumable_effect().iter()
+        .find(|e| e.player_id == player_id && e.effect_type == EffectType::BrewCooldown)
+        .map(|effect| {
+            let ends_at_micros = effect.ends_at.to_micros_since_unix_epoch();
+            let now_micros = current_time.to_micros_since_unix_epoch();
+            let remaining_micros = ends_at_micros.saturating_sub(now_micros);
+            (remaining_micros as f32) / 1_000_000.0
+        })
+}
+
+/// Applies brew cooldown effect to a player (60 seconds)
+/// This prevents consuming another broth pot brew for 60 seconds
+pub fn apply_brew_cooldown(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    // Cancel any existing cooldown first (refresh)
+    cancel_broth_effect(ctx, player_id, EffectType::BrewCooldown);
+
+    let current_time = ctx.timestamp;
+    let ends_at = current_time + TimeDuration::from_micros(BREW_COOLDOWN_MICROS);
+
+    let effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0), // No accumulation needed
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::BrewCooldown,
+        tick_interval_micros: 1_000_000, // 1 second (for display updates)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+
+    match ctx.db.active_consumable_effect().try_insert(effect) {
+        Ok(e) => {
+            log::info!("[BrewCooldown] Applied 60-second brew cooldown (effect_id: {}) to player {:?}", e.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[BrewCooldown] Failed to apply brew cooldown: {:?}", e);
+            Err("Failed to apply brew cooldown effect".to_string())
+        }
+    }
 }

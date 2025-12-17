@@ -1315,8 +1315,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Unknown error';
-        console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);
-        // TODO: Show error message to player (toast notification or similar)
+        
+        // Check for brew cooldown error - play SOVA voice feedback instead of showing error
+        if (errorMsg === 'BREW_COOLDOWN') {
+          console.log(`[GameCanvas] 🍲 Brew cooldown active - playing SOVA feedback`);
+          
+          // Play random SOVA brew cooldown voice line
+          const brewCooldownSounds = [
+            '/sounds/sova_brew_cooldown.mp3',
+            '/sounds/sova_brew_cooldown1.mp3',
+            '/sounds/sova_brew_cooldown2.mp3',
+            '/sounds/sova_brew_cooldown3.mp3'
+          ];
+          const randomSound = brewCooldownSounds[Math.floor(Math.random() * brewCooldownSounds.length)];
+          
+          try {
+            const audio = new Audio(randomSound);
+            audio.volume = 0.7;
+            audio.play().catch(err => {
+              console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
+            });
+          } catch (err) {
+            console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
+          }
+        } else {
+          console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);
+        }
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log(`[GameCanvas] ✅ consumeItem succeeded for instance ${itemInstanceId.toString()}`);
       } else {

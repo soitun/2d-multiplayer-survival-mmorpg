@@ -176,6 +176,58 @@ spacetime logs broth-bullets-local | Select-String -Pattern "CRITICAL|⚠️" -C
 spacetime logs broth-bullets-local | Select-String -Pattern "constraint|violation|ConstraintViolation" -CaseSensitive:$false
 ```
 
+## Diagnostic Logging (Movement & Combat Analysis)
+
+The server includes diagnostic logging to detect potential desync, speed anomalies, or combat fairness issues. These logs are **non-blocking** (they observe but don't reject actions).
+
+### View All Diagnostic Logs
+```powershell
+# Quick filter for all diagnostic entries
+spacetime logs broth-bullets-local | Select-String -Pattern "DIAGNOSTIC" -CaseSensitive:$false
+
+# Follow diagnostic logs in real-time
+spacetime logs -f broth-bullets-local | Select-String -Pattern "DIAGNOSTIC" -CaseSensitive:$false
+```
+
+### Movement Diagnostics
+```powershell
+# Speed anomalies (player moving faster than expected)
+spacetime logs broth-bullets-local | Select-String -Pattern "MOVEMENT_DIAGNOSTIC.*SPEED_ANOMALY" -CaseSensitive:$false
+
+# Large position jumps (teleport-like movements)
+spacetime logs broth-bullets-local | Select-String -Pattern "MOVEMENT_DIAGNOSTIC.*LARGE_JUMP" -CaseSensitive:$false
+
+# Packet sequence gaps (network issues)
+spacetime logs broth-bullets-local | Select-String -Pattern "MOVEMENT_DIAGNOSTIC.*SEQUENCE_GAP" -CaseSensitive:$false
+```
+
+### Combat Diagnostics
+```powershell
+# All melee hit attempts with distance info
+spacetime logs broth-bullets-local | Select-String -Pattern "COMBAT_DIAGNOSTIC.*HIT_ATTEMPT" -CaseSensitive:$false
+
+# Hits registering beyond weapon range (potential exploit)
+spacetime logs broth-bullets-local | Select-String -Pattern "COMBAT_DIAGNOSTIC.*RANGE_ANOMALY" -CaseSensitive:$false
+
+# Position desync between attacker and target
+spacetime logs broth-bullets-local | Select-String -Pattern "COMBAT_DIAGNOSTIC.*DISTANCE_MISMATCH" -CaseSensitive:$false
+
+# Ranged weapon hits with engagement distance
+spacetime logs broth-bullets-local | Select-String -Pattern "COMBAT_DIAGNOSTIC.*RANGED_HIT" -CaseSensitive:$false
+```
+
+### Diagnostic Interpretation Guide
+
+| Log Pattern | What It Indicates | Concern Threshold |
+|-------------|-------------------|-------------------|
+| `SPEED_ANOMALY` with ratio >3.0x | Player exceeding expected speed | Investigate if consistent |
+| `LARGE_JUMP` >1000px | Possible teleport | Investigate if frequent |
+| `RANGE_ANOMALY` | Hit beyond weapon range | Investigate if >1.5x range |
+| `DISTANCE_MISMATCH` >50px | Client/server position desync | Network or exploit issue |
+| `SEQUENCE_GAP` >20 | Heavy packet loss | Network quality issue |
+
+**Note:** Occasional anomalies are normal (lag spikes, network hiccups). Only investigate if patterns are consistent for specific players.
+
 ## System Initialization
 
 ```powershell

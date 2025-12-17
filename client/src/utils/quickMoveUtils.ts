@@ -7,6 +7,7 @@
 
 import { DbConnection, WoodenStorageBox, Stash, Campfire, Fumarole, BrothPot } from '../generated';
 import { isWaterContainer } from './waterContainerHelpers';
+import { getContainerTypeFromSlotType } from './containerUtils';
 
 // Box type constants (must match server)
 const BOX_TYPE_REFRIGERATOR = 2;
@@ -181,7 +182,7 @@ export function quickMoveToContainer(
  */
 export function quickMoveToPlayer(
     connection: DbConnection | null,
-    containerType: string,
+    slotType: string,
     containerId: number | bigint,
     slotIndex: number
 ): boolean {
@@ -191,6 +192,9 @@ export function quickMoveToPlayer(
     }
 
     const containerIdNum = Number(containerId);
+    
+    // Convert slot type to container type (e.g., 'campfire_fuel' -> 'campfire')
+    const containerType = getContainerTypeFromSlotType(slotType) || slotType;
 
     try {
         switch (containerType) {

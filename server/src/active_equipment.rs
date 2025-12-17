@@ -19,7 +19,7 @@ use rand::{Rng, SeedableRng};
 // Combat system imports
 use crate::combat::{RESPAWN_TIME_MS};
 use crate::combat::{
-    find_targets_in_cone, find_best_target, process_attack
+    find_targets_in_cone, find_best_target, process_attack, TargetId
 };
 
 // Consumable and active effects imports
@@ -861,6 +861,46 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     }
     
     if let Some(target) = find_best_target(&targets, &item_def) {
+        let hit_distance = target.distance_sq.sqrt();
+        
+        // === COMBAT DIAGNOSTIC LOGGING ===
+        // Track hit distances to measure combat fairness
+        // Non-blocking - just observing hit ranges
+        
+        // Log all successful hit attempts with distance info
+        log::info!(
+            "[COMBAT_DIAGNOSTIC] HIT_ATTEMPT: Player {:?} attacking {:?} with {} at distance {:.1}px (max range: {:.1}px, ratio: {:.2}x)",
+            sender_id, target.id, item_def.name, hit_distance, actual_attack_range,
+            if actual_attack_range > 0.0 { hit_distance / actual_attack_range } else { 0.0 }
+        );
+        
+        // Flag suspiciously long-range hits (>120% of weapon range)
+        if hit_distance > actual_attack_range * 1.2 {
+            log::warn!(
+                "[COMBAT_DIAGNOSTIC] RANGE_ANOMALY: Player {:?} hit target at {:.1}px with {} (max range: {:.1}px). 20%+ over range!",
+                sender_id, hit_distance, item_def.name, actual_attack_range
+            );
+        }
+        
+        // For player targets, also log the target's position for desync analysis
+        if let TargetId::Player(target_player_id) = &target.id {
+            if let Some(target_player) = ctx.db.player().identity().find(target_player_id) {
+                let dx = player.position_x - target_player.position_x;
+                let dy = player.position_y - target_player.position_y;
+                let calculated_distance = (dx * dx + dy * dy).sqrt();
+                
+                // Check if the stored distance matches calculated distance (desync detection)
+                let distance_mismatch = (calculated_distance - hit_distance).abs();
+                if distance_mismatch > 10.0 { // 10px tolerance
+                    log::warn!(
+                        "[COMBAT_DIAGNOSTIC] DISTANCE_MISMATCH: Player {:?} vs {:?}. Cone found: {:.1}px, Calculated: {:.1}px, Mismatch: {:.1}px",
+                        sender_id, target_player_id, hit_distance, calculated_distance, distance_mismatch
+                    );
+                }
+            }
+        }
+        // === END COMBAT DIAGNOSTIC LOGGING ===
+        
         log::info!(
             "[UseEquippedItem] Player {:?} selected best target: {:?}",
             sender_id, target.id

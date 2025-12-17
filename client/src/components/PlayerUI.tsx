@@ -1153,6 +1153,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    case 'BrewCooldown':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'brew_cooldown',
+                            name: 'Brew Cooldown',
+                            emoji: '🍲',
+                            type: 'negative' as const,
+                            description: 'Cannot drink another broth pot brew until the cooldown expires.',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
                 }
             } else if (effectTargetPlayerIdHex === localPlayerIdHex && effectTypeTag === 'RemoteBandageBurst') {
                 // Check if remote bandage healer is in range

@@ -2035,6 +2035,22 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             if collision_detected {
+                // === PROJECTILE DIAGNOSTIC LOGGING ===
+                // Calculate distance from shooter to target for fairness analysis
+                if let Some(shooter) = ctx.db.player().identity().find(&projectile.owner_id) {
+                    let shooter_to_target_dx = player_to_check.position_x - shooter.position_x;
+                    let shooter_to_target_dy = player_to_check.position_y - shooter.position_y;
+                    let shooter_to_target_distance = (shooter_to_target_dx * shooter_to_target_dx + shooter_to_target_dy * shooter_to_target_dy).sqrt();
+                    
+                    // Log the engagement distance for ranged combat analysis
+                    log::info!(
+                        "[COMBAT_DIAGNOSTIC] RANGED_HIT: Player {:?} hit {:?} with projectile at distance {:.1}px. Projectile traveled from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.owner_id, player_to_check.identity, shooter_to_target_distance,
+                        prev_x, prev_y, current_x, current_y
+                    );
+                }
+                // === END PROJECTILE DIAGNOSTIC LOGGING ===
+                
                 log::info!("Projectile {} from owner {:?} hit living player {:?} along path from ({:.1}, {:.1}) to ({:.1}, {:.1}) with PLAYER_RADIUS ({:.1})", 
                          projectile.id, projectile.owner_id, player_to_check.identity, prev_x, prev_y, current_x, current_y, crate::PLAYER_RADIUS);
                 
