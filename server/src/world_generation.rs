@@ -166,6 +166,15 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         if let Err(e) = crate::monument::spawn_monument_decorations(ctx, &shipwreck_positions, &decoration_configs) {
             log::warn!("Failed to spawn shipwreck decorations: {}", e);
         }
+        
+        // Spawn monument placeables (campfires, etc.) at shipwreck for player use
+        if let Some(&(center_x, center_y)) = world_features.shipwreck_centers.first() {
+            let placeable_configs = crate::monument::get_shipwreck_placeables();
+            match crate::monument::spawn_monument_placeables(ctx, "Shipwreck", center_x, center_y, &placeable_configs) {
+                Ok(count) => log::info!("🚢 Spawned {} monument placeables at Shipwreck", count),
+                Err(e) => log::warn!("Failed to spawn shipwreck placeables: {}", e),
+            }
+        }
     }
     
     // Store fishing village positions in database table for client access (one-time read, then static)
@@ -186,6 +195,13 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         
         log::info!("🏘️ Stored {} fishing village parts in database - client reads once, then treats as static config",
                    world_features.fishing_village_parts.len());
+        
+        // Spawn monument placeables (campfires, rain collectors) at fishing village for player use
+        let placeable_configs = crate::monument::get_fishing_village_placeables();
+        match crate::monument::spawn_monument_placeables(ctx, "Fishing Village", center_x, center_y, &placeable_configs) {
+            Ok(count) => log::info!("🏘️ Spawned {} monument placeables at Fishing Village", count),
+            Err(e) => log::warn!("Failed to spawn fishing village placeables: {}", e),
+        }
     }
     
     // Store large quarry positions and types in database for client minimap display

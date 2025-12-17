@@ -74,6 +74,13 @@ export interface CompoundBuilding {
    */
   collisionYOffset: number;
   
+  // === MONUMENT CENTER (optional) ===
+  /**
+   * For monuments (shipwrecks, fishing villages): marks the center piece.
+   * Used for building restriction overlay rendering.
+   */
+  isCenter?: boolean;
+  
   // === LIGHT SOURCE (optional) ===
   /** 
    * Light source for buildings that emit light at night.
@@ -581,6 +588,7 @@ export function getShipwreckBuildings(shipwreckParts: Array<{
       anchorYOffset,
       collisionRadius: part.collisionRadius,
       collisionYOffset: 0,
+      isCenter: part.isCenter, // Preserve for building restriction overlay
     };
   });
 }
@@ -651,6 +659,7 @@ export function getFishingVillageBuildings(fishingVillageParts: Array<{
       anchorYOffset,
       collisionRadius: part.collisionRadius, // 0 = no collision per user request
       collisionYOffset: 0,
+      isCenter: part.isCenter, // Preserve for building restriction overlay
     };
   });
 }

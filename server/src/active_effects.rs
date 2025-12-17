@@ -2313,6 +2313,47 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
     false
 }
 
+/// Container access timeout in seconds for safe zone exclusivity
+const CONTAINER_ACCESS_TIMEOUT_SECS: u64 = 60;
+
+/// Validates if a player can access a container in a safe zone
+/// In safe zones only, containers enforce exclusivity - only one player can use them at a time
+/// This prevents griefing by multiple players trying to use the same monument containers
+/// 
+/// Returns Ok(()) if access is allowed, Err(message) if blocked by another player
+pub fn validate_safe_zone_container_access(
+    ctx: &ReducerContext,
+    container_pos_x: f32,
+    container_pos_y: f32,
+    active_user_id: Option<Identity>,
+    active_user_since: Option<spacetimedb::Timestamp>,
+) -> Result<(), String> {
+    // Only enforce exclusivity in safe zones
+    if !is_player_in_safe_zone(ctx, container_pos_x, container_pos_y) {
+        return Ok(());
+    }
+    
+    // Check if another player is currently using this container
+    if let Some(user_id) = active_user_id {
+        // Same player is already using it - allow access
+        if user_id == ctx.sender {
+            return Ok(());
+        }
+        
+        // Different player - check if the lock has timed out
+        if let Some(since) = active_user_since {
+            if let Some(elapsed) = ctx.timestamp.duration_since(since) {
+            if elapsed.as_secs() < CONTAINER_ACCESS_TIMEOUT_SECS {
+                return Err("Another player is currently using this container. Please wait or try another one.".to_string());
+            }
+            }
+            // Lock has timed out (or time went backwards), allow access (and let the caller update the active user)
+        }
+    }
+    
+    Ok(())
+}
+
 /// Updates safe zone effect for a player based on their position
 /// Safe zones protect from player/animal/projectile damage but NOT environmental damage (except burn)
 pub fn update_player_safe_zone_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {

@@ -1047,6 +1047,11 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("tallow.png")
             .stackable(1000)
             .consumable(0.0, 20.0, -7.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Animal Fat".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 2 },
+            ])
+            .crafting_output(5, 4) // Makes 5 tallow, takes 4 seconds
             .respawn_time(300)
             .build(),
 

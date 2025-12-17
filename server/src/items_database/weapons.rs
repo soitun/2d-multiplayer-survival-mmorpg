@@ -126,6 +126,23 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .respawn_time(420)
             .build(),
 
+        // === CRAFTABLE PADDLES ===
+        // Utility weapons that double as tools
+
+        // Kayak Paddle - Light blunt weapon, also used for scarecrow crafting
+        ItemBuilder::new("Kayak Paddle", "A sturdy paddle carved from driftwood. Light and fast, useful for both paddling and self-defense. Can be used to build a scarecrow.", ItemCategory::Weapon)
+            .icon("kayak_paddle.png")
+            .weapon(20, 22, 1.0) // Light melee: 20-22 damage, 1.0s cooldown - fast swings
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 30)
+            .respawn_time(300)
+            .build(),
+
         // === RANGED WEAPONS ===
         // Projectile-firing weapons that use ammunition
 

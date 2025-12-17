@@ -588,6 +588,15 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
                 // Central compound gets larger area (10 tile radius), substations get 6 tile radius
                 let asphalt_radius = if is_central { 10 } else { 6 };
                 spawn_asphalt_around_station(ctx, pos_x, pos_y, asphalt_radius, is_central);
+                
+                // Spawn monument placeables only at the central compound
+                if is_central {
+                    let placeable_configs = crate::monument::get_central_compound_placeables();
+                    match crate::monument::spawn_monument_placeables(ctx, "Central Compound", pos_x, pos_y, &placeable_configs) {
+                        Ok(count) => log::info!("🏭 Spawned {} monument placeables at Central Compound", count),
+                        Err(e) => log::warn!("Failed to spawn central compound placeables: {}", e),
+                    }
+                }
             },
             Err(e) => log::error!("Failed to create station {}: {}", station.name, e),
         }

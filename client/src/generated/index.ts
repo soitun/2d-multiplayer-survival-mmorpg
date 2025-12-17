@@ -77,6 +77,16 @@ import { CleanupOldThunderEvents } from "./cleanup_old_thunder_events_reducer.ts
 export { CleanupOldThunderEvents };
 import { ClearActiveItemReducer } from "./clear_active_item_reducer_reducer.ts";
 export { ClearActiveItemReducer };
+import { CloseBarbecueContainer } from "./close_barbecue_container_reducer.ts";
+export { CloseBarbecueContainer };
+import { CloseCampfireContainer } from "./close_campfire_container_reducer.ts";
+export { CloseCampfireContainer };
+import { CloseFurnaceContainer } from "./close_furnace_container_reducer.ts";
+export { CloseFurnaceContainer };
+import { CloseRainCollectorContainer } from "./close_rain_collector_container_reducer.ts";
+export { CloseRainCollectorContainer };
+import { CloseStorageBoxContainer } from "./close_storage_box_container_reducer.ts";
+export { CloseStorageBoxContainer };
 import { ConsumeFilledWaterContainer } from "./consume_filled_water_container_reducer.ts";
 export { ConsumeFilledWaterContainer };
 import { ConsumeItem } from "./consume_item_reducer.ts";
@@ -301,6 +311,16 @@ import { MoveToFirstAvailableHotbarSlot } from "./move_to_first_available_hotbar
 export { MoveToFirstAvailableHotbarSlot };
 import { MoveToFirstAvailableInventorySlot } from "./move_to_first_available_inventory_slot_reducer.ts";
 export { MoveToFirstAvailableInventorySlot };
+import { OpenBarbecueContainer } from "./open_barbecue_container_reducer.ts";
+export { OpenBarbecueContainer };
+import { OpenCampfireContainer } from "./open_campfire_container_reducer.ts";
+export { OpenCampfireContainer };
+import { OpenFurnaceContainer } from "./open_furnace_container_reducer.ts";
+export { OpenFurnaceContainer };
+import { OpenRainCollectorContainer } from "./open_rain_collector_container_reducer.ts";
+export { OpenRainCollectorContainer };
+import { OpenStorageBoxContainer } from "./open_storage_box_container_reducer.ts";
+export { OpenStorageBoxContainer };
 import { PickupBarbecue } from "./pickup_barbecue_reducer.ts";
 export { PickupBarbecue };
 import { PickupBrothPot } from "./pickup_broth_pot_reducer.ts";
@@ -2530,6 +2550,26 @@ const REMOTE_MODULE = {
       reducerName: "clear_active_item_reducer",
       argsType: ClearActiveItemReducer.getTypeScriptAlgebraicType(),
     },
+    close_barbecue_container: {
+      reducerName: "close_barbecue_container",
+      argsType: CloseBarbecueContainer.getTypeScriptAlgebraicType(),
+    },
+    close_campfire_container: {
+      reducerName: "close_campfire_container",
+      argsType: CloseCampfireContainer.getTypeScriptAlgebraicType(),
+    },
+    close_furnace_container: {
+      reducerName: "close_furnace_container",
+      argsType: CloseFurnaceContainer.getTypeScriptAlgebraicType(),
+    },
+    close_rain_collector_container: {
+      reducerName: "close_rain_collector_container",
+      argsType: CloseRainCollectorContainer.getTypeScriptAlgebraicType(),
+    },
+    close_storage_box_container: {
+      reducerName: "close_storage_box_container",
+      argsType: CloseStorageBoxContainer.getTypeScriptAlgebraicType(),
+    },
     consume_filled_water_container: {
       reducerName: "consume_filled_water_container",
       argsType: ConsumeFilledWaterContainer.getTypeScriptAlgebraicType(),
@@ -2977,6 +3017,26 @@ const REMOTE_MODULE = {
     move_to_first_available_inventory_slot: {
       reducerName: "move_to_first_available_inventory_slot",
       argsType: MoveToFirstAvailableInventorySlot.getTypeScriptAlgebraicType(),
+    },
+    open_barbecue_container: {
+      reducerName: "open_barbecue_container",
+      argsType: OpenBarbecueContainer.getTypeScriptAlgebraicType(),
+    },
+    open_campfire_container: {
+      reducerName: "open_campfire_container",
+      argsType: OpenCampfireContainer.getTypeScriptAlgebraicType(),
+    },
+    open_furnace_container: {
+      reducerName: "open_furnace_container",
+      argsType: OpenFurnaceContainer.getTypeScriptAlgebraicType(),
+    },
+    open_rain_collector_container: {
+      reducerName: "open_rain_collector_container",
+      argsType: OpenRainCollectorContainer.getTypeScriptAlgebraicType(),
+    },
+    open_storage_box_container: {
+      reducerName: "open_storage_box_container",
+      argsType: OpenStorageBoxContainer.getTypeScriptAlgebraicType(),
     },
     pickup_barbecue: {
       reducerName: "pickup_barbecue",
@@ -3779,6 +3839,11 @@ export type Reducer = never
 | { name: "CleanupOldSoundEvents", args: CleanupOldSoundEvents }
 | { name: "CleanupOldThunderEvents", args: CleanupOldThunderEvents }
 | { name: "ClearActiveItemReducer", args: ClearActiveItemReducer }
+| { name: "CloseBarbecueContainer", args: CloseBarbecueContainer }
+| { name: "CloseCampfireContainer", args: CloseCampfireContainer }
+| { name: "CloseFurnaceContainer", args: CloseFurnaceContainer }
+| { name: "CloseRainCollectorContainer", args: CloseRainCollectorContainer }
+| { name: "CloseStorageBoxContainer", args: CloseStorageBoxContainer }
 | { name: "ConsumeFilledWaterContainer", args: ConsumeFilledWaterContainer }
 | { name: "ConsumeItem", args: ConsumeItem }
 | { name: "CreateGeneratedBrew", args: CreateGeneratedBrew }
@@ -3891,6 +3956,11 @@ export type Reducer = never
 | { name: "MoveItemWithinStash", args: MoveItemWithinStash }
 | { name: "MoveToFirstAvailableHotbarSlot", args: MoveToFirstAvailableHotbarSlot }
 | { name: "MoveToFirstAvailableInventorySlot", args: MoveToFirstAvailableInventorySlot }
+| { name: "OpenBarbecueContainer", args: OpenBarbecueContainer }
+| { name: "OpenCampfireContainer", args: OpenCampfireContainer }
+| { name: "OpenFurnaceContainer", args: OpenFurnaceContainer }
+| { name: "OpenRainCollectorContainer", args: OpenRainCollectorContainer }
+| { name: "OpenStorageBoxContainer", args: OpenStorageBoxContainer }
 | { name: "PickupBarbecue", args: PickupBarbecue }
 | { name: "PickupBrothPot", args: PickupBrothPot }
 | { name: "PickupCookingStation", args: PickupCookingStation }
@@ -4429,6 +4499,86 @@ export class RemoteReducers {
 
   removeOnClearActiveItemReducer(callback: (ctx: ReducerEventContext, playerIdentity: __Identity) => void) {
     this.connection.offReducer("clear_active_item_reducer", callback);
+  }
+
+  closeBarbecueContainer(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    CloseBarbecueContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("close_barbecue_container", __argsBuffer, this.setCallReducerFlags.closeBarbecueContainerFlags);
+  }
+
+  onCloseBarbecueContainer(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("close_barbecue_container", callback);
+  }
+
+  removeOnCloseBarbecueContainer(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("close_barbecue_container", callback);
+  }
+
+  closeCampfireContainer(campfireId: number) {
+    const __args = { campfireId };
+    let __writer = new __BinaryWriter(1024);
+    CloseCampfireContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("close_campfire_container", __argsBuffer, this.setCallReducerFlags.closeCampfireContainerFlags);
+  }
+
+  onCloseCampfireContainer(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
+    this.connection.onReducer("close_campfire_container", callback);
+  }
+
+  removeOnCloseCampfireContainer(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
+    this.connection.offReducer("close_campfire_container", callback);
+  }
+
+  closeFurnaceContainer(furnaceId: number) {
+    const __args = { furnaceId };
+    let __writer = new __BinaryWriter(1024);
+    CloseFurnaceContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("close_furnace_container", __argsBuffer, this.setCallReducerFlags.closeFurnaceContainerFlags);
+  }
+
+  onCloseFurnaceContainer(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.onReducer("close_furnace_container", callback);
+  }
+
+  removeOnCloseFurnaceContainer(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.offReducer("close_furnace_container", callback);
+  }
+
+  closeRainCollectorContainer(collectorId: number) {
+    const __args = { collectorId };
+    let __writer = new __BinaryWriter(1024);
+    CloseRainCollectorContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("close_rain_collector_container", __argsBuffer, this.setCallReducerFlags.closeRainCollectorContainerFlags);
+  }
+
+  onCloseRainCollectorContainer(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.onReducer("close_rain_collector_container", callback);
+  }
+
+  removeOnCloseRainCollectorContainer(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.offReducer("close_rain_collector_container", callback);
+  }
+
+  closeStorageBoxContainer(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    CloseStorageBoxContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("close_storage_box_container", __argsBuffer, this.setCallReducerFlags.closeStorageBoxContainerFlags);
+  }
+
+  onCloseStorageBoxContainer(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("close_storage_box_container", callback);
+  }
+
+  removeOnCloseStorageBoxContainer(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("close_storage_box_container", callback);
   }
 
   consumeFilledWaterContainer(itemInstanceId: bigint) {
@@ -6149,6 +6299,86 @@ export class RemoteReducers {
 
   removeOnMoveToFirstAvailableInventorySlot(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
     this.connection.offReducer("move_to_first_available_inventory_slot", callback);
+  }
+
+  openBarbecueContainer(barbecueId: number) {
+    const __args = { barbecueId };
+    let __writer = new __BinaryWriter(1024);
+    OpenBarbecueContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("open_barbecue_container", __argsBuffer, this.setCallReducerFlags.openBarbecueContainerFlags);
+  }
+
+  onOpenBarbecueContainer(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.onReducer("open_barbecue_container", callback);
+  }
+
+  removeOnOpenBarbecueContainer(callback: (ctx: ReducerEventContext, barbecueId: number) => void) {
+    this.connection.offReducer("open_barbecue_container", callback);
+  }
+
+  openCampfireContainer(campfireId: number) {
+    const __args = { campfireId };
+    let __writer = new __BinaryWriter(1024);
+    OpenCampfireContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("open_campfire_container", __argsBuffer, this.setCallReducerFlags.openCampfireContainerFlags);
+  }
+
+  onOpenCampfireContainer(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
+    this.connection.onReducer("open_campfire_container", callback);
+  }
+
+  removeOnOpenCampfireContainer(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
+    this.connection.offReducer("open_campfire_container", callback);
+  }
+
+  openFurnaceContainer(furnaceId: number) {
+    const __args = { furnaceId };
+    let __writer = new __BinaryWriter(1024);
+    OpenFurnaceContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("open_furnace_container", __argsBuffer, this.setCallReducerFlags.openFurnaceContainerFlags);
+  }
+
+  onOpenFurnaceContainer(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.onReducer("open_furnace_container", callback);
+  }
+
+  removeOnOpenFurnaceContainer(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.offReducer("open_furnace_container", callback);
+  }
+
+  openRainCollectorContainer(collectorId: number) {
+    const __args = { collectorId };
+    let __writer = new __BinaryWriter(1024);
+    OpenRainCollectorContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("open_rain_collector_container", __argsBuffer, this.setCallReducerFlags.openRainCollectorContainerFlags);
+  }
+
+  onOpenRainCollectorContainer(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.onReducer("open_rain_collector_container", callback);
+  }
+
+  removeOnOpenRainCollectorContainer(callback: (ctx: ReducerEventContext, collectorId: number) => void) {
+    this.connection.offReducer("open_rain_collector_container", callback);
+  }
+
+  openStorageBoxContainer(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    OpenStorageBoxContainer.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("open_storage_box_container", __argsBuffer, this.setCallReducerFlags.openStorageBoxContainerFlags);
+  }
+
+  onOpenStorageBoxContainer(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("open_storage_box_container", callback);
+  }
+
+  removeOnOpenStorageBoxContainer(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("open_storage_box_container", callback);
   }
 
   pickupBarbecue(barbecueId: number) {
@@ -9185,6 +9415,31 @@ export class SetReducerFlags {
     this.clearActiveItemReducerFlags = flags;
   }
 
+  closeBarbecueContainerFlags: __CallReducerFlags = 'FullUpdate';
+  closeBarbecueContainer(flags: __CallReducerFlags) {
+    this.closeBarbecueContainerFlags = flags;
+  }
+
+  closeCampfireContainerFlags: __CallReducerFlags = 'FullUpdate';
+  closeCampfireContainer(flags: __CallReducerFlags) {
+    this.closeCampfireContainerFlags = flags;
+  }
+
+  closeFurnaceContainerFlags: __CallReducerFlags = 'FullUpdate';
+  closeFurnaceContainer(flags: __CallReducerFlags) {
+    this.closeFurnaceContainerFlags = flags;
+  }
+
+  closeRainCollectorContainerFlags: __CallReducerFlags = 'FullUpdate';
+  closeRainCollectorContainer(flags: __CallReducerFlags) {
+    this.closeRainCollectorContainerFlags = flags;
+  }
+
+  closeStorageBoxContainerFlags: __CallReducerFlags = 'FullUpdate';
+  closeStorageBoxContainer(flags: __CallReducerFlags) {
+    this.closeStorageBoxContainerFlags = flags;
+  }
+
   consumeFilledWaterContainerFlags: __CallReducerFlags = 'FullUpdate';
   consumeFilledWaterContainer(flags: __CallReducerFlags) {
     this.consumeFilledWaterContainerFlags = flags;
@@ -9733,6 +9988,31 @@ export class SetReducerFlags {
   moveToFirstAvailableInventorySlotFlags: __CallReducerFlags = 'FullUpdate';
   moveToFirstAvailableInventorySlot(flags: __CallReducerFlags) {
     this.moveToFirstAvailableInventorySlotFlags = flags;
+  }
+
+  openBarbecueContainerFlags: __CallReducerFlags = 'FullUpdate';
+  openBarbecueContainer(flags: __CallReducerFlags) {
+    this.openBarbecueContainerFlags = flags;
+  }
+
+  openCampfireContainerFlags: __CallReducerFlags = 'FullUpdate';
+  openCampfireContainer(flags: __CallReducerFlags) {
+    this.openCampfireContainerFlags = flags;
+  }
+
+  openFurnaceContainerFlags: __CallReducerFlags = 'FullUpdate';
+  openFurnaceContainer(flags: __CallReducerFlags) {
+    this.openFurnaceContainerFlags = flags;
+  }
+
+  openRainCollectorContainerFlags: __CallReducerFlags = 'FullUpdate';
+  openRainCollectorContainer(flags: __CallReducerFlags) {
+    this.openRainCollectorContainerFlags = flags;
+  }
+
+  openStorageBoxContainerFlags: __CallReducerFlags = 'FullUpdate';
+  openStorageBoxContainer(flags: __CallReducerFlags) {
+    this.openStorageBoxContainerFlags = flags;
   }
 
   pickupBarbecueFlags: __CallReducerFlags = 'FullUpdate';

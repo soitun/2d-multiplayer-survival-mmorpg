@@ -202,6 +202,10 @@ fn create_backpack_at_position(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        // Backpacks are not monument placeables
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
     
     Ok(ctx.db.wooden_storage_box().insert(backpack))

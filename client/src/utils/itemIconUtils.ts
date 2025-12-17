@@ -110,6 +110,9 @@ import wolfSkullIcon from '../assets/items/wolf_skull.png';
 import viperSkullIcon from '../assets/items/viper_skull.png';
 import walrusSkullIcon from '../assets/items/walrus_skull.png';
 
+// Utility melee weapons
+import kayakPaddleIcon from '../assets/items/kayak_paddle.png';
+
 // === AMMUNITION ===
 // Arrows and projectiles
 
@@ -407,6 +410,7 @@ import compostIcon from '../assets/items/compost.png';
 import repairBenchIcon from '../assets/items/repair_bench.png';
 import cookingStationIcon from '../assets/items/cooking_station.png';
 import barbecueIcon from '../assets/items/barbecue.png';
+import scarecrowIcon from '../assets/items/scarecrow.png';
 import sleepingBagIcon from '../assets/items/sleeping_bag.png';
 import shelterIcon from '../assets/items/shelter.png';
 import tallowLampIcon from '../assets/items/lantern_off.png';
@@ -528,6 +532,9 @@ const iconMap: { [key: string]: string | undefined } = {
   'wolf_skull.png': wolfSkullIcon,
   'viper_skull.png': viperSkullIcon,
   'walrus_skull.png': walrusSkullIcon,
+  
+  // Utility melee weapons
+  'kayak_paddle.png': kayakPaddleIcon,
 
   // === AMMUNITION ===
   'wooden_arrow.png': woodenArrowIcon,
@@ -799,6 +806,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'repair_bench.png': repairBenchIcon,
   'cooking_station.png': cookingStationIcon,
   'barbecue.png': barbecueIcon,
+  'scarecrow.png': scarecrowIcon,
   'sleeping_bag.png': sleepingBagIcon,
   'shelter.png': shelterIcon,
   'lantern_off.png': tallowLampIcon,

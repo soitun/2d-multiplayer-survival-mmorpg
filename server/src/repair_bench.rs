@@ -197,6 +197,10 @@ pub fn place_repair_bench(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        // Monument placeable system (player-placed repair benches are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
     
     // Insert the repair bench

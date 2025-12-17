@@ -442,6 +442,38 @@ function isPositionInMonumentZone(
         }
     }
     
+    // Check fishing village monument (Aleut-style village - protected area)
+    const FISHING_VILLAGE_RESTRICTION_RADIUS = 800.0;
+    const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
+    
+    for (const part of connection.db.fishingVillagePart.iter()) {
+        // Only check against the center piece for the exclusion zone
+        if (part.isCenter) {
+            const dx = worldX - part.worldX;
+            const dy = worldY - part.worldY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq <= FISHING_VILLAGE_RESTRICTION_RADIUS_SQ) {
+                return true; // Too close to fishing village
+            }
+        }
+    }
+    
+    // Check shipwreck monument (beached ship - protected area)
+    const SHIPWRECK_RESTRICTION_RADIUS = 600.0; // Same as monument::clearance::SHIPWRECK
+    const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
+    
+    for (const part of connection.db.shipwreckPart.iter()) {
+        // Only check against the center hull piece for the exclusion zone
+        if (part.isCenter) {
+            const dx = worldX - part.worldX;
+            const dy = worldY - part.worldY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq <= SHIPWRECK_RESTRICTION_RADIUS_SQ) {
+                return true; // Too close to shipwreck
+            }
+        }
+    }
+    
     // Check asphalt tiles (compound areas)
     const tileAtX = Math.floor(worldX / TILE_SIZE_LOCAL);
     const tileAtY = Math.floor(worldY / TILE_SIZE_LOCAL);
@@ -1261,6 +1293,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'cooking_station.png') {
         // For cooking station, use the cooking_station.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('cooking_station.png');
+    } else if (placementInfo.iconAssetName === 'scarecrow.png') {
+        // For scarecrow, use the scarecrow.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('scarecrow.png');
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // For large wooden box, use the large_wood_box.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('large_wood_box.png');
@@ -1302,6 +1337,10 @@ export function renderPlacementPreview({
         // Cooking Station preview dimensions (matches actual rendering - 128x128)
         drawWidth = COOKING_STATION_WIDTH; // 128px
         drawHeight = COOKING_STATION_HEIGHT; // 128px
+    } else if (placementInfo.iconAssetName === 'scarecrow.png') {
+        // Scarecrow preview dimensions (matches actual rendering - 96x128)
+        drawWidth = 96; // SCARECROW_WIDTH
+        drawHeight = 128; // SCARECROW_HEIGHT
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // Large wooden box preview dimensions (matches actual rendering)
         drawWidth = LARGE_BOX_WIDTH; // 96px
@@ -1605,6 +1644,15 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'cooking_station.png') {
         // Use centralized visual config for cooking station
         const config = ENTITY_VISUAL_CONFIG.cooking_station;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'scarecrow.png') {
+        // Use centralized visual config for scarecrow
+        const config = ENTITY_VISUAL_CONFIG.scarecrow;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;

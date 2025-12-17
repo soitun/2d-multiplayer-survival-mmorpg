@@ -137,6 +137,9 @@ export type WoodenStorageBox = {
   destroyedAt: __Timestamp | undefined,
   lastHitTime: __Timestamp | undefined,
   lastDamagedBy: __Identity | undefined,
+  isMonument: boolean,
+  activeUserId: __Identity | undefined,
+  activeUserSince: __Timestamp | undefined,
 };
 let _cached_WoodenStorageBox_type_value: __AlgebraicTypeType | null = null;
 
@@ -260,6 +263,9 @@ export const WoodenStorageBox = {
       { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "activeUserId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "activeUserSince", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_WoodenStorageBox_type_value;
   },

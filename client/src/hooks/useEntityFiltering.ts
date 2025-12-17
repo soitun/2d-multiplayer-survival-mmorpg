@@ -177,6 +177,7 @@ export interface CompoundBuildingEntity {
   height: number;
   imagePath: string;
   anchorYOffset: number;
+  isCenter?: boolean; // For monuments: marks the center piece for building restriction overlay
 }
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
@@ -1214,6 +1215,7 @@ export function useEntityFiltering(
         height: building.height,
         imagePath: building.imagePath,
         anchorYOffset: building.anchorYOffset,
+        isCenter: building.isCenter, // For building restriction overlay
       };
     }).filter(building => {
       // Check if building is in viewport (with buffer for tall buildings)

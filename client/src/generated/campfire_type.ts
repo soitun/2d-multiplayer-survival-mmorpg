@@ -66,6 +66,9 @@ export type Campfire = {
   lastDamageApplicationTime: __Timestamp | undefined,
   isPlayerInHotZone: boolean,
   attachedBrothPotId: number | undefined,
+  isMonument: boolean,
+  activeUserId: __Identity | undefined,
+  activeUserSince: __Timestamp | undefined,
 };
 let _cached_Campfire_type_value: __AlgebraicTypeType | null = null;
 
@@ -114,6 +117,9 @@ export const Campfire = {
       { name: "lastDamageApplicationTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "isPlayerInHotZone", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "attachedBrothPotId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "activeUserId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "activeUserSince", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_Campfire_type_value;
   },

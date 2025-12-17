@@ -120,6 +120,19 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(450)
             .build(),
 
+        // Scarecrow - Deters crows within a large radius
+        ItemBuilder::new("Scarecrow", "A makeshift scarecrow cobbled together from driftwood and scraps. Deters crows from stealing food within a 750px radius. Protect your campfires and barbecues!", ItemCategory::Placeable)
+            .icon("scarecrow.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Kayak Paddle".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 45)
+            .respawn_time(600)
+            .build(),
+
         // === SHELTER & RESPAWN ===
 
         // Sleeping Bag - Portable respawn point

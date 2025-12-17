@@ -41,7 +41,7 @@ import { renderTree } from './treeRenderingUtils';
 import { renderStone } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -84,6 +84,8 @@ import { renderAlkStation } from './alkStationRenderingUtils';
 // Import compound building renderer
 import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
 import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
+// Import building restriction overlay for monument zones
+import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 import { COMPOUND_BUILDINGS } from '../../config/compoundBuildings';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
@@ -1018,6 +1020,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.repair_bench;
               } else if (box.boxType === BOX_TYPE_COOKING_STATION) {
                   config = ENTITY_VISUAL_CONFIG.cooking_station;
+              } else if (box.boxType === BOX_TYPE_SCARECROW) {
+                  config = ENTITY_VISUAL_CONFIG.scarecrow;
               } else {
                   config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
               }
@@ -1237,6 +1241,41 @@ export const renderYSortedEntities = ({
           };
           
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+          
+          // Check if local player has Blueprint equipped to show building restriction overlay
+          // Only show for shipwrecks and fishing villages (monuments with building restrictions)
+          let showBuildingRestriction = false;
+          if (localPlayerId && activeEquipments && itemDefinitions) {
+              const localEquipment = activeEquipments.get(localPlayerId);
+              if (localEquipment?.equippedItemDefId) {
+                  const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+                  if (equippedItemDef?.name === 'Blueprint') {
+                      showBuildingRestriction = true;
+                  }
+              }
+          }
+          
+          // Render building restriction overlay for shipwrecks and fishing villages
+          if (showBuildingRestriction && buildingEntity.isCenter) {
+              const buildingId = buildingEntity.id;
+              let restrictionRadius = 0;
+              
+              // Determine restriction radius based on monument type
+              if (buildingId.startsWith('shipwreck_')) {
+                  restrictionRadius = 600; // Same as monument::clearance::SHIPWRECK
+              } else if (buildingId.startsWith('fishing_village_')) {
+                  restrictionRadius = 800; // Same as FISHING_VILLAGE_RESTRICTION_RADIUS
+              }
+              
+              if (restrictionRadius > 0) {
+                  const zoneConfig: BuildingRestrictionZoneConfig = {
+                      centerX: buildingEntity.worldX,
+                      centerY: buildingEntity.worldY,
+                      radius: restrictionRadius,
+                  };
+                  renderBuildingRestrictionOverlay(ctx, zoneConfig);
+              }
+          }
       } else if (type === 'foundation_cell') {
           const foundation = entity as SpacetimeDBFoundationCell;
           // Foundations use cell coordinates directly - renderFoundation handles conversion

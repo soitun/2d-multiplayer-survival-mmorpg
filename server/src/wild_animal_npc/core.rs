@@ -719,8 +719,9 @@ fn update_animal_ai_state(
         }
     }
     
-    // FIRE FEAR LOGIC - Only applies to non-walruses, and can be ignored by groups
-    if animal.species != AnimalSpecies::ArcticWalrus && should_fear_fire(ctx, animal) {
+    // FIRE FEAR LOGIC - Only applies to non-walruses and non-crows, and can be ignored by groups
+    // Walruses are curious about fire, crows are bold thieves that don't fear flames
+    if animal.species != AnimalSpecies::ArcticWalrus && animal.species != AnimalSpecies::Crow && should_fear_fire(ctx, animal) {
         // Check for fire from players with torches
         for player in nearby_players {
             let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);

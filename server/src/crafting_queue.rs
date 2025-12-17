@@ -167,10 +167,20 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
         player.position_y,
         recipe.output_item_def_id,
     );
+    
+    // Check for Memory Grid crafting speed nodes
+    let memory_grid_multiplier = crate::memory_grid::get_crafting_speed_multiplier(ctx, sender_id);
+    
     let base_crafting_time = recipe.crafting_time_secs as f32;
-    let adjusted_crafting_time = (base_crafting_time * red_rune_multiplier) as u64;
-    let crafting_duration = Duration::from_secs(adjusted_crafting_time);
+    // Apply both multipliers (red rune and memory grid)
+    let adjusted_crafting_time = (base_crafting_time * red_rune_multiplier * memory_grid_multiplier) as u64;
+    let crafting_duration = Duration::from_secs(std::cmp::max(1, adjusted_crafting_time)); // Minimum 1 second
     let finish_time = last_finish_time + spacetimedb::TimeDuration::from(crafting_duration);
+    
+    if memory_grid_multiplier < 1.0 {
+        log::info!("[Crafting] Player {:?} has Memory Grid crafting speed bonus: {:.0}% faster", 
+            sender_id, (1.0 - memory_grid_multiplier) * 100.0);
+    }
 
     // 5. Add to Queue
     let queue_item = CraftingQueueItem {
@@ -311,9 +321,19 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
         player.position_y,
         recipe.output_item_def_id,
     );
+    
+    // Check for Memory Grid crafting speed nodes
+    let memory_grid_multiplier = crate::memory_grid::get_crafting_speed_multiplier(ctx, sender_id);
+    
     let base_crafting_time = recipe.crafting_time_secs as f32;
-    let adjusted_crafting_time = (base_crafting_time * red_rune_multiplier) as u64;
-    let crafting_duration_per_item = TimeDuration::from(Duration::from_secs(adjusted_crafting_time));
+    // Apply both multipliers (red rune and memory grid)
+    let adjusted_crafting_time = (base_crafting_time * red_rune_multiplier * memory_grid_multiplier) as u64;
+    let crafting_duration_per_item = TimeDuration::from(Duration::from_secs(std::cmp::max(1, adjusted_crafting_time))); // Minimum 1 second
+    
+    if memory_grid_multiplier < 1.0 {
+        log::info!("[Crafting Multiple] Player {:?} has Memory Grid crafting speed bonus: {:.0}% faster", 
+            sender_id, (1.0 - memory_grid_multiplier) * 100.0);
+    }
 
     for i in 0..quantity_to_craft {
         let item_finish_time = current_item_start_time + crafting_duration_per_item;

@@ -356,12 +356,14 @@ export function renderInteractionLabels({
                     config = ENTITY_VISUAL_CONFIG.repair_bench;
                 } else if (box.boxType === 6) { // BOX_TYPE_COOKING_STATION
                     config = ENTITY_VISUAL_CONFIG.cooking_station;
+                } else if (box.boxType === 7) { // BOX_TYPE_SCARECROW
+                    config = ENTITY_VISUAL_CONFIG.scarecrow;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }
                 const labelPos = getLabelPosition(box.posX, box.posY, config);
-                // Show different label text for backpacks
-                const labelText = box.boxType === 4 ? 'E' : text;
+                // Show different label text for backpacks and scarecrows (no interaction)
+                const labelText = box.boxType === 4 ? 'E' : (box.boxType === 7 ? '' : text);
                 renderStyledInteractionLabel(ctx, labelText, labelPos.x, labelPos.y);
             }
             break;

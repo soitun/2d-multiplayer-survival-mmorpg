@@ -128,10 +128,15 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
      pub slot_2_cooking_progress: Option<CookingProgress>,
      pub slot_3_cooking_progress: Option<CookingProgress>,
      pub slot_4_cooking_progress: Option<CookingProgress>,
-     pub last_damage_application_time: Option<Timestamp>, // ADDED: For damage cooldown
+    pub last_damage_application_time: Option<Timestamp>, // ADDED: For damage cooldown
      pub is_player_in_hot_zone: bool, // ADDED: True if any player is in the damage radius
     pub attached_broth_pot_id: Option<u32>, // ADDED: Broth pot placed on this campfire
- }
+    
+    // --- Monument Placeable System ---
+    pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
+    pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
+    pub active_user_since: Option<Timestamp>, // When the active user started using this container
+}
  
  // ADD NEW Schedule Table for per-campfire processing
  #[spacetimedb::table(name = campfire_processing_schedule, scheduled(process_campfire_logic_scheduled))]
@@ -737,7 +742,7 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         slot_def_id_3: None,
         slot_instance_id_4: None,
         slot_def_id_4: None,
-        current_fuel_def_id: None, 
+        current_fuel_def_id: None,
         remaining_fuel_burn_time_secs: None,
         health: CAMPFIRE_INITIAL_HEALTH, // Example initial health
         max_health: CAMPFIRE_MAX_HEALTH, // Example max health
@@ -754,6 +759,10 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         last_damage_application_time: None,
         is_player_in_hot_zone: false, // Initialize new field
         attached_broth_pot_id: None, // Initialize broth pot field
+        // Monument placeable system (player-placed campfires are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
     let inserted_campfire = campfires.try_insert(new_campfire.clone())
         .map_err(|e| format!("Failed to insert campfire entity: {}", e))?;
@@ -835,8 +844,28 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
          ctx.db.campfire_processing_schedule().campfire_id().delete(campfire_id as u64);
          return Ok(());
      }
- 
+
      let mut made_changes_to_campfire_struct = false;
+     
+     // --- Auto-release container access if user is offline or too far ---
+     if let Some(active_user) = campfire.active_user_id {
+         let should_release = match ctx.db.player().identity().find(&active_user) {
+             Some(player) => {
+                 // Player is online - check distance
+                 let dx = player.position_x - campfire.pos_x;
+                 let dy = player.position_y - campfire.pos_y;
+                 let dist_sq = dx * dx + dy * dy;
+                 dist_sq > PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED * 2.0 // Give some buffer
+             }
+             None => true // Player is offline
+         };
+         if should_release {
+             campfire.active_user_id = None;
+             campfire.active_user_since = None;
+             made_changes_to_campfire_struct = true;
+             log::debug!("[ProcessCampfireScheduled] Released container access for campfire {} (user offline/too far)", campfire_id);
+         }
+     }
      let mut produced_charcoal_and_modified_campfire_struct = false; // For charcoal logic
  
      // Reset is_player_in_hot_zone at the beginning of each tick for this campfire
@@ -1306,20 +1335,66 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
          return Err("Too far away from campfire".to_string());
      }
 
-     // NEW: Check shelter access control
-     if !crate::shelter::can_player_interact_with_object_in_shelter(
-         ctx,
-         sender_id,
-         player.position_x,
-         player.position_y,
-         campfire.pos_x,
-         campfire.pos_y,
-     ) {
-         return Err("Cannot interact with campfire inside shelter - only the shelter owner can access it from inside".to_string());
-     }
+    // NEW: Check shelter access control
+    if !crate::shelter::can_player_interact_with_object_in_shelter(
+        ctx,
+        sender_id,
+        player.position_x,
+        player.position_y,
+        campfire.pos_x,
+        campfire.pos_y,
+    ) {
+        return Err("Cannot interact with campfire inside shelter - only the shelter owner can access it from inside".to_string());
+    }
 
-     Ok((player, campfire))
- }
+    // Check safe zone container exclusivity
+    crate::active_effects::validate_safe_zone_container_access(
+        ctx,
+        campfire.pos_x,
+        campfire.pos_y,
+        campfire.active_user_id,
+        campfire.active_user_since,
+    )?;
+
+    Ok((player, campfire))
+}
+
+/// --- Open Campfire Container ---
+/// Called when a player opens the campfire UI. Sets the active_user_id to prevent
+/// other players from using this container in safe zones.
+#[spacetimedb::reducer]
+pub fn open_campfire_container(ctx: &ReducerContext, campfire_id: u32) -> Result<(), String> {
+    let (_player, mut campfire) = validate_campfire_interaction(ctx, campfire_id)?;
+    
+    // Set the active user
+    campfire.active_user_id = Some(ctx.sender);
+    campfire.active_user_since = Some(ctx.timestamp);
+    
+    ctx.db.campfire().id().update(campfire);
+    log::debug!("Player {:?} opened campfire {} container", ctx.sender, campfire_id);
+    
+    Ok(())
+}
+
+/// --- Close Campfire Container ---
+/// Called when a player closes the campfire UI. Clears the active_user_id to allow
+/// other players to use this container.
+#[spacetimedb::reducer]
+pub fn close_campfire_container(ctx: &ReducerContext, campfire_id: u32) -> Result<(), String> {
+    let campfire = ctx.db.campfire().id().find(campfire_id)
+        .ok_or_else(|| format!("Campfire {} not found", campfire_id))?;
+    
+    // Only clear if this player is the active user
+    if campfire.active_user_id == Some(ctx.sender) {
+        let mut campfire = campfire;
+        campfire.active_user_id = None;
+        campfire.active_user_since = None;
+        ctx.db.campfire().id().update(campfire);
+        log::debug!("Player {:?} closed campfire {} container", ctx.sender, campfire_id);
+    }
+    
+    Ok(())
+}
  
  // --- Campfire Fuel Checking ---
  // This function checks if a campfire has any valid fuel in its slots.

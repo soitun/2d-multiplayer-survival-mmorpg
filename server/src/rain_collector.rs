@@ -88,6 +88,11 @@ pub struct RainCollector {
     pub total_water_collected: f32, // Lifetime total for statistics
     pub last_collection_time: Option<Timestamp>, // Last time water was collected
     pub is_salt_water: bool, // True if collected water is salt water
+    
+    // --- Monument Placeable System ---
+    pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
+    pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
+    pub active_user_since: Option<Timestamp>, // When the active user started using this container
 }
 
 /// Implement ItemContainer trait for RainCollector
@@ -267,6 +272,10 @@ pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x
         total_water_collected: 0.0,
         last_collection_time: None,
         is_salt_water: false, // Start with fresh water (rain is always fresh)
+        // Monument placeable system (player-placed collectors are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
 
     // --- Insert collector into database ---
@@ -698,5 +707,51 @@ fn validate_collector_interaction(
         return Err("Too far away from rain collector.".to_string());
     }
 
+    // Check safe zone container exclusivity
+    crate::active_effects::validate_safe_zone_container_access(
+        ctx,
+        collector.pos_x,
+        collector.pos_y,
+        collector.active_user_id,
+        collector.active_user_since,
+    )?;
+
     Ok((player, collector))
-} 
+}
+
+/// --- Open Rain Collector Container ---
+/// Called when a player opens the rain collector UI. Sets the active_user_id to prevent
+/// other players from using this container in safe zones.
+#[spacetimedb::reducer]
+pub fn open_rain_collector_container(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
+    let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
+    
+    // Set the active user
+    collector.active_user_id = Some(ctx.sender);
+    collector.active_user_since = Some(ctx.timestamp);
+    
+    ctx.db.rain_collector().id().update(collector);
+    log::debug!("Player {:?} opened rain collector {} container", ctx.sender, collector_id);
+    
+    Ok(())
+}
+
+/// --- Close Rain Collector Container ---
+/// Called when a player closes the rain collector UI. Clears the active_user_id to allow
+/// other players to use this container.
+#[spacetimedb::reducer]
+pub fn close_rain_collector_container(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
+    let collector = ctx.db.rain_collector().id().find(&collector_id)
+        .ok_or_else(|| format!("Rain collector {} not found", collector_id))?;
+    
+    // Only clear if this player is the active user
+    if collector.active_user_id == Some(ctx.sender) {
+        let mut collector = collector;
+        collector.active_user_id = None;
+        collector.active_user_since = None;
+        ctx.db.rain_collector().id().update(collector);
+        log::debug!("Player {:?} closed rain collector {} container", ctx.sender, collector_id);
+    }
+    
+    Ok(())
+}

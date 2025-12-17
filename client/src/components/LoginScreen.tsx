@@ -252,30 +252,30 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     // Ref for username input focus
     const usernameInputRef = useRef<HTMLInputElement>(null);
 
-    // Shake animation hook for "Learn More" button
-    const [isShaking, setIsShaking] = useState(false);
+    // Gleam animation hook for "Learn More" button
+    const [isGleaming, setIsGleaming] = useState(false);
     useEffect(() => {
         const interval = 3200;
-        const duration = 700;
-        const shakeTimeouts: NodeJS.Timeout[] = []; 
+        const duration = 600;
+        const gleamTimeouts: NodeJS.Timeout[] = [];
         let mounted = true;
-        
-        function triggerShake() {
+
+        function triggerGleam() {
             if (!mounted) return;
-            setIsShaking(true); 
-            shakeTimeouts.push(setTimeout(() => {
-                if (mounted) setIsShaking(false);
+            setIsGleaming(true);
+            gleamTimeouts.push(setTimeout(() => {
+                if (mounted) setIsGleaming(false);
             }, duration));
         }
-        
-        const mainInterval = setInterval(triggerShake, interval);
-        // Initial shake after 700ms
-        shakeTimeouts.push(setTimeout(triggerShake, 700));
-        
+
+        const mainInterval = setInterval(triggerGleam, interval);
+        // Initial gleam after 700ms
+        gleamTimeouts.push(setTimeout(triggerGleam, 700));
+
         return () => {
             mounted = false;
             clearInterval(mainInterval);
-            shakeTimeouts.forEach(clearTimeout);
+            gleamTimeouts.forEach(clearTimeout);
         };
     }, []);
 
@@ -1134,20 +1134,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         padding: '7px 22px',
                                         fontSize: '13px',
                                         borderRadius: '18px',
-                                        boxShadow: isShaking
-                                            ? '0 0 16px 2px rgba(255, 140, 0, 0.55), 0 1.5px 11px 2px rgba(0,0,0,0.2)'
-                                            : '0 1.5px 11px 2px rgba(0,0,0,0.08)',
+                                        boxShadow: '0 1.5px 11px 2px rgba(0,0,0,0.08)',
                                         cursor: 'pointer',
                                         fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
                                         textShadow: '1px 1px 3px rgba(255,255,255,0.15)',
                                         transition: 'all 0.22s cubic-bezier(0.63, 0.1, 0.32, 1), box-shadow 0.13s',
                                         letterSpacing: '1.2px',
-                                        outline: isShaking ? '2.5px solid #ffd180' : 'none',
-                                        transform: isShaking ? 'translateX(-2px) rotate(-1.3deg)' : 'none',
                                         position: 'relative',
-                                        userSelect: 'none'
+                                        userSelect: 'none',
+                                        overflow: 'hidden'
                                     }}
-                                    className={isShaking ? 'shake-animating' : ''}
+                                    className={isGleaming ? 'gleam-animating' : ''}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.background =
                                             'linear-gradient(92deg, #fff3e0, #ffb94f 50%, #ff8c00 90%, #e67c00)';
@@ -1157,9 +1154,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.background = 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)';
                                         e.currentTarget.style.color = '#852100';
-                                        e.currentTarget.style.boxShadow = isShaking
-                                            ? '0 0 16px 2px rgba(255, 140, 0, 0.55), 0 1.5px 11px 2px rgba(0,0,0,0.2)'
-                                            : '0 1.5px 11px 2px rgba(0,0,0,0.08)';
+                                        e.currentTarget.style.boxShadow = '0 1.5px 11px 2px rgba(0,0,0,0.08)';
                                     }}
                                 >
                                     <span
@@ -1171,30 +1166,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                             display: 'inline-flex',
                                             alignItems: 'center',
                                             gap: '4px',
-                                            filter: isShaking ? 'brightness(1.09) drop-shadow(0 0 2.5px #ffd180)' : undefined
+                                            position: 'relative',
+                                            zIndex: 1
                                         }}
                                     >
-                                        {isShaking && (
-                                            <svg width="17" height="17" style={{ marginRight: '3px', verticalAlign: 'text-bottom' }} viewBox="0 0 20 20" fill="none"><g><ellipse cx="10" cy="10" rx="8" ry="8" fill="#fffacd" /><ellipse cx="10" cy="10" rx="6.2" ry="6.2" fill="#ffe7b2" /><ellipse cx="10" cy="10" rx="4" ry="4" fill="#ffd180" /><ellipse cx="10" cy="10" rx="2.2" ry="2.2" fill="#ffb94f" /></g></svg>
-                                        )}
                                         learn more
                                     </span>
                                 </button>
                                 <style>{`
-                                    .shake-animating {
-                                        animation:
-                                            shakekeyframes 0.65s cubic-bezier(.36,.07,.19,.97) both;
+                                    .gleam-animating::before {
+                                        content: '';
+                                        position: absolute;
+                                        top: 0;
+                                        left: -100%;
+                                        width: 60%;
+                                        height: 100%;
+                                        background: linear-gradient(
+                                            90deg,
+                                            transparent 0%,
+                                            rgba(255, 255, 255, 0.1) 25%,
+                                            rgba(255, 255, 255, 0.4) 50%,
+                                            rgba(255, 255, 255, 0.1) 75%,
+                                            transparent 100%
+                                        );
+                                        transform: skewX(-20deg);
+                                        animation: gleamkeyframes 0.6s ease-out forwards;
+                                        pointer-events: none;
                                     }
-                                    @keyframes shakekeyframes {
-                                        10% { transform: translateX(-1px) rotate(-1.5deg);}
-                                        20% { transform: translateX(2.2px) rotate(2.2deg);}
-                                        26% { transform: translateX(-2.5px) rotate(-3deg);}
-                                        32% { transform: translateX(2.3px) rotate(3deg);}
-                                        41% { transform: translateX(-1.3px) rotate(-2deg);}
-                                        50% { transform: translateX(2.5px) rotate(2deg);}
-                                        57% { transform: translateX(-2px) rotate(-2.4deg);}
-                                        75% { transform: translateX(1px) rotate(1deg);}
-                                        100% { transform: none;}
+                                    @keyframes gleamkeyframes {
+                                        0% { left: -100%; }
+                                        100% { left: 150%; }
                                     }
                                 `}
                                 </style>

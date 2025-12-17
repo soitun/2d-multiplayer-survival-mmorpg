@@ -1259,6 +1259,16 @@ pub fn damage_tree(
     }
     // <<< END BROTH EFFECT >>>
     
+    // <<< MEMORY GRID: Mining Efficiency gives +30% yield from chopping >>>
+    if crate::memory_grid::player_has_mining_efficiency(ctx, attacker_id) {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, tree.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has Mining Efficiency node - wood yield increased by {:.0}%: {} -> {}", 
+            attacker_id, (crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
+    }
+    // <<< END MEMORY GRID >>>
+    
     tree.resource_remaining = tree.resource_remaining.saturating_sub(actual_yield);
     
     log::info!("Player {:?} hit Tree {} for {:.1} damage. Health: {} -> {}, Resources: {} remaining", 
@@ -1419,6 +1429,16 @@ pub fn damage_stone(
             attacker_id, (active_effects::HARVEST_BOOST_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
     }
     // <<< END BROTH EFFECT >>>
+    
+    // <<< MEMORY GRID: Mining Efficiency gives +30% yield from mining >>>
+    if crate::memory_grid::player_has_mining_efficiency(ctx, attacker_id) {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, stone.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has Mining Efficiency node - ore yield increased by {:.0}%: {} -> {}", 
+            attacker_id, (crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
+    }
+    // <<< END MEMORY GRID >>>
     
     stone.resource_remaining = stone.resource_remaining.saturating_sub(actual_yield);
     
@@ -2114,6 +2134,11 @@ pub fn damage_campfire(
     let mut campfire = campfires_table.id().find(campfire_id)
         .ok_or_else(|| format!("Target campfire {} disappeared", campfire_id))?;
 
+    // Monument placeables are indestructible
+    if campfire.is_monument {
+        return Err("Cannot damage monument structures.".to_string());
+    }
+
     if campfire.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Campfire), resource_granted: None });
     }
@@ -2282,6 +2307,11 @@ pub fn damage_wooden_storage_box(
     let mut boxes_table = ctx.db.wooden_storage_box();
     let mut wooden_box = boxes_table.id().find(box_id)
         .ok_or_else(|| format!("Target wooden storage box {} disappeared", box_id))?;
+
+    // Monument placeables are indestructible
+    if wooden_box.is_monument {
+        return Err("Cannot damage monument structures.".to_string());
+    }
 
     // Backpacks are not damageable - they should be looted, not destroyed
     if wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_BACKPACK {
@@ -3563,6 +3593,11 @@ pub fn damage_rain_collector(
     let mut rain_collector = rain_collectors_table.id().find(&rain_collector_id)
         .ok_or_else(|| format!("Target rain collector {} disappeared", rain_collector_id))?;
 
+    // Monument placeables are indestructible
+    if rain_collector.is_monument {
+        return Err("Cannot damage monument structures.".to_string());
+    }
+
     if rain_collector.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::RainCollector), resource_granted: None });
     }
@@ -3662,6 +3697,11 @@ pub fn damage_furnace(
     let mut furnaces_table = ctx.db.furnace();
     let mut furnace = furnaces_table.id().find(&furnace_id)
         .ok_or_else(|| format!("Target furnace {} disappeared", furnace_id))?;
+
+    // Monument placeables are indestructible
+    if furnace.is_monument {
+        return Err("Cannot damage monument structures.".to_string());
+    }
 
     if furnace.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Furnace), resource_granted: None });

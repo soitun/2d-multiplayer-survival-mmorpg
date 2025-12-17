@@ -213,6 +213,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "lantern" => Some((80, vec!["center"])),            // Branch 4 (180°): Food (splits later)
         "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5 (240°): Crafting (splits later)
         "stone-spear" => Some((80, vec!["center"])),        // Branch 6 (300°): Melee
+        "kayak-paddle" => Some((200, vec!["stone-spear"])), // Branch 6 (300°): Melee → Water utility
         
         // ============================================
         // TIER 2 - Specialization (200-280 shards)
@@ -259,6 +260,13 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "plastic-water-jug" => Some((1200, vec!["reed-rain-collector"])),
         // Branch 4 LOWER (Food Storage)
         "compost" => Some((1200, vec!["refrigerator"])),
+        
+        // ============================================
+        // TIER 5 - Mid-Late Game (2400-3000 shards)
+        // Day 21-35 - Split paths conclude
+        // ============================================
+        // Branch 4 LOWER (Food Storage / Farming) - capstone
+        "scarecrow" => Some((2400, vec!["compost"])),
         // Branch 5 UPPER (Passive Bonuses)
         "crafting-speed-1" => Some((1600, vec!["mining-efficiency"])),
         
@@ -278,17 +286,10 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "crafting-speed-2" => Some((3000, vec!["crafting-speed-1"])),
         
         // ============================================
-        // TIER 6 - Late Game (3200-3400 shards)
+        // TIER 6 - Late Game (3200 shards)
         // Day 35-45 - Final upgrades before factions
         // ============================================
         "makarov-pm" => Some((3200, vec!["9x18mm-round"])),
-        "harvester-drone" => Some((3400, vec!["shelter"])),
-        
-        // ============================================
-        // TIER 7 - End Game (4000 shards)
-        // Day 45+ - Final node before factions
-        // ============================================
-        "combat-drone" => Some((4000, vec!["makarov-pm"])),
         
         // ============================================
         // FACTION UNLOCK NODES (1600 shards each)
@@ -488,6 +489,7 @@ fn get_node_display_name(node_id: &str) -> String {
         "metal-pickaxe" => "Metal Pickaxe".to_string(),
         "crossbow" => "Crossbow".to_string(),
         "stone-spear" => "Stone Spear".to_string(),
+        "kayak-paddle" => "Kayak Paddle".to_string(),
         "reed-harpoon" => "Reed Harpoon".to_string(),
         "lantern" => "Lantern".to_string(),
         
@@ -515,6 +517,7 @@ fn get_node_display_name(node_id: &str) -> String {
         "plastic-water-jug" => "Plastic Water Jug".to_string(),
         "cooking-station" => "Cooking Station".to_string(),
         "compost" => "Compost".to_string(),
+        "scarecrow" => "Scarecrow".to_string(),
         "crafting-speed-1" => "Crafting Speed I".to_string(),
         
         // Tier 5
@@ -525,10 +528,6 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 6
         "makarov-pm" => "Makarov PM".to_string(),
-        "harvester-drone" => "Harvester Drone".to_string(),
-        
-        // Tier 7
-        "combat-drone" => "Combat Drone".to_string(),
         
         // Faction unlocks
         "unlock-black-wolves" => "Unlock Black Wolves".to_string(),
@@ -558,6 +557,46 @@ pub fn player_has_node(ctx: &spacetimedb::ReducerContext, player_id: Identity, n
     }
 }
 
+// ============================================
+// PASSIVE BUFF CONSTANTS & HELPERS
+// ============================================
+
+/// Mining Efficiency bonus from memory grid node (+30% yield)
+pub const MINING_EFFICIENCY_MULTIPLIER: f32 = 1.30;
+
+/// Crafting Speed I bonus from memory grid node (15% faster = 0.85x time)
+pub const CRAFTING_SPEED_1_MULTIPLIER: f32 = 0.85;
+
+/// Crafting Speed II bonus from memory grid node (25% faster = 0.75x time)
+pub const CRAFTING_SPEED_2_MULTIPLIER: f32 = 0.75;
+
+/// Check if a player has the Mining Efficiency memory grid node unlocked
+/// This grants +30% resource yield from all gathering activities (mining, chopping)
+pub fn player_has_mining_efficiency(ctx: &spacetimedb::ReducerContext, player_id: Identity) -> bool {
+    player_has_node(ctx, player_id, "mining-efficiency")
+}
+
+/// Get the crafting speed multiplier for a player based on their memory grid nodes
+/// Returns a multiplier < 1.0 for faster crafting (e.g., 0.85 = 15% faster)
+/// 
+/// - No nodes: 1.0 (normal speed)
+/// - Crafting Speed I: 0.85 (15% faster)
+/// - Crafting Speed II: 0.75 (25% faster) - stacks additively with I
+pub fn get_crafting_speed_multiplier(ctx: &spacetimedb::ReducerContext, player_id: Identity) -> f32 {
+    // Check for Crafting Speed II first (better bonus)
+    if player_has_node(ctx, player_id, "crafting-speed-2") {
+        return CRAFTING_SPEED_2_MULTIPLIER;
+    }
+    
+    // Check for Crafting Speed I
+    if player_has_node(ctx, player_id, "crafting-speed-1") {
+        return CRAFTING_SPEED_1_MULTIPLIER;
+    }
+    
+    // No crafting speed nodes
+    1.0
+}
+
 /// Get the memory grid node ID required to craft a specific item
 /// Returns None if the item doesn't require any memory grid unlock (always craftable)
 /// 
@@ -574,6 +613,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Metal Pickaxe" => Some("metal-pickaxe"),
         "Crossbow" => Some("crossbow"),
         "Stone Spear" => Some("stone-spear"),
+        "Kayak Paddle" => Some("kayak-paddle"),
         "Reed Harpoon" => Some("reed-harpoon"),
         "Lantern" => Some("lantern"),
         
@@ -600,6 +640,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Plastic Water Jug" => Some("plastic-water-jug"),
         "Cooking Station" => Some("cooking-station"),
         "Compost" => Some("compost"),
+        "Scarecrow" => Some("scarecrow"),
         
         // Tier 5 items
         "9x18mm Round" => Some("9x18mm-round"),

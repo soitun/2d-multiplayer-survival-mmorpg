@@ -139,7 +139,7 @@ function AppContent() {
     const { placementInfo, placementError } = placementState; // Destructure state
     const { cancelPlacement, startPlacement } = placementActions; // Destructure actions
 
-    const { interactingWith, handleSetInteractingWith } = useInteractionManager();
+    const { interactingWith, handleSetInteractingWith } = useInteractionManager(connection);
 
     const { draggedItemInfo, dropError, handleItemDragStart, handleItemDrop } = useDragDropManager({ connection, interactingWith, playerIdentity: dbIdentity });
 

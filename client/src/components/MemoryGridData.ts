@@ -247,6 +247,18 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
   },
+  { 
+    id: 'kayak-paddle', 
+    name: 'Kayak Paddle', 
+    description: 'Unlocks crafting the Kayak Paddle - a sturdy double-bladed paddle for water navigation. Can also be used as an improvised weapon.', 
+    cost: 200, 
+    tier: 2, 
+    prerequisites: ['stone-spear'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 220), // 300° - BRANCH 6: Melee → Water utility
+    category: 'tool' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Kayak Paddle']
+  },
 
   // ============================================
   // TIER 2 - Specialization (200-280 shards)
@@ -506,6 +518,19 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Compost']
   },
+  // Branch 4 LOWER (Food Storage / Farming) - capstone
+  { 
+    id: 'scarecrow', 
+    name: 'Scarecrow', 
+    description: 'Unlocks crafting Scarecrows - deters crows from nearby crops, protecting your harvest.', 
+    cost: 2400, 
+    tier: 5, 
+    prerequisites: ['compost'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 + SPLIT_OFFSET, 520), // Lower path capstone
+    category: 'crafting' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Scarecrow']
+  },
   // Branch 5 UPPER (Passive Bonuses)
   { 
     id: 'crafting-speed-1', 
@@ -576,7 +601,7 @@ export const MEMORY_GRID_NODES = [
   },
 
   // ============================================
-  // TIER 6 - Late Game (3200-3400 shards)
+  // TIER 6 - Late Game (3200 shards)
   // Day 35-45 - Final upgrades before factions
   // Radius: 620
   // ============================================
@@ -591,34 +616,6 @@ export const MEMORY_GRID_NODES = [
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Makarov PM']
-  },
-  { 
-    id: 'harvester-drone', 
-    name: 'Harvester Drone', 
-    description: 'Unlocks autonomous harvesting drone technology - automatically gathers nearby resources.', 
-    cost: 3400, 
-    tier: 6, 
-    prerequisites: ['shelter'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 620),
-    category: 'technology' as const, 
-    status: 'locked' as const
-  },
-
-  // ============================================
-  // TIER 7 - End Game (4000 shards)
-  // Day 45+ - Final node before factions
-  // Radius: 720
-  // ============================================
-  { 
-    id: 'combat-drone', 
-    name: 'Combat Drone', 
-    description: 'Unlocks autonomous combat drone technology - a robotic ally that assists in combat.', 
-    cost: 4000, 
-    tier: 7, 
-    prerequisites: ['makarov-pm'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 720),
-    category: 'technology' as const, 
-    status: 'locked' as const
   },
 
   // ============================================
@@ -927,6 +924,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Metal Pickaxe': 'metal-pickaxe',
   'Crossbow': 'crossbow',
   'Stone Spear': 'stone-spear',
+  'Kayak Paddle': 'kayak-paddle',
   'Reed Harpoon': 'reed-harpoon',
   'Lantern': 'lantern',
   
@@ -953,6 +951,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Plastic Water Jug': 'plastic-water-jug',
   'Cooking Station': 'cooking-station',
   'Compost': 'compost',
+  'Scarecrow': 'scarecrow',
   
   // Tier 5 items
   '9x18mm Round': '9x18mm-round',

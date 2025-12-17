@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { InteractionConfig, InteractableTarget, INTERACTION_CONFIGS, hasSecondaryHoldAction, getSecondaryHoldDuration } from '../types/interactions';
 import { DbConnection, InventoryItem, Campfire, Lantern } from '../generated';
 import { Identity } from 'spacetimedb';
@@ -22,6 +22,9 @@ interface InteractionManager {
     // clearInteractionTarget: () => void; // Combine into handleSetInteractingWith(null)
 }
 
+// Container types that support safe zone exclusivity
+const CONTAINER_TYPES_WITH_EXCLUSIVITY = ['campfire', 'furnace', 'barbecue', 'rain_collector', 'wooden_storage_box'];
+
 interface UseInteractionManagerProps {
     connection: DbConnection | null;
     target: InteractableTarget | null;
@@ -39,14 +42,104 @@ interface InteractionManagerResult {
     handleSecondaryHoldAction?: () => void;
 }
 
-export const useInteractionManager = (): InteractionManager => {
+/**
+ * Helper to call open container reducer based on container type
+ * These reducers support safe zone container exclusivity
+ */
+function callOpenContainerReducer(connection: DbConnection, type: string, id: number | bigint) {
+    const reducers = connection?.reducers as any;
+    if (!reducers) return;
+    
+    const numericId = typeof id === 'bigint' ? Number(id) : id;
+    
+    switch (type) {
+        case 'campfire':
+            reducers.openCampfireContainer?.(numericId);
+            break;
+        case 'furnace':
+            reducers.openFurnaceContainer?.(numericId);
+            break;
+        case 'barbecue':
+            reducers.openBarbecueContainer?.(numericId);
+            break;
+        case 'rain_collector':
+            reducers.openRainCollectorContainer?.(numericId);
+            break;
+        case 'wooden_storage_box':
+            reducers.openStorageBoxContainer?.(numericId);
+            break;
+    }
+}
+
+/**
+ * Helper to call close container reducer based on container type
+ */
+function callCloseContainerReducer(connection: DbConnection, type: string, id: number | bigint) {
+    const reducers = connection?.reducers as any;
+    if (!reducers) return;
+    
+    const numericId = typeof id === 'bigint' ? Number(id) : id;
+    
+    switch (type) {
+        case 'campfire':
+            reducers.closeCampfireContainer?.(numericId);
+            break;
+        case 'furnace':
+            reducers.closeFurnaceContainer?.(numericId);
+            break;
+        case 'barbecue':
+            reducers.closeBarbecueContainer?.(numericId);
+            break;
+        case 'rain_collector':
+            reducers.closeRainCollectorContainer?.(numericId);
+            break;
+        case 'wooden_storage_box':
+            reducers.closeStorageBoxContainer?.(numericId);
+            break;
+    }
+}
+
+export const useInteractionManager = (connection?: DbConnection | null): InteractionManager => {
     const [interactingWith, setInteractingWith] = useState<InteractionTarget>(null);
+    const previousTargetRef = useRef<InteractionTarget>(null);
 
     // Combine setting and clearing into one handler
     const handleSetInteractingWith = useCallback((target: InteractionTarget) => {
         console.log("[useInteractionManager] Setting interaction target:", target);
         setInteractingWith(target);
     }, []);
+
+    // Handle open/close container reducers for safe zone exclusivity
+    useEffect(() => {
+        const previousTarget = previousTargetRef.current;
+        const currentTarget = interactingWith;
+        
+        // Close previous container if it supported exclusivity
+        if (previousTarget && CONTAINER_TYPES_WITH_EXCLUSIVITY.includes(previousTarget.type) && connection) {
+            console.log(`[useInteractionManager] Closing ${previousTarget.type} container ${previousTarget.id}`);
+            callCloseContainerReducer(connection, previousTarget.type, previousTarget.id);
+        }
+        
+        // Open new container if it supports exclusivity
+        if (currentTarget && CONTAINER_TYPES_WITH_EXCLUSIVITY.includes(currentTarget.type) && connection) {
+            console.log(`[useInteractionManager] Opening ${currentTarget.type} container ${currentTarget.id}`);
+            callOpenContainerReducer(connection, currentTarget.type, currentTarget.id);
+        }
+        
+        // Update previous target ref
+        previousTargetRef.current = currentTarget;
+    }, [interactingWith, connection]);
+
+    // Cleanup on unmount - close any open container
+    useEffect(() => {
+        return () => {
+            const target = previousTargetRef.current;
+            if (target && CONTAINER_TYPES_WITH_EXCLUSIVITY.includes(target.type) && connection) {
+                console.log(`[useInteractionManager] Unmount cleanup - closing ${target.type} container ${target.id}`);
+                callCloseContainerReducer(connection, target.type, target.id);
+            }
+        };
+    }, [connection]);
 
     // Optional: Clear function if needed separately, but handleSetInteractingWith(null) works
     // const clearInteractionTarget = useCallback(() => {

@@ -125,6 +125,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 128,
   },
   
+  scarecrow: {
+    centerOffsetX: 0,
+    centerOffsetY: -84,   // Sprite is 96x128, renders similarly to cooking_station
+    width: 80,            // Interaction box width - narrower than cooking station
+    height: 120,          // Interaction box height - tall figure
+    placementYOffset: -32, // Compensate for taller sprite vs 64px normal box
+    spriteWidth: 96,
+    spriteHeight: 128,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

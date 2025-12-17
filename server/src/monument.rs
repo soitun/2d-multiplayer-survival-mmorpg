@@ -977,3 +977,459 @@ fn is_near_crash_site(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
 }
 */
 
+// =============================================================================
+// MONUMENT PLACEABLES SYSTEM
+// =============================================================================
+// Monument placeables are permanent, indestructible containers (campfires, furnaces,
+// rain collectors, etc.) that are spawned at safe zone monuments during world generation.
+// These allow players to use crafting/processing stations in safe zones without
+// needing to place their own structures.
+
+use crate::campfire::{Campfire, CAMPFIRE_INITIAL_HEALTH, CAMPFIRE_MAX_HEALTH, INITIAL_CAMPFIRE_FUEL_AMOUNT};
+use crate::furnace::{Furnace, FURNACE_INITIAL_HEALTH, FURNACE_MAX_HEALTH, INITIAL_FURNACE_FUEL_AMOUNT};
+use crate::rain_collector::{RainCollector, RAIN_COLLECTOR_INITIAL_HEALTH, RAIN_COLLECTOR_MAX_HEALTH};
+use crate::wooden_storage_box::{
+    WoodenStorageBox, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH,
+    COOKING_STATION_INITIAL_HEALTH, COOKING_STATION_MAX_HEALTH,
+    REPAIR_BENCH_INITIAL_HEALTH, REPAIR_BENCH_MAX_HEALTH,
+    BOX_COLLISION_Y_OFFSET,
+};
+use crate::campfire::campfire as CampfireTableTrait;
+use crate::furnace::furnace as FurnaceTableTrait;
+use crate::rain_collector::rain_collector as RainCollectorTableTrait;
+use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
+use crate::environment::calculate_chunk_index;
+use spacetimedb::Identity;
+
+/// Types of placeables that can be spawned at monuments
+#[derive(Clone, Debug, PartialEq)]
+pub enum MonumentPlaceableType {
+    Campfire,
+    Furnace,
+    RainCollector,
+    CookingStation,
+    RepairBench,
+}
+
+/// Configuration for a single monument placeable
+#[derive(Clone, Debug)]
+pub struct MonumentPlaceableConfig {
+    /// Type of placeable to spawn
+    pub placeable_type: MonumentPlaceableType,
+    /// X offset from monument center (positive = east)
+    pub offset_x: f32,
+    /// Y offset from monument center (positive = south)
+    pub offset_y: f32,
+    /// Initial fuel amount for campfires/furnaces (None = use default)
+    pub initial_fuel: Option<u32>,
+}
+
+impl MonumentPlaceableConfig {
+    pub fn campfire(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Campfire,
+            offset_x,
+            offset_y,
+            initial_fuel: Some(INITIAL_CAMPFIRE_FUEL_AMOUNT),
+        }
+    }
+    
+    pub fn furnace(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Furnace,
+            offset_x,
+            offset_y,
+            initial_fuel: Some(INITIAL_FURNACE_FUEL_AMOUNT),
+        }
+    }
+    
+    pub fn rain_collector(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::RainCollector,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+    
+    pub fn cooking_station(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::CookingStation,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+    
+    pub fn repair_bench(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::RepairBench,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+}
+
+/// Get monument placeables for the Central ALK Compound
+/// The central compound is at a fixed position in the world center
+pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Two campfires on opposite sides
+        MonumentPlaceableConfig::campfire(-150.0, 200.0),
+        MonumentPlaceableConfig::campfire(150.0, 200.0),
+        // Two furnaces further back
+        MonumentPlaceableConfig::furnace(-200.0, -100.0),
+        MonumentPlaceableConfig::furnace(200.0, -100.0),
+        // Cooking station in the middle
+        MonumentPlaceableConfig::cooking_station(0.0, 150.0),
+        // Repair bench near the center
+        MonumentPlaceableConfig::repair_bench(0.0, -150.0),
+        // Rain collector off to the side
+        MonumentPlaceableConfig::rain_collector(-250.0, 50.0),
+    ]
+}
+
+/// Get monument placeables for the Shipwreck monument
+pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Two campfires near the wreckage for survivors
+        MonumentPlaceableConfig::campfire(-100.0, 80.0),
+        MonumentPlaceableConfig::campfire(100.0, 80.0),
+    ]
+}
+
+/// Get monument placeables for the Fishing Village monument
+pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // One functional campfire (the decorational one is the village center campfire)
+        MonumentPlaceableConfig::campfire(150.0, -100.0),
+        // Rain collector for fresh water
+        MonumentPlaceableConfig::rain_collector(-180.0, -80.0),
+    ]
+}
+
+/// Spawn monument placeables at the given monument center position
+/// Uses a sentinel identity for placed_by to indicate system-placed
+pub fn spawn_monument_placeables(
+    ctx: &ReducerContext,
+    monument_name: &str,
+    monument_center_x: f32,
+    monument_center_y: f32,
+    configs: &[MonumentPlaceableConfig],
+) -> Result<u32, String> {
+    let mut spawned_count = 0u32;
+    let current_time = ctx.timestamp;
+    
+    // Use module identity as the "owner" of monument placeables
+    let monument_owner = ctx.identity();
+    
+    for config in configs {
+        let world_x = monument_center_x + config.offset_x;
+        let world_y = monument_center_y + config.offset_y;
+        let chunk_idx = calculate_chunk_index(world_x, world_y);
+        
+        match config.placeable_type {
+            MonumentPlaceableType::Campfire => {
+                let campfire = Campfire {
+                    id: 0, // Auto-increment
+                    pos_x: world_x,
+                    pos_y: world_y + 42.0, // Same Y offset as player-placed
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    is_burning: false,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    current_fuel_def_id: None,
+                    remaining_fuel_burn_time_secs: None,
+                    health: CAMPFIRE_INITIAL_HEALTH,
+                    max_health: CAMPFIRE_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    slot_0_cooking_progress: None,
+                    slot_1_cooking_progress: None,
+                    slot_2_cooking_progress: None,
+                    slot_3_cooking_progress: None,
+                    slot_4_cooking_progress: None,
+                    last_damage_application_time: None,
+                    is_player_in_hot_zone: false,
+                    attached_broth_pot_id: None,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.campfire().try_insert(campfire) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument campfire {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn campfire at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::Furnace => {
+                let furnace = Furnace {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y + 42.0, // Same Y offset as player-placed
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    is_burning: false,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    current_fuel_def_id: None,
+                    remaining_fuel_burn_time_secs: None,
+                    health: FURNACE_INITIAL_HEALTH,
+                    max_health: FURNACE_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    slot_0_cooking_progress: None,
+                    slot_1_cooking_progress: None,
+                    slot_2_cooking_progress: None,
+                    slot_3_cooking_progress: None,
+                    slot_4_cooking_progress: None,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.furnace().try_insert(furnace) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument furnace {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn furnace at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::RainCollector => {
+                let collector = RainCollector {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    slot_0_instance_id: None,
+                    slot_0_def_id: None,
+                    health: RAIN_COLLECTOR_INITIAL_HEALTH,
+                    max_health: RAIN_COLLECTOR_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    total_water_collected: 0.0,
+                    last_collection_time: None,
+                    is_salt_water: false,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.rain_collector().try_insert(collector) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument rain collector {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn rain collector at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::CookingStation => {
+                let cooking_station = WoodenStorageBox {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y + BOX_COLLISION_Y_OFFSET,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    box_type: BOX_TYPE_COOKING_STATION,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    slot_instance_id_5: None, slot_def_id_5: None,
+                    slot_instance_id_6: None, slot_def_id_6: None,
+                    slot_instance_id_7: None, slot_def_id_7: None,
+                    slot_instance_id_8: None, slot_def_id_8: None,
+                    slot_instance_id_9: None, slot_def_id_9: None,
+                    slot_instance_id_10: None, slot_def_id_10: None,
+                    slot_instance_id_11: None, slot_def_id_11: None,
+                    slot_instance_id_12: None, slot_def_id_12: None,
+                    slot_instance_id_13: None, slot_def_id_13: None,
+                    slot_instance_id_14: None, slot_def_id_14: None,
+                    slot_instance_id_15: None, slot_def_id_15: None,
+                    slot_instance_id_16: None, slot_def_id_16: None,
+                    slot_instance_id_17: None, slot_def_id_17: None,
+                    slot_instance_id_18: None, slot_def_id_18: None,
+                    slot_instance_id_19: None, slot_def_id_19: None,
+                    slot_instance_id_20: None, slot_def_id_20: None,
+                    slot_instance_id_21: None, slot_def_id_21: None,
+                    slot_instance_id_22: None, slot_def_id_22: None,
+                    slot_instance_id_23: None, slot_def_id_23: None,
+                    slot_instance_id_24: None, slot_def_id_24: None,
+                    slot_instance_id_25: None, slot_def_id_25: None,
+                    slot_instance_id_26: None, slot_def_id_26: None,
+                    slot_instance_id_27: None, slot_def_id_27: None,
+                    slot_instance_id_28: None, slot_def_id_28: None,
+                    slot_instance_id_29: None, slot_def_id_29: None,
+                    slot_instance_id_30: None, slot_def_id_30: None,
+                    slot_instance_id_31: None, slot_def_id_31: None,
+                    slot_instance_id_32: None, slot_def_id_32: None,
+                    slot_instance_id_33: None, slot_def_id_33: None,
+                    slot_instance_id_34: None, slot_def_id_34: None,
+                    slot_instance_id_35: None, slot_def_id_35: None,
+                    slot_instance_id_36: None, slot_def_id_36: None,
+                    slot_instance_id_37: None, slot_def_id_37: None,
+                    slot_instance_id_38: None, slot_def_id_38: None,
+                    slot_instance_id_39: None, slot_def_id_39: None,
+                    slot_instance_id_40: None, slot_def_id_40: None,
+                    slot_instance_id_41: None, slot_def_id_41: None,
+                    slot_instance_id_42: None, slot_def_id_42: None,
+                    slot_instance_id_43: None, slot_def_id_43: None,
+                    slot_instance_id_44: None, slot_def_id_44: None,
+                    slot_instance_id_45: None, slot_def_id_45: None,
+                    slot_instance_id_46: None, slot_def_id_46: None,
+                    slot_instance_id_47: None, slot_def_id_47: None,
+                    health: COOKING_STATION_INITIAL_HEALTH,
+                    max_health: COOKING_STATION_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.wooden_storage_box().try_insert(cooking_station) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument cooking station {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn cooking station at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::RepairBench => {
+                let repair_bench = WoodenStorageBox {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y + BOX_COLLISION_Y_OFFSET,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    box_type: BOX_TYPE_REPAIR_BENCH,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    slot_instance_id_5: None, slot_def_id_5: None,
+                    slot_instance_id_6: None, slot_def_id_6: None,
+                    slot_instance_id_7: None, slot_def_id_7: None,
+                    slot_instance_id_8: None, slot_def_id_8: None,
+                    slot_instance_id_9: None, slot_def_id_9: None,
+                    slot_instance_id_10: None, slot_def_id_10: None,
+                    slot_instance_id_11: None, slot_def_id_11: None,
+                    slot_instance_id_12: None, slot_def_id_12: None,
+                    slot_instance_id_13: None, slot_def_id_13: None,
+                    slot_instance_id_14: None, slot_def_id_14: None,
+                    slot_instance_id_15: None, slot_def_id_15: None,
+                    slot_instance_id_16: None, slot_def_id_16: None,
+                    slot_instance_id_17: None, slot_def_id_17: None,
+                    slot_instance_id_18: None, slot_def_id_18: None,
+                    slot_instance_id_19: None, slot_def_id_19: None,
+                    slot_instance_id_20: None, slot_def_id_20: None,
+                    slot_instance_id_21: None, slot_def_id_21: None,
+                    slot_instance_id_22: None, slot_def_id_22: None,
+                    slot_instance_id_23: None, slot_def_id_23: None,
+                    slot_instance_id_24: None, slot_def_id_24: None,
+                    slot_instance_id_25: None, slot_def_id_25: None,
+                    slot_instance_id_26: None, slot_def_id_26: None,
+                    slot_instance_id_27: None, slot_def_id_27: None,
+                    slot_instance_id_28: None, slot_def_id_28: None,
+                    slot_instance_id_29: None, slot_def_id_29: None,
+                    slot_instance_id_30: None, slot_def_id_30: None,
+                    slot_instance_id_31: None, slot_def_id_31: None,
+                    slot_instance_id_32: None, slot_def_id_32: None,
+                    slot_instance_id_33: None, slot_def_id_33: None,
+                    slot_instance_id_34: None, slot_def_id_34: None,
+                    slot_instance_id_35: None, slot_def_id_35: None,
+                    slot_instance_id_36: None, slot_def_id_36: None,
+                    slot_instance_id_37: None, slot_def_id_37: None,
+                    slot_instance_id_38: None, slot_def_id_38: None,
+                    slot_instance_id_39: None, slot_def_id_39: None,
+                    slot_instance_id_40: None, slot_def_id_40: None,
+                    slot_instance_id_41: None, slot_def_id_41: None,
+                    slot_instance_id_42: None, slot_def_id_42: None,
+                    slot_instance_id_43: None, slot_def_id_43: None,
+                    slot_instance_id_44: None, slot_def_id_44: None,
+                    slot_instance_id_45: None, slot_def_id_45: None,
+                    slot_instance_id_46: None, slot_def_id_46: None,
+                    slot_instance_id_47: None, slot_def_id_47: None,
+                    health: REPAIR_BENCH_INITIAL_HEALTH,
+                    max_health: REPAIR_BENCH_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.wooden_storage_box().try_insert(repair_bench) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument repair bench {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn repair bench at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("[MonumentPlaceables] Spawned {} placeables for {} at ({:.1}, {:.1})", 
+        spawned_count, monument_name, monument_center_x, monument_center_y);
+    
+    Ok(spawned_count)
+}
+

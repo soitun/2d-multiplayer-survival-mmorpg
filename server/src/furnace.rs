@@ -107,6 +107,11 @@ pub struct Furnace {
     pub slot_2_cooking_progress: Option<CookingProgress>,
     pub slot_3_cooking_progress: Option<CookingProgress>,
     pub slot_4_cooking_progress: Option<CookingProgress>,
+    
+    // --- Monument Placeable System ---
+    pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
+    pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
+    pub active_user_since: Option<Timestamp>, // When the active user started using this container
 }
 
 // Schedule Table for per-furnace processing
@@ -661,6 +666,10 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         slot_2_cooking_progress: None,
         slot_3_cooking_progress: None,
         slot_4_cooking_progress: None,
+        // Monument placeable system (player-placed furnaces are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
 
     let created_furnace = ctx.db.furnace().insert(new_furnace);
@@ -703,6 +712,26 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
     }
 
     let mut needs_update = false;
+    
+    // --- Auto-release container access if user is offline or too far ---
+    if let Some(active_user) = furnace.active_user_id {
+        let should_release = match ctx.db.player().identity().find(&active_user) {
+            Some(player) => {
+                // Player is online - check distance
+                let dx = player.position_x - furnace.pos_x;
+                let dy = player.position_y - furnace.pos_y;
+                let dist_sq = dx * dx + dy * dy;
+                dist_sq > PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED * 2.0 // Give some buffer
+            }
+            None => true // Player is offline
+        };
+        if should_release {
+            furnace.active_user_id = None;
+            furnace.active_user_since = None;
+            needs_update = true;
+            log::debug!("[ProcessFurnaceScheduled] Released container access for furnace {} (user offline/too far)", furnace_id);
+        }
+    }
 
     if furnace.is_burning {
         // Process fuel consumption
@@ -978,7 +1007,53 @@ fn validate_furnace_interaction(
         ));
     }
 
+    // Check safe zone container exclusivity
+    crate::active_effects::validate_safe_zone_container_access(
+        ctx,
+        furnace.pos_x,
+        furnace.pos_y,
+        furnace.active_user_id,
+        furnace.active_user_since,
+    )?;
+
     Ok((player, furnace))
+}
+
+/// --- Open Furnace Container ---
+/// Called when a player opens the furnace UI. Sets the active_user_id to prevent
+/// other players from using this container in safe zones.
+#[spacetimedb::reducer]
+pub fn open_furnace_container(ctx: &ReducerContext, furnace_id: u32) -> Result<(), String> {
+    let (_player, mut furnace) = validate_furnace_interaction(ctx, furnace_id)?;
+    
+    // Set the active user
+    furnace.active_user_id = Some(ctx.sender);
+    furnace.active_user_since = Some(ctx.timestamp);
+    
+    ctx.db.furnace().id().update(furnace);
+    log::debug!("Player {:?} opened furnace {} container", ctx.sender, furnace_id);
+    
+    Ok(())
+}
+
+/// --- Close Furnace Container ---
+/// Called when a player closes the furnace UI. Clears the active_user_id to allow
+/// other players to use this container.
+#[spacetimedb::reducer]
+pub fn close_furnace_container(ctx: &ReducerContext, furnace_id: u32) -> Result<(), String> {
+    let furnace = ctx.db.furnace().id().find(&furnace_id)
+        .ok_or_else(|| format!("Furnace {} not found", furnace_id))?;
+    
+    // Only clear if this player is the active user
+    if furnace.active_user_id == Some(ctx.sender) {
+        let mut furnace = furnace;
+        furnace.active_user_id = None;
+        furnace.active_user_since = None;
+        ctx.db.furnace().id().update(furnace);
+        log::debug!("Player {:?} closed furnace {} container", ctx.sender, furnace_id);
+    }
+    
+    Ok(())
 }
 
 pub(crate) fn check_if_furnace_has_fuel(ctx: &ReducerContext, furnace: &Furnace) -> bool {

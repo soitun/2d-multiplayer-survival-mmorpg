@@ -63,6 +63,9 @@ export type Furnace = {
   slot2CookingProgress: CookingProgress | undefined,
   slot3CookingProgress: CookingProgress | undefined,
   slot4CookingProgress: CookingProgress | undefined,
+  isMonument: boolean,
+  activeUserId: __Identity | undefined,
+  activeUserSince: __Timestamp | undefined,
 };
 let _cached_Furnace_type_value: __AlgebraicTypeType | null = null;
 
@@ -108,6 +111,9 @@ export const Furnace = {
       { name: "slot2CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "slot3CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "slot4CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "activeUserId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "activeUserSince", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_Furnace_type_value;
   },

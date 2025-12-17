@@ -130,6 +130,11 @@ pub struct Barbecue {
     pub slot_9_cooking_progress: Option<CookingProgress>,
     pub slot_10_cooking_progress: Option<CookingProgress>,
     pub slot_11_cooking_progress: Option<CookingProgress>,
+    
+    // --- Monument Placeable System ---
+    pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
+    pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
+    pub active_user_since: Option<Timestamp>, // When the active user started using this container
 }
 
 // Schedule Table for per-barbecue processing
@@ -629,6 +634,10 @@ pub fn place_barbecue(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         slot_9_cooking_progress: None,
         slot_10_cooking_progress: None,
         slot_11_cooking_progress: None,
+        // Monument placeable system (player-placed barbecues are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
 
     let inserted_barbecue = barbecues.try_insert(new_barbecue)
@@ -761,7 +770,53 @@ fn validate_barbecue_interaction(ctx: &ReducerContext, barbecue_id: u32) -> Resu
                 dist_sq.sqrt(), PLAYER_BARBECUE_INTERACTION_DISTANCE));
     }
 
+    // Check safe zone container exclusivity
+    crate::active_effects::validate_safe_zone_container_access(
+        ctx,
+        barbecue.pos_x,
+        barbecue.pos_y,
+        barbecue.active_user_id,
+        barbecue.active_user_since,
+    )?;
+
     Ok((player, barbecue))
+}
+
+/// --- Open Barbecue Container ---
+/// Called when a player opens the barbecue UI. Sets the active_user_id to prevent
+/// other players from using this container in safe zones.
+#[spacetimedb::reducer]
+pub fn open_barbecue_container(ctx: &ReducerContext, barbecue_id: u32) -> Result<(), String> {
+    let (_player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
+    
+    // Set the active user
+    barbecue.active_user_id = Some(ctx.sender);
+    barbecue.active_user_since = Some(ctx.timestamp);
+    
+    ctx.db.barbecue().id().update(barbecue);
+    log::debug!("Player {:?} opened barbecue {} container", ctx.sender, barbecue_id);
+    
+    Ok(())
+}
+
+/// --- Close Barbecue Container ---
+/// Called when a player closes the barbecue UI. Clears the active_user_id to allow
+/// other players to use this container.
+#[spacetimedb::reducer]
+pub fn close_barbecue_container(ctx: &ReducerContext, barbecue_id: u32) -> Result<(), String> {
+    let barbecue = ctx.db.barbecue().id().find(barbecue_id)
+        .ok_or_else(|| format!("Barbecue {} not found", barbecue_id))?;
+    
+    // Only clear if this player is the active user
+    if barbecue.active_user_id == Some(ctx.sender) {
+        let mut barbecue = barbecue;
+        barbecue.active_user_id = None;
+        barbecue.active_user_since = None;
+        ctx.db.barbecue().id().update(barbecue);
+        log::debug!("Player {:?} closed barbecue {} container", ctx.sender, barbecue_id);
+    }
+    
+    Ok(())
 }
 
 fn check_if_barbecue_has_fuel(ctx: &ReducerContext, barbecue: &Barbecue) -> bool {
@@ -999,6 +1054,26 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
 
     let mut made_changes_to_barbecue_struct = false;
     let mut produced_charcoal_and_modified_barbecue_struct = false;
+    
+    // --- Auto-release container access if user is offline or too far ---
+    if let Some(active_user) = barbecue.active_user_id {
+        let should_release = match ctx.db.player().identity().find(&active_user) {
+            Some(player) => {
+                // Player is online - check distance
+                let dx = player.position_x - barbecue.pos_x;
+                let dy = player.position_y - barbecue.pos_y;
+                let dist_sq = dx * dx + dy * dy;
+                dist_sq > PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED * 2.0 // Give some buffer
+            }
+            None => true // Player is offline
+        };
+        if should_release {
+            barbecue.active_user_id = None;
+            barbecue.active_user_since = None;
+            made_changes_to_barbecue_struct = true;
+            log::debug!("[ProcessBarbecueScheduled] Released container access for barbecue {} (user offline/too far)", barbecue_id);
+        }
+    }
 
     if barbecue.is_burning {
         // Note: Barbecues do NOT extinguish in rain - they're covered/protected by design

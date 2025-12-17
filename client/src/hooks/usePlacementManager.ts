@@ -372,6 +372,38 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
     }
   }
   
+  // Check fishing village monument (Aleut-style village - protected area)
+  const FISHING_VILLAGE_RESTRICTION_RADIUS = 800.0;
+  const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
+  
+  for (const part of connection.db.fishingVillagePart.iter()) {
+    // Only check against the center piece for the exclusion zone
+    if (part.isCenter) {
+      const dx = worldX - part.worldX;
+      const dy = worldY - part.worldY;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq <= FISHING_VILLAGE_RESTRICTION_RADIUS_SQ) {
+        return true; // Blocked by fishing village
+      }
+    }
+  }
+  
+  // Check shipwreck monument (beached ship - protected area)
+  const SHIPWRECK_RESTRICTION_RADIUS = 600.0; // Same as monument::clearance::SHIPWRECK
+  const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
+  
+  for (const part of connection.db.shipwreckPart.iter()) {
+    // Only check against the center hull piece for the exclusion zone
+    if (part.isCenter) {
+      const dx = worldX - part.worldX;
+      const dy = worldY - part.worldY;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq <= SHIPWRECK_RESTRICTION_RADIUS_SQ) {
+        return true; // Blocked by shipwreck
+      }
+    }
+  }
+  
   // Check asphalt tiles (compound areas - cannot place anything)
   const tileAtX = Math.floor(worldX / TILE_SIZE);
   const tileAtY = Math.floor(worldY / TILE_SIZE);

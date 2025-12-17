@@ -54,12 +54,9 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .icon("bone.png")
             .build(),
 
-        // Animal Fat - Can be rendered into Tallow
-        ItemBuilder::new("Animal Fat", "A slippery piece of animal fat. Can be rendered into tallow.", ItemCategory::Material)
+        // Animal Fat - Used for crafting tallow and other items
+        basic_material("Animal Fat", "A slippery piece of animal fat. Can be combined with cloth to make tallow.", 100)
             .icon("animal_fat.png")
-            .stackable(100)
-            .cook_time(15.0)
-            .cooked_item("Tallow")
             .respawn_time(300)
             .build(),
 

@@ -48,6 +48,12 @@ pub const NUM_COOKING_STATION_SLOTS: usize = 0; // No inventory - proximity craf
 pub const COOKING_STATION_INITIAL_HEALTH: f32 = 400.0;
 pub const COOKING_STATION_MAX_HEALTH: f32 = 400.0;
 
+// --- Scarecrow ---
+pub const BOX_TYPE_SCARECROW: u8 = 7;
+pub const NUM_SCARECROW_SLOTS: usize = 0; // No inventory - decorative/functional only (deters crows)
+pub const SCARECROW_INITIAL_HEALTH: f32 = 200.0;
+pub const SCARECROW_MAX_HEALTH: f32 = 200.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -194,6 +200,11 @@ pub struct WoodenStorageBox {
     pub destroyed_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
     pub last_damaged_by: Option<Identity>, // ADDED: Track who last damaged this storage box
+    
+    // --- Monument Placeable System ---
+    pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
+    pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
+    pub active_user_since: Option<Timestamp>, // When the active user started using this container
 }
 
 /******************************************************************************
@@ -540,6 +551,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_COMPOST
     } else if item_def.name == "Backpack" {
         BOX_TYPE_BACKPACK
+    } else if item_def.name == "Scarecrow" {
+        BOX_TYPE_SCARECROW
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -589,6 +602,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
             (COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH)
         },
         BOX_TYPE_BACKPACK => (BACKPACK_INITIAL_HEALTH, BACKPACK_MAX_HEALTH),
+        BOX_TYPE_SCARECROW => (SCARECROW_INITIAL_HEALTH, SCARECROW_MAX_HEALTH),
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
@@ -655,6 +669,10 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        // Monument placeable system (player-placed boxes are not monuments)
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
     };
     let inserted_box = boxes.insert(new_box);
     let box_type_name = match box_type {
@@ -662,6 +680,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_REFRIGERATOR => "Refrigerator",
         BOX_TYPE_COMPOST => "Compost",
         BOX_TYPE_BACKPACK => "Backpack",
+        BOX_TYPE_SCARECROW => "Scarecrow",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -722,6 +741,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_COMPOST => "Compost",
         BOX_TYPE_REPAIR_BENCH => "Repair Bench",
         BOX_TYPE_COOKING_STATION => "Cooking Station",
+        BOX_TYPE_SCARECROW => "Scarecrow",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -852,6 +872,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_BACKPACK => NUM_BACKPACK_SLOTS,
             BOX_TYPE_REPAIR_BENCH => NUM_REPAIR_BENCH_SLOTS,
             BOX_TYPE_COOKING_STATION => NUM_COOKING_STATION_SLOTS,
+            BOX_TYPE_SCARECROW => NUM_SCARECROW_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }
@@ -1141,5 +1162,53 @@ pub fn validate_box_interaction(
         return Err("Cannot interact with storage box inside shelter - only the shelter owner can access it from inside".to_string());
     }
 
+    // Check safe zone container exclusivity (only for monument placeables)
+    if storage_box.is_monument {
+        crate::active_effects::validate_safe_zone_container_access(
+            ctx,
+            storage_box.pos_x,
+            storage_box.pos_y,
+            storage_box.active_user_id,
+            storage_box.active_user_since,
+        )?;
+    }
+
     Ok((player, storage_box))
+}
+
+/// --- Open Storage Box Container ---
+/// Called when a player opens the storage box UI. Sets the active_user_id to prevent
+/// other players from using this container in safe zones.
+#[spacetimedb::reducer]
+pub fn open_storage_box_container(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
+    let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
+    
+    // Set the active user
+    storage_box.active_user_id = Some(ctx.sender);
+    storage_box.active_user_since = Some(ctx.timestamp);
+    
+    ctx.db.wooden_storage_box().id().update(storage_box);
+    log::debug!("Player {:?} opened storage box {} container", ctx.sender, box_id);
+    
+    Ok(())
+}
+
+/// --- Close Storage Box Container ---
+/// Called when a player closes the storage box UI. Clears the active_user_id to allow
+/// other players to use this container.
+#[spacetimedb::reducer]
+pub fn close_storage_box_container(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
+    let storage_box = ctx.db.wooden_storage_box().id().find(box_id)
+        .ok_or_else(|| format!("Storage box {} not found", box_id))?;
+    
+    // Only clear if this player is the active user
+    if storage_box.active_user_id == Some(ctx.sender) {
+        let mut storage_box = storage_box;
+        storage_box.active_user_id = None;
+        storage_box.active_user_since = None;
+        ctx.db.wooden_storage_box().id().update(storage_box);
+        log::debug!("Player {:?} closed storage box {} container", ctx.sender, box_id);
+    }
+    
+    Ok(())
 }
