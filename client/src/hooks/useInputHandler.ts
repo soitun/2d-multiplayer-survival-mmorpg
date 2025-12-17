@@ -817,6 +817,27 @@ export const useInputHandler = ({
                             // Check for Snorkel (must be on water to toggle)
                             else if (headItemDef.name === 'Reed Diver\'s Helm') {
                                 if (localPlayerRef.current?.isOnWater) {
+                                    // Check if we're about to go UNDERWATER (toggling snorkel ON)
+                                    const isCurrentlySnorkeling = localPlayerRef.current?.isSnorkeling ?? false;
+                                    
+                                    // If going underwater and torch is equipped, unequip it first for seamless transition
+                                    if (!isCurrentlySnorkeling && localPlayerId) {
+                                        const localPlayerActiveEquip = activeEquipmentsRef.current?.get(localPlayerId);
+                                        if (localPlayerActiveEquip?.equippedItemDefId) {
+                                            const equippedDef = itemDefinitionsRef.current?.get(localPlayerActiveEquip.equippedItemDefId.toString());
+                                            if (equippedDef?.name === 'Torch') {
+                                                console.log('[F-Key] Unequipping torch before going underwater for seamless transition');
+                                                try {
+                                                    // Use Identity.fromString to convert localPlayerId to proper Identity type
+                                                    const playerIdentity = Identity.fromString(localPlayerId);
+                                                    connectionRef.current.reducers.clearActiveItemReducer(playerIdentity);
+                                                } catch (err) {
+                                                    console.error('[F-Key] Error unequipping torch:', err);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
                                     console.log('[F-Key] Toggling snorkel (player is on water)');
                                     try {
                                         connectionRef.current.reducers.toggleSnorkel();

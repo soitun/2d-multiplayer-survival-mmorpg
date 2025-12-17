@@ -132,7 +132,7 @@ const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'craft
   
   // Tools
   if (nodeId.includes('hatchet') || nodeId.includes('pickaxe') || nodeId.includes('lantern') ||
-      nodeId.includes('flashlight') || nodeId.includes('bellows') || nodeId.includes('snorkel') ||
+      nodeId.includes('flashlight') || nodeId.includes('headlamp') || nodeId.includes('bellows') || nodeId.includes('snorkel') ||
       nodeId.includes('fishing') || nodeId.includes('bottle')) {
     return 'tool';
   }
@@ -308,10 +308,22 @@ export const MEMORY_GRID_NODES = [
     cost: 220, 
     tier: 2, 
     prerequisites: ['lantern'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4, 220), // Branch 4: SPLIT POINT
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 - SPLIT_OFFSET, 220), // Branch 4: Upper split (electric)
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Flashlight']
+  },
+  { 
+    id: 'headlamp', 
+    name: 'Headlamp', 
+    description: 'Unlocks crafting the Headlamp - a tallow-burning head-mounted light source. Hands-free illumination and warmth.', 
+    cost: 300, 
+    tier: 2, 
+    prerequisites: ['lantern'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 + SPLIT_OFFSET, 220), // Branch 4: Lower split (tallow)
+    category: 'tool' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Headlamp']
   },
   { 
     id: 'reed-bellows', 
@@ -360,7 +372,7 @@ export const MEMORY_GRID_NODES = [
   // Branch 3 UPPER (Fishing path @ 112°)
   { 
     id: 'reed-fishing-rod', 
-    name: 'Reed Fishing Rod', 
+    name: 'Primitive Reed Fishing Rod', 
     description: 'Unlocks crafting the Primitive Reed Fishing Rod - catch fish and aquatic resources.', 
     cost: 520, 
     tier: 3, 
@@ -574,18 +586,6 @@ export const MEMORY_GRID_NODES = [
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Shelter']
-  },
-  // Branch 4 UPPER (Cooking) - capstone
-  { 
-    id: 'broth-mastery', 
-    name: 'Broth Mastery', 
-    description: 'Master broth recipes. All broth effects last 50% longer.', 
-    cost: 2800, 
-    tier: 5, 
-    prerequisites: ['cooking-station'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 - SPLIT_OFFSET, 520), // Cooking capstone (upper path)
-    category: 'passive' as const, 
-    status: 'locked' as const
   },
   // Branch 5 UPPER (Passive Bonuses)
   { 
@@ -933,6 +933,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Bush Knife': 'bush-knife',
   'Bone Gaff Hook': 'bone-gaff-hook',
   'Flashlight': 'flashlight',
+  'Headlamp': 'headlamp',
   'Reed Bellows': 'reed-bellows',
   
   // Tier 3 items

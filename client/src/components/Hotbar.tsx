@@ -268,19 +268,21 @@ const Hotbar: React.FC<HotbarProps> = ({
   }, [rangedWeaponStats]);
 
   // Helper function to check if a slot should be disabled due to water
+  // This updates immediately when isSnorkeling changes to show/hide water icons seamlessly
   const isSlotDisabledByWater = useCallback((slotIndex: number): boolean => {
     if (!localPlayer?.isOnWater) return false;
     
     const itemInSlot = findItemForSlot(slotIndex);
     if (!itemInSlot) return false;
     
-    // Allow specific items to be used in water
+    // Allow specific items to be used in water (but NOT when snorkeling underwater)
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Torch', // Allow torches to work underwater
       'Reed Harpoon' // Allow reed harpoon to be used in water
     ];
+    // Torch is only allowed in water when NOT snorkeling (can't light a torch underwater!)
+    if (!localPlayer?.isSnorkeling && itemInSlot.definition.name === 'Torch') return false;
     if (allowedInWater.includes(itemInSlot.definition.name)) return false;
     
     // Allow seeds and food (consumables) to be used in water
@@ -291,7 +293,7 @@ const Hotbar: React.FC<HotbarProps> = ({
            categoryTag === 'RangedWeapon' || 
            categoryTag === 'Tool' ||
            itemInSlot.definition.isEquippable;
-  }, [localPlayer?.isOnWater, findItemForSlot]);
+  }, [localPlayer?.isOnWater, localPlayer?.isSnorkeling, findItemForSlot]);
 
   // Helper to check if a weapon uses magazine system (no cooldown overlay)
   const usesMagazineSystem = useCallback((itemDef: ItemDefinition): boolean => {
@@ -567,9 +569,12 @@ const Hotbar: React.FC<HotbarProps> = ({
           const allowedInWater = [
             'Reed Water Bottle', 
             'Plastic Water Jug',
-            'Torch', // Allow torches to stay equipped in water
             'Reed Harpoon' // Allow reed harpoon to stay equipped in water
           ];
+          // Torch is only allowed in water when NOT snorkeling (can't use underwater!)
+          if (!localPlayer.isSnorkeling && currentItem.definition.name === 'Torch') {
+            return; // Keep torch equipped in water (but not underwater)
+          }
           if (allowedInWater.includes(currentItem.definition.name)) {
             return; // Keep allowed items equipped
           }
@@ -592,7 +597,23 @@ const Hotbar: React.FC<HotbarProps> = ({
         }
       }
     }
-  }, [localPlayer?.isOnWater, playerIdentity, connection, selectedSlot, findItemForSlot, numSlots]);
+    
+    // Also auto-unequip torch when player starts snorkeling (can't use underwater!)
+    // This provides a seamless transition - the torch is unequipped and water icon appears instantly
+    if (localPlayer.isSnorkeling && selectedSlot >= 0 && selectedSlot < numSlots) {
+      const currentItem = findItemForSlot(selectedSlot);
+      if (currentItem && currentItem.definition.name === 'Torch') {
+        console.log('[Hotbar] Player started snorkeling with torch equipped. Auto-unequipping for seamless transition.');
+        try {
+          connection.reducers.clearActiveItemReducer(playerIdentity);
+          setSelectedSlot(-1); // Clear hotbar selection
+          selectedSlotRef.current = -1; // Keep ref in sync for immediate feedback
+        } catch (err) {
+          console.error("Error auto-unequipping torch when snorkeling:", err);
+        }
+      }
+    }
+  }, [localPlayer?.isOnWater, localPlayer?.isSnorkeling, playerIdentity, connection, selectedSlot, findItemForSlot, numSlots]);
 
   // Effect to watch for new bandage effects and trigger animation DURING usage
   useEffect(() => {
@@ -738,11 +759,13 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Torch', // Allow torches to work underwater
       'Reed Harpoon' // Allow reed harpoon to be used in water
     ];
     
-    if (localPlayer?.isOnWater && isWeaponType && !allowedInWater.includes(itemInSlot.definition.name)) {
+    // Check if torch is allowed (only in water, NOT when snorkeling underwater)
+    const isTorchAllowedNow = itemInSlot.definition.name === 'Torch' && !localPlayer?.isSnorkeling;
+    
+    if (localPlayer?.isOnWater && isWeaponType && !allowedInWater.includes(itemInSlot.definition.name) && !isTorchAllowedNow) {
       console.log('[Hotbar] Cannot use weapons while in water:', itemInSlot.definition.name);
       return; // Prevent weapon activation in water (except allowed items)
     }

@@ -149,6 +149,8 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Mystery Can (Label Missing)", 1, 1, 0.10), // Mysterious find - reduced from 15%
         ("Plastic Water Jug", 1, 1, 0.09),     // Large water storage - reduced from 12%
         ("Anti-Venom", 1, 1, 0.10),            // Antidote - reduced from 15%
+        ("Reed Diver's Helm", 1, 1, 0.06),     // Underwater breathing helmet - moderate low drop
+        ("Headlamp", 1, 1, 0.08),       // Light source equipment
         
         // --- VERY RARE TIER (3-6% drop rates) - Premium items ---
         ("Naval Cutlass", 1, 1, 0.05),         // Rare ceremonial naval weapon - reduced from 8%

@@ -223,6 +223,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "bush-knife" => Some((220, vec!["metal-hatchet"])),     // Branch 2: Metal-hatchet → bush-knife
         "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook (SPLIT POINT)
         "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight (SPLIT POINT)
+        "headlamp" => Some((300, vec!["lantern"])),             // Branch 4: Lantern → headlamp (tallow hands-free light)
         "reed-bellows" => Some((280, vec!["metal-pickaxe"])),   // Branch 5: Metal-pickaxe → reed-bellows (SPLIT POINT)
         
         // ============================================
@@ -280,8 +281,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "shelter" => Some((2600, vec!["metal-door"])),
         // Branch 4 UPPER (Cooking)
         "cooking-station" => Some((1400, vec!["barbecue"])),
-        // Branch 4 (Cooking) - capstone
-        "broth-mastery" => Some((2800, vec!["cooking-station"])),
         // Branch 5 UPPER (Passive Bonuses)
         "crafting-speed-2" => Some((3000, vec!["crafting-speed-1"])),
         
@@ -498,6 +497,7 @@ fn get_node_display_name(node_id: &str) -> String {
         "bush-knife" => "Bush Knife".to_string(),
         "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
         "flashlight" => "Flashlight".to_string(),
+        "headlamp" => "Headlamp".to_string(),
         "reed-bellows" => "Reed Bellows".to_string(),
         
         // Tier 3
@@ -523,7 +523,6 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 5
         "9x18mm-round" => "9x18mm Round".to_string(),
         "shelter" => "Shelter".to_string(),
-        "broth-mastery" => "Broth Mastery".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
         // Tier 6
@@ -622,6 +621,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Bush Knife" => Some("bush-knife"),
         "Bone Gaff Hook" => Some("bone-gaff-hook"),
         "Flashlight" => Some("flashlight"),
+        "Headlamp" => Some("headlamp"),
         "Reed Bellows" => Some("reed-bellows"),
         
         // Tier 3 items
