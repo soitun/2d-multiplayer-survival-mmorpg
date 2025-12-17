@@ -264,7 +264,7 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
         }
     } else {
         equipment.icon_asset_name = Some(item_def.icon_asset_name.clone());
-        // If equipping something else and a torch was lit or flashlight was on, turn them off
+        // If equipping something else and a torch was lit, flashlight was on, or snorkeling, turn them off
         if let Some(mut player) = players_table.identity().find(&sender_id) {
             let mut needs_update = false;
             if player.is_torch_lit {
@@ -274,6 +274,12 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
             // If equipping something else and a flashlight was on, turn it off
             if player.is_flashlight_on {
                 player.is_flashlight_on = false;
+                needs_update = true;
+            }
+            // If equipping something else and snorkeling, emerge from water
+            if player.is_snorkeling {
+                player.is_snorkeling = false;
+                crate::sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, sender_id);
                 needs_update = true;
             }
             if needs_update {
@@ -320,8 +326,8 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
             equipment.is_ready_to_fire = false;
             active_equipments.player_identity().update(equipment);
 
-            // --- Handle Torch/Flashlight State on Unequip ---
-            // Always turn off torch/flashlight when unequipping, regardless of which item was equipped
+            // --- Handle Torch/Flashlight/Snorkel State on Unequip ---
+            // Always turn off torch/flashlight/snorkel when unequipping, regardless of which item was equipped
             if let Some(mut player) = players_table.identity().find(&player_identity) {
                 let mut needs_update = false;
                 
@@ -337,12 +343,19 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
                     log::info!("Player {:?} unequipped item, turning off flashlight.", player_identity);
                 }
                 
+                if player.is_snorkeling {
+                    player.is_snorkeling = false;
+                    crate::sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, player_identity);
+                    needs_update = true;
+                    log::info!("Player {:?} unequipped item, emerging from snorkel.", player_identity);
+                }
+                
                 if needs_update {
                     player.last_update = ctx.timestamp;
                     players_table.identity().update(player);
                 }
             }
-            // --- End Handle Torch/Flashlight State on Unequip ---
+            // --- End Handle Torch/Flashlight/Snorkel State on Unequip ---
         } else {
             log::debug!("Player {:?} called clear_active_item_reducer, but no item was active.", player_identity);
         }
@@ -1033,6 +1046,32 @@ pub fn equip_armor(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
         EquipmentSlotType::Head => {
             previously_equipped_item_id = equipment.head_item_instance_id.take();
             equipment.head_item_instance_id = Some(item_instance_id);
+            
+            // --- Auto-disable head slot states when changing head armor ---
+            // Turn off headlamp and snorkeling when head armor changes
+            if let Some(mut player) = ctx.db.player().identity().find(&sender_id) {
+                let mut needs_update = false;
+                
+                if player.is_headlamp_lit {
+                    player.is_headlamp_lit = false;
+                    crate::sound_events::emit_extinguish_torch_sound(ctx, player.position_x, player.position_y, sender_id);
+                    needs_update = true;
+                    log::info!("Player {:?} changed head armor, extinguishing headlamp.", sender_id);
+                }
+                
+                if player.is_snorkeling {
+                    player.is_snorkeling = false;
+                    crate::sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, sender_id);
+                    needs_update = true;
+                    log::info!("Player {:?} changed head armor, emerging from snorkel.", sender_id);
+                }
+                
+                if needs_update {
+                    player.last_update = ctx.timestamp;
+                    ctx.db.player().identity().update(player);
+                }
+            }
+            // --- End head slot state handling ---
         }
         EquipmentSlotType::Chest => {
             previously_equipped_item_id = equipment.chest_item_instance_id.take();

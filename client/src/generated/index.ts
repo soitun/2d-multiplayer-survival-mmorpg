@@ -655,6 +655,8 @@ import { ToggleHeadlamp } from "./toggle_headlamp_reducer.ts";
 export { ToggleHeadlamp };
 import { ToggleLantern } from "./toggle_lantern_reducer.ts";
 export { ToggleLantern };
+import { ToggleSnorkel } from "./toggle_snorkel_reducer.ts";
+export { ToggleSnorkel };
 import { ToggleStashVisibility } from "./toggle_stash_visibility_reducer.ts";
 export { ToggleStashVisibility };
 import { ToggleTorch } from "./toggle_torch_reducer.ts";
@@ -3706,6 +3708,10 @@ const REMOTE_MODULE = {
       reducerName: "toggle_lantern",
       argsType: ToggleLantern.getTypeScriptAlgebraicType(),
     },
+    toggle_snorkel: {
+      reducerName: "toggle_snorkel",
+      argsType: ToggleSnorkel.getTypeScriptAlgebraicType(),
+    },
     toggle_stash_visibility: {
       reducerName: "toggle_stash_visibility",
       argsType: ToggleStashVisibility.getTypeScriptAlgebraicType(),
@@ -4128,6 +4134,7 @@ export type Reducer = never
 | { name: "ToggleFurnaceBurning", args: ToggleFurnaceBurning }
 | { name: "ToggleHeadlamp", args: ToggleHeadlamp }
 | { name: "ToggleLantern", args: ToggleLantern }
+| { name: "ToggleSnorkel", args: ToggleSnorkel }
 | { name: "ToggleStashVisibility", args: ToggleStashVisibility }
 | { name: "ToggleTorch", args: ToggleTorch }
 | { name: "TransferWaterFromContainerToCollector", args: TransferWaterFromContainerToCollector }
@@ -8989,6 +8996,18 @@ export class RemoteReducers {
     this.connection.offReducer("toggle_lantern", callback);
   }
 
+  toggleSnorkel() {
+    this.connection.callReducer("toggle_snorkel", new Uint8Array(0), this.setCallReducerFlags.toggleSnorkelFlags);
+  }
+
+  onToggleSnorkel(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("toggle_snorkel", callback);
+  }
+
+  removeOnToggleSnorkel(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("toggle_snorkel", callback);
+  }
+
   toggleStashVisibility(stashId: number) {
     const __args = { stashId };
     let __writer = new __BinaryWriter(1024);
@@ -10848,6 +10867,11 @@ export class SetReducerFlags {
   toggleLanternFlags: __CallReducerFlags = 'FullUpdate';
   toggleLantern(flags: __CallReducerFlags) {
     this.toggleLanternFlags = flags;
+  }
+
+  toggleSnorkelFlags: __CallReducerFlags = 'FullUpdate';
+  toggleSnorkel(flags: __CallReducerFlags) {
+    this.toggleSnorkelFlags = flags;
   }
 
   toggleStashVisibilityFlags: __CallReducerFlags = 'FullUpdate';

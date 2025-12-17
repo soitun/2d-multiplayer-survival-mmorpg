@@ -35,6 +35,7 @@ use crate::grass::GrassAppearanceType;
 // Import sound event functions
 use crate::sound_events::emit_walking_sound;
 use crate::sound_events::emit_swimming_sound;
+use crate::sound_events::emit_snorkel_emerge_sound;
 
 // === DODGE ROLL CONSTANTS ===
 pub const DODGE_ROLL_DISTANCE: f32 = 450.0; // Increased from 300 to 450 pixels for better PvP effectiveness
@@ -610,6 +611,13 @@ pub fn update_player_position_simple(
         current_player.is_crouching = false;
         was_crouching_disabled = true;
         log::info!("Player {:?} auto-disabled crouching when entering/moving in water", sender_id);
+    }
+
+    // --- Auto-disable snorkeling when leaving water ---
+    if !is_on_water && current_player.is_snorkeling {
+        current_player.is_snorkeling = false;
+        emit_snorkel_emerge_sound(ctx, final_x, final_y, sender_id);
+        log::info!("Player {:?} auto-emerged from snorkel when leaving water", sender_id);
     }
 
     // --- Movement Sound Logic (Walking & Swimming) - OPTIMIZED ---

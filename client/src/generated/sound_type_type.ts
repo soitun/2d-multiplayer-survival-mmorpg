@@ -97,7 +97,9 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.BarbecueOff |
   SoundTypeVariants.CrowStealing |
   SoundTypeVariants.CairnUnlock |
-  SoundTypeVariants.GrassCut;
+  SoundTypeVariants.GrassCut |
+  SoundTypeVariants.SnorkelSubmerge |
+  SoundTypeVariants.SnorkelEmerge;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -177,6 +179,8 @@ export const SoundType = {
   CrowStealing: { tag: "CrowStealing" } as const,
   CairnUnlock: { tag: "CairnUnlock" } as const,
   GrassCut: { tag: "GrassCut" } as const,
+  SnorkelSubmerge: { tag: "SnorkelSubmerge" } as const,
+  SnorkelEmerge: { tag: "SnorkelEmerge" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -250,6 +254,8 @@ export const SoundType = {
       { name: "CrowStealing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CairnUnlock", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrassCut", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SnorkelSubmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SnorkelEmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

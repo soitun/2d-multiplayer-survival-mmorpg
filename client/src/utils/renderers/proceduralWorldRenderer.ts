@@ -115,11 +115,12 @@ export class ProceduralWorldRenderer {
         canvasWidth: number,
         canvasHeight: number,
         deltaTime: number,
-        showDebugOverlay: boolean = false
+        showDebugOverlay: boolean = false,
+        isSnorkeling: boolean = false
     ) {
         if (!this.isInitialized) {
-            // Fallback to simple grass color if assets not loaded yet
-            ctx.fillStyle = '#8FBC8F';
+            // Fallback color - use underwater dark blue if snorkeling
+            ctx.fillStyle = isSnorkeling ? '#0a3d4f' : '#8FBC8F';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             return;
         }
@@ -154,20 +155,23 @@ export class ProceduralWorldRenderer {
         // PASS 1: Render base textures at exact tile positions
         for (let y = startTileY; y < endTileY; y++) {
             for (let x = startTileX; x < endTileX; x++) {
-                this.renderBaseTile(ctx, x, y, tileSize, showDebugOverlay);
+                this.renderBaseTile(ctx, x, y, tileSize, showDebugOverlay, isSnorkeling);
             }
         }
         
         // PASS 2: Render Dual Grid transitions at half-tile offset positions
         // Start one tile earlier to catch transitions that overlap visible area
-        const dualStartX = Math.max(0, startTileX - 1);
-        const dualStartY = Math.max(0, startTileY - 1);
-        const dualEndX = Math.min(gameConfig.worldWidth - 1, endTileX);
-        const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
-        
-        for (let y = dualStartY; y < dualEndY; y++) {
-            for (let x = dualStartX; x < dualEndX; x++) {
-                this.renderDualGridTransition(ctx, x, y, tileSize, showDebugOverlay);
+        // Skip transitions when snorkeling - just show underwater/sea view
+        if (!isSnorkeling) {
+            const dualStartX = Math.max(0, startTileX - 1);
+            const dualStartY = Math.max(0, startTileY - 1);
+            const dualEndX = Math.min(gameConfig.worldWidth - 1, endTileX);
+            const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
+            
+            for (let y = dualStartY; y < dualEndY; y++) {
+                for (let x = dualStartX; x < dualEndX; x++) {
+                    this.renderDualGridTransition(ctx, x, y, tileSize, showDebugOverlay);
+                }
             }
         }
     }
@@ -175,13 +179,18 @@ export class ProceduralWorldRenderer {
     /**
      * Render the base texture for a tile at its exact position.
      * This is the first pass - just the solid terrain texture.
+     * 
+     * When isSnorkeling is true, renders in "underwater view" mode:
+     * - Water tiles (Sea, HotSpringWater) render normally
+     * - All land tiles render as dark blue (simulating underwater view of land above)
      */
     private renderBaseTile(
         ctx: CanvasRenderingContext2D, 
         tileX: number, 
         tileY: number, 
         tileSize: number,
-        showDebugOverlay: boolean = false
+        showDebugOverlay: boolean = false,
+        isSnorkeling: boolean = false
     ) {
         const tileKey = `${tileX}_${tileY}`;
         const tile = this.tileCache.tiles.get(tileKey);
@@ -191,25 +200,47 @@ export class ProceduralWorldRenderer {
         const pixelY = Math.floor(tileY * tileSize);
         const pixelSize = Math.floor(tileSize) + 1; // Add 1 pixel to eliminate gaps
         
+        // Underwater dark blue color for land when snorkeling
+        const UNDERWATER_LAND_COLOR = '#0a3d4f';
+        
         if (!tile) {
-            // Fallback to grass if no tile data
-            const grassImg = this.tileCache.images.get('Grass_base');
-            if (grassImg && grassImg.complete && grassImg.naturalHeight !== 0) {
-                ctx.drawImage(grassImg, pixelX, pixelY, pixelSize, pixelSize);
-            } else {
-                ctx.fillStyle = '#8FBC8F';
+            // Fallback when no tile data
+            if (isSnorkeling) {
+                // When snorkeling with no tile data, show underwater darkness
+                ctx.fillStyle = UNDERWATER_LAND_COLOR;
                 ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            } else {
+                const grassImg = this.tileCache.images.get('Grass_base');
+                if (grassImg && grassImg.complete && grassImg.naturalHeight !== 0) {
+                    ctx.drawImage(grassImg, pixelX, pixelY, pixelSize, pixelSize);
+                } else {
+                    ctx.fillStyle = '#8FBC8F';
+                    ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+                }
             }
             return;
         }
         
         const tileTypeName = tile.tileType?.tag;
         if (!tileTypeName) {
-            ctx.fillStyle = '#808080';
+            ctx.fillStyle = isSnorkeling ? UNDERWATER_LAND_COLOR : '#808080';
             ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
             return;
         }
         
+        // === UNDERWATER SNORKELING MODE ===
+        // When snorkeling, land tiles appear as dark murky blue (looking up at surface from underwater)
+        // Water tiles (Sea, HotSpringWater) render normally - you're in the water seeing water
+        const isWaterTile = tileTypeName === 'Sea' || tileTypeName === 'HotSpringWater';
+        
+        if (isSnorkeling && !isWaterTile) {
+            // Render land tiles as underwater darkness
+            ctx.fillStyle = UNDERWATER_LAND_COLOR;
+            ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            return;
+        }
+        
+        // === NORMAL RENDERING ===
         // Render base texture
         const image = this.tileCache.images.get(`${tileTypeName}_base`);
         

@@ -55,6 +55,15 @@ pub const HEADLAMP_TOTAL_DURATION_SECS: f32 = 1800.0;
 /// 100 durability / 360 ticks ≈ 0.278 per tick
 pub const HEADLAMP_DURABILITY_LOSS_PER_TICK: f32 = MAX_DURABILITY / (HEADLAMP_TOTAL_DURATION_SECS / TORCH_DURABILITY_TICK_INTERVAL_SECS as f32);
 
+/// Total snorkel duration in seconds (45 minutes = 2700 seconds - longer underwater breathing time)
+/// Reed snorkel deteriorates slowly while submerged underwater
+pub const SNORKEL_TOTAL_DURATION_SECS: f32 = 2700.0;
+
+/// Durability lost per snorkel tick
+/// With 5-second ticks over 2700 seconds = 540 ticks
+/// 100 durability / 540 ticks ≈ 0.185 per tick
+pub const SNORKEL_DURABILITY_LOSS_PER_TICK: f32 = MAX_DURABILITY / (SNORKEL_TOTAL_DURATION_SECS / TORCH_DURABILITY_TICK_INTERVAL_SECS as f32);
+
 /// Food spoilage tick interval in seconds (check every 5 minutes = 300 seconds)
 /// Longer interval than torches since food spoils much slower
 pub const FOOD_SPOILAGE_TICK_INTERVAL_SECS: u64 = 300;
@@ -522,6 +531,40 @@ fn reduce_flashlight_durability(
     Ok(battery_dead)
 }
 
+/// Reduces snorkel durability (called by scheduler)
+/// Returns Ok(true) if the snorkel broke from wear
+fn reduce_snorkel_durability(
+    ctx: &ReducerContext,
+    item_instance_id: u64,
+) -> Result<bool, String> {
+    let inventory_items = ctx.db.inventory_item();
+    
+    let mut item = inventory_items.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Snorkel item {} not found", item_instance_id))?;
+    
+    // Initialize durability if not set
+    ensure_durability_initialized(&mut item);
+    
+    // Get current durability
+    let current_durability = get_durability(&item).unwrap_or(MAX_DURABILITY);
+    let new_durability = (current_durability - SNORKEL_DURABILITY_LOSS_PER_TICK).max(0.0);
+    
+    // Update durability
+    set_durability(&mut item, new_durability);
+    inventory_items.instance_id().update(item);
+    
+    let snorkel_broken = new_durability <= 0.0;
+    
+    if snorkel_broken {
+        log::info!("[Durability] Snorkel {} broke from wear! Durability depleted.", item_instance_id);
+    } else {
+        log::debug!("[Durability] Snorkel {} durability: {:.1} -> {:.1}", 
+            item_instance_id, current_durability, new_durability);
+    }
+    
+    Ok(snorkel_broken)
+}
+
 /// Scheduled reducer that processes torch and flashlight durability for all players
 /// Runs every 5 seconds, checks for lit torches/flashlights, reduces their durability
 #[spacetimedb::reducer]
@@ -695,6 +738,103 @@ pub fn process_torch_durability(ctx: &ReducerContext, _args: TorchDurabilitySche
             Err(e) => {
                 log::error!("[FlashlightDurability] Error reducing durability for flashlight {}: {}", 
                     equipped_instance_id, e);
+            }
+        }
+    }
+    
+    // === PROCESS SNORKELS ===
+    // Snorkel is now a HEAD SLOT item (like headlamp), not a hand-held tool
+    // Collect players currently snorkeling to process
+    let mut snorkel_processed_count = 0;
+    let mut snorkel_broken_count = 0;
+    
+    let snorkeling_players: Vec<_> = players_table.iter()
+        .filter(|p| p.is_snorkeling && !p.is_dead && !p.is_knocked_out)
+        .collect();
+    
+    for player in snorkeling_players {
+        // Get player's active equipment
+        let equipment = match active_equipments.player_identity().find(&player.identity) {
+            Some(eq) => eq,
+            None => continue,
+        };
+        
+        // Check if player has something equipped in HEAD SLOT (snorkel is head armor now)
+        let head_instance_id = match equipment.head_item_instance_id {
+            Some(id) => id,
+            None => {
+                // Player is snorkeling but nothing in head slot - force emerge
+                log::warn!("[SnorkelDurability] Player {:?} has is_snorkeling=true but nothing in head slot, emerging", 
+                    player.identity);
+                if let Some(mut p) = players_table.identity().find(&player.identity) {
+                    p.is_snorkeling = false;
+                    p.last_update = ctx.timestamp;
+                    players_table.identity().update(p);
+                }
+                continue;
+            }
+        };
+        
+        // Get the head armor item
+        let head_item = match inventory_items.instance_id().find(head_instance_id) {
+            Some(item) => item,
+            None => continue,
+        };
+        
+        // Get item definition
+        let item_def = match item_defs.id().find(head_item.item_def_id) {
+            Some(def) => def,
+            None => continue,
+        };
+        
+        // Only process if the head item is actually a snorkel
+        if item_def.name != "Primitive Reed Snorkel" {
+            // Player is snorkeling but wearing something else - force emerge
+            log::debug!("[SnorkelDurability] Player {:?} has is_snorkeling=true but wearing '{}', emerging", 
+                player.identity, item_def.name);
+            if let Some(mut p) = players_table.identity().find(&player.identity) {
+                p.is_snorkeling = false;
+                p.last_update = ctx.timestamp;
+                players_table.identity().update(p);
+            }
+            continue;
+        }
+        
+        // Also check if player is still on water - auto-emerge if they left water
+        if !player.is_on_water {
+            log::debug!("[SnorkelDurability] Player {:?} is snorkeling but not on water, emerging", 
+                player.identity);
+            if let Some(mut p) = players_table.identity().find(&player.identity) {
+                p.is_snorkeling = false;
+                p.last_update = ctx.timestamp;
+                crate::sound_events::emit_snorkel_emerge_sound(ctx, p.position_x, p.position_y, p.identity);
+                players_table.identity().update(p);
+            }
+            continue;
+        }
+        
+        // Reduce snorkel durability (using head slot item)
+        match reduce_snorkel_durability(ctx, head_instance_id) {
+            Ok(snorkel_broken) => {
+                snorkel_processed_count += 1;
+                
+                if snorkel_broken {
+                    snorkel_broken_count += 1;
+                    
+                    // Force player to emerge
+                    if let Some(mut p) = players_table.identity().find(&player.identity) {
+                        p.is_snorkeling = false;
+                        p.last_update = ctx.timestamp;
+                        crate::sound_events::emit_snorkel_emerge_sound(ctx, p.position_x, p.position_y, p.identity);
+                        players_table.identity().update(p);
+                        log::info!("[SnorkelDurability] Player {:?}'s snorkel broke and they emerged", 
+                            player.identity);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("[SnorkelDurability] Error reducing durability for snorkel {}: {}", 
+                    head_instance_id, e);
             }
         }
     }

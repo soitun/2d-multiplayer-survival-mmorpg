@@ -168,6 +168,31 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
+        // Reed Snorkel - Head armor with underwater stealth functionality
+        // Allows player to submerge in water, becoming invisible to animals
+        // Durability degrades only while submerged, lasts 45 minutes
+        // Frees hands for underwater weapons like reed harpoons
+        ItemBuilder::new("Primitive Reed Snorkel", "A head-mounted breathing device made from hollow reeds sealed with tallow. Equip and press F while in water to submerge - hides you from animals. Lasts 45 minutes underwater. Frees hands for underwater combat.", ItemCategory::Armor)
+            .icon("reed_snorkel.png")
+            .equippable(Some(EquipmentSlotType::Head))
+            .armor_resistances(ArmorResistances {
+                melee_resistance: 0.0,
+                projectile_resistance: 0.0,
+                fire_resistance: 0.0,
+                blunt_resistance: 0.0,
+                slash_resistance: 0.0,
+                pierce_resistance: 0.0,
+                cold_resistance: 0.0, // No protection - it's just a breathing tube
+            })
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 25)
+            .respawn_time(480)
+            .build(),
+
         // === BONE ARMOR SET ===
         // High projectile resistance, moderate melee protection, good fire resistance
         // Full set provides strong defense against ranged attacks and fire

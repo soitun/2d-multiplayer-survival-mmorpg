@@ -227,20 +227,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
-        // Reed-based Tools
-        ItemBuilder::new("Primitive Reed Snorkel", "A basic underwater breathing device made from a hollow reed sealed with tallow. Allows limited underwater exploration and resource gathering.", ItemCategory::Tool)
-            .icon("reed_snorkel.png")
-            .equippable(None)
-            
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 3 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Tallow".to_string(), quantity: 2 },
-            ])
-            .crafting_output(1, 25)
-            .respawn_time(480)
-            .build(),
-
+        // Reed-based Tools (Note: Reed Snorkel moved to armor.rs as head slot item)
         ItemBuilder::new("Primitive Reed Fishing Rod", "A basic fishing rod crafted from a sturdy reed stalk and simple line. Allows for catching small fish and other aquatic resources.", ItemCategory::Tool)
             .icon("reed_fishing_rod.png")
             .equippable(None)

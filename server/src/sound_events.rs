@@ -75,6 +75,8 @@ pub enum SoundType {
     CrowStealing,            // crow_stealing.mp3 (1 variation - when crow successfully steals from player)
     CairnUnlock,             // cairn_unlock.mp3 (1 variation - when player discovers a new cairn)
     GrassCut,                // grass_cut.mp3 (1 variation - when grass is chopped by player)
+    SnorkelSubmerge,         // snorkel_submerge.mp3 (1 variation - when player submerges with snorkel)
+    SnorkelEmerge,           // snorkel_emerge.mp3 (1 variation - when player emerges from water)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -151,6 +153,8 @@ impl SoundType {
             SoundType::CrowStealing => "crow_stealing",
             SoundType::CairnUnlock => "cairn_unlock",
             SoundType::GrassCut => "grass_cut",
+            SoundType::SnorkelSubmerge => "snorkel_submerge",
+            SoundType::SnorkelEmerge => "snorkel_emerge",
         }
     }
 
@@ -225,6 +229,8 @@ impl SoundType {
             SoundType::CrowStealing => 1, // crow_stealing.mp3 (single variation)
             SoundType::CairnUnlock => 1, // cairn_unlock.mp3 (single variation)
             SoundType::GrassCut => 1, // grass_cut.mp3 (single variation)
+            SoundType::SnorkelSubmerge => 1, // snorkel_submerge.mp3 (single variation)
+            SoundType::SnorkelEmerge => 1, // snorkel_emerge.mp3 (single variation)
         }
     }
 
@@ -742,6 +748,16 @@ pub fn emit_animal_walking_sound(
 /// Emit swimming sound (when player moves in water)
 pub fn emit_swimming_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::Swimming, pos_x, pos_y, 0.8, 450.0, player_id);
+}
+
+/// Emit snorkel submerge sound (when player goes underwater with snorkel)
+pub fn emit_snorkel_submerge_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::SnorkelSubmerge, pos_x, pos_y, 0.9, 400.0, player_id);
+}
+
+/// Emit snorkel emerge sound (when player surfaces from snorkeling)
+pub fn emit_snorkel_emerge_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::SnorkelEmerge, pos_x, pos_y, 0.9, 400.0, player_id);
 }
 
 /// Emit a foundation wood constructed sound (when foundation is placed)

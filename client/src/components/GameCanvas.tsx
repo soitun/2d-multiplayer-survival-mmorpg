@@ -2190,8 +2190,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     setShelterClippingData(shelterClippingData);
     
     // Pass the necessary viewport parameters to the optimized background renderer
-    // console.log('[GameCanvas DEBUG] Rendering world background at camera offset:', currentCameraOffsetX, currentCameraOffsetY, 'worldTiles size:', worldTiles?.size || 0);
-    renderWorldBackground(ctx, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug);
+    // When snorkeling, render underwater view mode (land as dark blue, sea as normal)
+    const isSnorkeling = localPlayer?.isSnorkeling ?? false;
+    renderWorldBackground(ctx, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug, isSnorkeling);
 
     // MOVED: Swimming shadows now render after water overlay to appear above sea stack underwater zones
 

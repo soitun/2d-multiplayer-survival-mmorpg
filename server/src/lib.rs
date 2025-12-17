@@ -114,6 +114,7 @@ mod death_marker; // <<< ADDED death marker module
 mod torch; // <<< ADDED torch module
 mod flashlight; // <<< ADDED flashlight module
 mod headlamp; // <<< ADDED headlamp module
+mod snorkel; // <<< ADDED snorkel module for underwater stealth
 mod respawn; // <<< ADDED respawn module
 mod player_collision; // <<< ADDED player_collision module
 mod shelter; // <<< ADDED shelter module
@@ -383,6 +384,9 @@ pub use torch::toggle_torch;
 // ADD: Re-export flashlight reducer for client bindings
 pub use flashlight::toggle_flashlight;
 
+// ADD: Re-export snorkel reducer for client bindings
+pub use snorkel::toggle_snorkel;
+
 // ADD: Re-export headlamp reducer for client bindings
 pub use headlamp::toggle_headlamp;
 
@@ -623,6 +627,7 @@ pub struct Player {
     pub is_knocked_out: bool, // NEW: Tracks if the player is in knocked out state
     pub knocked_out_at: Option<Timestamp>, // NEW: When the player was knocked out
     pub is_on_water: bool, // NEW: Tracks if the player is currently standing on water
+    pub is_snorkeling: bool, // NEW: Tracks if player is submerged using reed snorkel (hidden from animals)
     pub client_movement_sequence: u64,
     pub is_inside_building: bool, // NEW: Tracks if player is inside an enclosed building (≥70% wall coverage)
     pub last_respawn_time: Timestamp, // NEW: When the player last spawned/respawned (for fat accumulation calculation)
@@ -1504,6 +1509,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         is_knocked_out: false, // NEW: Initialize knocked out state
         knocked_out_at: None, // NEW: Initialize knocked out time
         is_on_water: false, // NEW: Initialize is_on_water
+        is_snorkeling: false, // NEW: Initialize snorkeling state
         client_movement_sequence: 0,
         is_inside_building: false, // NEW: Players spawn outside (not inside buildings)
         last_respawn_time: ctx.timestamp, // NEW: Track initial spawn time

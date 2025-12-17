@@ -1100,6 +1100,7 @@ fn find_nearby_players(ctx: &ReducerContext, animal: &WildAnimal, stats: &Animal
         .iter()
         .filter(|player| {
             !player.is_dead && 
+            !player.is_snorkeling && // 🤿 Snorkeling players are completely hidden
             get_distance_squared(animal.pos_x, animal.pos_y, player.position_x, player.position_y) 
                 <= (stats.perception_range * 1.5).powi(2)
         })
@@ -1111,6 +1112,7 @@ fn find_nearby_players_prefetched(all_players: &[Player], animal: &WildAnimal, s
     all_players
         .iter()
         .filter(|player| {
+            !player.is_snorkeling && // 🤿 Snorkeling players are completely hidden
             get_distance_squared(animal.pos_x, animal.pos_y, player.position_x, player.position_y) 
                 <= (stats.perception_range * 1.5).powi(2)
         })
@@ -1120,6 +1122,14 @@ fn find_nearby_players_prefetched(all_players: &[Player], animal: &WildAnimal, s
 
 fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &AnimalStats, nearby_players: &[Player]) -> Option<Player> {
     for player in nearby_players {
+        // 🤿 SNORKEL STEALTH: Players using snorkel are completely hidden underwater
+        // Animals cannot detect snorkeling players at all - they're invisible beneath the surface
+        if player.is_snorkeling {
+            log::debug!("🤿 {:?} {} cannot detect player {} - snorkeling underwater",
+                       animal.species, animal.id, player.identity);
+            continue; // Skip this player entirely - they're hidden underwater
+        }
+        
         // 🐺 WOLF FUR INTIMIDATION: Animals are intimidated by players wearing full wolf fur set
         // Intimidated animals will not detect or chase the player
         // 🦭 EXCEPTION: Walruses are never intimidated - they're too massive and defensive!

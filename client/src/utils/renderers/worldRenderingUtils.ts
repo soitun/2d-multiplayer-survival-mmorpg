@@ -6,6 +6,8 @@ let globalProceduralRenderer: ProceduralWorldRenderer | null = null;
 /**
  * Renders the tiled world background onto the canvas.
  * Uses the procedural world renderer with autotiling support.
+ * 
+ * @param isSnorkeling - When true, renders underwater view mode (land as dark blue, sea as normal)
  */
 export function renderWorldBackground(
     ctx: CanvasRenderingContext2D,
@@ -14,7 +16,8 @@ export function renderWorldBackground(
     canvasWidth: number,
     canvasHeight: number,
     worldTiles?: Map<string, any>,
-    showDebugOverlay: boolean = false
+    showDebugOverlay: boolean = false,
+    isSnorkeling: boolean = false
 ): void {
     // Enable pixel-perfect rendering
     ctx.imageSmoothingEnabled = false;
@@ -44,7 +47,7 @@ export function renderWorldBackground(
     // Update the tile cache
     globalProceduralRenderer.updateTileCache(worldTiles);
     
-    // Render the procedural world
+    // Render the procedural world (with underwater mode when snorkeling)
     globalProceduralRenderer.renderProceduralWorld(
         ctx, 
         cameraOffsetX, 
@@ -52,6 +55,7 @@ export function renderWorldBackground(
         canvasWidth, 
         canvasHeight, 
         16.67,
-        showDebugOverlay
+        showDebugOverlay,
+        isSnorkeling
     );
 }
