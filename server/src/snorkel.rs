@@ -66,6 +66,11 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
     if !player.is_snorkeling && !player.is_on_water {
         return Err("Cannot submerge: Must be standing in water.".to_string());
     }
+    
+    // Don't allow snorkeling in hot springs - they're too shallow and hot!
+    if !player.is_snorkeling && crate::active_effects::is_player_in_hot_spring(ctx, player.position_x, player.position_y) {
+        return Err("Cannot submerge: The hot spring is too shallow and warm!".to_string());
+    }
 
     // Toggle the snorkeling state
     player.is_snorkeling = !player.is_snorkeling;
@@ -113,13 +118,26 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
-/// Auto-deactivate snorkeling when player leaves water
-/// Called from player_movement when is_on_water changes from true to false
+/// Auto-deactivate snorkeling when player leaves water or enters a hot spring
+/// Called from player_movement when is_on_water changes or position changes
 pub fn check_snorkel_auto_disable(ctx: &ReducerContext, player: &mut crate::Player) {
-    // If player was snorkeling but is no longer on water, auto-disable snorkeling
-    if player.is_snorkeling && !player.is_on_water {
+    if !player.is_snorkeling {
+        return;
+    }
+    
+    // If player is no longer on water, auto-disable snorkeling
+    if !player.is_on_water {
         player.is_snorkeling = false;
         sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, player.identity);
         log::info!("Player {:?} auto-emerged from snorkel (left water).", player.identity);
+        return;
+    }
+    
+    // If player walked into a hot spring while snorkeling, auto-emerge
+    // Hot springs are too shallow and warm for snorkeling!
+    if crate::active_effects::is_player_in_hot_spring(ctx, player.position_x, player.position_y) {
+        player.is_snorkeling = false;
+        sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, player.identity);
+        log::info!("Player {:?} auto-emerged from snorkel (entered hot spring).", player.identity);
     }
 }
