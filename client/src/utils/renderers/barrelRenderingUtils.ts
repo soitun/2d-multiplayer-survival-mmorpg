@@ -262,7 +262,7 @@ function getBarrelOffscreenCanvas(width: number, height: number): { canvas: Offs
             barrelOffscreenCanvas.width = width;
             barrelOffscreenCanvas.height = height;
         }
-        barrelOffscreenCtx = barrelOffscreenCanvas.getContext('2d');
+        barrelOffscreenCtx = barrelOffscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
     }
     return { canvas: barrelOffscreenCanvas, ctx: barrelOffscreenCtx! };
 }
