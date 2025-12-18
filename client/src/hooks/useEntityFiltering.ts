@@ -1647,6 +1647,33 @@ export function useEntityFiltering(
     // The cache prevents re-sorting when data arrives, so we disable caching in this case
     const hasBothPlayersAndTiles = hasPlayersNow && hasTilesNow;
     
+    // CORPSE SHAKE FIX: Check if any corpse was recently hit (within 250ms)
+    // This ensures we use fresh entity data for shake rendering instead of cached stale data
+    // The check is intentionally 250ms (longer than shake duration of 150-200ms) to ensure
+    // we catch all shake animations even with frame timing variations
+    const CORPSE_SHAKE_CACHE_THRESHOLD_MS = 250;
+    let hasRecentCorpseHit = false;
+    for (const corpse of visibleAnimalCorpses) {
+      if (corpse.lastHitTime) {
+        const hitTimeMs = Number((corpse.lastHitTime as any).microsSinceUnixEpoch || (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 0n) / 1000;
+        if (stableTimestamp - hitTimeMs < CORPSE_SHAKE_CACHE_THRESHOLD_MS) {
+          hasRecentCorpseHit = true;
+          break;
+        }
+      }
+    }
+    if (!hasRecentCorpseHit) {
+      for (const corpse of visiblePlayerCorpses) {
+        if (corpse.lastHitTime) {
+          const hitTimeMs = Number((corpse.lastHitTime as any).microsSinceUnixEpoch || (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 0n) / 1000;
+          if (stableTimestamp - hitTimeMs < CORPSE_SHAKE_CACHE_THRESHOLD_MS) {
+            hasRecentCorpseHit = true;
+            break;
+          }
+        }
+      }
+    }
+    
     // Check if we need to resort
     const needsResort = ySortedCache.isDirty || 
                        (frameCounter - ySortedCache.lastUpdateFrame) > 10 || // Force resort every 10 frames
@@ -1657,7 +1684,8 @@ export function useEntityFiltering(
                        foundationCountIncreased || // CRITICAL: Force resort when new foundation is placed
                        playerJustLoadedWithTilesPresent || // Force resort when player loads with tiles already present
                        bothPresentNowButNotBefore || // Force resort when both players and tiles are now present but weren't both before
-                       hasBothPlayersAndTiles; // CRITICAL: Always resort when both are present (disables cache)
+                       hasBothPlayersAndTiles || // CRITICAL: Always resort when both are present (disables cache)
+                       hasRecentCorpseHit; // CORPSE SHAKE FIX: Force resort when corpse was recently hit
     
     // CRITICAL FIX: Disable cache when we have both players and tiles
     // This ensures correct sorting when subscription data loads asynchronously

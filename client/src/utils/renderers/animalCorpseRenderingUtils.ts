@@ -108,11 +108,21 @@ export const renderAnimalCorpse = (
   let shakeY = 0;
   
   // Check if corpse was damaged recently (within last 200ms)
-  const timeSinceLastDamage = currentTime - Number(corpse.lastHitTime?.microsSinceUnixEpoch || 0n) / 1000;
-  if (timeSinceLastDamage < 200) {
-    const shakeIntensity = Math.max(0, 3 - (timeSinceLastDamage / 200) * 3);
-    shakeX = (Math.random() - 0.5) * shakeIntensity * 2;
-    shakeY = (Math.random() - 0.5) * shakeIntensity * 2;
+  // Handle both timestamp property names for compatibility
+  const SHAKE_DURATION_MS = 200;
+  if (corpse.lastHitTime) {
+    const lastHitTimeMs = Number(
+      (corpse.lastHitTime as any).microsSinceUnixEpoch || 
+      (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 
+      0n
+    ) / 1000;
+    const timeSinceLastDamage = currentTime - lastHitTimeMs;
+    
+    if (timeSinceLastDamage >= 0 && timeSinceLastDamage < SHAKE_DURATION_MS) {
+      const shakeIntensity = Math.max(0, 3 - (timeSinceLastDamage / SHAKE_DURATION_MS) * 3);
+      shakeX = (Math.random() - 0.5) * shakeIntensity * 2;
+      shakeY = (Math.random() - 0.5) * shakeIntensity * 2;
+    }
   }
 
   // Move to corpse position with shake offset

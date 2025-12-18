@@ -65,16 +65,20 @@ export function renderPlayerCorpse({
     return; // Don't render if health is zero
   }
 
-  // Revert to using __timestamp_micros_since_unix_epoch__ as per the linter error
+  // Default timestamp for mock player fields that require a Timestamp value
   const defaultTimestamp: Timestamp = { __timestamp_micros_since_unix_epoch__: 0n } as Timestamp;
-  // Added a cast to Timestamp to satisfy the type if it has other non-data properties or methods.
 
   let renderPosX = corpse.posX;
   let renderPosY = corpse.posY;
 
   // 2. Shake Effect
-  if (corpse.lastHitTime && corpse.lastHitTime.__timestamp_micros_since_unix_epoch__) { // Check if lastHitTime and its property exist
-    const lastHitTimeMs = Number(corpse.lastHitTime.__timestamp_micros_since_unix_epoch__ / 1000n);
+  // Handle both timestamp property names for compatibility
+  if (corpse.lastHitTime) {
+    const lastHitTimeMs = Number(
+      (corpse.lastHitTime as any).microsSinceUnixEpoch || 
+      (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 
+      0n
+    ) / 1000;
     const elapsedSinceHit = nowMs - lastHitTimeMs;
 
     if (elapsedSinceHit >= 0 && elapsedSinceHit < SHAKE_DURATION_MS) {
