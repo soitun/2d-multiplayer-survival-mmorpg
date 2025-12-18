@@ -1,12 +1,9 @@
-// import { TILE_SIZE } from '../../config/gameConfig'; // Not exported, remove
-// import { ItemImagesRef } from '../../hooks/useAssetLoader'; // Not an exported member, remove
 import { Stash } from '../../generated';
-// Assuming itemImagesStore is not the correct way, reverting to itemImagesRef prop
-// import { itemImagesStore } from '../../hooks/useAssetLoader'; 
-import stashImageSrc from '../../assets/doodads/stash.png'; // Assuming this is the correct path
+import stashImageSrc from '../../assets/doodads/stash.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
-import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
 export const STASH_WIDTH = 48; // Adjust as needed
@@ -14,10 +11,6 @@ export const STASH_HEIGHT = 48; // Adjust as needed
 export const PLAYER_STASH_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 7;
-const HEALTH_BAR_WIDTH = 40;
-const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_Y_OFFSET = 6;
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Health bar stays visible for 3 seconds after last hit
 
 // --- Client-side animation tracking for stash shakes ---
 const clientStashShakeStartTimes = new Map<string, number>(); // stashId -> client timestamp when shake started
@@ -100,42 +93,8 @@ const stashConfig: GroundEntityConfig<Stash> = {
         return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs) => {
-        if (entity.isDestroyed || entity.isHidden) {
-            return;
-        }
-
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1; // Avoid division by zero if undefined
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET; // Position below stash
-
-                // Fade effect for the health bar
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2)); // Fade out faster at the end
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const g = Math.floor(255 * healthPercentage);
-                const r = Math.floor(255 * (1 - healthPercentage));
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0, 0, 0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
     fallbackColor: '#5C4033', // Darker brown for stash
 };
 
@@ -145,7 +104,9 @@ export function renderStash(
     ctx: CanvasRenderingContext2D, 
     stash: Stash, 
     nowMs: number, 
-    cycleProgress: number
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
 ) {
     renderConfiguredGroundEntity({
         ctx,
@@ -156,4 +117,9 @@ export function renderStash(
         entityPosY: stash.posY,
         cycleProgress,
     });
+    
+    // Render health bar using unified system (skip if hidden)
+    if (!stash.isHidden && playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, stash, STASH_WIDTH, STASH_HEIGHT, nowMs, playerX, playerY);
+    }
 } 

@@ -1,18 +1,14 @@
-import { SleepingBag } from '../../generated'; // Import generated SleepingBag type
-import sleepingBagImageSrc from '../../assets/doodads/sleeping_bag.png'; // Assuming this is the correct path
+import { SleepingBag } from '../../generated';
+import sleepingBagImageSrc from '../../assets/doodads/sleeping_bag.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
-import { applyStandardDropShadow, drawDynamicGroundShadow } from './shadowUtils';
 import { imageManager } from './imageManager';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
-export const SLEEPING_BAG_WIDTH = 64; // Adjust as needed
-export const SLEEPING_BAG_HEIGHT = 64; // Adjust as needed
+export const SLEEPING_BAG_WIDTH = 64;
+export const SLEEPING_BAG_HEIGHT = 64;
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 6;
-const HEALTH_BAR_WIDTH = 50;
-const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_Y_OFFSET = 5;
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Health bar stays visible for 3 seconds after last hit
 
 const sleepingBagConfig: GroundEntityConfig<SleepingBag> = {
     getImageSource: (entity) => {
@@ -38,41 +34,8 @@ const sleepingBagConfig: GroundEntityConfig<SleepingBag> = {
 
     
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs) => {
-        if (entity.isDestroyed) {
-            return;
-        }
-
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1;
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET; // Position below sleeping bag
-
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0, 0, 0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
     fallbackColor: '#8B4513', // SaddleBrown for sleeping bag
 };
 
@@ -82,7 +45,9 @@ export function renderSleepingBag(
     ctx: CanvasRenderingContext2D, 
     bag: SleepingBag, 
     nowMs: number, 
-    cycleProgress: number
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
 ) {
     renderConfiguredGroundEntity({
         ctx,
@@ -93,4 +58,9 @@ export function renderSleepingBag(
         entityPosY: bag.posY,
         cycleProgress,
     });
+    
+    // Render health bar using unified system
+    if (playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, bag, SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT, nowMs, playerX, playerY);
+    }
 } 

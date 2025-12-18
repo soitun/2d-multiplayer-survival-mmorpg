@@ -2,9 +2,9 @@ import { Barbecue } from '../../generated'; // Import generated Barbecue type
 import barbecueImage from '../../assets/doodads/barbecue.png'; // Direct import OFF state
 import barbecueOnImage from '../../assets/doodads/barbecue_on.png'; // Direct import ON state
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
-import { drawDynamicGroundShadow, applyStandardDropShadow, calculateShakeOffsets } from './shadowUtils';
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { Barbecue as SpacetimeDBBarbecue, Player as SpacetimeDBPlayer } from '../../generated';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants directly used by this module or exported ---
 export const BARBECUE_WIDTH = 128;
@@ -29,10 +29,6 @@ const SMOKE_EMISSION_VISUAL_CENTER_Y_OFFSET = BARBECUE_HEIGHT * 0.35;
 // --- Other Local Constants ---
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 8;
-const HEALTH_BAR_WIDTH = 70;
-const HEALTH_BAR_HEIGHT = 6;
-const HEALTH_BAR_Y_OFFSET = 16;
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000;
 
 // --- Client-side animation tracking for barbecue shakes ---
 const clientBarbecueShakeStartTimes = new Map<string, number>();
@@ -117,41 +113,8 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
         };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
-        if (entity.isDestroyed) {
-            return;
-        }
-
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1;
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET;
-
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0, 0, 0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
 
     fallbackColor: '#663300', // Dark brown fallback
 };
@@ -167,7 +130,9 @@ export function renderBarbecue(
     nowMs: number,
     cycleProgress: number,
     onlyDrawShadow?: boolean,
-    skipDrawingShadow?: boolean
+    skipDrawingShadow?: boolean,
+    playerX?: number,
+    playerY?: number
 ) {
     renderConfiguredGroundEntity({
         ctx,
@@ -180,4 +145,9 @@ export function renderBarbecue(
         onlyDrawShadow,
         skipDrawingShadow
     });
+    
+    // Render health bar using unified system (barbecue is centered on posY)
+    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, barbecue, BARBECUE_WIDTH, BARBECUE_HEIGHT, nowMs, playerX, playerY, BARBECUE_HEIGHT / 2);
+    }
 }

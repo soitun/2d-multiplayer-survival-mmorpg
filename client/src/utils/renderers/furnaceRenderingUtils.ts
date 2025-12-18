@@ -2,9 +2,9 @@ import { Furnace } from '../../generated'; // Import generated Furnace type
 import furnaceImage from '../../assets/doodads/furnace_simple.png'; // Direct import OFF
 import furnaceOnImage from '../../assets/doodads/furnace_simple_on.png'; // Direct import ON
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
-import { drawDynamicGroundShadow, applyStandardDropShadow, calculateShakeOffsets } from './shadowUtils';
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { Furnace as SpacetimeDBFurnace } from '../../generated';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants directly used by this module or exported ---
 export const FURNACE_WIDTH = 96; // Standard furnace size
@@ -24,10 +24,6 @@ export const SERVER_FURNACE_COLLISION_CENTER_Y_OFFSET = 0.0;
 // --- Other Local Constants ---
 const SHAKE_DURATION_MS = 150; // How long the shake effect lasts
 const SHAKE_INTENSITY_PX = 8; // Same as campfire
-const HEALTH_BAR_WIDTH = 50;
-const HEALTH_BAR_HEIGHT = 6;
-const HEALTH_BAR_Y_OFFSET = 10; // Offset above the furnace image
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Added for fade effect
 
 // --- Client-side animation tracking for furnace shakes ---
 const clientFurnaceShakeStartTimes = new Map<string, number>(); // furnaceId -> client timestamp when shake started
@@ -113,46 +109,10 @@ const furnaceConfig: GroundEntityConfig<Furnace> = {
         };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
-        // If destroyed, do nothing in overlay
-        if (entity.isDestroyed) {
-            return;
-        }
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
 
-        // Only draw health bar - NO PLACEHOLDER GRAPHICS, JUST USE THE IMAGE
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1;
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET;
-
-                // Fade effect for the health bar
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0, 0, 0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
-
-    fallbackColor: '#8B4513', // Sienna brown fallback (like wooden storage box)
+    fallbackColor: '#8B4513', // Sienna brown fallback
 };
 
 // Preload both furnace images
@@ -166,7 +126,9 @@ export function renderFurnace(
     nowMs: number, 
     cycleProgress: number,
     onlyDrawShadow?: boolean,
-    skipDrawingShadow?: boolean
+    skipDrawingShadow?: boolean,
+    playerX?: number,
+    playerY?: number
 ) { 
     renderConfiguredGroundEntity({
         ctx,
@@ -179,6 +141,11 @@ export function renderFurnace(
         onlyDrawShadow,
         skipDrawingShadow
     });
+    
+    // Render health bar using unified system
+    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, furnace, FURNACE_WIDTH, FURNACE_HEIGHT, nowMs, playerX, playerY, -FURNACE_RENDER_Y_OFFSET);
+    }
 } 
 
  

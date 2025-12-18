@@ -1,19 +1,16 @@
-import { RainCollector } from '../../generated'; // Import generated type
-import reedRainCollectorImage from '../../assets/doodads/reed_rain_collector.png'; // Import rain collector image
-import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Import shadow utils
-import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
-import { imageManager } from './imageManager'; // Import image manager
+import { RainCollector } from '../../generated';
+import reedRainCollectorImage from '../../assets/doodads/reed_rain_collector.png';
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
+import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
+import { imageManager } from './imageManager';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
-export const RAIN_COLLECTOR_WIDTH = 96; // Doubled from 48
-export const RAIN_COLLECTOR_HEIGHT = 128; // Doubled from 64
-export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Interaction distance
+export const RAIN_COLLECTOR_WIDTH = 96;
+export const RAIN_COLLECTOR_HEIGHT = 128;
+export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
 const SHAKE_DURATION_MS = 150;
-const SHAKE_INTENSITY_PX = 6; // Moderate shake for rain collectors
-const HEALTH_BAR_WIDTH = 50;
-const HEALTH_BAR_HEIGHT = 6;
-const HEALTH_BAR_Y_OFFSET = 8;
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000;
+const SHAKE_INTENSITY_PX = 6;
 
 // --- Client-side animation tracking for rain collector shakes ---
 const clientRainCollectorShakeStartTimes = new Map<string, number>(); // rainCollectorId -> client timestamp when shake started
@@ -92,44 +89,8 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
         return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs) => {
-        if (entity.isDestroyed) {
-            return;
-        }
-
-        // Water level indicator removed - players can check water level by opening the rain collector interface
-
-        // Health bar logic (similar to other objects)
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1;
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET;
-
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0, 0, 0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
 
     fallbackColor: '#2c5aa0', // Blue fallback for rain collector
 };
@@ -142,7 +103,9 @@ export function renderRainCollector(
     ctx: CanvasRenderingContext2D, 
     rainCollector: RainCollector, 
     nowMs: number, 
-    cycleProgress: number
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
 ) {
     renderConfiguredGroundEntity({
         ctx,
@@ -153,4 +116,9 @@ export function renderRainCollector(
         entityPosY: rainCollector.posY,
         cycleProgress,
     });
+    
+    // Render health bar using unified system (centered on posY)
+    if (playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT / 2);
+    }
 } 

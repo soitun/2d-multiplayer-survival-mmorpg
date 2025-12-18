@@ -8,9 +8,10 @@ import barrel3Image from '../../assets/doodads/barrel3.png'; // Variant 2
 import seaBarrelImage from '../../assets/doodads/barrel4.png'; // Variant 3 (placeholder)
 import seaBarrel2Image from '../../assets/doodads/barrel5.png'; // Variant 4 (placeholder)
 import seaBarrel3Image from '../../assets/doodads/barrel6.png'; // Variant 5 (placeholder)
-import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
+import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -20,10 +21,7 @@ export const BARREL5_HEIGHT = 172;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels
-const HEALTH_BAR_WIDTH = 40; // Smaller health bar for barrels
-const HEALTH_BAR_HEIGHT = 5;
-const HEALTH_BAR_Y_OFFSET = 6; // Adjust offset for barrel image centering
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Same as storage boxes
+const BARREL_MAX_HEALTH = 50.0; // BARREL_INITIAL_HEALTH from server
 
 // --- Barrel Variant Images Array ---
 // Variants 0-2: Road barrels
@@ -151,53 +149,72 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
         };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
-        if (entity.respawnAt) {
-            return; // Don't draw health bar if barrel is destroyed/respawning
-        }
-
-        const health = entity.health ?? 0;
-        const maxHealth = 50.0; // BARREL_INITIAL_HEALTH from server
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                // Scale health bar size for variant 4 (barrel5.png - 2x larger barrel = 2x larger health bar)
-                const variantIndex = Number(entity.variant ?? 0);
-                const healthBarWidth = variantIndex === 4 ? HEALTH_BAR_WIDTH * 2 : HEALTH_BAR_WIDTH;
-                const healthBarHeight = variantIndex === 4 ? HEALTH_BAR_HEIGHT * 2 : HEALTH_BAR_HEIGHT;
-                const healthBarYOffset = variantIndex === 4 ? HEALTH_BAR_Y_OFFSET * 2 : HEALTH_BAR_Y_OFFSET;
-
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - healthBarWidth) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + healthBarYOffset; // Position below barrel 
-
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                // Background
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarWidth, healthBarHeight);
-
-                // Health bar
-                const healthBarInnerWidth = healthBarWidth * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, healthBarHeight);
-
-                // Border
-                ctx.strokeStyle = `rgba(0,0,0, ${0.7 * opacity})`;
-                ctx.lineWidth = variantIndex === 4 ? 2 : 1; // Thicker border for larger barrel
-                ctx.strokeRect(barOuterX, barOuterY, healthBarWidth, healthBarHeight);
-            }
-        }
-    },
+    // Health bar is now rendered separately via renderBarrelHealthBar()
+    // to support player-position-aware vertical bars on the opposite side
+    drawOverlay: undefined,
 
     fallbackColor: '#8B4513', // Saddle brown for wooden barrel
 };
+
+// Store player position for health bar rendering (set by renderBarrel)
+let currentPlayerX = 0;
+let currentPlayerY = 0;
+
+/**
+ * Set player position for health bar positioning.
+ * Called before rendering barrels.
+ */
+export function setPlayerPositionForBarrelHealthBars(playerX: number, playerY: number): void {
+    currentPlayerX = playerX;
+    currentPlayerY = playerY;
+}
+
+/**
+ * Get barrel dimensions based on variant (variant 4 is larger)
+ */
+function getBarrelDimensions(variant: number): { width: number; height: number; yOffset: number } {
+    const isLargeVariant = variant === 4;
+    return {
+        width: isLargeVariant ? BARREL5_WIDTH : BARREL_WIDTH,
+        height: isLargeVariant ? BARREL5_HEIGHT : BARREL_HEIGHT,
+        yOffset: isLargeVariant ? 24 : 12,
+    };
+}
+
+/**
+ * Renders the health bar for a barrel using the unified health bar system.
+ * Exported for use by sea barrel rendering (which needs to call this separately).
+ * Note: Barrels don't have maxHealth field - they use constant BARREL_MAX_HEALTH.
+ */
+export function renderBarrelHealthBar(
+    ctx: CanvasRenderingContext2D,
+    barrel: Barrel,
+    nowMs: number,
+    playerX?: number,
+    playerY?: number
+): void {
+    if (barrel.respawnAt) return;
+    
+    const dims = getBarrelDimensions(Number(barrel.variant ?? 0));
+    const pX = playerX ?? currentPlayerX;
+    const pY = playerY ?? currentPlayerY;
+    
+    // Use renderHealthBar directly since barrels don't have maxHealth field
+    renderHealthBar({
+        ctx,
+        entityX: barrel.posX,
+        entityY: barrel.posY,
+        entityWidth: dims.width,
+        entityHeight: dims.height,
+        health: barrel.health,
+        maxHealth: BARREL_MAX_HEALTH,
+        lastHitTimeMs: getLastHitTimeMs(barrel.lastHitTime),
+        nowMs,
+        playerX: pX,
+        playerY: pY,
+        entityDrawYOffset: -dims.yOffset,
+    });
+}
 
 // Preload all barrel variant images
 BARREL_VARIANT_IMAGES.forEach(barrelImg => {
@@ -407,6 +424,9 @@ function renderSeaBarrelWithWaterEffects(
     ctx.stroke();
     
     ctx.restore(); // Restore from rotation transform
+    
+    // Render health bar for sea barrels (on opposite side from player)
+    renderBarrelHealthBar(ctx, barrel, nowMs);
 }
 
 // --- Rendering Function (Refactored) ---
@@ -418,14 +438,23 @@ function renderSeaBarrelWithWaterEffects(
  * @param cycleProgress - Day/night cycle progress (0-1)
  * @param isOnSeaTile - Optional callback to check if barrel position is on a sea tile.
  *                      If not provided, defaults to assuming sea variants are on sea tiles.
+ * @param playerX - Player X position for health bar positioning (opposite side from player)
+ * @param playerY - Player Y position for health bar positioning
  */
 export function renderBarrel(
     ctx: CanvasRenderingContext2D, 
     barrel: Barrel, 
     nowMs: number, 
     cycleProgress: number,
-    isOnSeaTile?: (worldX: number, worldY: number) => boolean
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean,
+    playerX?: number,
+    playerY?: number
 ) {
+    // Store player position for health bar rendering
+    if (playerX !== undefined && playerY !== undefined) {
+        setPlayerPositionForBarrelHealthBars(playerX, playerY);
+    }
+    
     const variantIndex = Number(barrel.variant ?? 0);
     
     // Sea barrels get special water effects rendering ONLY if actually on a sea tile
@@ -435,6 +464,7 @@ export function renderBarrel(
     const actuallyOnSea = isOnSeaTile ? isOnSeaTile(barrel.posX, barrel.posY) : isSeaVariant;
     
     if (isSeaVariant && actuallyOnSea && !barrel.respawnAt) {
+        // Sea barrel rendering includes health bar
         renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress);
         return;
     }
@@ -449,6 +479,11 @@ export function renderBarrel(
         entityPosY: barrel.posY,
         cycleProgress,
     });
+    
+    // Render health bar for land barrels (sea barrels render their own in renderSeaBarrelWithWaterEffects)
+    if (!barrel.respawnAt) {
+        renderBarrelHealthBar(ctx, barrel, nowMs, playerX, playerY);
+    }
 }
 
 // === UNDERWATER SNORKELING MODE ===

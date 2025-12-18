@@ -1,5 +1,6 @@
 import { Door as SpacetimeDBDoor } from '../../generated';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
+import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
 
 // Door rendering dimensions
 export const DOOR_RENDER_WIDTH = FOUNDATION_TILE_SIZE; // 96px to span foundation edge
@@ -172,43 +173,26 @@ export const renderDoor = ({
 
   ctx.restore();
 
-  // Draw health bar if door has taken damage
+  // Draw health bar if door has taken damage (using unified health bar system)
   const healthPercent = door.health / door.maxHealth;
-  if (healthPercent < 1.0) {
-    renderDoorHealthBar(ctx, door.posX, drawY - 10, healthPercent);
+  if (healthPercent < 1.0 && localPlayerPosition) {
+    renderHealthBar({
+      ctx,
+      entityX: door.posX,
+      entityY: door.posY,
+      entityWidth: DOOR_RENDER_WIDTH,
+      entityHeight: DOOR_RENDER_HEIGHT,
+      health: door.health,
+      maxHealth: door.maxHealth,
+      // Use current time - door health bars don't fade
+      lastHitTimeMs: nowMs - 1000, // Always show if damaged
+      nowMs,
+      playerX: localPlayerPosition.x,
+      playerY: localPlayerPosition.y,
+      entityDrawYOffset: -44, // Door Y offset
+    });
   }
 };
-
-/**
- * Render door health bar
- */
-function renderDoorHealthBar(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  topY: number,
-  healthPercent: number
-) {
-  const barWidth = 60;
-  const barHeight = 6;
-  const barX = centerX - barWidth / 2;
-  const barY = topY;
-
-  // Background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-  ctx.fillRect(barX, barY, barWidth, barHeight);
-
-  // Health fill
-  const healthColor = healthPercent > 0.5 
-    ? `rgb(${Math.floor((1 - healthPercent) * 2 * 255)}, 255, 0)` 
-    : `rgb(255, ${Math.floor(healthPercent * 2 * 255)}, 0)`;
-  ctx.fillStyle = healthColor;
-  ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-
-  // Border
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(barX, barY, barWidth, barHeight);
-}
 
 /**
  * Render E interaction label for door

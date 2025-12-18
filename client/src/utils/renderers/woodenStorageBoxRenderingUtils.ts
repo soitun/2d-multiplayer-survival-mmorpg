@@ -7,9 +7,10 @@ import backpackImage from '../../assets/doodads/burlap_sack.png'; // Backpack im
 import repairBenchImage from '../../assets/doodads/repair_bench.png'; // Repair bench image
 import cookingStationImage from '../../assets/doodads/cooking_station.png'; // Cooking station image
 import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow image (deters crows)
-import { applyStandardDropShadow, drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Added import
-import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
-import { imageManager } from './imageManager'; // Import image manager
+import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
+import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
+import { imageManager } from './imageManager';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BOX_WIDTH = 64; 
@@ -41,10 +42,7 @@ export const BOX_TYPE_SCARECROW = 7;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
-const HEALTH_BAR_WIDTH = 50;
-const HEALTH_BAR_HEIGHT = 6;
-const HEALTH_BAR_Y_OFFSET = 8; // Adjust offset for box image centering
-const HEALTH_BAR_VISIBLE_DURATION_MS = 3000; // Added for fade effect
+const BOX_RENDER_Y_OFFSET = 20; // Matches calculateDrawPosition offset
 
 // --- Client-side animation tracking for wooden storage box shakes ---
 const clientBoxShakeStartTimes = new Map<string, number>(); // boxId -> client timestamp when shake started
@@ -167,44 +165,35 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
         };
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
-        if (entity.isDestroyed) {
-            return;
-        }
-
-        const health = entity.health ?? 0;
-        const maxHealth = entity.maxHealth ?? 1;
-
-        if (health < maxHealth && entity.lastHitTime) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit < HEALTH_BAR_VISIBLE_DURATION_MS) {
-                const healthPercentage = Math.max(0, health / maxHealth);
-                const barOuterX = finalDrawX + (finalDrawWidth - HEALTH_BAR_WIDTH) / 2;
-                const barOuterY = finalDrawY + finalDrawHeight + HEALTH_BAR_Y_OFFSET; // Position below storage box 
-
-                const timeSinceLastHitRatio = elapsedSinceHit / HEALTH_BAR_VISIBLE_DURATION_MS;
-                const opacity = Math.max(0, 1 - Math.pow(timeSinceLastHitRatio, 2));
-
-                ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-
-                const healthBarInnerWidth = HEALTH_BAR_WIDTH * healthPercentage;
-                const r = Math.floor(255 * (1 - healthPercentage));
-                const g = Math.floor(255 * healthPercentage);
-                ctx.fillStyle = `rgba(${r}, ${g}, 0, ${opacity})`;
-                ctx.fillRect(barOuterX, barOuterY, healthBarInnerWidth, HEALTH_BAR_HEIGHT);
-
-                ctx.strokeStyle = `rgba(0,0,0, ${0.7 * opacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barOuterX, barOuterY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
-            }
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
 
     fallbackColor: '#A0522D', // Sienna for wooden box
 };
+
+/**
+ * Get box dimensions based on type
+ */
+function getBoxDimensions(boxType: number): { width: number; height: number } {
+    switch (boxType) {
+        case BOX_TYPE_LARGE:
+            return { width: LARGE_BOX_WIDTH, height: LARGE_BOX_HEIGHT };
+        case BOX_TYPE_REFRIGERATOR:
+            return { width: REFRIGERATOR_WIDTH, height: REFRIGERATOR_HEIGHT };
+        case BOX_TYPE_COMPOST:
+            return { width: COMPOST_WIDTH, height: COMPOST_HEIGHT };
+        case BOX_TYPE_BACKPACK:
+            return { width: BACKPACK_WIDTH, height: BACKPACK_HEIGHT };
+        case BOX_TYPE_REPAIR_BENCH:
+            return { width: REPAIR_BENCH_WIDTH, height: REPAIR_BENCH_HEIGHT };
+        case BOX_TYPE_COOKING_STATION:
+            return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
+        case BOX_TYPE_SCARECROW:
+            return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
+        default:
+            return { width: BOX_WIDTH, height: BOX_HEIGHT };
+    }
+}
 
 // Preload using imported URLs
 imageManager.preloadImage(boxImage);
@@ -221,7 +210,9 @@ export function renderWoodenStorageBox(
     ctx: CanvasRenderingContext2D, 
     box: WoodenStorageBox, 
     nowMs: number, 
-    cycleProgress: number
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
 ) {
     renderConfiguredGroundEntity({
         ctx,
@@ -232,4 +223,10 @@ export function renderWoodenStorageBox(
         entityPosY: box.posY,
         cycleProgress,
     });
+    
+    // Render health bar using unified system (with type-specific dimensions)
+    if (playerX !== undefined && playerY !== undefined) {
+        const dims = getBoxDimensions(box.boxType);
+        renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
+    }
 } 
