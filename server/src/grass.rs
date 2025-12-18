@@ -295,20 +295,16 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
         return Err("Brambles cannot be destroyed.".to_string());
     }
     
-    // 5. Check proximity to player
-    let dx = player.position_x - grass.pos_x;
-    let dy = player.position_y - grass.pos_y;
-    let dist_sq = dx * dx + dy * dy;
+    // NOTE: Distance check removed - combat system already validates attack range
+    // with the weapon's actual attack_range (which varies by weapon type).
+    // The old hardcoded 80px check was causing a mismatch with the visual attack cone
+    // and preventing weapons with extended range (spears, scythes) from hitting grass.
     
-    if dist_sq > GRASS_INTERACTION_DISTANCE_SQ {
-        return Err("Too far from grass to interact.".to_string());
-    }
-    
-    // 6. Damage the grass (1 HP = instant destroy)
+    // 5. Damage the grass (1 HP = instant destroy)
     grass.health = 0;
     grass.last_hit_time = Some(ctx.timestamp);
     
-    // 7. Schedule respawn
+    // 6. Schedule respawn
     let respawn_secs = ctx.rng().gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
     let respawn_time = ctx.timestamp + TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
     
@@ -336,19 +332,19 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
         }
     }
     
-    // 8. Delete the grass entity (it's destroyed)
+    // 7. Delete the grass entity (it's destroyed)
     let grass_pos_x = grass.pos_x;
     let grass_pos_y = grass.pos_y;
     grass_table.id().delete(grass_id);
     
     log::info!("Player {:?} destroyed grass {} at ({:.1}, {:.1})", sender_id, grass_id, grass_pos_x, grass_pos_y);
     
-    // 8b. Play grass cutting sound
+    // 7b. Play grass cutting sound
     if let Err(e) = emit_sound_at_position(ctx, SoundType::GrassCut, grass_pos_x, grass_pos_y, 0.6, sender_id) {
         log::warn!("Failed to emit grass cut sound: {}", e);
     }
     
-    // 9. Roll for Plant Fiber drop (0.5% chance)
+    // 8. Roll for Plant Fiber drop (8% chance)
     let drop_roll: f32 = ctx.rng().gen();
     if drop_roll < PLANT_FIBER_DROP_CHANCE {
         // Find Plant Fiber item definition

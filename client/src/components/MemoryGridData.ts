@@ -102,8 +102,14 @@ const BRANCH_ANGLES = {
   BRANCH_6: 5 * Math.PI / 3,      // 300° - Melee
 };
 
-// Split offset for sub-branches (±8.6°)
-const SPLIT_OFFSET = 0.15;
+// Split offset for sub-branches - INCREASED for better visual separation
+// 0.25 radians ≈ 14.3° - provides clean spacing between split paths
+const SPLIT_OFFSET = 0.25;
+
+// Melee branch offsets - needs extra spacing since it has 3 starter weapons
+// Each melee starter gets ~20° of space for a professional look
+const MELEE_OFFSET_LARGE = 0.35;  // ~20° for outer melee starters (bone-shiv, stone-mace)
+const MELEE_OFFSET_SMALL = 0.18;  // ~10° for T2 sub-branches within each path
 
 const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'crafting' | 'vehicle' | 'technology' | 'passive' => {
   // Passive abilities
@@ -242,7 +248,7 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee - Pierce starter
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee - Pierce starter (center)
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
@@ -254,7 +260,7 @@ export const MEMORY_GRID_NODES = [
     cost: 70, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + SPLIT_OFFSET, 120), // 300° + offset - Blunt starter
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_LARGE, 120), // 300° + 20° - Blunt starter (clockwise)
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Mace']
@@ -266,7 +272,7 @@ export const MEMORY_GRID_NODES = [
     cost: 60, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - SPLIT_OFFSET, 120), // 300° - offset - Fast dagger starter
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_LARGE, 120), // 300° - 20° - Fast dagger starter (counter-clockwise)
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bone Shiv']
@@ -278,7 +284,7 @@ export const MEMORY_GRID_NODES = [
     cost: 200, 
     tier: 2, 
     prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 220), // 300° - BRANCH 6: Melee → Water utility
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_SMALL, 220), // Stone spear path - offset clockwise
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Kayak Paddle']
@@ -290,7 +296,7 @@ export const MEMORY_GRID_NODES = [
     cost: 220, 
     tier: 2, 
     prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - 0.08, 220), // Slightly offset from kayak paddle
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 220), // Stone spear path - center continues straight
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Scythe']
@@ -302,7 +308,7 @@ export const MEMORY_GRID_NODES = [
     cost: 240, 
     tier: 2, 
     prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + 0.08, 220), // Slightly offset
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_SMALL, 220), // Stone spear path - offset counter-clockwise
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Machete']
@@ -314,7 +320,7 @@ export const MEMORY_GRID_NODES = [
     cost: 260, 
     tier: 2, 
     prerequisites: ['bone-shiv'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - SPLIT_OFFSET, 220), // Fast path continues
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_LARGE, 220), // Bone shiv path continues at same angle
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Dagger']
@@ -326,7 +332,7 @@ export const MEMORY_GRID_NODES = [
     cost: 280, 
     tier: 2, 
     prerequisites: ['stone-mace'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + SPLIT_OFFSET, 220), // Blunt path continues
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_LARGE, 220), // Stone mace path continues at same angle
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['War Hammer']
@@ -338,7 +344,7 @@ export const MEMORY_GRID_NODES = [
     cost: 600, 
     tier: 3, 
     prerequisites: ['machete'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + 0.08, 320), // Heavy slash continuation
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_SMALL, 320), // Machete path continues
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Battle Axe']

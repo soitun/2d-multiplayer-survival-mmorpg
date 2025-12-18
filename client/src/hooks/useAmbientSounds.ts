@@ -22,6 +22,7 @@ interface AmbientSoundProps {
     localPlayer?: any; // Player data for position
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // For detecting Entrainment effect
     localPlayerId?: string; // For detecting Entrainment effect
+    isUnderwater?: boolean; // Whether the player is snorkeling/underwater - affects audio filtering
 }
 
 // Ambient sound definitions for Aleutian island atmosphere
@@ -74,6 +75,15 @@ const AMBIENT_SOUND_DEFINITIONS = {
         isLooping: true,
         useSeamlessLooping: true,
         description: 'Distorted ambient sound when player has Entrainment (max insanity)'
+    },
+    underwater_ambient: {
+        type: 'continuous',
+        filename: 'ambient_underwater.mp3',
+        baseVolume: 0.4, // Nice and present for immersion
+        isLooping: true,
+        useSeamlessLooping: true,
+        underwaterOnly: true, // Only plays when player is underwater
+        description: 'Muffled underwater ambience with bubbles and deep water sounds'
     },
     
     // === RANDOM/PERIODIC AMBIENCE ===
@@ -175,6 +185,10 @@ const AMBIENT_CONFIG = {
     FADE_DURATION: 3000, // 3 second fade in/out for continuous sounds (increased for reliability)
     MAX_CONCURRENT_RANDOM: 3, // Maximum random sounds playing at once
     OVERLAP_PERCENTAGE: 0.15, // 15% overlap for more reliable seamless looping (increased from 10%)
+    // Underwater audio effect configuration
+    UNDERWATER_VOLUME_MULTIPLIER: 0.15, // Surface sounds reduced to 15% when underwater
+    UNDERWATER_LOWPASS_FREQUENCY: 400, // Hz - cuts high frequencies (water muffles sound)
+    UNDERWATER_TRANSITION_DURATION: 500, // ms - quick but smooth transition
 } as const;
 
 // 🎵 SEAMLESS LOOPING SYSTEM - Based on useSoundSystem.ts logic
@@ -463,6 +477,158 @@ const activeRandomSounds = new Set<HTMLAudioElement>();
 const randomSoundTimers = new Map<AmbientSoundType, number>();
 const loadingSeamlessSounds = new Set<AmbientSoundType>(); // Track sounds currently being loaded/started
 
+// 🌊 UNDERWATER AUDIO FILTER SYSTEM - Uses Web Audio API for realistic muffling
+interface UnderwaterAudioNode {
+    source: MediaElementAudioSourceNode;
+    filter: BiquadFilterNode;
+    gainNode: GainNode;
+}
+
+let audioContext: AudioContext | null = null;
+const underwaterAudioNodes = new Map<HTMLAudioElement, UnderwaterAudioNode>();
+let isCurrentlyUnderwater = false;
+
+/**
+ * Initialize or get the shared AudioContext
+ */
+const getAudioContext = (): AudioContext => {
+    if (!audioContext || audioContext.state === 'closed') {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioContext;
+};
+
+/**
+ * Connect an audio element to the underwater filter system
+ * This allows us to apply lowpass filtering when underwater
+ */
+const connectToUnderwaterFilter = (audio: HTMLAudioElement): UnderwaterAudioNode | null => {
+    try {
+        // Check if already connected
+        if (underwaterAudioNodes.has(audio)) {
+            return underwaterAudioNodes.get(audio)!;
+        }
+
+        const ctx = getAudioContext();
+        
+        // Create source from audio element
+        const source = ctx.createMediaElementSource(audio);
+        
+        // Create lowpass filter for underwater muffling
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 22050; // Start with full frequency range (no filtering)
+        filter.Q.value = 0.7; // Gentle rolloff
+        
+        // Create gain node for volume control
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 1.0; // Start at full volume
+        
+        // Connect: source -> filter -> gain -> destination
+        source.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        const node: UnderwaterAudioNode = { source, filter, gainNode };
+        underwaterAudioNodes.set(audio, node);
+        
+        return node;
+    } catch (error) {
+        // If Web Audio API fails, audio will play normally without filtering
+        console.warn('🌊 [UNDERWATER] Failed to connect audio to filter system:', error);
+        return null;
+    }
+};
+
+/**
+ * Apply underwater audio effect to a specific audio element
+ */
+const applyUnderwaterEffect = (audio: HTMLAudioElement, shouldBeUnderwater: boolean) => {
+    const node = underwaterAudioNodes.get(audio);
+    if (!node) return;
+
+    const ctx = getAudioContext();
+    const currentTime = ctx.currentTime;
+    const transitionDuration = AMBIENT_CONFIG.UNDERWATER_TRANSITION_DURATION / 1000; // Convert to seconds
+
+    if (shouldBeUnderwater) {
+        // Apply lowpass filter and reduce volume
+        node.filter.frequency.cancelScheduledValues(currentTime);
+        node.filter.frequency.setValueAtTime(node.filter.frequency.value, currentTime);
+        node.filter.frequency.linearRampToValueAtTime(
+            AMBIENT_CONFIG.UNDERWATER_LOWPASS_FREQUENCY, 
+            currentTime + transitionDuration
+        );
+
+        node.gainNode.gain.cancelScheduledValues(currentTime);
+        node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, currentTime);
+        node.gainNode.gain.linearRampToValueAtTime(
+            AMBIENT_CONFIG.UNDERWATER_VOLUME_MULTIPLIER, 
+            currentTime + transitionDuration
+        );
+    } else {
+        // Remove filter and restore volume
+        node.filter.frequency.cancelScheduledValues(currentTime);
+        node.filter.frequency.setValueAtTime(node.filter.frequency.value, currentTime);
+        node.filter.frequency.linearRampToValueAtTime(22050, currentTime + transitionDuration); // Full range
+
+        node.gainNode.gain.cancelScheduledValues(currentTime);
+        node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, currentTime);
+        node.gainNode.gain.linearRampToValueAtTime(1.0, currentTime + transitionDuration);
+    }
+};
+
+/**
+ * Check if a sound type should be muffled underwater
+ */
+const shouldMuffleUnderwater = (soundType: AmbientSoundType): boolean => {
+    const definition = AMBIENT_SOUND_DEFINITIONS[soundType];
+    return !('underwaterOnly' in definition && definition.underwaterOnly);
+};
+
+/**
+ * Connect audio to underwater filter and apply current underwater state if needed
+ * @returns true if successfully connected
+ */
+const setupUnderwaterFilter = (audio: HTMLAudioElement, soundType: AmbientSoundType): boolean => {
+    const node = connectToUnderwaterFilter(audio);
+    if (node && isCurrentlyUnderwater && shouldMuffleUnderwater(soundType)) {
+        applyUnderwaterEffect(audio, true);
+    }
+    return node !== null;
+};
+
+/**
+ * Apply underwater effect to ALL currently playing sounds
+ */
+const setGlobalUnderwaterState = (isUnderwater: boolean) => {
+    if (isCurrentlyUnderwater === isUnderwater) return; // No change
+    
+    isCurrentlyUnderwater = isUnderwater;
+    console.log(`🌊 [UNDERWATER] ${isUnderwater ? 'Diving underwater - applying muffled audio' : 'Surfacing - restoring normal audio'}`);
+
+    // Apply to all seamless looping sounds (except underwater-specific sounds)
+    activeSeamlessLoopingSounds.forEach((seamlessSound, soundType) => {
+        if (!shouldMuffleUnderwater(soundType)) return;
+        applyUnderwaterEffect(seamlessSound.primary, isUnderwater);
+        applyUnderwaterEffect(seamlessSound.secondary, isUnderwater);
+    });
+
+    // Apply to all simple looping sounds
+    const simpleLoopingSounds = (window as any).simpleLoopingSounds;
+    if (simpleLoopingSounds instanceof Map) {
+        simpleLoopingSounds.forEach((audio: HTMLAudioElement, soundType: AmbientSoundType) => {
+            if (!shouldMuffleUnderwater(soundType)) return;
+            applyUnderwaterEffect(audio, isUnderwater);
+        });
+    }
+
+    // Apply to any currently playing random sounds (all random sounds get muffled)
+    activeRandomSounds.forEach((audio) => {
+        applyUnderwaterEffect(audio, isUnderwater);
+    });
+};
+
 // Global update loop safety net - ensures update loop never permanently dies
 let globalUpdateIntervalId: number | undefined;
 let lastUpdateLoopActivity = 0;
@@ -598,6 +764,8 @@ const createSeamlessLoopingSound = async (
             audio.loop = false; // We'll handle looping manually
             audio.volume = 0; // Start at 0 for fade-in
             audio.playbackRate = pitchVariation;
+            // 🌊 Connect to underwater filter system (applies current state if underwater)
+            setupUnderwaterFilter(audio, soundType);
         });
         
         const overlapTime = Math.min(2, duration * AMBIENT_CONFIG.OVERLAP_PERCENTAGE); // 15% overlap, max 2 seconds
@@ -892,7 +1060,9 @@ const startSimpleLoopingSound = async (
         audio.loop = true; // Use built-in browser looping
         audio.volume = 0; // Start silent for fade-in
         audio.playbackRate = pitchVariation;
-        
+        // 🌊 Connect to underwater filter system (applies current state if underwater)
+        setupUnderwaterFilter(audio, soundType);
+
         // Store in a simple map for simple looping sounds
         (window as any).simpleLoopingSounds = (window as any).simpleLoopingSounds || new Map();
         (window as any).simpleLoopingSounds.set(soundType, audio);
@@ -919,6 +1089,7 @@ export const useAmbientSounds = ({
     localPlayer,
     activeConsumableEffects,
     localPlayerId,
+    isUnderwater = false, // Whether player is snorkeling/underwater
 }: AmbientSoundProps = {}) => {
     // Use a fallback only if environmentalVolume is completely undefined, but allow 0
     const effectiveEnvironmentalVolume = environmentalVolume !== undefined ? environmentalVolume : 0.7;
@@ -926,6 +1097,7 @@ export const useAmbientSounds = ({
     const isInitializedRef = useRef(false);
     const lastWeatherRef = useRef(weatherCondition);
     const updateIntervalRef = useRef<number | undefined>(undefined);
+    const lastUnderwaterStateRef = useRef(false);
 
     // console.log(`🌊 [VOLUME DEBUG] useAmbientSounds called with environmentalVolume=${environmentalVolume}, effective=${effectiveEnvironmentalVolume}`);
 
@@ -978,7 +1150,13 @@ export const useAmbientSounds = ({
             return sounds;
         }
         
+        // 🌊 UNDERWATER: Add underwater ambient sound when snorkeling
+        if (isUnderwater) {
+            sounds.push('underwater_ambient');
+        }
+        
         // Wind matches player's current chunk weather (same as rain)
+        // Note: When underwater, these will be muffled by the lowpass filter
         const windIntensity = getCurrentWindIntensity();
         
         if (windIntensity === 'strong') {
@@ -990,13 +1168,15 @@ export const useAmbientSounds = ({
         }
         
         // Ocean sounds (always present for island atmosphere)
+        // When underwater, this gets muffled but the underwater_ambient provides immersion
         sounds.push('ocean_ambience');
         
         // General nature ambience (always present but quiet)
+        // When underwater, this gets heavily muffled (birds, insects become very faint)
         sounds.push('nature_general');
         
         return sounds;
-    }, [getCurrentWindIntensity, hasEntrainmentEffect]);
+    }, [getCurrentWindIntensity, hasEntrainmentEffect, isUnderwater]);
 
     // Start a seamless continuous ambient sound
     const startContinuousSound = useCallback(async (soundType: AmbientSoundType) => {
@@ -1122,10 +1302,16 @@ export const useAmbientSounds = ({
                 }
                 
                 const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume;
-                
+
                 // Start at 0 volume for fade-in
                 audio.volume = 0;
                 audio.playbackRate = 1 + (Math.random() - 0.5) * AMBIENT_CONFIG.PITCH_VARIATION;
+                
+                // 🌊 Connect to underwater filter (random sounds always get muffled underwater)
+                connectToUnderwaterFilter(audio);
+                if (isCurrentlyUnderwater) {
+                    applyUnderwaterEffect(audio, true);
+                }
 
                 activeRandomSounds.add(audio);
 
@@ -1435,6 +1621,14 @@ export const useAmbientSounds = ({
             });
         }
     }, [masterVolume, effectiveEnvironmentalVolume]);
+
+    // 🌊 Handle underwater state changes - apply/remove muffled audio effect
+    useEffect(() => {
+        if (lastUnderwaterStateRef.current !== isUnderwater) {
+            lastUnderwaterStateRef.current = isUnderwater;
+            setGlobalUnderwaterState(isUnderwater);
+        }
+    }, [isUnderwater]);
 
     // Public API
     const playManualAmbientSound = useCallback((soundType: AmbientSoundType) => {

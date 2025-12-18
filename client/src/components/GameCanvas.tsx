@@ -1915,6 +1915,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
   // Wind sounds use regional weather (checks nearby chunks for stability)
+  // When underwater (snorkeling), applies lowpass filter to muffle surface sounds
   const ambientSoundSystem = useAmbientSounds({
     masterVolume: 1.0, // Master volume (could be made configurable later)
     environmentalVolume: environmentalVolume ?? 0.7, // Use environmental volume from settings or default
@@ -1924,6 +1925,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer, // Player position for determining nearby chunks
     activeConsumableEffects, // For detecting Entrainment effect
     localPlayerId, // For detecting Entrainment effect
+    isUnderwater: localPlayer?.isSnorkeling ?? false, // Apply muffled audio when underwater
   });
 
   // 🧪 DEBUG: Expose ambient sound test function to window for debugging
