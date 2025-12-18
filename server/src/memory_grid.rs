@@ -212,8 +212,15 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "reed-harpoon" => Some((75, vec!["center"])),       // Branch 3 (120°): Water (splits later)
         "lantern" => Some((80, vec!["center"])),            // Branch 4 (180°): Food (splits later)
         "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5 (240°): Crafting (splits later)
-        "stone-spear" => Some((80, vec!["center"])),        // Branch 6 (300°): Melee
+        "stone-spear" => Some((80, vec!["center"])),        // Branch 6 (300°): Melee - Pierce starter
+        "stone-mace" => Some((70, vec!["center"])),         // Branch 6 (300°): Melee - Blunt starter
+        "bone-shiv" => Some((60, vec!["center"])),          // Branch 6 (300°): Melee - Fast dagger starter
         "kayak-paddle" => Some((200, vec!["stone-spear"])), // Branch 6 (300°): Melee → Water utility
+        "scythe" => Some((220, vec!["stone-spear"])),       // Branch 6 (300°): Melee → Cleave utility
+        "machete" => Some((240, vec!["stone-spear"])),      // Branch 6 (300°): Melee → Slash upgrade
+        "metal-dagger" => Some((260, vec!["bone-shiv"])),   // Branch 6 (300°): Fast → Metal upgrade
+        "war-hammer" => Some((280, vec!["stone-mace"])),    // Branch 6 (300°): Blunt → Heavy upgrade
+        "battle-axe" => Some((600, vec!["machete"])),       // Branch 6 (300°): Slash → Heavy axe
         
         // ============================================
         // TIER 2 - Specialization (200-280 shards)
@@ -488,7 +495,14 @@ fn get_node_display_name(node_id: &str) -> String {
         "metal-pickaxe" => "Metal Pickaxe".to_string(),
         "crossbow" => "Crossbow".to_string(),
         "stone-spear" => "Stone Spear".to_string(),
+        "stone-mace" => "Stone Mace".to_string(),
+        "bone-shiv" => "Bone Shiv".to_string(),
         "kayak-paddle" => "Kayak Paddle".to_string(),
+        "scythe" => "Scythe".to_string(),
+        "machete" => "Machete".to_string(),
+        "metal-dagger" => "Metal Dagger".to_string(),
+        "war-hammer" => "War Hammer".to_string(),
+        "battle-axe" => "Battle Axe".to_string(),
         "reed-harpoon" => "Reed Harpoon".to_string(),
         "lantern" => "Lantern".to_string(),
         
@@ -612,7 +626,14 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Metal Pickaxe" => Some("metal-pickaxe"),
         "Crossbow" => Some("crossbow"),
         "Stone Spear" => Some("stone-spear"),
+        "Stone Mace" => Some("stone-mace"),
+        "Bone Shiv" => Some("bone-shiv"),
         "Kayak Paddle" => Some("kayak-paddle"),
+        "Scythe" => Some("scythe"),
+        "Machete" => Some("machete"),
+        "Metal Dagger" => Some("metal-dagger"),
+        "War Hammer" => Some("war-hammer"),
+        "Battle Axe" => Some("battle-axe"),
         "Reed Harpoon" => Some("reed-harpoon"),
         "Lantern" => Some("lantern"),
         

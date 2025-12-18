@@ -827,6 +827,15 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         // Keep default arc for spears unless overridden
         log::debug!("{} detected: Using custom range {:.1}, angle {:.1}", item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
+    
+    // Scythe: VERY extended range + VERY wide arc for efficient grass clearing
+    // Multi-hit all targets in arc is handled below in the attack processing
+    let is_scythe = item_def.name == "Scythe";
+    if is_scythe {
+        actual_attack_range = PLAYER_RADIUS * 7.0; // ~224px - LONG sweep range (longer than spears!)
+        actual_attack_angle_degrees = 150.0; // Override to 150° - MASSIVE arc for efficient clearing
+        log::debug!("Scythe detected: Using extended range {:.1}, wide arc {:.1}°", actual_attack_range, actual_attack_angle_degrees);
+    }
 
     // NEW: Blueprint doesn't swing/attack - it's only for building
     // Water containers can swing but don't deal damage (visual only)
@@ -873,6 +882,36 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             i, target.id, target.distance_sq.sqrt()
         );
     }
+    
+    // === SCYTHE CLEAVE: Hit ALL targets in the arc ===
+    if is_scythe && !targets.is_empty() {
+        log::info!(
+            "[UseEquippedItem] Scythe cleave: Player {:?} hitting {} targets!",
+            sender_id, targets.len()
+        );
+        
+        // Hit ALL targets in the arc
+        for target in &targets {
+            match process_attack(ctx, sender_id, target, &item_def, now_ts, &mut rng) {
+                Ok(result) => {
+                    if result.hit {
+                        log::debug!("Scythe hit {:?} at distance {:.1}", target.id, target.distance_sq.sqrt());
+                    }
+                },
+                Err(e) => log::warn!("Scythe hit error on {:?}: {}", target.id, e),
+            }
+        }
+        
+        // Reduce durability once for the entire swing (not per target)
+        if crate::durability::has_durability_system(&item_def) {
+            if let Err(e) = crate::durability::reduce_durability_on_hit(ctx, equipped_item_instance_id) {
+                log::error!("[UseEquippedItem] Failed to reduce scythe durability: {}", e);
+            }
+        }
+        
+        return Ok(());
+    }
+    // === END SCYTHE CLEAVE ===
     
     if let Some(target) = find_best_target(&targets, &item_def) {
         let hit_distance = target.distance_sq.sqrt();

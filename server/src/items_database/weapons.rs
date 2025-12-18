@@ -82,6 +82,114 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .damage_type(DamageType::Pierce) // Pierce weapon (tusks)
             .build(),
 
+        // === CRAFTABLE CLUBS & MACES ===
+        // Heavy blunt weapons - slow but powerful
+
+        // Stone Mace - Early game heavy hitter
+        // TIER 1: Cheap to craft, good damage, slow swing
+        // Tradeoff: High damage per hit but slow, no bleed
+        ItemBuilder::new("Stone Mace", "A heavy stone lashed to a wooden handle. Slow to swing but hits like a boulder. Excellent for stunning prey and crushing skulls.", ItemCategory::Weapon)
+            .icon("stone_mace.png")
+            .weapon(28, 32, 1.3) // High damage, slow swing - rewards timing
+            .damage_type(DamageType::Blunt) // Blunt crushing damage
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 200 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 25)
+            .respawn_time(300)
+            .build(),
+
+        // War Hammer - Mid-tier devastating blunt weapon
+        // TIER 2: Requires metal, devastating damage, very slow
+        // Tradeoff: Highest craftable blunt damage, punishes missed swings
+        ItemBuilder::new("War Hammer", "A heavy metal hammerhead on a reinforced shaft. Devastating crushing power that can shatter bones and dent armor. Slow but terrifying.", ItemCategory::Weapon)
+            .icon("war_hammer.png")
+            .weapon(42, 48, 1.4) // Very high damage, very slow - commitment weapon
+            .damage_type(DamageType::Blunt) // Blunt crushing damage
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
+            ])
+            .crafting_output(1, 60)
+            .respawn_time(600)
+            .build(),
+
+        // === CRAFTABLE DAGGERS & SHIVS ===
+        // Fast stabbing weapons - low damage but quick strikes and bleed
+
+        // Bone Shiv - Early game assassin weapon
+        // TIER 1: Cheap stealth weapon, very fast, high bleed
+        // Tradeoff: Low base damage but fast attacks and vicious bleeding
+        ItemBuilder::new("Bone Shiv", "A sharpened bone fragment wrapped in leather. Lightning fast strikes that leave deep, bleeding wounds. Perfect for ambushes.", ItemCategory::Weapon)
+            .icon("bone_shiv.png")
+            .weapon(12, 15, 0.5) // Very low damage, VERY fast - hit and run
+            .damage_type(DamageType::Pierce) // Piercing stab damage
+            .bleed_effect(3.0, 10.0, 1.0) // HIGH bleed - 30 total bleed damage!
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 15 },
+            ])
+            .crafting_output(1, 15)
+            .respawn_time(240)
+            .build(),
+
+        // Metal Dagger - Mid-tier assassin weapon
+        // TIER 2: Fastest craftable weapon, excellent bleed
+        // Tradeoff: Lower burst than swords but highest sustained DPS through bleed
+        ItemBuilder::new("Metal Dagger", "A razor-sharp blade forged from scrap metal. Wickedly fast with deep, vicious cuts that bleed profusely. The assassin's choice.", ItemCategory::Weapon)
+            .icon("metal_dagger.png")
+            .weapon(22, 26, 0.45) // Low-medium damage, FASTEST weapon - DPS king
+            .damage_type(DamageType::Slash) // Slashing cuts
+            .bleed_effect(4.0, 12.0, 1.0) // VICIOUS bleed - 48 total bleed damage!
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 25 },
+            ])
+            .crafting_output(1, 45)
+            .respawn_time(480)
+            .build(),
+
+        // === CRAFTABLE SWORDS & BLADES ===
+        // Balanced slashing weapons - good damage and speed
+
+        // Machete - Mid-tier balanced sword
+        // TIER 2: The missing sword between spears and cutlass
+        // Tradeoff: Good all-rounder, no extreme strengths or weaknesses
+        ItemBuilder::new("Machete", "A sturdy blade designed for hacking through brush and enemies alike. Fast, reliable, and deadly. The survivor's workhorse weapon.", ItemCategory::Weapon)
+            .icon("combat_machete.png")
+            .weapon(32, 38, 0.7) // Good damage, good speed - balanced fighter
+            .damage_type(DamageType::Slash) // Slashing damage
+            .bleed_effect(2.5, 8.0, 1.0) // Moderate bleed - 20 total
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 125 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
+            ])
+            .crafting_output(1, 50)
+            .respawn_time(540)
+            .build(),
+
+        // Battle Axe - Late-tier heavy slashing weapon
+        // TIER 3: Expensive, high damage slash alternative to spear
+        // Tradeoff: Highest craftable slash damage, slower than sword
+        ItemBuilder::new("Battle Axe", "A brutal double-headed axe forged for war. Massive cleaving strikes that can split a man in two. Heavy, slow, and absolutely devastating.", ItemCategory::Weapon)
+            .icon("battle_axe.png")
+            .weapon(45, 52, 1.0) // Very high damage, moderate speed - power weapon
+            .damage_type(DamageType::Slash) // Cleaving slash damage
+            .bleed_effect(3.5, 10.0, 1.0) // Strong bleed - 35 total
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 200 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 75)
+            .respawn_time(720)
+            .build(),
+
         // === CRAFTABLE SPEARS ===
         // Ranged melee weapons with reach advantage
 
@@ -130,12 +238,14 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
         // Wide-arc melee weapons for harvesting and combat
 
         // Scythe - Wide sweep weapon ideal for clearing grass
-        ItemBuilder::new("Scythe", "A curved farming tool repurposed for survival. The wide sweeping arc makes it excellent for clearing grass and collecting fiber. Not designed for throwing.", ItemCategory::Weapon)
+        // BALANCED: Low per-hit damage but hits ALL targets in arc (cleave)
+        // Tradeoff vs Spear: Lower single-target DPS, but excellent for crowds/grass
+        ItemBuilder::new("Scythe", "A curved farming tool repurposed for survival. The wide sweeping arc hits multiple targets but deals less damage per strike. Excellent for clearing grass, weaker in duels.", ItemCategory::Weapon)
             .icon("scythe.png")
-            .weapon(28, 32, 0.9) // Moderate damage, slightly fast swing
+            .weapon(16, 20, 1.1) // LOW damage (vs Spear 25), slower swing - balanced for multi-hit
             .damage_type(DamageType::Slash) // Slashing weapon
             .attack_arc_degrees(120.0) // WIDE 120° sweep arc for efficient grass clearing
-            .bleed_effect(2.5, 8.0, 1.0) // Moderate bleed effect
+            .bleed_effect(1.0, 5.0, 1.0) // WEAK bleed (vs Spear 2.0/8.0) - shallow cuts
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 50 },

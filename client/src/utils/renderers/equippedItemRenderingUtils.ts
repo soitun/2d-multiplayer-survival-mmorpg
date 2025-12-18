@@ -1,11 +1,26 @@
 import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
+import { PLAYER_RADIUS } from '../clientCollision';
 
 // --- Constants (copied from GameCanvas for now, consider moving to config) ---
 const SWING_DURATION_MS = 150;
 const DEFAULT_SWING_ANGLE_MAX_RAD = Math.PI / 4; // 45 degrees default swing visual (90° total arc)
 const SLASH_COLOR = 'rgba(255, 255, 255, 0.4)';
 const SLASH_LINE_WIDTH = 4;
+
+// === ATTACK RANGE CONSTANTS (must match server/src/active_equipment.rs) ===
+const MELEE_ATTACK_RANGE = PLAYER_RADIUS * 4.5;   // ~144px - default melee range
+const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 6.0;   // ~192px - spear extended range
+const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe VERY extended range
+
+// Attack arc angles (must match server)
+const DEFAULT_ATTACK_ARC_DEGREES = 90;   // Standard 90° arc
+const SCYTHE_ATTACK_ARC_DEGREES = 150;   // Scythe's massive 150° arc
+
+// Attack range arc visual settings
+const ARC_EFFECT_COLOR = 'rgba(255, 200, 100, 0.35)';  // Golden semi-transparent
+const ARC_EFFECT_EDGE_COLOR = 'rgba(255, 180, 80, 0.6)'; // Brighter edge
+const ARC_EFFECT_LINE_WIDTH = 3;
 
 // Helper to get swing angle from item definition
 // Items with attackArcDegrees defined use that, otherwise default to 90°
@@ -14,6 +29,25 @@ const getSwingAngleMaxRad = (itemDef: SpacetimeDBItemDefinition): number => {
   // We divide by 2 because swing goes from -angle to +angle
   const arcDegrees = itemDef.attackArcDegrees ?? 90;
   return (arcDegrees / 2) * (Math.PI / 180);
+};
+
+// Helper to get weapon's actual attack range and arc (must match server logic)
+const getWeaponAttackParams = (itemDef: SpacetimeDBItemDefinition): { range: number; arcDegrees: number } => {
+  const name = itemDef.name;
+  
+  // Scythe - LONGEST range, WIDEST arc
+  if (name === 'Scythe') {
+    return { range: SCYTHE_ATTACK_RANGE, arcDegrees: SCYTHE_ATTACK_ARC_DEGREES };
+  }
+  
+  // Spears - extended range, default arc
+  if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
+    return { range: SPEAR_ATTACK_RANGE, arcDegrees: DEFAULT_ATTACK_ARC_DEGREES };
+  }
+  
+  // Use item's custom arc if defined, otherwise default
+  const itemArc = itemDef.attackArcDegrees ?? DEFAULT_ATTACK_ARC_DEGREES;
+  return { range: MELEE_ATTACK_RANGE, arcDegrees: itemArc };
 };
 const PLAYER_HIT_SHAKE_DURATION_MS = 200; // Copied from renderingUtils.ts
 const PLAYER_HIT_SHAKE_AMOUNT_PX = 3;   // Copied from renderingUtils.ts
@@ -49,7 +83,8 @@ export const renderEquippedItem = (
   jumpOffset: number,
   itemImages: Map<string, HTMLImageElement>,
   activeConsumableEffects?: Map<string, ActiveConsumableEffect>,
-  localPlayerId?: string
+  localPlayerId?: string,
+  serverSyncedDirection?: string // Optional: Server-synced direction for accurate attack arc display
 ) => {
   // DEBUG: Log item being rendered
   // if (localPlayerId && player.identity.toHexString() === localPlayerId) {
@@ -641,6 +676,93 @@ export const renderEquippedItem = (
 
   // --- Draw Attack Visual Effect --- 
   if (isSwinging) { 
+    // Get the weapon's actual attack range and arc for the range indicator
+    const weaponParams = getWeaponAttackParams(itemDef);
+    const attackRange = weaponParams.range;
+    const attackArcDegrees = weaponParams.arcDegrees;
+    const attackArcRad = (attackArcDegrees / 2) * (Math.PI / 180);
+    
+    // Use server-synced direction for attack arc (matches what server actually uses for hit detection)
+    // This prevents visual mismatch when player turns quickly before/during attack
+    const attackDirection = serverSyncedDirection || player.direction;
+    
+    // Calculate the base facing angle for the attack arc
+    let facingAngle = 0;
+    switch(attackDirection) {
+      case 'up':    facingAngle = -Math.PI / 2; break;
+      case 'down':  facingAngle = Math.PI / 2;  break;
+      case 'left':  facingAngle = Math.PI;      break;
+      case 'right': facingAngle = 0;            break;
+    }
+    
+    // Calculate swing progress for arc animation (0 to 1 to 0)
+    const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
+    const arcOpacity = Math.sin(swingProgress * Math.PI); // Fade in then out
+    
+    // === DRAW ATTACK RANGE ARC (the actual hit zone) ===
+    ctx.save();
+    try {
+      // Arc sweeps from one side to the other during swing
+      const arcStartAngle = facingAngle - attackArcRad;
+      const arcEndAngle = facingAngle + attackArcRad;
+      
+      // Draw filled arc (hit zone visualization)
+      ctx.beginPath();
+      ctx.moveTo(player.positionX, player.positionY);
+      ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
+      ctx.closePath();
+      
+      // Fill with gradient from center to edge
+      const gradient = ctx.createRadialGradient(
+        player.positionX, player.positionY, attackRange * 0.3,
+        player.positionX, player.positionY, attackRange
+      );
+      gradient.addColorStop(0, `rgba(255, 200, 100, ${0.05 * arcOpacity})`);
+      gradient.addColorStop(0.7, `rgba(255, 180, 80, ${0.15 * arcOpacity})`);
+      gradient.addColorStop(1, `rgba(255, 150, 50, ${0.25 * arcOpacity})`);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Draw arc outline at the attack range edge
+      ctx.beginPath();
+      ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
+      ctx.strokeStyle = `rgba(255, 200, 100, ${0.6 * arcOpacity})`;
+      ctx.lineWidth = ARC_EFFECT_LINE_WIDTH;
+      ctx.stroke();
+      
+      // Draw the arc edge lines (from player to arc endpoints)
+      ctx.beginPath();
+      ctx.moveTo(player.positionX, player.positionY);
+      ctx.lineTo(
+        player.positionX + Math.cos(arcStartAngle) * attackRange,
+        player.positionY + Math.sin(arcStartAngle) * attackRange
+      );
+      ctx.moveTo(player.positionX, player.positionY);
+      ctx.lineTo(
+        player.positionX + Math.cos(arcEndAngle) * attackRange,
+        player.positionY + Math.sin(arcEndAngle) * attackRange
+      );
+      ctx.strokeStyle = `rgba(255, 180, 80, ${0.4 * arcOpacity})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Draw a "sweep line" that moves through the arc during swing
+      const sweepAngle = facingAngle + (attackArcRad * 2 * (swingProgress - 0.5)); // Sweep from left to right
+      ctx.beginPath();
+      ctx.moveTo(player.positionX, player.positionY);
+      ctx.lineTo(
+        player.positionX + Math.cos(sweepAngle) * attackRange,
+        player.positionY + Math.sin(sweepAngle) * attackRange
+      );
+      ctx.strokeStyle = `rgba(255, 255, 200, ${0.7 * arcOpacity})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+    } finally {
+      ctx.restore();
+    }
+    // === END ATTACK RANGE ARC ===
+    
     if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
         // Draw a "thrust line" effect for the spear
         ctx.save();
@@ -666,7 +788,7 @@ export const renderEquippedItem = (
             ctx.restore();
         }
     } else if (itemDef.name?.toLowerCase() !== "hunting bow" && itemDef.category?.tag !== "RangedWeapon") {
-      // Original slash arc effect for non-spear, non-ranged weapons
+      // Original slash arc effect for non-spear, non-ranged weapons (small arc around weapon)
       ctx.save();
       try {
           const slashRadius = Math.max(displayItemWidth, displayItemHeight) * 0.5; 

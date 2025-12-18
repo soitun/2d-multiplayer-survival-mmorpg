@@ -662,6 +662,31 @@ pub(crate) fn clear_specific_item_from_equipment_slots(ctx: &ReducerContext, pla
             equip.head_item_instance_id = None;
             updated = true;
             log::debug!("[ClearEquip] Removed item {} from Head slot for player {:?}", item_instance_id_to_clear, player_id);
+            
+            // When head armor is removed, emerge from snorkeling and turn off headlamp
+            let players_table = ctx.db.player();
+            if let Some(mut player) = players_table.identity().find(&player_id) {
+                let mut player_updated = false;
+                
+                if player.is_snorkeling {
+                    player.is_snorkeling = false;
+                    crate::sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, player_id);
+                    player_updated = true;
+                    log::info!("[ClearEquip] Player {:?} removed head armor while snorkeling - emerging from water.", player_id);
+                }
+                
+                if player.is_headlamp_lit {
+                    player.is_headlamp_lit = false;
+                    crate::sound_events::emit_extinguish_torch_sound(ctx, player.position_x, player.position_y, player_id);
+                    player_updated = true;
+                    log::info!("[ClearEquip] Player {:?} removed head armor - extinguishing headlamp.", player_id);
+                }
+                
+                if player_updated {
+                    player.last_update = ctx.timestamp;
+                    players_table.identity().update(player);
+                }
+            }
         }
         if equip.chest_item_instance_id == Some(item_instance_id_to_clear) {
             equip.chest_item_instance_id = None;

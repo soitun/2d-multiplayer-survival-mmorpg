@@ -2875,7 +2875,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         
         const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
         if (canRenderItem && equipment) {
-          renderEquippedItem(ctx, player, equipment, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId);
+          // player.direction is already server-synced in this context
+          renderEquippedItem(ctx, player, equipment, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
         }
       }
     };
@@ -3202,11 +3203,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const facingDir = localFacingDirection || localPlayer.direction;
       
+      // Get the equipped item definition for weapon-specific range display
+      const playerId = localPlayer.identity.toHexString();
+      const equipment = activeEquipments.get(playerId);
+      let equippedItemDef: SpacetimeDBItemDefinition | null = null;
+      if (equipment?.equippedItemDefId) {
+        equippedItemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+      }
+      
       renderAttackRangeDebug(ctx, {
         playerX,
         playerY,
         facingDirection: facingDir,
-        localPlayerId: localPlayer.identity.toHexString(),
+        localPlayerId: playerId,
+        equippedItemDef, // Pass equipped weapon for correct range display
       }, {
         woodenStorageBoxes,
         barbecues,

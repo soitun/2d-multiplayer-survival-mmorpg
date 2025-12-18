@@ -9,15 +9,21 @@
  * - Color-coded indicators (green = in range, yellow = spear range, red = out of range)
  */
 
-import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal } from '../../generated';
+import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
 import { PLAYER_RADIUS } from '../clientCollision';
 
 // ===== CONSTANTS =====
 // Server-side attack range constants (from server/src/active_equipment.rs)
-// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 6.0 for spear
+// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 6.0 for spear, PLAYER_RADIUS * 7.0 for scythe
 export const DEFAULT_ATTACK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
 export const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 6.0;   // ~192px
-export const ATTACK_ANGLE_DEGREES = 180; // 180-degree semicircle
+export const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - LONGEST melee range!
+
+// Attack arc angles (from server/src/active_equipment.rs)
+export const DEFAULT_ATTACK_ARC_DEGREES = 90; // Standard 90° arc
+export const SCYTHE_ATTACK_ARC_DEGREES = 150; // Scythe's massive 150° arc
+
+export const ATTACK_ANGLE_DEGREES = 180; // 180-degree semicircle for display (shows all potential angles)
 
 // Server-side collision offsets (from server/src/wooden_storage_box.rs, combat.rs)
 const SERVER_BOX_Y_OFFSET = 52; // BOX_COLLISION_Y_OFFSET
@@ -41,6 +47,7 @@ export interface AttackRangeDebugOptions {
   playerY: number;
   facingDirection: string;
   localPlayerId: string;
+  equippedItemDef?: SpacetimeDBItemDefinition | null; // Equipped weapon to show its specific range
 }
 
 // ===== HELPER FUNCTIONS =====
@@ -79,44 +86,109 @@ function drawRangeLabel(
 }
 
 /**
- * Draws attack range semicircles (default and spear range)
+ * Gets weapon-specific attack range and arc based on equipped item
+ */
+function getWeaponRangeAndArc(itemDef: SpacetimeDBItemDefinition | null | undefined): { range: number; arcDegrees: number; color: string; label: string } {
+  if (!itemDef) {
+    return { range: DEFAULT_ATTACK_RANGE, arcDegrees: DEFAULT_ATTACK_ARC_DEGREES, color: 'rgba(255, 69, 0, 0.4)', label: 'Default' };
+  }
+  
+  const name = itemDef.name;
+  
+  // Scythe - LONGEST range, WIDEST arc
+  if (name === 'Scythe') {
+    return { range: SCYTHE_ATTACK_RANGE, arcDegrees: SCYTHE_ATTACK_ARC_DEGREES, color: 'rgba(0, 255, 128, 0.4)', label: 'Scythe' };
+  }
+  
+  // Spears - extended range, default arc
+  if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
+    return { range: SPEAR_ATTACK_RANGE, arcDegrees: DEFAULT_ATTACK_ARC_DEGREES, color: 'rgba(255, 200, 0, 0.4)', label: 'Spear' };
+  }
+  
+  // Use item's custom arc if defined
+  const itemArc = itemDef.attackArcDegrees ?? DEFAULT_ATTACK_ARC_DEGREES;
+  return { range: DEFAULT_ATTACK_RANGE, arcDegrees: itemArc, color: 'rgba(255, 69, 0, 0.4)', label: 'Melee' };
+}
+
+/**
+ * Draws attack range semicircles (default, spear, and scythe range)
+ * Shows the equipped weapon's actual arc filled, others as dashed reference circles
  */
 function drawAttackRangeSemicircles(
   ctx: CanvasRenderingContext2D,
   playerX: number,
   playerY: number,
-  facingAngle: number
+  facingAngle: number,
+  equippedItemDef?: SpacetimeDBItemDefinition | null
 ): void {
-  const halfAngle = (ATTACK_ANGLE_DEGREES / 2) * (Math.PI / 180);
-
-  // Draw default attack range semicircle (144px) - filled
+  const displayHalfAngle = (ATTACK_ANGLE_DEGREES / 2) * (Math.PI / 180);
+  
+  // Get the equipped weapon's specific range and arc
+  const equipped = getWeaponRangeAndArc(equippedItemDef);
+  const equippedHalfArc = (equipped.arcDegrees / 2) * (Math.PI / 180);
+  
+  // Draw EQUIPPED weapon's actual attack arc (filled, solid)
   ctx.beginPath();
   ctx.moveTo(playerX, playerY);
-  ctx.arc(playerX, playerY, DEFAULT_ATTACK_RANGE, facingAngle - halfAngle, facingAngle + halfAngle);
+  ctx.arc(playerX, playerY, equipped.range, facingAngle - equippedHalfArc, facingAngle + equippedHalfArc);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 69, 0, 0.1)';
+  ctx.fillStyle = equipped.color;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 69, 0, 0.6)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = equipped.color.replace('0.4', '0.9');
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  
+  // Draw arc edge lines
+  ctx.beginPath();
+  ctx.moveTo(playerX, playerY);
+  ctx.lineTo(playerX + Math.cos(facingAngle - equippedHalfArc) * equipped.range, 
+             playerY + Math.sin(facingAngle - equippedHalfArc) * equipped.range);
+  ctx.moveTo(playerX, playerY);
+  ctx.lineTo(playerX + Math.cos(facingAngle + equippedHalfArc) * equipped.range, 
+             playerY + Math.sin(facingAngle + equippedHalfArc) * equipped.range);
   ctx.stroke();
 
-  // Draw spear attack range semicircle (192px) - dashed line
-  ctx.beginPath();
-  ctx.setLineDash([8, 8]);
-  ctx.arc(playerX, playerY, SPEAR_ATTACK_RANGE, facingAngle - halfAngle, facingAngle + halfAngle);
-  ctx.strokeStyle = 'rgba(255, 140, 0, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  // Draw reference circles for other weapon ranges (dashed, ghosted)
+  ctx.setLineDash([6, 6]);
+  ctx.lineWidth = 1;
+  
+  // Default melee range circle (if not equipped)
+  if (equipped.range !== DEFAULT_ATTACK_RANGE) {
+    ctx.beginPath();
+    ctx.arc(playerX, playerY, DEFAULT_ATTACK_RANGE, facingAngle - displayHalfAngle, facingAngle + displayHalfAngle);
+    ctx.strokeStyle = 'rgba(255, 69, 0, 0.25)';
+    ctx.stroke();
+  }
+  
+  // Spear range circle (if not equipped)
+  if (equipped.range !== SPEAR_ATTACK_RANGE) {
+    ctx.beginPath();
+    ctx.arc(playerX, playerY, SPEAR_ATTACK_RANGE, facingAngle - displayHalfAngle, facingAngle + displayHalfAngle);
+    ctx.strokeStyle = 'rgba(255, 200, 0, 0.25)';
+    ctx.stroke();
+  }
+  
+  // Scythe range circle (if not equipped)
+  if (equipped.range !== SCYTHE_ATTACK_RANGE) {
+    ctx.beginPath();
+    ctx.arc(playerX, playerY, SCYTHE_ATTACK_RANGE, facingAngle - displayHalfAngle, facingAngle + displayHalfAngle);
+    ctx.strokeStyle = 'rgba(0, 255, 128, 0.25)';
+    ctx.stroke();
+  }
+  
   ctx.setLineDash([]);
 
-  // Draw range labels at the edge of each range
-  const labelDefaultX = playerX + Math.cos(facingAngle) * DEFAULT_ATTACK_RANGE;
-  const labelDefaultY = playerY + Math.sin(facingAngle) * DEFAULT_ATTACK_RANGE;
-  drawRangeLabel(ctx, `${DEFAULT_ATTACK_RANGE}px (default)`, labelDefaultX, labelDefaultY - 15, '#ff4500');
-
-  const labelSpearX = playerX + Math.cos(facingAngle) * SPEAR_ATTACK_RANGE;
-  const labelSpearY = playerY + Math.sin(facingAngle) * SPEAR_ATTACK_RANGE;
-  drawRangeLabel(ctx, `${SPEAR_ATTACK_RANGE}px (spear)`, labelSpearX, labelSpearY - 15, '#ff8c00');
+  // Draw equipped weapon info label
+  const labelX = playerX + Math.cos(facingAngle) * (equipped.range + 20);
+  const labelY = playerY + Math.sin(facingAngle) * (equipped.range + 20);
+  const labelText = `${equipped.label}: ${Math.round(equipped.range)}px, ${equipped.arcDegrees}° arc`;
+  drawRangeLabel(ctx, labelText, labelX, labelY, equipped.color.replace('0.4', '1'));
+  
+  // Draw range comparison legend at top
+  const legendY = playerY - equipped.range - 60;
+  drawRangeLabel(ctx, `Default: ${Math.round(DEFAULT_ATTACK_RANGE)}px`, playerX - 100, legendY, '#ff4500');
+  drawRangeLabel(ctx, `Spear: ${Math.round(SPEAR_ATTACK_RANGE)}px`, playerX, legendY, '#ffc800');
+  drawRangeLabel(ctx, `Scythe: ${Math.round(SCYTHE_ATTACK_RANGE)}px`, playerX + 100, legendY, '#00ff80');
 }
 
 /**
@@ -127,7 +199,8 @@ function drawAttackLine(
   playerX: number,
   playerY: number,
   targetX: number,
-  targetY: number
+  targetY: number,
+  equippedRange: number
 ): void {
   const dx = targetX - playerX;
   const dy = targetY - playerY;
@@ -136,9 +209,11 @@ function drawAttackLine(
   // Only draw if reasonably close
   if (dist > MAX_RENDER_DISTANCE) return;
 
-  // Check if in attack range
+  // Check if in attack range (compare against equipped weapon's range)
+  const inEquippedRange = dist <= equippedRange;
   const inDefaultRange = dist <= DEFAULT_ATTACK_RANGE;
   const inSpearRange = dist <= SPEAR_ATTACK_RANGE;
+  const inScytheRange = dist <= SCYTHE_ATTACK_RANGE;
 
   // Draw dashed line from player center to target center
   ctx.beginPath();
@@ -146,12 +221,16 @@ function drawAttackLine(
   ctx.moveTo(playerX, playerY);
   ctx.lineTo(targetX, targetY);
 
-  if (inDefaultRange) {
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Green if hittable
+  if (inEquippedRange) {
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Green if hittable with equipped weapon
+  } else if (inScytheRange) {
+    ctx.strokeStyle = 'rgba(0, 255, 128, 0.6)'; // Cyan if scythe range
   } else if (inSpearRange) {
-    ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Yellow if spear range
+    ctx.strokeStyle = 'rgba(255, 255, 0, 0.6)'; // Yellow if spear range
+  } else if (inDefaultRange) {
+    ctx.strokeStyle = 'rgba(255, 140, 0, 0.6)'; // Orange if default range
   } else {
-    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // Red if out of range
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)'; // Red if out of all ranges
   }
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -160,8 +239,10 @@ function drawAttackLine(
   // Draw target point marker (server uses center for distance check)
   ctx.beginPath();
   ctx.arc(targetX, targetY, 6, 0, Math.PI * 2);
-  ctx.fillStyle = inDefaultRange ? 'rgba(0, 255, 0, 0.9)' :
-                  inSpearRange ? 'rgba(255, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.7)';
+  ctx.fillStyle = inEquippedRange ? 'rgba(0, 255, 0, 0.9)' :
+                  inScytheRange ? 'rgba(0, 255, 128, 0.8)' :
+                  inSpearRange ? 'rgba(255, 255, 0, 0.8)' :
+                  inDefaultRange ? 'rgba(255, 140, 0, 0.8)' : 'rgba(255, 0, 0, 0.6)';
   ctx.fill();
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
@@ -177,7 +258,10 @@ function drawAttackLine(
   const metrics = ctx.measureText(distText);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
   ctx.fillRect(midX - metrics.width / 2 - 3, midY - 7, metrics.width + 6, 14);
-  ctx.fillStyle = inDefaultRange ? '#00ff00' : inSpearRange ? '#ffff00' : '#ff6666';
+  ctx.fillStyle = inEquippedRange ? '#00ff00' : 
+                  inScytheRange ? '#00ff80' :
+                  inSpearRange ? '#ffff00' : 
+                  inDefaultRange ? '#ff8c00' : '#ff6666';
   ctx.fillText(distText, midX, midY);
 }
 
@@ -192,13 +276,17 @@ export function renderAttackRangeDebug(
   options: AttackRangeDebugOptions,
   entities: AttackRangeDebugEntities
 ): void {
-  const { playerX, playerY, facingDirection, localPlayerId } = options;
+  const { playerX, playerY, facingDirection, localPlayerId, equippedItemDef } = options;
   const { woodenStorageBoxes, barbecues, furnaces, trees, stones, wildAnimals, players } = entities;
 
   const facingAngle = getFacingAngle(facingDirection);
+  
+  // Get equipped weapon's range for attack line coloring
+  const equipped = getWeaponRangeAndArc(equippedItemDef);
+  const equippedRange = equipped.range;
 
-  // Draw attack range semicircles
-  drawAttackRangeSemicircles(ctx, playerX, playerY, facingAngle);
+  // Draw attack range semicircles (shows equipped weapon's arc + reference ranges)
+  drawAttackRangeSemicircles(ctx, playerX, playerY, facingAngle, equippedItemDef);
 
   // Draw attack lines to wooden storage boxes
   if (woodenStorageBoxes) {
@@ -206,7 +294,7 @@ export function renderAttackRangeDebug(
       if (box.isDestroyed) return;
       // Server uses: target_y = box.pos_y - BOX_COLLISION_Y_OFFSET
       const targetY = box.posY - SERVER_BOX_Y_OFFSET;
-      drawAttackLine(ctx, playerX, playerY, box.posX, targetY);
+      drawAttackLine(ctx, playerX, playerY, box.posX, targetY, equippedRange);
     });
   }
 
@@ -216,7 +304,7 @@ export function renderAttackRangeDebug(
       if (bbq.isDestroyed) return;
       // Barbecues use same Y offset pattern
       const targetY = bbq.posY - SERVER_BOX_Y_OFFSET;
-      drawAttackLine(ctx, playerX, playerY, bbq.posX, targetY);
+      drawAttackLine(ctx, playerX, playerY, bbq.posX, targetY, equippedRange);
     });
   }
 
@@ -225,7 +313,7 @@ export function renderAttackRangeDebug(
     furnaces.forEach((furnace) => {
       if (furnace.isDestroyed) return;
       const targetY = furnace.posY - SERVER_BOX_Y_OFFSET;
-      drawAttackLine(ctx, playerX, playerY, furnace.posX, targetY);
+      drawAttackLine(ctx, playerX, playerY, furnace.posX, targetY, equippedRange);
     });
   }
 
@@ -233,7 +321,7 @@ export function renderAttackRangeDebug(
   if (trees) {
     trees.forEach((tree) => {
       if (tree.respawnAt) return;
-      drawAttackLine(ctx, playerX, playerY, tree.posX, tree.posY);
+      drawAttackLine(ctx, playerX, playerY, tree.posX, tree.posY, equippedRange);
     });
   }
 
@@ -241,7 +329,7 @@ export function renderAttackRangeDebug(
   if (stones) {
     stones.forEach((stone) => {
       if (stone.respawnAt) return;
-      drawAttackLine(ctx, playerX, playerY, stone.posX, stone.posY);
+      drawAttackLine(ctx, playerX, playerY, stone.posX, stone.posY, equippedRange);
     });
   }
 
@@ -249,7 +337,7 @@ export function renderAttackRangeDebug(
   if (wildAnimals) {
     wildAnimals.forEach((animal) => {
       if (animal.health <= 0) return;
-      drawAttackLine(ctx, playerX, playerY, animal.posX, animal.posY);
+      drawAttackLine(ctx, playerX, playerY, animal.posX, animal.posY, equippedRange);
     });
   }
 
@@ -258,7 +346,7 @@ export function renderAttackRangeDebug(
     players.forEach((otherPlayer, id) => {
       if (id === localPlayerId) return; // Skip self
       if (!otherPlayer.isOnline) return;
-      drawAttackLine(ctx, playerX, playerY, otherPlayer.positionX, otherPlayer.positionY);
+      drawAttackLine(ctx, playerX, playerY, otherPlayer.positionX, otherPlayer.positionY, equippedRange);
     });
   }
 }

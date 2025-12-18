@@ -753,7 +753,8 @@ export const renderYSortedEntities = ({
             // }
             
             if (canRenderItem && equipment) {
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId);
+                  // Pass player.direction (server-synced) for accurate attack arc display
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
             }
             
             // console.log(`[DEBUG] Rendering player ${playerId} - heroImg available:`, !!heroImg, 'direction:', playerForRendering.direction);
@@ -871,7 +872,8 @@ export const renderYSortedEntities = ({
               console.log(`[DEBUG] heroImg is null for player ${playerId} (down/right) - cannot render`);
             }
             if (canRenderItem && equipment) {
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId);
+                  // Pass player.direction (server-synced) for accurate attack arc display
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
             }
             
             // Ghost trail disabled for cleaner dodge roll experience

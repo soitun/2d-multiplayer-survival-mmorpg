@@ -242,10 +242,34 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee (short)
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee - Pierce starter
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
+  },
+  { 
+    id: 'stone-mace', 
+    name: 'Stone Mace', 
+    description: 'Unlocks crafting the Stone Mace - a heavy stone lashed to a wooden handle. Slow but hits hard. Excellent for crushing.', 
+    cost: 70, 
+    tier: 1, 
+    prerequisites: ['center'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + SPLIT_OFFSET, 120), // 300° + offset - Blunt starter
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Stone Mace']
+  },
+  { 
+    id: 'bone-shiv', 
+    name: 'Bone Shiv', 
+    description: 'Unlocks crafting the Bone Shiv - a sharpened bone fragment. Lightning fast strikes with vicious bleeding. Perfect for ambushes.', 
+    cost: 60, 
+    tier: 1, 
+    prerequisites: ['center'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - SPLIT_OFFSET, 120), // 300° - offset - Fast dagger starter
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Bone Shiv']
   },
   { 
     id: 'kayak-paddle', 
@@ -258,6 +282,66 @@ export const MEMORY_GRID_NODES = [
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Kayak Paddle']
+  },
+  { 
+    id: 'scythe', 
+    name: 'Scythe', 
+    description: 'Unlocks crafting the Scythe - a curved blade that hits ALL targets in a wide arc. Excellent for clearing grass and crowd control.', 
+    cost: 220, 
+    tier: 2, 
+    prerequisites: ['stone-spear'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - 0.08, 220), // Slightly offset from kayak paddle
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Scythe']
+  },
+  { 
+    id: 'machete', 
+    name: 'Machete', 
+    description: 'Unlocks crafting the Machete - a sturdy blade for hacking through brush and enemies. Fast, reliable, and deadly.', 
+    cost: 240, 
+    tier: 2, 
+    prerequisites: ['stone-spear'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + 0.08, 220), // Slightly offset
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Machete']
+  },
+  { 
+    id: 'metal-dagger', 
+    name: 'Metal Dagger', 
+    description: 'Unlocks crafting the Metal Dagger - the fastest craftable weapon. Razor-sharp with vicious bleeding. The assassin\'s choice.', 
+    cost: 260, 
+    tier: 2, 
+    prerequisites: ['bone-shiv'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - SPLIT_OFFSET, 220), // Fast path continues
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Metal Dagger']
+  },
+  { 
+    id: 'war-hammer', 
+    name: 'War Hammer', 
+    description: 'Unlocks crafting the War Hammer - a devastating heavy blunt weapon. Slow but terrifying crushing power.', 
+    cost: 280, 
+    tier: 2, 
+    prerequisites: ['stone-mace'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + SPLIT_OFFSET, 220), // Blunt path continues
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['War Hammer']
+  },
+  { 
+    id: 'battle-axe', 
+    name: 'Battle Axe', 
+    description: 'Unlocks crafting the Battle Axe - a brutal double-headed axe. Massive cleaving strikes with strong bleeding.', 
+    cost: 600, 
+    tier: 3, 
+    prerequisites: ['machete'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + 0.08, 320), // Heavy slash continuation
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Battle Axe']
   },
 
   // ============================================
@@ -924,7 +1008,14 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Metal Pickaxe': 'metal-pickaxe',
   'Crossbow': 'crossbow',
   'Stone Spear': 'stone-spear',
+  'Stone Mace': 'stone-mace',
+  'Bone Shiv': 'bone-shiv',
   'Kayak Paddle': 'kayak-paddle',
+  'Scythe': 'scythe',
+  'Machete': 'machete',
+  'Metal Dagger': 'metal-dagger',
+  'War Hammer': 'war-hammer',
+  'Battle Axe': 'battle-axe',
   'Reed Harpoon': 'reed-harpoon',
   'Lantern': 'lantern',
   

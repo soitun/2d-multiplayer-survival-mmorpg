@@ -606,6 +606,9 @@ pub fn find_targets_in_cone(
     chunk_indices_to_check.push(player_chunk_index + chunks_per_row); // Bottom (always safe - array bounds checked later)
     
     // Check grass only in nearby chunks (efficient chunk-based query)
+    // FIX: Use the actual attack_range parameter, NOT hardcoded GRASS_INTERACTION_DISTANCE
+    // This allows weapons with extended range (like Scythe) to hit grass at their full range
+    let attack_range_sq = attack_range * attack_range;
     for chunk_idx in chunk_indices_to_check {
         for grass_entity in ctx.db.grass().chunk_index().filter(chunk_idx) {
             // Skip dead grass or brambles (indestructible)
@@ -617,8 +620,8 @@ pub fn find_targets_in_cone(
             let dy = grass_entity.pos_y - player.position_y;
             let dist_sq = dx * dx + dy * dy;
             
-            // Use grass interaction distance from grass module
-            if dist_sq < grass::GRASS_INTERACTION_DISTANCE_SQ && dist_sq > 0.0 {
+            // Use the weapon's attack_range, not hardcoded grass interaction distance
+            if dist_sq < attack_range_sq && dist_sq > 0.0 {
                 let distance = dist_sq.sqrt();
                 let target_vec_x = dx / distance;
                 let target_vec_y = dy / distance;

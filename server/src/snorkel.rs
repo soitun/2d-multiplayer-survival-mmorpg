@@ -75,6 +75,33 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
     if player.is_snorkeling {
         sound_events::emit_snorkel_submerge_sound(ctx, player.position_x, player.position_y, sender_id);
         log::info!("Player {:?} submerged with snorkel.", sender_id);
+        
+        // Clear any equipped hand item (weapon/tool) when submerging
+        // Players cannot use weapons underwater
+        if let Some(mut equip) = active_equipments_table.player_identity().find(&sender_id) {
+            if equip.equipped_item_instance_id.is_some() {
+                log::info!("Player {:?} submerged - unequipping hand item (instance: {:?}).", 
+                    sender_id, equip.equipped_item_instance_id);
+                equip.equipped_item_def_id = None;
+                equip.equipped_item_instance_id = None;
+                equip.swing_start_time_ms = 0;
+                equip.icon_asset_name = None;
+                equip.loaded_ammo_def_id = None;
+                equip.loaded_ammo_count = 0;
+                equip.is_ready_to_fire = false;
+                active_equipments_table.player_identity().update(equip);
+            }
+        }
+        
+        // Also turn off torch/flashlight if they were on
+        if player.is_torch_lit {
+            player.is_torch_lit = false;
+            log::info!("Player {:?} submerged - extinguishing torch.", sender_id);
+        }
+        if player.is_flashlight_on {
+            player.is_flashlight_on = false;
+            log::info!("Player {:?} submerged - turning off flashlight.", sender_id);
+        }
     } else {
         sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, sender_id);
         log::info!("Player {:?} emerged from water.", sender_id);
