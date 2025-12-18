@@ -106,10 +106,10 @@ const BRANCH_ANGLES = {
 // 0.25 radians ≈ 14.3° - provides clean spacing between split paths
 const SPLIT_OFFSET = 0.25;
 
-// Melee branch offsets - needs extra spacing since it has 3 starter weapons
-// Each melee starter gets ~20° of space for a professional look
-const MELEE_OFFSET_LARGE = 0.35;  // ~20° for outer melee starters (bone-shiv, stone-mace)
-const MELEE_OFFSET_SMALL = 0.18;  // ~10° for T2 sub-branches within each path
+// Melee branch offsets - TWO main paths: Blade (left) and Blunt (right)
+// ~15° separation between the two T1 starters for clean visual distinction
+const MELEE_PATH_OFFSET = 0.26;  // ~15° for T1 starters (spear left, mace right)
+const MELEE_BRANCH_OFFSET = 0.18;  // ~10° for T2 sub-branches within each path
 
 const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'crafting' | 'vehicle' | 'technology' | 'passive' => {
   // Passive abilities
@@ -241,6 +241,11 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Metal Pickaxe']
   },
+  // ============================================
+  // MELEE BRANCH (300°) - TWO LINEAR PATHS
+  // Left: Blade Path - Stone Spear → Machete → Battle Axe
+  // Right: Blunt Path - Stone Mace → War Hammer
+  // ============================================
   { 
     id: 'stone-spear', 
     name: 'Stone Spear', 
@@ -248,7 +253,7 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // 300° - BRANCH 6: Melee - Pierce starter (center)
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 120), // BLADE PATH T1
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
@@ -260,46 +265,10 @@ export const MEMORY_GRID_NODES = [
     cost: 70, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_LARGE, 120), // 300° + 20° - Blunt starter (clockwise)
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_PATH_OFFSET, 120), // BLUNT PATH T1
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Mace']
-  },
-  { 
-    id: 'bone-shiv', 
-    name: 'Bone Shiv', 
-    description: 'Unlocks crafting the Bone Shiv - a sharpened bone fragment. Lightning fast strikes with vicious bleeding. Perfect for ambushes.', 
-    cost: 60, 
-    tier: 1, 
-    prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_LARGE, 120), // 300° - 20° - Fast dagger starter (counter-clockwise)
-    category: 'weapon' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Bone Shiv']
-  },
-  { 
-    id: 'kayak-paddle', 
-    name: 'Kayak Paddle', 
-    description: 'Unlocks crafting the Kayak Paddle - a sturdy double-bladed paddle for water navigation. Can also be used as an improvised weapon.', 
-    cost: 200, 
-    tier: 2, 
-    prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_SMALL, 220), // Stone spear path - offset clockwise
-    category: 'tool' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Kayak Paddle']
-  },
-  { 
-    id: 'scythe', 
-    name: 'Scythe', 
-    description: 'Unlocks crafting the Scythe - a curved blade that hits ALL targets in a wide arc. Excellent for clearing grass and crowd control.', 
-    cost: 220, 
-    tier: 2, 
-    prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 220), // Stone spear path - center continues straight
-    category: 'weapon' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Scythe']
   },
   { 
     id: 'machete', 
@@ -308,22 +277,10 @@ export const MEMORY_GRID_NODES = [
     cost: 240, 
     tier: 2, 
     prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_SMALL, 220), // Stone spear path - offset counter-clockwise
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 220), // BLADE PATH T2
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Machete']
-  },
-  { 
-    id: 'metal-dagger', 
-    name: 'Metal Dagger', 
-    description: 'Unlocks crafting the Metal Dagger - the fastest craftable weapon. Razor-sharp with vicious bleeding. The assassin\'s choice.', 
-    cost: 260, 
-    tier: 2, 
-    prerequisites: ['bone-shiv'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_LARGE, 220), // Bone shiv path continues at same angle
-    category: 'weapon' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Metal Dagger']
   },
   { 
     id: 'war-hammer', 
@@ -332,7 +289,7 @@ export const MEMORY_GRID_NODES = [
     cost: 280, 
     tier: 2, 
     prerequisites: ['stone-mace'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_OFFSET_LARGE, 220), // Stone mace path continues at same angle
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_PATH_OFFSET, 220), // BLUNT PATH T2
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['War Hammer']
@@ -344,11 +301,15 @@ export const MEMORY_GRID_NODES = [
     cost: 600, 
     tier: 3, 
     prerequisites: ['machete'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_OFFSET_SMALL, 320), // Machete path continues
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 320), // BLADE PATH T3
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Battle Axe']
   },
+  // OTHER MELEE WEAPONS - Relocated to appropriate branches
+  // Bone Shiv & Metal Dagger → Ranged/Hunting branch (stealth theme)
+  // Scythe → Crafting branch (farming tool)
+  // Kayak Paddle → Water branch (navigation)
 
   // ============================================
   // TIER 2 - Specialization (200-280 shards)
@@ -362,10 +323,22 @@ export const MEMORY_GRID_NODES = [
     cost: 200, 
     tier: 2, 
     prerequisites: ['crossbow'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 220), // Branch 1: linear
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1 - SPLIT_OFFSET, 220), // Upper ranged path
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Bone Arrow']
+  },
+  { 
+    id: 'bone-shiv', 
+    name: 'Bone Shiv', 
+    description: 'Unlocks crafting the Bone Shiv - a sharpened bone fragment. Lightning fast strikes with vicious bleeding. Perfect for ambushes.', 
+    cost: 180, 
+    tier: 2, 
+    prerequisites: ['crossbow'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1 + SPLIT_OFFSET, 220), // Lower hunting/stealth path
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Bone Shiv']
   },
   { 
     id: 'bush-knife', 
@@ -433,7 +406,7 @@ export const MEMORY_GRID_NODES = [
   // Day 7-14 - SPLITS happen here
   // Radius: 320
   // ============================================
-  // Branch 1 (linear)
+  // Branch 1 UPPER - Ranged arrows path
   { 
     id: 'fire-arrow', 
     name: 'Fire Arrow', 
@@ -441,10 +414,23 @@ export const MEMORY_GRID_NODES = [
     cost: 480, 
     tier: 3, 
     prerequisites: ['bone-arrow'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 320),
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1 - SPLIT_OFFSET, 320),
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Fire Arrow']
+  },
+  // Branch 1 LOWER - Stealth/hunting path
+  { 
+    id: 'metal-dagger', 
+    name: 'Metal Dagger', 
+    description: 'Unlocks crafting the Metal Dagger - the fastest craftable weapon. Razor-sharp with vicious bleeding. The assassin\'s choice.', 
+    cost: 400, 
+    tier: 3, 
+    prerequisites: ['bone-shiv'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1 + SPLIT_OFFSET, 320),
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Metal Dagger']
   },
   // Branch 2 (linear)
   { 
@@ -459,7 +445,7 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Large Wooden Storage Box']
   },
-  // Branch 3 UPPER (Fishing path @ 112°)
+  // Branch 3 UPPER (Fishing path)
   { 
     id: 'reed-fishing-rod', 
     name: 'Primitive Reed Fishing Rod', 
@@ -467,12 +453,25 @@ export const MEMORY_GRID_NODES = [
     cost: 520, 
     tier: 3, 
     prerequisites: ['bone-gaff-hook'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 320), // Upper path
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 320),
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Primitive Reed Fishing Rod']
   },
-  // Branch 3 LOWER (Water Collection path @ 128°)
+  // Branch 3 CENTER (Water navigation)
+  { 
+    id: 'kayak-paddle', 
+    name: 'Kayak Paddle', 
+    description: 'Unlocks crafting the Kayak Paddle - a sturdy double-bladed paddle for water navigation. Can also be used as an improvised weapon.', 
+    cost: 480, 
+    tier: 3, 
+    prerequisites: ['bone-gaff-hook'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3, 320),
+    category: 'tool' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Kayak Paddle']
+  },
+  // Branch 3 LOWER (Water Collection path)
   { 
     id: 'reed-rain-collector', 
     name: 'Reed Rain Collector', 
@@ -480,7 +479,7 @@ export const MEMORY_GRID_NODES = [
     cost: 560, 
     tier: 3, 
     prerequisites: ['bone-gaff-hook'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 320), // Lower path
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 320),
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Rain Collector']
@@ -511,7 +510,7 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Refrigerator']
   },
-  // Branch 5 UPPER (Passive Bonuses path @ 232°)
+  // Branch 5 UPPER (Passive Bonuses path)
   { 
     id: 'mining-efficiency', 
     name: 'Mining Efficiency', 
@@ -519,11 +518,24 @@ export const MEMORY_GRID_NODES = [
     cost: 720, 
     tier: 3, 
     prerequisites: ['reed-bellows'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 320), // Upper path
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 320),
     category: 'passive' as const, 
     status: 'locked' as const
   },
-  // Branch 5 LOWER (Maintenance path @ 248°)
+  // Branch 5 CENTER (Farming tools)
+  { 
+    id: 'scythe', 
+    name: 'Scythe', 
+    description: 'Unlocks crafting the Scythe - a curved blade that hits ALL targets in a wide arc. Excellent for clearing grass and crowd control.', 
+    cost: 500, 
+    tier: 3, 
+    prerequisites: ['reed-bellows'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5, 320),
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Scythe']
+  },
+  // Branch 5 LOWER (Maintenance path)
   { 
     id: 'repair-bench', 
     name: 'Repair Bench', 
@@ -531,7 +543,7 @@ export const MEMORY_GRID_NODES = [
     cost: 560, 
     tier: 3, 
     prerequisites: ['reed-bellows'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 + SPLIT_OFFSET, 320), // Lower path
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 + SPLIT_OFFSET, 320),
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Repair Bench']
@@ -828,7 +840,7 @@ export const MEMORY_GRID_NODES = [
       { id: 'logic-furnace', name: 'Logic Furnace', description: 'AI-assisted material processing', cost: 1600 },
       { id: 'bioprinter-table', name: 'Bioprinter Table', description: '3D print organic materials and food', cost: 2400 },
       { id: 'geneforge-vat', name: 'GeneForge Vat', description: 'Advanced biological material synthesis', cost: 3600 },
-      { id: 'mining-yield-ii', name: 'Mining Yield II', description: 'Extract more resources (Passive +35% Yield)', cost: 5600 },
+      { id: 'mining-efficiency-ii', name: 'Mining Efficiency II', description: 'Extract more resources (Passive +35% Yield)', cost: 5600 },
       { id: 'crafting-speed-uni', name: 'Crafting Speed', description: 'Enhanced manufacturing (Passive +25% Speed)', cost: 10000 }
     ];
     return path.map((node, i) => ({

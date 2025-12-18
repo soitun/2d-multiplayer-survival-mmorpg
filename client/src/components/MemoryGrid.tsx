@@ -258,12 +258,13 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
     const connections: React.ReactElement[] = [];
     
     // Add concentric circular connections for each tier (main grid only)
-    const tierRadii = [120, 220, 320, 420, 520]; // Tier 1-5 radii (increased for better spacing)
+    const tierRadii = [120, 220, 320, 420, 520, 620]; // Tier 1-6 radii (includes Makarov tier)
     tierRadii.forEach((radius, tierIndex) => {
       const tier = tierIndex + 1;
       const tierNodes = updatedNodes.filter(n => n.tier === tier && !n.faction);
       
-      if (tierNodes.length > 1) {
+      // Draw ring if there's at least 1 node at this tier (was > 1, now >= 1)
+      if (tierNodes.length >= 1) {
         // Create circular path connecting all nodes in this tier
         const scaledRadius = radius * scale;
         const centerXAdjusted = centerX + panOffset.x;

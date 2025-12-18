@@ -212,15 +212,20 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "reed-harpoon" => Some((75, vec!["center"])),       // Branch 3 (120°): Water (splits later)
         "lantern" => Some((80, vec!["center"])),            // Branch 4 (180°): Food (splits later)
         "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5 (240°): Crafting (splits later)
-        "stone-spear" => Some((80, vec!["center"])),        // Branch 6 (300°): Melee - Pierce starter
-        "stone-mace" => Some((70, vec!["center"])),         // Branch 6 (300°): Melee - Blunt starter
-        "bone-shiv" => Some((60, vec!["center"])),          // Branch 6 (300°): Melee - Fast dagger starter
-        "kayak-paddle" => Some((200, vec!["stone-spear"])), // Branch 6 (300°): Melee → Water utility
-        "scythe" => Some((220, vec!["stone-spear"])),       // Branch 6 (300°): Melee → Cleave utility
-        "machete" => Some((240, vec!["stone-spear"])),      // Branch 6 (300°): Melee → Slash upgrade
-        "metal-dagger" => Some((260, vec!["bone-shiv"])),   // Branch 6 (300°): Fast → Metal upgrade
-        "war-hammer" => Some((280, vec!["stone-mace"])),    // Branch 6 (300°): Blunt → Heavy upgrade
-        "battle-axe" => Some((600, vec!["machete"])),       // Branch 6 (300°): Slash → Heavy axe
+        // MELEE BRANCH (300°) - TWO LINEAR PATHS
+        // Left: Blade Path - Stone Spear → Machete → Battle Axe
+        // Right: Blunt Path - Stone Mace → War Hammer
+        "stone-spear" => Some((80, vec!["center"])),        // BLADE PATH T1
+        "stone-mace" => Some((70, vec!["center"])),         // BLUNT PATH T1
+        "machete" => Some((240, vec!["stone-spear"])),      // BLADE PATH T2
+        "war-hammer" => Some((280, vec!["stone-mace"])),    // BLUNT PATH T2
+        "battle-axe" => Some((600, vec!["machete"])),       // BLADE PATH T3
+        
+        // RELOCATED WEAPONS (no longer on melee branch)
+        "bone-shiv" => Some((180, vec!["crossbow"])),       // Hunting branch - stealth weapon
+        "metal-dagger" => Some((400, vec!["bone-shiv"])),   // Hunting branch - assassin upgrade
+        "scythe" => Some((500, vec!["reed-bellows"])),      // Crafting branch - farming tool
+        "kayak-paddle" => Some((480, vec!["bone-gaff-hook"])), // Water branch - navigation
         
         // ============================================
         // TIER 2 - Specialization (200-280 shards)
