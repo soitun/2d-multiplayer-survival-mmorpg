@@ -12,11 +12,11 @@ use crate::sound_events::{emit_sound_at_position, SoundType};
 // --- Grass-Specific Constants ---
 
 // Plant Fiber Drop Constants
-// Balanced as SUPPLEMENTAL source - not primary (Nettle gives 40-50, Flax gives 25-30)
-// At 4% chance with 8-12 drop, ~100 grass cuts = ~40 fiber (less than one Nettle)
-pub(crate) const PLANT_FIBER_DROP_CHANCE: f32 = 0.04; // 4% chance to drop fiber (was 0.5%)
-pub(crate) const PLANT_FIBER_MIN_DROP: u32 = 8; // Minimum fiber dropped
-pub(crate) const PLANT_FIBER_MAX_DROP: u32 = 12; // Maximum fiber dropped
+// Boosted to make grass cutting a more viable fiber source
+// At 8% chance with 12-18 drop, ~100 grass cuts = ~120 fiber (meaningful but still less than dedicated plants)
+pub(crate) const PLANT_FIBER_DROP_CHANCE: f32 = 0.08; // 8% chance to drop fiber (was 4%)
+pub(crate) const PLANT_FIBER_MIN_DROP: u32 = 12; // Minimum fiber dropped (was 8)
+pub(crate) const PLANT_FIBER_MAX_DROP: u32 = 18; // Maximum fiber dropped (was 12)
 pub(crate) const GRASS_INTERACTION_DISTANCE: f32 = 80.0; // Max distance to interact with grass
 pub(crate) const GRASS_INTERACTION_DISTANCE_SQ: f32 = GRASS_INTERACTION_DISTANCE * GRASS_INTERACTION_DISTANCE;
 

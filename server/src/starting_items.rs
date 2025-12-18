@@ -29,7 +29,7 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
         ("Cerametal Field Cauldron Mk. II", 1, Some(2u8), None),
         ("Reed Water Bottle", 1, Some(3u8), None),
         ("Reed Diver's Helm", 1, Some(4u8), None),
-        // ("Potato", 5000, Some(5u8), None),
+        ("Scythe", 1, Some(5u8), None),
 
         // Starting materials in Inventory (Slots 0-23)
         // ("Bakery", 1, None, Some(0u16)),

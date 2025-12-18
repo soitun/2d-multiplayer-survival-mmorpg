@@ -412,6 +412,9 @@ pub fn create_generated_brew(
             
             // Station requirement (not applicable for AI-generated brews)
             requires_station: None,
+            
+            // Attack arc (not applicable for consumables)
+            attack_arc_degrees: None,
         };
         
         let inserted = item_defs.insert(new_item_def);

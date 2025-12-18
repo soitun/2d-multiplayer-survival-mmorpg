@@ -128,6 +128,9 @@ pub struct ItemDefinition {
     
     // AMMUNITION TYPE (for distinguishing arrows from bullets)
     pub ammo_type: Option<crate::models::AmmoType>, // Arrow for bows/crossbows, Bullet for pistols
+    
+    // WEAPON ARC ANGLE (for melee weapons with different sweep widths)
+    pub attack_arc_degrees: Option<f32>, // Custom attack arc in degrees. None = use default (90°). Scythe uses 120° for wide sweep.
 }
 
 // --- Inventory Table ---

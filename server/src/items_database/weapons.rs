@@ -126,6 +126,25 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .respawn_time(420)
             .build(),
 
+        // === CRAFTABLE SCYTHES ===
+        // Wide-arc melee weapons for harvesting and combat
+
+        // Scythe - Wide sweep weapon ideal for clearing grass
+        ItemBuilder::new("Scythe", "A curved farming tool repurposed for survival. The wide sweeping arc makes it excellent for clearing grass and collecting fiber. Not designed for throwing.", ItemCategory::Weapon)
+            .icon("scythe.png")
+            .weapon(28, 32, 0.9) // Moderate damage, slightly fast swing
+            .damage_type(DamageType::Slash) // Slashing weapon
+            .attack_arc_degrees(120.0) // WIDE 120° sweep arc for efficient grass clearing
+            .bleed_effect(2.5, 8.0, 1.0) // Moderate bleed effect
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 45)
+            .respawn_time(360)
+            .build(),
+
         // === CRAFTABLE PADDLES ===
         // Utility weapons that double as tools
 

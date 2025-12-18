@@ -813,17 +813,18 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         return Ok(()); // Selo Olive Oil handling complete
     }
 
-    // Default values for attack - BALANCED MELEE: Wide semicircle for fluid yet skillful combat
-    // Changed from narrow 90-degree cone to 180-degree semicircle
-    // This makes fast-paced melee combat feel responsive while maintaining positioning skill
-    let mut actual_attack_range = PLAYER_RADIUS * 4.5; // ~144px (reduced from 224px) - tighter melee range
-    let mut actual_attack_angle_degrees = 180.0;        // Wide semicircle (was 90 degrees) - forgiving but requires facing
+    // Default values for attack - BALANCED MELEE
+    let mut actual_attack_range = PLAYER_RADIUS * 4.5; // ~144px - tighter melee range
+    
+    // Use per-weapon attack arc if defined, otherwise default to 90 degrees
+    // Weapons like Scythe have wider arcs (120°) for efficient grass clearing
+    let mut actual_attack_angle_degrees = item_def.attack_arc_degrees.unwrap_or(90.0);
 
     // Check if the item is a spear and adjust its properties
-    if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" {
-        // Spears have even longer range and keep the 180-degree semicircle
-        actual_attack_range = PLAYER_RADIUS * 6.0; // ~192px (reduced from 288px) - spears excel at reach
-        actual_attack_angle_degrees = 180.0;        // Wide semicircle for thrust attacks
+    if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" {
+        // Spears have even longer range
+        actual_attack_range = PLAYER_RADIUS * 6.0; // ~192px - spears excel at reach
+        // Keep default arc for spears unless overridden
         log::debug!("{} detected: Using custom range {:.1}, angle {:.1}", item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
 

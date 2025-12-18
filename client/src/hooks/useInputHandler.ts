@@ -1962,8 +1962,8 @@ export const useInputHandler = ({
             if (eKeyHoldTimerRef.current) clearTimeout(eKeyHoldTimerRef.current);
             eKeyHoldTimerRef.current = null;
             setInteractionProgress(null);
-            // Clear auto-attack state when window loses focus
-            setIsAutoAttacking(false);
+            // NOTE: Auto-attack (Z) intentionally NOT cleared on blur
+            // This allows auto-attack to persist through tab-outs for AFK harvesting
         };
         
         // Utility function to force clear all input focus (called when needed)
@@ -2052,15 +2052,20 @@ export const useInputHandler = ({
             return; // Early return - player is dead, skip all input processing
         }
 
-        // MODIFIED: Do nothing if player is dead, or if chatting/searching
+        // MODIFIED: Skip most input processing if player is dead or chatting/searching
+        // BUT allow auto-attack to continue in the background for AFK harvesting
         if (!currentLocalPlayer || currentLocalPlayer.isDead || isChatting || isSearchingCraftRecipes) {
-            // Reset auto-attack state when in UI states
-            if (isAutoAttacking && (isChatting || isSearchingCraftRecipes)) {
-                setIsAutoAttacking(false);
-            }
+            // NOTE: Auto-attack intentionally NOT cancelled when UI is open
+            // This allows auto-attack to persist through menus for AFK harvesting
+            
             // Also clear jump offset if player is dead or UI is active
             if (currentJumpOffsetYRef.current !== 0) {
                 currentJumpOffsetYRef.current = 0;
+            }
+            
+            // Still process auto-attack even when UI is open (but not when dead)
+            if (isAutoAttacking && !currentLocalPlayer?.isDead && !placementInfo && !isFishing) {
+                attemptSwing();
             }
             return;
         }
@@ -2114,7 +2119,9 @@ export const useInputHandler = ({
         }
 
         // Handle auto-attack
-        if (isAutoAttacking && !placementInfo && !isChatting && !isSearchingCraftRecipes && !isInventoryOpen) {
+        // NOTE: Auto-attack works regardless of UI state (inventory, chat, etc.)
+        // This enables AFK harvesting of trees/ores while managing inventory
+        if (isAutoAttacking && !placementInfo) {
             // 🎣 FISHING INPUT FIX: Disable auto-attack while fishing
             if (!isFishing) {
                 attemptSwing(); // Call internal attemptSwing function for auto-attack

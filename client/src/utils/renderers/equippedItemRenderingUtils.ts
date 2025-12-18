@@ -3,9 +3,18 @@ import { gameConfig } from '../../config/gameConfig';
 
 // --- Constants (copied from GameCanvas for now, consider moving to config) ---
 const SWING_DURATION_MS = 150;
-const SWING_ANGLE_MAX_RAD = Math.PI / 2.5;
+const DEFAULT_SWING_ANGLE_MAX_RAD = Math.PI / 4; // 45 degrees default swing visual (90° total arc)
 const SLASH_COLOR = 'rgba(255, 255, 255, 0.4)';
 const SLASH_LINE_WIDTH = 4;
+
+// Helper to get swing angle from item definition
+// Items with attackArcDegrees defined use that, otherwise default to 90°
+const getSwingAngleMaxRad = (itemDef: SpacetimeDBItemDefinition): number => {
+  // attackArcDegrees is the total arc (e.g., 120° for Scythe)
+  // We divide by 2 because swing goes from -angle to +angle
+  const arcDegrees = itemDef.attackArcDegrees ?? 90;
+  return (arcDegrees / 2) * (Math.PI / 180);
+};
 const PLAYER_HIT_SHAKE_DURATION_MS = 200; // Copied from renderingUtils.ts
 const PLAYER_HIT_SHAKE_AMOUNT_PX = 3;   // Copied from renderingUtils.ts
 
@@ -360,7 +369,9 @@ export const renderEquippedItem = (
       } else {
           // Swing animation for other items. 
           // currentAngle will be negative or zero, representing a CCW swing if positive was CW (and backwards).
-          currentAngle = -(Math.sin(swingProgress * Math.PI) * SWING_ANGLE_MAX_RAD);
+          // Use per-weapon swing angle - Scythe has wider 120° arc, most weapons use 90°
+          const weaponSwingAngle = getSwingAngleMaxRad(itemDef);
+          currentAngle = -(Math.sin(swingProgress * Math.PI) * weaponSwingAngle);
           // The 'rotation' variable is used for the slash arc. It should match the item's swing direction.
           // Don't override rotation for ranged weapons - they should maintain their directional orientation
           if (itemDef.name !== "Hunting Bow" && itemDef.name !== "Crossbow") {

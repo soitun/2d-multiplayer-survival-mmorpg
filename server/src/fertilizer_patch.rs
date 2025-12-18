@@ -16,7 +16,7 @@ use crate::environment::calculate_chunk_index;
 pub const FERTILIZER_PATCH_RADIUS: f32 = 30.0; // Visual radius of fertilizer patch
 pub const FERTILIZER_PATCH_COLLISION_RADIUS: f32 = 20.0; // Collision detection radius
 pub const FERTILIZER_PATCH_GROWTH_EFFECT_RADIUS: f32 = 60.0; // Growth bonus radius (larger than visual, matches water patches)
-pub const FERTILIZER_PATCH_DURATION_SECS: u64 = 600; // 10 minutes base duration (longer than water)
+pub const FERTILIZER_PATCH_DURATION_SECS: u64 = 2700; // 45 minutes - fertilizer is valuable since it takes time to craft
 pub const FERTILIZER_PATCH_CLEANUP_INTERVAL_SECS: u64 = 60; // Check for expired patches every minute
 pub const FERTILIZER_GROWTH_BONUS_MULTIPLIER: f32 = 2.0; // 2x growth rate when fertilized (matches water patch bonus)
 

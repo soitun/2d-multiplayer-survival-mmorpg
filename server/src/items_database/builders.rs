@@ -62,6 +62,7 @@ impl ItemBuilder {
                 silences_movement: false,
                 intimidates_animals: false,
                 ammo_type: None,
+                attack_arc_degrees: None,
             }
         }
     }
@@ -300,6 +301,13 @@ impl ItemBuilder {
     /// Set the ammunition type for this item (Arrow for bows/crossbows, Bullet for pistols)
     pub fn ammo_type(mut self, ammo_type: AmmoType) -> Self {
         self.inner.ammo_type = Some(ammo_type);
+        self
+    }
+    
+    /// Set the attack arc angle in degrees for melee weapons
+    /// Default is 90°. Scythe uses 120° for wide sweep.
+    pub fn attack_arc_degrees(mut self, degrees: f32) -> Self {
+        self.inner.attack_arc_degrees = Some(degrees);
         self
     }
 

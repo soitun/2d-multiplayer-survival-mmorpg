@@ -112,6 +112,7 @@ import walrusSkullIcon from '../assets/items/walrus_skull.png';
 
 // Utility melee weapons
 import kayakPaddleIcon from '../assets/items/kayak_paddle.png';
+import scytheIcon from '../assets/items/scythe.png';
 
 // === AMMUNITION ===
 // Arrows and projectiles
@@ -535,6 +536,7 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Utility melee weapons
   'kayak_paddle.png': kayakPaddleIcon,
+  'scythe.png': scytheIcon,
 
   // === AMMUNITION ===
   'wooden_arrow.png': woodenArrowIcon,

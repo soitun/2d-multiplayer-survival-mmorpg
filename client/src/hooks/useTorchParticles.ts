@@ -10,7 +10,7 @@ import { gameConfig } from '../config/gameConfig'; // <<< ADDED for spriteWidth/
 
 // --- Swing Constants (from equippedItemRenderingUtils.ts) ---
 const SWING_DURATION_MS = 150;
-const SWING_ANGLE_MAX_RAD = Math.PI / 2.5;
+const DEFAULT_SWING_ANGLE_MAX_RAD = Math.PI / 4; // 45 degrees for default swing (90° total arc)
 
 // --- Particle Constants for Torch (can be adjusted) ---
 const TORCH_PARTICLE_LIFETIME_MIN = 100;  // Slightly longer for better visibility
@@ -189,7 +189,7 @@ export function useTorchParticles({
                         const elapsedSwingTime = now - swingStartTime;
                         if (elapsedSwingTime >= 0 && elapsedSwingTime < SWING_DURATION_MS) {
                             const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
-                            const baseAngle = Math.sin(swingProgress * Math.PI) * SWING_ANGLE_MAX_RAD;
+                            const baseAngle = Math.sin(swingProgress * Math.PI) * DEFAULT_SWING_ANGLE_MAX_RAD;
                             if (player.direction === 'right' || player.direction === 'up') {
                                 swingRotationRad = baseAngle;
                             } else {
