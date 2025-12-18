@@ -2568,6 +2568,73 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
     });
+
+    // --- STEP 1.6: Render underwater shadow for snorkeling (underwater) local player ---
+    // Snorkeling players are excluded from swimmingPlayersForBottomHalf but still need an underwater shadow
+    if (isSnorkeling && localPlayer && currentPredictedPosition) {
+      // Use underwater sprite for snorkeling shadow shape
+      const heroImg = heroWaterImageRef.current;
+      
+      if (heroImg) {
+        const drawWidth = gameConfig.spriteWidth * 2;
+        const drawHeight = gameConfig.spriteHeight * 2;
+        const spriteBaseX = currentPredictedPosition.x - drawWidth / 2;
+        const spriteBaseY = currentPredictedPosition.y - drawHeight / 2;
+
+        // Calculate if player is moving
+        let isPlayerMoving = false;
+        const lastPos = lastPositionsRef.current?.get(localPlayerId ?? '');
+        if (lastPos) {
+          const positionThreshold = 0.1;
+          const dx = Math.abs(currentPredictedPosition.x - lastPos.x);
+          const dy = Math.abs(currentPredictedPosition.y - lastPos.y);
+          isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
+        }
+
+        // Calculate animated sprite coordinates for swimming/snorkeling
+        const totalSwimmingFrames = 24;
+        const { sx, sy } = getSpriteCoordinates(
+          { ...localPlayer, positionX: currentPredictedPosition.x, positionY: currentPredictedPosition.y, direction: localFacingDirection || localPlayer.direction },
+          isPlayerMoving,
+          currentIdleAnimationFrame,
+          false, // isUsingItem
+          totalSwimmingFrames,
+          false, // isIdle
+          false, // isCrouching
+          true,  // isSwimming
+          false, // isDodgeRolling
+          0      // dodgeRollProgress
+        );
+
+        // Calculate shadow position (same offset as in drawUnderwaterShadow function)
+        const centerX = currentPredictedPosition.x;
+        const centerY = currentPredictedPosition.y;
+        const shadowOffsetX = drawWidth * 0.28;
+        const shadowOffsetY = drawHeight * 0.9;
+        const shadowX = centerX + shadowOffsetX;
+        const shadowY = centerY + shadowOffsetY;
+
+        // Check if shadow position is over water before rendering
+        const shadowTileX = Math.floor(shadowX / gameConfig.tileSize);
+        const shadowTileY = Math.floor(shadowY / gameConfig.tileSize);
+        const shadowTileKey = `${shadowTileX},${shadowTileY}`;
+        const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
+
+        // Render underwater shadow for snorkeling player
+        if (isShadowOverWater) {
+          drawUnderwaterShadowOnly(
+            ctx,
+            heroImg,
+            sx,
+            sy,
+            spriteBaseX,
+            spriteBaseY,
+            drawWidth,
+            drawHeight
+          );
+        }
+      }
+    }
     // --- END UNDERWATER SHADOWS ---
 
     // --- Render water overlay (ABOVE underwater shadows and sea stack bottoms, BELOW sea stack tops and player heads) ---
