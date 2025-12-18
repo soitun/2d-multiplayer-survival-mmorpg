@@ -668,11 +668,11 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         return Err("Ranged weapons should be fired using fire_projectile, not used as melee weapons.".to_string());
     }
 
-    // --- Torch cannot be used as a weapon while swimming ---
-    // Players must use Reed Harpoon or other underwater-capable weapons while snorkeling
-    // Torches can still be lit/extinguished above water via toggle_torch
-    if item_def.name == "Torch" && player.is_snorkeling {
-        return Err("Cannot use torch as a weapon while swimming. Use a harpoon instead!".to_string());
+    // --- Torch cannot be used as a weapon in or over water ---
+    // Players must use Reed Harpoon or other underwater-capable weapons
+    // Torches can still be lit/extinguished on land via toggle_torch
+    if item_def.name == "Torch" && (player.is_snorkeling || player.is_on_water) {
+        return Err("Cannot use torch as a weapon in water. Use a harpoon instead!".to_string());
     }
 
     // --- BEGIN ATTACK SPEED CHECK ---
