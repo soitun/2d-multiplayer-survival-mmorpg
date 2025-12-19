@@ -9,58 +9,222 @@ use crate::active_equipment::{ActiveEquipment, active_equipment as ActiveEquipme
 // Import ItemLocation and EquipmentSlotType
 use crate::models::{ItemLocation, EquipmentSlotType};
 
+// ============================================================================
+// LOADOUT CONFIGURATION
+// ============================================================================
+// Change ACTIVE_LOADOUT to switch between different starting item sets.
+// This makes testing different game scenarios much easier!
+
+/// Available loadout presets for testing different game scenarios.
+#[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
+pub enum LoadoutType {
+    /// Default game mode: Combat Ladle, Torch, Cauldron, Water Bottle
+    Basic,
+    /// Building testing: Blueprint, Repair Hammer, Door, lots of materials
+    Building,
+    /// Melee combat testing: Various melee weapons
+    Combat,
+    /// Ranged combat testing: Bows, crossbow, arrows
+    Ranged,
+    /// Firearm testing: Makarov with ammo
+    Firearms,
+    /// Full survival testing: Tools, food, storage
+    Survival,
+    /// Developer mode: Everything you need for debugging (weapons, tools, materials)
+    Developer,
+}
+
+// ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Building;
+
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
 
+/// Returns the item list for the specified loadout type.
+/// Format: (item_name, quantity, hotbar_slot, inventory_slot)
+fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>, Option<u16>)> {
+    match loadout {
+        // ====================================================================
+        // BASIC - Default game mode, minimal starting gear
+        // ====================================================================
+        LoadoutType::Basic => vec![
+            // Hotbar
+            ("Combat Ladle", 1, Some(0), None),
+            ("Torch", 1, Some(1), None),
+            ("Cerametal Field Cauldron Mk. II", 1, Some(2), None),
+            ("Reed Water Bottle", 1, Some(3), None),
+        ],
+
+        // ====================================================================
+        // BUILDING - For testing the building system
+        // ====================================================================
+        LoadoutType::Building => vec![
+            // Hotbar - Building essentials
+            ("Combat Ladle", 1, Some(0), None),
+            ("Torch", 1, Some(1), None),
+            ("Blueprint", 1, Some(2), None),
+            ("Repair Hammer", 1, Some(3), None),
+            ("Wood Door", 5, Some(4), None),
+            ("Metal Door", 3, Some(5), None),
+            // Inventory - Building materials
+            ("Wood", 5000, None, Some(0)),
+            ("Stone", 3000, None, Some(1)),
+            ("Metal Fragments", 2000, None, Some(2)),
+            ("Rope", 50, None, Some(3)),
+            ("Cloth", 100, None, Some(4)),
+            ("Matron's Chest", 1, None, Some(5)),
+            ("Sleeping Bag", 3, None, Some(6)),
+            ("Shelter", 5, None, Some(7)),
+        ],
+
+        // ====================================================================
+        // COMBAT - Melee weapons testing
+        // ====================================================================
+        LoadoutType::Combat => vec![
+            // Hotbar - Various melee weapons
+            ("Wooden Spear", 1, Some(0), None),
+            ("Stone Spear", 1, Some(1), None),
+            ("Machete", 1, Some(2), None),
+            ("Battle Axe", 1, Some(3), None),
+            ("Metal Dagger", 1, Some(4), None),
+            ("Torch", 1, Some(5), None),
+            // Inventory - More weapons and support
+            ("Bone Shiv", 1, None, Some(0)),
+            ("Stone Mace", 1, None, Some(1)),
+            ("War Hammer", 1, None, Some(2)),
+            ("Scythe", 1, None, Some(3)),
+            ("Bandage", 10, None, Some(4)),
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(5)),
+            ("Reed Water Bottle", 1, None, Some(6)),
+        ],
+
+        // ====================================================================
+        // RANGED - Bows and crossbow testing
+        // ====================================================================
+        LoadoutType::Ranged => vec![
+            // Hotbar
+            ("Hunting Bow", 1, Some(0), None),
+            ("Crossbow", 1, Some(1), None),
+            ("Machete", 1, Some(2), None),        // Backup melee
+            ("Torch", 1, Some(3), None),
+            ("Reed Water Bottle", 1, Some(4), None),
+            ("Bandage", 10, Some(5), None),
+            // Inventory - Ammo variety
+            ("Wooden Arrow", 200, None, Some(0)),
+            ("Bone Arrow", 100, None, Some(1)),
+            ("Fire Arrow", 50, None, Some(2)),
+            ("Hollow Reed Arrow", 150, None, Some(3)),
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(4)),
+        ],
+
+        // ====================================================================
+        // FIREARMS - Gun combat testing
+        // ====================================================================
+        LoadoutType::Firearms => vec![
+            // Hotbar
+            ("Makarov PM", 1, Some(0), None),
+            ("Crossbow", 1, Some(1), None),       // Backup ranged
+            ("Metal Dagger", 1, Some(2), None),   // Backup melee
+            ("Torch", 1, Some(3), None),
+            ("Bandage", 10, Some(4), None),
+            ("Reed Water Bottle", 1, Some(5), None),
+            // Inventory - Lots of ammo
+            ("9x18mm Round", 500, None, Some(0)),
+            ("Bone Arrow", 100, None, Some(1)),
+            ("Gunpowder", 200, None, Some(2)),
+            ("Metal Fragments", 500, None, Some(3)),
+            ("Charcoal", 200, None, Some(4)),
+            ("Sulfur", 100, None, Some(5)),
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(6)),
+        ],
+
+        // ====================================================================
+        // SURVIVAL - Testing survival mechanics (food, water, temperature)
+        // ====================================================================
+        LoadoutType::Survival => vec![
+            // Hotbar - Survival tools
+            ("Stone Hatchet", 1, Some(0), None),
+            ("Stone Pickaxe", 1, Some(1), None),
+            ("Wooden Spear", 1, Some(2), None),
+            ("Torch", 1, Some(3), None),
+            ("Reed Water Bottle", 1, Some(4), None),
+            ("Cerametal Field Cauldron Mk. II", 1, Some(5), None),
+            // Inventory - Survival supplies
+            ("Bandage", 10, None, Some(0)),
+            ("Shelter", 2, None, Some(1)),
+            ("Sleeping Bag", 2, None, Some(2)),
+            ("Camp Fire", 5, None, Some(3)),
+            ("Wooden Storage Box", 3, None, Some(4)),
+            ("Lantern", 2, None, Some(5)),
+            ("Wood", 500, None, Some(6)),
+            ("Stone", 300, None, Some(7)),
+            ("Plant Fiber", 200, None, Some(8)),
+            ("Cloth", 50, None, Some(9)),
+        ],
+
+        // ====================================================================
+        // DEVELOPER - Full debug loadout with everything
+        // ====================================================================
+        LoadoutType::Developer => vec![
+            // Hotbar - Best tools
+            ("Makarov PM", 1, Some(0), None),
+            ("Crossbow", 1, Some(1), None),
+            ("Battle Axe", 1, Some(2), None),
+            ("Metal Hatchet", 1, Some(3), None),
+            ("Metal Pickaxe", 1, Some(4), None),
+            ("Blueprint", 1, Some(5), None),
+            // Inventory - Everything for testing
+            ("9x18mm Round", 500, None, Some(0)),
+            ("Bone Arrow", 200, None, Some(1)),
+            ("Wood", 10000, None, Some(2)),
+            ("Stone", 5000, None, Some(3)),
+            ("Metal Fragments", 5000, None, Some(4)),
+            ("Rope", 100, None, Some(5)),
+            ("Cloth", 500, None, Some(6)),
+            ("Bandage", 10, None, Some(7)),
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(8)),
+            ("Reed Water Bottle", 1, None, Some(9)),
+            ("Plastic Water Jug", 1, None, Some(10)),
+            ("Repair Hammer", 1, None, Some(11)),
+            ("Wood Door", 10, None, Some(12)),
+            ("Metal Door", 5, None, Some(13)),
+            ("Matron's Chest", 2, None, Some(14)),
+            ("Shelter", 5, None, Some(15)),
+            ("Sleeping Bag", 5, None, Some(16)),
+            ("Camp Fire", 5, None, Some(17)),
+            ("Furnace", 3, None, Some(18)),
+            ("Large Wooden Storage Box", 5, None, Some(19)),
+            ("Barbecue", 3, None, Some(20)),
+            ("Compost", 3, None, Some(21)),
+            ("Gunpowder", 500, None, Some(22)),
+            ("Wolf Fur Hood", 1, None, Some(23)),
+        ],
+    }
+}
+
 /// Grants the predefined starting items (inventory/hotbar) and starting equipment to a newly registered player.
 pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, username: &str) -> Result<(), String> {
-    log::info!("[GrantItems] Granting starting items & equipment to player {} ({:?})...", username, player_id);
+    log::info!("[GrantItems] Granting starting items & equipment to player {} ({:?}) using {:?} loadout...", 
+               username, player_id, ACTIVE_LOADOUT);
 
     let item_defs = ctx.db.item_definition();
     let inventory = ctx.db.inventory_item();
 
     // --- Grant Inventory/Hotbar Items --- 
-    // Define the items to go into inventory/hotbar slots
-    // Format: (item_name: &str, quantity: u32, hotbar_slot: Option<u8>, inventory_slot: Option<u16>)
-    let starting_inv_items = [
-        // Hotbar (Slots 0-5)
-        ("Combat Ladle", 1, Some(0u8), None),
-        ("Torch", 1, Some(1u8), None),
-        ("Cerametal Field Cauldron Mk. II", 1, Some(2u8), None),
-        ("Reed Water Bottle", 1, Some(3u8), None),
-        ("Reed Diver's Helm", 1, Some(4u8), None),
-        ("Shelter", 1, Some(5u8), None),
+    // Get items for the active loadout
+    let starting_inv_items = get_loadout_items(ACTIVE_LOADOUT);
 
-        // Starting materials in Inventory (Slots 0-23)
-        // ("Bakery", 1, None, Some(0u16)),
-        // ("Repair Bench", 1, None, Some(1u16)),
-        // ("Makarov PM", 1, None, Some(2u16)),
-        // ("Wooden Arrow", 50, None, Some(3u16)),
-        // ("9x18mm Round", 500, None, Some(4u16)),
-        // ("Compost", 50, None, Some(5u16)),
-        // ("Barbecue", 50, None, Some(6u16)),
-        // ("Potato", 1000, None, Some(7u16)),
-        // Armor sets (commented out by default)
-        // ("Wolf Fur Hood", 1, None, Some(12u16)),
-        // ("Wolf Fur Coat", 1, None, Some(13u16)),
-        // ("Wolf Fur Leggings", 1, None, Some(14u16)),
-        // ("Wolf Fur Gloves", 1, None, Some(15u16)),
-        // ("Wolf Fur Boots", 1, None, Some(16u16)),
-        // ("Cerametal Field Cauldron Mk. II", 1, None, Some(17u16)),
-        // ("Reed Rain Collector", 1, None, Some(18u16)),
-        // ("Plastic Water Jug", 1, None, Some(19u16)),
-       
-    ];
-
-    log::info!("[GrantItems] Defined {} starting inventory/hotbar item entries.", starting_inv_items.len());
+    log::info!("[GrantItems] Defined {} starting inventory/hotbar item entries for {:?} loadout.", 
+               starting_inv_items.len(), ACTIVE_LOADOUT);
 
     for (item_name, quantity, hotbar_slot_opt, inventory_slot_opt) in starting_inv_items.iter() {
-         log::debug!("[GrantItems] Processing inv/hotbar entry: {}", item_name);
+        log::debug!("[GrantItems] Processing inv/hotbar entry: {}", item_name);
         if let Some(item_def) = item_defs.iter().find(|def| def.name == *item_name) {
             let location = if let Some(slot_idx) = *hotbar_slot_opt {
-                ItemLocation::Hotbar(crate::models::HotbarLocationData { owner_id: player_id, slot_index: slot_idx })
+                ItemLocation::Hotbar(crate::models::HotbarLocationData { owner_id: player_id, slot_index: slot_idx as u8 })
             } else if let Some(slot_idx) = *inventory_slot_opt {
-                ItemLocation::Inventory(crate::models::InventoryLocationData { owner_id: player_id, slot_index: slot_idx })
+                ItemLocation::Inventory(crate::models::InventoryLocationData { owner_id: player_id, slot_index: slot_idx as u16 })
             } else {
                 log::warn!("[GrantItems] Item {} for player {:?} had neither hotbar nor inventory slot specified. Setting to Unknown.", item_name, player_id);
                 ItemLocation::Unknown 
@@ -94,15 +258,15 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
             };
             match inventory.try_insert(item_to_insert) {
                 Ok(_) => {
-                     log::info!("[GrantItems] Granted inv/hotbar: {} (Qty: {}, H: {:?}, I: {:?}) to player {:?}", 
-                                 item_name, quantity, hotbar_slot_opt, inventory_slot_opt, player_id);
+                    log::info!("[GrantItems] Granted inv/hotbar: {} (Qty: {}, H: {:?}, I: {:?}) to player {:?}", 
+                               item_name, quantity, hotbar_slot_opt, inventory_slot_opt, player_id);
                 },
                 Err(e) => {
                     log::error!("[GrantItems] FAILED inv/hotbar insert for {} for player {:?}: {}", item_name, player_id, e);
                 }
             }
         } else {
-            log::error!("[GrantItems] Definition NOT FOUND for inv/hotbar item: {} for player {:?}", item_name, player_id);
+            log::error!("[GrantItems] Definition NOT FOUND for inv/hotbar item: '{}' for player {:?}. Check items_database!", item_name, player_id);
         }
     }
 
