@@ -43,7 +43,10 @@ pub(crate) const PLAYER_SHELTER_INTERACTION_DISTANCE_SQUARED: f32 =
     PLAYER_SHELTER_INTERACTION_DISTANCE * PLAYER_SHELTER_INTERACTION_DISTANCE;
 
 // Health
-pub(crate) const SHELTER_INITIAL_MAX_HEALTH: f32 = 25000.0; // Adjusted for ~6 min destruction time with Wooden Spear
+// Shelter is a STARTER base - cheap but weak. Designed to be raided in ~1.5-2 minutes.
+// Intentionally WEAKER than a Wood Wall (500 HP) to encourage building system adoption.
+// Game theory: Shelter = quick deploy, Building = better long-term investment
+pub(crate) const SHELTER_INITIAL_MAX_HEALTH: f32 = 1000.0; // ~100 hits with Combat Ladle = ~1.5-2 min raid time
 
 // --- Health constants for consistency ---
 pub const SHELTER_INITIAL_HEALTH: f32 = SHELTER_INITIAL_MAX_HEALTH;

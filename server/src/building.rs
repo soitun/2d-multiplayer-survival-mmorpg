@@ -36,17 +36,22 @@ pub const FOUNDATION_WOOD_MAX_HEALTH: f32 = 500.0; // ~50 hits (2x old Wood)
 pub const FOUNDATION_STONE_MAX_HEALTH: f32 = 1000.0; // ~100 hits
 pub const FOUNDATION_METAL_MAX_HEALTH: f32 = 2000.0; // ~200 hits
 
-// Walls: Thinner than foundations, easier to break
-pub const WALL_TWIG_MAX_HEALTH: f32 = 50.0;   // ~5 hits with Combat Ladle
-pub const WALL_WOOD_MAX_HEALTH: f32 = 250.0;  // ~25 hits
-pub const WALL_STONE_MAX_HEALTH: f32 = 500.0; // ~50 hits
-pub const WALL_METAL_MAX_HEALTH: f32 = 1000.0; // ~100 hits
+// Walls: THE primary defensive investment in a 2D game
+// Breaking ONE wall = full base access (no honeycombing), so walls must be STRONG
+// Combat Ladle does ~10 dmg/hit, Wooden Spear ~15-20 dmg/hit
+pub const WALL_TWIG_MAX_HEALTH: f32 = 100.0;   // ~10 hits with Ladle = ~15 seconds (placeholder tier)
+pub const WALL_WOOD_MAX_HEALTH: f32 = 500.0;   // ~50 hits = ~1.5 minutes solo raid
+pub const WALL_STONE_MAX_HEALTH: f32 = 1500.0; // ~150 hits = ~5 minutes solo raid  
+pub const WALL_METAL_MAX_HEALTH: f32 = 4000.0; // ~400 hits = ~13 minutes solo raid
 
-// Doors: Weakest building piece, easiest to break
-pub const DOOR_TWIG_MAX_HEALTH: f32 = 30.0;  // ~3 hits with Combat Ladle
-pub const DOOR_WOOD_MAX_HEALTH: f32 = 150.0; // ~15 hits
-pub const DOOR_STONE_MAX_HEALTH: f32 = 300.0; // ~30 hits
-pub const DOOR_METAL_MAX_HEALTH: f32 = 600.0; // ~60 hits
+// Doors: Match wall HP to prevent "just raid the door" meta
+// Only 2 door types (Wood, Metal) vs 4 wall tiers - balanced for progression:
+// - Wood Door = Stone Wall HP (mid-game security)
+// - Metal Door = Metal Wall HP (end-game security)
+pub const DOOR_TWIG_MAX_HEALTH: f32 = 100.0;   // Placeholder (no twig door exists, but kept for consistency)
+pub const DOOR_WOOD_MAX_HEALTH: f32 = 1500.0;  // Matches STONE wall - ~5 min solo raid
+pub const DOOR_STONE_MAX_HEALTH: f32 = 1500.0; // Same as wood door (no stone door exists)
+pub const DOOR_METAL_MAX_HEALTH: f32 = 4000.0; // Matches METAL wall - ~13 min solo raid
 
 // Placement distance
 pub const BUILDING_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
@@ -830,11 +835,13 @@ pub fn place_foundation(
     // 8. Get max health for this tier
     let max_health = get_foundation_max_health(building_tier);
     
-    // 9. Check and consume resources (Twig tier uses wood, cost depends on shape: 50 for full, 25 for triangles)
+    // 9. Check and consume resources (Twig tier uses wood, cost depends on shape: 20 for full, 10 for triangles)
+    // Foundations are CHEAP - they're aesthetic only in 2D (enemies can't attack from below)
+    // Real investment goes into walls which provide actual defense
     let required_wood = match foundation_shape {
-        FoundationShape::Full => 50,
-        FoundationShape::TriNW | FoundationShape::TriNE | FoundationShape::TriSE | FoundationShape::TriSW => 25,
-        _ => 50, // Default to 50 for unknown shapes
+        FoundationShape::Full => 20,         // Very cheap - purely aesthetic flooring
+        FoundationShape::TriNW | FoundationShape::TriNE | FoundationShape::TriSE | FoundationShape::TriSW => 10,
+        _ => 20, // Default to 20 for unknown shapes
     };
     
     let inventory = ctx.db.inventory_item();
@@ -1047,18 +1054,19 @@ pub fn upgrade_foundation(
         _ => 1.0,
     };
     
-    // Resource costs per tier upgrade - minimal for foundations since they're purely aesthetic
+    // Resource costs per tier upgrade - MINIMAL for foundations (they're aesthetic in 2D games)
+    // Players upgrade foundations for looks, not defense - keep costs low
     let (required_wood, required_stone, required_metal) = match target_tier {
         BuildingTier::Wood => {
-            // Twig -> Wood: 10 wood for full, 5 for triangle (reduced from 50/25)
+            // Twig -> Wood: 10 wood for full, 5 for triangle (cheap aesthetic upgrade)
             ((10.0 * shape_multiplier) as u32, 0, 0)
         },
         BuildingTier::Stone => {
-            // -> Stone: 20 stone for full, 10 for triangle (reduced from 100/50)
-            (0, (20.0 * shape_multiplier) as u32, 0)
+            // -> Stone: 15 stone for full, 7-8 for triangle
+            (0, (15.0 * shape_multiplier) as u32, 0)
         },
         BuildingTier::Metal => {
-            // -> Metal: 10 metal fragments for full, 5 for triangle (reduced from 50/25)
+            // -> Metal: 10 metal fragments for full, 5 for triangle
             (0, 0, (10.0 * shape_multiplier) as u32)
         },
         BuildingTier::Twig => {
@@ -1465,8 +1473,10 @@ pub fn place_wall(
     // 10. Get max health for this tier
     let max_health = get_wall_max_health(building_tier);
     
-    // 11. Check and consume resources (Twig tier uses wood, cost: 15 wood per wall)
-    let required_wood = 15;
+    // 11. Check and consume resources (Twig tier uses wood, cost: 25 wood per wall)
+    // Twig walls are CHEAP placeholders - get your base shape down quickly, then upgrade
+    // The real cost comes from upgrading to wood/stone/metal
+    let required_wood = 25;
     
     let inventory = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
@@ -1657,10 +1667,12 @@ pub fn upgrade_wall(
     let inventory = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     
-    // Wall costs: Wood tier = 20 wood, Stone tier = 20 stone, Metal tier = 20 metal fragments
-    let required_wood = if target_tier == BuildingTier::Wood { 20 } else { 0 };
-    let required_stone = if target_tier == BuildingTier::Stone { 20 } else { 0 };
-    let required_metal = if target_tier == BuildingTier::Metal { 20 } else { 0 };
+    // Wall upgrade costs: SIGNIFICANT - walls are the real defense in a 2D game
+    // Wood tier = 50 wood, Stone tier = 75 stone, Metal tier = 50 metal fragments
+    // These are the upgrades that actually matter for base security
+    let required_wood = if target_tier == BuildingTier::Wood { 50 } else { 0 };
+    let required_stone = if target_tier == BuildingTier::Stone { 75 } else { 0 };
+    let required_metal = if target_tier == BuildingTier::Metal { 50 } else { 0 };
     
     // Check and consume wood
     if required_wood > 0 {

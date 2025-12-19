@@ -873,7 +873,7 @@ function getCollisionCandidates(
 // Unified collision radii for consistency - match visual sprite sizes
 // Exported for debug rendering
 export const COLLISION_RADII = {
-  TREE: 38,
+  TREE: 24,
   STONE: 28,       // Smaller radius for flattened stones
   RUNE_STONE: 80,  // Doubled from 40 to match doubled visual size (matches server-side RUNE_STONE_RADIUS)
   CAIRN: 64,       // Cairn collision radius (matches visual size ~256px / 4)

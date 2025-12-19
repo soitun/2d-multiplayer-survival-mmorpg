@@ -98,14 +98,36 @@ BARBECUE: { x: 0, y: -20 }
 
 Each entity has constants at the top of its file in `server/src/`:
 
-| Entity | File | Constants |
-|--------|------|-----------|
-| Barbecue | `barbecue.rs` | `BARBECUE_COLLISION_RADIUS`, `BARBECUE_COLLISION_Y_OFFSET` |
-| Campfire | `campfire.rs` | `CAMPFIRE_COLLISION_RADIUS`, `CAMPFIRE_COLLISION_Y_OFFSET` |
-| Furnace | `furnace.rs` | `FURNACE_COLLISION_RADIUS`, `FURNACE_COLLISION_Y_OFFSET` |
-| Storage Box | `wooden_storage_box.rs` | `BOX_COLLISION_RADIUS`, `BOX_COLLISION_Y_OFFSET` |
-| Rain Collector | `rain_collector.rs` | `RAIN_COLLECTOR_COLLISION_RADIUS`, `RAIN_COLLECTOR_COLLISION_Y_OFFSET` |
-| Hearth | `homestead_hearth.rs` | `HEARTH_COLLISION_RADIUS`, `HEARTH_COLLISION_Y_OFFSET` |
+### Natural Resources (Trees, Stones, etc.)
+
+| Entity | File | Radius Constant | Y Offset Constant |
+|--------|------|-----------------|-------------------|
+| Tree | `tree.rs` | `TREE_TRUNK_RADIUS` | `TREE_COLLISION_Y_OFFSET` |
+| Stone | `stone.rs` | `STONE_TRUNK_RADIUS` | `STONE_COLLISION_Y_OFFSET` |
+| Rune Stone | `rune_stone.rs` | `RUNE_STONE_RADIUS` | `RUNE_STONE_COLLISION_Y_OFFSET` |
+| Cairn | `cairn.rs` | `CAIRN_COLLISION_RADIUS` | `CAIRN_COLLISION_Y_OFFSET` |
+| Basalt Column | `basalt_column.rs` | `BASALT_COLUMN_COLLISION_RADIUS` | `BASALT_COLUMN_COLLISION_Y_OFFSET` |
+| Sea Stack | `sea_stack.rs` | `SEA_STACK_COLLISION_RADIUS` | `SEA_STACK_COLLISION_Y_OFFSET` |
+
+### Placeables
+
+| Entity | File | Radius Constant | Y Offset Constant |
+|--------|------|-----------------|-------------------|
+| Barbecue | `barbecue.rs` | `BARBECUE_COLLISION_RADIUS` | `BARBECUE_COLLISION_Y_OFFSET` |
+| Campfire | `campfire.rs` | `CAMPFIRE_COLLISION_RADIUS` | `CAMPFIRE_COLLISION_Y_OFFSET` |
+| Furnace | `furnace.rs` | `FURNACE_COLLISION_RADIUS` | `FURNACE_COLLISION_Y_OFFSET` |
+| Storage Box | `wooden_storage_box.rs` | `BOX_COLLISION_RADIUS` | `BOX_COLLISION_Y_OFFSET` |
+| Rain Collector | `rain_collector.rs` | `RAIN_COLLECTOR_COLLISION_RADIUS` | `RAIN_COLLECTOR_COLLISION_Y_OFFSET` |
+| Hearth | `homestead_hearth.rs` | `HEARTH_COLLISION_RADIUS` | `HEARTH_COLLISION_Y_OFFSET` |
+| Barrel | `barrel.rs` | `BARREL_COLLISION_RADIUS` | `BARREL_COLLISION_Y_OFFSET` |
+
+### Example (tree.rs):
+```rust
+pub(crate) const TREE_TRUNK_RADIUS: f32 = 24.0;
+pub(crate) const TREE_COLLISION_Y_OFFSET: f32 = 60.0;
+pub(crate) const PLAYER_TREE_COLLISION_DISTANCE_SQUARED: f32 = 
+    (PLAYER_RADIUS + TREE_TRUNK_RADIUS) * (PLAYER_RADIUS + TREE_TRUNK_RADIUS);
+```
 
 ### Example (barbecue.rs):
 ```rust
@@ -113,10 +135,47 @@ pub(crate) const BARBECUE_COLLISION_RADIUS: f32 = 20.0;
 pub(crate) const BARBECUE_COLLISION_Y_OFFSET: f32 = 0.0;  // 0 = collision at posY
 ```
 
-### Important
-- **Server and client offsets should match** for consistent behavior
-- Server handles: placement validation, damage targeting, interaction distance
-- Client handles: visual collision prediction (rubber-banding prevention)
+---
+
+## ⚠️ CRITICAL: Client & Server Values MUST Match
+
+> **If client and server collision values don't match, players will experience rubber-banding!**
+
+### Why This Happens
+1. **Client predicts** player can walk to position X (based on client collision radius)
+2. **Server validates** and says "NO, you're too close to that tree" (based on server collision radius)
+3. **Server corrects** player position → visible "snap back" / rubber-banding
+
+### The Rule
+- **Client radius should be ≥ Server radius** (client can be slightly more conservative)
+- **If client radius < server radius** → guaranteed rubber-banding when player gets too close
+
+### Quick Reference: Matching Values
+
+| Entity | Client (`clientCollision.ts`) | Server File | Server Constant |
+|--------|------------------------------|-------------|-----------------|
+| Tree | `COLLISION_RADII.TREE` | `tree.rs` | `TREE_TRUNK_RADIUS` |
+| Stone | `COLLISION_RADII.STONE` | `stone.rs` | `STONE_TRUNK_RADIUS` |
+| Rune Stone | `COLLISION_RADII.RUNE_STONE` | `rune_stone.rs` | `RUNE_STONE_RADIUS` |
+| Cairn | `COLLISION_RADII.CAIRN` | `cairn.rs` | `CAIRN_COLLISION_RADIUS` |
+| Furnace | `COLLISION_RADII.FURNACE` | `furnace.rs` | `FURNACE_COLLISION_RADIUS` |
+| Barbecue | `COLLISION_RADII.BARBECUE` | `barbecue.rs` | `BARBECUE_COLLISION_RADIUS` |
+
+### How to Change Collision Size
+
+**To make players able to walk closer to trees:**
+
+1. **Server** (`server/src/tree.rs`):
+   ```rust
+   pub(crate) const TREE_TRUNK_RADIUS: f32 = 24.0;  // Changed from 30.0
+   ```
+
+2. **Client** (`client/src/utils/clientCollision.ts`):
+   ```typescript
+   TREE: 24,  // Must match or be >= server value
+   ```
+
+3. **Rebuild & Republish server**, then refresh client
 
 ---
 
@@ -139,12 +198,31 @@ pub(crate) const BARBECUE_COLLISION_Y_OFFSET: f32 = 0.0;  // 0 = collision at po
 
 ## Visual Debugging Tips
 
-- Temporarily draw collision circles on canvas to visualize:
-  ```typescript
-  ctx.strokeStyle = 'red';
-  ctx.beginPath();
-  ctx.arc(entity.posX + offsetX, entity.posY + offsetY, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ```
+### Built-in Debug Overlays (Debug Panel)
 
-- Server logs show actual collision checks - enable with `log::debug!` in Rust
+The game has built-in debug overlays accessible from the **Debug Panel** (top-left in dev mode):
+
+| Toggle | Description |
+|--------|-------------|
+| **COLLISION** | Shows collision circles/boxes for all nearby entities with radii and offsets |
+| **Y-SORT** | Shows Y-sort threshold lines - helps tune when player renders in front/behind entities |
+
+These are the best tools for tuning collision and Y-sorting values visually.
+
+### Manual Debug Drawing
+
+For custom visualization, temporarily draw on canvas:
+```typescript
+ctx.strokeStyle = 'red';
+ctx.beginPath();
+ctx.arc(entity.posX + offsetX, entity.posY + offsetY, radius, 0, Math.PI * 2);
+ctx.stroke();
+```
+
+### Server Logs
+
+Server logs show actual collision checks - enable with `log::debug!` in Rust:
+```rust
+log::debug!("Player-Tree collision: player at ({}, {}), tree at ({}, {})", 
+    player_x, player_y, tree.pos_x, tree.pos_y);
+```
