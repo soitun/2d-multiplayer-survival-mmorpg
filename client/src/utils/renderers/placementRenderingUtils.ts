@@ -1216,7 +1216,7 @@ export function renderPlacementPreview({
     const isDoorPlacement = placementInfo.iconAssetName === 'wood_door.png' || placementInfo.iconAssetName === 'metal_door.png';
     
     // Calculate door edge early if it's a door placement (needed for image selection)
-    // PERFORMANCE FIX: Only check nearby cells using spatial index instead of all foundations
+    // Uses same logic as main snapping to ensure preview sprite matches actual placement
     let doorEdgeForPreview: number = 2; // Default to South
     if (isDoorPlacement && connection) {
         const FOUNDATION_TILE_SIZE = 96;
@@ -1226,7 +1226,17 @@ export function renderPlacementPreview({
         let nearestDistance = Infinity;
         let nearestCellY: number | null = null;
         
-        // Only check the current cell and immediate neighbors (3x3 grid = 9 cells max)
+        // Ensure spatial index is populated
+        let currentFoundationCount = 0;
+        for (const _ of connection.db.foundationCell.iter()) {
+            currentFoundationCount++; 
+            if (currentFoundationCount > lastFoundationCount + 10) break; 
+        }
+        if (currentFoundationCount !== lastFoundationCount || foundationIndexVersion === 0) {
+            rebuildFoundationIndex(connection);
+        }
+        
+        // Check 3x3 grid using spatial index
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const checkCellX = mouseCellX + dx;
@@ -1249,6 +1259,26 @@ export function renderPlacementPreview({
                             nearestCellY = checkCellY;
                         }
                     }
+                }
+            }
+        }
+        
+        // Fallback to direct iteration if spatial index is empty
+        if (nearestCellY === null) {
+            nearestDistance = Infinity;
+            for (const foundation of connection.db.foundationCell.iter()) {
+                if (foundation.isDestroyed) continue;
+                
+                const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+                const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+                
+                const fdx = worldMouseX - foundationCenterX;
+                const fdy = worldMouseY - foundationCenterY;
+                const distance = Math.sqrt(fdx * fdx + fdy * fdy);
+                
+                if (distance < nearestDistance && distance < FOUNDATION_TILE_SIZE * 1.5) {
+                    nearestDistance = distance;
+                    nearestCellY = foundation.cellY;
                 }
             }
         }
@@ -1430,18 +1460,30 @@ export function renderPlacementPreview({
     const nearestCampfire = heatSourceType === 'campfire' ? nearestHeatSource : null;
 
     // Special handling for door placement - snap to nearest foundation edge (N/S only)
-    // PERFORMANCE FIX: Use spatial index instead of iterating all foundations
+    // Ensures the door preview shows exactly where the door will be placed
     let nearestDoorCellX: number | null = null;
     let nearestDoorCellY: number | null = null;
     let doorEdge: number = 0; // 0 = North, 2 = South
     
     if (isDoorPlacement && connection) {
         const FOUNDATION_TILE_SIZE = 96;
+        
+        // Ensure spatial index is populated for door placement preview
+        // Check if foundation spatial index needs rebuilding
+        let currentFoundationCount = 0;
+        for (const _ of connection.db.foundationCell.iter()) { 
+            currentFoundationCount++; 
+            if (currentFoundationCount > lastFoundationCount + 10) break; 
+        }
+        if (currentFoundationCount !== lastFoundationCount || foundationIndexVersion === 0) {
+            rebuildFoundationIndex(connection);
+        }
+        
         const mouseCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
         const mouseCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
         let nearestDistance = Infinity;
         
-        // Only check 3x3 grid around mouse position
+        // Check 3x3 grid around mouse position using spatial index
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const checkCellX = mouseCellX + dx;
@@ -1465,16 +1507,39 @@ export function renderPlacementPreview({
             }
         }
         
+        // If spatial index didn't find anything, fall back to direct iteration
+        // This handles cases where the index hasn't been built yet
+        if (nearestDoorCellX === null) {
+            nearestDistance = Infinity;
+            for (const foundation of connection.db.foundationCell.iter()) {
+                if (foundation.isDestroyed) continue;
+                
+                const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+                const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+                
+                const fdx = worldMouseX - foundationCenterX;
+                const fdy = worldMouseY - foundationCenterY;
+                const distance = Math.sqrt(fdx * fdx + fdy * fdy);
+                
+                if (distance < nearestDistance && distance < FOUNDATION_TILE_SIZE * 1.5) {
+                    nearestDistance = distance;
+                    nearestDoorCellX = foundation.cellX;
+                    nearestDoorCellY = foundation.cellY;
+                }
+            }
+        }
+        
         if (nearestDoorCellX !== null && nearestDoorCellY !== null) {
             // Determine which edge based on cursor Y relative to foundation center
             const foundationCenterY = nearestDoorCellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
             doorEdge = worldMouseY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
             
-            // Snap to edge position
+            // Snap to edge position - door preview snaps to exact edge of foundation
+            // This matches the server-side door placement position
             snappedX = nearestDoorCellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
             snappedY = doorEdge === 0 
-                ? nearestDoorCellY * FOUNDATION_TILE_SIZE // North edge
-                : (nearestDoorCellY + 1) * FOUNDATION_TILE_SIZE; // South edge
+                ? nearestDoorCellY * FOUNDATION_TILE_SIZE // North edge (top of foundation)
+                : (nearestDoorCellY + 1) * FOUNDATION_TILE_SIZE; // South edge (bottom of foundation)
         }
     }
 

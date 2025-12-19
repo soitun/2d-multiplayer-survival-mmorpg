@@ -3450,7 +3450,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Interaction indicators - Draw only for visible entities that are interactable
     // Uses centralized ENTITY_VISUAL_CONFIG to position indicator at center of blue box
-    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean, boxType?: number) => {
+    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth' | 'door', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean, boxType?: number) => {
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
       // or if the entity is not in view, do nothing.
       if (!isInView || !holdInteractionProgress) {
@@ -3577,6 +3577,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Draw indicator at the water position
       drawIndicatorIfNeeded('water', 'water', closestInteractableWaterPosition.x, closestInteractableWaterPosition.y, 0, true);
     }
+
+    // Door Pickup Indicators (hold E to pickup)
+    visibleDoorsMap.forEach((door: any) => {
+      // For doors, the indicator is only relevant if a hold action is in progress (picking up the door)
+      if (holdInteractionProgress && holdInteractionProgress.targetId === door.id && holdInteractionProgress.targetType === 'door') {
+        const DOOR_HEIGHT = 96; // Standard door height
+        drawIndicatorIfNeeded('door', door.id, door.posX, door.posY, DOOR_HEIGHT, true);
+      }
+    });
 
     // Campfire Lights - Only draw for visible campfires
     ctx.save();
