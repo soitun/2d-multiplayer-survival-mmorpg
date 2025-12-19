@@ -13,6 +13,8 @@ interface DebugContextType {
     toggleCollisionDebug: () => void;
     showAttackRangeDebug: boolean;
     toggleAttackRangeDebug: () => void;
+    showYSortDebug: boolean;
+    toggleYSortDebug: () => void;
 }
 
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
@@ -36,6 +38,7 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
     const [showInteriorDebug, setShowInteriorDebug] = useState(false);
     const [showCollisionDebug, setShowCollisionDebug] = useState(false);
     const [showAttackRangeDebug, setShowAttackRangeDebug] = useState(false);
+    const [showYSortDebug, setShowYSortDebug] = useState(false);
 
     const toggleAutotileDebug = () => {
         setShowAutotileDebug(prev => !prev);
@@ -67,6 +70,11 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         console.log('[DebugContext] Attack range debug overlay:', !showAttackRangeDebug ? 'enabled' : 'disabled');
     };
 
+    const toggleYSortDebug = () => {
+        setShowYSortDebug(prev => !prev);
+        console.log('[DebugContext] Y-sort debug overlay:', !showYSortDebug ? 'enabled' : 'disabled');
+    };
+
     const value = {
         showAutotileDebug,
         toggleAutotileDebug,
@@ -80,6 +88,8 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         toggleCollisionDebug,
         showAttackRangeDebug,
         toggleAttackRangeDebug,
+        showYSortDebug,
+        toggleYSortDebug,
     };
 
     return (

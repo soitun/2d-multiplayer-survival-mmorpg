@@ -91,7 +91,7 @@ import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLAYER_RADIUS, COLLISION_OFFSETS } from '../utils/clientCollision'; // ADDED: Collision debug rendering
 import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range debug visualization
-import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
+import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
@@ -228,6 +228,7 @@ interface GameCanvasProps {
   showInteriorDebug: boolean;
   showCollisionDebug: boolean;
   showAttackRangeDebug: boolean;
+  showYSortDebug: boolean;
   minimapCache: any; // Add this for minimapCache
   isGameMenuOpen: boolean; // Add this prop
   onAutoActionStatesChange?: (isAutoAttacking: boolean) => void;
@@ -356,6 +357,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   showInteriorDebug,
   showCollisionDebug,
   showAttackRangeDebug,
+  showYSortDebug,
   minimapCache,
   isGameMenuOpen,
   onAutoActionStatesChange,
@@ -3265,6 +3267,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     // --- End Render Collision Debug Overlay ---
+
+    // --- Render Y-Sort Debug Overlay ---
+    if (showYSortDebug && localPlayer) {
+      const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
+      const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
+
+      renderYSortDebug(ctx, {
+        playerX,
+        playerY,
+        ySortedEntities: currentYSortedEntities,
+        viewMinX: -currentCameraOffsetX,
+        viewMaxX: -currentCameraOffsetX + currentCanvasWidth,
+      });
+    }
+    // --- End Render Y-Sort Debug Overlay ---
 
     // --- Render Attack Range Debug Overlay ---
     if (showAttackRangeDebug && localPlayer) {

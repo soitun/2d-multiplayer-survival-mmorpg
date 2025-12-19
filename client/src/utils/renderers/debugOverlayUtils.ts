@@ -8,7 +8,8 @@
  */
 
 import { CollisionShape, COLLISION_OFFSETS, PLAYER_RADIUS } from '../clientCollision';
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole } from '../../generated';
+import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 
 // ===== TYPES =====
 
@@ -58,6 +59,14 @@ export interface CollisionDebugOptions {
   playerY: number;
   localPlayerId: string;
   collisionShapes: CollisionShape[];
+}
+
+export interface YSortDebugOptions {
+  playerX: number;
+  playerY: number;
+  ySortedEntities: YSortedEntityType[];
+  viewMinX: number;
+  viewMaxX: number;
 }
 
 // ===== CHUNK BOUNDARIES =====
@@ -380,4 +389,285 @@ export function renderCollisionDebug(
   // Draw white text
   ctx.fillStyle = '#ffffff';
   ctx.fillText(labelText, labelX, labelY + 2);
+}
+
+// ===== Y-SORT DEBUG =====
+
+/**
+ * Gets the Y-sort key for an entity (the Y value used for depth sorting)
+ * This replicates the logic from useEntityFiltering's getEntityY function
+ */
+function getYSortKeyForEntity(item: YSortedEntityType, timestamp: number): number {
+  const { entity, type } = item;
+  switch (type) {
+    case 'player': {
+      const player = entity as Player;
+      const playerY = player.positionY;
+      if (playerY === undefined || playerY === null || isNaN(playerY)) {
+        return 0;
+      }
+      return playerY + 48 + 2.0; // Player head position + offset
+    }
+    case 'tree':
+    case 'stone':
+    case 'wooden_storage_box':
+    case 'stash':
+    case 'campfire':
+    case 'furnace':
+    case 'barbecue':
+    case 'lantern':
+    case 'homestead_hearth':
+    case 'planted_seed':
+    case 'dropped_item':
+    case 'harvestable_resource':
+    case 'rain_collector':
+    case 'broth_pot':
+    case 'animal_corpse':
+    case 'player_corpse':
+    case 'wild_animal':
+    case 'barrel':
+    case 'sleeping_bag':
+    case 'fumarole':
+    case 'basalt_column':
+      return (entity as any).posY;
+    case 'cairn':
+      return (entity as Cairn).posY;
+    case 'rune_stone':
+      return (entity as RuneStone).posY;
+    case 'alk_station': {
+      const alkStation = entity as AlkStation;
+      const ALK_STATION_VISUAL_FOOT_OFFSET = 170;
+      return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
+    }
+    case 'compound_building': {
+      const building = entity as CompoundBuildingEntity;
+      return building.worldY;
+    }
+    case 'shelter':
+      return (entity as Shelter).posY - 100;
+    case 'sea_stack':
+      return (entity as any).posY;
+    case 'grass':
+      return (entity as any).serverPosY;
+    case 'foundation_cell': {
+      const foundation = entity as FoundationCell;
+      return foundation.cellY * 48;
+    }
+    case 'wall_cell': {
+      const wall = entity as WallCell;
+      const FOUNDATION_TILE_SIZE = 96;
+      const baseY = wall.cellY * FOUNDATION_TILE_SIZE;
+      const isTriangle = wall.foundationShape >= 2 && wall.foundationShape <= 5;
+      if (isTriangle) {
+        return baseY + FOUNDATION_TILE_SIZE / 2;
+      } else if (wall.edge === 0) {
+        return baseY; // North wall
+      } else if (wall.edge === 2) {
+        return baseY + FOUNDATION_TILE_SIZE + 48; // South wall
+      } else {
+        return baseY; // East/west
+      }
+    }
+    case 'door': {
+      const door = entity as Door;
+      const FOUNDATION_TILE_SIZE = 96;
+      const foundationTopY = door.cellY * FOUNDATION_TILE_SIZE;
+      if (door.edge === 0) {
+        return foundationTopY;
+      } else {
+        return foundationTopY + FOUNDATION_TILE_SIZE + 48;
+      }
+    }
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Gets the entity's X position for drawing the line
+ */
+function getEntityX(item: YSortedEntityType): number {
+  const { entity, type } = item;
+  switch (type) {
+    case 'player':
+      return (entity as Player).positionX;
+    case 'alk_station':
+      return (entity as AlkStation).worldPosX;
+    case 'compound_building':
+      return (entity as CompoundBuildingEntity).worldX;
+    case 'foundation_cell':
+      return (entity as FoundationCell).cellX * 48 + 24;
+    case 'wall_cell':
+      return (entity as WallCell).cellX * 96 + 48;
+    case 'door':
+      return (entity as Door).cellX * 96 + 48;
+    case 'grass':
+      return (entity as any).serverPosX;
+    case 'fog_overlay':
+      return ((entity as any).bounds.minX + (entity as any).bounds.maxX) / 2;
+    default:
+      return (entity as any).posX ?? 0;
+  }
+}
+
+/**
+ * Gets the display width for the Y-sort line based on entity type
+ */
+function getEntityWidth(item: YSortedEntityType): number {
+  switch (item.type) {
+    case 'player': return 48;
+    case 'tree': return 80;
+    case 'stone': return 60;
+    case 'rune_stone': return 80;
+    case 'cairn': return 60;
+    case 'wooden_storage_box': return 48;
+    case 'shelter': return 120;
+    case 'alk_station': return 160;
+    case 'compound_building': return (item.entity as CompoundBuildingEntity).width;
+    case 'wall_cell': return 96;
+    case 'door': return 48;
+    case 'foundation_cell': return 96;
+    case 'sea_stack': return 100;
+    case 'basalt_column': return 60;
+    case 'furnace': return 48;
+    case 'barbecue': return 48;
+    case 'campfire': return 48;
+    case 'lantern': return 24;
+    case 'homestead_hearth': return 64;
+    case 'barrel': return 40;
+    case 'rain_collector': return 40;
+    case 'broth_pot': return 36;
+    case 'wild_animal': return 48;
+    case 'fumarole': return 48;
+    default: return 32;
+  }
+}
+
+/**
+ * Gets color for entity type Y-sort line
+ */
+function getYSortColor(type: string): string {
+  switch (type) {
+    case 'player': return '#ffff00'; // Yellow for players
+    case 'tree': return '#00ff00'; // Green for trees
+    case 'stone': return '#888888'; // Gray for stones
+    case 'rune_stone': return '#aa88ff'; // Purple for rune stones
+    case 'cairn': return '#c89664'; // Brown for cairns
+    case 'shelter': return '#4682b4'; // Steel blue for shelters
+    case 'alk_station': return '#8a2be2'; // Blue violet for ALK
+    case 'compound_building': return '#ffd700'; // Gold for compounds
+    case 'wall_cell': return '#8b4513'; // Saddle brown for walls
+    case 'door': return '#a0522d'; // Sienna for doors
+    case 'foundation_cell': return '#696969'; // Dim gray for foundations
+    case 'sea_stack': return '#708090'; // Slate gray
+    case 'basalt_column': return '#36454f'; // Charcoal
+    case 'wild_animal': return '#ffa500'; // Orange for animals
+    default: return '#ff00ff'; // Magenta for unknown
+  }
+}
+
+/**
+ * Renders Y-sort debug lines showing where each entity's Y-sort threshold is
+ * This draws a horizontal line at the Y position used for depth sorting
+ */
+export function renderYSortDebug(
+  ctx: CanvasRenderingContext2D,
+  options: YSortDebugOptions
+): void {
+  const { playerX, playerY, ySortedEntities, viewMinX, viewMaxX } = options;
+  const timestamp = Date.now();
+
+  // Draw player Y-sort line first (most important reference)
+  const playerYSort = playerY + 48 + 2.0;
+  const lineExtent = 300; // How far the line extends from entity center
+
+  // Draw player's Y-sort line prominently
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(playerX - lineExtent, playerYSort);
+  ctx.lineTo(playerX + lineExtent, playerYSort);
+  ctx.stroke();
+
+  // Draw label for player
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  const playerLabel = `PLAYER Y-SORT: ${playerYSort.toFixed(1)}`;
+  const playerLabelWidth = ctx.measureText(playerLabel).width;
+  ctx.fillRect(playerX + lineExtent + 5, playerYSort - 14, playerLabelWidth + 8, 16);
+  ctx.fillStyle = '#ffff00';
+  ctx.fillText(playerLabel, playerX + lineExtent + 9, playerYSort - 1);
+
+  // Draw Y-sort lines for nearby entities (within render distance of player)
+  const maxDistanceFromPlayer = 400; // Only show lines for entities within this distance
+
+  for (const item of ySortedEntities) {
+    // Skip player (already drawn) and certain types that don't need lines
+    if (item.type === 'player' || item.type === 'grass' || item.type === 'projectile' || item.type === 'dropped_item' || item.type === 'fog_overlay') {
+      continue;
+    }
+
+    const entityX = getEntityX(item);
+    const entityYSort = getYSortKeyForEntity(item, timestamp);
+
+    // Skip if invalid Y
+    if (isNaN(entityYSort) || entityYSort === 0) continue;
+
+    // Skip if too far from player
+    const dx = entityX - playerX;
+    const dy = entityYSort - playerYSort;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > maxDistanceFromPlayer * maxDistanceFromPlayer) continue;
+
+    const entityWidth = getEntityWidth(item);
+    const halfWidth = entityWidth / 2;
+    const color = getYSortColor(item.type);
+
+    // Draw the Y-sort line for this entity
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]); // Dashed line for entities
+    ctx.beginPath();
+    ctx.moveTo(entityX - halfWidth - 20, entityYSort);
+    ctx.lineTo(entityX + halfWidth + 20, entityYSort);
+    ctx.stroke();
+
+    // Draw small vertical tick marks at entity edges
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(entityX - halfWidth, entityYSort - 5);
+    ctx.lineTo(entityX - halfWidth, entityYSort + 5);
+    ctx.moveTo(entityX + halfWidth, entityYSort - 5);
+    ctx.lineTo(entityX + halfWidth, entityYSort + 5);
+    ctx.stroke();
+
+    // Draw small label
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    
+    // Background for label
+    const label = `${item.type.replace(/_/g, ' ')} Y:${entityYSort.toFixed(0)}`;
+    const labelWidth = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(entityX - labelWidth / 2 - 2, entityYSort - 18, labelWidth + 4, 12);
+    
+    ctx.fillStyle = color;
+    ctx.fillText(label, entityX, entityYSort - 7);
+  }
+
+  // Reset line dash
+  ctx.setLineDash([]);
+
+  // Draw legend in corner
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  
+  // Legend background (positioned in screen space, not world space)
+  // This will be drawn relative to the current transform, which is world space
+  // We need to temporarily reset transform or position it properly
 }

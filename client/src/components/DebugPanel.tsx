@@ -15,7 +15,7 @@ interface DebugPanelProps {
 }
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connection }) => {
-    const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug } = useDebug();
+    const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug } = useDebug();
     const [isMinimized, setIsMinimized] = useState(false);
 
     const cycleWeather = (direction: 'forward' | 'backward') => {
@@ -407,6 +407,47 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         }}
                     >
                         ATK RANGE: {showAttackRangeDebug ? 'ON' : 'OFF'}
+                    </button>
+
+                    {/* Y-Sort Debug Toggle */}
+                    <button
+                        onClick={(e) => {
+                            toggleYSortDebug();
+                            e.currentTarget.blur();
+                        }}
+                        onFocus={(e) => e.currentTarget.blur()}
+                        style={{
+                            background: showYSortDebug 
+                                ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(200, 170, 0, 0.4))' 
+                                : 'linear-gradient(135deg, rgba(60, 30, 30, 0.6), rgba(40, 20, 20, 0.7))',
+                            color: showYSortDebug ? '#ffd700' : '#ff6b6b',
+                            border: showYSortDebug ? '1px solid #ffd700' : '1px solid #ff6b6b',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            textShadow: showYSortDebug ? '0 0 5px #ffd700' : '0 0 5px #ff6b6b',
+                            boxShadow: showYSortDebug 
+                                ? '0 0 10px rgba(255, 215, 0, 0.3)' 
+                                : '0 0 10px rgba(255, 107, 107, 0.2)',
+                            fontFamily: 'inherit',
+                            letterSpacing: '0.5px'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = showYSortDebug 
+                                ? '0 0 15px rgba(255, 215, 0, 0.5)' 
+                                : '0 0 15px rgba(255, 107, 107, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = showYSortDebug 
+                                ? '0 0 10px rgba(255, 215, 0, 0.3)' 
+                                : '0 0 10px rgba(255, 107, 107, 0.2)';
+                        }}
+                    >
+                        Y-SORT: {showYSortDebug ? 'ON' : 'OFF'}
                     </button>
 
                     {/* Position Display */}

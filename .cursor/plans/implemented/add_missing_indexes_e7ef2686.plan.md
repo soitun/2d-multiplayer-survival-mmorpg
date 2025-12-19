@@ -49,6 +49,8 @@ pub health: u32,
 pub health: u32,
 ```
 
+
+
 ### 2. [server/src/barrel.rs](server/src/barrel.rs)
 
 Add index on `chunk_index` field (line 86):
@@ -61,6 +63,8 @@ pub chunk_index: u32,
 #[index(btree)]
 pub chunk_index: u32,
 ```
+
+
 
 ### 3. [server/src/sea_stack.rs](server/src/sea_stack.rs)
 
@@ -75,6 +79,8 @@ pub chunk_index: u32,
 pub chunk_index: u32,
 ```
 
+
+
 ### 4. [server/src/wild_animal_npc/core.rs](server/src/wild_animal_npc/core.rs)
 
 Add index on `chunk_index` field (line 213):
@@ -88,6 +94,8 @@ pub chunk_index: u32, // For spatial optimization
 pub chunk_index: u32, // For spatial optimization
 ```
 
+
+
 ## Deployment
 
 After making changes:
@@ -95,5 +103,3 @@ After making changes:
 1. Build: `spacetime build --project-path ./server`
 2. Publish (clears data): `spacetime publish -c --project-path ./server broth-bullets-local`
 3. Regenerate bindings: `spacetime generate --lang typescript --out-dir ./client/src/generated --project-path ./server`
-
-**Note:** The `-c` flag is needed because adding indexes changes the table schema, which typically requires clearing existing data.
