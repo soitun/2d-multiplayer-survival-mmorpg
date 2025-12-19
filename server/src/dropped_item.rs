@@ -40,6 +40,7 @@ pub struct DroppedItem {
     pub quantity: u32,         // How many of this item are in the sack
     pub pos_x: f32,            // World X position
     pub pos_y: f32,            // World Y position
+    #[index(btree)]
     pub chunk_index: u32,      // <<< ADDED chunk_index
     pub created_at: Timestamp, // When the item was dropped (for potential cleanup)
     pub item_data: Option<String>, // <<< ADDED: JSON data from original item (preserves water content, etc.)

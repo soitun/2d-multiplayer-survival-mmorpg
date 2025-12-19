@@ -96,10 +96,11 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
      #[primary_key]
      #[auto_inc]
      pub id: u32,
-     pub pos_x: f32,
-     pub pos_y: f32,
-     pub chunk_index: u32,
-     pub placed_by: Identity, // Track who placed it
+    pub pos_x: f32,
+    pub pos_y: f32,
+    #[index(btree)]
+    pub chunk_index: u32,
+    pub placed_by: Identity, // Track who placed it
      pub placed_at: Timestamp,
     pub is_burning: bool, // Is the fire currently lit?
     // Use individual fields instead of arrays (slot_* naming for consistency with other containers)

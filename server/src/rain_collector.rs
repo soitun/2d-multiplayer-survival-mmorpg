@@ -67,6 +67,7 @@ pub struct RainCollector {
 
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub chunk_index: u32, // For spatial partitioning
 
     pub placed_by: Identity, // Who placed this rain collector

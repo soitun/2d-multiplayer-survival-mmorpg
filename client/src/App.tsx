@@ -702,21 +702,16 @@ function AppContent() {
         const playerCenterX = localPlayer.positionX;
         const playerCenterY = localPlayer.positionY;
 
-        // Detect respawn: player was dead and is now alive, or position changed dramatically
+        // Detect respawn: player was dead and is now alive
         const prevState = prevPlayerStateRef.current;
         const wasDead = prevState?.isDead ?? false;
         const isAlive = !localPlayer.isDead;
         const respawnDetected = wasDead && isAlive;
-        
-        // Check for dramatic position change (likely respawn)
-        const positionChangedDramatically = prevState && 
-            ((playerCenterX - prevState.positionX)**2 + (playerCenterY - prevState.positionY)**2 > 10000); // 100px threshold
 
         // Check if viewport center moved significantly enough
         const lastSentCenter = lastSentViewportCenterRef.current;
         const shouldUpdate = !lastSentCenter ||
             respawnDetected || // Force update on respawn
-            positionChangedDramatically || // Force update on dramatic position change
             (playerCenterX - lastSentCenter.x)**2 + (playerCenterY - lastSentCenter.y)**2 > VIEWPORT_UPDATE_THRESHOLD_SQ;
 
         if (shouldUpdate) {
@@ -726,15 +721,14 @@ function AppContent() {
             const newMaxY = playerCenterY + (VIEWPORT_HEIGHT / 2) + VIEWPORT_BUFFER;
             const newViewport = { minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY };
 
-            // console.log(`[App] Viewport needs update. Triggering debounced call.`);
             setCurrentViewport(newViewport); // Update local state immediately for useSpacetimeTables
             debouncedUpdateViewport(newViewport); // Call debounced server update
             
-            // Reset lastSentCenter on respawn to force immediate update
-            if (respawnDetected || positionChangedDramatically) {
-                lastSentViewportCenterRef.current = null;
-                
-                // Reset overlay states on respawn
+            // Update last sent center immediately to prevent continuous updates
+            lastSentViewportCenterRef.current = { x: playerCenterX, y: playerCenterY };
+            
+            // Reset overlay states ONLY on actual respawn (dead -> alive transition)
+            if (respawnDetected) {
                 console.log('[App] Respawn detected - resetting overlay states');
                 resetBrothEffectsState();
                 resetInsanityState();

@@ -757,6 +757,8 @@ import { CloudIntensityScheduleTableHandle } from "./cloud_intensity_schedule_ta
 export { CloudIntensityScheduleTableHandle };
 import { CloudUpdateScheduleTableHandle } from "./cloud_update_schedule_table.ts";
 export { CloudUpdateScheduleTableHandle };
+import { CoastalSpawnPointTableHandle } from "./coastal_spawn_point_table.ts";
+export { CoastalSpawnPointTableHandle };
 import { CompostProcessScheduleTableHandle } from "./compost_process_schedule_table.ts";
 export { CompostProcessScheduleTableHandle };
 import { ContinuousSoundTableHandle } from "./continuous_sound_table.ts";
@@ -1039,6 +1041,8 @@ import { CloudType } from "./cloud_type_type.ts";
 export { CloudType };
 import { CloudUpdateSchedule } from "./cloud_update_schedule_type.ts";
 export { CloudUpdateSchedule };
+import { CoastalSpawnPoint } from "./coastal_spawn_point_type.ts";
+export { CoastalSpawnPoint };
 import { CompostProcessSchedule } from "./compost_process_schedule_type.ts";
 export { CompostProcessSchedule };
 import { ContainerLocationData } from "./container_location_data_type.ts";
@@ -1565,6 +1569,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "scheduleId",
         colType: (CloudUpdateSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    coastal_spawn_point: {
+      tableName: "coastal_spawn_point" as const,
+      rowType: CoastalSpawnPoint.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (CoastalSpawnPoint.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     compost_process_schedule: {
@@ -11122,6 +11135,11 @@ export class RemoteTables {
   get cloudUpdateSchedule(): CloudUpdateScheduleTableHandle<'cloud_update_schedule'> {
     // clientCache is a private property
     return new CloudUpdateScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CloudUpdateSchedule>(REMOTE_MODULE.tables.cloud_update_schedule));
+  }
+
+  get coastalSpawnPoint(): CoastalSpawnPointTableHandle<'coastal_spawn_point'> {
+    // clientCache is a private property
+    return new CoastalSpawnPointTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CoastalSpawnPoint>(REMOTE_MODULE.tables.coastal_spawn_point));
   }
 
   get compostProcessSchedule(): CompostProcessScheduleTableHandle<'compost_process_schedule'> {

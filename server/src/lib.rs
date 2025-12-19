@@ -799,6 +799,13 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
                     Err(e) => log::error!("Failed to seed environment: {}", e),
                 }
                 
+                // Populate coastal spawn points for fast respawn lookups
+                log::info!("Populating coastal spawn points...");
+                match crate::populate_coastal_spawn_points(ctx) {
+                    Ok(_) => log::info!("Coastal spawn points populated successfully"),
+                    Err(e) => log::error!("Failed to populate coastal spawn points: {}", e),
+                }
+                
                 // Generate compressed chunk data AFTER all tile modifications (ALK asphalt, etc.)
                 log::info!("Generating compressed chunk data for efficient network transmission...");
                 match crate::world_generation::generate_compressed_chunk_data(ctx) {
@@ -831,6 +838,18 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
         match crate::matronage::init_matronage_system(ctx) {
             Ok(_) => log::info!("Matronage system initialized successfully"),
             Err(e) => log::error!("Failed to initialize Matronage system: {}", e),
+        }
+
+        // Check if coastal spawn points exist, generate if missing
+        let existing_spawn_points_count = ctx.db.coastal_spawn_point().iter().count();
+        if existing_spawn_points_count == 0 {
+            log::info!("No coastal spawn points found, generating...");
+            match crate::populate_coastal_spawn_points(ctx) {
+                Ok(_) => log::info!("Coastal spawn points generated successfully"),
+                Err(e) => log::error!("Failed to generate coastal spawn points: {}", e),
+            }
+        } else {
+            log::info!("Coastal spawn points already exist ({}), skipping generation", existing_spawn_points_count);
         }
 
         // Check if minimap cache exists, generate if missing
@@ -1741,6 +1760,109 @@ pub struct WorldTile {
     pub tile_type: TileType,
     pub variant: u8,  // For tile variations (0-255)
     pub biome_data: Option<String>, // JSON for future biome properties
+}
+
+/// Pre-computed coastal spawn points for fast respawn lookups.
+/// These are beach tiles adjacent to water, used for player spawning.
+/// Generated once during world initialization to avoid expensive runtime scanning.
+#[spacetimedb::table(name = coastal_spawn_point, public)]
+#[derive(Clone, Debug)]
+pub struct CoastalSpawnPoint {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub world_x: f32,      // World pixel X coordinate (center of tile)
+    pub world_y: f32,      // World pixel Y coordinate (center of tile)
+    pub tile_x: i32,       // Tile X coordinate
+    pub tile_y: i32,       // Tile Y coordinate
+    #[index(btree)]
+    pub chunk_index: u32,  // For spatial queries
+    pub is_south_half: bool, // Whether this spawn point is in the south half of the map
+}
+
+/// Populates the coastal_spawn_point table with valid spawn locations.
+/// Called once during world generation to pre-compute spawn points.
+pub fn populate_coastal_spawn_points(ctx: &ReducerContext) -> Result<(), String> {
+    use std::collections::HashMap;
+    
+    log::info!("Populating coastal spawn points...");
+    
+    let world_tiles = ctx.db.world_tile();
+    let map_height_half = (WORLD_HEIGHT_TILES / 2) as i32;
+    
+    // Build a map of all tiles for efficient adjacency lookup
+    let mut tile_map: HashMap<(i32, i32), TileType> = HashMap::new();
+    for tile in world_tiles.iter() {
+        tile_map.insert((tile.world_x, tile.world_y), tile.tile_type.clone());
+    }
+    
+    let mut spawn_points_added = 0;
+    let mut south_half_count = 0;
+    
+    // Find all coastal beach tiles
+    for tile in world_tiles.iter() {
+        if tile.tile_type != TileType::Beach {
+            continue;
+        }
+        
+        // Check if this beach tile is adjacent to water
+        let mut is_coastal = false;
+        for dx in -1..=1i32 {
+            for dy in -1..=1i32 {
+                if dx == 0 && dy == 0 { continue; }
+                
+                let adjacent_x = tile.world_x + dx;
+                let adjacent_y = tile.world_y + dy;
+                
+                if let Some(adjacent_type) = tile_map.get(&(adjacent_x, adjacent_y)) {
+                    if adjacent_type.is_water() {
+                        is_coastal = true;
+                        break;
+                    }
+                } else {
+                    // Edge of map - consider coastal
+                    is_coastal = true;
+                    break;
+                }
+            }
+            if is_coastal { break; }
+        }
+        
+        if !is_coastal {
+            continue;
+        }
+        
+        // Convert tile coords to world pixel coords (center of tile)
+        let world_x = (tile.world_x as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+        let world_y = (tile.world_y as f32 * TILE_SIZE_PX as f32) + (TILE_SIZE_PX as f32 / 2.0);
+        
+        // Calculate chunk index
+        let chunk_index = environment::calculate_chunk_index(world_x, world_y);
+        
+        // Determine if in south half (larger Y values)
+        let is_south_half = tile.world_y >= map_height_half;
+        if is_south_half {
+            south_half_count += 1;
+        }
+        
+        // Insert spawn point
+        ctx.db.coastal_spawn_point().insert(CoastalSpawnPoint {
+            id: 0, // auto_inc
+            world_x,
+            world_y,
+            tile_x: tile.world_x,
+            tile_y: tile.world_y,
+            chunk_index,
+            is_south_half,
+        });
+        
+        spawn_points_added += 1;
+    }
+    
+    log::info!("Coastal spawn points populated: {} total, {} in south half", 
+               spawn_points_added, south_half_count);
+    
+    Ok(())
 }
 
 #[spacetimedb::table(name = minimap_cache, public)]

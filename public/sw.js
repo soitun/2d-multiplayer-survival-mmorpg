@@ -6,7 +6,7 @@
  * Network-first for API calls and dynamic content.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `game-assets-${CACHE_VERSION}`;
 
 // Assets to precache on install (critical path)
@@ -118,8 +118,10 @@ async function cacheFirst(request) {
     try {
         const networkResponse = await fetch(request);
         
-        // Only cache successful responses
-        if (networkResponse.ok) {
+        // Only cache successful, complete responses (not partial 206 responses)
+        // Partial responses (206) occur with Range requests for audio/video streaming
+        // and cannot be stored in the Cache API
+        if (networkResponse.ok && networkResponse.status !== 206) {
             // Clone because response can only be consumed once
             cache.put(request, networkResponse.clone());
         }
@@ -137,8 +139,8 @@ async function networkFirst(request) {
     try {
         const networkResponse = await fetch(request);
         
-        // Cache successful responses
-        if (networkResponse.ok) {
+        // Cache successful, complete responses (not partial 206 responses)
+        if (networkResponse.ok && networkResponse.status !== 206) {
             const cache = await caches.open(CACHE_NAME);
             cache.put(request, networkResponse.clone());
         }
@@ -162,7 +164,8 @@ async function networkFirst(request) {
 async function updateCache(request, cache) {
     try {
         const networkResponse = await fetch(request);
-        if (networkResponse.ok) {
+        // Only cache complete responses (not partial 206 responses)
+        if (networkResponse.ok && networkResponse.status !== 206) {
             await cache.put(request, networkResponse);
         }
     } catch {

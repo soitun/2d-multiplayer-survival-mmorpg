@@ -23,6 +23,7 @@ use crate::stone::stone as StoneTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::world_tile as WorldTileTableTrait;
+use crate::coastal_spawn_point as CoastalSpawnPointTableTrait;
 
 // Import necessary modules and constants
 use crate::{Player, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, world_pos_to_tile_coords, get_tile_type_at_position, PLAYER_RADIUS};
@@ -34,6 +35,111 @@ pub const RESPAWN_CHECK_RADIUS: f32 = TILE_SIZE_PX as f32 * 3.0; // 3 tiles radi
 pub const RESPAWN_CHECK_RADIUS_SQ: f32 = RESPAWN_CHECK_RADIUS * RESPAWN_CHECK_RADIUS;
 pub const MAX_RESPAWN_OFFSET_ATTEMPTS: u32 = 8; // Max times to try offsetting
 pub const RESPAWN_OFFSET_DISTANCE: f32 = TILE_SIZE_PX as f32 * 0.5; // How far to offset each attempt
+
+/// Get neighboring chunk indices for a given chunk (3x3 grid)
+fn get_neighboring_chunks(center_chunk: u32) -> Vec<u32> {
+    use crate::environment::WORLD_WIDTH_CHUNKS;
+    
+    let chunks_per_row = WORLD_WIDTH_CHUNKS as i32;
+    let center_x = (center_chunk as i32) % chunks_per_row;
+    let center_y = (center_chunk as i32) / chunks_per_row;
+    
+    let mut chunks = Vec::with_capacity(9);
+    
+    for dy in -1..=1i32 {
+        for dx in -1..=1i32 {
+            let nx = center_x + dx;
+            let ny = center_y + dy;
+            
+            if nx >= 0 && ny >= 0 && nx < chunks_per_row && ny < chunks_per_row {
+                chunks.push((ny * chunks_per_row + nx) as u32);
+            }
+        }
+    }
+    
+    chunks
+}
+
+/// Check for collisions at spawn position using chunk-based filtering
+fn check_spawn_collision(
+    ctx: &ReducerContext,
+    spawn_x: f32,
+    spawn_y: f32,
+    sender_id: Identity,
+    neighboring_chunks: &[u32],
+    last_collision_reason: &mut String,
+) -> bool {
+    last_collision_reason.clear();
+    
+    // Check collision with other players (full scan - players move around)
+    for other_player in ctx.db.player().iter() {
+        if other_player.is_dead || other_player.identity == sender_id { continue; }
+        let dx = spawn_x - other_player.position_x;
+        let dy = spawn_y - other_player.position_y;
+        let distance_sq = dx * dx + dy * dy;
+        let min_distance_sq = crate::PLAYER_RADIUS * crate::PLAYER_RADIUS * 2.0;
+        if distance_sq < min_distance_sq {
+            *last_collision_reason = format!("Player collision (dist: {:.1})", distance_sq.sqrt());
+            return true;
+        }
+    }
+    
+    // Check collision with trees (chunk-filtered)
+    for chunk_idx in neighboring_chunks {
+        for tree in ctx.db.tree().chunk_index().filter(*chunk_idx) {
+            if tree.health == 0 { continue; }
+            let dx = spawn_x - tree.pos_x;
+            let dy = spawn_y - (tree.pos_y - crate::tree::TREE_COLLISION_Y_OFFSET);
+            let distance_sq = dx * dx + dy * dy;
+            if distance_sq < (crate::tree::PLAYER_TREE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                *last_collision_reason = format!("Tree at ({:.0}, {:.0})", tree.pos_x, tree.pos_y);
+                return true;
+            }
+        }
+    }
+    
+    // Check collision with stones (chunk-filtered)
+    for chunk_idx in neighboring_chunks {
+        for stone in ctx.db.stone().chunk_index().filter(*chunk_idx) {
+            if stone.health == 0 { continue; }
+            let dx = spawn_x - stone.pos_x;
+            let dy = spawn_y - (stone.pos_y - crate::stone::STONE_COLLISION_Y_OFFSET);
+            let distance_sq = dx * dx + dy * dy;
+            if distance_sq < (crate::stone::PLAYER_STONE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                *last_collision_reason = format!("Stone at ({:.0}, {:.0})", stone.pos_x, stone.pos_y);
+                return true;
+            }
+        }
+    }
+    
+    // Check collision with campfires (chunk-filtered)
+    for chunk_idx in neighboring_chunks {
+        for campfire in ctx.db.campfire().chunk_index().filter(*chunk_idx) {
+            let dx = spawn_x - campfire.pos_x;
+            let dy = spawn_y - (campfire.pos_y - crate::campfire::CAMPFIRE_COLLISION_Y_OFFSET);
+            let distance_sq = dx * dx + dy * dy;
+            if distance_sq < (crate::campfire::PLAYER_CAMPFIRE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                *last_collision_reason = format!("Campfire at ({:.0}, {:.0})", campfire.pos_x, campfire.pos_y);
+                return true;
+            }
+        }
+    }
+    
+    // Check collision with wooden storage boxes (chunk-filtered)
+    for chunk_idx in neighboring_chunks {
+        for box_instance in ctx.db.wooden_storage_box().chunk_index().filter(*chunk_idx) {
+            let dx = spawn_x - box_instance.pos_x;
+            let dy = spawn_y - (box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET);
+            let distance_sq = dx * dx + dy * dy;
+            if distance_sq < (crate::wooden_storage_box::PLAYER_BOX_COLLISION_DISTANCE_SQUARED * 0.8) {
+                *last_collision_reason = format!("Storage box at ({:.0}, {:.0})", box_instance.pos_x, box_instance.pos_y);
+                return true;
+            }
+        }
+    }
+    
+    false
+}
 
 /// Reducer that handles random respawn requests from dead players.
 /// 
@@ -77,211 +183,58 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     }
     // --- End Grant Starting Items ---
 
-    // --- Find Valid Coastal Beach Spawn Position (Same as register_player + south half constraint) ---
+    // --- Find Valid Coastal Beach Spawn Position (OPTIMIZED: uses pre-computed spawn points) ---
     
-    // Step 1: Find all beach tiles that are coastal (adjacent to sea/water) in SOUTH HALF ONLY
-    let world_tiles = ctx.db.world_tile();
-    let trees = ctx.db.tree();
-    let stones = ctx.db.stone();
-    let campfires = ctx.db.campfire();
-    let wooden_storage_boxes = ctx.db.wooden_storage_box();
+    // Collect south-half coastal spawn points from pre-computed table
+    let coastal_spawn_points: Vec<_> = ctx.db.coastal_spawn_point()
+        .iter()
+        .filter(|sp| sp.is_south_half)
+        .collect();
     
-    let mut coastal_beach_tiles = Vec::new();
+    log::info!("Using {} pre-computed south-half coastal spawn points for respawn", coastal_spawn_points.len());
     
-    log::info!("Searching for coastal beach tiles in SOUTH HALF for respawn (corrected Y logic)...");
-    
-    // Create a map of all tiles for efficient lookup
-    let mut tile_map = std::collections::HashMap::new();
-    for tile in world_tiles.iter() {
-        tile_map.insert((tile.world_x, tile.world_y), tile.clone());
+    // MANDATORY: Must have coastal spawn points
+    if coastal_spawn_points.is_empty() {
+        return Err("CRITICAL ERROR: No south half coastal spawn points found! Cannot respawn player.".to_string());
     }
     
-    // Find beach tiles that are adjacent to sea/water tiles AND in south half
-    let mut total_beach_tiles = 0;
-    let mut coastal_beach_count = 0;
-    let map_height_half = (crate::WORLD_HEIGHT_TILES / 2) as i32;
-    
-    log::info!("Map height: {} tiles, half point: {} tiles (keeping Y < {})", crate::WORLD_HEIGHT_TILES, map_height_half, map_height_half);
-    
-    for tile in world_tiles.iter() {
-        if tile.tile_type == crate::TileType::Beach {
-            total_beach_tiles += 1;
-            
-            // CONSTRAINT: Only consider tiles in the SOUTH HALF of the map for respawn
-            // CORRECTED: Keep south half (larger Y values), skip north half (smaller Y values)
-            if tile.world_y < map_height_half {
-                continue; // Skip tiles in north half (smaller Y values)
-            }
-            
-            // Check if this beach tile is adjacent to sea/water
-            let mut is_coastal = false;
-            
-            // Check all 8 adjacent tiles (including diagonals)
-            for dx in -1..=1i32 {
-                for dy in -1..=1i32 {
-                    if dx == 0 && dy == 0 { continue; } // Skip the tile itself
-                    
-                    let adjacent_x = tile.world_x + dx;
-                    let adjacent_y = tile.world_y + dy;
-                    
-                    // Check if adjacent tile exists and is water
-                    if let Some(adjacent_tile) = tile_map.get(&(adjacent_x, adjacent_y)) {
-                        if adjacent_tile.tile_type.is_water() { // Includes both Sea and HotSpringWater
-                            is_coastal = true;
-                            break;
-                        }
-                    } else {
-                        // If adjacent tile is outside map bounds, consider it coastal
-                        // (this handles cases where beach is at true map edge)
-                        is_coastal = true;
-                        break;
-                    }
-                }
-                if is_coastal { break; }
-            }
-            
-            if is_coastal {
-                coastal_beach_tiles.push(tile.clone());
-                coastal_beach_count += 1;
-                if coastal_beach_count <= 10 { // Log first 10 for debugging
-                    log::debug!("Found south half coastal beach tile for respawn at ({}, {}) - world coords ({}, {})", 
-                               tile.world_x, tile.world_y, tile.world_x * crate::TILE_SIZE_PX as i32, tile.world_y * crate::TILE_SIZE_PX as i32);
-                }
-            }
-        }
-    }
-    
-    log::info!("South half coastal beach search for respawn complete: {} total beach tiles, {} coastal beach tiles found", 
-               total_beach_tiles, coastal_beach_tiles.len());
-    
-    // MANDATORY: Must have coastal beach tiles
-    if coastal_beach_tiles.is_empty() {
-        return Err(format!("CRITICAL ERROR: No south half coastal beach tiles found for respawn! Cannot respawn player. Total beach tiles: {}", total_beach_tiles));
-    }
-    
-    // Step 2: Find a valid spawn point from coastal beach tiles (with relaxed collision detection)
+    // Find a valid spawn point with chunk-based collision detection
     let mut spawn_x: f32;
     let mut spawn_y: f32;
-    let max_spawn_attempts = 50; // Increased attempts significantly
+    let max_spawn_attempts = 50;
     let mut spawn_attempt = 0;
     let mut last_collision_reason = String::new();
     
-    // Try to find a valid spawn on a random coastal beach tile
     loop {
-        // Pick a random coastal beach tile
-        let random_index = ctx.rng().gen_range(0..coastal_beach_tiles.len());
-        let selected_tile = &coastal_beach_tiles[random_index];
+        // Pick a random spawn point
+        let random_index = ctx.rng().gen_range(0..coastal_spawn_points.len());
+        let selected_spawn = &coastal_spawn_points[random_index];
         
-        // Convert tile coordinates to world pixel coordinates (center of tile)
-        spawn_x = (selected_tile.world_x as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
-        spawn_y = (selected_tile.world_y as f32 * crate::TILE_SIZE_PX as f32) + (crate::TILE_SIZE_PX as f32 / 2.0);
+        spawn_x = selected_spawn.world_x;
+        spawn_y = selected_spawn.world_y;
         
-        log::debug!("Respawn attempt {}: Testing spawn at south half coastal beach tile ({}, {}) -> world pos ({:.1}, {:.1})", 
-                   spawn_attempt + 1, selected_tile.world_x, selected_tile.world_y, spawn_x, spawn_y);
+        // Get neighboring chunks for collision checks (3x3 grid around spawn chunk)
+        let spawn_chunk = selected_spawn.chunk_index;
+        let neighboring_chunks = get_neighboring_chunks(spawn_chunk);
         
-        // Step 3: Check for collisions at this beach tile position (RELAXED collision detection)
-        let mut collision = false;
-        last_collision_reason.clear();
+        // Check for collisions using chunk-based filtering
+        let collision = check_spawn_collision(
+            ctx, spawn_x, spawn_y, sender_id, &neighboring_chunks, &mut last_collision_reason
+        );
         
-        // Check collision with other players (more lenient spacing)
-        for other_player in players.iter() {
-            if other_player.is_dead || other_player.identity == sender_id { continue; }
-            let dx = spawn_x - other_player.position_x;
-            let dy = spawn_y - other_player.position_y;
-            let distance_sq = dx * dx + dy * dy;
-            let min_distance_sq = crate::PLAYER_RADIUS * crate::PLAYER_RADIUS * 2.0; // Reduced spacing requirement
-            if distance_sq < min_distance_sq {
-                collision = true;
-                last_collision_reason = format!("Player collision (distance: {:.1})", distance_sq.sqrt());
-                break;
-            }
-        }
-        
-        // Check collision with trees (more lenient)
         if !collision {
-            for tree in trees.iter() {
-                if tree.health == 0 { continue; }
-                let dx = spawn_x - tree.pos_x;
-                let dy = spawn_y - (tree.pos_y - crate::tree::TREE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::tree::PLAYER_TREE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Tree collision at ({:.1}, {:.1})", tree.pos_x, tree.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // Check collision with stones (more lenient)
-        if !collision {
-            for stone in stones.iter() {
-                if stone.health == 0 { continue; }
-                let dx = spawn_x - stone.pos_x;
-                let dy = spawn_y - (stone.pos_y - crate::stone::STONE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::stone::PLAYER_STONE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Stone collision at ({:.1}, {:.1})", stone.pos_x, stone.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // Check collision with campfires (more lenient)
-        if !collision {
-            for campfire in campfires.iter() {
-                let dx = spawn_x - campfire.pos_x;
-                let dy = spawn_y - (campfire.pos_y - crate::campfire::CAMPFIRE_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::campfire::PLAYER_CAMPFIRE_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Campfire collision at ({:.1}, {:.1})", campfire.pos_x, campfire.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // Check collision with wooden storage boxes (more lenient)
-        if !collision {
-            for box_instance in wooden_storage_boxes.iter() {
-                let dx = spawn_x - box_instance.pos_x;
-                let dy = spawn_y - (box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET);
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq < (crate::wooden_storage_box::PLAYER_BOX_COLLISION_DISTANCE_SQUARED * 0.8) { // 20% more lenient
-                    collision = true;
-                    last_collision_reason = format!("Storage box collision at ({:.1}, {:.1})", box_instance.pos_x, box_instance.pos_y);
-                    break;
-                }
-            }
-        }
-        
-        // If no collision found, we have a valid spawn point!
-        if !collision {
-            log::info!("SUCCESS: South half coastal beach respawn found at ({:.1}, {:.1}) on tile ({}, {}) after {} attempts", 
-                      spawn_x, spawn_y, selected_tile.world_x, selected_tile.world_y, spawn_attempt + 1);
+            log::info!("SUCCESS: Respawn found at ({:.1}, {:.1}) tile ({}, {}) after {} attempts", 
+                      spawn_x, spawn_y, selected_spawn.tile_x, selected_spawn.tile_y, spawn_attempt + 1);
             break;
-        }
-        
-        // Log collision reason for debugging
-        if spawn_attempt < 10 { // Only log first 10 attempts to avoid spam
-            log::debug!("South half respawn attempt {} failed: {} at coastal beach tile ({}, {})", 
-                       spawn_attempt + 1, last_collision_reason, selected_tile.world_x, selected_tile.world_y);
         }
         
         spawn_attempt += 1;
         if spawn_attempt >= max_spawn_attempts {
-            // FORCE spawn on the last attempted beach tile - NO FALLBACK
-            log::warn!("Could not find collision-free south half coastal beach respawn after {} attempts. FORCING respawn at last coastal beach tile ({:.1}, {:.1}) - {}", 
+            log::warn!("Could not find collision-free respawn after {} attempts. FORCING at ({:.1}, {:.1}) - {}", 
                       max_spawn_attempts, spawn_x, spawn_y, last_collision_reason);
             break;
         }
     }
-    
-    // Final validation - ensure we're spawning on a beach tile
-    let final_tile_x = (spawn_x / crate::TILE_SIZE_PX as f32).floor() as i32;
-    let final_tile_y = (spawn_y / crate::TILE_SIZE_PX as f32).floor() as i32;
-    log::info!("RESPAWN COMPLETE: Player {} will respawn at world coords ({:.1}, {:.1}) which is tile ({}, {})", 
-               player.username, spawn_x, spawn_y, final_tile_x, final_tile_y);
     // --- End Find Valid Coastal Beach Spawn Position ---
 
     // --- RE-FETCH the player record to get the latest data before updating ---

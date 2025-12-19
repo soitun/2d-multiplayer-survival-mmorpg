@@ -90,6 +90,7 @@ pub struct WoodenStorageBox {
 
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub chunk_index: u32, // <<< ADDED chunk_index
 
     pub placed_by: Identity, // Who placed this storage box
