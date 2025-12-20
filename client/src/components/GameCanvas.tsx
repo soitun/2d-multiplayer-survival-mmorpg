@@ -4139,6 +4139,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       fishingVillageParts: fishingVillageParts,
       // Large quarry locations with types for minimap labels
       largeQuarries: largeQuarries,
+      // Living coral reefs for minimap (underwater resources)
+      livingCorals: visibleLivingCoralsMap,
       // Show names toggle for minimap labels
       showNames: minimapShowNames,
       // Matronage system for player visibility
@@ -4246,6 +4248,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           fishingVillageParts={fishingVillageParts}
           // Large quarry locations with types for minimap labels
           largeQuarries={largeQuarries}
+          // Living coral reefs for minimap
+          livingCorals={visibleLivingCoralsMap}
         />
       )}
 

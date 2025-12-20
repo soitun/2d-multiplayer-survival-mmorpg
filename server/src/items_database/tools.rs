@@ -264,6 +264,11 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Diving Pick", "A specialized pick designed for underwater harvesting. Required to harvest living coral reefs. Crafted from coral fragments, wood, and reed stalks.", ItemCategory::Tool)
             .icon("diving_pick.png")
             .equippable(None)
+            // Primary target: Living Coral - yields Limestone
+            .primary_target_type(TargetType::LivingCoral)
+            .primary_target_damage(40, 60)  // Damage per hit to coral
+            .primary_target_yield(8, 15)    // Limestone per hit
+            .primary_yield_resource("Limestone")
             .pvp_damage(15, 20)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Coral Fragments".to_string(), quantity: 10 },

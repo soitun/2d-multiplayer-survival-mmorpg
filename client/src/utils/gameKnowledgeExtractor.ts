@@ -737,6 +737,90 @@ const tipSectionDefinitions = {
         ]
     },
 
+    livingCorals: {
+        title: '🪸 Living Corals & Underwater Harvesting',
+        tips: [
+            // What are Living Corals
+            'Living Corals are underwater harvestable resources found in shallow water areas.',
+            'Coral reefs spawn in water near beaches and coastal areas.',
+            'Living Corals are a valuable source of Limestone for crafting and smelting.',
+            
+            // THE BOOTSTRAP PROBLEM - Getting Started with Coral Farming
+            '⚠️ BOOTSTRAP PROBLEM: You need Coral Fragments to craft a Diving Pick, but you need a Diving Pick to harvest coral!',
+            '🌊 SOLUTION: Wait for heavy storms! Coral Fragments wash ashore on beaches during Heavy Rain and Heavy Storm weather.',
+            'After storms, search beach areas thoroughly for washed-up Coral Fragments.',
+            'Save every Coral Fragment you find until you have enough (10) to craft your first Diving Pick.',
+            'Once you have a Diving Pick, you can farm coral to produce your own Coral Fragments sustainably.',
+            
+            // Equipment Requirements
+            '🎭 REED DIVER\'S HELM: Required head armor to snorkel - craft this FIRST before attempting coral harvesting.',
+            'The Reed Diver\'s Helm is equipped in your head slot (like headlamp) and allows underwater submersion.',
+            'Press F to submerge while wearing Reed Diver\'s Helm and standing in water.',
+            '⛏️ DIVING PICK: Required tool to harvest living coral - no other tool works underwater on coral.',
+            'The Diving Pick is one of only two tools usable underwater (along with Reed Harpoon).',
+            
+            // Crafting Requirements Summary
+            'TO START CORAL FARMING YOU NEED: Reed Diver\'s Helm (head) + Diving Pick (tool) + being in water.',
+            'Craft Diving Pick: 10 Coral Fragments + 3 Wood + 5 Common Reed Stalk.',
+            'Without storm-washed Coral Fragments, you cannot begin coral farming - patience is required!',
+            
+            // Resource Yields
+            'Each hit on living coral yields 8-15 Limestone as the primary resource.',
+            'Living coral has a resource pool of 150-300 Limestone total before depletion.',
+            'Depleting a coral grants a 15% final hit bonus of extra Limestone.',
+            
+            // Bonus Drops (per hit chances)
+            'Coral Fragments: 15% chance per hit to receive 1-2 fragments - essential for crafting more diving picks.',
+            'Shell: 5% chance per hit - rare and valuable intact mollusk shells.',
+            'Pearl: 2% chance per hit - extremely rare and precious gems from coral reef oysters.',
+            
+            // Respawn & Strategy
+            'Depleted coral respawns after 30-60 minutes - mark good coral locations!',
+            'Coral reefs are excellent sources of stone-equivalent materials for inland building.',
+            'Swimming to harvest coral is quieter than mining stone nodes - less attention from other players.',
+            'Bring multiple Diving Picks on underwater harvesting expeditions - they have limited durability.',
+            'Once you\'re producing Coral Fragments from harvesting, craft backup Diving Picks to never run out!',
+        ]
+    },
+
+    furnacesSmelting: {
+        title: '🔥 Furnaces & Smelting',
+        tips: [
+            // What are Furnaces
+            'Furnaces are advanced crafting stations for smelting ores and materials.',
+            'Furnaces require fuel (wood or plant fiber) to operate - keep them stocked.',
+            'Place items in furnace slots and light the furnace to begin smelting.',
+            
+            // Smelting Recipes
+            'LIMESTONE → STONE: Smelt limestone into stone (20 seconds per piece, 1:1 ratio).',
+            'METAL ORE → METAL FRAGMENTS: Smelt raw ore into usable metal fragments.',
+            'TIN CAN → METAL FRAGMENTS: Smelt junk tin cans into 4 metal fragments (15 seconds).',
+            'RUSTY HOOK → METAL FRAGMENTS: Smelt old fishing hooks into 2 metal fragments (12 seconds).',
+            
+            // Limestone Strategy
+            'Limestone from living coral can be smelted into stone - an alternative to mining!',
+            'Underwater coral harvesting → limestone → furnace smelting = stone without mining.',
+            'This pathway is useful when stone nodes are contested or dangerous to access.',
+            'Limestone is lighter than stone nodes, making coral harvesting efficient for stone production.',
+            
+            // Efficiency & Upgrades
+            'Reed Bellows placed in a furnace slot makes fuel burn 50% slower (1.5x fuel efficiency).',
+            'Reed Bellows also makes smelting 20% faster - a valuable furnace upgrade.',
+            'Furnaces near Red Rune Stones smelt at double speed (2x multiplier).',
+            'Reed Bellows + Red Rune Stone zone = 2.4x smelting speed!',
+            
+            // Fuel Management
+            'Wood burns for 5 seconds per piece in furnaces (same as campfires).',
+            'Plant fiber burns for 2.5 seconds per piece - half as efficient as wood.',
+            'Stock furnaces with plenty of fuel for overnight smelting operations.',
+            
+            // Tactical Considerations
+            'Furnaces are placeable structures that can be attacked and destroyed.',
+            'Burning furnaces are visible at night - consider security when smelting.',
+            'Monument furnaces are indestructible and publicly accessible - find them at monuments.',
+        ]
+    },
+
     cairnsLore: {
         title: '🗿 Cairns & Lore',
         tips: [
@@ -781,6 +865,8 @@ const tipSectionOrder = [
     'dayNightCycle',
     'seasons',
     'resourceGathering',
+    'livingCorals',
+    'furnacesSmelting',
     'farming',
     'waterSources',
     'waterContainers',

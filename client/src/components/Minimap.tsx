@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart, LivingCoral as SpacetimeDBLivingCoral } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -46,6 +46,7 @@ const PLAYER_VISIBILITY_RADIUS_SQ = PLAYER_VISIBILITY_RADIUS * PLAYER_VISIBILITY
 const TREE_DOT_COLOR = 'rgba(55, 255, 122, 0.6)'; // Medium-bright green - COVER and CONCEALMENT
 const ROCK_DOT_COLOR = 'rgba(187, 187, 255, 0.6)'; // Medium-bright blue - HARD COVER landmarks
 const BARREL_DOT_COLOR = 'rgba(255, 187, 68, 0.75)'; // Bright yellow-orange - LOOT and OBJECTIVES
+const LIVING_CORAL_DOT_COLOR = 'rgba(255, 127, 200, 0.75)'; // Pink/coral color - UNDERWATER RESOURCES
 // Rune stone colors - matching their rune types
 const RUNE_STONE_GREEN_COLOR = '#9dff00'; // Bright cyberpunk yellow-green for agrarian rune stones
 const RUNE_STONE_RED_COLOR = '#ff4400'; // Vibrant orange-red for production rune stones
@@ -217,6 +218,7 @@ interface MinimapProps {
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
   fishingVillageParts?: Map<string, any>; // Fishing village monument parts
   largeQuarries?: Map<string, any>; // Large quarry locations with types for labels (Stone/Sulfur/Metal Quarry)
+  livingCorals?: Map<string, SpacetimeDBLivingCoral>; // Living coral reefs (underwater harvestable resources)
 
   localPlayer: SpacetimeDBPlayer | undefined; // Extracted local player
   localPlayerId?: string;
@@ -596,6 +598,7 @@ export function drawMinimapOntoCanvas({
   shipwreckParts, // Shipwreck monument parts
   fishingVillageParts, // Fishing village monument parts
   largeQuarries, // Large quarry locations with types for labels
+  livingCorals, // Living coral reefs (underwater resources)
 
   localPlayer, // Destructure localPlayer
   localPlayerId,
@@ -992,6 +995,58 @@ export function drawMinimapOntoCanvas({
       ctx.restore();
     }
   });
+
+  // --- Draw Living Corals (UNDERWATER RESOURCES) ---
+  // Living corals are harvestable underwater resources - show them like stones but with coral color
+  if (livingCorals) {
+    livingCorals.forEach(coral => {
+      // Only show corals that have health and aren't respawning
+      if (coral.health <= 0 || coral.respawnAt !== undefined) return;
+      
+      const screenCoords = worldToMinimap(coral.posX, coral.posY);
+      if (screenCoords) {
+        const iconSize = ENTITY_DOT_SIZE * 2.5; // Same size as stones
+        const halfSize = iconSize / 2;
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        // Draw coral icon (flower/star shape)
+        ctx.save();
+        
+        // Add subtle pink glow for visibility
+        ctx.shadowColor = 'rgba(255, 127, 200, 0.5)';
+        ctx.shadowBlur = 4;
+        
+        // Draw black outline first
+        ctx.strokeStyle = RESOURCE_ICON_OUTLINE_COLOR;
+        ctx.lineWidth = RESOURCE_ICON_OUTLINE_WIDTH;
+        
+        // Draw a simple cross/plus shape to represent coral branches
+        ctx.beginPath();
+        // Vertical bar
+        ctx.moveTo(x, y - halfSize);
+        ctx.lineTo(x, y + halfSize);
+        // Horizontal bar
+        ctx.moveTo(x - halfSize, y);
+        ctx.lineTo(x + halfSize, y);
+        // Diagonal bars for coral branch effect
+        const diagSize = halfSize * 0.7;
+        ctx.moveTo(x - diagSize, y - diagSize);
+        ctx.lineTo(x + diagSize, y + diagSize);
+        ctx.moveTo(x + diagSize, y - diagSize);
+        ctx.lineTo(x - diagSize, y + diagSize);
+        ctx.stroke();
+        
+        // Fill center with coral color
+        ctx.fillStyle = LIVING_CORAL_DOT_COLOR;
+        ctx.beginPath();
+        ctx.arc(x, y, iconSize / 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+      }
+    });
+  }
 
   // --- Draw Rune Stones ---
   runeStones.forEach(runeStone => {

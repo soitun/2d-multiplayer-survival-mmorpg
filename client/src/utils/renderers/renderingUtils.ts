@@ -583,12 +583,17 @@ export const renderYSortedEntities = ({
       }
       
       // === UNDERWATER SNORKELING MODE ===
-      // When snorkeling, hide ALL land-based entities except players and sea stacks
-      // Player is underwater and cannot see anything above the water surface
+      // When snorkeling, hide most land-based entities - player is underwater
+      // But allow underwater entities: players, living coral, and submerged fumaroles
       if (isLocalPlayerSnorkeling) {
-        // Only render players (the snorkeling player) - sea stacks are rendered separately as silhouettes
-        if (type !== 'player') {
-          return; // Skip all land-based entities
+        // Allow: players, living coral (always underwater), and submerged fumaroles
+        const isUnderwaterEntity = 
+          type === 'player' || 
+          type === 'living_coral' || 
+          (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);
+        
+        if (!isUnderwaterEntity) {
+          return; // Skip all land-based entities when underwater
         }
       }
       
@@ -792,7 +797,9 @@ export const renderYSortedEntities = ({
             
             if (canRenderItem && equipment) {
                   // Pass player.direction (server-synced) for accurate attack arc display
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+                  // Pass snorkeling state for underwater teal tint effect
+                  const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
             }
             
             // console.log(`[DEBUG] Rendering player ${playerId} - heroImg available:`, !!heroImg, 'direction:', playerForRendering.direction);
@@ -921,7 +928,9 @@ export const renderYSortedEntities = ({
             }
             if (canRenderItem && equipment) {
                   // Pass player.direction (server-synced) for accurate attack arc display
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+                  // Pass snorkeling state for underwater teal tint effect
+                  const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
             }
             
             // Ghost trail disabled for cleaner dodge roll experience
@@ -1263,9 +1272,22 @@ export const renderYSortedEntities = ({
       } else if (type === 'fumarole') {
           const fumarole = entity as SpacetimeDBFumarole;
           const isTheClosestTarget = closestInteractableTarget?.type === 'fumarole' && closestInteractableTarget?.id === fumarole.id;
-          renderFumarole(ctx, fumarole, nowMs, cycleProgress);
           
-          if (isTheClosestTarget) {
+          // Submerged fumaroles (underwater) - render with blur when viewed from above water
+          const viewingSubmergedFromAbove = fumarole.isSubmerged && !isLocalPlayerSnorkeling;
+          if (viewingSubmergedFromAbove) {
+              // Save current filter and apply underwater blur effect (viewing through water surface)
+              const savedFilter = ctx.filter;
+              ctx.filter = 'blur(2px)';
+              ctx.globalAlpha = 0.7; // Slightly transparent when viewed from above
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+              ctx.filter = savedFilter;
+              ctx.globalAlpha = 1.0;
+          } else {
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+          }
+          
+          if (isTheClosestTarget && !viewingSubmergedFromAbove) {
               const outlineColor = getInteractionOutlineColor('open');
               const config = ENTITY_VISUAL_CONFIG.fumarole;
               const outline = getInteractionOutlineParams(fumarole.posX, fumarole.posY, config);
@@ -1277,8 +1299,21 @@ export const renderYSortedEntities = ({
           renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress, localPlayerPosition);
       } else if (type === 'living_coral') {
           const livingCoral = entity as SpacetimeDBLivingCoral;
-          // Living coral is harvested via combat system (like stones) - no interaction outline
-          renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress);
+          // Living coral - render with blur when viewed from above water (not snorkeling)
+          const viewingCoralFromAbove = !isLocalPlayerSnorkeling;
+          
+          if (viewingCoralFromAbove) {
+              // Save current filter and apply underwater blur effect (viewing through water surface)
+              const savedFilter = ctx.filter;
+              ctx.filter = 'blur(2px)';
+              ctx.globalAlpha = 0.6; // More transparent when viewed from above water
+              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress, false);
+              ctx.filter = savedFilter;
+              ctx.globalAlpha = 1.0;
+          } else {
+              // Underwater view - render clearly with teal underwater tint
+              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress, true);
+          }
       } else if (type === 'alk_station') {
           const alkStation = entity as SpacetimeDBAlkStation;
           const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;

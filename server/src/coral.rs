@@ -16,8 +16,8 @@ use crate::environment::{calculate_chunk_index, CHUNK_SIZE_TILES};
 
 // --- Living Coral Constants ---
 
-pub(crate) const LIVING_CORAL_RADIUS: f32 = 40.0;
-pub(crate) const LIVING_CORAL_COLLISION_Y_OFFSET: f32 = 30.0;
+pub(crate) const LIVING_CORAL_RADIUS: f32 = 80.0; // Doubled for larger underwater presence
+pub(crate) const LIVING_CORAL_COLLISION_Y_OFFSET: f32 = 60.0; // Doubled to match visual size
 pub(crate) const PLAYER_LIVING_CORAL_COLLISION_DISTANCE_SQUARED: f32 = 
     (PLAYER_RADIUS + LIVING_CORAL_RADIUS) * (PLAYER_RADIUS + LIVING_CORAL_RADIUS);
 

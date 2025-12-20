@@ -1895,34 +1895,48 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         spawned_sea_stack_count, target_sea_stack_count, sea_stack_attempts
     );
 
-    // --- Seed Living Coral (in deep sea areas) ---
-    log::info!("Seeding Living Coral in coral reef zones...");
-    const MIN_LIVING_CORAL_DISTANCE_SQ: f32 = 300.0 * 300.0; // 300px minimum distance between coral nodes
-    const DEEP_SEA_DISTANCE_TILES: f32 = 15.0; // Must be at least 15 tiles from shore
+    // --- Seed Living Coral (in ocean water areas) ---
+    // Coral reefs grow in relatively shallow coastal waters, similar to sea stacks
+    // Uses same ocean water check as sea stacks - just needs to be on Sea tile, not inland water
+    // Corals spawn in CLUSTERS of 2-4 for a more natural reef appearance
+    log::info!("Seeding Living Coral CLUSTERS in ocean water...");
+    const MIN_LIVING_CORAL_CLUSTER_DISTANCE_SQ: f32 = 300.0 * 300.0; // 300px minimum distance between cluster centers
+    const CLUSTER_CORAL_OFFSET_MIN: f32 = 80.0; // Minimum offset from cluster center for additional coral
+    const CLUSTER_CORAL_OFFSET_MAX: f32 = 160.0; // Maximum offset from cluster center for additional coral
     
-    while spawned_living_coral_count < target_living_coral_count && living_coral_attempts < max_living_coral_attempts {
+    // Track cluster centers to maintain spacing between clusters
+    let mut coral_cluster_centers: Vec<(f32, f32)> = Vec::new();
+    
+    // Target is now cluster count (each cluster has 2-4 corals)
+    let target_cluster_count = target_living_coral_count / 3; // Divide by avg cluster size
+    let mut spawned_cluster_count = 0u32;
+    
+    while spawned_cluster_count < target_cluster_count && living_coral_attempts < max_living_coral_attempts {
         living_coral_attempts += 1;
         
-        // Random position in world
-        let pos_x = rng.gen_range(0.0..WORLD_WIDTH_PX);
-        let pos_y = rng.gen_range(0.0..WORLD_HEIGHT_PX);
+        // Random position in world for cluster center
+        let cluster_x = rng.gen_range(0.0..WORLD_WIDTH_PX);
+        let cluster_y = rng.gen_range(0.0..WORLD_HEIGHT_PX);
         
-        // Check if position is in deep sea (far from shore)
-        if !is_position_in_deep_sea(ctx, pos_x, pos_y, DEEP_SEA_DISTANCE_TILES) {
+        // Check if position is on ocean water (same check as sea stacks - not too strict)
+        if !is_position_on_ocean_water(ctx, cluster_x, cluster_y) {
             continue;
         }
         
-        // Check minimum distance from existing living coral
+        // Skip positions in central compound or near monuments
+        if is_position_in_central_compound(cluster_x, cluster_y) || monument::is_position_near_monument(ctx, cluster_x, cluster_y) {
+            continue;
+        }
+        
+        // Check minimum distance from existing cluster centers
         let mut too_close = false;
-        for existing_coral in living_corals.iter() {
-            if existing_coral.respawn_at.is_none() { // Only check active coral
-                let dx = pos_x - existing_coral.pos_x;
-                let dy = pos_y - existing_coral.pos_y;
-                let dist_sq = dx * dx + dy * dy;
-                if dist_sq < MIN_LIVING_CORAL_DISTANCE_SQ {
-                    too_close = true;
-                    break;
-                }
+        for (cx, cy) in &coral_cluster_centers {
+            let dx = cluster_x - cx;
+            let dy = cluster_y - cy;
+            let dist_sq = dx * dx + dy * dy;
+            if dist_sq < MIN_LIVING_CORAL_CLUSTER_DISTANCE_SQ {
+                too_close = true;
+                break;
             }
         }
         
@@ -1930,10 +1944,10 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             continue;
         }
         
-        // Check distance from sea stacks (coral shouldn't spawn too close to sea stacks)
+        // Check distance from sea stacks (coral clusters shouldn't spawn too close to sea stacks)
         for (sx, sy) in &spawned_sea_stack_positions {
-            let dx = pos_x - sx;
-            let dy = pos_y - sy;
+            let dx = cluster_x - sx;
+            let dy = cluster_y - sy;
             let dist_sq = dx * dx + dy * dy;
             if dist_sq < MIN_SEA_STACK_DISTANCE_SQ {
                 too_close = true;
@@ -1945,16 +1959,39 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             continue;
         }
         
-        // Spawn the living coral
-        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
-        let living_coral = crate::coral::create_living_coral(pos_x, pos_y, chunk_idx, &mut rng);
+        // Spawn a cluster of 2-4 corals at this location
+        let cluster_size = rng.gen_range(2..=4);
+        coral_cluster_centers.push((cluster_x, cluster_y));
+        spawned_cluster_count += 1;
+        
+        // Spawn first coral at cluster center
+        let chunk_idx = calculate_chunk_index(cluster_x, cluster_y);
+        let living_coral = crate::coral::create_living_coral(cluster_x, cluster_y, chunk_idx, &mut rng);
         ctx.db.living_coral().insert(living_coral);
         spawned_living_coral_count += 1;
+        
+        // Spawn additional corals around the cluster center
+        for _ in 1..cluster_size {
+            let angle = rng.gen_range(0.0..std::f32::consts::PI * 2.0);
+            let offset_dist = rng.gen_range(CLUSTER_CORAL_OFFSET_MIN..CLUSTER_CORAL_OFFSET_MAX);
+            let coral_x = cluster_x + angle.cos() * offset_dist;
+            let coral_y = cluster_y + angle.sin() * offset_dist;
+            
+            // Verify still in ocean water
+            if !is_position_on_ocean_water(ctx, coral_x, coral_y) {
+                continue;
+            }
+            
+            let coral_chunk_idx = calculate_chunk_index(coral_x, coral_y);
+            let cluster_coral = crate::coral::create_living_coral(coral_x, coral_y, coral_chunk_idx, &mut rng);
+            ctx.db.living_coral().insert(cluster_coral);
+            spawned_living_coral_count += 1;
+        }
     }
     
     log::info!(
-        "Finished seeding {} living coral nodes (target: {}, attempts: {}).",
-        spawned_living_coral_count, target_living_coral_count, living_coral_attempts
+        "Finished seeding {} living coral nodes in {} clusters (target clusters: {}, attempts: {}).",
+        spawned_living_coral_count, spawned_cluster_count, target_cluster_count, living_coral_attempts
     );
 
     // --- Seed Underwater Fumaroles in Coral Reef Zones ---
@@ -1985,8 +2022,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             let fumarole_x = coral_x + angle.cos() * offset_distance;
             let fumarole_y = coral_y + angle.sin() * offset_distance;
             
-            // Ensure still in deep sea
-            if !is_position_in_deep_sea(ctx, fumarole_x, fumarole_y, DEEP_SEA_DISTANCE_TILES) {
+            // Ensure still in ocean water
+            if !is_position_on_ocean_water(ctx, fumarole_x, fumarole_y) {
                 continue;
             }
             

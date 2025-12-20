@@ -8,7 +8,7 @@
  */
 
 import { CollisionShape, COLLISION_OFFSETS, PLAYER_RADIUS } from '../clientCollision';
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole } from '../../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral } from '../../generated';
 import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 
 // ===== TYPES =====
@@ -231,6 +231,9 @@ function getShapeColors(shapeType: string): { fillColor: string; strokeColor: st
   } else if (shapeType.startsWith('alk_station-')) {
     fillColor = `rgba(138, 43, 226, ${fillAlpha})`; // Blue violet for ALK stations
     strokeColor = `rgba(138, 43, 226, ${strokeAlpha})`;
+  } else if (shapeType.startsWith('living_coral-')) {
+    fillColor = `rgba(255, 127, 200, ${fillAlpha})`; // Pink for living coral (underwater)
+    strokeColor = `rgba(255, 127, 200, ${strokeAlpha})`;
   }
 
   return { fillColor, strokeColor };
@@ -256,6 +259,7 @@ function getOffsetInfo(type: string): string {
   if (typeUpper === 'SEA_STACK') return `off:(${COLLISION_OFFSETS.SEA_STACK.x},${COLLISION_OFFSETS.SEA_STACK.y})`;
   if (typeUpper === 'HOMESTEAD_HEARTH' || typeUpper === 'HEARTH') return `off:(${COLLISION_OFFSETS.HOMESTEAD_HEARTH.x},${COLLISION_OFFSETS.HOMESTEAD_HEARTH.y})`;
   if (typeUpper === 'BASALT_COLUMN') return `off:(${COLLISION_OFFSETS.BASALT_COLUMN.x},${COLLISION_OFFSETS.BASALT_COLUMN.y})`;
+  if (typeUpper === 'LIVING_CORAL') return `off:(${COLLISION_OFFSETS.LIVING_CORAL.x},${COLLISION_OFFSETS.LIVING_CORAL.y})`;
   return 'off:(0,0)';
 }
 
@@ -429,6 +433,7 @@ function getYSortKeyForEntity(item: YSortedEntityType, timestamp: number): numbe
     case 'sleeping_bag':
     case 'fumarole':
     case 'basalt_column':
+    case 'living_coral':
       return (entity as any).posY;
     case 'cairn':
       return (entity as Cairn).posY;
@@ -539,6 +544,7 @@ function getEntityWidth(item: YSortedEntityType): number {
     case 'broth_pot': return 36;
     case 'wild_animal': return 48;
     case 'fumarole': return 48;
+    case 'living_coral': return 160; // Doubled coral size
     default: return 32;
   }
 }
@@ -562,6 +568,7 @@ function getYSortColor(type: string): string {
     case 'sea_stack': return '#708090'; // Slate gray
     case 'basalt_column': return '#36454f'; // Charcoal
     case 'wild_animal': return '#ffa500'; // Orange for animals
+    case 'living_coral': return '#ff7fc8'; // Pink for underwater coral
     default: return '#ff00ff'; // Magenta for unknown
   }
 }

@@ -81,20 +81,31 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
         sound_events::emit_snorkel_submerge_sound(ctx, player.position_x, player.position_y, sender_id);
         log::info!("Player {:?} submerged with snorkel.", sender_id);
         
-        // Clear any equipped hand item (weapon/tool) when submerging
-        // Players cannot use weapons underwater
+        // Clear non-underwater-capable items when submerging
+        // EXCEPTION: Reed Harpoon and Diving Pick can be used underwater
         if let Some(mut equip) = active_equipments_table.player_identity().find(&sender_id) {
-            if equip.equipped_item_instance_id.is_some() {
-                log::info!("Player {:?} submerged - unequipping hand item (instance: {:?}).", 
-                    sender_id, equip.equipped_item_instance_id);
-                equip.equipped_item_def_id = None;
-                equip.equipped_item_instance_id = None;
-                equip.swing_start_time_ms = 0;
-                equip.icon_asset_name = None;
-                equip.loaded_ammo_def_id = None;
-                equip.loaded_ammo_count = 0;
-                equip.is_ready_to_fire = false;
-                active_equipments_table.player_identity().update(equip);
+            if let Some(equipped_def_id) = equip.equipped_item_def_id {
+                // Check if the equipped item is underwater-capable
+                let is_underwater_capable = if let Some(item_def) = item_defs_table.id().find(equipped_def_id) {
+                    matches!(item_def.name.as_str(), "Reed Harpoon" | "Diving Pick")
+                } else {
+                    false
+                };
+                
+                if !is_underwater_capable {
+                    log::info!("Player {:?} submerged - unequipping non-underwater item (instance: {:?}).", 
+                        sender_id, equip.equipped_item_instance_id);
+                    equip.equipped_item_def_id = None;
+                    equip.equipped_item_instance_id = None;
+                    equip.swing_start_time_ms = 0;
+                    equip.icon_asset_name = None;
+                    equip.loaded_ammo_def_id = None;
+                    equip.loaded_ammo_count = 0;
+                    equip.is_ready_to_fire = false;
+                    active_equipments_table.player_identity().update(equip);
+                } else {
+                    log::info!("Player {:?} submerged - keeping underwater-capable item equipped.", sender_id);
+                }
             }
         }
         

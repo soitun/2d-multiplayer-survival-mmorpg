@@ -1596,12 +1596,12 @@ pub fn damage_living_coral(
     let mut coral = ctx.db.living_coral().id().find(coral_id)
         .ok_or_else(|| "Target coral disappeared".to_string())?;
     
-    // Check if player is on water (required for underwater harvesting)
+    // Check if player is snorkeling (required for underwater harvesting - must be submerged)
     let player = ctx.db.player().identity().find(&attacker_id)
         .ok_or_else(|| "Attacker not found".to_string())?;
     
-    if !player.is_on_water {
-        return Err("You must be in water to harvest living coral.".to_string());
+    if !player.is_snorkeling {
+        return Err("You must be underwater (snorkeling) to harvest living coral.".to_string());
     }
     
     // Check if player has Diving Pick equipped

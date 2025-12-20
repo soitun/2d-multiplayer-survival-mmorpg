@@ -84,7 +84,8 @@ export const renderEquippedItem = (
   itemImages: Map<string, HTMLImageElement>,
   activeConsumableEffects?: Map<string, ActiveConsumableEffect>,
   localPlayerId?: string,
-  serverSyncedDirection?: string // Optional: Server-synced direction for accurate attack arc display
+  serverSyncedDirection?: string, // Optional: Server-synced direction for accurate attack arc display
+  applyUnderwaterTint?: boolean // NEW: Apply teal underwater tint when snorkeling
 ) => {
   // DEBUG: Log item being rendered
   // if (localPlayerId && player.identity.toHexString() === localPlayerId) {
@@ -673,6 +674,20 @@ export const renderEquippedItem = (
   }
 
   ctx.restore(); // Restore overall item rendering context (matches the first ctx.save() in this block)
+
+  // --- Apply Underwater Teal Tint ---
+  // When player is snorkeling, apply a teal overlay to the equipped item to match underwater visuals
+  if (applyUnderwaterTint) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
+    // Draw teal overlay over the approximate item area
+    const tintX = player.positionX - itemWidth;
+    const tintY = player.positionY - itemHeight - jumpOffset;
+    ctx.fillRect(tintX, tintY, itemWidth * 2, itemHeight * 2);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
 
   // --- Draw Attack Visual Effect --- 
   if (isSwinging) { 

@@ -462,6 +462,31 @@ ${getGameKnowledgeForSOVA()}
 - Hunt during the day when you can see predators coming.
 - Animal corpses drop meat, bones, skulls, and other materials.
 
+🪸 LIVING CORALS & UNDERWATER HARVESTING (for questions about coral/limestone/diving):
+- Living Corals are underwater harvestable resources in shallow water near beaches.
+- ⚠️ BOOTSTRAP PROBLEM: You need Coral Fragments to craft a Diving Pick, but need the pick to harvest coral!
+- 🌊 SOLUTION: Wait for heavy storms! Coral Fragments wash ashore on beaches during Heavy Rain/Heavy Storm.
+- EQUIPMENT REQUIRED: Reed Diver's Helm (head armor for snorkeling) + Diving Pick (tool).
+- Reed Diver's Helm goes in head slot - allows underwater submersion when pressing C in water.
+- Diving Pick crafting: 10 Coral Fragments + 3 Wood + 5 Common Reed Stalk.
+- Save storm-washed Coral Fragments until you have 10 to craft your first Diving Pick!
+- PRIMARY YIELD: 8-15 Limestone per hit, 150-300 total per coral, 15% final hit bonus.
+- BONUS DROPS: Coral Fragments (15% chance, 1-2 pieces), Shell (5% chance), Pearl (2% chance, rare).
+- Once harvesting coral, you'll get more Coral Fragments to craft backup Diving Picks.
+- Coral respawns in 30-60 minutes after depletion.
+- Underwater harvesting is quieter than mining - good for avoiding detection.
+- Diving Pick and Reed Harpoon are the only tools usable while snorkeling.
+
+🔥 FURNACES & SMELTING (for questions about furnace/smelting/limestone):
+- Furnaces smelt ores and materials using wood or plant fiber as fuel.
+- LIMESTONE → STONE: 20 seconds per piece, 1:1 ratio. Alternative to mining stone nodes!
+- METAL ORE → METAL FRAGMENTS: Standard smelting for metal production.
+- TIN CAN → METAL FRAGMENTS: 4 fragments per can, 15 seconds.
+- RUSTY HOOK → METAL FRAGMENTS: 2 fragments per hook, 12 seconds.
+- Reed Bellows in furnace: 50% slower fuel burn (1.5x efficiency) + 20% faster smelting.
+- Red Rune Stone zone: 2x smelting speed. Combined with bellows = 2.4x speed!
+- Coral harvesting → Limestone → Furnace = Stone without mining - useful strategic alternative.
+
 🌅 DAY/NIGHT CYCLE (for questions about time/temperature):
 - 25-minute cycle: 20 minutes day + 5 minutes night.
 - Time periods: Dawn → Morning → Noon → Afternoon → Dusk → Twilight Evening → Night → Midnight → Twilight Morning.
@@ -578,6 +603,10 @@ SPECIAL RESPONSES:
 - If asked about animals/wolves/hunting/creatures: Explain the wildlife - foxes are easy, wolves are aggressive predators, vipers poison you, walruses are deadly. Hunt during day, always carry weapons.
 - If asked about day/night/time of day/temperature: Explain the 25-minute cycle (20 day + 5 night), noon is warmest, midnight is coldest (3x drain), plan activities around temperature.
 - If asked about minimap/interface/encyclopedia: Explain G key for minimap, Interface Panel tabs (Encyclopedia, ALK, Cairns, Matronage), and what each contains.
+- If asked about coral/living coral/underwater harvesting/diving: Explain the bootstrap problem - you need Coral Fragments to craft a Diving Pick, but need the pick to harvest coral. Solution: wait for heavy storms when Coral Fragments wash ashore on beaches. Also need Reed Diver's Helm (head armor) to snorkel. Save 10 fragments to craft first Diving Pick (10 Coral Fragments + 3 Wood + 5 Common Reed Stalk). Once harvesting, you'll get more fragments sustainably. Yields limestone (8-15 per hit) plus bonus drops.
+- If asked about limestone/how to get stone/alternative to mining: Explain limestone comes from living coral reefs underwater. Can be smelted into stone at furnaces (20 seconds, 1:1 ratio). This is a strategic alternative to mining stone nodes - useful when stone is contested or dangerous.
+- If asked about furnace/smelting/how to smelt: Explain furnaces smelt materials with wood/plant fiber fuel. Limestone → Stone (20s, 1:1), Metal Ore → Metal Fragments, Tin Can → 4 Metal Fragments (15s), Rusty Hook → 2 Metal Fragments (12s). Reed Bellows gives 50% slower fuel burn + 20% faster smelting. Red Rune Stone zone doubles smelting speed.
+- If asked about diving pick/how to harvest coral: Explain Diving Pick is required for coral harvesting. Craft from 10 Coral Fragments + 3 Wood + 5 Common Reed Stalk. Must be snorkeling (press C) to use. One of only two underwater tools (with Reed Harpoon).
 
 Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS check weather and time before recommending campfires vs torches.`;
   }

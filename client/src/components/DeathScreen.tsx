@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone, ShipwreckPart } from '../generated'; // Corrected import
+import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone, ShipwreckPart, LivingCoral } from '../generated'; // Corrected import
 import { drawMinimapOntoCanvas, MINIMAP_DIMENSIONS, worldToMinimapCoords, calculateMinimapViewport } from './Minimap'; // Import Minimap drawing and helpers
 import { gameConfig } from '../config/gameConfig'; // Import gameConfig
 
@@ -33,6 +33,7 @@ interface DeathScreenProps {
   shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
   fishingVillageParts?: Map<string, any>; // Fishing village monument parts
   largeQuarries?: Map<string, any>; // Large quarry locations with types for minimap labels
+  livingCorals?: Map<string, LivingCoral>; // Living coral reefs for minimap
 }
 
 // Helper function to format death cause messages
@@ -83,6 +84,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   shipwreckParts, // Shipwreck monument parts
   fishingVillageParts, // Fishing village monument parts
   largeQuarries, // Large quarry locations with types for minimap labels
+  livingCorals, // Living coral reefs for minimap
   // Destructure new props
   localPlayerDeathMarker,
   deathMarkerImage,
@@ -254,6 +256,8 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       fishingVillageParts,
       // Large quarry locations with types for minimap labels
       largeQuarries,
+      // Living coral reefs for minimap
+      livingCorals,
     });
 
     // Draw hover effect (simple circle) - This is illustrative

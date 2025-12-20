@@ -925,7 +925,7 @@ export const COLLISION_RADII = {
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
-  LIVING_CORAL: 40, // Living coral collision radius (underwater coral reef, uses combat system)
+  LIVING_CORAL: 80, // Living coral collision radius (underwater coral reef, doubled for better underwater presence)
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -947,7 +947,7 @@ export const COLLISION_OFFSETS = {
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
-  LIVING_CORAL: { x: 0, y: -40 }, // Living coral collision offset (visual base of coral)
+  LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;
 
 // Shelter AABB dimensions (must match server-side constants in shelter.rs)
