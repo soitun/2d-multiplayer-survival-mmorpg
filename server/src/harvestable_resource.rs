@@ -146,6 +146,17 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     // === SEAWEED-SPECIFIC BONUS DROPS ===
     // SeaweedBed grants bonus drops that make underwater farming worthwhile
     if matches!(resource.plant_type, crate::plants_database::PlantType::SeaweedBed) {
+        let item_defs = ctx.db.item_definition();
+        
+        // Helper to grant item by name
+        let grant_item = |item_name: &str, amount: u32| -> Result<(), String> {
+            let item_def = item_defs.iter()
+                .find(|def| def.name == item_name)
+                .ok_or_else(|| format!("Item definition '{}' not found", item_name))?;
+            let _ = crate::dropped_item::try_give_item_to_player(ctx, player_id, item_def.id, amount);
+            Ok(())
+        };
+        
         // 1. Plant Fiber bonus (underwater fiber source)
         // Balanced to NOT compete with land-based mega producers:
         // - BorealNettle: 40-50 (mega producer)
@@ -155,16 +166,18 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         let fiber_chance: f32 = ctx.rng().gen_range(0.0..1.0);
         if fiber_chance < 0.40 {
             let fiber_amount = ctx.rng().gen_range(2..=4);
-            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Plant Fiber", fiber_amount)?;
-            log::info!("SeaweedBed bonus: Player {:?} received {} Plant Fiber", player_id, fiber_amount);
+            if grant_item("Plant Fiber", fiber_amount).is_ok() {
+                log::info!("SeaweedBed bonus: Player {:?} received {} Plant Fiber", player_id, fiber_amount);
+            }
         }
         
         // 2. Pearl bonus (rare valuable drop - makes farming worthwhile)
         // Similar rarity to coral pearl drops (2-3% chance)
         let pearl_chance: f32 = ctx.rng().gen_range(0.0..1.0);
         if pearl_chance < 0.03 {
-            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Pearl", 1)?;
-            log::info!("🦪 SeaweedBed RARE DROP: Player {:?} found a Pearl!", player_id);
+            if grant_item("Pearl", 1).is_ok() {
+                log::info!("🦪 SeaweedBed RARE DROP: Player {:?} found a Pearl!", player_id);
+            }
         }
         
         // 3. Shell bonus (common underwater drop)
@@ -172,8 +185,9 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         let shell_chance: f32 = ctx.rng().gen_range(0.0..1.0);
         if shell_chance < 0.15 {
             let shell_amount = ctx.rng().gen_range(1..=2);
-            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Shell", shell_amount)?;
-            log::info!("SeaweedBed bonus: Player {:?} received {} Shell", player_id, shell_amount);
+            if grant_item("Shell", shell_amount).is_ok() {
+                log::info!("SeaweedBed bonus: Player {:?} received {} Shell", player_id, shell_amount);
+            }
         }
     }
 
