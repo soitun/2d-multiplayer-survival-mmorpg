@@ -85,6 +85,7 @@ import antiVenomIcon from '../assets/items/anti_venom.png';
 // Utility tools
 import blueprintIcon from '../assets/items/blueprint.png';
 import reedSnorkelIcon from '../assets/items/reed_snorkel.png';
+import reedFlippersIcon from '../assets/items/reed_flippers.png';
 import boneHookIcon from '../assets/items/fishing_gaff_hook.png';
 import fishingRodIcon from '../assets/items/reed_fishing_rod.png';
 import reedBellowsIcon from '../assets/items/reed_bellows.png';
@@ -528,7 +529,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'diving_pick.png': divingPickIcon, // Actual diving pick icon
   
   // Aquatic gear
-  'reed_flippers.png': clothBootsIcon, // Placeholder: use cloth boots until reed_flippers asset exists
+  'reed_flippers.png': reedFlippersIcon,
   
   // Utility tools
   'blueprint.png': blueprintIcon,

@@ -939,8 +939,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         // Get chunk-specific weather for this plant's location
         let chunk_weather = crate::world_state::get_weather_for_position(ctx, plant.pos_x, plant.pos_y);
         
-        // Check if plant dies from severe weather
-        if check_plant_death_from_weather(ctx, &chunk_weather.current_weather) {
+        // Check if plant dies from severe weather (underwater plants are immune - storms don't affect them)
+        let is_underwater_plant_for_death_check = matches!(plant.plant_type, PlantType::SeaweedBed);
+        if !is_underwater_plant_for_death_check && check_plant_death_from_weather(ctx, &chunk_weather.current_weather) {
             let plant_id = plant.id;
             let plant_type = plant.seed_type.clone();
             let plant_pos_x = plant.pos_x;
@@ -957,63 +958,82 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             continue; // Skip to next plant
         }
         
-        let weather_multiplier = get_weather_growth_multiplier(&chunk_weather.current_weather, chunk_weather.rain_intensity);
+        // Check if this is an underwater plant (SeaweedBed)
+        // Underwater plants are NOT affected by surface conditions:
+        // - No time of day effect (light is diffused and constant underwater)
+        // - No weather effect (storms don't affect underwater growth)
+        // - No cloud cover effect (irrelevant underwater)
+        // - No light source effect (campfires/lanterns are on land)
+        // - No shelter penalty (can't build shelters underwater)
+        // - No water patch bonus (already in water)
+        // - No fertilizer bonus (can't fertilize underwater)
+        // Only crowding penalty still applies (plants compete for space)
+        let is_underwater_plant = matches!(plant.plant_type, PlantType::SeaweedBed);
         
-        // Calculate base growth multiplier (time * weather)
-        let base_growth_multiplier = base_time_multiplier * weather_multiplier;
-        
-        // Calculate cloud cover effect for this specific plant
-        // For mushrooms, clouds help growth, so we'll handle it differently
-        let is_mushroom = matches!(plant.plant_type,
-            PlantType::Chanterelle |
-            PlantType::Porcini |
-            PlantType::FlyAgaric |
-            PlantType::ShaggyInkCap |
-            PlantType::DeadlyWebcap |
-            PlantType::DestroyingAngel
-        );
-        
-        let cloud_multiplier = if is_mushroom {
-            // For mushrooms, clouds help - invert the normal cloud penalty
-            let normal_cloud_mult = get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
-            // Normal: 0.4 (heavy clouds) to 1.0 (no clouds) - penalizes growth
-            // Mushrooms: invert to 1.0 (heavy clouds) to 0.4 (no clouds) - helps growth
-            // But we want it to help, so: 1.0 + (1.0 - normal_mult) * 0.6
-            // Heavy clouds (0.4) → 1.36x, No clouds (1.0) → 1.0x
-            1.0 + (1.0 - normal_cloud_mult) * 0.6
+        let total_growth_multiplier = if is_underwater_plant {
+            // Underwater plants grow at a constant rate, only affected by crowding
+            let crowding_multiplier = get_crowding_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, plant.id);
+            1.0 * crowding_multiplier // Base 1.0x growth, only crowding penalty applies
         } else {
-            // For regular plants, clouds reduce growth as normal
-            get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
-        };
-        
-        // Calculate light source effect for this specific plant
-        let light_multiplier = get_light_source_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
-        
-        // Calculate crowding penalty for this specific plant
-        let crowding_multiplier = get_crowding_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, plant.id);
-        
-        // Calculate shelter penalty for this specific plant
-        let shelter_multiplier = get_shelter_penalty_multiplier(ctx, plant.pos_x, plant.pos_y);
-        
-        // Calculate water patch bonus for this specific plant
-        let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
-        
-        // Calculate fertilizer bonus for this specific plant (checks for nearby patches)
-        let fertilizer_multiplier = get_fertilizer_growth_multiplier(ctx, &plant);
-        
-        // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
-        let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &current_time_of_day);
-        
-        // Calculate green rune stone bonus (agrarian effect)
-        let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
-        
-        // PvP-oriented: If green rune stone is active, guarantee 2x growth regardless of other conditions
-        let total_growth_multiplier = if green_rune_multiplier > 1.0 {
-            // Green rune stone active - guarantee 2x growth (ignore other penalties/bonuses)
-            green_rune_multiplier
-        } else {
-            // No green rune stone - apply all normal modifiers
-            base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus
+            // Normal surface plants - apply all environmental modifiers
+            let weather_multiplier = get_weather_growth_multiplier(&chunk_weather.current_weather, chunk_weather.rain_intensity);
+            
+            // Calculate base growth multiplier (time * weather)
+            let base_growth_multiplier = base_time_multiplier * weather_multiplier;
+            
+            // Calculate cloud cover effect for this specific plant
+            // For mushrooms, clouds help growth, so we'll handle it differently
+            let is_mushroom = matches!(plant.plant_type,
+                PlantType::Chanterelle |
+                PlantType::Porcini |
+                PlantType::FlyAgaric |
+                PlantType::ShaggyInkCap |
+                PlantType::DeadlyWebcap |
+                PlantType::DestroyingAngel
+            );
+            
+            let cloud_multiplier = if is_mushroom {
+                // For mushrooms, clouds help - invert the normal cloud penalty
+                let normal_cloud_mult = get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+                // Normal: 0.4 (heavy clouds) to 1.0 (no clouds) - penalizes growth
+                // Mushrooms: invert to 1.0 (heavy clouds) to 0.4 (no clouds) - helps growth
+                // But we want it to help, so: 1.0 + (1.0 - normal_mult) * 0.6
+                // Heavy clouds (0.4) → 1.36x, No clouds (1.0) → 1.0x
+                1.0 + (1.0 - normal_cloud_mult) * 0.6
+            } else {
+                // For regular plants, clouds reduce growth as normal
+                get_cloud_cover_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
+            };
+            
+            // Calculate light source effect for this specific plant
+            let light_multiplier = get_light_source_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            
+            // Calculate crowding penalty for this specific plant
+            let crowding_multiplier = get_crowding_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, plant.id);
+            
+            // Calculate shelter penalty for this specific plant
+            let shelter_multiplier = get_shelter_penalty_multiplier(ctx, plant.pos_x, plant.pos_y);
+            
+            // Calculate water patch bonus for this specific plant
+            let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            
+            // Calculate fertilizer bonus for this specific plant (checks for nearby patches)
+            let fertilizer_multiplier = get_fertilizer_growth_multiplier(ctx, &plant);
+            
+            // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
+            let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &current_time_of_day);
+            
+            // Calculate green rune stone bonus (agrarian effect)
+            let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
+            
+            // PvP-oriented: If green rune stone is active, guarantee 2x growth regardless of other conditions
+            if green_rune_multiplier > 1.0 {
+                // Green rune stone active - guarantee 2x growth (ignore other penalties/bonuses)
+                green_rune_multiplier
+            } else {
+                // No green rune stone - apply all normal modifiers
+                base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus
+            }
         };
         
         // Calculate growth progress increment

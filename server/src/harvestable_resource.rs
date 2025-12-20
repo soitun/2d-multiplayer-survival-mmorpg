@@ -85,7 +85,9 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     // Check if underwater harvesting requires snorkeling
     if matches!(config.spawn_condition, SpawnCondition::Underwater) {
         if !player.is_snorkeling {
-            return Err("You must be underwater (snorkeling) to harvest this plant.".to_string());
+            // Emit error sound for trying to harvest seaweed while above water
+            crate::sound_events::emit_error_seaweed_above_water_sound(ctx, resource.pos_x, resource.pos_y, player_id);
+            return Err("You must be underwater (snorkeling) to harvest seaweed beds.".to_string());
         }
     }
 

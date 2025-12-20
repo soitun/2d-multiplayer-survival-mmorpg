@@ -125,6 +125,12 @@ RESOURCE_CONFIGS.StonePile = {
   targetWidth: 80
 };
 
+// === UNDERWATER PLANTS ===
+RESOURCE_CONFIGS.SeaweedBed = {
+  ...RESOURCE_CONFIGS.SeaweedBed,
+  targetWidth: 180 // 2x larger than default (90 * 2) for better underwater visibility
+};
+
 
 // Helper function to get configuration for a resource
 export function getResourceConfig(resourceType: ResourceType): ResourceConfig {

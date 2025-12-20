@@ -77,6 +77,7 @@ pub enum SoundType {
     GrassCut,                // grass_cut.mp3 (1 variation - when grass is chopped by player)
     SnorkelSubmerge,         // snorkel_submerge.mp3 (1 variation - when player submerges with snorkel)
     SnorkelEmerge,           // snorkel_emerge.mp3 (1 variation - when player emerges from water)
+    ErrorSeaweedAboveWater,  // error_seaweed_above_water.mp3 (1 variation - when trying to harvest seaweed while above water)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -155,6 +156,7 @@ impl SoundType {
             SoundType::GrassCut => "grass_cut",
             SoundType::SnorkelSubmerge => "snorkel_submerge",
             SoundType::SnorkelEmerge => "snorkel_emerge",
+            SoundType::ErrorSeaweedAboveWater => "error_seaweed_above_water",
         }
     }
 
@@ -231,6 +233,7 @@ impl SoundType {
             SoundType::GrassCut => 1, // grass_cut.mp3 (single variation)
             SoundType::SnorkelSubmerge => 1, // snorkel_submerge.mp3 (single variation)
             SoundType::SnorkelEmerge => 1, // snorkel_emerge.mp3 (single variation)
+            SoundType::ErrorSeaweedAboveWater => 1, // error_seaweed_above_water.mp3 (single variation)
         }
     }
 
@@ -758,6 +761,11 @@ pub fn emit_snorkel_submerge_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32,
 /// Emit snorkel emerge sound (when player surfaces from snorkeling)
 pub fn emit_snorkel_emerge_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::SnorkelEmerge, pos_x, pos_y, 0.9, 400.0, player_id);
+}
+
+/// Emit error sound when trying to harvest seaweed while above water
+pub fn emit_error_seaweed_above_water_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::ErrorSeaweedAboveWater, pos_x, pos_y, 1.0, 525.0, player_id);
 }
 
 /// Emit a foundation wood constructed sound (when foundation is placed)

@@ -35,6 +35,7 @@ export function isPlantableSeed(itemDef: ItemDefinition): boolean {
     name.includes('cuttings') || // "Mint Cuttings"
     name.includes('bulbs') || // "Bear Garlic Bulbs"
     name.includes('potato') || // "Seed Potato"
+    name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
     description.includes('plant') ||
     description.includes('grow') ||
     description.includes('deploy')
@@ -75,7 +76,10 @@ export function requiresWaterPlacement(itemName: string, itemDef?: ItemDefinitio
   return (
     name.includes('reed') ||
     name.includes('rhizome') ||
+    name.includes('seaweed') || // "Seaweed Frond" - underwater planting
+    name.includes('frond') || // Alternative check for fronds
     description.includes('water') ||
+    description.includes('underwater') ||
     description.includes('near water')
   );
 }
@@ -144,6 +148,7 @@ export function isSeedItemValid(itemName: string, itemDefinitions?: Map<string, 
     name.includes('rhizome') ||
     name.includes('cuttings') || // "Mint Cuttings"
     name.includes('bulbs') || // "Bear Garlic Bulbs"
-    name.includes('potato') // "Seed Potato"
+    name.includes('potato') || // "Seed Potato"
+    name.includes('frond') // "Seaweed Frond" - underwater plant propagation
   );
 } 
