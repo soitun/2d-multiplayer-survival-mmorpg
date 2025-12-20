@@ -1832,7 +1832,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         },
                                         {
                                             question: "WHAT'S THE LONG-TERM VISION?",
-                                            answer: "A thriving community of persistent, non-wiping servers where players build lasting legacies. Whether you prefer cozy farming and crafting or diving into competitive player-driven economies, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, and emergent gameplay that grows more interesting as our community builds together."
+                                            answer: "A thriving community of persistent servers where players build lasting legacies. Whether you prefer cozy farming and crafting or diving into competitive player-driven economies, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, and emergent gameplay that grows more interesting as our community builds together."
                                         }
                                     ].map((faq, index) => (
                                         <div key={index} style={{
@@ -2004,7 +2004,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                         }}>
                             Broth & Bullets is developed by{' '}
                             <a
-                                href="martinerlic.com"
+                                href="https://martinerlic.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{
