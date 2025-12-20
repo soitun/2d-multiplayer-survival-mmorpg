@@ -27,6 +27,7 @@ interface ArmorStats {
     warmthBonus: number;
     movementSpeedModifier: number;
     staminaRegenModifier: number;
+    waterSpeedBonus: number; // Bonus speed while swimming (e.g., Reed Flippers)
     
     // Special Effects
     burnImmunityPieces: number;
@@ -79,6 +80,7 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
             warmthBonus: 0,
             movementSpeedModifier: 0,
             staminaRegenModifier: 0,
+            waterSpeedBonus: 0,
             burnImmunityPieces: 0,
             coldImmunityPieces: 0,
             wetnessImmunityPieces: 0,
@@ -109,6 +111,11 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
             accumulated.warmthBonus += armor.warmthBonus || 0;
             accumulated.movementSpeedModifier += armor.movementSpeedModifier || 0;
             accumulated.staminaRegenModifier += armor.staminaRegenModifier || 0;
+            // Water speed bonus (e.g., Reed Flippers) - cast to any for generated types compatibility
+            const waterBonus = (armor as any).waterSpeedBonus;
+            if (typeof waterBonus === 'number') {
+                accumulated.waterSpeedBonus += waterBonus;
+            }
 
             // Count immunity pieces
             if (armor.grantsBurnImmunity) accumulated.burnImmunityPieces++;
@@ -236,7 +243,7 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
             </div>
 
             {/* Bonuses Section */}
-            {(stats.warmthBonus !== 0 || stats.movementSpeedModifier !== 0 || stats.staminaRegenModifier !== 0) && (
+            {(stats.warmthBonus !== 0 || stats.movementSpeedModifier !== 0 || stats.staminaRegenModifier !== 0 || stats.waterSpeedBonus !== 0) && (
                 <div className={styles.section}>
                     <div className={styles.sectionTitle}>✨ Bonuses</div>
                     {stats.warmthBonus !== 0 && (
@@ -252,6 +259,14 @@ const ArmorStatsPanel: React.FC<ArmorStatsPanelProps> = ({ equippedArmor }) => {
                             <span className={styles.statLabel}>👟 Speed:</span>
                             <span className={`${styles.statValue} ${stats.movementSpeedModifier > 0 ? styles.positive : styles.negative}`}>
                                 {formatPercent(stats.movementSpeedModifier)}
+                            </span>
+                        </div>
+                    )}
+                    {stats.waterSpeedBonus !== 0 && (
+                        <div className={styles.statRow}>
+                            <span className={styles.statLabel}>🏊 Water Speed:</span>
+                            <span className={`${styles.statValue} ${styles.positive}`}>
+                                {formatPercent(stats.waterSpeedBonus)}
                             </span>
                         </div>
                     )}

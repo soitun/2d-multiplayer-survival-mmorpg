@@ -32,9 +32,15 @@ interface WakeEffect {
 // Global wake tracking
 let wakeEffects: WakeEffect[] = [];
 let nextWakeId = 0;
-let lastPlayerPosition: { x: number; y: number } | null = null;
-let movementCounter = 0;
-let nextWakeThreshold = 12; // When to create next wake (randomized) - increased for longer delays
+
+// Per-player tracking to prevent cross-player position contamination
+interface PlayerWakeState {
+  lastPosition: { x: number; y: number } | null;
+  movementCounter: number;
+  nextWakeThreshold: number;
+}
+const playerWakeStates = new Map<string, PlayerWakeState>();
+
 const WAKE_SKIP_MOVEMENTS_BASE = 12; // Base movements to skip - increased for less frequent wakes
 const WAKE_SKIP_RANDOMNESS = 6; // Random additional movements (0-6) - increased
 
@@ -226,6 +232,7 @@ function createWakeEffect(centerX: number, centerY: number, directionAngle: numb
 
 /**
  * Manages wake creation based on player movement
+ * Uses per-player state tracking to prevent cross-player position contamination
  */
 function manageWakeCreation(
   centerX: number,
@@ -234,20 +241,32 @@ function manageWakeCreation(
   currentTimeMs: number,
   isMoving: boolean
 ): void {
+  const playerId = player.identity.toHexString();
   const currentPos = { x: centerX, y: centerY };
   
-  // FIXED: Check for actual position changes regardless of isMoving parameter
-  if (lastPlayerPosition) {
+  // Get or create per-player state
+  let playerState = playerWakeStates.get(playerId);
+  if (!playerState) {
+    playerState = {
+      lastPosition: null,
+      movementCounter: 0,
+      nextWakeThreshold: generateNextWakeThreshold()
+    };
+    playerWakeStates.set(playerId, playerState);
+  }
+  
+  // Check for actual position changes using THIS player's last position
+  if (playerState.lastPosition) {
     const distance = Math.sqrt(
-      Math.pow(currentPos.x - lastPlayerPosition.x, 2) + 
-      Math.pow(currentPos.y - lastPlayerPosition.y, 2)
+      Math.pow(currentPos.x - playerState.lastPosition.x, 2) + 
+      Math.pow(currentPos.y - playerState.lastPosition.y, 2)
     );
     
     if (distance >= SWIMMING_EFFECTS_CONFIG.WAKE_MOVEMENT_THRESHOLD) {
-      movementCounter++;
+      playerState.movementCounter++;
       
       // Only create wake when we reach the randomized threshold
-      if (movementCounter >= nextWakeThreshold) {
+      if (playerState.movementCounter >= playerState.nextWakeThreshold) {
         const directionAngle = getDirectionAngle(player.direction);
         createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs);
         
@@ -262,19 +281,19 @@ function manageWakeCreation(
           }, secondWakeDelay);
         }
         
-        movementCounter = 0; // Reset counter
-        nextWakeThreshold = generateNextWakeThreshold(); // Set next random threshold
+        playerState.movementCounter = 0; // Reset counter
+        playerState.nextWakeThreshold = generateNextWakeThreshold(); // Set next random threshold
       }
       
-      lastPlayerPosition = currentPos;
+      playerState.lastPosition = currentPos;
     }
   } else {
-    // First time - initialize position and create initial wake
+    // First time seeing this player - initialize position and create initial wake
     const directionAngle = getDirectionAngle(player.direction);
     createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs);
-    lastPlayerPosition = currentPos;
-    movementCounter = 0;
-    nextWakeThreshold = generateNextWakeThreshold();
+    playerState.lastPosition = currentPos;
+    playerState.movementCounter = 0;
+    playerState.nextWakeThreshold = generateNextWakeThreshold();
   }
 }
 

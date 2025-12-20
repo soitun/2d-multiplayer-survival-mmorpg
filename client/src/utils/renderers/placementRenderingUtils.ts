@@ -590,7 +590,7 @@ export function isPlacementTooFar(
     // Use appropriate placement range based on item type
     // These should match server-side placement distance constants!
     let clientPlacementRangeSq: number;
-    if (placementInfo.iconAssetName === 'shelter_b.png') {
+    if (placementInfo.iconAssetName === 'shelter.png') {
         // Shelter has a much larger placement range (256px vs 64px for other items)
         clientPlacementRangeSq = SHELTER_PLACEMENT_MAX_DISTANCE * SHELTER_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'hearth.png') {

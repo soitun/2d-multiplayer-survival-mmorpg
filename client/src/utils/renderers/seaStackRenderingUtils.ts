@@ -859,8 +859,10 @@ export function renderSeaStackUnderwaterSilhouette(
   // Position from server data - posX/posY is the base anchor point
   const x = seaStack.posX;
   // The silhouette should match the collision circle center exactly
-  // Uses the same offset as COLLISION_OFFSETS.SEA_STACK.y in clientCollision.ts
-  const y = seaStack.posY - UNDERWATER_SILHOUETTE_CONFIG.Y_OFFSET;
+  // Scale the Y offset based on sea stack scale - larger sea stacks need silhouette pushed up more
+  // This matches the scaled offset in clientCollision.ts
+  const scaledYOffset = UNDERWATER_SILHOUETTE_CONFIG.Y_OFFSET * scale;
+  const y = seaStack.posY - scaledYOffset;
   
   ctx.save();
   

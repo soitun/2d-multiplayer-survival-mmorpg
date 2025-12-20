@@ -29,6 +29,7 @@ import {
   BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
+  LivingCoral as SpacetimeDBLivingCoral, // Living coral (underwater harvestable via combat)
   AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery station
   Cairn as SpacetimeDBCairn, // ADDED: Cairn import
 } from '../../generated';
@@ -79,6 +80,8 @@ import { ENTITY_VISUAL_CONFIG, getInteractionOutlineParams } from '../entityVisu
 import { renderFumarole } from './fumaroleRenderingUtils';
 // Import basalt column renderer
 import { renderBasaltColumn } from './basaltColumnRenderingUtils';
+// Import living coral renderer (underwater harvestable resource)
+import { renderLivingCoral } from './livingCoralRenderingUtils';
 // Import ALK station renderer
 import { renderAlkStation } from './alkStationRenderingUtils';
 // Import compound building renderer
@@ -810,7 +813,11 @@ export const renderYSortedEntities = ({
                 }
               }
               // Determine if this player should use snorkeling mode rendering
-              const playerIsSnorkeling = playerId === localPlayerId && isLocalPlayerSnorkeling;
+              // Local player: use isLocalPlayerSnorkeling (for optimistic/predicted state)
+              // Remote player: use their synced isSnorkeling flag
+              const playerIsSnorkeling = playerId === localPlayerId 
+                ? isLocalPlayerSnorkeling 
+                : playerForRendering.isSnorkeling;
               
               // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
               // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
@@ -843,7 +850,8 @@ export const renderYSortedEntities = ({
                 renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
                 isDodgeRolling, // NEW: pass dodge roll state
                 dodgeRollProgress, // NEW: pass dodge roll progress
-                playerIsSnorkeling // NEW: pass snorkeling state for underwater rendering
+                playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
+                isLocalPlayerSnorkeling // NEW: pass viewer's underwater state for underwater-from-above effects
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} - cannot render`);
@@ -868,7 +876,11 @@ export const renderYSortedEntities = ({
                 }
               }
               // Determine if this player should use snorkeling mode rendering
-              const playerIsSnorkeling = playerId === localPlayerId && isLocalPlayerSnorkeling;
+              // Local player: use isLocalPlayerSnorkeling (for optimistic/predicted state)
+              // Remote player: use their synced isSnorkeling flag
+              const playerIsSnorkeling = playerId === localPlayerId 
+                ? isLocalPlayerSnorkeling 
+                : playerForRendering.isSnorkeling;
               
               // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
               // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
@@ -901,7 +913,8 @@ export const renderYSortedEntities = ({
                 renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
                 isDodgeRolling, // NEW: pass dodge roll state
                 dodgeRollProgress, // NEW: pass dodge roll progress
-                playerIsSnorkeling // NEW: pass snorkeling state for underwater rendering
+                playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
+                isLocalPlayerSnorkeling // NEW: pass viewer's underwater state for underwater-from-above effects
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} (down/right) - cannot render`);
@@ -1262,6 +1275,10 @@ export const renderYSortedEntities = ({
           const basaltColumn = entity as SpacetimeDBBasaltColumn;
           // console.log('🗿 [RENDER] Rendering basalt column', basaltColumn.id, 'at', basaltColumn.posX, basaltColumn.posY);
           renderBasaltColumn(ctx, basaltColumn, nowMs, cycleProgress, localPlayerPosition);
+      } else if (type === 'living_coral') {
+          const livingCoral = entity as SpacetimeDBLivingCoral;
+          // Living coral is harvested via combat system (like stones) - no interaction outline
+          renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress);
       } else if (type === 'alk_station') {
           const alkStation = entity as SpacetimeDBAlkStation;
           const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;

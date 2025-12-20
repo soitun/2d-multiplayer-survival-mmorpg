@@ -85,6 +85,7 @@ pub struct Fumarole {
     
     pub attached_broth_pot_id: Option<u32>, // Broth pot placed on this fumarole
     pub consumption_tick_counter: u64, // Tracks ticks for item consumption (every 5 ticks = 1 item consumed)
+    pub is_submerged: bool, // NEW: True if fumarole is underwater (in coral reef zones)
 }
 
 impl Fumarole {
@@ -109,6 +110,32 @@ impl Fumarole {
             slot_def_id_5: None,
             attached_broth_pot_id: None,
             consumption_tick_counter: 0,
+            is_submerged: false, // Default to above-water fumaroles
+        }
+    }
+    
+    /// Creates a new submerged fumarole at the specified position (for coral reef zones)
+    pub fn new_submerged(pos_x: f32, pos_y: f32, chunk_index: u32) -> Self {
+        Self {
+            id: 0, // Auto-incremented
+            pos_x,
+            pos_y,
+            chunk_index,
+            slot_instance_id_0: None,
+            slot_def_id_0: None,
+            slot_instance_id_1: None,
+            slot_def_id_1: None,
+            slot_instance_id_2: None,
+            slot_def_id_2: None,
+            slot_instance_id_3: None,
+            slot_def_id_3: None,
+            slot_instance_id_4: None,
+            slot_def_id_4: None,
+            slot_instance_id_5: None,
+            slot_def_id_5: None,
+            attached_broth_pot_id: None,
+            consumption_tick_counter: 0,
+            is_submerged: true, // Mark as submerged
         }
     }
 }
@@ -748,6 +775,11 @@ fn validate_fumarole_interaction(
 
     if dist_sq > PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED {
         return Err("Too far away from fumarole".to_string());
+    }
+    
+    // Check if submerged fumarole requires diving
+    if fumarole.is_submerged && !player.is_on_water {
+        return Err("You must be diving to interact with this fumarole.".to_string());
     }
 
     Ok((player, fumarole))

@@ -260,6 +260,21 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .attack_interval(0.6)
             .build(),
 
+        // Diving Pick - Specialized underwater harvesting tool for living coral
+        ItemBuilder::new("Diving Pick", "A specialized pick designed for underwater harvesting. Required to harvest living coral reefs. Crafted from coral fragments, wood, and reed stalks.", ItemCategory::Tool)
+            .icon("diving_pick.png")
+            .equippable(None)
+            .pvp_damage(15, 20)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Coral Fragments".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 30)
+            .respawn_time(600)
+            .attack_interval(1.0)
+            .build(),
+
         ItemBuilder::new("Reed Bellows", "A primitive bellows crafted from reed stalks and animal leather. When placed in campfires: makes fuel burn 50% slower and cooking 20% faster. When placed in furnaces: makes fuel burn 50% slower and smelting 20% faster.", ItemCategory::Tool)
             .icon("reed_bellows.png")
             .crafting_cost(vec![

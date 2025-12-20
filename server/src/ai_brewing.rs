@@ -415,6 +415,9 @@ pub fn create_generated_brew(
             
             // Attack arc (not applicable for consumables)
             attack_arc_degrees: None,
+            
+            // Water speed bonus (not applicable for consumables)
+            water_speed_bonus: None,
         };
         
         let inserted = item_defs.insert(new_item_def);

@@ -2,10 +2,73 @@ import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../.
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { renderEntityHealthBar } from './healthBarUtils';
 
+// Import terrain-specific shelter images
+import shelterDefaultImage from '../../assets/doodads/shelter.png';
+import shelterBeachImage from '../../assets/doodads/shelter_beach.png';
+import shelterTundraImage from '../../assets/doodads/shelter_tundra.png';
+import shelterAlpineImage from '../../assets/doodads/shelter_alpine.png';
+
+// --- Terrain Variant Constants (must match server-side values) ---
+const SHELTER_TERRAIN_DEFAULT = 0;  // Grass, Dirt, Forest, etc.
+const SHELTER_TERRAIN_BEACH = 1;    // Beach tiles
+const SHELTER_TERRAIN_TUNDRA = 2;   // Tundra, TundraGrass
+const SHELTER_TERRAIN_ALPINE = 3;   // Alpine terrain
+
+// --- Shelter Variant Image Management ---
+// Pre-load all shelter variant images for efficient lookup
+const shelterVariantImageSources: string[] = [
+  shelterDefaultImage,  // Index 0: Default
+  shelterBeachImage,    // Index 1: Beach
+  shelterTundraImage,   // Index 2: Tundra
+  shelterAlpineImage,   // Index 3: Alpine
+];
+
+// Cache for loaded HTMLImageElement objects
+const shelterVariantImages: (HTMLImageElement | null)[] = [null, null, null, null];
+let imagesLoading = false;
+
+// Pre-load all shelter variant images
+function ensureShelterImagesLoaded(): void {
+  if (imagesLoading) return;
+  imagesLoading = true;
+  
+  shelterVariantImageSources.forEach((src, index) => {
+    if (!shelterVariantImages[index]) {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => {
+        shelterVariantImages[index] = img;
+      };
+      img.onerror = () => {
+        console.warn(`[ShelterRenderer] Failed to load shelter variant image: ${src}`);
+      };
+    }
+  });
+}
+
+// Initialize loading on module import
+ensureShelterImagesLoaded();
+
+/**
+ * Gets the appropriate shelter image based on terrain variant.
+ * Uses efficient array lookup - O(1) operation.
+ * Falls back to provided shelterImage if variant image isn't loaded yet.
+ */
+export function getShelterImageForVariant(
+  terrainVariant: number,
+  fallbackImage: HTMLImageElement | null
+): HTMLImageElement | null {
+  // Clamp variant to valid range
+  const variant = Math.max(0, Math.min(terrainVariant, shelterVariantImages.length - 1));
+  
+  // Return cached variant image if available, otherwise fallback
+  return shelterVariantImages[variant] || fallbackImage;
+}
+
 interface RenderShelterProps {
   ctx: CanvasRenderingContext2D;
   shelter: SpacetimeDBShelter;
-  shelterImage: HTMLImageElement | null;
+  shelterImage: HTMLImageElement | null; // Fallback/default image
   nowMs: number; // For potential animations or effects
   cycleProgress: number; // For dynamic shadows based on time of day
   localPlayerId?: string; // ADDED
@@ -44,7 +107,11 @@ export const renderShelter = ({
   localPlayerId,
   localPlayerPosition,
 }: RenderShelterProps) => {
-  if (!shelterImage || shelter.isDestroyed) {
+  // Get the terrain-appropriate shelter image
+  // Uses efficient O(1) array lookup based on terrainVariant field
+  const variantImage = getShelterImageForVariant(shelter.terrainVariant, shelterImage);
+  
+  if (!variantImage || shelter.isDestroyed) {
     return;
   }
 
@@ -88,7 +155,7 @@ export const renderShelter = ({
 
   drawDynamicGroundShadow({
     ctx,
-    entityImage: shelterImage, // The image used to derive shadow silhouette
+    entityImage: variantImage, // The terrain-specific image used to derive shadow silhouette
     entityCenterX: shelter.posX,
     entityBaseY: shelter.posY, 
     imageDrawWidth: SHELTER_RENDER_WIDTH,
@@ -137,7 +204,7 @@ export const renderShelter = ({
   imageDrawY += shakeOffsetY;
 
   ctx.drawImage(
-    shelterImage,
+    variantImage,
     imageDrawX,
     imageDrawY,
     SHELTER_RENDER_WIDTH,

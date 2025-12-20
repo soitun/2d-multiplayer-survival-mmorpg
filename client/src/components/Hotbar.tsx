@@ -279,7 +279,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Reed Harpoon' // Allow reed harpoon to be used in water
+      'Reed Harpoon', // Allow reed harpoon to be used in water
+      'Diving Pick' // Allow diving pick for underwater coral harvesting
     ];
     // Torch is only allowed in water when NOT snorkeling (can't light a torch underwater!)
     if (!localPlayer?.isSnorkeling && itemInSlot.definition.name === 'Torch') return false;
@@ -569,7 +570,8 @@ const Hotbar: React.FC<HotbarProps> = ({
           const allowedInWater = [
             'Reed Water Bottle', 
             'Plastic Water Jug',
-            'Reed Harpoon' // Allow reed harpoon to stay equipped in water
+            'Reed Harpoon', // Allow reed harpoon to stay equipped in water
+            'Diving Pick' // Allow diving pick for underwater coral harvesting
           ];
           // Torch is only allowed in water when NOT snorkeling (can't use underwater!)
           if (!localPlayer.isSnorkeling && currentItem.definition.name === 'Torch') {
@@ -759,7 +761,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Reed Harpoon' // Allow reed harpoon to be used in water
+      'Reed Harpoon', // Allow reed harpoon to be used in water
+      'Diving Pick' // Allow diving pick for underwater coral harvesting
     ];
     
     // Check if torch is allowed (only in water, NOT when snorkeling underwater)

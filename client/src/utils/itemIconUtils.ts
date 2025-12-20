@@ -34,6 +34,9 @@ import sulfurIcon from '../assets/items/sulfur.png';
 import sulfurOreIcon from '../assets/items/sulfur_ore.png';
 import gunpowderIcon from '../assets/items/gunpowder.png';
 
+// Coral reef materials
+import coralFragmentsIcon from '../assets/items/coral_fragments.png';
+
 // Bone materials
 import boneIcon from '../assets/items/bone.png';
 import boneFragmentsIcon from '../assets/items/bone_fragments.png';
@@ -466,6 +469,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'sea_glass.png': seaGlassIcon,
   'whale_bone_fragment.png': whaleBoneFragmentIcon,
   
+  // Coral reef materials
+  'coral_fragments.png': coralFragmentsIcon, // Actual coral fragments icon
+  'limestone.png': stoneIcon, // Placeholder: use stone until limestone asset exists
+  'shell.png': shellFragmentIcon, // Placeholder: use shell fragment until shell asset exists
+  'pearl.png': seaGlassIcon, // Placeholder: use sea glass until pearl asset exists
+  
   // Sulfur materials
   'sulfur.png': sulfurIcon, // Used for both Sulfur Ore and refined Sulfur
   'sulfur_ore.png': sulfurOreIcon, // Alternative name if server uses this
@@ -509,6 +518,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'bandage.png': bandageIcon,
   'selo_olive_oil.png': seloOliveOilIcon,
   'anti_venom.png': antiVenomIcon,
+  
+  // Diving tools
+  'diving_pick.png': stonePickaxeIcon, // Placeholder: use stone pickaxe until diving_pick asset exists
+  
+  // Aquatic gear
+  'reed_flippers.png': clothBootsIcon, // Placeholder: use cloth boots until reed_flippers asset exists
   
   // Utility tools
   'blueprint.png': blueprintIcon,

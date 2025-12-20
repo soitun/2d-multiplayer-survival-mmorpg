@@ -117,6 +117,7 @@ pub enum TargetType {
     Wall, // ADDED: Building wall target type
     Door, // ADDED: Building door target type
     HomesteadHearth, // ADDED: Homestead Hearth target type
+    LivingCoral, // ADDED: Living coral underwater resource
 }
 
 // Building system enums

@@ -28,62 +28,52 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Shelter = {
-  id: number,
+export type LivingCoral = {
+  id: bigint,
   posX: number,
   posY: number,
-  chunkIndex: number,
-  placedBy: __Identity,
-  placedAt: __Timestamp,
   health: number,
-  maxHealth: number,
-  isDestroyed: boolean,
-  destroyedAt: __Timestamp | undefined,
+  resourceRemaining: number,
+  chunkIndex: number,
+  respawnAt: __Timestamp | undefined,
   lastHitTime: __Timestamp | undefined,
-  lastDamagedBy: __Identity | undefined,
-  terrainVariant: number,
 };
-let _cached_Shelter_type_value: __AlgebraicTypeType | null = null;
+let _cached_LivingCoral_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const Shelter = {
+export const LivingCoral = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_Shelter_type_value) return _cached_Shelter_type_value;
-    _cached_Shelter_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_Shelter_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
+    if (_cached_LivingCoral_type_value) return _cached_LivingCoral_type_value;
+    _cached_LivingCoral_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_LivingCoral_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "health", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "resourceRemaining", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "placedBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "placedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "health", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "maxHealth", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "isDestroyed", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
-      { name: "terrainVariant", algebraicType: __AlgebraicTypeValue.U8 },
     );
-    return _cached_Shelter_type_value;
+    return _cached_LivingCoral_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: Shelter): void {
-    __AlgebraicTypeValue.serializeValue(writer, Shelter.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: LivingCoral): void {
+    __AlgebraicTypeValue.serializeValue(writer, LivingCoral.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): Shelter {
-    return __AlgebraicTypeValue.deserializeValue(reader, Shelter.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): LivingCoral {
+    return __AlgebraicTypeValue.deserializeValue(reader, LivingCoral.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default Shelter;
+export default LivingCoral;
 
 

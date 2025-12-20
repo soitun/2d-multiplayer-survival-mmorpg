@@ -930,5 +930,33 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .respawn_time(480)
             .build(),
 
+        // === AQUATIC GEAR ===
+        // Specialized gear for improved water mobility
+
+        // Reed Flippers - Feet armor with significant water speed bonus
+        // Allows players to swim 100% faster (2x normal water speed)
+        // Crafted from common reed materials, making them accessible early-game
+        ItemBuilder::new("Reed Flippers", "Woven flippers made from buoyant reed stalks sealed with tallow. Significantly increases swimming speed but offers no protection.", ItemCategory::Armor)
+            .icon("reed_flippers.png")
+            .equippable(Some(EquipmentSlotType::Feet))
+            .armor_resistances(ArmorResistances {
+                melee_resistance: 0.0,
+                projectile_resistance: 0.0,
+                fire_resistance: 0.0,
+                blunt_resistance: 0.0,
+                slash_resistance: 0.0,
+                pierce_resistance: 0.0,
+                cold_resistance: 0.0, // No protection - purely functional
+            })
+            .water_speed_bonus(1.0) // +100% water speed (2x normal speed)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 8 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 20)
+            .respawn_time(360)
+            .build(),
+
     ]
 }

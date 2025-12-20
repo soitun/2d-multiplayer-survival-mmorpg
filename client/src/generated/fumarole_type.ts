@@ -47,6 +47,7 @@ export type Fumarole = {
   slotDefId5: bigint | undefined,
   attachedBrothPotId: number | undefined,
   consumptionTickCounter: bigint,
+  isSubmerged: boolean,
 };
 let _cached_Fumarole_type_value: __AlgebraicTypeType | null = null;
 
@@ -80,6 +81,7 @@ export const Fumarole = {
       { name: "slotDefId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "attachedBrothPotId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
       { name: "consumptionTickCounter", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "isSubmerged", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Fumarole_type_value;
   },

@@ -57,6 +57,7 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
+use crate::coral::living_coral as LivingCoralTableTrait;
 // Monument table traits for cairn avoidance checks
 use crate::alk::alk_station as AlkStationTableTrait;
 use crate::shipwreck_part as ShipwreckPartTableTrait;
@@ -637,6 +638,66 @@ pub fn is_tile_inland_water(ctx: &ReducerContext, tile_x: i32, tile_y: i32) -> b
 }
 
 /// Detects if a position is in a lake-like area (larger contiguous water body) vs a river
+/// Checks if the given world position is in deep sea (far from shore)
+/// Returns true if position is on Sea tile and at least min_distance_tiles from shore
+pub fn is_position_in_deep_sea(ctx: &ReducerContext, pos_x: f32, pos_y: f32, min_distance_tiles: f32) -> bool {
+    // Convert pixel position to tile coordinates
+    let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check bounds
+    if tile_x < 0 || tile_y < 0 || 
+       tile_x >= WORLD_WIDTH_TILES as i32 || tile_y >= WORLD_HEIGHT_TILES as i32 {
+        return false;
+    }
+    
+    // Check if tile is Sea type
+    let tile_type = if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        tile_type
+    } else {
+        return false;
+    };
+    
+    if tile_type != crate::TileType::Sea {
+        return false; // Must be sea water
+    }
+    
+    // Check if it's inland water (rivers/lakes)
+    if is_tile_inland_water(ctx, tile_x, tile_y) {
+        return false;
+    }
+    
+    // Check distance to nearest shore/beach tile
+    let min_distance_px = min_distance_tiles * TILE_SIZE_PX as f32;
+    let search_radius = (min_distance_tiles + 2.0) as i32; // Search slightly beyond minimum
+    
+    for dy in -search_radius..=search_radius {
+        for dx in -search_radius..=search_radius {
+            let check_x = tile_x + dx;
+            let check_y = tile_y + dy;
+            
+            // Skip if out of bounds
+            if check_x < 0 || check_y < 0 || 
+               check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_WIDTH_TILES as i32 {
+                continue;
+            }
+            
+            // Calculate distance
+            let dist_px = ((dx as f32).powi(2) + (dy as f32).powi(2)).sqrt() * TILE_SIZE_PX as f32;
+            if dist_px < min_distance_px {
+                // Check if this nearby tile is beach/land (shore)
+                if let Some(nearby_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                    if matches!(nearby_tile_type, crate::TileType::Beach | crate::TileType::Sand | crate::TileType::Grass | crate::TileType::Dirt) {
+                        return false; // Too close to shore
+                    }
+                }
+            }
+        }
+    }
+    
+    true // Far enough from shore
+}
+
 /// Returns true for lake areas, false for rivers or smaller water bodies
 fn is_position_in_lake_area(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     // Convert pixel position to tile coordinates
@@ -1307,6 +1368,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let grasses = ctx.db.grass();
     let wild_animals = ctx.db.wild_animal();
     let sea_stacks = ctx.db.sea_stack(); // Add sea stacks table
+    let living_corals = ctx.db.living_coral(); // Add living coral table
 
     // --- Fix existing red rune stones with empty configs (race condition fix) ---
     // This runs BEFORE the early return check to fix rune stones even if environment is already seeded
@@ -1387,6 +1449,12 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     // Sea stacks: keep original density-based calculation
     let target_sea_stack_count = (total_tiles as f32 * SEA_STACK_DENSITY_PERCENT) as u32;
     let max_sea_stack_attempts = target_sea_stack_count * crate::tree::MAX_TREE_SEEDING_ATTEMPTS_FACTOR;
+    
+    // Living Coral: spawn in deep sea areas (coral reef zones)
+    // Target 30-60 living coral nodes scaled by map size
+    const BASE_LIVING_CORAL_COUNT_600X600: u32 = 45; // Base count for 600x600 map
+    let target_living_coral_count = scale_resource_count(BASE_LIVING_CORAL_COUNT_600X600, total_tiles);
+    let max_living_coral_attempts = target_living_coral_count * crate::tree::MAX_TREE_SEEDING_ATTEMPTS_FACTOR;
 
     // SEASONAL SEEDING: Calculate targets for harvestable resources based on current season
     let current_season = crate::world_state::get_current_season(ctx)
@@ -1456,6 +1524,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     log::info!("Target Trees: {}, Max Attempts: {}", target_tree_count, max_tree_attempts);
     log::info!("Target Stones: {}, Max Attempts: {}", target_stone_count, max_stone_attempts);
     log::info!("Target Sea Stacks: {}, Max Attempts: {}", target_sea_stack_count, max_sea_stack_attempts);
+    log::info!("Target Living Coral: {}, Max Attempts: {}", target_living_coral_count, max_living_coral_attempts);
     log::info!("🌊 Hot Springs: Generated as HotSpringWater tiles during world generation (no entities)");
     
     // Log harvestable resource targets
@@ -1489,6 +1558,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut stone_attempts = 0;
     let mut spawned_sea_stack_count = 0;
     let mut sea_stack_attempts = 0;
+    let mut spawned_living_coral_count = 0;
+    let mut living_coral_attempts = 0;
     // REMOVED: Hot spring entity counters (now using HotSpringWater tile type)
     // let mut spawned_hot_spring_count = 0;
     // let mut hot_spring_attempts = 0;
@@ -1822,6 +1893,133 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     log::info!(
         "Finished seeding {} sea stacks (target: {}, attempts: {}).",
         spawned_sea_stack_count, target_sea_stack_count, sea_stack_attempts
+    );
+
+    // --- Seed Living Coral (in deep sea areas) ---
+    log::info!("Seeding Living Coral in coral reef zones...");
+    const MIN_LIVING_CORAL_DISTANCE_SQ: f32 = 300.0 * 300.0; // 300px minimum distance between coral nodes
+    const DEEP_SEA_DISTANCE_TILES: f32 = 15.0; // Must be at least 15 tiles from shore
+    
+    while spawned_living_coral_count < target_living_coral_count && living_coral_attempts < max_living_coral_attempts {
+        living_coral_attempts += 1;
+        
+        // Random position in world
+        let pos_x = rng.gen_range(0.0..WORLD_WIDTH_PX);
+        let pos_y = rng.gen_range(0.0..WORLD_HEIGHT_PX);
+        
+        // Check if position is in deep sea (far from shore)
+        if !is_position_in_deep_sea(ctx, pos_x, pos_y, DEEP_SEA_DISTANCE_TILES) {
+            continue;
+        }
+        
+        // Check minimum distance from existing living coral
+        let mut too_close = false;
+        for existing_coral in living_corals.iter() {
+            if existing_coral.respawn_at.is_none() { // Only check active coral
+                let dx = pos_x - existing_coral.pos_x;
+                let dy = pos_y - existing_coral.pos_y;
+                let dist_sq = dx * dx + dy * dy;
+                if dist_sq < MIN_LIVING_CORAL_DISTANCE_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+        }
+        
+        if too_close {
+            continue;
+        }
+        
+        // Check distance from sea stacks (coral shouldn't spawn too close to sea stacks)
+        for (sx, sy) in &spawned_sea_stack_positions {
+            let dx = pos_x - sx;
+            let dy = pos_y - sy;
+            let dist_sq = dx * dx + dy * dy;
+            if dist_sq < MIN_SEA_STACK_DISTANCE_SQ {
+                too_close = true;
+                break;
+            }
+        }
+        
+        if too_close {
+            continue;
+        }
+        
+        // Spawn the living coral
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+        let living_coral = crate::coral::create_living_coral(pos_x, pos_y, chunk_idx, &mut rng);
+        ctx.db.living_coral().insert(living_coral);
+        spawned_living_coral_count += 1;
+    }
+    
+    log::info!(
+        "Finished seeding {} living coral nodes (target: {}, attempts: {}).",
+        spawned_living_coral_count, target_living_coral_count, living_coral_attempts
+    );
+
+    // --- Seed Underwater Fumaroles in Coral Reef Zones ---
+    // Spawn submerged fumaroles near living coral for warmth during diving
+    log::info!("Seeding underwater fumaroles in coral reef zones...");
+    let mut spawned_underwater_fumarole_count = 0;
+    let mut underwater_fumarole_attempts = 0;
+    const UNDERWATER_FUMAROLE_SPAWN_CHANCE: f32 = 0.15; // 15% chance per living coral to spawn nearby fumarole
+    const MAX_UNDERWATER_FUMAROLE_ATTEMPTS: u32 = 100;
+    
+    // Collect living coral positions for fumarole spawning
+    let living_coral_positions: Vec<(f32, f32)> = living_corals.iter()
+        .filter(|c| c.respawn_at.is_none()) // Only active coral
+        .map(|c| (c.pos_x, c.pos_y))
+        .collect();
+    
+    for (coral_x, coral_y) in &living_coral_positions {
+        if underwater_fumarole_attempts >= MAX_UNDERWATER_FUMAROLE_ATTEMPTS {
+            break;
+        }
+        
+        if rng.gen::<f32>() < UNDERWATER_FUMAROLE_SPAWN_CHANCE {
+            underwater_fumarole_attempts += 1;
+            
+            // Spawn fumarole near coral (within 200px)
+            let offset_distance = rng.gen_range(80.0..200.0);
+            let angle = rng.gen_range(0.0..std::f32::consts::PI * 2.0);
+            let fumarole_x = coral_x + angle.cos() * offset_distance;
+            let fumarole_y = coral_y + angle.sin() * offset_distance;
+            
+            // Ensure still in deep sea
+            if !is_position_in_deep_sea(ctx, fumarole_x, fumarole_y, DEEP_SEA_DISTANCE_TILES) {
+                continue;
+            }
+            
+            // Check minimum distance from existing fumaroles
+            let mut too_close = false;
+            const MIN_FUMAROLE_DISTANCE_SQ: f32 = 150.0 * 150.0;
+            
+            for existing_fumarole in ctx.db.fumarole().iter() {
+                let dx = fumarole_x - existing_fumarole.pos_x;
+                let dy = fumarole_y - existing_fumarole.pos_y;
+                let dist_sq = dx * dx + dy * dy;
+                if dist_sq < MIN_FUMAROLE_DISTANCE_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(fumarole_x, fumarole_y);
+                let underwater_fumarole = crate::fumarole::Fumarole::new_submerged(fumarole_x, fumarole_y, chunk_idx);
+                if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(underwater_fumarole) {
+                    spawned_underwater_fumarole_count += 1;
+                    // Note: No need to track positions - distance check uses ctx.db.fumarole().iter()
+                    // Schedule processing for burn damage
+                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
+                }
+            }
+        }
+    }
+    
+    log::info!(
+        "Finished seeding {} underwater fumaroles in coral reef zones (attempts: {}).",
+        spawned_underwater_fumarole_count, underwater_fumarole_attempts
     );
 
     // --- Seed Sea Barrels (Flotsam/Cargo Crates) around Sea Stacks ---
@@ -3398,8 +3596,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     }
     
     log::info!(
-        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Tundra Grass: {}, Barrels: {}",
-        spawned_tree_count, spawned_stone_count, spawned_sea_stack_count, harvestable_summary,
+        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Living Coral: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Tundra Grass: {}, Barrels: {}",
+        spawned_tree_count, spawned_stone_count, spawned_sea_stack_count, spawned_living_coral_count, harvestable_summary,
         spawned_cloud_count, spawned_wild_animal_count, spawned_grass_count, spawned_tundra_grass_count, ctx.db.barrel().iter().count()
     );
 
@@ -3890,6 +4088,22 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
     //         g.disturbance_direction_y = 0.0;
     //     }
     // );
+
+    // NOTE: StormPile removed - storm debris now spawns as individual items
+
+    // Respawn Living Coral
+    check_and_respawn_resource!(
+        ctx,
+        living_coral,
+        crate::coral::LivingCoral,
+        "LivingCoral",
+        |_c: &crate::coral::LivingCoral| true, // Check all coral with respawn_at set
+        |c: &mut crate::coral::LivingCoral| {
+            // Reset resource_remaining for next respawn
+            c.resource_remaining = ctx.rng().gen_range(crate::coral::LIVING_CORAL_MIN_RESOURCES..=crate::coral::LIVING_CORAL_MAX_RESOURCES);
+            c.respawn_at = None;
+        }
+    );
 
     // Note: Clouds are static for now, so no respawn logic needed in check_resource_respawns.
     // If they were to drift or change, a similar `check_and_respawn_resource!` or a dedicated

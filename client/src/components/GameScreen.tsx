@@ -144,6 +144,7 @@ interface GameScreenProps {
     doors: Map<string, any>; // ADDED: Building doors
     fumaroles: Map<string, any>; // ADDED fumaroles
     basaltColumns: Map<string, any>; // ADDED basalt columns
+    livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
     inventoryItems: Map<string, SpacetimeDBInventoryItem>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
     worldState: SpacetimeDBWorldState | null;
@@ -874,6 +875,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 doors={props.doors}
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
+                livingCorals={props.livingCorals}
                 addSOVAMessage={sovaMessageAdder || undefined} // ADDED: Pass SOVA message adder for cairn lore
                 onCairnNotification={handleCairnNotification} // ADDED: Pass cairn notification callback
                 inventoryItems={inventoryItems}

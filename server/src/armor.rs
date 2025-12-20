@@ -330,3 +330,24 @@ pub fn intimidates_animals(ctx: &ReducerContext, player_id: Identity) -> bool {
     
     false
 }
+
+/// Calculates the total water speed bonus from all equipped armor pieces.
+/// Water speed bonus is additive - 1.0 = +100% speed (2x normal), 0.5 = +50% speed
+/// Primarily used by Reed Flippers but could apply to other aquatic gear.
+pub fn calculate_water_speed_bonus(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut total_bonus = 0.0;
+
+    for armor_piece in armor_pieces {
+        if let Some(bonus) = armor_piece.water_speed_bonus {
+            total_bonus += bonus;
+            log::trace!(
+                "[Armor] Player {:?} adding water speed bonus {:.2}% from {}", 
+                player_id, bonus * 100.0, armor_piece.name
+            );
+        }
+    }
+
+    // Cap at 200% bonus (3x speed) to prevent absurd speeds
+    total_bonus.min(2.0)
+}

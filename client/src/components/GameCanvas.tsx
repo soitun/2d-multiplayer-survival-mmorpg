@@ -240,6 +240,7 @@ interface GameCanvasProps {
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
   basaltColumns: Map<string, SpacetimeDBBasaltColumn>; // ADDED: Basalt columns
+  livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
   seaStacks: Map<string, any>; // Add sea stacks
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
   foundationCells: Map<string, any>; // ADDED: Building foundations
@@ -369,6 +370,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   barrels,
   fumaroles, // ADDED: Fumaroles destructuring
   basaltColumns, // ADDED: Basalt columns destructuring
+  livingCorals, // Living coral for underwater harvesting (uses combat system)
   seaStacks,
   homesteadHearths, // ADDED: HomesteadHearths destructuring
   foundationCells, // ADDED: Building foundations
@@ -699,6 +701,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleFumerolesMap, // ADDED: Fumaroles map
     visibleBasaltColumns, // ADDED: Basalt columns
     visibleBasaltColumnsMap, // ADDED: Basalt columns map
+    visibleLivingCorals, // Living corals (uses combat system)
+    visibleLivingCoralsMap, // Living corals map
     visibleSeaStacks,
     visibleSeaStacksMap,
     visibleHomesteadHearths,
@@ -752,6 +756,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     alkStations, // ADDED: ALK delivery stations
     shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
     fishingVillageParts, // ADDED: Fishing village monument parts for rendering
+    livingCorals, // Living coral for underwater harvesting (uses combat system)
   );
 
   // --- Day/Night Cycle with Indoor Light Containment ---
@@ -2376,13 +2381,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
-    // EXCEPTION: When snorkeling, the local player should NOT be split - they render as full sprite
+    // EXCEPTION: Snorkeling players (local OR remote) should NOT be split - they render as full sprite
     const swimmingPlayersForBottomHalf = Array.from(players.values())
       .filter(player => {
         // Basic swimming conditions
         if (!player.isOnWater || player.isDead || player.isKnockedOut) return false;
         // Skip local player if they're snorkeling - they render as full sprite in Y-sorted entities
         if (isSnorkeling && player.identity.toHexString() === localPlayerId) return false;
+        // Skip ANY player who is snorkeling - they render as full sprite (fully underwater)
+        if (player.isSnorkeling) return false;
         return true;
       });
 
@@ -2466,7 +2473,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           false, // not corpse
           currentCycleProgress,
           localPlayerIsCrouching,
-          'bottom' // Render only bottom half
+          'bottom', // Render only bottom half
+          false, // isDodgeRolling - swimming players don't dodge roll
+          0, // dodgeRollProgress
+          false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
+          isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
         );
       }
     });
@@ -2637,6 +2648,81 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
     }
+
+    // --- STEP 1.7: Render underwater shadows for REMOTE snorkeling players ---
+    // Remote snorkeling players are excluded from swimmingPlayersForBottomHalf but still need underwater shadows
+    Array.from(players.values())
+      .filter(player => {
+        // Only remote snorkeling players (not local, and is snorkeling)
+        if (player.identity.toHexString() === localPlayerId) return false;
+        if (!player.isSnorkeling) return false;
+        if (player.isDead || player.isKnockedOut) return false;
+        return true;
+      })
+      .forEach(player => {
+        const heroImg = heroWaterImageRef.current;
+
+        if (heroImg) {
+          const drawWidth = gameConfig.spriteWidth * 2;
+          const drawHeight = gameConfig.spriteHeight * 2;
+          const spriteBaseX = player.positionX - drawWidth / 2;
+          const spriteBaseY = player.positionY - drawHeight / 2;
+
+          // Calculate if player is moving
+          const playerId = player.identity.toHexString();
+          let isPlayerMoving = false;
+          const lastPos = lastPositionsRef.current?.get(playerId);
+          if (lastPos) {
+            const positionThreshold = 0.1;
+            const dx = Math.abs(player.positionX - lastPos.x);
+            const dy = Math.abs(player.positionY - lastPos.y);
+            isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
+          }
+
+          // Calculate animated sprite coordinates for swimming
+          const totalSwimmingFrames = 24;
+          const { sx, sy } = getSpriteCoordinates(
+            player,
+            isPlayerMoving,
+            currentIdleAnimationFrame,
+            false, // isUsingItem
+            totalSwimmingFrames,
+            false, // isIdleAnimation
+            false, // isCrouchingAnimation
+            true,  // isSwimmingAnimation
+            false, // isDodgeRollingAnimation
+            0      // dodgeRollProgress
+          );
+
+          // Calculate shadow position
+          const centerX = player.positionX;
+          const centerY = player.positionY;
+          const shadowOffsetX = drawWidth * 0.28;
+          const shadowOffsetY = drawHeight * 0.9;
+          const shadowX = centerX + shadowOffsetX;
+          const shadowY = centerY + shadowOffsetY;
+
+          // Check if shadow is over water tile
+          const shadowTileX = Math.floor(shadowX / 48);
+          const shadowTileY = Math.floor(shadowY / 48);
+          const shadowTileKey = `${shadowTileX},${shadowTileY}`;
+          const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
+
+          // Render underwater shadow for remote snorkeling player
+          if (isShadowOverWater) {
+            drawUnderwaterShadowOnly(
+              ctx,
+              heroImg,
+              sx,
+              sy,
+              spriteBaseX,
+              spriteBaseY,
+              drawWidth,
+              drawHeight
+            );
+          }
+        }
+      });
     // --- END UNDERWATER SHADOWS ---
 
     // --- Render water overlay (ABOVE underwater shadows and sea stack bottoms, BELOW sea stack tops and player heads) ---
@@ -2721,9 +2807,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Swimming players exist, need full merge/sort ---
     
     // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
-    const nonSwimmingEntities = currentYSortedEntities.filter(entity => 
-      !(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)
-    );
+    // EXCEPTION: Keep snorkeling players (local OR remote) - they render as a full sprite with teal tint, not split
+    const nonSwimmingEntities = currentYSortedEntities.filter(entity => {
+      // Keep non-swimming entities
+      if (!(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)) {
+        return true;
+      }
+      // Keep snorkeling local player - they render as full sprite underwater
+      if (isSnorkeling && entity.type === 'player' && entity.entity.identity.toHexString() === localPlayerId) {
+        return true;
+      }
+      // Keep ANY snorkeling player (remote players who are underwater) - they render as full sprite
+      if (entity.type === 'player' && entity.entity.isSnorkeling) {
+        return true;
+      }
+      return false;
+    });
     
     // Create swimming player top half entries with Y position for sorting
     // Reuse swimmingPlayersForBottomHalf array instead of filtering again
@@ -2928,7 +3027,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           false,
           currentCycleProgress,
           localPlayerIsCrouching,
-          'top'
+          'top',
+          false, // isDodgeRolling - swimming players don't dodge roll
+          0, // dodgeRollProgress
+          false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
+          isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
         );
         
         // Render equipped items for swimming players

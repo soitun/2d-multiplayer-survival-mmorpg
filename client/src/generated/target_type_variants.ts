@@ -48,4 +48,5 @@ export type Foundation = { tag: "Foundation" };
 export type Wall = { tag: "Wall" };
 export type Door = { tag: "Door" };
 export type HomesteadHearth = { tag: "HomesteadHearth" };
+export type LivingCoral = { tag: "LivingCoral" };
 

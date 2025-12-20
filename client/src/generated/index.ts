@@ -837,6 +837,8 @@ import { LargeQuarryTableHandle } from "./large_quarry_table.ts";
 export { LargeQuarryTableHandle };
 import { LastWhisperFromTableHandle } from "./last_whisper_from_table.ts";
 export { LastWhisperFromTableHandle };
+import { LivingCoralTableHandle } from "./living_coral_table.ts";
+export { LivingCoralTableHandle };
 import { MatronageTableHandle } from "./matronage_table.ts";
 export { MatronageTableHandle };
 import { MatronageInvitationTableHandle } from "./matronage_invitation_table.ts";
@@ -1153,6 +1155,8 @@ import { LargeQuarryType } from "./large_quarry_type_type.ts";
 export { LargeQuarryType };
 import { LastWhisperFrom } from "./last_whisper_from_type.ts";
 export { LastWhisperFrom };
+import { LivingCoral } from "./living_coral_type.ts";
+export { LivingCoral };
 import { Matronage } from "./matronage_type.ts";
 export { Matronage };
 import { MatronageInvitation } from "./matronage_invitation_type.ts";
@@ -1929,6 +1933,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "playerId",
         colType: (LastWhisperFrom.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    living_coral: {
+      tableName: "living_coral" as const,
+      rowType: LivingCoral.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (LivingCoral.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     matronage: {
@@ -11335,6 +11348,11 @@ export class RemoteTables {
   get lastWhisperFrom(): LastWhisperFromTableHandle<'last_whisper_from'> {
     // clientCache is a private property
     return new LastWhisperFromTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LastWhisperFrom>(REMOTE_MODULE.tables.last_whisper_from));
+  }
+
+  get livingCoral(): LivingCoralTableHandle<'living_coral'> {
+    // clientCache is a private property
+    return new LivingCoralTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LivingCoral>(REMOTE_MODULE.tables.living_coral));
   }
 
   get matronage(): MatronageTableHandle<'matronage'> {

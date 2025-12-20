@@ -32,6 +32,8 @@ import {
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumaroles (geothermal vents)
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt columns (decorative obstacles)
   AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  LivingCoral as SpacetimeDBLivingCoral, // Living coral for underwater harvesting (uses combat system)
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
 } from '../generated';
 import {
@@ -129,6 +131,9 @@ interface EntityFilteringResult {
   visibleDoorsMap: Map<string, SpacetimeDBDoor>; // ADDED: Building doors map
   buildingClusters: Map<string, BuildingCluster>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId: string | null; // ADDED: Which building cluster the player is in
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  visibleLivingCorals: SpacetimeDBLivingCoral[]; // Living corals (uses combat system)
+  visibleLivingCoralsMap: Map<string, SpacetimeDBLivingCoral>; // Living corals map
 }
 
 // Define a unified entity type for sorting
@@ -166,7 +171,9 @@ export type YSortedEntityType =
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
   | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn } // ADDED: Basalt columns (decorative obstacles in quarries)
   | { type: 'alk_station'; entity: SpacetimeDBAlkStation } // ADDED: ALK delivery stations
-  | { type: 'compound_building'; entity: CompoundBuildingEntity }; // ADDED: Static compound buildings
+  | { type: 'compound_building'; entity: CompoundBuildingEntity } // ADDED: Static compound buildings
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  | { type: 'living_coral'; entity: SpacetimeDBLivingCoral }; // Living coral reefs (uses combat system)
 
 // Type for compound buildings in Y-sorted system
 export interface CompoundBuildingEntity {
@@ -229,6 +236,8 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'sleeping_bag':
     case 'fumarole': // ADDED: Fumaroles sort by Y position (ground-level vents)
     case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
+    // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
+    case 'living_coral': // Living coral reefs sort by Y position (uses combat system)
       // CRITICAL FIX: Use actual Y position for proper depth sorting relative to players
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
@@ -359,6 +368,8 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'barrel': return 15;
     case 'fumarole': return 14; // ADDED: Fumaroles render slightly before barrels (ground vents)
     case 'basalt_column': return 16; // ADDED: Basalt columns render after barrels (tall obstacles)
+    // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
+    case 'living_coral': return 14.5; // Living corals render near fumaroles (underwater, uses combat)
     case 'alk_station': return 2; // ALK stations Y-sort like trees (tall structures with base at worldPosY)
     case 'rain_collector': return 18;
     case 'broth_pot': return 18; // Same as rain collector (similar placeable container)
@@ -644,7 +655,9 @@ export function useEntityFiltering(
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
   shipwreckParts?: Map<string, any>, // ADDED: Shipwreck monument parts
-  fishingVillageParts?: Map<string, any> // ADDED: Fishing village monument parts
+  fishingVillageParts?: Map<string, any>, // ADDED: Fishing village monument parts
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  livingCorals?: Map<string, SpacetimeDBLivingCoral> // Living corals (uses combat system)
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -1238,6 +1251,16 @@ export function useEntityFiltering(
     [seaStacks, isEntityInView, viewBounds, stableTimestamp]
   );
 
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+
+  // Living corals filtering - underwater coral reefs (uses combat system)
+  const visibleLivingCorals = useMemo(() =>
+    livingCorals ? Array.from(livingCorals.values()).filter(e => 
+      !e.respawnAt && isEntityInView(e, viewBounds, stableTimestamp) // Skip if respawning (fully harvested)
+    ) : [],
+    [livingCorals, isEntityInView, viewBounds, stableTimestamp]
+  );
+
   // ADDED: Filter visible foundation cells
   // CRITICAL FIX: Depend on foundationCells.size to ensure recalculation when subscription data loads
   const visibleFoundationCells = useMemo(() => {
@@ -1495,6 +1518,14 @@ export function useEntityFiltering(
     [visibleSeaStacks]
   );
 
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+
+  // ADDED: Map for visible living corals
+  const visibleLivingCoralsMap = useMemo(() =>
+    new Map(visibleLivingCorals.map(c => [c.id.toString(), c])),
+    [visibleLivingCorals]
+  );
+
   // ADDED: Map for visible foundation cells
   const visibleFoundationCellsMap = useMemo(() =>
     new Map(visibleFoundationCells.map(f => [f.id.toString(), f])),
@@ -1742,6 +1773,8 @@ export function useEntityFiltering(
     visibleBarrels.forEach(e => addEntity('barrel', e));
     visibleFumaroles.forEach(e => addEntity('fumarole', e)); // ADDED: Fumaroles
     visibleBasaltColumns.forEach(e => addEntity('basalt_column', e)); // ADDED: Basalt columns
+    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+    visibleLivingCorals.forEach(e => addEntity('living_coral', e)); // Living corals (uses combat)
     visibleAlkStations.forEach(e => addEntity('alk_station', e)); // ADDED: ALK delivery stations
     visibleCompoundBuildings.forEach(e => addEntity('compound_building', e)); // ADDED: Static compound buildings
     visibleSleepingBags.forEach(e => addEntity('sleeping_bag', e)); // ADDED: Sleeping bags
@@ -2339,6 +2372,8 @@ export function useEntityFiltering(
     visibleBarrels,
     visibleFumaroles,
     visibleBasaltColumns,
+    // visibleStormPiles removed - storms now spawn HarvestableResources and DroppedItems directly
+    visibleLivingCorals, // Living corals dependency (uses combat)
     visibleAlkStations, // ADDED: ALK stations dependency
     visibleCompoundBuildings, // ADDED: Static compound buildings dependency
     visibleSeaStacks,
@@ -2416,6 +2451,9 @@ export function useEntityFiltering(
     visibleFumerolesMap,
     visibleBasaltColumns,
     visibleBasaltColumnsMap,
+    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+    visibleLivingCorals,
+    visibleLivingCoralsMap,
     visibleSeaStacks, 
     visibleSeaStacksMap,
     visibleFoundationCells,

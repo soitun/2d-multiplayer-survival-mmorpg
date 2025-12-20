@@ -63,6 +63,7 @@ impl ItemBuilder {
                 intimidates_animals: false,
                 ammo_type: None,
                 attack_arc_degrees: None,
+                water_speed_bonus: None,
             }
         }
     }
@@ -308,6 +309,13 @@ impl ItemBuilder {
     /// Default is 90°. Scythe uses 120° for wide sweep.
     pub fn attack_arc_degrees(mut self, degrees: f32) -> Self {
         self.inner.attack_arc_degrees = Some(degrees);
+        self
+    }
+    
+    /// Set the water speed bonus for aquatic gear (flippers, etc.)
+    /// 1.0 = +100% water speed (2x normal), 0.5 = +50% water speed
+    pub fn water_speed_bonus(mut self, bonus: f32) -> Self {
+        self.inner.water_speed_bonus = Some(bonus);
         self
     }
 

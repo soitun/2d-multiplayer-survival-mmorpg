@@ -290,7 +290,8 @@ export const renderPlayer = (
   renderHalfMode?: 'top' | 'bottom' | 'full', // NEW: Control which part of sprite to render
   isDodgeRolling?: boolean, // NEW: Whether the player is currently dodge rolling
   dodgeRollProgress?: number, // NEW: Progress of the dodge roll (0.0 to 1.0)
-  isSnorkeling?: boolean // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
+  isSnorkeling?: boolean, // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
+  isViewerUnderwater?: boolean // NEW: Whether the local player (viewer) is underwater - affects remote snorkeling player rendering
 ) => {
   // REMOVE THE NAME TAG RENDERING BLOCK FROM HERE
   // const { positionX, positionY, direction, color, username } = player;
@@ -998,8 +999,28 @@ export const renderPlayer = (
 
     // Draw the (possibly tinted) offscreen canvas to the main canvas
     if (offscreenCtx) {
-      // Check if we need to render only a specific half of the sprite
-      if (renderHalfMode === 'bottom') {
+      // Check if we're viewing a snorkeling (underwater) player from ABOVE water
+      // This creates a "looking through water surface" effect with blur (no scale - they're near surface)
+      const viewingUnderwaterFromAbove = isSnorkeling && !isViewerUnderwater;
+      
+      // Apply underwater-from-above effects
+      if (viewingUnderwaterFromAbove) {
+        // Blur for water distortion effect (snorkeling is near surface, so normal size)
+        ctx.filter = 'blur(1.5px)';
+        // Slight transparency to show they're just below the water surface
+        ctx.globalAlpha = 0.9;
+        
+        // Draw at normal size (snorkeling happens near the surface)
+        ctx.drawImage(
+          offscreenCanvas, 
+          0, 0, gameConfig.spriteWidth, gameConfig.spriteHeight,
+          spriteBaseX, spriteDrawY, drawWidth, drawHeight
+        );
+        
+        // Reset effects
+        ctx.filter = 'none';
+        ctx.globalAlpha = 1.0;
+      } else if (renderHalfMode === 'bottom') {
         // Render only bottom 50% of sprite (underwater portion)
         const halfHeight = gameConfig.spriteHeight / 2;
         const halfDrawHeight = drawHeight / 2;

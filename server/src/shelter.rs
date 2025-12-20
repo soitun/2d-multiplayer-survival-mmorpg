@@ -33,6 +33,13 @@ use crate::grass::grass_respawn_schedule as GrassRespawnScheduleTableTrait;
 pub(crate) const SHELTER_VISUAL_WIDTH: f32 = 128.0; // For reference, actual collision might be different
 pub(crate) const SHELTER_VISUAL_HEIGHT: f32 = 128.0; // For reference
 
+// --- Terrain Variant Constants ---
+// These map to different shelter visual appearances based on biome
+pub const SHELTER_TERRAIN_DEFAULT: u8 = 0;  // Grass, Dirt, Forest, etc. - uses shelter.png
+pub const SHELTER_TERRAIN_BEACH: u8 = 1;    // Beach tiles - uses shelter_beach.png
+pub const SHELTER_TERRAIN_TUNDRA: u8 = 2;   // Tundra, TundraGrass - uses shelter_tundra.png
+pub const SHELTER_TERRAIN_ALPINE: u8 = 3;   // Alpine terrain - uses shelter_alpine.png
+
 // Placement constants
 pub(crate) const SHELTER_PLACEMENT_MAX_DISTANCE: f32 = 256.0; // Increased from 128.0
 pub(crate) const SHELTER_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = SHELTER_PLACEMENT_MAX_DISTANCE * SHELTER_PLACEMENT_MAX_DISTANCE;
@@ -74,6 +81,39 @@ pub(crate) const SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y: f32 = 200.0; // Keep t
 /// Reduced from 300px to 75px to be less aggressive - only clears resources immediately adjacent to shelter
 pub(crate) const SHELTER_RESOURCE_CLEARING_BUFFER: f32 = 75.0;
 
+/// Determines the terrain variant for a shelter based on the tile type at its position.
+/// This is an O(1) lookup using the pre-computed tile type.
+/// 
+/// Returns:
+/// - SHELTER_TERRAIN_BEACH (1) for Beach tiles
+/// - SHELTER_TERRAIN_TUNDRA (2) for Tundra or TundraGrass tiles
+/// - SHELTER_TERRAIN_ALPINE (3) for Alpine tiles
+/// - SHELTER_TERRAIN_DEFAULT (0) for all other tiles (Grass, Dirt, Forest, etc.)
+#[inline]
+pub fn get_terrain_variant_for_tile_type(tile_type: &crate::TileType) -> u8 {
+    use crate::TileType;
+    match tile_type {
+        TileType::Beach => SHELTER_TERRAIN_BEACH,
+        TileType::Tundra | TileType::TundraGrass => SHELTER_TERRAIN_TUNDRA,
+        TileType::Alpine => SHELTER_TERRAIN_ALPINE,
+        // All other tiles (Grass, Dirt, DirtRoad, Forest, Sand, Quarry, Asphalt, Sea, HotSpringWater)
+        _ => SHELTER_TERRAIN_DEFAULT,
+    }
+}
+
+/// Gets the terrain variant for a world position by looking up the tile type.
+/// Uses efficient chunk-based tile lookup.
+pub fn get_terrain_variant_at_position(ctx: &ReducerContext, world_x: f32, world_y: f32) -> u8 {
+    let tile_x = (world_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (world_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+    
+    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+        get_terrain_variant_for_tile_type(&tile_type)
+    } else {
+        SHELTER_TERRAIN_DEFAULT // Default fallback if tile type lookup fails
+    }
+}
+
 /// --- Shelter Data Structure ---
 /// Represents a player-built shelter in the game world.
 #[spacetimedb::table(name = shelter, public)]
@@ -93,6 +133,9 @@ pub struct Shelter {
     pub destroyed_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
     pub last_damaged_by: Option<Identity>,
+    /// Terrain variant determines the visual style of the shelter (0=default, 1=beach, 2=tundra, 3=alpine)
+    /// Set at placement time based on the tile type at the shelter's position
+    pub terrain_variant: u8,
 }
 
 // --- Reducer to Place a Shelter ---
@@ -236,6 +279,14 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
     const SHELTER_VISUAL_RENDER_OFFSET_Y: f32 = 192.0;
     let adjusted_world_y = world_y + SHELTER_VISUAL_RENDER_OFFSET_Y;
 
+    // Determine terrain variant at placement position for visual style
+    // Uses efficient tile-based lookup - O(1) operation
+    let terrain_variant = get_terrain_variant_at_position(ctx, world_x, world_y);
+    log::info!(
+        "[PlaceShelter] Terrain variant at ({:.1}, {:.1}): {} (0=default, 1=beach, 2=tundra, 3=alpine)",
+        world_x, world_y, terrain_variant
+    );
+
     let new_shelter = Shelter {
         id: 0, // Auto-incremented
         pos_x: world_x,
@@ -249,6 +300,7 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        terrain_variant, // Set terrain variant for visual style
     };
 
     match shelters.try_insert(new_shelter) {

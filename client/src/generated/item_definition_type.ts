@@ -104,6 +104,7 @@ export type ItemDefinition = {
   intimidatesAnimals: boolean,
   ammoType: AmmoType | undefined,
   attackArcDegrees: number | undefined,
+  waterSpeedBonus: number | undefined,
 };
 let _cached_ItemDefinition_type_value: __AlgebraicTypeType | null = null;
 
@@ -172,6 +173,7 @@ export const ItemDefinition = {
       { name: "intimidatesAnimals", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "ammoType", algebraicType: __AlgebraicTypeValue.createOptionType(AmmoType.getTypeScriptAlgebraicType()) },
       { name: "attackArcDegrees", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "waterSpeedBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
     );
     return _cached_ItemDefinition_type_value;
   },

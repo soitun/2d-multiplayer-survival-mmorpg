@@ -699,6 +699,9 @@ fn propagate_weather_to_nearby_chunks(
                     }
                 };
                 
+                // Check if HeavyStorm is transitioning to something else (storm ending)
+                let was_heavy_storm = matches!(nearby_weather.current_weather, WeatherType::HeavyStorm);
+                
                 nearby_weather.current_weather = propagated_weather.clone();
                 nearby_weather.rain_intensity = match propagated_weather {
                     WeatherType::Clear => 0.0,
@@ -714,7 +717,15 @@ fn propagate_weather_to_nearby_chunks(
                 // Thunder/lightning disabled for now
                 // TODO: Re-enable thunder system after debugging
                 
-                ctx.db.chunk_weather().chunk_index().update(nearby_weather);
+                ctx.db.chunk_weather().chunk_index().update(nearby_weather.clone());
+                
+                // Spawn storm debris on beaches when HeavyStorm ends
+                // Storm debris = individual HarvestableResources (driftwood) + DroppedItems (seaweed, coral fragments, shells)
+                if was_heavy_storm && !matches!(propagated_weather, WeatherType::HeavyStorm) {
+                    if let Err(e) = crate::coral::spawn_storm_debris_on_beaches(ctx, nearby_index) {
+                        log::error!("Failed to spawn storm debris after HeavyStorm ended in chunk {}: {}", nearby_index, e);
+                    }
+                }
                 
                 log::debug!("Weather propagated from chunk {} to chunk {}: {:?}", 
                            source_chunk_index, nearby_index, propagated_weather);

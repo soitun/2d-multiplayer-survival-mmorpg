@@ -285,6 +285,7 @@ function AppContent() {
       barrels, // <<< ADD barrels HERE
       fumaroles, // <<< ADD fumaroles HERE
       basaltColumns, // <<< ADD basaltColumns HERE
+      livingCorals, // Living coral for underwater harvesting (uses combat system)
       seaStacks, // <<< ADD sea stacks HERE
       homesteadHearths, // <<< ADD homesteadHearths HERE
       brothPots, // <<< ADD brothPots HERE
@@ -318,6 +319,51 @@ function AppContent() {
     const isUIFocused = isChatting || isCraftingSearchFocused;
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
     const isDead = localPlayer?.isDead ?? false;
+    
+    // --- Calculate Water Speed Bonus from Equipped Armor ---
+    // This value is passed to usePredictedMovement for client-side movement prediction
+    const waterSpeedBonus = useMemo(() => {
+        if (!dbIdentity) return 0;
+        
+        // Get active equipment for local player
+        const activeEquip = activeEquipments.get(dbIdentity.toHexString());
+        if (!activeEquip) return 0;
+        
+        let totalBonus = 0;
+        
+        // List of all armor slot instance IDs to check
+        const armorSlotInstanceIds = [
+            activeEquip.headItemInstanceId,
+            activeEquip.chestItemInstanceId,
+            activeEquip.legsItemInstanceId,
+            activeEquip.feetItemInstanceId, // Reed Flippers go here
+            activeEquip.handsItemInstanceId,
+            activeEquip.backItemInstanceId,
+        ].filter((id): id is bigint => id !== undefined);
+        
+        // For each equipped armor piece, look up its definition and add bonus
+        for (const instanceId of armorSlotInstanceIds) {
+            // Find the inventory item
+            const inventoryItem = Array.from(inventoryItems.values()).find(
+                item => item.instanceId === instanceId
+            );
+            if (!inventoryItem) continue;
+            
+            // Find the item definition
+            const itemDef = Array.from(itemDefinitions.values()).find(
+                def => def.id === inventoryItem.itemDefId
+            );
+            if (!itemDef) continue;
+            
+            // Add water speed bonus if present (will be available after regenerating bindings)
+            const bonus = (itemDef as any).waterSpeedBonus;
+            if (typeof bonus === 'number') {
+                totalBonus += bonus;
+            }
+        }
+        
+        return totalBonus;
+    }, [dbIdentity, activeEquipments, inventoryItems, itemDefinitions]);
     
     // --- Insanity SOVA Sounds Hook ---
     useInsanitySovaSounds({ localPlayer });
@@ -422,6 +468,7 @@ function AppContent() {
         isUIFocused,
         playerDodgeRollStates, // Add dodge roll states for speed calculation
         mobileSprintOverride, // Mobile sprint toggle override (immediate, no server round-trip)
+        waterSpeedBonus, // Water speed bonus from equipped armor (e.g., Reed Flippers)
         entities: {
             trees: currentViewport ? new Map(filterVisibleTrees(trees, {
               viewMinX: currentViewport.minX,
@@ -455,6 +502,7 @@ function AppContent() {
             foundationCells, // Add foundation cells for collision detection (especially triangle hypotenuses)
             homesteadHearths, // Add homestead hearths for collision detection
             basaltColumns, // Add basalt columns for collision detection
+            livingCorals, // Add living corals for collision detection (underwater)
             doors, // Add doors for collision detection (closed doors only)
             alkStations // Add ALK stations for collision detection (large industrial structures)
         }
@@ -726,7 +774,7 @@ function AppContent() {
             
             // Update last sent center immediately to prevent continuous updates
             lastSentViewportCenterRef.current = { x: playerCenterX, y: playerCenterY };
-            
+                
             // Reset overlay states ONLY on actual respawn (dead -> alive transition)
             if (respawnDetected) {
                 console.log('[App] Respawn detected - resetting overlay states');
@@ -1178,6 +1226,7 @@ function AppContent() {
                             barrels={barrels}
                             fumaroles={fumaroles}
                             basaltColumns={basaltColumns}
+                            livingCorals={livingCorals}
                             seaStacks={seaStacks}
                             homesteadHearths={homesteadHearths}
                             brothPots={brothPots}

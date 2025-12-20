@@ -86,6 +86,7 @@ use crate::wild_animal_npc::animal_corpse::{AnimalCorpse, ANIMAL_CORPSE_COLLISIO
 // Import barrel types
 use crate::barrel::{Barrel, BARREL_COLLISION_Y_OFFSET, barrel as BarrelTableTrait};
 use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_Y_OFFSET, homestead_hearth as HomesteadHearthTableTrait};
+use crate::coral::{LivingCoral, LIVING_CORAL_COLLISION_Y_OFFSET, LIVING_CORAL_RADIUS, living_coral as LivingCoralTableTrait};
 // --- Game Balance Constants ---
 /// Time in milliseconds before a dead player can respawn
 pub const RESPAWN_TIME_MS: u64 = 5000; // 5 seconds
@@ -115,6 +116,7 @@ pub enum TargetId {
     Barrel(u64), // ADDED: Barrel target
     HomesteadHearth(u32), // ADDED: Homestead Hearth target
     Wall(u64), // ADDED: Wall target
+    LivingCoral(u64), // ADDED: Living coral target (underwater resource)
 }
 
 /// Represents a potential target within attack range
@@ -248,6 +250,38 @@ pub fn find_targets_in_cone(
                     id: TargetId::Stone(stone.id),
                     distance_sq: dist_sq,
                 });
+            }
+        }
+    }
+    
+    // Check living corals (underwater resource, requires player to be on water)
+    if player.is_on_water {
+        for coral in ctx.db.living_coral().iter() {
+            // Skip dead/respawning corals
+            if coral.respawn_at.is_some() {
+                continue;
+            }
+            
+            let dx = coral.pos_x - player.position_x;
+            let target_y = coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET;
+            let dy = target_y - player.position_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < (attack_range * attack_range) && dist_sq > 0.0 {
+                let distance = dist_sq.sqrt();
+                let target_vec_x = dx / distance;
+                let target_vec_y = dy / distance;
+
+                let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
+                let angle_rad = dot_product.acos();
+
+                if angle_rad <= half_attack_angle_rad {
+                    targets.push(Target {
+                        target_type: TargetType::LivingCoral,
+                        id: TargetId::LivingCoral(coral.id),
+                        distance_sq: dist_sq,
+                    });
+                }
             }
         }
     }
@@ -1537,6 +1571,148 @@ pub fn damage_stone(
         hit: true,
         target_type: Some(TargetType::Stone),
         resource_granted: if actual_yield > 0 { Some((resource_name.to_string(), actual_yield)) } else { None },
+    })
+}
+
+/// Applies damage to living coral and handles resource drops
+///
+/// Living coral is an underwater resource that requires a Diving Pick to harvest.
+/// Yields Limestone primarily, with chances for Coral Fragments, Shells, and Pearls.
+pub fn damage_living_coral(
+    ctx: &ReducerContext,
+    attacker_id: Identity,
+    coral_id: u64,
+    damage: f32,
+    yield_amount: u32,
+    timestamp: Timestamp,
+    rng: &mut impl Rng
+) -> Result<AttackResult, String> {
+    use crate::coral::{
+        LIVING_CORAL_MIN_RESOURCES, LIVING_CORAL_MAX_RESOURCES,
+        MIN_LIVING_CORAL_RESPAWN_TIME_SECS, MAX_LIVING_CORAL_RESPAWN_TIME_SECS,
+        LIVING_CORAL_INITIAL_HEALTH,
+    };
+    
+    let mut coral = ctx.db.living_coral().id().find(coral_id)
+        .ok_or_else(|| "Target coral disappeared".to_string())?;
+    
+    // Check if player is on water (required for underwater harvesting)
+    let player = ctx.db.player().identity().find(&attacker_id)
+        .ok_or_else(|| "Attacker not found".to_string())?;
+    
+    if !player.is_on_water {
+        return Err("You must be in water to harvest living coral.".to_string());
+    }
+    
+    // Check if player has Diving Pick equipped
+    let active_equipment = ctx.db.active_equipment().player_identity().find(attacker_id);
+    let has_diving_pick = if let Some(equip) = active_equipment {
+        if let Some(equipped_item_id) = equip.equipped_item_instance_id {
+            if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(equipped_item_id) {
+                if let Some(item_def) = ctx.db.item_definition().id().find(equipped_item.item_def_id) {
+                    item_def.name == "Diving Pick"
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    
+    if !has_diving_pick {
+        return Err("You need a Diving Pick to harvest living coral.".to_string());
+    }
+    
+    log::info!("[damage_living_coral] Coral {} - health: {}, resource_remaining: {}, yield_amount: {}, damage: {}",
+               coral_id, coral.health, coral.resource_remaining, yield_amount, damage);
+    
+    let old_health = coral.health;
+    coral.health = coral.health.saturating_sub(damage as u32);
+    coral.last_hit_time = Some(timestamp);
+    
+    // Calculate actual yield based on resource remaining
+    let actual_yield = std::cmp::min(yield_amount, coral.resource_remaining);
+    
+    // Grant Limestone as primary resource
+    if actual_yield > 0 {
+        if let Err(e) = grant_resource(ctx, attacker_id, "Limestone", actual_yield) {
+            log::error!("Failed to grant Limestone to player {:?}: {}", attacker_id, e);
+        }
+    }
+    
+    // Update resource remaining
+    coral.resource_remaining = coral.resource_remaining.saturating_sub(actual_yield);
+    
+    log::info!("Player {:?} hit Living Coral {} for {:.1} damage. Health: {} -> {}, Resources: {} remaining",
+               attacker_id, coral_id, damage, old_health, coral.health, coral.resource_remaining);
+    
+    // Coral is destroyed when either health reaches 0 OR resources are depleted
+    let coral_destroyed = coral.health == 0 || coral.resource_remaining == 0;
+    
+    // Bonus drops on hit (secondary yields)
+    // Coral Fragments: 15% chance per hit
+    if rng.gen::<f32>() < 0.15 {
+        let coral_frag_amount = rng.gen_range(1..=2);
+        if let Err(e) = grant_resource(ctx, attacker_id, "Coral Fragments", coral_frag_amount) {
+            log::error!("Failed to grant Coral Fragments to player {:?}: {}", attacker_id, e);
+        }
+    }
+    
+    // Shell: 5% chance per hit
+    if rng.gen::<f32>() < 0.05 {
+        if let Err(e) = grant_resource(ctx, attacker_id, "Shell", 1) {
+            log::error!("Failed to grant Shell to player {:?}: {}", attacker_id, e);
+        }
+    }
+    
+    // Pearl: 2% chance per hit (rare)
+    if rng.gen::<f32>() < 0.02 {
+        if let Err(e) = grant_resource(ctx, attacker_id, "Pearl", 1) {
+            log::error!("Failed to grant Pearl to player {:?}: {}", attacker_id, e);
+        }
+    }
+    
+    if coral_destroyed {
+        // Final hit bonus: grant extra resources (like stone)
+        let bonus_percentage = 0.15; // 15% bonus
+        let final_hit_bonus = (LIVING_CORAL_INITIAL_HEALTH as f32 * bonus_percentage) as u32;
+        
+        if final_hit_bonus > 0 {
+            if let Err(e) = grant_resource(ctx, attacker_id, "Limestone", final_hit_bonus) {
+                log::error!("Failed to grant final hit bonus Limestone to player {:?}: {}", attacker_id, e);
+            } else {
+                log::info!("Player {:?} received final hit bonus: {} Limestone",
+                          attacker_id, final_hit_bonus);
+            }
+        }
+        
+        log::info!("Living Coral {} depleted by Player {:?}. Scheduling respawn.", coral_id, attacker_id);
+        
+        // Calculate random respawn time
+        let respawn_duration_secs = if MIN_LIVING_CORAL_RESPAWN_TIME_SECS >= MAX_LIVING_CORAL_RESPAWN_TIME_SECS {
+            MIN_LIVING_CORAL_RESPAWN_TIME_SECS
+        } else {
+            rng.gen_range(MIN_LIVING_CORAL_RESPAWN_TIME_SECS..=MAX_LIVING_CORAL_RESPAWN_TIME_SECS)
+        };
+        let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
+        coral.respawn_at = Some(respawn_time);
+        
+        // Reset health and resources for next respawn
+        coral.health = LIVING_CORAL_INITIAL_HEALTH;
+        coral.resource_remaining = rng.gen_range(LIVING_CORAL_MIN_RESOURCES..=LIVING_CORAL_MAX_RESOURCES);
+    }
+    
+    ctx.db.living_coral().id().update(coral);
+    
+    Ok(AttackResult {
+        hit: true,
+        target_type: Some(TargetType::LivingCoral),
+        resource_granted: if actual_yield > 0 { Some(("Limestone".to_string(), actual_yield)) } else { None },
     })
 }
 
@@ -2982,6 +3158,13 @@ pub fn process_attack(
                 return Err("Target wall not found".to_string());
             }
         },
+        TargetId::LivingCoral(coral_id) => {
+            if let Some(coral) = ctx.db.living_coral().id().find(coral_id) {
+                (coral.pos_x, coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET, None)
+            } else {
+                return Err("Target coral not found".to_string());
+            }
+        },
     };
 
     // Get attacker position
@@ -3203,6 +3386,9 @@ pub fn process_attack(
                     target_type: Some(TargetType::Wall),
                     resource_granted: None,
                 })
+        },
+        TargetId::LivingCoral(coral_id) => {
+            damage_living_coral(ctx, attacker_id, *coral_id, damage, yield_amount, timestamp, rng)
         },
     }
 }

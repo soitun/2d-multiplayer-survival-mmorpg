@@ -95,6 +95,7 @@ mod repair; // ADD: Repair module for structure repair functionality
 mod collectible_resources; // Add the new collectible resources system
 mod plants_database; // NEW: Plant configuration database
 mod harvestable_resource; // NEW: Unified harvestable resource system
+mod coral; // NEW: Coral reef system (Storm Piles and Living Coral)
 mod sleeping_bag; // ADD Sleeping Bag module
 mod player_corpse; // <<< ADDED: Declare Player Corpse module
 mod models; // <<< ADDED
@@ -194,6 +195,9 @@ pub use wild_animal_npc::{spawn_wild_animal, damage_wild_animal, damage_wild_ani
 
 // ADD: Re-export unified harvestable resource reducer
 pub use harvestable_resource::interact_with_harvestable_resource;
+
+// NOTE: Living coral no longer has a custom reducer - it uses combat.rs
+// Storm debris spawns as individual HarvestableResources and DroppedItems
 
 // ADD: Re-export metadata provider helper functions
 pub use metadata_providers::{is_plantable_seed, get_plant_type_from_seed_name};

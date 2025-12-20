@@ -160,6 +160,8 @@ export interface SpacetimeTableStates {
     shipwreckParts: Map<string, any>; // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
     fishingVillageParts: Map<string, any>; // ADDED: Fishing village monument parts
     largeQuarries: Map<string, any>; // ADDED: Large quarry locations with types for minimap labels
+    // Coral system tables (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
+    livingCorals: Map<string, SpacetimeDB.LivingCoral>; // ADDED: Living coral for underwater harvesting (uses combat system)
     // Matronage system tables
     matronages: Map<string, any>; // ADDED: Matronage pooled rewards organizations
     matronageMembers: Map<string, any>; // ADDED: Matronage membership tracking
@@ -240,6 +242,8 @@ export const useSpacetimeTables = ({
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
     const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map()); // ADDED fumaroles
     const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map()); // ADDED basalt columns
+    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+    const [livingCorals, setLivingCorals] = useState<Map<string, SpacetimeDB.LivingCoral>>(() => new Map()); // ADDED: Living coral for underwater harvesting (uses combat system)
     const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
@@ -392,6 +396,8 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks
+                    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral underwater (uses combat system)
                 ];
                 newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
 
@@ -439,6 +445,8 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // MOVED: Now spatial
+                // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+                newHandlesForChunk.push(timedSubscribe('LivingCoral', `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`)); // Living coral
 
                 if (ENABLE_CLOUDS) {
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
@@ -1581,6 +1589,23 @@ export const useSpacetimeTables = ({
             };
             const handleBasaltColumnDelete = (ctx: any, basaltColumn: SpacetimeDB.BasaltColumn) => setBasaltColumns(prev => { const newMap = new Map(prev); newMap.delete(basaltColumn.id.toString()); return newMap; });
 
+            // --- StormPile removed - storms now spawn HarvestableResources and DroppedItems directly ---
+
+            // --- Living Coral handlers - SPATIAL (underwater coral for harvesting via combat system) ---
+            const handleLivingCoralInsert = (ctx: any, coral: SpacetimeDB.LivingCoral) => setLivingCorals(prev => new Map(prev).set(coral.id.toString(), coral));
+            const handleLivingCoralUpdate = (ctx: any, oldCoral: SpacetimeDB.LivingCoral, newCoral: SpacetimeDB.LivingCoral) => {
+                // Only update for visually significant changes
+                const visuallySignificant =
+                    Math.abs(oldCoral.posX - newCoral.posX) > 0.1 ||
+                    Math.abs(oldCoral.posY - newCoral.posY) > 0.1 ||
+                    oldCoral.resourceRemaining !== newCoral.resourceRemaining || // Resource amount changed
+                    (oldCoral.respawnAt === undefined) !== (newCoral.respawnAt === undefined); // Respawn state changed
+                if (visuallySignificant) {
+                    setLivingCorals(prev => new Map(prev).set(newCoral.id.toString(), newCoral));
+                }
+            };
+            const handleLivingCoralDelete = (ctx: any, coral: SpacetimeDB.LivingCoral) => setLivingCorals(prev => { const newMap = new Map(prev); newMap.delete(coral.id.toString()); return newMap; });
+
             // --- Chunk Weather handlers - NON-SPATIAL (subscribe to all chunks) ---
             // OPTIMIZED: Batch updates to prevent UI lag from 14k+ chunks
             const scheduleChunkWeatherUpdate = () => {
@@ -1937,6 +1962,13 @@ export const useSpacetimeTables = ({
             connection.db.basaltColumn.onUpdate(handleBasaltColumnUpdate);
             connection.db.basaltColumn.onDelete(handleBasaltColumnDelete);
 
+            // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+
+            // Register LivingCoral callbacks - SPATIAL (underwater coral via combat system)
+            connection.db.livingCoral.onInsert(handleLivingCoralInsert);
+            connection.db.livingCoral.onUpdate(handleLivingCoralUpdate);
+            connection.db.livingCoral.onDelete(handleLivingCoralDelete);
+
             // Register ChunkWeather callbacks - NON-SPATIAL
             connection.db.chunkWeather.onInsert(handleChunkWeatherInsert);
             connection.db.chunkWeather.onUpdate(handleChunkWeatherUpdate);
@@ -2276,6 +2308,8 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`, // ADDED: Door initial spatial subscription
                                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`, // ADDED: Fumarole initial spatial subscription
                                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`, // ADDED: Basalt column initial spatial subscription
+                                    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+                                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral initial subscription (uses combat)
                                 ];
                                 // Removed excessive initial chunk debug logging
                                 newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
@@ -2411,6 +2445,8 @@ export const useSpacetimeTables = ({
                 setChunkWeather(new Map());
                 setFumaroles(new Map());
                 setBasaltColumns(new Map());
+                // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+                setLivingCorals(new Map());
             }
         };
 
@@ -2535,6 +2571,8 @@ export const useSpacetimeTables = ({
         shipwreckParts, // ADDED: Shipwreck monument parts
         fishingVillageParts, // ADDED: Fishing village monument parts
         largeQuarries, // ADDED: Large quarry locations with types for minimap labels
+        // Coral system (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
+        livingCorals, // Living coral for underwater harvesting (uses combat system)
         // Matronage system
         matronages, // ADDED: Matronage pooled rewards organizations
         matronageMembers, // ADDED: Matronage membership tracking

@@ -1,5 +1,6 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral } from '../generated';
+// StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
 
@@ -89,6 +90,8 @@ const COLLISION_PERF = {
   CAIRN_CULL_DISTANCE_SQ: 200 * 200,     // Only check cairns within 200px
   ANIMAL_CULL_DISTANCE_SQ: 300 * 300,    // Only check animals within 300px
   STRUCTURE_CULL_DISTANCE_SQ: 200 * 200, // Only check structures within 200px
+  // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
+  LIVING_CORAL_CULL_DISTANCE_SQ: 200 * 200, // Only check living corals within 200px
   
   // Entity limiting for performance
   MAX_PLAYERS_TO_CHECK: 20,
@@ -97,6 +100,9 @@ const COLLISION_PERF = {
   MAX_CAIRNS_TO_CHECK: 15,        // Dedicated limit for cairns (fewer than stones due to larger collision radius)
   MAX_ANIMALS_TO_CHECK: 15,
   MAX_STRUCTURES_TO_CHECK: 25,
+  
+  // MAX_STORM_PILES removed - storms now spawn HarvestableResources and DroppedItems directly
+  MAX_LIVING_CORALS_TO_CHECK: 15,  // Dedicated limit for living corals
   
   // Emergency mode thresholds
   EMERGENCY_TOTAL_ENTITIES: 100,
@@ -437,6 +443,32 @@ function getCollisionCandidates(
     }
   }
   
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  
+  // Filter living corals (underwater coral reefs)
+  if (entities.livingCorals && entities.livingCorals.size > 0) {
+    const nearbyCorals = filterEntitiesByDistance(
+      entities.livingCorals,
+      playerX,
+      playerY,
+      COLLISION_PERF.LIVING_CORAL_CULL_DISTANCE_SQ,
+      COLLISION_PERF.MAX_LIVING_CORALS_TO_CHECK
+    );
+    
+    for (const coral of nearbyCorals) {
+      // Skip corals that are respawning (fully harvested)
+      if (coral.respawnAt !== undefined) continue;
+      
+      shapes.push({
+        id: coral.id.toString(),
+        type: `living_coral-${coral.id.toString()}`,
+        x: coral.posX + COLLISION_OFFSETS.LIVING_CORAL.x,
+        y: coral.posY + COLLISION_OFFSETS.LIVING_CORAL.y,
+        radius: COLLISION_RADII.LIVING_CORAL
+      });
+    }
+  }
+  
   // Filter ALK delivery stations (large industrial structures)
   // Use AABB (rectangular) collision at the building base, same as compound buildings
   if (entities.alkStations && entities.alkStations.size > 0) {
@@ -494,11 +526,15 @@ function getCollisionCandidates(
     const seaStackScale = seaStack.scale || 1.0;
     const scaledRadius = COLLISION_RADII.SEA_STACK * seaStackScale;
     
+    // Scale the Y offset based on sea stack scale - larger sea stacks need collision pushed up more
+    // Base offset is for scale 1.0, larger scales need proportionally larger offset
+    const scaledYOffset = COLLISION_OFFSETS.SEA_STACK.y * seaStackScale;
+
     shapes.push({
       id: seaStack.id.toString(),
       type: `sea_stack-${seaStack.id.toString()}`,
       x: seaStack.posX + COLLISION_OFFSETS.SEA_STACK.x,
-      y: seaStack.posY + COLLISION_OFFSETS.SEA_STACK.y,
+      y: seaStack.posY + scaledYOffset,
       radius: scaledRadius // Circular collision for smooth sliding
     });
   }
@@ -888,6 +924,8 @@ export const COLLISION_RADII = {
   HOMESTEAD_HEARTH: 55, // Homestead hearth collision radius (matches server-side HEARTH_COLLISION_RADIUS)
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
+  // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
+  LIVING_CORAL: 40, // Living coral collision radius (underwater coral reef, uses combat system)
 } as const;
 
 // Collision offsets for sprite positioning - align with visual sprite base
@@ -908,6 +946,8 @@ export const COLLISION_OFFSETS = {
   SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
+  // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
+  LIVING_CORAL: { x: 0, y: -40 }, // Living coral collision offset (visual base of coral)
 } as const;
 
 // Shelter AABB dimensions (must match server-side constants in shelter.rs)
@@ -954,6 +994,8 @@ export interface GameEntities {
   basaltColumns: Map<string, BasaltColumn>; // Add basalt columns for collision
   doors: Map<string, Door>; // Add doors for collision
   alkStations?: Map<string, AlkStation>; // Add ALK delivery stations for collision
+  // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+  livingCorals?: Map<string, LivingCoral>; // Add living corals for collision (uses combat system)
 }
 
 // Exported for debug rendering

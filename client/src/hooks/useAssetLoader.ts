@@ -12,7 +12,7 @@ import heroDodgeSpriteSheet from '../assets/hero_dodge.png';
 import campfireSprite from '../assets/doodads/campfire.png';
 import burlapSackUrl from '../assets/items/burlap_sack.png';
 import deathMarkerUrl from '../assets/items/death_marker.png';
-import shelterSpritePath from '../assets/doodads/shelter_b.png';
+import shelterSpritePath from '../assets/doodads/shelter.png';
 
 // Import cloud image paths
 import cloud1Texture from '../assets/environment/clouds/cloud1.png';

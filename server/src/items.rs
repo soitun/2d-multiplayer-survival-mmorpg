@@ -131,6 +131,9 @@ pub struct ItemDefinition {
     
     // WEAPON ARC ANGLE (for melee weapons with different sweep widths)
     pub attack_arc_degrees: Option<f32>, // Custom attack arc in degrees. None = use default (90°). Scythe uses 120° for wide sweep.
+    
+    // WATER SPEED BONUS (for flippers and similar aquatic gear)
+    pub water_speed_bonus: Option<f32>, // 1.0 = +100% water speed (2x normal), 0.5 = +50% water speed
 }
 
 // --- Inventory Table ---

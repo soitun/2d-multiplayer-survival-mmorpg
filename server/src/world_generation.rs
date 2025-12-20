@@ -255,6 +255,7 @@ struct WorldFeatures {
     shipwreck_parts: Vec<(f32, f32, String)>, // Shipwreck crash parts (x, y, image_path) in world pixels
     fishing_village_center: Option<(f32, f32)>, // Fishing village center position (campfire) in world pixels
     fishing_village_parts: Vec<(f32, f32, String, String)>, // Fishing village parts (x, y, image_path, part_type) in world pixels
+    coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     width: usize,
     height: usize,
 }
@@ -324,6 +325,9 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, width, height
     );
     
+    // Generate coral reef zones (deep sea areas for living coral spawning)
+    let coral_reef_zones = generate_coral_reef_zones(config, noise, &shore_distance, width, height);
+    
     WorldFeatures {
         heightmap,
         shore_distance,
@@ -347,6 +351,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         shipwreck_parts,
         fishing_village_center,
         fishing_village_parts,
+        coral_reef_zones,
         width,
         height,
     }
@@ -2148,6 +2153,50 @@ fn generate_forest_areas_with_biomes(
     
     log::info!("Generated {} forest tiles ({:.1}% of land) - including hot spring rings", forest_count, forest_percentage);
     forest
+}
+
+/// Generate coral reef zones (deep sea areas for living coral spawning)
+/// Coral reefs spawn in deep sea areas (shore_distance < -15 tiles from shore)
+/// Uses noise-based clustering similar to forest generation
+fn generate_coral_reef_zones(
+    config: &WorldGenConfig,
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    width: usize,
+    height: usize,
+) -> Vec<Vec<bool>> {
+    let mut coral_reef = vec![vec![false; width]; height];
+    
+    // Coral reef generation parameters
+    let reef_noise_scale = 0.012; // Large-scale reef regions
+    let reef_threshold = 0.35; // Higher = less reef coverage
+    let min_shore_distance = -15.0; // Must be at least 15 tiles from shore (deep sea)
+    let max_shore_distance = -30.0; // Don't spawn too far out (optional max distance)
+    
+    let mut reef_count = 0;
+    
+    for y in 0..height {
+        for x in 0..width {
+            let shore_dist = shore_distance[y][x];
+            
+            // Only spawn in deep sea (far from shore)
+            if shore_dist > min_shore_distance || shore_dist < max_shore_distance {
+                continue;
+            }
+            
+            // Use noise to create organic reef clusters
+            let noise_val = noise.get([x as f64 * reef_noise_scale, y as f64 * reef_noise_scale]);
+            
+            if noise_val > reef_threshold {
+                coral_reef[y][x] = true;
+                reef_count += 1;
+            }
+        }
+    }
+    
+    let reef_percentage = (reef_count as f64 / (width * height) as f64) * 100.0;
+    log::info!("Generated {} coral reef tiles ({:.2}% of map) - deep sea areas", reef_count, reef_percentage);
+    coral_reef
 }
 
 fn generate_chunk(

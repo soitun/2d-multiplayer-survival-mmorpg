@@ -122,6 +122,33 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
 
         // NOTE: Seaweed moved to consumables.rs - it's an edible item, not a material
 
+        // === CORAL REEF MATERIALS ===
+
+        // Coral Fragments - Bleached coral pieces from storm-washed shores
+        basic_material("Coral Fragments", "Bleached coral pieces washed ashore by storms. Useful for crafting specialized underwater tools.", 100)
+            .icon("coral_fragments.png")
+            .respawn_time(300)
+            .build(),
+
+        // Limestone - Calcium carbonate from living coral reefs
+        ItemBuilder::new("Limestone", "Calcium carbonate extracted from living coral reefs. Can be smelted into stone using a furnace.", ItemCategory::Material)
+            .icon("limestone.png")
+            .stackable(100)
+            .cook_time(20.0) // Smelting time in furnace
+            .cooked_item("Stone") // Smelts into Stone (1:1 ratio)
+            .respawn_time(300)
+            .build(),
+
+        // Shell - Rare mollusk shell from coral ecosystems
+        basic_material("Shell", "A rare, intact mollusk shell from coral reef ecosystems. Beautiful and valuable.", 50)
+            .icon("shell.png")
+            .build(),
+
+        // Pearl - Precious gem from coral reef oysters
+        basic_material("Pearl", "A precious pearl from coral reef oysters. Extremely rare and valuable.", 20)
+            .icon("pearl.png")
+            .build(),
+
         // Aleut Charm - Small carved amulet lost in the waters
         basic_material("Aleut Charm", "A small, weathered charm carved from bone or stone. Once held significance to Aleut peoples, now just a lost trinket.", 4)
             .icon("aleut_charm.png")

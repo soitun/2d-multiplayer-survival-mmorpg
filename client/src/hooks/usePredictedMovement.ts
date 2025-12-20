@@ -10,6 +10,8 @@ const SPRINT_MULTIPLIER = 2.0; // 2x speed for sprinting (800 px/s)
 // Note: Dodge roll now uses server-authoritative interpolation instead of speed multipliers
 const WATER_SPEED_PENALTY = 0.5; // Half speed in water (matches server WATER_SPEED_PENALTY)
 const EXHAUSTED_SPEED_PENALTY = 0.75; // 25% speed reduction when exhausted (matches server EXHAUSTED_SPEED_PENALTY)
+// Water speed bonus cap (matches server - 2.0 = 200% bonus = 3x speed)
+const MAX_WATER_SPEED_BONUS = 2.0;
 // REMOVED: Rubber banding constants - proper prediction shouldn't need them
 
 // Helper function to check if a player has the exhausted effect
@@ -43,6 +45,7 @@ interface SimpleMovementProps {
   entities: GameEntities;
   playerDodgeRollStates?: Map<string, any>; // Add dodge roll states
   mobileSprintOverride?: boolean; // Mobile sprint toggle override (immediate, bypasses server round-trip)
+  waterSpeedBonus?: number; // Bonus from equipped armor (e.g., Reed Flippers) - 1.0 = 100% bonus
 }
 
 // Performance monitoring for simple movement
@@ -94,7 +97,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0 }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -386,11 +389,16 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
           speedMultiplier *= EXHAUSTED_SPEED_PENALTY; // 25% speed reduction when exhausted
         }
         
-        // Apply water speed penalty (must match server) - but not while jumping
+        // Apply water speed penalty with bonus from equipment (must match server) - but not while jumping
         const isJumping = localPlayer.jumpStartTimeMs > 0 && 
           (Date.now() - Number(localPlayer.jumpStartTimeMs)) < 500; // 500ms jump duration
         if (localPlayer.isOnWater && !isJumping) {
-          speedMultiplier *= WATER_SPEED_PENALTY;
+          // Water speed bonus from equipment (e.g., Reed Flippers) increases speed in water
+          // Cap the bonus to prevent excessive speeds
+          const cappedBonus = Math.min(waterSpeedBonus, MAX_WATER_SPEED_BONUS);
+          // Formula: base penalty * (1 + bonus) - so 100% bonus (1.0) brings us to full speed
+          const waterMultiplier = WATER_SPEED_PENALTY * (1.0 + cappedBonus);
+          speedMultiplier *= waterMultiplier;
         }
         
         const speed = PLAYER_SPEED * speedMultiplier;
@@ -568,7 +576,12 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     // Calculate speed (same logic as updatePosition)
     let speed = PLAYER_SPEED;
     if (sprinting) speed *= SPRINT_MULTIPLIER;
-    if (localPlayer.isOnWater) speed *= WATER_SPEED_PENALTY;
+    if (localPlayer.isOnWater) {
+      // Water speed bonus from equipment (e.g., Reed Flippers)
+      const cappedBonus = Math.min(waterSpeedBonus, MAX_WATER_SPEED_BONUS);
+      const waterMultiplier = WATER_SPEED_PENALTY * (1.0 + cappedBonus);
+      speed *= waterMultiplier;
+    }
     if (hasExhaustedEffect(connection, playerId)) speed *= EXHAUSTED_SPEED_PENALTY;
     
     // Extrapolate position based on time since last frame

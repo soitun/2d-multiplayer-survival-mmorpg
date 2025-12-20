@@ -40,7 +40,7 @@ pub enum LoadoutType {
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Swimming;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Building;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -212,7 +212,7 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             // Hotbar - Water essentials
             ("Primitive Reed Fishing Rod", 1, Some(0), None),
             ("Bone Gaff Hook", 1, Some(1), None),
-            ("Wooden Spear", 1, Some(2), None),       // Underwater weapon
+            ("Reed Harpoon", 1, Some(2), None),       // Underwater weapon
             ("Torch", 1, Some(3), None),
             ("Plastic Water Jug", 1, Some(4), None),
             ("Cerametal Field Cauldron Mk. II", 1, Some(5), None),
