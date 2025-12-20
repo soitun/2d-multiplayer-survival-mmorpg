@@ -78,6 +78,7 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.Wolfsbane |
   PlantTypeVariants.Sunflowers |
   PlantTypeVariants.MemoryShard |
+  PlantTypeVariants.SeaweedBed |
   PlantTypeVariants.WoodPile |
   PlantTypeVariants.BeachWoodPile |
   PlantTypeVariants.StonePile |
@@ -144,6 +145,7 @@ export const PlantType = {
   Wolfsbane: { tag: "Wolfsbane" } as const,
   Sunflowers: { tag: "Sunflowers" } as const,
   MemoryShard: { tag: "MemoryShard" } as const,
+  SeaweedBed: { tag: "SeaweedBed" } as const,
   WoodPile: { tag: "WoodPile" } as const,
   BeachWoodPile: { tag: "BeachWoodPile" } as const,
   StonePile: { tag: "StonePile" } as const,
@@ -204,6 +206,7 @@ export const PlantType = {
       { name: "Wolfsbane", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Sunflowers", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "MemoryShard", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeaweedBed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WoodPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BeachWoodPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StonePile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

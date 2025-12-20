@@ -161,15 +161,36 @@ function renderSteamParticles(ctx: CanvasRenderingContext2D, fumaroleId: string)
     ctx.restore();
 }
 
+// Offscreen canvas for underwater tinting (reused for performance)
+let fumaroleOffscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let fumaroleOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getFumaroleOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
+    if (!fumaroleOffscreenCanvas || fumaroleOffscreenCanvas.width < width || fumaroleOffscreenCanvas.height < height) {
+        // Create or resize offscreen canvas
+        if (typeof OffscreenCanvas !== 'undefined') {
+            fumaroleOffscreenCanvas = new OffscreenCanvas(width, height);
+        } else {
+            fumaroleOffscreenCanvas = document.createElement('canvas');
+            fumaroleOffscreenCanvas.width = width;
+            fumaroleOffscreenCanvas.height = height;
+        }
+        fumaroleOffscreenCtx = fumaroleOffscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+    }
+    return { canvas: fumaroleOffscreenCanvas, ctx: fumaroleOffscreenCtx! };
+}
+
 /**
  * Renders a fumarole entity (geothermal vent in quarry areas).
  * Fumaroles provide warmth protection and emit steam particles.
+ * @param applyUnderwaterTint - If true, applies teal underwater tint (when viewer is snorkeling)
  */
 export function renderFumarole(
     ctx: CanvasRenderingContext2D,
     fumarole: Fumarole,
     nowMs: number,
-    cycleProgress: number
+    cycleProgress: number,
+    applyUnderwaterTint: boolean = false
 ): void {
     const fumaroleId = fumarole.id.toString();
     
@@ -184,19 +205,63 @@ export function renderFumarole(
     // Update steam particles
     updateSteamParticles(fumaroleId, fumarole.posX, fumarole.posY, nowMs, cappedDeltaTime);
     
-    // Render the fumarole base sprite
-    renderConfiguredGroundEntity({
-        ctx,
-        entity: fumarole,
-        config: fumaroleConfig,
-        nowMs,
-        entityPosX: fumarole.posX,
-        entityPosY: fumarole.posY,
-        cycleProgress,
-    });
+    // Calculate draw position
+    const drawX = fumarole.posX - FUMAROLE_WIDTH / 2;
+    const drawY = fumarole.posY - FUMAROLE_HEIGHT / 2;
     
-    // Render steam particles on top
-    renderSteamParticles(ctx, fumaroleId);
+    if (applyUnderwaterTint) {
+        // Use offscreen canvas for proper tinting
+        const padding = 40; // Extra padding for steam particles
+        const canvasWidth = FUMAROLE_WIDTH + padding * 2;
+        const canvasHeight = FUMAROLE_HEIGHT + padding * 2;
+        const { canvas, ctx: offCtx } = getFumaroleOffscreenCanvas(canvasWidth, canvasHeight);
+        
+        // Clear the offscreen canvas
+        offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Save and translate to render fumarole at center of offscreen canvas
+        offCtx.save();
+        offCtx.translate(padding + FUMAROLE_WIDTH / 2 - fumarole.posX, padding + FUMAROLE_HEIGHT / 2 - fumarole.posY);
+        
+        // Render fumarole base sprite to offscreen canvas
+        renderConfiguredGroundEntity({
+            ctx: offCtx as CanvasRenderingContext2D,
+            entity: fumarole,
+            config: fumaroleConfig,
+            nowMs,
+            entityPosX: fumarole.posX,
+            entityPosY: fumarole.posY,
+            cycleProgress,
+        });
+        
+        // Render steam particles to offscreen canvas
+        renderSteamParticles(offCtx as CanvasRenderingContext2D, fumaroleId);
+        
+        offCtx.restore();
+        
+        // Apply teal tint using source-atop (only affects drawn pixels)
+        offCtx.globalCompositeOperation = 'source-atop';
+        offCtx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
+        offCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+        offCtx.globalCompositeOperation = 'source-over';
+        
+        // Draw the tinted result to main canvas
+        ctx.drawImage(canvas, drawX - padding, drawY - padding);
+    } else {
+        // Normal rendering without tint
+        renderConfiguredGroundEntity({
+            ctx,
+            entity: fumarole,
+            config: fumaroleConfig,
+            nowMs,
+            entityPosX: fumarole.posX,
+            entityPosY: fumarole.posY,
+            cycleProgress,
+        });
+        
+        // Render steam particles on top
+        renderSteamParticles(ctx, fumaroleId);
+    }
 }
 
 /**

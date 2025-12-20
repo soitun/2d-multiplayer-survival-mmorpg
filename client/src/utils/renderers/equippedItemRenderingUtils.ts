@@ -675,19 +675,10 @@ export const renderEquippedItem = (
 
   ctx.restore(); // Restore overall item rendering context (matches the first ctx.save() in this block)
 
-  // --- Apply Underwater Teal Tint ---
-  // When player is snorkeling, apply a teal overlay to the equipped item to match underwater visuals
-  if (applyUnderwaterTint) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
-    // Draw teal overlay over the approximate item area
-    const tintX = player.positionX - itemWidth;
-    const tintY = player.positionY - itemHeight - jumpOffset;
-    ctx.fillRect(tintX, tintY, itemWidth * 2, itemHeight * 2);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.restore();
-  }
+  // Note: Underwater tinting for equipped items is handled differently - the player's underwater
+  // visual effect (snorkeling sprite) already provides the teal tint context. Additional tinting
+  // on the equipped item was causing visual artifacts (squares), so it has been removed.
+  // The applyUnderwaterTint parameter is kept for API compatibility but no longer applies tint.
 
   // --- Draw Attack Visual Effect --- 
   if (isSwinging) { 

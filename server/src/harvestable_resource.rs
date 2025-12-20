@@ -62,6 +62,8 @@ impl RespawnableResource for HarvestableResource {
 /// Handles player interactions with any harvestable resource type
 #[spacetimedb::reducer]
 pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64) -> Result<(), String> {
+    use crate::plants_database::SpawnCondition;
+    
     let player_id = ctx.sender;
     
     // Find the resource
@@ -74,9 +76,20 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     }
     
     // Validate player can interact with this resource (distance check)
-    let _player = validate_player_resource_interaction(ctx, player_id, resource.pos_x, resource.pos_y)?;
+    let player = validate_player_resource_interaction(ctx, player_id, resource.pos_x, resource.pos_y)?;
 
     // Get configuration for this plant type
+    let config = PLANT_CONFIGS.get(&resource.plant_type)
+        .ok_or_else(|| format!("No configuration found for plant type: {:?}", resource.plant_type))?;
+    
+    // Check if underwater harvesting requires snorkeling
+    if matches!(config.spawn_condition, SpawnCondition::Underwater) {
+        if !player.is_snorkeling {
+            return Err("You must be underwater (snorkeling) to harvest this plant.".to_string());
+        }
+    }
+
+    // Get configuration for this plant type (for yield calculation)
     let config = PLANT_CONFIGS.get(&resource.plant_type)
         .ok_or_else(|| format!("No configuration found for plant type: {:?}", resource.plant_type))?;
 

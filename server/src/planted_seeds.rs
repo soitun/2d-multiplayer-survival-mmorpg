@@ -548,6 +548,34 @@ fn validate_glasswort_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(
     Ok(())
 }
 
+/// Validate seaweed frond planting location
+/// Seaweed fronds can only be planted underwater and player must be snorkeling
+fn validate_seaweed_frond_planting(ctx: &ReducerContext, player_id: spacetimedb::Identity, x: f32, y: f32) -> Result<(), String> {
+    // Check if it's a water tile (deep enough for seaweed)
+    if !is_water_tile(ctx, x, y) {
+        return Err("Seaweed Frond can only be planted underwater".to_string());
+    }
+    
+    // Check if player is snorkeling
+    let player = ctx.db.player().identity().find(player_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    if !player.is_snorkeling {
+        return Err("You must be underwater (snorkeling) to plant seaweed".to_string());
+    }
+    
+    // Check distance to shore - seaweed needs to be reasonably far from shore
+    const MIN_SHORE_DISTANCE: f32 = 100.0; // At least 10 meters from shore
+    let shore_distance = calculate_shore_distance(ctx, x, y);
+    
+    if shore_distance < MIN_SHORE_DISTANCE {
+        return Err(format!("Seaweed must be planted at least 10m from shore (current distance: {:.1}m)", shore_distance / 10.0));
+    }
+    
+    log::info!("Seaweed Frond planting validated at ({:.1}, {:.1}) - {:.1}m from shore", x, y, shore_distance / 10.0);
+    Ok(())
+}
+
 // --- Planting Reducer ---
 
 /// Plants a seed item on the ground to grow into a resource
@@ -670,10 +698,20 @@ pub fn plant_seed(
         }
     }
     
+    // Special validation for Seaweed Frond - must be planted underwater while snorkeling
+    if item_def.name == "Seaweed Frond" {
+        if let Err(e) = validate_seaweed_frond_planting(ctx, player_id, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Seaweed Frond validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
     // Validation for normal plants (non-water, non-beach) - cannot be planted on water
     // Reed Rhizome requires water, so skip this check for it
+    // Seaweed Frond requires deep water, so skip this check for it
     // Beach plants require beach tiles, so skip this check for them
     if item_def.name != "Reed Rhizome" 
+        && item_def.name != "Seaweed Frond"
         && item_def.name != "Beach Lyme Grass Seeds"
         && item_def.name != "Scurvy Grass Seeds"
         && item_def.name != "Sea Plantain Seeds"

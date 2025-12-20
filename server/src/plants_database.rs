@@ -74,6 +74,9 @@ pub enum PlantType {
     // === TECHNOLOGICAL DEBRIS ===
     MemoryShard, // Crashed ship cognitive archive debris
     
+    // === UNDERWATER PLANTS (Require snorkeling to harvest) ===
+    SeaweedBed, // Underwater seaweed - requires diving to harvest
+    
     // === RESOURCE PILES (Small bonus resources scattered in world) ===
     WoodPile,       // Small pile of wood - general terrain
     BeachWoodPile,  // Driftwood pile - beaches only
@@ -127,6 +130,7 @@ pub enum SpawnCondition {
     InlandWater, // Along inland water (reed)
     Tundra,      // Tundra biome only (arctic plants)
     Alpine,      // Alpine biome only (mountain plants)
+    Underwater,  // Underwater only - requires snorkeling to harvest (seaweed)
 }
 
 // --- Plant Configuration Database ---
@@ -961,6 +965,25 @@ lazy_static! {
             max_respawn_time_secs: 1500, // 25 minutes
             spawn_condition: SpawnCondition::Coastal, // Debris washed up on beaches and coastline from the crash
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always findable - not biological
+        });
+        
+        // === UNDERWATER PLANTS ===
+        
+        configs.insert(PlantType::SeaweedBed, PlantConfig {
+            entity_name: "Seaweed Bed".to_string(),
+            density_percent: 0.0012, // ~300 seaweed beds spread across underwater areas
+            min_distance_sq: 50.0 * 50.0, // Cluster reasonably close
+            min_tree_distance_sq: 0.0 * 0.0, // No tree distance check underwater
+            min_stone_distance_sq: 30.0 * 30.0, // Some distance from rocks
+            noise_threshold: 0.55, // Lower threshold for more coverage
+            primary_yield: ("Seaweed".to_string(), 2, 4), // 2-4 seaweed per harvest
+            secondary_yield: Some(("Sea Glass".to_string(), 1, 2, 0.15)), // 15% chance for sea glass
+            seed_type: "Seaweed Frond".to_string(), // Vegetative reproduction via frond cuttings
+            seed_drop_chance: 0.65, // 65% chance - sustainable farming
+            min_respawn_time_secs: 480, // 8 minutes - grows quickly
+            max_respawn_time_secs: 720, // 12 minutes
+            spawn_condition: SpawnCondition::Underwater, // MUST be underwater, requires snorkeling
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round underwater plant
         });
         
         // === RESOURCE PILES (Small bonus resources) ===

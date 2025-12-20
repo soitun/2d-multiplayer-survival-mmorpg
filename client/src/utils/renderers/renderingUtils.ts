@@ -584,12 +584,16 @@ export const renderYSortedEntities = ({
       
       // === UNDERWATER SNORKELING MODE ===
       // When snorkeling, hide most land-based entities - player is underwater
-      // But allow underwater entities: players, living coral, and submerged fumaroles
+      // But allow underwater entities: players, living coral, submerged fumaroles, and seaweed
       if (isLocalPlayerSnorkeling) {
-        // Allow: players, living coral (always underwater), and submerged fumaroles
+        // Allow: players, living coral (always underwater), submerged fumaroles, and SeaweedBed resources
+        const isSeaweedBed = type === 'harvestable_resource' && 
+          (entity as SpacetimeDBHarvestableResource).plantType?.tag === 'SeaweedBed';
+        
         const isUnderwaterEntity = 
           type === 'player' || 
           type === 'living_coral' || 
+          isSeaweedBed ||
           (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);
         
         if (!isUnderwaterEntity) {
@@ -1009,8 +1013,26 @@ export const renderYSortedEntities = ({
       } else if (type === 'harvestable_resource') {
           const resource = entity as SpacetimeDBHarvestableResource;
           
-          // Use unified renderer that handles all plant types internally
-          renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
+          // Check if this is an underwater plant (SeaweedBed)
+          const isSeaweedBed = resource.plantType?.tag === 'SeaweedBed';
+          
+          if (isSeaweedBed) {
+            // SeaweedBed rendering with underwater visibility effects
+            if (!isLocalPlayerSnorkeling) {
+              // Above water view: render seaweed blurry (visible but hard to interact with)
+              ctx.save();
+              ctx.filter = 'blur(2px)';
+              ctx.globalAlpha = 0.6;
+              renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
+              ctx.restore();
+            } else {
+              // Underwater view: render seaweed clearly (no tint needed - underwater ambient provides context)
+              renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
+            }
+          } else {
+            // Normal harvestable resources - use unified renderer
+            renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
+          }
           
           // Note: Green circle outline removed - interaction indicators now handled by cyberpunk "E" labels only
       } else if (type === 'campfire') {
@@ -1275,16 +1297,19 @@ export const renderYSortedEntities = ({
           
           // Submerged fumaroles (underwater) - render with blur when viewed from above water
           const viewingSubmergedFromAbove = fumarole.isSubmerged && !isLocalPlayerSnorkeling;
+          const applyUnderwaterTint = fumarole.isSubmerged && isLocalPlayerSnorkeling;
+          
           if (viewingSubmergedFromAbove) {
               // Save current filter and apply underwater blur effect (viewing through water surface)
               const savedFilter = ctx.filter;
               ctx.filter = 'blur(2px)';
               ctx.globalAlpha = 0.7; // Slightly transparent when viewed from above
-              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress, false); // No tint when viewing from above
               ctx.filter = savedFilter;
               ctx.globalAlpha = 1.0;
           } else {
-              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+              // Render with teal tint if snorkeling and fumarole is submerged
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress, applyUnderwaterTint);
           }
           
           if (isTheClosestTarget && !viewingSubmergedFromAbove) {

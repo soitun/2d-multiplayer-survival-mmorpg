@@ -1134,6 +1134,41 @@ pub fn validate_spawn_location(
             // Alpine-specific plants: Must be on Alpine tile type
             matches!(current_tile_type, Some(TileType::Alpine))
         }
+        
+        plants_database::SpawnCondition::Underwater => {
+            // Underwater plants (seaweed): Must be in sea water
+            // Seaweed can spawn in Sea tiles - just needs to be in ocean water
+            if !matches!(current_tile_type, Some(TileType::Sea)) {
+                return false;
+            }
+            
+            // Check only the 8 immediate neighbors (no sqrt, no unnecessary iterations)
+            // This is O(8) instead of O(25) with sqrt calculations
+            const NEIGHBOR_OFFSETS: [(i32, i32); 8] = [
+                (-1, -1), (0, -1), (1, -1),
+                (-1, 0),           (1, 0),
+                (-1, 1),  (0, 1),  (1, 1),
+            ];
+            
+            for (dx, dy) in NEIGHBOR_OFFSETS {
+                let check_x = tile_x + dx;
+                let check_y = tile_y + dy;
+                
+                // Bounds check
+                if check_x < 0 || check_y < 0 || 
+                   check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_WIDTH_TILES as i32 {
+                    continue;
+                }
+                
+                if let Some(nearby_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                    // If nearby tile is land/beach, this is too close to shore
+                    if !nearby_tile_type.is_water() && nearby_tile_type != TileType::Quarry {
+                        return false;
+                    }
+                }
+            }
+            true // Valid underwater spawn location
+        }
     }
 }
 
@@ -2525,13 +2560,17 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 },
                 (),
                 |pos_x, pos_y| {
-                    // Special case for reeds: allow them to spawn in water (they need inland water)
+                    // Special cases for water-spawning plants
                     let config = plants_database::PLANT_CONFIGS.get(plant_type).unwrap();
-                    let allow_water_spawn = matches!(config.spawn_condition, plants_database::SpawnCondition::InlandWater);
+                    let allow_inland_water_spawn = matches!(config.spawn_condition, plants_database::SpawnCondition::InlandWater);
+                    let allow_underwater_spawn = matches!(config.spawn_condition, plants_database::SpawnCondition::Underwater);
                     
-                    let water_blocked = if allow_water_spawn {
+                    let water_blocked = if allow_inland_water_spawn {
                         // For reeds: only block if it's NOT inland water (i.e., block ocean water and land)
                         !is_position_on_inland_water(ctx, pos_x, pos_y)
+                    } else if allow_underwater_spawn {
+                        // For seaweed: only block if NOT in sea/shallow water
+                        !is_position_on_water(ctx, pos_x, pos_y)
                     } else {
                         // For all other plants: block any water tiles
                         is_position_on_water(ctx, pos_x, pos_y)

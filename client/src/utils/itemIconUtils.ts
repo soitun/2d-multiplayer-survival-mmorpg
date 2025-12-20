@@ -368,6 +368,7 @@ import hempSeedsIcon from '../assets/items/hemp_seeds.png';
 import pumpkinSeedsIcon from '../assets/items/pumpkin_seeds.png';
 import mushroomSporeIcon from '../assets/items/mushroom_spore.png';
 import reedRhizomeIcon from '../assets/items/reed_rhizome.png';
+import seaweedFrondIcon from '../assets/items/seaweed_frond.png';
 import flaxSeedsIcon from '../assets/items/flax_seeds.png';
 import bearGarlicBulbsIcon from '../assets/items/bear_garlic_bulbs.png';
 import ginsengSeedsIcon from '../assets/items/ginseng_seeds.png';
@@ -788,6 +789,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'hemp_seeds.png': hempSeedsIcon,
   'pumpkin_seeds.png': pumpkinSeedsIcon,
   'reed_rhizome.png': reedRhizomeIcon,
+  'seaweed_frond.png': seaweedFrondIcon,
   'flax_seeds.png': flaxSeedsIcon,
   'bear_garlic_bulbs.png': bearGarlicBulbsIcon,
   'ginseng_seeds.png': ginsengSeedsIcon,

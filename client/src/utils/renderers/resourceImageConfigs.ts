@@ -76,6 +76,9 @@ import metalOrePileImageSource from '../../assets/doodads/pile_metal.png';
 import sulfurPileImageSource from '../../assets/doodads/pile_sulfur.png';
 import charcoalPileImageSource from '../../assets/doodads/pile_charcoal.png';
 
+// Underwater plants
+import seaweedBedImageSource from '../../assets/doodads/seaweed.png';
+
 // Resource type to image source mapping (BOTANICALLY ACCURATE FOR ALEUTIAN ISLANDS)
 export const RESOURCE_IMAGE_SOURCES = {
   // === BASIC CROPS (Cold-hardy varieties) ===
@@ -153,7 +156,10 @@ export const RESOURCE_IMAGE_SOURCES = {
   LeavesPile: leavesPileImageSource,
   MetalOrePile: metalOrePileImageSource,
   SulfurPile: sulfurPileImageSource,
-  CharcoalPile: charcoalPileImageSource
+  CharcoalPile: charcoalPileImageSource,
+  
+  // === UNDERWATER PLANTS (Require snorkeling to harvest) ===
+  SeaweedBed: seaweedBedImageSource
 } as Record<HarvestableResourceType, string>; // Using 'as' instead of 'satisfies' - new types will be added after bindings regeneration
 
 // Explicit type export for better type inference

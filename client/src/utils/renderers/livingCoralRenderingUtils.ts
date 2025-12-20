@@ -78,6 +78,25 @@ const livingCoralConfig: GroundEntityConfig<LivingCoral> = {
     fallbackColor: '#FF6B6B', // Coral pink fallback color
 };
 
+// Offscreen canvas for underwater tinting (reused for performance)
+let offscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let offscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
+    if (!offscreenCanvas || offscreenCanvas.width < width || offscreenCanvas.height < height) {
+        // Create or resize offscreen canvas
+        if (typeof OffscreenCanvas !== 'undefined') {
+            offscreenCanvas = new OffscreenCanvas(width, height);
+        } else {
+            offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = width;
+            offscreenCanvas.height = height;
+        }
+        offscreenCtx = offscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+    }
+    return { canvas: offscreenCanvas, ctx: offscreenCtx! };
+}
+
 /**
  * Renders a living coral entity (underwater harvestable resource).
  * Living coral uses the combat system like stones - attack with Diving Pick to harvest.
@@ -95,35 +114,56 @@ export function renderLivingCoral(
         return;
     }
     
-    // Apply teal underwater tint when viewing from underwater (snorkeling)
-    if (applyUnderwaterTint) {
-        ctx.save();
-        // Apply a subtle teal color filter overlay
-        ctx.globalAlpha = 0.85;
-    }
+    // Calculate draw position
+    const drawX = coral.posX - LIVING_CORAL_WIDTH / 2;
+    const drawY = coral.posY - LIVING_CORAL_HEIGHT + 40;
     
-    renderConfiguredGroundEntity({
-        ctx,
-        entity: coral,
-        config: livingCoralConfig,
-        nowMs,
-        entityPosX: coral.posX,
-        entityPosY: coral.posY,
-        cycleProgress,
-    });
-    
-    // Draw teal overlay on top of the coral for underwater effect
     if (applyUnderwaterTint) {
-        // Draw a teal-tinted rectangle over the coral area
-        const drawX = coral.posX - LIVING_CORAL_WIDTH / 2;
-        const drawY = coral.posY - LIVING_CORAL_HEIGHT + 40;
+        // Use offscreen canvas for proper tinting
+        const padding = 20; // Extra padding for shadows/effects
+        const canvasWidth = LIVING_CORAL_WIDTH + padding * 2;
+        const canvasHeight = LIVING_CORAL_HEIGHT + padding * 2;
+        const { canvas, ctx: offCtx } = getOffscreenCanvas(canvasWidth, canvasHeight);
         
-        ctx.globalCompositeOperation = 'source-atop';
-        ctx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
-        ctx.fillRect(drawX - 10, drawY - 10, LIVING_CORAL_WIDTH + 20, LIVING_CORAL_HEIGHT + 20);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-        ctx.restore();
+        // Clear the offscreen canvas
+        offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Save and translate to render coral at center of offscreen canvas
+        offCtx.save();
+        offCtx.translate(padding + LIVING_CORAL_WIDTH / 2 - coral.posX, padding + LIVING_CORAL_HEIGHT - 40 - coral.posY);
+        
+        // Render coral to offscreen canvas
+        renderConfiguredGroundEntity({
+            ctx: offCtx as CanvasRenderingContext2D,
+            entity: coral,
+            config: livingCoralConfig,
+            nowMs,
+            entityPosX: coral.posX,
+            entityPosY: coral.posY,
+            cycleProgress,
+        });
+        
+        offCtx.restore();
+        
+        // Apply teal tint using source-atop (only affects drawn pixels)
+        offCtx.globalCompositeOperation = 'source-atop';
+        offCtx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
+        offCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+        offCtx.globalCompositeOperation = 'source-over';
+        
+        // Draw the tinted result to main canvas
+        ctx.drawImage(canvas, drawX - padding, drawY - padding);
+    } else {
+        // Normal rendering without tint
+        renderConfiguredGroundEntity({
+            ctx,
+            entity: coral,
+            config: livingCoralConfig,
+            nowMs,
+            entityPosX: coral.posX,
+            entityPosY: coral.posY,
+            cycleProgress,
+        });
     }
 }
 
