@@ -1,6 +1,5 @@
 ---
-description: When running spacetime log commands
-alwaysApply: false
+alwaysApply: true
 ---
 # Windows Command Compatibility Rules
 

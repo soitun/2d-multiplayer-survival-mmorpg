@@ -33,10 +33,14 @@ pub enum LoadoutType {
     Survival,
     /// Developer mode: Everything you need for debugging (weapons, tools, materials)
     Developer,
+    /// Swimming/Water testing: Snorkel, fishing rod, water containers
+    Swimming,
+    /// Farming testing: Seeds, compost, fertilizer, water containers
+    Farming,
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Swimming;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -199,6 +203,57 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Compost", 3, None, Some(21)),
             ("Gunpowder", 500, None, Some(22)),
             ("Wolf Fur Hood", 1, None, Some(23)),
+        ],
+
+        // ====================================================================
+        // SWIMMING - Water exploration and fishing
+        // ====================================================================
+        LoadoutType::Swimming => vec![
+            // Hotbar - Water essentials
+            ("Primitive Reed Fishing Rod", 1, Some(0), None),
+            ("Bone Gaff Hook", 1, Some(1), None),
+            ("Wooden Spear", 1, Some(2), None),       // Underwater weapon
+            ("Torch", 1, Some(3), None),
+            ("Plastic Water Jug", 1, Some(4), None),
+            ("Cerametal Field Cauldron Mk. II", 1, Some(5), None),
+            // Inventory - Fishing & water supplies
+            ("Reed Water Bottle", 1, None, Some(0)),
+            ("Reed Rain Collector", 3, None, Some(1)),
+            ("Reed Diver's Helm", 1, None, Some(2)),   // Snorkel for underwater exploration
+            ("Bandage", 10, None, Some(3)),
+            ("Camp Fire", 3, None, Some(4)),
+            ("Wooden Storage Box", 2, None, Some(5)),
+            ("Plant Fiber", 100, None, Some(6)),
+            ("Common Reed Stalk", 50, None, Some(7)),
+            ("Rope", 20, None, Some(8)),
+        ],
+
+        // ====================================================================
+        // FARMING - Crop cultivation and gardening
+        // ====================================================================
+        LoadoutType::Farming => vec![
+            // Hotbar - Farming essentials
+            ("Combat Ladle", 1, Some(0), None),       // Basic tool
+            ("Torch", 1, Some(1), None),
+            ("Plastic Water Jug", 1, Some(2), None),  // Watering
+            ("Fertilizer", 100, Some(3), None),       // Growth boost
+            ("Reed Water Bottle", 1, Some(4), None),
+            ("Cerametal Field Cauldron Mk. II", 1, Some(5), None),
+            // Inventory - Seeds variety
+            ("Seed Potato", 20, None, Some(0)),
+            ("Corn Seeds", 20, None, Some(1)),
+            ("Carrot Seeds", 30, None, Some(2)),
+            ("Pumpkin Seeds", 20, None, Some(3)),
+            ("Sunflower Seeds", 30, None, Some(4)),
+            ("Flax Seeds", 30, None, Some(5)),
+            ("Chamomile Seeds", 20, None, Some(6)),
+            ("Lingonberry Seeds", 20, None, Some(7)),
+            // Farming infrastructure
+            ("Compost", 3, None, Some(8)),
+            ("Reed Rain Collector", 5, None, Some(9)),
+            ("Wooden Storage Box", 3, None, Some(10)),
+            ("Camp Fire", 2, None, Some(11)),
+            ("Bandage", 10, None, Some(12)),
         ],
     }
 }
