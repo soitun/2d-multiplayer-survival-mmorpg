@@ -267,8 +267,10 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "hollow-reed-arrow" => Some((1200, vec!["fire-arrow"])),
         // Branch 2 (linear)
         "metal-door" => Some((1280, vec!["large-wooden-storage-box"])),
-        // Branch 3 UPPER (Fishing)
+        // Branch 3 UPPER (Fishing/Diving path)
         "reed-snorkel" => Some((1400, vec!["reed-fishing-rod"])),
+        // Branch 3 CENTER (Water Mobility path)
+        "reed-flippers" => Some((1000, vec!["kayak-paddle"])),
         // Branch 3 LOWER (Water Collection)
         "plastic-water-jug" => Some((1200, vec!["reed-rain-collector"])),
         // Branch 4 LOWER (Food Storage)
@@ -291,6 +293,8 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),
         // Branch 2 (linear)
         "shelter" => Some((2600, vec!["metal-door"])),
+        // Branch 3 UPPER (Diving/Coral path)
+        "diving-pick" => Some((2200, vec!["reed-snorkel"])),
         // Branch 4 UPPER (Cooking)
         "cooking-station" => Some((1400, vec!["barbecue"])),
         // Branch 5 UPPER (Passive Bonuses)
@@ -533,6 +537,7 @@ fn get_node_display_name(node_id: &str) -> String {
         "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
         "metal-door" => "Metal Door".to_string(),
         "reed-snorkel" => "Reed Diver's Helm".to_string(),
+        "reed-flippers" => "Reed Flippers".to_string(),
         "plastic-water-jug" => "Plastic Water Jug".to_string(),
         "cooking-station" => "Cooking Station".to_string(),
         "compost" => "Compost".to_string(),
@@ -542,6 +547,7 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 5
         "9x18mm-round" => "9x18mm Round".to_string(),
         "shelter" => "Shelter".to_string(),
+        "diving-pick" => "Diving Pick".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
         // Tier 6
@@ -663,6 +669,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
         "Metal Door" => Some("metal-door"),
         "Reed Diver's Helm" => Some("reed-snorkel"),
+        "Reed Flippers" => Some("reed-flippers"),
         "Plastic Water Jug" => Some("plastic-water-jug"),
         "Cooking Station" => Some("cooking-station"),
         "Compost" => Some("compost"),
@@ -671,6 +678,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         // Tier 5 items
         "9x18mm Round" => Some("9x18mm-round"),
         "Shelter" => Some("shelter"),
+        "Diving Pick" => Some("diving-pick"),
         
         // Tier 6 items
         "Makarov PM" => Some("makarov-pm"),

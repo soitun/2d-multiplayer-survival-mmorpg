@@ -580,7 +580,7 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Metal Door']
   },
-  // Branch 3 UPPER (Fishing)
+  // Branch 3 UPPER (Fishing/Diving path)
   { 
     id: 'reed-snorkel', 
     name: 'Reed Diver\'s Helm',
@@ -592,6 +592,19 @@ export const MEMORY_GRID_NODES = [
     category: 'tool' as const, 
     status: 'locked' as const,
     unlocksItems: ['Reed Diver\'s Helm']
+  },
+  // Branch 3 CENTER (Water Mobility path)
+  { 
+    id: 'reed-flippers', 
+    name: 'Reed Flippers',
+    description: 'Unlocks crafting Reed Flippers - woven flippers that double your swimming speed. Essential for underwater exploration.',
+    cost: 1000, 
+    tier: 4, 
+    prerequisites: ['kayak-paddle'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3, 420), // Center path
+    category: 'armor' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Reed Flippers']
   },
   // Branch 3 LOWER (Water Collection)
   { 
@@ -700,6 +713,19 @@ export const MEMORY_GRID_NODES = [
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 520), // Upper path
     category: 'passive' as const, 
     status: 'locked' as const
+  },
+  // Branch 3 UPPER (Diving/Coral path)
+  { 
+    id: 'diving-pick', 
+    name: 'Diving Pick', 
+    description: 'Unlocks crafting the Diving Pick - a specialized underwater tool required to harvest living coral. Yields Limestone, Coral Fragments, and rare Pearls.', 
+    cost: 2200, 
+    tier: 5, 
+    prerequisites: ['reed-snorkel'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 520), // Upper diving path
+    category: 'tool' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Diving Pick']
   },
 
   // ============================================
@@ -1058,6 +1084,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Hollow Reed Arrow': 'hollow-reed-arrow',
   'Metal Door': 'metal-door',
   'Reed Diver\'s Helm': 'reed-snorkel',
+  'Reed Flippers': 'reed-flippers',
   'Plastic Water Jug': 'plastic-water-jug',
   'Cooking Station': 'cooking-station',
   'Compost': 'compost',
@@ -1066,6 +1093,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 5 items
   '9x18mm Round': '9x18mm-round',
   'Shelter': 'shelter',
+  'Diving Pick': 'diving-pick',
   
   // Tier 6 items
   'Makarov PM': 'makarov-pm',

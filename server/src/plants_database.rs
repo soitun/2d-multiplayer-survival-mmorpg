@@ -976,10 +976,10 @@ lazy_static! {
             min_tree_distance_sq: 0.0 * 0.0, // No tree distance check underwater
             min_stone_distance_sq: 30.0 * 30.0, // Some distance from rocks
             noise_threshold: 0.55, // Lower threshold for more coverage
-            primary_yield: ("Seaweed".to_string(), 2, 4), // 2-4 seaweed per harvest
-            secondary_yield: Some(("Sea Glass".to_string(), 1, 2, 0.15)), // 15% chance for sea glass
+            primary_yield: ("Seaweed".to_string(), 5, 9), // 5-9 seaweed per harvest (better than fishing junk)
+            secondary_yield: Some(("Sea Glass".to_string(), 1, 3, 0.25)), // 25% chance for 1-3 sea glass (improved)
             seed_type: "Seaweed Frond".to_string(), // Vegetative reproduction via frond cuttings
-            seed_drop_chance: 0.65, // 65% chance - sustainable farming
+            seed_drop_chance: 0.70, // 70% chance - sustainable farming (increased)
             min_respawn_time_secs: 480, // 8 minutes - grows quickly
             max_respawn_time_secs: 720, // 12 minutes
             spawn_condition: SpawnCondition::Underwater, // MUST be underwater, requires snorkeling

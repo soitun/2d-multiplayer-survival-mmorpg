@@ -143,6 +143,40 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         &mut ctx.rng().clone(),
     )?;
 
+    // === SEAWEED-SPECIFIC BONUS DROPS ===
+    // SeaweedBed grants bonus drops that make underwater farming worthwhile
+    if matches!(resource.plant_type, crate::plants_database::PlantType::SeaweedBed) {
+        // 1. Plant Fiber bonus (underwater fiber source)
+        // Balanced to NOT compete with land-based mega producers:
+        // - BorealNettle: 40-50 (mega producer)
+        // - Beach Lyme Grass: 15 (dedicated coastal fiber)
+        // - Arctic Hairgrass: 3-5 (alpine fiber)
+        // SeaweedBed bonus: 2-4 at 40% chance (modest underwater bonus)
+        let fiber_chance: f32 = ctx.rng().gen_range(0.0..1.0);
+        if fiber_chance < 0.40 {
+            let fiber_amount = ctx.rng().gen_range(2..=4);
+            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Plant Fiber", fiber_amount)?;
+            log::info!("SeaweedBed bonus: Player {:?} received {} Plant Fiber", player_id, fiber_amount);
+        }
+        
+        // 2. Pearl bonus (rare valuable drop - makes farming worthwhile)
+        // Similar rarity to coral pearl drops (2-3% chance)
+        let pearl_chance: f32 = ctx.rng().gen_range(0.0..1.0);
+        if pearl_chance < 0.03 {
+            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Pearl", 1)?;
+            log::info!("🦪 SeaweedBed RARE DROP: Player {:?} found a Pearl!", player_id);
+        }
+        
+        // 3. Shell bonus (common underwater drop)
+        // 15% chance for 1-2 shells
+        let shell_chance: f32 = ctx.rng().gen_range(0.0..1.0);
+        if shell_chance < 0.15 {
+            let shell_amount = ctx.rng().gen_range(1..=2);
+            crate::collectible_resources::grant_item_to_player(ctx, player_id, "Shell", shell_amount)?;
+            log::info!("SeaweedBed bonus: Player {:?} received {} Shell", player_id, shell_amount);
+        }
+    }
+
     Ok(())
 }
 
