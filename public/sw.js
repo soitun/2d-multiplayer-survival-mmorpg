@@ -22,11 +22,14 @@ const CACHEABLE_PATTERNS = [
     /\.(woff|woff2|ttf|otf)$/i,         // Fonts
 ];
 
-// Patterns to always fetch from network
+// Patterns to always fetch from network (no caching, no interception)
 const NETWORK_ONLY_PATTERNS = [
     /\/api\//,                           // API calls
     /spacetimedb/i,                      // SpacetimeDB WebSocket
     /\.hot-update\./,                    // Vite HMR
+    /localhost:\d+\/health/,             // Health check endpoints on any localhost port
+    /localhost:8001/,                    // Kokoro TTS service (local dev)
+    /localhost:4001/,                    // Auth server (local dev)
 ];
 
 // Check if URL matches any pattern in array

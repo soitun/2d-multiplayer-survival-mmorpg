@@ -567,9 +567,10 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Function to unlock audio context and play random SOVA sound
     const attemptToPlayRandomSovaSound = useCallback(async () => {
-        // Don't auto-play if we've already played something, if audio isn't ready, or if we're already attempting
-        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) {
-            console.log('Skipping auto-play: already played, audio not ready, or attempt in progress');
+        // Don't auto-play if we've already played something, if audio isn't ready, if we're already attempting,
+        // if this is a first-time visitor (they get the welcome sequence instead), or if the welcome conversation is active
+        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current || isFirstTimeVisitor || isConversationActiveRef.current) {
+            console.log('Skipping auto-play: already played, audio not ready, attempt in progress, first-time visitor, or welcome conversation active');
             return;
         }
 
@@ -636,7 +637,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             setShowAudioPrompt(true);
             saveAudioPreference(false);
         }
-    }, [audioPreloaded]); // Only recreate if audioPreloaded changes
+    }, [audioPreloaded, isFirstTimeVisitor]); // Recreate if audioPreloaded or first-time visitor status changes
 
     // Handle Sova avatar click to play random sounds
     const handleSovaClick = async () => {
@@ -666,6 +667,12 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         // Don't allow starting new audio if something is still playing
         if (isSovaSpeaking) {
             console.log('SOVA is still speaking, please wait...');
+            return;
+        }
+        
+        // Don't allow random sounds during welcome conversation
+        if (isConversationActiveRef.current) {
+            console.log('SOVA: Welcome conversation is active, skipping random sound');
             return;
         }
         
@@ -905,6 +912,20 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             return () => clearTimeout(fallbackTimer);
         }
     }, [currentLogIndex, logs.length, isSequenceComplete, assetsLoaded]);
+    
+    // EMERGENCY fallback: If stuck for 30+ seconds, force complete regardless of asset state
+    // This prevents users from being permanently stuck on loading screen
+    useEffect(() => {
+        const emergencyTimer = setTimeout(() => {
+            if (!isSequenceComplete) {
+                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 30s, forcing completion');
+                console.warn(`[CyberpunkLoadingScreen] State: currentLogIndex=${currentLogIndex}, logs.length=${logs.length}, assetsLoaded=${assetsLoaded}`);
+                setIsSequenceComplete(true);
+            }
+        }, 30000); // 30 second emergency timeout
+        
+        return () => clearTimeout(emergencyTimer);
+    }, [isSequenceComplete, currentLogIndex, logs.length, assetsLoaded]);
 
     // Reset when authLoading changes, but only if we haven't started the sequence at all
     // Once started, let the sequence complete regardless of player state (including death)
