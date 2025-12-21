@@ -2273,11 +2273,18 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
         _ => {
             // Allow specific throwable items
             let throwable_names = [
+                // Tools
                 "Rock", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle",
-                "Bone Club", "Bone Knife", "Stone Spear", "Wooden Spear", "Reed Harpoon",
-                "Stone Axe", "Wooden Club", "Bone Gaff Hook",
-                "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Engineers Maul", "Military Crowbar",
-                "Human Skull", "Fox Skull", "Wolf Skull", "Viper Skull"
+                // Basic melee
+                "Bone Club", "Bone Knife", "Wooden Club", "Bone Gaff Hook",
+                // Spears & harpoons
+                "Stone Spear", "Wooden Spear", "Reed Harpoon",
+                // Blades
+                "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Machete", "Metal Dagger", "Bone Shiv", "Battle Axe",
+                // Blunt weapons (can stun!)
+                "Stone Mace", "War Hammer", "Kayak Paddle", "Engineers Maul", "Military Crowbar",
+                // Skulls (blunt, can stun!)
+                "Human Skull", "Fox Skull", "Wolf Skull", "Viper Skull", "Walrus Skull"
             ];
             
             throwable_names.contains(&item_def.name.as_str()) ||
