@@ -858,35 +858,32 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             player.is_dead = true;
             player.death_timestamp = Some(ctx.timestamp); // Set death timestamp
 
+            // Drop active weapon on death (before clearing equipment and creating corpse)
+            match crate::dropped_item::drop_active_weapon_on_death(ctx, player_id, player.position_x, player.position_y) {
+                Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for player {:?} dying from stats decay", item_name, player_id),
+                Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for player {:?}", player_id),
+                Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for player {:?}: {}", player_id, e),
+            }
+
+            // Clear active equipment reference
+            match crate::active_equipment::clear_active_item_reducer(ctx, player_id) {
+                Ok(_) => log::info!("[PlayerDeath] Active item cleared for player {}", player_id),
+                Err(e) => log::error!("[PlayerDeath] Failed to clear active item for player {}: {}", player_id, e),
+            }
+
             // Clear all active effects on death (bleed, venom, burns, healing, etc.)
             crate::active_effects::clear_all_effects_on_death(ctx, player_id);
             log::info!("[PlayerDeath] Cleared all active effects for dying player {:?}", player_id);
 
-            // --- <<< CHANGED: Call refactored corpse creation function >>> ---
+            // Create corpse
             match player_corpse::create_player_corpse(ctx, player_id, player.position_x, player.position_y, &player.username) {
                 Ok(_) => {
                     log::info!("Successfully created corpse via stats decay for player {:?}", player_id);
-                    // If player was holding an item, it should be unequipped (returned to inventory or dropped)
-                    if let Some(player_state) = ctx.db.player().identity().find(&player_id) {
-                        if player_state.health == 0.0 { // Double check health is indeed 0 after death processing
-                            // Player is dead, clear active equipment if any
-                            if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&player_id) {
-                                if let Some(item_id) = active_equip.equipped_item_instance_id {
-                                    log::info!("[StatsUpdate] Player {} died with active item instance {}. Clearing.", player_id, item_id);
-                                    match crate::active_equipment::clear_active_item_reducer(ctx, player_id) {
-                                        Ok(_) => log::info!("[PlayerDeath] Active item cleared for player {}", player_id),
-                                        Err(e) => log::error!("[PlayerDeath] Failed to clear active item for player {}: {}", player_id, e),
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
                 Err(e) => {
                     log::error!("Failed to create corpse via stats decay for player {:?}: {}", player_id, e);
                 }
             }
-            // --- <<< END CHANGED >>> ---
 
             // --- Create/Update DeathMarker ---
             let new_death_marker = death_marker::DeathMarker {

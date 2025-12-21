@@ -144,15 +144,22 @@ pub fn process_knocked_out_recovery(ctx: &ReducerContext, args: KnockedOutRecove
         player.death_timestamp = Some(ctx.timestamp);
         player.health = 0.0;
 
-        // Clear all active effects on death (bleed, venom, burns, healing, etc.)
-        crate::active_effects::clear_all_effects_on_death(ctx, player_id);
-        log::info!("[KnockedOutDeath] Cleared all active effects for dying player {:?}", player_id);
+        // Drop active weapon on death (before clearing equipment and creating corpse)
+        match crate::dropped_item::drop_active_weapon_on_death(ctx, player_id, player.position_x, player.position_y) {
+            Ok(Some(item_name)) => log::info!("[KnockedOutDeath] Dropped active weapon '{}' for dying player {:?}", item_name, player_id),
+            Ok(None) => log::debug!("[KnockedOutDeath] No active weapon to drop for dying player {:?}", player_id),
+            Err(e) => log::error!("[KnockedOutDeath] Failed to drop active weapon for dying player {:?}: {}", player_id, e),
+        }
 
-        // Clear active item
+        // Clear active item reference
         match crate::active_equipment::clear_active_item_reducer(ctx, player.identity) {
             Ok(_) => log::info!("[KnockedOutDeath] Active item cleared for dying player {}", player.identity),
             Err(e) => log::error!("[KnockedOutDeath] Failed to clear active item for dying player {}: {}", player.identity, e),
         }
+
+        // Clear all active effects on death (bleed, venom, burns, healing, etc.)
+        crate::active_effects::clear_all_effects_on_death(ctx, player_id);
+        log::info!("[KnockedOutDeath] Cleared all active effects for dying player {:?}", player_id);
 
         // Create corpse
         match crate::player_corpse::create_player_corpse(ctx, player.identity, player.position_x, player.position_y, &player.username) {

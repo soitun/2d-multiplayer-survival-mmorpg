@@ -1339,6 +1339,18 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
     log::info!("Player {} killed by {} (species: {:?})", 
               target.identity, animal.id, animal.species);
     
+    // Drop active weapon on death (before clearing equipment and creating corpse)
+    match crate::dropped_item::drop_active_weapon_on_death(ctx, target.identity, target.position_x, target.position_y) {
+        Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for player {:?} killed by wild animal", item_name, target.identity),
+        Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for player {:?}", target.identity),
+        Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for player {:?}: {}", target.identity, e),
+    }
+    
+    // Clear active equipment reference
+    if let Err(e) = crate::active_equipment::clear_active_item_reducer(ctx, target.identity) {
+        log::error!("Failed to clear active item for player {:?} killed by wild animal: {}", target.identity, e);
+    }
+    
     // Clear all active effects on death (bleed, venom, burns, healing, etc.)
     crate::active_effects::clear_all_effects_on_death(ctx, target.identity);
     log::info!("[PlayerDeath] Cleared all active effects for player {:?} killed by wild animal", target.identity);
@@ -1375,11 +1387,6 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
     // Create player corpse
     if let Err(e) = crate::player_corpse::create_player_corpse(ctx, target.identity, target.position_x, target.position_y, &target.username) {
         log::error!("Failed to create corpse for player {:?} killed by wild animal: {}", target.identity, e);
-    }
-    
-    // Clear active equipment
-    if let Err(e) = crate::active_equipment::clear_active_item_reducer(ctx, target.identity) {
-        log::error!("Failed to clear active item for player {:?} killed by wild animal: {}", target.identity, e);
     }
     
     Ok(())

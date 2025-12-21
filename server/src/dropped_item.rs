@@ -17,6 +17,8 @@ use log;
 use spacetimedb::spacetimedb_lib::ScheduleAt;
 // Import Duration for interval
 use std::time::Duration;
+// Import for random drop offset
+use rand::{Rng, SeedableRng};
 
 // Import necessary items from other modules
 // Need to use the generated table trait alias for InventoryItemTable operations
@@ -28,6 +30,7 @@ use crate::items::{add_item_to_player_inventory, add_item_to_player_inventory_wi
 use crate::{Player, PLAYER_RADIUS}; 
 use crate::utils::get_distance_squared; // Assuming a utility function for distance
 use crate::environment::calculate_chunk_index; // Assuming helper is here or in utils
+use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait; // For dropping active weapon on death
 
 // Define the table for items dropped in the world
 #[spacetimedb::table(name = dropped_item, public)]
@@ -420,4 +423,100 @@ pub fn try_give_item_to_player_with_data(
     item_data: Option<String>,
 ) -> Result<bool, String> {
     give_item_to_player_or_drop_with_data(ctx, player_id, item_def_id, quantity, item_data)
+}
+
+// --- Death Drop Constants ---
+const DEATH_DROP_MIN_OFFSET: f32 = 30.0;  // Minimum distance from death position
+const DEATH_DROP_MAX_OFFSET: f32 = 60.0;  // Maximum distance from death position
+
+/// Drops the player's currently active/equipped weapon near their death position.
+/// This creates a dropped item with a random offset so attackers can quickly grab it.
+/// Returns Ok(Some(item_name)) if an item was dropped, Ok(None) if nothing was equipped.
+/// 
+/// IMPORTANT: Call this BEFORE create_player_corpse() and clear_active_item_reducer()
+/// so the item is removed from inventory before being transferred to corpse.
+pub fn drop_active_weapon_on_death(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    death_x: f32,
+    death_y: f32,
+) -> Result<Option<String>, String> {
+    let active_equipments = ctx.db.active_equipment();
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    
+    // Get active equipment for player
+    let equipment = match active_equipments.player_identity().find(&player_id) {
+        Some(eq) => eq,
+        None => {
+            log::debug!("[DeathDrop] Player {:?} has no ActiveEquipment record", player_id);
+            return Ok(None);
+        }
+    };
+    
+    // Check if they have an equipped item
+    let equipped_instance_id = match equipment.equipped_item_instance_id {
+        Some(id) => id,
+        None => {
+            log::debug!("[DeathDrop] Player {:?} has no equipped item", player_id);
+            return Ok(None);
+        }
+    };
+    
+    // Get the inventory item
+    let equipped_item = match inventory_items.instance_id().find(equipped_instance_id) {
+        Some(item) => item,
+        None => {
+            log::warn!("[DeathDrop] Equipped item instance {} not found in inventory", equipped_instance_id);
+            return Ok(None);
+        }
+    };
+    
+    // Get item definition for logging and name
+    let item_def = match item_defs.id().find(equipped_item.item_def_id) {
+        Some(def) => def,
+        None => {
+            log::warn!("[DeathDrop] Item definition {} not found", equipped_item.item_def_id);
+            return Ok(None);
+        }
+    };
+    
+    let item_name = item_def.name.clone();
+    
+    // Generate random offset for drop position
+    let mut rng = rand::rngs::StdRng::from_rng(ctx.rng())
+        .map_err(|e| format!("Failed to create RNG: {}", e))?;
+    
+    // Random angle in radians (0 to 2π)
+    let angle: f32 = rng.gen_range(0.0..std::f32::consts::TAU);
+    // Random distance within range
+    let distance: f32 = rng.gen_range(DEATH_DROP_MIN_OFFSET..DEATH_DROP_MAX_OFFSET);
+    
+    // Calculate drop position
+    let drop_x = (death_x + angle.cos() * distance)
+        .max(PLAYER_RADIUS)
+        .min(crate::WORLD_WIDTH_PX - PLAYER_RADIUS);
+    let drop_y = (death_y + angle.sin() * distance)
+        .max(PLAYER_RADIUS)
+        .min(crate::WORLD_HEIGHT_PX - PLAYER_RADIUS);
+    
+    // Create dropped item with preserved item_data (for things like water containers)
+    create_dropped_item_entity_with_data(
+        ctx,
+        equipped_item.item_def_id,
+        equipped_item.quantity,
+        drop_x,
+        drop_y,
+        equipped_item.item_data.clone(),
+    )?;
+    
+    log::info!(
+        "[DeathDrop] Player {:?} dropped '{}' (Instance: {}) at ({:.1}, {:.1}) - death was at ({:.1}, {:.1})",
+        player_id, item_name, equipped_instance_id, drop_x, drop_y, death_x, death_y
+    );
+    
+    // Delete the item from inventory so it doesn't also go to corpse
+    inventory_items.instance_id().delete(equipped_instance_id);
+    
+    Ok(Some(item_name))
 }

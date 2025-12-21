@@ -137,6 +137,18 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                         return Err("Player not found during death update.".to_string());
                     }
 
+                    // Drop active weapon on death (before clearing equipment and creating corpse)
+                    match crate::dropped_item::drop_active_weapon_on_death(ctx, sender_id, player.position_x, player.position_y) {
+                        Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for player {:?} using {} command", item_name, sender_id, command),
+                        Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for player {:?}", sender_id),
+                        Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for player {:?}: {}", sender_id, e),
+                    }
+
+                    // Clear active item reference
+                    if let Err(e) = active_equipment::clear_active_item_reducer(ctx, sender_id) {
+                        log::error!("Failed to clear active item for player {:?} after {}: {}", sender_id, command, e);
+                    }
+
                     // Clear all active effects on death (bleed, venom, burns, healing, etc.)
                     crate::active_effects::clear_all_effects_on_death(ctx, sender_id);
                     log::info!("[PlayerDeath] Cleared all active effects for player {:?} using {} command", sender_id, command);
@@ -144,11 +156,6 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                     // Create corpse
                     if let Err(e) = player_corpse::create_player_corpse(ctx, sender_id, player.position_x, player.position_y, &player.username) {
                         log::error!("Failed to create corpse for player {:?} after {}: {}", sender_id, command, e);
-                    }
-
-                    // Clear active item
-                    if let Err(e) = active_equipment::clear_active_item_reducer(ctx, sender_id) {
-                        log::error!("Failed to clear active item for player {:?} after {}: {}", sender_id, command, e);
                     }
                     
                     // --- Create/Update DeathMarker for /kill command ---

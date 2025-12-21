@@ -527,6 +527,8 @@ import { SetPlayerPin } from "./set_player_pin_reducer.ts";
 export { SetPlayerPin };
 import { SetSprinting } from "./set_sprinting_reducer.ts";
 export { SetSprinting };
+import { SetThrowAim } from "./set_throw_aim_reducer.ts";
+export { SetThrowAim };
 import { SpawnItemsAtNight } from "./spawn_items_at_night_reducer.ts";
 export { SpawnItemsAtNight };
 import { SpawnMemoryShardsAtNight } from "./spawn_memory_shards_at_night_reducer.ts";
@@ -3478,6 +3480,10 @@ const REMOTE_MODULE = {
       reducerName: "set_sprinting",
       argsType: SetSprinting.getTypeScriptAlgebraicType(),
     },
+    set_throw_aim: {
+      reducerName: "set_throw_aim",
+      argsType: SetThrowAim.getTypeScriptAlgebraicType(),
+    },
     spawn_items_at_night: {
       reducerName: "spawn_items_at_night",
       argsType: SpawnItemsAtNight.getTypeScriptAlgebraicType(),
@@ -4096,6 +4102,7 @@ export type Reducer = never
 | { name: "SetActiveItemReducer", args: SetActiveItemReducer }
 | { name: "SetPlayerPin", args: SetPlayerPin }
 | { name: "SetSprinting", args: SetSprinting }
+| { name: "SetThrowAim", args: SetThrowAim }
 | { name: "SpawnItemsAtNight", args: SpawnItemsAtNight }
 | { name: "SpawnMemoryShardsAtNight", args: SpawnMemoryShardsAtNight }
 | { name: "SpawnSeedsAtNight", args: SpawnSeedsAtNight }
@@ -8026,6 +8033,22 @@ export class RemoteReducers {
     this.connection.offReducer("set_sprinting", callback);
   }
 
+  setThrowAim(isAiming: boolean) {
+    const __args = { isAiming };
+    let __writer = new __BinaryWriter(1024);
+    SetThrowAim.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("set_throw_aim", __argsBuffer, this.setCallReducerFlags.setThrowAimFlags);
+  }
+
+  onSetThrowAim(callback: (ctx: ReducerEventContext, isAiming: boolean) => void) {
+    this.connection.onReducer("set_throw_aim", callback);
+  }
+
+  removeOnSetThrowAim(callback: (ctx: ReducerEventContext, isAiming: boolean) => void) {
+    this.connection.offReducer("set_throw_aim", callback);
+  }
+
   spawnItemsAtNight(schedule: RuneStoneItemSpawnSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -10573,6 +10596,11 @@ export class SetReducerFlags {
   setSprintingFlags: __CallReducerFlags = 'FullUpdate';
   setSprinting(flags: __CallReducerFlags) {
     this.setSprintingFlags = flags;
+  }
+
+  setThrowAimFlags: __CallReducerFlags = 'FullUpdate';
+  setThrowAim(flags: __CallReducerFlags) {
+    this.setThrowAimFlags = flags;
   }
 
   spawnItemsAtNightFlags: __CallReducerFlags = 'FullUpdate';

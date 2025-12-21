@@ -1845,6 +1845,19 @@ pub fn damage_player(
                         attacker_to_damage.death_timestamp = Some(timestamp);
                         log::info!("Attacker {:?} killed by reflected damage from {:?}!", attacker_id, target_id);
                         
+                        // Drop active weapon on death (before clearing equipment and creating corpse)
+                        match crate::dropped_item::drop_active_weapon_on_death(ctx, attacker_id, attacker_to_damage.position_x, attacker_to_damage.position_y) {
+                            Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for attacker {:?} killed by reflection", item_name, attacker_id),
+                            Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for attacker {:?}", attacker_id),
+                            Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for attacker {:?}: {}", attacker_id, e),
+                        }
+                        
+                        // Clear active item reference
+                        match crate::active_equipment::clear_active_item_reducer(ctx, attacker_id) {
+                            Ok(_) => log::info!("[PlayerDeath] Active item cleared for attacker {:?}", attacker_id),
+                            Err(e) => log::error!("[PlayerDeath] Failed to clear active item for attacker {:?}: {}", attacker_id, e),
+                        }
+                        
                         // Clear all active effects on death (bleed, venom, burns, stun, etc.)
                         crate::active_effects::clear_all_effects_on_death(ctx, attacker_id);
                         log::info!("[PlayerDeath] Cleared all active effects for attacker {:?} killed by reflected damage", attacker_id);
@@ -1853,12 +1866,6 @@ pub fn damage_player(
                         match create_player_corpse(ctx, attacker_id, attacker_to_damage.position_x, attacker_to_damage.position_y, &attacker_to_damage.username) {
                             Ok(_) => log::info!("Created corpse for attacker {:?} killed by reflected damage", attacker_id),
                             Err(e) => log::error!("Failed to create corpse for attacker {:?}: {}", attacker_id, e),
-                        }
-                        
-                        // Clear active item
-                        match crate::active_equipment::clear_active_item_reducer(ctx, attacker_id) {
-                            Ok(_) => log::info!("[PlayerDeath] Active item cleared for attacker {:?}", attacker_id),
-                            Err(e) => log::error!("[PlayerDeath] Failed to clear active item for attacker {:?}: {}", attacker_id, e),
                         }
                     }
                     
@@ -2132,7 +2139,14 @@ pub fn damage_player(
             log::info!("[CombatDeath] Canceled recovery schedule {} for player {:?} who died while knocked out", schedule_id, target_id);
         }
 
-        // Clear active item and create corpse
+        // Drop active weapon on death (before clearing equipment and creating corpse)
+        match crate::dropped_item::drop_active_weapon_on_death(ctx, target_id, target_player.position_x, target_player.position_y) {
+            Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for dying player {:?}", item_name, target_id),
+            Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for dying player {:?}", target_id),
+            Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for dying player {:?}: {}", target_id, e),
+        }
+
+        // Clear active item reference
         match crate::active_equipment::clear_active_item_reducer(ctx, target_player.identity) {
             Ok(_) => log::info!("[PlayerDeath] Active item cleared for dying player {}", target_player.identity),
             Err(e) => log::error!("[PlayerDeath] Failed to clear active item for dying player {}: {}", target_player.identity, e),

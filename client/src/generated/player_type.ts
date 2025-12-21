@@ -64,6 +64,7 @@ export type Player = {
   lastInsanityThreshold: number,
   shardCarryStartTime: __Timestamp | undefined,
   offlineCorpseId: number | undefined,
+  isAimingThrow: boolean,
 };
 let _cached_Player_type_value: __AlgebraicTypeType | null = null;
 
@@ -114,6 +115,7 @@ export const Player = {
       { name: "lastInsanityThreshold", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "shardCarryStartTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "offlineCorpseId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "isAimingThrow", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Player_type_value;
   },
