@@ -732,6 +732,37 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         const soundToPlay = availableSounds[randomIndex];
         const audioElement = preloadedAudioFiles[soundToPlay];
 
+        // Wait for the sound to be ready if it's not yet
+        if (audioElement.readyState < 3) {
+            console.log(`SOVA: Waiting for sound ${soundToPlay}.mp3 to be ready (readyState: ${audioElement.readyState})`);
+            try {
+                await new Promise<void>((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Sound load timeout')), 5000);
+                    
+                    const onCanPlay = () => {
+                        clearTimeout(timeout);
+                        audioElement.removeEventListener('canplaythrough', onCanPlay);
+                        audioElement.removeEventListener('error', onError);
+                        resolve();
+                    };
+                    
+                    const onError = () => {
+                        clearTimeout(timeout);
+                        audioElement.removeEventListener('canplaythrough', onCanPlay);
+                        audioElement.removeEventListener('error', onError);
+                        reject(new Error('Sound load error'));
+                    };
+                    
+                    audioElement.addEventListener('canplaythrough', onCanPlay);
+                    audioElement.addEventListener('error', onError);
+                });
+                console.log(`SOVA: Sound ${soundToPlay}.mp3 is now ready`);
+            } catch (error) {
+                console.error(`SOVA: Failed to wait for sound ${soundToPlay}.mp3:`, error);
+                return;
+            }
+        }
+
         console.log(`Playing SOVA sound ${soundToPlay}.mp3`);
         setIsSovaSpeaking(true);
         setCurrentAudio(audioElement); // Track the current audio
@@ -755,8 +786,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             if (!audioContextUnlocked) {
                 setAudioContextUnlocked(true);
             }
-        } catch (error) {
-            console.error(`Failed to play SOVA sound ${soundToPlay}:`, error);
+        } catch (error: unknown) {
+            // Handle AbortError gracefully - this happens when play is interrupted
+            const errorName = error instanceof Error ? error.name : 'Unknown';
+            if (errorName === 'AbortError') {
+                console.log(`SOVA sound ${soundToPlay} was interrupted (AbortError) - this is normal if loading completed`);
+            } else {
+                console.error(`Failed to play SOVA sound ${soundToPlay}:`, error);
+            }
             setIsSovaSpeaking(false);
             setCurrentAudio(null); // Clear current audio reference on error
         }
@@ -889,23 +926,57 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         setShowAudioPrompt(false);
         
         try {
-            // Find the first available sound to play
+            // Find the first available sound to play (prefer readyState >= 3 for immediate playback)
             let firstAvailableSound = null;
             for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
                 const soundKey = i.toString();
                 const audio = preloadedAudioFiles[soundKey];
-                if (audio && audio.readyState >= 2) {
+                if (audio && audio.readyState >= 3) {
                     firstAvailableSound = soundKey;
                     break;
                 }
             }
             
+            // Fallback to readyState >= 2 if no fully ready sounds
+            if (!firstAvailableSound) {
+                for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
+                    const soundKey = i.toString();
+                    const audio = preloadedAudioFiles[soundKey];
+                    if (audio && audio.readyState >= 2) {
+                        firstAvailableSound = soundKey;
+                        break;
+                    }
+                }
+            }
+            
             if (!firstAvailableSound) {
                 console.log('No SOVA sounds available after enabling audio');
+                setAudioContextUnlocked(true); // Still unlock context for future sounds
+                saveAudioPreference(true);
                 return;
             }
             
             const audio = preloadedAudioFiles[firstAvailableSound];
+            
+            // Wait for sound to be ready if not yet
+            if (audio.readyState < 3) {
+                console.log(`Waiting for sound ${firstAvailableSound}.mp3 to be ready...`);
+                await new Promise<void>((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        // Timeout but don't fail - just proceed anyway
+                        resolve();
+                    }, 3000);
+                    
+                    const onCanPlay = () => {
+                        clearTimeout(timeout);
+                        audio.removeEventListener('canplaythrough', onCanPlay);
+                        resolve();
+                    };
+                    
+                    audio.addEventListener('canplaythrough', onCanPlay);
+                });
+            }
+            
             audio.currentTime = 0;
             setIsSovaSpeaking(true);
             setCurrentAudio(audio); // Track the current audio
@@ -925,11 +996,19 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             };
             audio.addEventListener('ended', handleAudioEnd, { once: true });
             
-        } catch (error) {
-            console.error('Failed to enable audio and play SOVA sound:', error);
+        } catch (error: unknown) {
+            // Handle AbortError gracefully
+            const errorName = error instanceof Error ? error.name : 'Unknown';
+            if (errorName === 'AbortError') {
+                console.log('Audio play was interrupted (AbortError) - this is normal if loading completed');
+            } else {
+                console.error('Failed to enable audio and play SOVA sound:', error);
+            }
             setIsSovaSpeaking(false);
             setCurrentAudio(null);
-            // Still hide the prompt even if audio fails
+            // Still unlock audio context even if play fails
+            setAudioContextUnlocked(true);
+            saveAudioPreference(true);
         }
     };
 
