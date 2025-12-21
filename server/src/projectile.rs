@@ -2122,6 +2122,23 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                                     ammo_item_def.name, player_to_check.identity, e);
                             }
                             
+                            // <<< STUN EFFECT: Thrown blunt weapons can stun targets >>>
+                            if weapon_item_def.damage_type == Some(crate::models::DamageType::Blunt) {
+                                let was_stunned = crate::active_effects::try_apply_blunt_weapon_stun(
+                                    ctx,
+                                    projectile.owner_id,
+                                    player_to_check.identity,
+                                    &weapon_item_def.name,
+                                );
+                                if was_stunned {
+                                    log::info!(
+                                        "[Stun] Player {:?} was STUNNED by thrown {} from {:?}!",
+                                        player_to_check.identity, weapon_item_def.name, projectile.owner_id
+                                    );
+                                }
+                            }
+                            // <<< END STUN EFFECT >>>
+                            
                             // Create fire patch if this is a fire arrow (100% chance)
                             create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, player_to_check.position_x, player_to_check.position_y, projectile.owner_id);
                         } else {

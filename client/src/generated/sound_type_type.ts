@@ -100,7 +100,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrassCut |
   SoundTypeVariants.SnorkelSubmerge |
   SoundTypeVariants.SnorkelEmerge |
-  SoundTypeVariants.ErrorSeaweedAboveWater;
+  SoundTypeVariants.ErrorSeaweedAboveWater |
+  SoundTypeVariants.Stun;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -183,6 +184,7 @@ export const SoundType = {
   SnorkelSubmerge: { tag: "SnorkelSubmerge" } as const,
   SnorkelEmerge: { tag: "SnorkelEmerge" } as const,
   ErrorSeaweedAboveWater: { tag: "ErrorSeaweedAboveWater" } as const,
+  Stun: { tag: "Stun" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -259,6 +261,7 @@ export const SoundType = {
       { name: "SnorkelSubmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SnorkelEmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorSeaweedAboveWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

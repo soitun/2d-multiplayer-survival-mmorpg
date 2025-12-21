@@ -64,4 +64,5 @@ export type PassiveHealthRegen = { tag: "PassiveHealthRegen" };
 export type HarvestBoost = { tag: "HarvestBoost" };
 export type Entrainment = { tag: "Entrainment" };
 export type BrewCooldown = { tag: "BrewCooldown" };
+export type Stun = { tag: "Stun" };
 

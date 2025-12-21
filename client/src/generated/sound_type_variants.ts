@@ -99,4 +99,5 @@ export type GrassCut = { tag: "GrassCut" };
 export type SnorkelSubmerge = { tag: "SnorkelSubmerge" };
 export type SnorkelEmerge = { tag: "SnorkelEmerge" };
 export type ErrorSeaweedAboveWater = { tag: "ErrorSeaweedAboveWater" };
+export type Stun = { tag: "Stun" };
 
