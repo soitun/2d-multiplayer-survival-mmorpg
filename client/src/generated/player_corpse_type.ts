@@ -111,6 +111,8 @@ export type PlayerCorpse = {
   slotDefId33: bigint | undefined,
   slotInstanceId34: bigint | undefined,
   slotDefId34: bigint | undefined,
+  slotInstanceId35: bigint | undefined,
+  slotDefId35: bigint | undefined,
 };
 let _cached_PlayerCorpse_type_value: __AlgebraicTypeType | null = null;
 
@@ -208,6 +210,8 @@ export const PlayerCorpse = {
       { name: "slotDefId33", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "slotInstanceId34", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "slotDefId34", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "slotInstanceId35", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "slotDefId35", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
     );
     return _cached_PlayerCorpse_type_value;
   },
