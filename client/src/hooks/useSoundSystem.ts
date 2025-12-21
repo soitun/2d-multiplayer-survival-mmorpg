@@ -365,7 +365,7 @@ const PRELOAD_SOUNDS = [
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
 ] as const;
 
-// Enhanced audio loading with error handling - FAST FAIL to not block loading screen
+// Enhanced audio loading with error handling and performance monitoring
 const loadAudio = async (filename: string): Promise<HTMLAudioElement> => {
     return new Promise((resolve, reject) => {
         const fullPath = SOUND_CONFIG.SOUNDS_BASE_PATH + filename;
@@ -375,18 +375,18 @@ const loadAudio = async (filename: string): Promise<HTMLAudioElement> => {
         audio.preload = 'auto';
         audio.crossOrigin = 'anonymous';
         
-        // Short timeout - fail fast rather than block for 30s
         const loadTimeout = setTimeout(() => {
             reject(new Error(`Audio load timeout: ${filename}`));
-        }, 8000); // 8 second timeout - reasonable for mobile/slow connections
+        }, 5000);
         
         audio.addEventListener('canplaythrough', () => {
             clearTimeout(loadTimeout);
             resolve(audio);
         }, { once: true });
         
-        audio.addEventListener('error', () => {
+        audio.addEventListener('error', (e) => {
             clearTimeout(loadTimeout);
+            console.error(`🔊 Audio load error: ${filename}`, e);
             reject(new Error(`Failed to load audio: ${filename}`));
         }, { once: true });
         
@@ -1027,37 +1027,19 @@ export const useSoundSystem = ({
     const SOUND_PROCESSING_DEBOUNCE_MS = 500; // Minimum 500ms between sound processing
     const pendingSoundCreationRef = useRef<Set<string>>(new Set()); // Track sounds being created
     
-    // Preload sounds AFTER initial game load - DEFERRED to not compete with loading screen
+    // Preload sounds on first mount
     useEffect(() => {
         if (isInitializedRef.current) return;
         isInitializedRef.current = true;
         
-        // DELAY: Wait for loading screen to finish loading critical assets first
-        // This prevents game sounds from competing with SOVA sounds and visual assets
-        const startDelay = setTimeout(async () => {
-            const BATCH_SIZE = 1; // Only 1 concurrent request - very gentle on server
-            const DELAY_BETWEEN_BATCHES = 400; // 400ms between sounds for production
-            
-            console.log('🔊 Starting background game sound preload...');
-            
-            for (let i = 0; i < PRELOAD_SOUNDS.length; i += BATCH_SIZE) {
-                const batch = PRELOAD_SOUNDS.slice(i, i + BATCH_SIZE);
-                const promises = batch.map(filename => 
-                    loadAudio(filename).catch(() => {
-                        // Silent fail - sounds will load on-demand if needed
-                    })
-                );
-                await Promise.allSettled(promises);
-                
-                // Delay between batches to avoid overwhelming the server
-                if (i + BATCH_SIZE < PRELOAD_SOUNDS.length) {
-                    await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-                }
-            }
-            console.log('🔊 Background game sound preload complete');
-        }, 5000); // Wait 5 seconds before starting - let loading screen finish first
+        const preloadAll = async () => {
+            const promises = PRELOAD_SOUNDS.map(filename => 
+                loadAudio(filename).catch(err => console.warn(`Preload failed: ${filename}`, err))
+            );
+            await Promise.allSettled(promises);
+        };
         
-        return () => clearTimeout(startDelay);
+        preloadAll();
     }, []);
     
     // Track previous soundEvents to only process NEW events

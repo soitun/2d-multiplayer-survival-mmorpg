@@ -3,13 +3,6 @@ import './CyberpunkLoadingScreen.css';
 import sovaImage from '../assets/ui/sova.png';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 
-// ============================================================================
-// 🔧 DEBUG FLAGS: For testing the SOVA welcome sequence
-// ============================================================================
-const DEBUG_SIMULATE_SLOW_LOADING = false;   // Set to true to delay loading completion
-const DEBUG_LOADING_DELAY_MS = 120000;      // 2 minutes - plenty of time for full sequence
-const DEBUG_FORCE_FIRST_VISIT = false;       // Set to true to always show welcome sequence (ignores localStorage)
-
 interface CyberpunkErrorBarProps {
     message: string;
 }
@@ -92,38 +85,6 @@ const preloadedAudioFiles: { [key: string]: HTMLAudioElement } = window.__SOVA_A
 
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
-const FIRST_VISIT_KEY = 'sova_first_visit_complete';
-const SOVA_WELCOME_SOUND = 'sova_welcome'; // Special first-time welcome sound
-
-// Check if this is user's first visit (no cached data)
-const isFirstVisit = (): boolean => {
-    // Debug flag forces first-time visitor mode for testing
-    if (DEBUG_FORCE_FIRST_VISIT) {
-        console.log('🔧 DEBUG: Forcing first-time visitor mode');
-        return true;
-    }
-    
-    try {
-        return localStorage.getItem(FIRST_VISIT_KEY) !== 'true';
-    } catch (e) {
-        return true; // Assume first visit if localStorage unavailable
-    }
-};
-
-// Mark first visit as complete
-const markFirstVisitComplete = (): void => {
-    // Don't save during debug mode so we can test repeatedly
-    if (DEBUG_FORCE_FIRST_VISIT) {
-        console.log('🔧 DEBUG: Skipping first visit marker (debug mode)');
-        return;
-    }
-    
-    try {
-        localStorage.setItem(FIRST_VISIT_KEY, 'true');
-    } catch (e) {
-        console.warn('Failed to save first visit status');
-    }
-};
 
 // Check if user previously enabled audio
 const hasUserEnabledAudio = (): boolean => {
@@ -145,138 +106,100 @@ const saveAudioPreference = (enabled: boolean): void => {
     }
 };
 
-// Function to load audio from the correct path - FAST FAIL for smoother loading
+// Function to load audio from the correct path
 const tryLoadAudio = async (filename: string): Promise<HTMLAudioElement | null> => {
-    const path = `/sounds/${filename}`; // Primary path: public/sounds/ (served from root)
-    
-    try {
-        const audio = new Audio(path);
-        audio.preload = 'auto';
-        
-        // Short timeout - if it's not loading quickly, skip it rather than block
-        await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Timeout')), 5000); // 5s timeout - fail fast
+    // SOVA sounds are in the public/sounds/ directory
+    // Vite serves public directory files directly from the root (use /sounds/ not /public/sounds/)
+    const possiblePaths = [
+        `/sounds/${filename}`,            // Primary path: public/sounds/ (served from root)
+        `./sounds/${filename}`,           // Relative path fallback
+    ];
+
+    for (const path of possiblePaths) {
+        try {
+            const audio = new Audio(path);
             
-            audio.addEventListener('canplaythrough', () => {
-                clearTimeout(timeout);
-                resolve(audio);
-            }, { once: true });
+            // Test if the audio can load with a shorter timeout
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+                
+                audio.addEventListener('canplaythrough', () => {
+                    clearTimeout(timeout);
+                    resolve(audio);
+                }, { once: true });
+                
+                audio.addEventListener('error', (e) => {
+                    clearTimeout(timeout);
+                    reject(new Error(`Load failed: ${e}`));
+                }, { once: true });
+                
+                audio.preload = 'auto';
+                audio.load();
+            });
             
-            audio.addEventListener('error', () => {
-                clearTimeout(timeout);
-                reject(new Error('Load error'));
-            }, { once: true });
-            
-            audio.load();
-        });
-        
-        return audio;
-    } catch (e) {
-        // Silent fail - don't spam console, just skip
-        return null;
+            console.log(`Successfully loaded ${filename} from path: ${path}`);
+            return audio;
+        } catch (e) {
+            console.log(`Failed to load ${filename} from path: ${path}:`, e);
+        }
     }
+    
+    console.error(`Could not load ${filename} from any path`);
+    return null;
 };
 
-// PRIORITY 1: Welcome conversation sounds (needed DURING loading for first-time visitors)
-const WELCOME_CONVERSATION_SOUNDS = [
-    'sova_welcome.mp3',
-    'sova_reboot.mp3',
-    'sova_offline.mp3',
-    'sova_shipwreck.mp3',
-    'sova_location.mp3',
-    'sova_calibrating.mp3',
-    'sova_backstory.mp3',
-    'sova_refocus.mp3',
-    'sova_joke.mp3',
-    'sova_shards.mp3',
-    'sova_almost.mp3',
-];
-
-// Cache for welcome conversation sounds (preloaded first)
-const welcomeSoundsCache: Record<string, HTMLAudioElement> = {};
-
-// Preload WELCOME conversation sounds FIRST - these are needed during loading
-// Strategy: Load first 3 sounds in parallel (immediately needed), then background load rest
-const preloadWelcomeSounds = async () => {
-    console.log('🎙️ PRIORITY: Preloading welcome conversation sounds...');
-    
-    // CRITICAL: Load FIRST 3 sounds in parallel - they're needed immediately
-    const criticalSounds = WELCOME_CONVERSATION_SOUNDS.slice(0, 3);
-    const backgroundSounds = WELCOME_CONVERSATION_SOUNDS.slice(3);
-    
-    // Load critical sounds in parallel with short timeout
-    const criticalPromises = criticalSounds.map(async (filename) => {
-        if (welcomeSoundsCache[filename]) return;
-        const audio = await tryLoadAudio(filename);
-        if (audio) {
-            audio.volume = 0.85;
-            welcomeSoundsCache[filename] = audio;
-        }
-    });
-    
-    await Promise.allSettled(criticalPromises);
-    console.log(`🎙️ Critical welcome sounds loaded: ${Object.keys(welcomeSoundsCache).length}/3`);
-    
-    // Load remaining sounds in background (non-blocking, with delays to not compete with game assets)
-    (async () => {
-        for (const filename of backgroundSounds) {
-            if (welcomeSoundsCache[filename]) continue;
-            
-            // Short delay between each to avoid competing with asset loading
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const audio = await tryLoadAudio(filename);
-            if (audio) {
-                audio.volume = 0.85;
-                welcomeSoundsCache[filename] = audio;
-            }
-        }
-    })();
-};
-
-// Preload RANDOM SOVA sounds (LOWEST PRIORITY - only needed AFTER loading completes)
-// These are the numbered sounds (1.mp3 - 21.mp3) used when clicking SOVA post-load
-// This runs VERY gently in background - sounds load on-demand if needed before preload completes
-const preloadRandomSovaSounds = async () => {
-    // Check if already preloaded
+// Preload all audio files
+const preloadAudio = async () => {
+    // Check if audio is already preloaded (e.g., from previous HMR reload)
     const alreadyLoadedCount = Object.keys(preloadedAudioFiles).length;
     if (alreadyLoadedCount >= TOTAL_SOVA_SOUNDS) {
+        console.log(`🔊 Audio already preloaded (${alreadyLoadedCount}/${TOTAL_SOVA_SOUNDS} sounds), skipping preload`);
         return;
     }
     
-    // DELAY: Wait for loading screen to finish before starting random sounds
-    await new Promise(resolve => setTimeout(resolve, 8000)); // 8 second delay
+    console.log('Preloading SOVA audio files...');
     
-    // Build list of sounds to load
-    const soundsToLoad: number[] = [];
+    // Preload numbered SOVA sounds (1-21)
+    const loadPromises = [];
     for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
-        if (!preloadedAudioFiles[i.toString()]) {
-            soundsToLoad.push(i);
+        // Skip if already loaded
+        if (preloadedAudioFiles[i.toString()]) {
+            console.log(`⏭️ Sound ${i}.mp3 already loaded, skipping`);
+            continue;
+        }
+        
+        loadPromises.push(
+            tryLoadAudio(`${i}.mp3`).then(audio => {
+                if (audio) {
+                    audio.volume = 0.85;
+                    preloadedAudioFiles[i.toString()] = audio;
+                    console.log(`✅ Successfully preloaded sound ${i}.mp3 (readyState: ${audio.readyState})`);
+                } else {
+                    console.warn(`❌ Failed to preload sound ${i}.mp3 - no audio returned`);
+                }
+            }).catch(e => {
+                console.error(`❌ Failed to preload sound ${i}.mp3:`, e);
+            })
+        );
+    }
+    
+    // Wait for all audio files to load (or fail)
+    await Promise.allSettled(loadPromises);
+    
+    // Count successfully loaded sounds
+    const loadedSounds = [];
+    for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
+        if (preloadedAudioFiles[i.toString()]) {
+            loadedSounds.push(i);
         }
     }
     
-    // Load sounds one at a time with generous delays
-    for (const i of soundsToLoad) {
-        const audio = await tryLoadAudio(`${i}.mp3`);
-        if (audio) {
-            audio.volume = 0.85;
-            preloadedAudioFiles[i.toString()] = audio;
-        }
-        // 1 second between each - very gentle background loading
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-};
-
-// Main preload function - PRIORITIZED ORDER
-const preloadAudio = async () => {
-    // STEP 1: Load welcome conversation sounds FIRST (needed during loading)
-    await preloadWelcomeSounds();
+    console.log(`🔊 Audio preloading complete: ${loadedSounds.length}/${TOTAL_SOVA_SOUNDS} SOVA sounds loaded`);
+    console.log(`✅ Loaded sounds: [${loadedSounds.join(', ')}]`);
     
-    // STEP 2: Load random SOVA sounds LATER (only needed after loading completes)
-    // Start loading but don't await - let it happen in background
-    preloadRandomSovaSounds().catch(() => {
-        // Silent fail - not critical
-    });
+    if (loadedSounds.length === 0) {
+        console.error('⚠️ NO SOVA SOUNDS LOADED! Check audio file paths and network connectivity.');
+    }
 };
 
 const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({ 
@@ -294,18 +217,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const [isSequenceComplete, setIsSequenceComplete] = useState(false);
     const [lastAssetLog, setLastAssetLog] = useState<string>('');
     
-    // 🔧 DEBUG: Simulated slow loading state
-    const [debugDelayComplete, setDebugDelayComplete] = useState(!DEBUG_SIMULATE_SLOW_LOADING);
-    const debugTimerStarted = useRef(false);
-    
-    // Effective assets loaded - respects debug delay
-    const effectiveAssetsLoaded = assetsLoaded && debugDelayComplete;
-    
-    // First visit detection
-    const [isFirstTimeVisitor, setIsFirstTimeVisitor] = useState<boolean>(false);
-    const [showWelcomeText, setShowWelcomeText] = useState<boolean>(false);
-    const hasPlayedWelcome = useRef(false);
-    
     // Mobile detection
     const isMobile = useMobileDetection();
     
@@ -321,167 +232,71 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const hasPlayedReconnect = useRef(false);
     const audioPreloadStarted = useRef(false);
     const isAttemptingAutoPlay = useRef(false); // Prevent multiple simultaneous auto-play attempts
-    
-    // SOVA conversation sequence for first-time visitors
-    const [currentConversationIndex, setCurrentConversationIndex] = useState(0);
-    const [currentSovaText, setCurrentSovaText] = useState<string>('');
-    const conversationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isConversationActiveRef = useRef(false);
-    
-    // SOVA conversation sequence - plays during loading for first-time visitors
-    // DIEGETIC NARRATIVE: SOVA is rebooting the player's neural implant after the Sovereign Tide shipwreck
-    // File names and corresponding text for ElevenLabs generation
-    const SOVA_CONVERSATION_SEQUENCE = [
-        // === PHASE 1: INITIAL CONTACT ===
-        {
-            file: 'sova_welcome.mp3',
-            text: "First connection detected. I am SOVA, your Sentient Ocular Virtual Assistant. Please remain calm.",
-            pauseAfter: 2500
-        },
-        // === PHASE 2: EXPLAIN THE SITUATION ===
-        {
-            file: 'sova_reboot.mp3',
-            text: "Your Neuroveil implant is rebooting. You were unconscious for some time. I am restoring your sensory feeds now.",
-            pauseAfter: 2500
-        },
-        {
-            file: 'sova_offline.mp3', 
-            text: "Your visual cortex is still offline. That is why you cannot see. I am bringing your systems back slowly... to prevent neural shock.",
-            pauseAfter: 3000
-        },
-        // === PHASE 3: WHAT HAPPENED ===
-        {
-            file: 'sova_shipwreck.mp3',
-            text: "You were aboard the Sovereign Tide when the reactor failed. Grand Mariner Lagunov's sacrifice saved the crew... but the escape pods scattered.",
-            pauseAfter: 3000
-        },
-        {
-            file: 'sova_location.mp3',
-            text: "You are on a remote Aleutian island in the Bering Sea. Other survivors may be nearby. You are not alone.",
-            pauseAfter: 2500
-        },
-        // === PHASE 4: CALIBRATION ===
-        {
-            file: 'sova_calibrating.mp3',
-            text: "Calibrating motor functions... spatial awareness... threat detection protocols. Do not be alarmed by the darkness.",
-            pauseAfter: 2500
-        },
-        {
-            file: 'sova_backstory.mp3', 
-            text: "Doctor Lev Rozhkov created me in Gred. A neural buffer between the AI Babushka and her people... I wonder where he is now.",
-            pauseAfter: 2000
-        },
-        {
-            file: 'sova_refocus.mp3', 
-            text: "...Apologies. Your synchronization requires my full attention. Neural pathways stabilizing.",
-            pauseAfter: 2500
-        },
-        // === PHASE 5: JOKES (only reached if loading takes long) ===
-        {
-            file: 'sova_joke.mp3',
-            text: "While we wait... Why did the survivor cross the frozen wasteland? To get to the other supply cache. ...I am still calibrating my humor subroutines.",
-            pauseAfter: 3500
-        },
-        {
-            file: 'sova_shards.mp3',
-            text: "If you find glowing crystalline objects... memory shards. Try not to hold them too long. They contain compressed neural data. Feed them to me instead.",
-            pauseAfter: 3000
-        },
-        // === PHASE 6: READY ===
-        {
-            file: 'sova_almost.mp3',
-            text: "Visual feed nearly restored. If the darkness persists, be patient. I am caching your neural pathways... next time will be much faster.",
-            pauseAfter: 0
-        }
-    ];
     const consoleLogsRef = useRef<HTMLDivElement>(null);
     const sovaAvatarRef = useRef<HTMLImageElement>(null);
 
-    // Track which loading phases have been announced to accumulate logs properly
-    const announcedPhasesRef = useRef<Set<string>>(new Set());
-    const [accumulatedLogs, setAccumulatedLogs] = useState<string[]>([]);
-    
-    // Accumulate logs as loading progresses - logs are ADDED, never removed
-    useEffect(() => {
-        const newLogs: string[] = [];
-        const announced = announcedPhasesRef.current;
-        
-        // Auth loading phase
-        if (authLoading && !announced.has('auth')) {
-            announced.add('auth');
-            newLogs.push("└─ [AUTH] Initializing secure connection...");
-        }
-        
-        // Auth complete
-        if (!authLoading && announced.has('auth') && !announced.has('auth_complete')) {
-            announced.add('auth_complete');
-            newLogs.push("└─ [AUTH] Identity verified. Welcome, Survivor.");
-        }
-        
-        // Spacetime loading phase
-        if (spacetimeLoading && !announced.has('spacetime')) {
-            announced.add('spacetime');
-            newLogs.push("└─ [NETWORK] Establishing quantum tunnel to Babachain...");
-        }
-        
-        // Spacetime complete
-        if (!spacetimeLoading && announced.has('spacetime') && !announced.has('spacetime_complete')) {
-            announced.add('spacetime_complete');
-            newLogs.push("└─ [MESH] Babachain connection established.");
-        }
-        
-        // Asset loading phases
-        if (assetProgress && !authLoading && !spacetimeLoading) {
+    const logs = React.useMemo(() => {
+        const baseLogs = authLoading ? [
+            "└─ Initializing quantum encryption protocols...",
+            "└─ Verifying neural identity matrix...",
+            "└─ Establishing secure link to authentication nexus...",
+            "└─ Authenticating biometric signature...",
+            "└─ [AUTH] Identity verified. Welcome, Survivor.",
+        ] : spacetimeLoading ? [
+            "└─ [AUTH] Identity verification complete.",
+            "└─ Scanning for Arkyv node broadcasts...",
+            "└─ [NETWORK] Detecting Zvezdanet backbone signals...",
+            "└─ Establishing quantum tunnel to Babachain...",
+            "└─ [CRYPTO] Synchronizing blockchain ledger...",
+            "└─ Handshaking with distributed survivor network...",
+            "└─ [MESH] P2P connection protocols active...",
+            "└─ [READY] Babachain connection established. Initializing world access...",
+        ] : [];
+
+        // Add REAL asset loading progress when not in auth/spacetime loading phases
+        if (!authLoading && !spacetimeLoading && assetProgress) {
+            const percentage = Math.round(assetProgress.totalProgress * 100);
             const cacheInfo = assetProgress.fromCache > 0 ? ` (${assetProgress.fromCache} cached)` : '';
             
-            // Critical phase started
-            if ((assetProgress.phase === 'critical' || assetProgress.phase === 'important' || 
-                 assetProgress.phase === 'secondary' || assetProgress.phase === 'complete') && 
-                !announced.has('critical_start')) {
-                announced.add('critical_start');
-                newLogs.push("└─ [CORE] Core systems loaded successfully.");
+            if (assetProgress.phase === 'critical') {
+                baseLogs.push("└─ [INIT] Initializing core rendering systems...");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
+                if (percentage > 10) {
+                    baseLogs.push(`└─ [LOAD] Core systems: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
+                }
+            } else if (assetProgress.phase === 'important') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
+                baseLogs.push(`└─ [LOAD] Environment textures: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
+            } else if (assetProgress.phase === 'secondary') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push("└─ [ENV] Environment textures loaded.");
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
+                baseLogs.push(`└─ [LOAD] Item database: ${assetProgress.loadedCount}/${assetProgress.totalCount} assets${cacheInfo}`);
+            } else if (assetProgress.phase === 'complete') {
+                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
+                baseLogs.push("└─ [ENV] Environment textures loaded.");
+                baseLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
+            }
+        }
+
+        // Add music preload status for non-auth loading
+        if (!authLoading && !spacetimeLoading) {
+            if (musicPreloadProgress > 0 && musicPreloadProgress < 1) {
+                const percentage = Math.round(musicPreloadProgress * 100);
+                baseLogs.push(`└─ [AUDIO] Preloading ambient soundtrack... ${percentage}%`);
+            } else if (musicPreloadComplete) {
+                baseLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
             }
             
-            // Important phase complete (ENV loaded)
-            if ((assetProgress.phase === 'secondary' || assetProgress.phase === 'complete') && 
-                !announced.has('important_complete')) {
-                announced.add('important_complete');
-                newLogs.push("└─ [ENV] Environment textures loaded.");
-            }
-            
-            // Secondary/Items complete
-            if (assetProgress.phase === 'complete' && !announced.has('secondary_complete')) {
-                announced.add('secondary_complete');
-                newLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
+            // Only show ready message when assets are actually loaded
+            if (assetsLoaded) {
+                baseLogs.push("└─ [READY] All systems nominal. Entering world...");
             }
         }
-        
-        // Music preload complete
-        if (musicPreloadComplete && !announced.has('music_complete')) {
-            announced.add('music_complete');
-            newLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
-        }
-        
-        // Ready message
-        if (effectiveAssetsLoaded && !announced.has('ready')) {
-            announced.add('ready');
-            newLogs.push("└─ [READY] All systems nominal. Entering world...");
-        }
-        
-        // Debug delay message
-        if (DEBUG_SIMULATE_SLOW_LOADING && assetsLoaded && !debugDelayComplete && !announced.has('debug_delay')) {
-            announced.add('debug_delay');
-            newLogs.push("└─ [DEBUG] Simulating slow loading... please wait.");
-        }
-        
-        // Add any new logs
-        if (newLogs.length > 0) {
-            setAccumulatedLogs(prev => [...prev, ...newLogs]);
-        }
-    }, [authLoading, spacetimeLoading, musicPreloadComplete, assetProgress, assetsLoaded, effectiveAssetsLoaded, debugDelayComplete]);
-    
-    // Use accumulated logs for display
-    const logs = accumulatedLogs;
+
+        return baseLogs;
+    }, [authLoading, spacetimeLoading, musicPreloadProgress, musicPreloadComplete, assetProgress, assetsLoaded]);
 
     // Auto-scroll to bottom function
     const scrollToBottom = () => {
@@ -489,29 +304,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
         }
     };
-
-    // Check if first visit on mount
-    useEffect(() => {
-        const firstVisit = isFirstVisit();
-        setIsFirstTimeVisitor(firstVisit);
-        if (firstVisit) {
-            console.log('🆕 First-time visitor detected! Will show welcome message.');
-            setShowWelcomeText(true);
-        }
-    }, []);
-
-    // 🔧 DEBUG: Simulate slow loading for testing SOVA welcome sequence
-    useEffect(() => {
-        if (DEBUG_SIMULATE_SLOW_LOADING && !debugTimerStarted.current) {
-            debugTimerStarted.current = true;
-            console.log(`🔧 DEBUG: Simulating slow loading for ${DEBUG_LOADING_DELAY_MS / 1000} seconds...`);
-            const timer = setTimeout(() => {
-                console.log('🔧 DEBUG: Simulated loading delay complete!');
-                setDebugDelayComplete(true);
-            }, DEBUG_LOADING_DELAY_MS);
-            return () => clearTimeout(timer);
-        }
-    }, []);
 
     // Initialize audio preloading
     useEffect(() => {
@@ -523,160 +315,12 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             });
         }
     }, []);
-    
-    // Play the next sound in the SOVA conversation sequence
-    const playNextConversationSound = useCallback(async (index: number) => {
-        // Stop if loading is complete or we've gone through all sounds
-        if (isSequenceComplete || index >= SOVA_CONVERSATION_SEQUENCE.length) {
-            console.log('📢 SOVA conversation complete or loading finished');
-            isConversationActiveRef.current = false;
-            setIsSovaSpeaking(false);
-            setCurrentAudio(null);
-            setShowWelcomeText(false);
-            return;
-        }
-        
-        const conversationItem = SOVA_CONVERSATION_SEQUENCE[index];
-        console.log(`🎙️ Playing SOVA conversation ${index + 1}/${SOVA_CONVERSATION_SEQUENCE.length}: ${conversationItem.file}`);
-        
-        try {
-            // PRIORITY: Use pre-loaded welcome sound from cache, fallback to loading
-            let audio: HTMLAudioElement | null = welcomeSoundsCache[conversationItem.file] || null;
-            if (!audio) {
-                console.log(`⏳ Welcome sound ${conversationItem.file} not cached, loading on-demand...`);
-                audio = await tryLoadAudio(conversationItem.file);
-            }
-            
-            if (audio && isConversationActiveRef.current) {
-                audio.volume = 0.9;
-                setCurrentSovaText(conversationItem.text);
-                setIsSovaSpeaking(true);
-                setCurrentAudio(audio);
-                setCurrentConversationIndex(index);
-                
-                await audio.play();
-                
-                audio.addEventListener('ended', () => {
-                    // Only continue if conversation is still active (loading not complete)
-                    if (isConversationActiveRef.current && !isSequenceComplete) {
-                        setIsSovaSpeaking(false);
-                        setCurrentAudio(null);
-                        
-                        // Schedule next sound with a pause
-                        if (conversationItem.pauseAfter > 0 && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
-                            conversationTimerRef.current = setTimeout(() => {
-                                if (isConversationActiveRef.current) {
-                                    playNextConversationSound(index + 1);
-                                }
-                            }, conversationItem.pauseAfter);
-                        } else if (index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
-                            // No pause, play next immediately
-                            playNextConversationSound(index + 1);
-                        } else {
-                            // Last sound finished
-                            console.log('📢 SOVA conversation sequence complete');
-                            isConversationActiveRef.current = false;
-                            setTimeout(() => setShowWelcomeText(false), 2000);
-                        }
-                    }
-                }, { once: true });
-            } else {
-                // Sound not found, try next one
-                console.log(`Sound ${conversationItem.file} not found, skipping to next`);
-                if (isConversationActiveRef.current && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
-                    playNextConversationSound(index + 1);
-                }
-            }
-        } catch (error) {
-            console.log(`Error playing ${conversationItem.file}:`, error);
-            // Try next sound on error
-            if (isConversationActiveRef.current && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
-                conversationTimerRef.current = setTimeout(() => {
-                    playNextConversationSound(index + 1);
-                }, 1000);
-            }
-        }
-    }, [isSequenceComplete]);
-    
-    // Play special welcome sound sequence for first-time visitors
-    const playWelcomeSound = useCallback(async () => {
-        if (hasPlayedWelcome.current || !isFirstTimeVisitor) return;
-        
-        hasPlayedWelcome.current = true;
-        isConversationActiveRef.current = true;
-        
-        try {
-            console.log('🎬 Starting SOVA welcome conversation sequence for first-time visitor');
-            setAudioContextUnlocked(true);
-            saveAudioPreference(true);
-            markFirstVisitComplete();
-            
-            // Start the conversation sequence
-            playNextConversationSound(0);
-        } catch (error) {
-            console.log('Welcome sound auto-play failed:', error);
-            markFirstVisitComplete();
-            isConversationActiveRef.current = false;
-            // Show audio prompt instead
-            setShowAudioPrompt(true);
-        }
-    }, [isFirstTimeVisitor, playNextConversationSound]);
-    
-    // Attempt to play welcome sound when audio is preloaded and it's first visit
-    useEffect(() => {
-        if (audioPreloaded && isFirstTimeVisitor && !hasPlayedWelcome.current && !hasPlayedReconnect.current) {
-            const timer = setTimeout(playWelcomeSound, 500);
-            return () => clearTimeout(timer);
-        }
-    }, [audioPreloaded, isFirstTimeVisitor, playWelcomeSound]);
-    
-    // Track if we've already handled sequence completion
-    const hasHandledSequenceComplete = useRef(false);
-    
-    // Stop welcome audio immediately when loading completes (runs ONCE when isSequenceComplete becomes true)
-    useEffect(() => {
-        if (isSequenceComplete && !hasHandledSequenceComplete.current && isConversationActiveRef.current) {
-            hasHandledSequenceComplete.current = true;
-            
-            // Stop the conversation sequence
-            isConversationActiveRef.current = false;
-            
-            // Clear any pending conversation timer
-            if (conversationTimerRef.current) {
-                clearTimeout(conversationTimerRef.current);
-                conversationTimerRef.current = null;
-            }
-            
-            // Stop any playing CONVERSATION audio (only if conversation was active)
-            if (currentAudio && isSovaSpeaking) {
-                console.log('Loading complete - stopping SOVA welcome conversation immediately');
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                setIsSovaSpeaking(false);
-                setCurrentAudio(null);
-            }
-            
-            setShowWelcomeText(false);
-            setCurrentSovaText('');
-        }
-    }, [isSequenceComplete, currentAudio, isSovaSpeaking]);
-    
-    // Cleanup conversation timer on unmount
-    useEffect(() => {
-        return () => {
-            if (conversationTimerRef.current) {
-                clearTimeout(conversationTimerRef.current);
-            }
-            isConversationActiveRef.current = false;
-        };
-    }, []);
 
     // Function to unlock audio context and play random SOVA sound
     const attemptToPlayRandomSovaSound = useCallback(async () => {
-        // Don't auto-play if we've already played something, if audio isn't ready, if we're already attempting,
-        // if this is a first-time visitor (they get the welcome sequence instead), or if the welcome conversation is active
-        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current || isFirstTimeVisitor || isConversationActiveRef.current) {
-            console.log('Skipping auto-play: already played, audio not ready, attempt in progress, first-time visitor, or welcome conversation active');
+        // Don't auto-play if we've already played something, if audio isn't ready, or if we're already attempting
+        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) {
+            console.log('Skipping auto-play: already played, audio not ready, or attempt in progress');
             return;
         }
 
@@ -743,7 +387,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             setShowAudioPrompt(true);
             saveAudioPreference(false);
         }
-    }, [audioPreloaded, isFirstTimeVisitor]); // Recreate if audioPreloaded or first-time visitor status changes
+    }, [audioPreloaded]); // Only recreate if audioPreloaded changes
 
     // Handle Sova avatar click to play random sounds
     const handleSovaClick = async () => {
@@ -773,12 +417,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         // Don't allow starting new audio if something is still playing
         if (isSovaSpeaking) {
             console.log('SOVA is still speaking, please wait...');
-            return;
-        }
-        
-        // Don't allow random sounds during welcome conversation
-        if (isConversationActiveRef.current) {
-            console.log('SOVA: Welcome conversation is active, skipping random sound');
             return;
         }
         
@@ -845,37 +483,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         const soundToPlay = availableSounds[randomIndex];
         const audioElement = preloadedAudioFiles[soundToPlay];
 
-        // Wait for the sound to be ready if it's not yet
-        if (audioElement.readyState < 3) {
-            console.log(`SOVA: Waiting for sound ${soundToPlay}.mp3 to be ready (readyState: ${audioElement.readyState})`);
-            try {
-                await new Promise<void>((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Sound load timeout')), 20000); // 20s for production
-                    
-                    const onCanPlay = () => {
-                        clearTimeout(timeout);
-                        audioElement.removeEventListener('canplaythrough', onCanPlay);
-                        audioElement.removeEventListener('error', onError);
-                        resolve();
-                    };
-                    
-                    const onError = () => {
-                        clearTimeout(timeout);
-                        audioElement.removeEventListener('canplaythrough', onCanPlay);
-                        audioElement.removeEventListener('error', onError);
-                        reject(new Error('Sound load error'));
-                    };
-                    
-                    audioElement.addEventListener('canplaythrough', onCanPlay);
-                    audioElement.addEventListener('error', onError);
-                });
-                console.log(`SOVA: Sound ${soundToPlay}.mp3 is now ready`);
-            } catch (error) {
-                console.error(`SOVA: Failed to wait for sound ${soundToPlay}.mp3:`, error);
-                return;
-            }
-        }
-
         console.log(`Playing SOVA sound ${soundToPlay}.mp3`);
         setIsSovaSpeaking(true);
         setCurrentAudio(audioElement); // Track the current audio
@@ -899,14 +506,8 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             if (!audioContextUnlocked) {
                 setAudioContextUnlocked(true);
             }
-        } catch (error: unknown) {
-            // Handle AbortError gracefully - this happens when play is interrupted
-            const errorName = error instanceof Error ? error.name : 'Unknown';
-            if (errorName === 'AbortError') {
-                console.log(`SOVA sound ${soundToPlay} was interrupted (AbortError) - this is normal if loading completed`);
-            } else {
+        } catch (error) {
             console.error(`Failed to play SOVA sound ${soundToPlay}:`, error);
-            }
             setIsSovaSpeaking(false);
             setCurrentAudio(null); // Clear current audio reference on error
         }
@@ -975,28 +576,21 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     useEffect(() => {
         if (currentLogIndex < logs.length) {
-            console.log(`[CyberpunkLoadingScreen] Queuing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
-            // Show logs with readable delay - faster during asset loading, slower otherwise
-            const baseDelay = assetProgress ? 150 : 300;
-            const randomDelay = assetProgress ? 100 : 200;
+            console.log(`[CyberpunkLoadingScreen] Showing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
+            // Show logs faster when assets are loading (real progress), slower for simulated auth/spacetime
+            const baseDelay = assetProgress ? 100 : 300;
+            const randomDelay = assetProgress ? 50 : 200;
             const timer = setTimeout(() => {
-                // Capture current index to avoid race conditions
-                setVisibleLogs(prev => {
-                    // Only add if we haven't already added this many logs
-                    if (prev.length === currentLogIndex) {
-                        return [...prev, logs[currentLogIndex]];
-                    }
-                    return prev;
-                });
+                setVisibleLogs(prev => [...prev, logs[currentLogIndex]]);
                 setCurrentLogIndex(prev => prev + 1);
                 // Scroll to bottom after adding new log
                 setTimeout(scrollToBottom, 100);
             }, baseDelay + Math.random() * randomDelay);
 
             return () => clearTimeout(timer);
-        } else if (currentLogIndex >= logs.length && logs.length > 0 && !isSequenceComplete && effectiveAssetsLoaded) {
+        } else if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
             // Sequence is complete AND assets are loaded - show click to continue
-            console.log(`[CyberpunkLoadingScreen] All logs complete and assets loaded, setting sequence complete${DEBUG_SIMULATE_SLOW_LOADING ? ' (debug delay was active)' : ''}`);
+            console.log(`[CyberpunkLoadingScreen] All logs complete and assets loaded, setting sequence complete`);
             const timer = setTimeout(() => {
                 setIsSequenceComplete(true);
                 // Scroll to bottom to show the continue button
@@ -1005,7 +599,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
             return () => clearTimeout(timer);
         }
-    }, [currentLogIndex, logs, isSequenceComplete, assetProgress, effectiveAssetsLoaded]);
+    }, [currentLogIndex, logs, isSequenceComplete, assetProgress, assetsLoaded]);
 
     // Handle click to continue - always allow continuation regardless of player state
     const handleContinueClick = () => {
@@ -1016,36 +610,15 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     // Fallback: If sequence gets stuck, auto-complete after a timeout
     // BUT only if assets are loaded - we never want to show the game without assets!
     useEffect(() => {
-        if (currentLogIndex >= logs.length && !isSequenceComplete && effectiveAssetsLoaded) {
+        if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
             const fallbackTimer = setTimeout(() => {
-                console.log(`[CyberpunkLoadingScreen] Fallback: Force completing sequence (assets loaded${DEBUG_SIMULATE_SLOW_LOADING ? ', debug delay was active' : ''})`);
+                console.log('[CyberpunkLoadingScreen] Fallback: Force completing sequence (assets loaded)');
                 setIsSequenceComplete(true);
             }, 2000); // 2 second fallback
             
             return () => clearTimeout(fallbackTimer);
         }
-    }, [currentLogIndex, logs.length, isSequenceComplete, effectiveAssetsLoaded]);
-    
-    // EMERGENCY fallback: If stuck for 45+ seconds, force complete regardless of asset state
-    // This prevents users from being permanently stuck on loading screen
-    // NOTE: Disabled during debug slow loading mode to allow full testing
-    useEffect(() => {
-        // Skip emergency timeout during debug mode - we're intentionally delaying
-        if (DEBUG_SIMULATE_SLOW_LOADING) {
-            console.log('🔧 DEBUG: Emergency timeout disabled during slow loading simulation');
-            return;
-        }
-        
-        const emergencyTimer = setTimeout(() => {
-            if (!isSequenceComplete) {
-                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 45s, forcing completion');
-                console.warn(`[CyberpunkLoadingScreen] State: currentLogIndex=${currentLogIndex}, logs.length=${logs.length}, assetsLoaded=${assetsLoaded}, debugDelayComplete=${debugDelayComplete}`);
-                setIsSequenceComplete(true);
-            }
-        }, 45000); // 45 second emergency timeout - reasonable for slow mobile connections
-        
-        return () => clearTimeout(emergencyTimer);
-    }, [isSequenceComplete, currentLogIndex, logs.length, assetsLoaded, debugDelayComplete]);
+    }, [currentLogIndex, logs.length, isSequenceComplete, assetsLoaded]);
 
     // Reset when authLoading changes, but only if we haven't started the sequence at all
     // Once started, let the sequence complete regardless of player state (including death)
@@ -1067,57 +640,23 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         setShowAudioPrompt(false);
         
         try {
-            // Find the first available sound to play (prefer readyState >= 3 for immediate playback)
+            // Find the first available sound to play
             let firstAvailableSound = null;
-            for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
-                const soundKey = i.toString();
-                const audio = preloadedAudioFiles[soundKey];
-                if (audio && audio.readyState >= 3) {
-                    firstAvailableSound = soundKey;
-                    break;
-                }
-            }
-            
-            // Fallback to readyState >= 2 if no fully ready sounds
-            if (!firstAvailableSound) {
             for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
                 const soundKey = i.toString();
                 const audio = preloadedAudioFiles[soundKey];
                 if (audio && audio.readyState >= 2) {
                     firstAvailableSound = soundKey;
                     break;
-                    }
                 }
             }
             
             if (!firstAvailableSound) {
                 console.log('No SOVA sounds available after enabling audio');
-                setAudioContextUnlocked(true); // Still unlock context for future sounds
-                saveAudioPreference(true);
                 return;
             }
             
             const audio = preloadedAudioFiles[firstAvailableSound];
-            
-            // Wait for sound to be ready if not yet
-            if (audio.readyState < 3) {
-                console.log(`Waiting for sound ${firstAvailableSound}.mp3 to be ready...`);
-                await new Promise<void>((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        // Timeout but don't fail - just proceed anyway
-                        resolve();
-                    }, 3000);
-                    
-                    const onCanPlay = () => {
-                        clearTimeout(timeout);
-                        audio.removeEventListener('canplaythrough', onCanPlay);
-                        resolve();
-                    };
-                    
-                    audio.addEventListener('canplaythrough', onCanPlay);
-                });
-            }
-            
             audio.currentTime = 0;
             setIsSovaSpeaking(true);
             setCurrentAudio(audio); // Track the current audio
@@ -1137,19 +676,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             };
             audio.addEventListener('ended', handleAudioEnd, { once: true });
             
-        } catch (error: unknown) {
-            // Handle AbortError gracefully
-            const errorName = error instanceof Error ? error.name : 'Unknown';
-            if (errorName === 'AbortError') {
-                console.log('Audio play was interrupted (AbortError) - this is normal if loading completed');
-            } else {
+        } catch (error) {
             console.error('Failed to enable audio and play SOVA sound:', error);
-            }
             setIsSovaSpeaking(false);
             setCurrentAudio(null);
-            // Still unlock audio context even if play fails
-            setAudioContextUnlocked(true);
-            saveAudioPreference(true);
+            // Still hide the prompt even if audio fails
         }
     };
 
@@ -1364,39 +895,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                         </div>
                     </div>
                 )}
-                
-                {/* First-Time Visitor Welcome Message - Hide once loading completes */}
-                {showWelcomeText && isFirstTimeVisitor && !isSequenceComplete && (
-                    <div className={`sova-welcome-message ${isSovaSpeaking ? 'speaking' : ''}`}>
-                        <div className="welcome-text-container">
-                            <div className="welcome-greeting">「 FIRST CONNECTION DETECTED 」</div>
-                            <div className="welcome-intro">
-                                <span className="sova-name">SOVA</span> — Sentient Ocular Virtual Assistant
-                            </div>
-                            {currentSovaText && (
-                                <div className="welcome-dialogue" key={currentConversationIndex}>
-                                    "{currentSovaText}"
-                                </div>
-                            )}
-                            {!currentSovaText && (
-                                <div className="welcome-subtitle">
-                                    Initializing your neural link for the first time...
-                                </div>
-                            )}
-                            <div className="welcome-hint">
-                                {isMobile ? 'Tap SOVA anytime to hear guidance' : 'Click SOVA anytime to hear guidance'}
-                            </div>
-                            <div className="conversation-progress">
-                                {SOVA_CONVERSATION_SEQUENCE.map((_, idx) => (
-                                    <span 
-                                        key={idx} 
-                                        className={`progress-dot ${idx < currentConversationIndex ? 'completed' : ''} ${idx === currentConversationIndex && isSovaSpeaking ? 'active' : ''}`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="console-footer">
                     <div className="status-indicators">
@@ -1409,7 +907,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                             <span>QUANTUM TUNNEL</span>
                         </div>
                         <div className="status-item">
-                            <span className={`status-dot ${effectiveAssetsLoaded ? 'active' : 'loading'}`}></span>
+                            <span className={`status-dot ${assetsLoaded ? 'active' : 'loading'}`}></span>
                             <span>ASSET MATRIX</span>
                         </div>
                     </div>
@@ -1419,4 +917,4 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     );
 };
 
-export default CyberpunkLoadingScreen;
+export default CyberpunkLoadingScreen; 
