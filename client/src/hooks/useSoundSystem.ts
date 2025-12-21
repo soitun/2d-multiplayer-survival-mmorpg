@@ -1027,19 +1027,31 @@ export const useSoundSystem = ({
     const SOUND_PROCESSING_DEBOUNCE_MS = 500; // Minimum 500ms between sound processing
     const pendingSoundCreationRef = useRef<Set<string>>(new Set()); // Track sounds being created
     
-    // Preload sounds on first mount
+    // Preload sounds on first mount - STAGGERED to prevent overwhelming server/browser
     useEffect(() => {
         if (isInitializedRef.current) return;
         isInitializedRef.current = true;
         
-        const preloadAll = async () => {
-            const promises = PRELOAD_SOUNDS.map(filename => 
+        // Staggered loading: load sounds in small batches with delays
+        const preloadStaggered = async () => {
+            const BATCH_SIZE = 3; // Only 3 concurrent requests
+            const DELAY_BETWEEN_BATCHES = 100; // 100ms between batches
+            
+            for (let i = 0; i < PRELOAD_SOUNDS.length; i += BATCH_SIZE) {
+                const batch = PRELOAD_SOUNDS.slice(i, i + BATCH_SIZE);
+                const promises = batch.map(filename => 
                 loadAudio(filename).catch(err => console.warn(`Preload failed: ${filename}`, err))
             );
             await Promise.allSettled(promises);
+                
+                // Small delay between batches to prevent overwhelming the server
+                if (i + BATCH_SIZE < PRELOAD_SOUNDS.length) {
+                    await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+                }
+            }
         };
         
-        preloadAll();
+        preloadStaggered();
     }, []);
     
     // Track previous soundEvents to only process NEW events

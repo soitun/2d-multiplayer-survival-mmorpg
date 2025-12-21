@@ -418,13 +418,13 @@ const AIDisclosurePage: React.FC = () => {
                         gap: '16px',
                         marginBottom: '32px',
                     }}>
-                        <div style={{
-                            backgroundColor: 'rgba(0, 150, 0, 0.15)',
-                            border: '2px solid rgba(0, 200, 0, 0.4)',
-                            borderRadius: '8px',
+                    <div style={{
+                        backgroundColor: 'rgba(0, 150, 0, 0.15)',
+                        border: '2px solid rgba(0, 200, 0, 0.4)',
+                        borderRadius: '8px',
                             padding: '16px',
-                            textAlign: 'center',
-                        }}>
+                        textAlign: 'center',
+                    }}>
                             <p style={{ fontSize: '24px', color: '#4ade80', margin: 0, fontWeight: 'bold' }}>
                                 ${totals.totalPaid.toFixed(2)}
                             </p>
@@ -478,16 +478,16 @@ const AIDisclosurePage: React.FC = () => {
 
                     {/* Asset Replacement Tracker Table */}
                     <h3 style={{
-                        fontSize: '20px',
+                            fontSize: '20px',
                         color: '#ff8c00',
                         marginBottom: '16px',
-                        fontWeight: 'bold',
-                    }}>
+                            fontWeight: 'bold',
+                        }}>
                         📊 Asset Replacement Tracker
                     </h3>
                     
-                    <p style={{
-                        fontSize: '14px',
+                        <p style={{
+                            fontSize: '14px',
                         color: 'rgba(255, 255, 255, 0.7)',
                         marginBottom: '16px',
                         lineHeight: '1.7',

@@ -328,7 +328,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         configRef.current = finalConfig;
     }, [finalConfig]);
 
-    // Preload all music tracks (including zone-specific tracks)
+    // Preload all music tracks (including zone-specific tracks) - STAGGERED to prevent server overload
     const preloadAllTracks = useCallback(async () => {
         if (!finalConfig.preloadAll) return;
 
@@ -337,22 +337,33 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         let loadedCount = 0;
         const totalTracks = ALL_TRACKS.length;
+        const BATCH_SIZE = 2; // Only 2 concurrent music file requests (they're large)
+        const DELAY_BETWEEN_BATCHES = 200; // 200ms between batches
 
-        const loadPromises = ALL_TRACKS.map(async (track, index) => {
-            try {
-                await musicCache.get(track.path);
-                loadedCount++;
-                const progress = loadedCount / totalTracks;
-                setState(prev => ({ ...prev, preloadProgress: progress }));
-                // console.log(`🎵 Preloaded: ${track.displayName} (${loadedCount}/${totalTracks})`);
-            } catch (error) {
-                console.warn(`🎵 Failed to preload: ${track.displayName}`, error);
-                loadedCount++; // Still count as "processed"
-                setState(prev => ({ ...prev, preloadProgress: loadedCount / totalTracks }));
+        // Load tracks in small batches to prevent overwhelming the server
+        for (let i = 0; i < ALL_TRACKS.length; i += BATCH_SIZE) {
+            const batch = ALL_TRACKS.slice(i, i + BATCH_SIZE);
+            const loadPromises = batch.map(async (track) => {
+                try {
+                    await musicCache.get(track.path);
+                    loadedCount++;
+                    const progress = loadedCount / totalTracks;
+                    setState(prev => ({ ...prev, preloadProgress: progress }));
+                    // console.log(`🎵 Preloaded: ${track.displayName} (${loadedCount}/${totalTracks})`);
+                } catch (error) {
+                    console.warn(`🎵 Failed to preload: ${track.displayName}`, error);
+                    loadedCount++; // Still count as "processed"
+                    setState(prev => ({ ...prev, preloadProgress: loadedCount / totalTracks }));
+                }
+            });
+
+            await Promise.allSettled(loadPromises);
+            
+            // Small delay between batches to prevent overwhelming the server
+            if (i + BATCH_SIZE < ALL_TRACKS.length) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
             }
-        });
-
-        await Promise.allSettled(loadPromises);
+        }
         
         setState(prev => ({ 
             ...prev, 

@@ -225,9 +225,10 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
     loadedSoFar += importantResult.loaded;
     totalFromCache += importantResult.fromCache;
     
-    // Phase 3: Secondary assets (item icons) - load in parallel batches for speed
+    // Phase 3: Secondary assets (item icons) - load in SMALL batches with delays to prevent server overload
     console.log(`[AssetPreloader] Phase 3: Loading ${itemIconAssets.length} item icons...`);
-    const BATCH_SIZE = 20;
+    const BATCH_SIZE = 5; // Reduced from 20 to prevent ERR_INSUFFICIENT_RESOURCES
+    const DELAY_BETWEEN_BATCHES = 50; // Small delay between batches
     let secondaryLoaded = 0;
     let secondaryFromCache = 0;
     
@@ -253,6 +254,11 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
             currentAsset: batch[batch.length - 1]?.name || 'Items',
             fromCache: totalFromCache + secondaryFromCache,
         });
+        
+        // Small delay between batches to prevent overwhelming the server
+        if (i + BATCH_SIZE < itemIconAssets.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+        }
     }
     
     loadedSoFar += secondaryLoaded;

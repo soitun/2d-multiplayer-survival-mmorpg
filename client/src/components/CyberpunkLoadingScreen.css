@@ -207,7 +207,7 @@
 
 /* Console logs area */
 .console-logs {
-    min-height: 300px;
+    /* No min-height - let content determine size, grows when button appears */
     max-height: 400px;
     overflow-y: auto;
     padding: 10px 0;
@@ -503,7 +503,7 @@
     .console-logs {
         font-size: 13px;
         line-height: 1.6;
-        min-height: 120px;
+        /* No min-height - content determines size */
         max-height: 45vh;
         /* Better scrolling on mobile */
         -webkit-overflow-scrolling: touch;
@@ -592,7 +592,7 @@
     
     .console-logs {
         font-size: 12px;
-        min-height: 100px;
+        /* No min-height - content determines size */
         max-height: 42vh;
         padding: 6px 0;
     }
