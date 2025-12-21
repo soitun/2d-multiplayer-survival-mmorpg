@@ -1173,6 +1173,41 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         learn more
                                     </span>
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        navigate('/ai-disclosure');
+                                    }}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        fontWeight: 600,
+                                        padding: '6px 16px',
+                                        fontSize: '11px',
+                                        borderRadius: '14px',
+                                        cursor: 'pointer',
+                                        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                                        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                                        transition: 'all 0.2s ease',
+                                        letterSpacing: '0.8px',
+                                        textTransform: 'uppercase',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.6)';
+                                        e.currentTarget.style.color = '#ff8c00';
+                                        e.currentTarget.style.background = 'rgba(255, 140, 0, 0.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                        e.currentTarget.style.background = 'transparent';
+                                    }}
+                                >
+                                    AI Disclosure
+                                </button>
                                 <style>{`
                                     .gleam-animating::before {
                                         content: '';
@@ -2061,7 +2096,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 { label: 'FAQ', action: 'faq' },
                                 { label: 'LORE', action: 'https://www.babushkabook.com/', external: true },
                                 { label: 'BLOG', action: '/blog', internal: true },
-                                { label: 'CONTACT', action: 'mailto:martin@selooils.com', external: true },
+                                { label: 'CONTACT', action: 'mailto:martin.erlic@gmail.com', external: true },
                             ].map((link) => (
                                 <li key={link.label} style={{ marginBottom: '12px' }}>
                                     <a
@@ -2137,11 +2172,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                             padding: 0,
                             margin: 0,
                         }}>
-                            {[
-                                { label: 'PRIVACY POLICY', path: '/privacy' },
-                                { label: 'TERMS OF SERVICE', path: '/terms' },
-                                { label: 'COOKIE DECLARATION', path: '/cookies' },
-                            ].map((link) => (
+{[
+                                            { label: 'PRIVACY POLICY', path: '/privacy' },
+                                            { label: 'TERMS OF SERVICE', path: '/terms' },
+                                            { label: 'COOKIE DECLARATION', path: '/cookies' },
+                                            { label: 'AI DISCLOSURE', path: '/ai-disclosure' },
+                                        ].map((link) => (
                                 <li key={link.label} style={{ marginBottom: '12px' }}>
                                     <a
                                         href={link.path}

@@ -264,11 +264,11 @@ const CookiesPage: React.FC = () => {
                         color: 'rgba(255, 255, 255, 0.8)',
                     }}>
                         If you have any questions about our use of cookies or this Cookie Declaration, please contact us at:{' '}
-                        <a href="mailto:privacy@selooils.com" style={{
+                        <a href="mailto:martin.erlic@gmail.com" style={{
                             color: '#00aaff',
                             textDecoration: 'none',
                         }}>
-                            privacy@selooils.com
+                            martin.erlic@gmail.com
                         </a>
                     </p>
                 </section>

@@ -26,6 +26,7 @@ import BlogPostPage from './blog/BlogPostPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import CookiesPage from './components/CookiesPage';
+import AIDisclosurePage from './components/AIDisclosurePage';
 
 // Context Providers
 import { GameContextsProvider } from './contexts/GameContexts';
@@ -1360,6 +1361,7 @@ function App() {
                             <Route path="/privacy" element={<PrivacyPage />} />
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/cookies" element={<CookiesPage />} />
+                            <Route path="/ai-disclosure" element={<AIDisclosurePage />} />
                         </Routes>
                     </Router>
                 </DebugProvider>

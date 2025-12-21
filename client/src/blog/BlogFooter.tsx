@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDiscord, faXTwitter, faGithub } from '@fortawesome/free-brands-svg-icons';
+import logo from '../assets/logo_alt.png';
 
 const BlogFooter: React.FC = () => {
     // Check if we're on mobile
@@ -84,7 +85,7 @@ const BlogFooter: React.FC = () => {
                     textAlign: isMobile ? 'center' : 'left',
                 }}>
                     <img
-                        src="/images/blog/logo_alt.png"
+                        src={logo}
                         alt="Broth & Bullets Logo"
                         style={{
                             width: isMobile ? '140px' : '160px',
@@ -163,7 +164,7 @@ const BlogFooter: React.FC = () => {
                             { label: 'FAQ', action: 'faq', section: true },
                             { label: 'LORE', action: 'https://mybook.to/brothandbullets4', external: true },
                             { label: 'BLOG', action: '/blog', internal: true },
-                            { label: 'CONTACT', action: 'mailto:martin@selooils.com', external: true },
+                            { label: 'CONTACT', action: 'mailto:martin.erlic@gmail.com', external: true },
                         ].map((link) => (
                             <li key={link.label} style={{ marginBottom: '12px' }}>
                                 {link.internal ? (
@@ -269,6 +270,7 @@ const BlogFooter: React.FC = () => {
                             { label: 'PRIVACY POLICY', path: '/privacy' },
                             { label: 'TERMS OF SERVICE', path: '/terms' },
                             { label: 'COOKIE DECLARATION', path: '/cookies' },
+                            { label: 'AI DISCLOSURE', path: '/ai-disclosure' },
                         ].map((link) => (
                             <li key={link.label} style={{ marginBottom: '12px' }}>
                                 <button

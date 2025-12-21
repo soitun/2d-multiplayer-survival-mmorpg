@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
+import logo from '../assets/logo_alt.png';
 
 const BlogHeader: React.FC = () => {
     const navigate = useNavigate();
@@ -79,7 +80,7 @@ const BlogHeader: React.FC = () => {
                         }}
                     >
                         <img
-                            src="/images/blog/logo_alt.png"
+                            src={logo}
                             alt="Broth & Bullets"
                             style={{
                                 height: isMobile ? '40px' : '50px',
