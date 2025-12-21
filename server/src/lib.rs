@@ -639,6 +639,7 @@ pub struct Player {
     pub last_insanity_threshold: f32, // NEW: Last insanity threshold crossed (for SOVA sound triggers: 0.0, 25.0, 50.0, 75.0, 90.0, 100.0)
     pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
+    pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
 }
 
 // Table to store the last attack timestamp for each player
@@ -975,6 +976,10 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
                 player.death_timestamp = Some(ctx.timestamp);
                 player.offline_corpse_id = None;
                 player_updated = true;
+                
+                // Clear all active effects on death (any lingering effects from before disconnect)
+                active_effects::clear_all_effects_on_death(ctx, player.identity);
+                log::info!("[Connect] Cleared all active effects for player {:?} who died while offline", player.identity);
             }
         }
         
@@ -1113,6 +1118,10 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
                 existing_player.is_dead = true;
                 existing_player.death_timestamp = Some(ctx.timestamp);
                 existing_player.offline_corpse_id = None;
+                
+                // Clear all active effects on death (any lingering effects from before disconnect)
+                active_effects::clear_all_effects_on_death(ctx, existing_player.identity);
+                log::info!("[RegisterPlayer] Cleared all active effects for player {:?} who died while offline", existing_player.identity);
             }
         }
         // --- END Handle Offline Corpse Restoration ---
@@ -1535,6 +1544,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         is_snorkeling: false, // NEW: Initialize snorkeling state
         client_movement_sequence: 0,
         is_inside_building: false, // NEW: Players spawn outside (not inside buildings)
+        is_aiming_throw: false, // Initialize throw-aiming state to false
         last_respawn_time: ctx.timestamp, // NEW: Track initial spawn time
         insanity: 0.0, // NEW: Start with no insanity
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially

@@ -300,6 +300,7 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
     player.is_torch_lit = false; // Ensure torch is unlit on respawn
     player.is_knocked_out = false; // Reset knocked out state
     player.knocked_out_at = None; // Clear knocked out timestamp
+    player.is_aiming_throw = false; // Reset throw-aiming state
     player.direction = "down".to_string(); // Reset direction
     
     // CRITICAL FIX: Reset client movement sequence to force position sync

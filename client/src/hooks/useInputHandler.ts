@@ -233,6 +233,9 @@ export const useInputHandler = ({
     // Add after existing refs in the hook
     const isRightMouseDownRef = useRef<boolean>(false);
     
+    // ADDED: Track throw aiming state (right mouse held with throwable item)
+    const isAimingThrowRef = useRef<boolean>(false);
+    
     // ADDED: Building radial menu state
     const [showBuildingRadialMenu, setShowBuildingRadialMenu] = useState(false);
     const [showUpgradeRadialMenu, setShowUpgradeRadialMenu] = useState(false);
@@ -1552,6 +1555,24 @@ export const useInputHandler = ({
                         }
                     }
                 }
+                
+                // ADDED: Check if equipped item is throwable - enter throw aim mode
+                if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
+                    const equippedItemDefForThrow = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
+                    if (equippedItemDefForThrow && isItemThrowable(equippedItemDefForThrow)) {
+                        // Enter throw aim mode
+                        isAimingThrowRef.current = true;
+                        // Notify server (syncs to other players for visual feedback)
+                        if (connectionRef.current?.reducers) {
+                            try {
+                                connectionRef.current.reducers.setThrowAim(true);
+                                console.log('[ThrowAim] Entered throw aim mode with:', equippedItemDefForThrow.name);
+                            } catch (err) {
+                                console.error('[ThrowAim] Error setting throw aim:', err);
+                            }
+                        }
+                    }
+                }
 
                 // Normal right-click logic for context menu, etc.
             }
@@ -1561,6 +1582,21 @@ export const useInputHandler = ({
             // Handle both left and right mouse button releases
             if (event.button === 0) { // Left mouse
                 isMouseDownRef.current = false;
+                
+                // ADDED: Cancel throw aim on left click
+                if (isAimingThrowRef.current) {
+                    isAimingThrowRef.current = false;
+                    if (connectionRef.current?.reducers) {
+                        try {
+                            connectionRef.current.reducers.setThrowAim(false);
+                            console.log('[ThrowAim] Cancelled throw aim with left click');
+                        } catch (err) {
+                            console.error('[ThrowAim] Error cancelling throw aim:', err);
+                        }
+                    }
+                    return; // Don't process other left-click actions when cancelling throw
+                }
+                
                 // ADDED: Close radial menu on left click
                 if (showBuildingRadialMenu) {
                     setShowBuildingRadialMenu(false);
@@ -1901,9 +1937,19 @@ export const useInputHandler = ({
 
                     try {
                         connectionRef.current.reducers.throwItem(targetX, targetY);
-                        // console.log("[InputHandler] Right-click throw - throwItem called successfully!");
+                        console.log("[ThrowAim] Item thrown successfully!");
                     } catch (err) {
-                        console.error("[InputHandler] Right-click throw - Error throwing item:", err);
+                        console.error("[ThrowAim] Error throwing item:", err);
+                    }
+                    
+                    // Clear throw aim state after throwing
+                    if (isAimingThrowRef.current) {
+                        isAimingThrowRef.current = false;
+                        try {
+                            connectionRef.current.reducers.setThrowAim(false);
+                        } catch (err) {
+                            // Silently ignore - server will clear it anyway in throw_item
+                        }
                     }
 
                     return; // Always return after handling throw
@@ -1958,6 +2004,17 @@ export const useInputHandler = ({
             // keysPressed.current.clear(); // Keep this commented out
             isMouseDownRef.current = false;
             isRightMouseDownRef.current = false; // Reset right mouse state
+            
+            // ADDED: Clear throw aim state on blur/visibility change
+            if (isAimingThrowRef.current) {
+                isAimingThrowRef.current = false;
+                if (connectionRef.current?.reducers) {
+                    try {
+                        connectionRef.current.reducers.setThrowAim(false);
+                    } catch (err) { /* ignore */ }
+                }
+            }
+            
             isEHeldDownRef.current = false;
             if (eKeyHoldTimerRef.current) clearTimeout(eKeyHoldTimerRef.current);
             eKeyHoldTimerRef.current = null;

@@ -262,6 +262,7 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     current_player.is_torch_lit = false; // Ensure torch is unlit on respawn
     current_player.is_knocked_out = false; // Reset knocked out state
     current_player.knocked_out_at = None; // Clear knocked out timestamp
+    current_player.is_aiming_throw = false; // Reset throw-aiming state
 
     // CRITICAL FIX: Reset client movement sequence to force position sync
     // This prevents client-side prediction from overriding the respawn position

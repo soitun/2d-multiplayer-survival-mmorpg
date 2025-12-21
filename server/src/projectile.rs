@@ -2238,6 +2238,36 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
     Ok(())
 }
 
+/// Sets the player's throw aiming state (used for visual feedback when holding right mouse)
+/// Remote players can see when someone is preparing to throw
+#[reducer]
+pub fn set_throw_aim(ctx: &ReducerContext, is_aiming: bool) -> Result<(), String> {
+    let player_id = ctx.sender;
+    
+    let mut player = ctx.db.player().identity().find(&player_id)
+        .ok_or("Player not found")?;
+    
+    if player.is_dead || player.is_knocked_out {
+        // Silently ignore if dead/knocked out - don't spam errors
+        return Ok(());
+    }
+    
+    // Only update if state changed
+    if player.is_aiming_throw != is_aiming {
+        player.is_aiming_throw = is_aiming;
+        player.last_update = ctx.timestamp;
+        ctx.db.player().identity().update(player);
+        
+        if is_aiming {
+            log::debug!("Player {:?} entered throw aim state", player_id);
+        } else {
+            log::debug!("Player {:?} exited throw aim state", player_id);
+        }
+    }
+    
+    Ok(())
+}
+
 #[reducer]
 pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32) -> Result<(), String> {
     log::info!("=== THROW_ITEM REDUCER CALLED ===");
@@ -2487,5 +2517,14 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
 
     log::info!("Item '{}' thrown by player {} towards ({:.1}, {:.1}) with initial V_x={:.1}, V_y={:.1}", 
         item_def.name, player_id.to_string(), target_world_x, target_world_y, final_vx, final_vy);
+    
+    // Clear throw aim state after successful throw
+    if let Some(mut player_updated) = ctx.db.player().identity().find(&player_id) {
+        if player_updated.is_aiming_throw {
+            player_updated.is_aiming_throw = false;
+            ctx.db.player().identity().update(player_updated);
+        }
+    }
+    
     Ok(())
 } 

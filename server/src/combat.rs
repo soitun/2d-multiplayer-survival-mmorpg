@@ -1842,8 +1842,24 @@ pub fn damage_player(
                     // Check if attacker died from reflection
                     if attacker_to_damage.health <= 0.0 && !attacker_to_damage.is_dead {
                         attacker_to_damage.is_dead = true;
+                        attacker_to_damage.death_timestamp = Some(timestamp);
                         log::info!("Attacker {:?} killed by reflected damage from {:?}!", attacker_id, target_id);
-                        // Note: We don't create corpse here to avoid complexity, just mark as dead
+                        
+                        // Clear all active effects on death (bleed, venom, burns, stun, etc.)
+                        crate::active_effects::clear_all_effects_on_death(ctx, attacker_id);
+                        log::info!("[PlayerDeath] Cleared all active effects for attacker {:?} killed by reflected damage", attacker_id);
+                        
+                        // Create corpse for attacker
+                        match create_player_corpse(ctx, attacker_id, attacker_to_damage.position_x, attacker_to_damage.position_y, &attacker_to_damage.username) {
+                            Ok(_) => log::info!("Created corpse for attacker {:?} killed by reflected damage", attacker_id),
+                            Err(e) => log::error!("Failed to create corpse for attacker {:?}: {}", attacker_id, e),
+                        }
+                        
+                        // Clear active item
+                        match crate::active_equipment::clear_active_item_reducer(ctx, attacker_id) {
+                            Ok(_) => log::info!("[PlayerDeath] Active item cleared for attacker {:?}", attacker_id),
+                            Err(e) => log::error!("[PlayerDeath] Failed to clear active item for attacker {:?}: {}", attacker_id, e),
+                        }
                     }
                     
                     players.identity().update(attacker_to_damage);

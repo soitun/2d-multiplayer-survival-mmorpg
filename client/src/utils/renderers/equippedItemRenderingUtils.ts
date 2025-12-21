@@ -139,6 +139,12 @@ export const renderEquippedItem = (
   let rotation = 0;
   let isSwinging = false;
   let isSpearThrusting = false;
+  
+  // --- THROW AIM VISUAL ANGLE ---
+  // When player is aiming to throw, tilt the weapon based on facing direction
+  const isAimingThrow = player.isAimingThrow ?? false;
+  // Calculate throw aim angle: tilt weapon ~30 degrees in throwing direction
+  const THROW_AIM_ANGLE = Math.PI / 6; // 30 degrees
 
   // --- Define spear-specific orientation variables ---
   let spearRotation = 0; // This will be the primary rotation for the spear
@@ -414,6 +420,43 @@ export const renderEquippedItem = (
             rotation = currentAngle; 
           }
       }
+  }
+  
+  // --- THROW AIM ANGLE: Apply visual angle when aiming to throw (not swinging) ---
+  if (isAimingThrow && !isSwinging) {
+      // Tilt weapon based on player direction to indicate throwing readiness
+      // Weapon is tilted ~30 degrees in the throw direction
+      switch (player.direction) {
+          case 'up':
+              rotation -= THROW_AIM_ANGLE; // Tilt weapon upward/backward
+              break;
+          case 'down':
+              rotation += THROW_AIM_ANGLE; // Tilt weapon downward/forward
+              break;
+          case 'left':
+              rotation += THROW_AIM_ANGLE; // Tilt weapon backward (left)
+              break;
+          case 'right':
+              rotation -= THROW_AIM_ANGLE; // Tilt weapon backward (right)
+              break;
+      }
+      // For spears, apply the same angle offset
+      if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
+          switch (player.direction) {
+              case 'up':
+                  spearRotation -= THROW_AIM_ANGLE * 0.5; // Subtle tilt for spears
+                  break;
+              case 'down':
+                  spearRotation += THROW_AIM_ANGLE * 0.5;
+                  break;
+              case 'left':
+              case 'right':
+                  // For horizontal directions, tilt down (preparing for upward throw)
+                  spearRotation += THROW_AIM_ANGLE * 0.5;
+                  break;
+          }
+      }
+      currentAngle = rotation; // Ensure currentAngle reflects throw aim
   }
   
   // --- Resolve the correct image to render ---
