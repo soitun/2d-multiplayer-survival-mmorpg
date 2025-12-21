@@ -365,7 +365,7 @@ const PRELOAD_SOUNDS = [
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
 ] as const;
 
-// Enhanced audio loading with error handling and performance monitoring
+// Enhanced audio loading with error handling - FAST FAIL to not block loading screen
 const loadAudio = async (filename: string): Promise<HTMLAudioElement> => {
     return new Promise((resolve, reject) => {
         const fullPath = SOUND_CONFIG.SOUNDS_BASE_PATH + filename;
@@ -375,18 +375,18 @@ const loadAudio = async (filename: string): Promise<HTMLAudioElement> => {
         audio.preload = 'auto';
         audio.crossOrigin = 'anonymous';
         
+        // Short timeout - fail fast rather than block for 30s
         const loadTimeout = setTimeout(() => {
             reject(new Error(`Audio load timeout: ${filename}`));
-        }, 30000); // 30 second timeout for production networks
+        }, 8000); // 8 second timeout - reasonable for mobile/slow connections
         
         audio.addEventListener('canplaythrough', () => {
             clearTimeout(loadTimeout);
             resolve(audio);
         }, { once: true });
         
-        audio.addEventListener('error', (e) => {
+        audio.addEventListener('error', () => {
             clearTimeout(loadTimeout);
-            console.error(`🔊 Audio load error: ${filename}`, e);
             reject(new Error(`Failed to load audio: ${filename}`));
         }, { once: true });
         
@@ -1027,31 +1027,37 @@ export const useSoundSystem = ({
     const SOUND_PROCESSING_DEBOUNCE_MS = 500; // Minimum 500ms between sound processing
     const pendingSoundCreationRef = useRef<Set<string>>(new Set()); // Track sounds being created
     
-    // Preload sounds on first mount - STAGGERED to prevent overwhelming server/browser
+    // Preload sounds AFTER initial game load - DEFERRED to not compete with loading screen
     useEffect(() => {
         if (isInitializedRef.current) return;
         isInitializedRef.current = true;
         
-        // Staggered loading: load sounds in small batches with delays
-        const preloadStaggered = async () => {
-            const BATCH_SIZE = 2; // Only 2 concurrent requests to avoid overwhelming server
-            const DELAY_BETWEEN_BATCHES = 300; // 300ms between batches for production
+        // DELAY: Wait for loading screen to finish loading critical assets first
+        // This prevents game sounds from competing with SOVA sounds and visual assets
+        const startDelay = setTimeout(async () => {
+            const BATCH_SIZE = 1; // Only 1 concurrent request - very gentle on server
+            const DELAY_BETWEEN_BATCHES = 400; // 400ms between sounds for production
+            
+            console.log('🔊 Starting background game sound preload...');
             
             for (let i = 0; i < PRELOAD_SOUNDS.length; i += BATCH_SIZE) {
                 const batch = PRELOAD_SOUNDS.slice(i, i + BATCH_SIZE);
                 const promises = batch.map(filename => 
-                loadAudio(filename).catch(err => console.warn(`Preload failed: ${filename}`, err))
-            );
-            await Promise.allSettled(promises);
+                    loadAudio(filename).catch(() => {
+                        // Silent fail - sounds will load on-demand if needed
+                    })
+                );
+                await Promise.allSettled(promises);
                 
-                // Small delay between batches to prevent overwhelming the server
+                // Delay between batches to avoid overwhelming the server
                 if (i + BATCH_SIZE < PRELOAD_SOUNDS.length) {
                     await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
                 }
             }
-        };
+            console.log('🔊 Background game sound preload complete');
+        }, 5000); // Wait 5 seconds before starting - let loading screen finish first
         
-        preloadStaggered();
+        return () => clearTimeout(startDelay);
     }, []);
     
     // Track previous soundEvents to only process NEW events

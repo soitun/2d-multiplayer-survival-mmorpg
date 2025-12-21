@@ -145,46 +145,36 @@ const saveAudioPreference = (enabled: boolean): void => {
     }
 };
 
-// Function to load audio from the correct path
+// Function to load audio from the correct path - FAST FAIL for smoother loading
 const tryLoadAudio = async (filename: string): Promise<HTMLAudioElement | null> => {
-    // SOVA sounds are in the public/sounds/ directory
-    // Vite serves public directory files directly from the root (use /sounds/ not /public/sounds/)
-    const possiblePaths = [
-        `/sounds/${filename}`,            // Primary path: public/sounds/ (served from root)
-        `./sounds/${filename}`,           // Relative path fallback
-    ];
-
-    for (const path of possiblePaths) {
-        try {
-            const audio = new Audio(path);
-            
-            // Test if the audio can load - longer timeout for production
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Timeout')), 20000); // 20s for welcome sounds
-                
-                audio.addEventListener('canplaythrough', () => {
-                    clearTimeout(timeout);
-                    resolve(audio);
-                }, { once: true });
-                
-                audio.addEventListener('error', (e) => {
-                    clearTimeout(timeout);
-                    reject(new Error(`Load failed: ${e}`));
-                }, { once: true });
-                
-                audio.preload = 'auto';
-                audio.load();
-            });
-            
-            console.log(`Successfully loaded ${filename} from path: ${path}`);
-            return audio;
-        } catch (e) {
-            console.log(`Failed to load ${filename} from path: ${path}:`, e);
-        }
-    }
+    const path = `/sounds/${filename}`; // Primary path: public/sounds/ (served from root)
     
-    console.error(`Could not load ${filename} from any path`);
-    return null;
+    try {
+        const audio = new Audio(path);
+        audio.preload = 'auto';
+        
+        // Short timeout - if it's not loading quickly, skip it rather than block
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Timeout')), 5000); // 5s timeout - fail fast
+            
+            audio.addEventListener('canplaythrough', () => {
+                clearTimeout(timeout);
+                resolve(audio);
+            }, { once: true });
+            
+            audio.addEventListener('error', () => {
+                clearTimeout(timeout);
+                reject(new Error('Load error'));
+            }, { once: true });
+            
+            audio.load();
+        });
+        
+        return audio;
+    } catch (e) {
+        // Silent fail - don't spam console, just skip
+        return null;
+    }
 };
 
 // PRIORITY 1: Welcome conversation sounds (needed DURING loading for first-time visitors)
@@ -206,50 +196,56 @@ const WELCOME_CONVERSATION_SOUNDS = [
 const welcomeSoundsCache: Record<string, HTMLAudioElement> = {};
 
 // Preload WELCOME conversation sounds FIRST - these are needed during loading
+// Strategy: Load first 3 sounds in parallel (immediately needed), then background load rest
 const preloadWelcomeSounds = async () => {
-    console.log('🎙️ PRIORITY: Preloading welcome conversation sounds FIRST...');
+    console.log('🎙️ PRIORITY: Preloading welcome conversation sounds...');
     
-    // Load welcome sounds sequentially (they're played sequentially anyway)
-    // This ensures the first few sounds are ready before we need them
-    for (const filename of WELCOME_CONVERSATION_SOUNDS) {
-        if (welcomeSoundsCache[filename]) {
-            console.log(`⏭️ ${filename} already loaded, skipping`);
-            continue;
+    // CRITICAL: Load FIRST 3 sounds in parallel - they're needed immediately
+    const criticalSounds = WELCOME_CONVERSATION_SOUNDS.slice(0, 3);
+    const backgroundSounds = WELCOME_CONVERSATION_SOUNDS.slice(3);
+    
+    // Load critical sounds in parallel with short timeout
+    const criticalPromises = criticalSounds.map(async (filename) => {
+        if (welcomeSoundsCache[filename]) return;
+        const audio = await tryLoadAudio(filename);
+        if (audio) {
+            audio.volume = 0.85;
+            welcomeSoundsCache[filename] = audio;
         }
-        
-        try {
+    });
+    
+    await Promise.allSettled(criticalPromises);
+    console.log(`🎙️ Critical welcome sounds loaded: ${Object.keys(welcomeSoundsCache).length}/3`);
+    
+    // Load remaining sounds in background (non-blocking, with delays to not compete with game assets)
+    (async () => {
+        for (const filename of backgroundSounds) {
+            if (welcomeSoundsCache[filename]) continue;
+            
+            // Short delay between each to avoid competing with asset loading
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             const audio = await tryLoadAudio(filename);
             if (audio) {
                 audio.volume = 0.85;
                 welcomeSoundsCache[filename] = audio;
-                console.log(`✅ Welcome sound loaded: ${filename}`);
             }
-        } catch (e) {
-            console.warn(`⚠️ Could not preload welcome sound ${filename}:`, e);
         }
-        
-        // Longer delay between each to not overwhelm production servers
-        await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    
-    const loadedCount = Object.keys(welcomeSoundsCache).length;
-    console.log(`🎙️ Welcome sounds ready: ${loadedCount}/${WELCOME_CONVERSATION_SOUNDS.length}`);
+    })();
 };
 
 // Preload RANDOM SOVA sounds (LOWEST PRIORITY - only needed AFTER loading completes)
 // These are the numbered sounds (1.mp3 - 21.mp3) used when clicking SOVA post-load
+// This runs VERY gently in background - sounds load on-demand if needed before preload completes
 const preloadRandomSovaSounds = async () => {
     // Check if already preloaded
     const alreadyLoadedCount = Object.keys(preloadedAudioFiles).length;
     if (alreadyLoadedCount >= TOTAL_SOVA_SOUNDS) {
-        console.log(`🔊 Random SOVA sounds already preloaded (${alreadyLoadedCount}/${TOTAL_SOVA_SOUNDS}), skipping`);
         return;
     }
     
-    console.log('🔊 LOW PRIORITY: Preloading random SOVA sounds (for post-load clicks)...');
-    
-    const BATCH_SIZE = 1; // One at a time - these are lowest priority
-    const DELAY_BETWEEN_BATCHES = 500; // Longer delays - let critical stuff load first
+    // DELAY: Wait for loading screen to finish before starting random sounds
+    await new Promise(resolve => setTimeout(resolve, 8000)); // 8 second delay
     
     // Build list of sounds to load
     const soundsToLoad: number[] = [];
@@ -259,29 +255,16 @@ const preloadRandomSovaSounds = async () => {
         }
     }
     
-    // Load sounds in small batches
-    for (let batchStart = 0; batchStart < soundsToLoad.length; batchStart += BATCH_SIZE) {
-        const batch = soundsToLoad.slice(batchStart, batchStart + BATCH_SIZE);
-        const loadPromises = batch.map(i => 
-            tryLoadAudio(`${i}.mp3`).then(audio => {
-                if (audio) {
-                    audio.volume = 0.85;
-                    preloadedAudioFiles[i.toString()] = audio;
-                }
-            }).catch(() => {
-                // Silent fail - these aren't critical
-            })
-        );
-    
-    await Promise.allSettled(loadPromises);
-    
-        if (batchStart + BATCH_SIZE < soundsToLoad.length) {
-            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+    // Load sounds one at a time with generous delays
+    for (const i of soundsToLoad) {
+        const audio = await tryLoadAudio(`${i}.mp3`);
+        if (audio) {
+            audio.volume = 0.85;
+            preloadedAudioFiles[i.toString()] = audio;
         }
+        // 1 second between each - very gentle background loading
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
-    const loadedSounds = Object.keys(preloadedAudioFiles).length;
-    console.log(`🔊 Random SOVA sounds loaded: ${loadedSounds}/${TOTAL_SOVA_SOUNDS}`);
 };
 
 // Main preload function - PRIORITIZED ORDER
@@ -1043,7 +1026,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
     }, [currentLogIndex, logs.length, isSequenceComplete, effectiveAssetsLoaded]);
     
-    // EMERGENCY fallback: If stuck for 30+ seconds, force complete regardless of asset state
+    // EMERGENCY fallback: If stuck for 45+ seconds, force complete regardless of asset state
     // This prevents users from being permanently stuck on loading screen
     // NOTE: Disabled during debug slow loading mode to allow full testing
     useEffect(() => {
@@ -1055,11 +1038,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         
         const emergencyTimer = setTimeout(() => {
             if (!isSequenceComplete) {
-                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 90s, forcing completion');
+                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 45s, forcing completion');
                 console.warn(`[CyberpunkLoadingScreen] State: currentLogIndex=${currentLogIndex}, logs.length=${logs.length}, assetsLoaded=${assetsLoaded}, debugDelayComplete=${debugDelayComplete}`);
                 setIsSequenceComplete(true);
             }
-        }, 90000); // 90 second emergency timeout for slow production connections
+        }, 45000); // 45 second emergency timeout - reasonable for slow mobile connections
         
         return () => clearTimeout(emergencyTimer);
     }, [isSequenceComplete, currentLogIndex, logs.length, assetsLoaded, debugDelayComplete]);

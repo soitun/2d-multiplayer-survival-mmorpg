@@ -148,7 +148,7 @@ class MusicCache {
             
             const loadTimeout = setTimeout(() => {
                 reject(new Error(`Music load timeout: ${path}`));
-            }, 45000); // 45 second timeout for large music files on production
+            }, 15000); // 15 second timeout - fail faster rather than block loading
 
             audio.addEventListener('loadeddata', () => {
                 clearTimeout(loadTimeout);
