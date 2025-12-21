@@ -158,9 +158,9 @@ const tryLoadAudio = async (filename: string): Promise<HTMLAudioElement | null> 
         try {
             const audio = new Audio(path);
             
-            // Test if the audio can load with a shorter timeout
+            // Test if the audio can load - longer timeout for production
             await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+                const timeout = setTimeout(() => reject(new Error('Timeout')), 20000); // 20s for welcome sounds
                 
                 audio.addEventListener('canplaythrough', () => {
                     clearTimeout(timeout);
@@ -228,8 +228,8 @@ const preloadWelcomeSounds = async () => {
             console.warn(`⚠️ Could not preload welcome sound ${filename}:`, e);
         }
         
-        // Small delay between each to not overwhelm
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Longer delay between each to not overwhelm production servers
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     
     const loadedCount = Object.keys(welcomeSoundsCache).length;
@@ -248,8 +248,8 @@ const preloadRandomSovaSounds = async () => {
     
     console.log('🔊 LOW PRIORITY: Preloading random SOVA sounds (for post-load clicks)...');
     
-    const BATCH_SIZE = 2; // Small batches - these aren't urgent
-    const DELAY_BETWEEN_BATCHES = 300; // Longer delays - let other stuff load first
+    const BATCH_SIZE = 1; // One at a time - these are lowest priority
+    const DELAY_BETWEEN_BATCHES = 500; // Longer delays - let critical stuff load first
     
     // Build list of sounds to load
     const soundsToLoad: number[] = [];
@@ -867,7 +867,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             console.log(`SOVA: Waiting for sound ${soundToPlay}.mp3 to be ready (readyState: ${audioElement.readyState})`);
             try {
                 await new Promise<void>((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Sound load timeout')), 5000);
+                    const timeout = setTimeout(() => reject(new Error('Sound load timeout')), 20000); // 20s for production
                     
                     const onCanPlay = () => {
                         clearTimeout(timeout);
@@ -1055,11 +1055,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         
         const emergencyTimer = setTimeout(() => {
             if (!isSequenceComplete) {
-                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 30s, forcing completion');
+                console.warn('[CyberpunkLoadingScreen] ⚠️ EMERGENCY: Loading stuck for 90s, forcing completion');
                 console.warn(`[CyberpunkLoadingScreen] State: currentLogIndex=${currentLogIndex}, logs.length=${logs.length}, assetsLoaded=${assetsLoaded}, debugDelayComplete=${debugDelayComplete}`);
                 setIsSequenceComplete(true);
             }
-        }, 30000); // 30 second emergency timeout
+        }, 90000); // 90 second emergency timeout for slow production connections
         
         return () => clearTimeout(emergencyTimer);
     }, [isSequenceComplete, currentLogIndex, logs.length, assetsLoaded, debugDelayComplete]);

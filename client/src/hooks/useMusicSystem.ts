@@ -148,7 +148,7 @@ class MusicCache {
             
             const loadTimeout = setTimeout(() => {
                 reject(new Error(`Music load timeout: ${path}`));
-            }, 10000); // 10 second timeout for large files
+            }, 45000); // 45 second timeout for large music files on production
 
             audio.addEventListener('loadeddata', () => {
                 clearTimeout(loadTimeout);
@@ -337,8 +337,8 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         let loadedCount = 0;
         const totalTracks = ALL_TRACKS.length;
-        const BATCH_SIZE = 2; // Only 2 concurrent music file requests (they're large)
-        const DELAY_BETWEEN_BATCHES = 200; // 200ms between batches
+        const BATCH_SIZE = 1; // Only 1 concurrent music file request (they're large and Railway throttles)
+        const DELAY_BETWEEN_BATCHES = 500; // 500ms between batches for production
 
         // Load tracks in small batches to prevent overwhelming the server
         for (let i = 0; i < ALL_TRACKS.length; i += BATCH_SIZE) {

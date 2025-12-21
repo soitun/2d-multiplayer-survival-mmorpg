@@ -227,8 +227,8 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
     
     // Phase 3: Secondary assets (item icons) - load in SMALL batches with delays to prevent server overload
     console.log(`[AssetPreloader] Phase 3: Loading ${itemIconAssets.length} item icons...`);
-    const BATCH_SIZE = 5; // Reduced from 20 to prevent ERR_INSUFFICIENT_RESOURCES
-    const DELAY_BETWEEN_BATCHES = 50; // Small delay between batches
+    const BATCH_SIZE = 3; // Small batches to prevent ERR_INSUFFICIENT_RESOURCES on Railway
+    const DELAY_BETWEEN_BATCHES = 150; // Longer delay between batches for production
     let secondaryLoaded = 0;
     let secondaryFromCache = 0;
     

@@ -377,7 +377,7 @@ const loadAudio = async (filename: string): Promise<HTMLAudioElement> => {
         
         const loadTimeout = setTimeout(() => {
             reject(new Error(`Audio load timeout: ${filename}`));
-        }, 5000);
+        }, 30000); // 30 second timeout for production networks
         
         audio.addEventListener('canplaythrough', () => {
             clearTimeout(loadTimeout);
@@ -1034,8 +1034,8 @@ export const useSoundSystem = ({
         
         // Staggered loading: load sounds in small batches with delays
         const preloadStaggered = async () => {
-            const BATCH_SIZE = 3; // Only 3 concurrent requests
-            const DELAY_BETWEEN_BATCHES = 100; // 100ms between batches
+            const BATCH_SIZE = 2; // Only 2 concurrent requests to avoid overwhelming server
+            const DELAY_BETWEEN_BATCHES = 300; // 300ms between batches for production
             
             for (let i = 0; i < PRELOAD_SOUNDS.length; i += BATCH_SIZE) {
                 const batch = PRELOAD_SOUNDS.slice(i, i + BATCH_SIZE);
