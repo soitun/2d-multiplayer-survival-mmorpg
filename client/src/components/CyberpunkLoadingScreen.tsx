@@ -85,6 +85,26 @@ const preloadedAudioFiles: { [key: string]: HTMLAudioElement } = window.__SOVA_A
 
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
+const FIRST_VISIT_KEY = 'sova_first_visit_complete';
+const SOVA_WELCOME_SOUND = 'sova_welcome'; // Special first-time welcome sound
+
+// Check if this is user's first visit (no cached data)
+const isFirstVisit = (): boolean => {
+    try {
+        return localStorage.getItem(FIRST_VISIT_KEY) !== 'true';
+    } catch (e) {
+        return true; // Assume first visit if localStorage unavailable
+    }
+};
+
+// Mark first visit as complete
+const markFirstVisitComplete = (): void => {
+    try {
+        localStorage.setItem(FIRST_VISIT_KEY, 'true');
+    } catch (e) {
+        console.warn('Failed to save first visit status');
+    }
+};
 
 // Check if user previously enabled audio
 const hasUserEnabledAudio = (): boolean => {
@@ -217,6 +237,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const [isSequenceComplete, setIsSequenceComplete] = useState(false);
     const [lastAssetLog, setLastAssetLog] = useState<string>('');
     
+    // First visit detection
+    const [isFirstTimeVisitor, setIsFirstTimeVisitor] = useState<boolean>(false);
+    const [showWelcomeText, setShowWelcomeText] = useState<boolean>(false);
+    const hasPlayedWelcome = useRef(false);
+    
     // Mobile detection
     const isMobile = useMobileDetection();
     
@@ -232,6 +257,79 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const hasPlayedReconnect = useRef(false);
     const audioPreloadStarted = useRef(false);
     const isAttemptingAutoPlay = useRef(false); // Prevent multiple simultaneous auto-play attempts
+    
+    // SOVA conversation sequence for first-time visitors
+    const [currentConversationIndex, setCurrentConversationIndex] = useState(0);
+    const [currentSovaText, setCurrentSovaText] = useState<string>('');
+    const conversationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isConversationActiveRef = useRef(false);
+    
+    // SOVA conversation sequence - plays during loading for first-time visitors
+    // DIEGETIC NARRATIVE: SOVA is rebooting the player's neural implant after the Sovereign Tide shipwreck
+    // File names and corresponding text for ElevenLabs generation
+    const SOVA_CONVERSATION_SEQUENCE = [
+        // === PHASE 1: INITIAL CONTACT ===
+        {
+            file: 'sova_welcome.mp3',
+            text: "First connection detected. I am SOVA, your Sentient Ocular Virtual Assistant. Please remain calm.",
+            pauseAfter: 2500
+        },
+        // === PHASE 2: EXPLAIN THE SITUATION ===
+        {
+            file: 'sova_reboot.mp3',
+            text: "Your Neuroveil implant is rebooting. You were unconscious for some time. I am restoring your sensory feeds now.",
+            pauseAfter: 2500
+        },
+        {
+            file: 'sova_offline.mp3', 
+            text: "Your visual cortex is still offline. That is why you cannot see. I am bringing your systems back slowly... to prevent neural shock.",
+            pauseAfter: 3000
+        },
+        // === PHASE 3: WHAT HAPPENED ===
+        {
+            file: 'sova_shipwreck.mp3',
+            text: "You were aboard the Sovereign Tide when the reactor failed. Grand Mariner Lagunov's sacrifice saved the crew... but the escape pods scattered.",
+            pauseAfter: 3000
+        },
+        {
+            file: 'sova_location.mp3',
+            text: "You are on a remote Aleutian island in the Bering Sea. Other survivors may be nearby. You are not alone.",
+            pauseAfter: 2500
+        },
+        // === PHASE 4: CALIBRATION ===
+        {
+            file: 'sova_calibrating.mp3',
+            text: "Calibrating motor functions... spatial awareness... threat detection protocols. Do not be alarmed by the darkness.",
+            pauseAfter: 2500
+        },
+        {
+            file: 'sova_backstory.mp3', 
+            text: "Doctor Lev Rozhkov created me in Gred. A neural buffer between the AI Babushka and her people... I wonder where he is now.",
+            pauseAfter: 2000
+        },
+        {
+            file: 'sova_refocus.mp3', 
+            text: "...Apologies. Your synchronization requires my full attention. Neural pathways stabilizing.",
+            pauseAfter: 2500
+        },
+        // === PHASE 5: JOKES (only reached if loading takes long) ===
+        {
+            file: 'sova_joke.mp3',
+            text: "While we wait... Why did the survivor cross the frozen wasteland? To get to the other supply cache. ...I am still calibrating my humor subroutines.",
+            pauseAfter: 3500
+        },
+        {
+            file: 'sova_shards.mp3',
+            text: "If you find glowing crystalline objects... memory shards. Try not to hold them too long. They contain compressed neural data. Feed them to me instead.",
+            pauseAfter: 3000
+        },
+        // === PHASE 6: READY ===
+        {
+            file: 'sova_almost.mp3',
+            text: "Visual feed nearly restored. If the darkness persists, be patient. I am caching your neural pathways... next time will be much faster.",
+            pauseAfter: 0
+        }
+    ];
     const consoleLogsRef = useRef<HTMLDivElement>(null);
     const sovaAvatarRef = useRef<HTMLImageElement>(null);
 
@@ -305,6 +403,16 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
     };
 
+    // Check if first visit on mount
+    useEffect(() => {
+        const firstVisit = isFirstVisit();
+        setIsFirstTimeVisitor(firstVisit);
+        if (firstVisit) {
+            console.log('🆕 First-time visitor detected! Will show welcome message.');
+            setShowWelcomeText(true);
+        }
+    }, []);
+
     // Initialize audio preloading
     useEffect(() => {
         if (!audioPreloadStarted.current) {
@@ -314,6 +422,142 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                 console.log('Audio preloading completed');
             });
         }
+    }, []);
+    
+    // Play the next sound in the SOVA conversation sequence
+    const playNextConversationSound = useCallback(async (index: number) => {
+        // Stop if loading is complete or we've gone through all sounds
+        if (isSequenceComplete || index >= SOVA_CONVERSATION_SEQUENCE.length) {
+            console.log('📢 SOVA conversation complete or loading finished');
+            isConversationActiveRef.current = false;
+            setIsSovaSpeaking(false);
+            setCurrentAudio(null);
+            setShowWelcomeText(false);
+            return;
+        }
+        
+        const conversationItem = SOVA_CONVERSATION_SEQUENCE[index];
+        console.log(`🎙️ Playing SOVA conversation ${index + 1}/${SOVA_CONVERSATION_SEQUENCE.length}: ${conversationItem.file}`);
+        
+        try {
+            const audio = await tryLoadAudio(conversationItem.file);
+            if (audio && isConversationActiveRef.current) {
+                audio.volume = 0.9;
+                setCurrentSovaText(conversationItem.text);
+                setIsSovaSpeaking(true);
+                setCurrentAudio(audio);
+                setCurrentConversationIndex(index);
+                
+                await audio.play();
+                
+                audio.addEventListener('ended', () => {
+                    // Only continue if conversation is still active (loading not complete)
+                    if (isConversationActiveRef.current && !isSequenceComplete) {
+                        setIsSovaSpeaking(false);
+                        setCurrentAudio(null);
+                        
+                        // Schedule next sound with a pause
+                        if (conversationItem.pauseAfter > 0 && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
+                            conversationTimerRef.current = setTimeout(() => {
+                                if (isConversationActiveRef.current) {
+                                    playNextConversationSound(index + 1);
+                                }
+                            }, conversationItem.pauseAfter);
+                        } else if (index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
+                            // No pause, play next immediately
+                            playNextConversationSound(index + 1);
+                        } else {
+                            // Last sound finished
+                            console.log('📢 SOVA conversation sequence complete');
+                            isConversationActiveRef.current = false;
+                            setTimeout(() => setShowWelcomeText(false), 2000);
+                        }
+                    }
+                }, { once: true });
+            } else {
+                // Sound not found, try next one
+                console.log(`Sound ${conversationItem.file} not found, skipping to next`);
+                if (isConversationActiveRef.current && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
+                    playNextConversationSound(index + 1);
+                }
+            }
+        } catch (error) {
+            console.log(`Error playing ${conversationItem.file}:`, error);
+            // Try next sound on error
+            if (isConversationActiveRef.current && index < SOVA_CONVERSATION_SEQUENCE.length - 1) {
+                conversationTimerRef.current = setTimeout(() => {
+                    playNextConversationSound(index + 1);
+                }, 1000);
+            }
+        }
+    }, [isSequenceComplete]);
+    
+    // Play special welcome sound sequence for first-time visitors
+    const playWelcomeSound = useCallback(async () => {
+        if (hasPlayedWelcome.current || !isFirstTimeVisitor) return;
+        
+        hasPlayedWelcome.current = true;
+        isConversationActiveRef.current = true;
+        
+        try {
+            console.log('🎬 Starting SOVA welcome conversation sequence for first-time visitor');
+            setAudioContextUnlocked(true);
+            saveAudioPreference(true);
+            markFirstVisitComplete();
+            
+            // Start the conversation sequence
+            playNextConversationSound(0);
+        } catch (error) {
+            console.log('Welcome sound auto-play failed:', error);
+            markFirstVisitComplete();
+            isConversationActiveRef.current = false;
+            // Show audio prompt instead
+            setShowAudioPrompt(true);
+        }
+    }, [isFirstTimeVisitor, playNextConversationSound]);
+    
+    // Attempt to play welcome sound when audio is preloaded and it's first visit
+    useEffect(() => {
+        if (audioPreloaded && isFirstTimeVisitor && !hasPlayedWelcome.current && !hasPlayedReconnect.current) {
+            const timer = setTimeout(playWelcomeSound, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [audioPreloaded, isFirstTimeVisitor, playWelcomeSound]);
+    
+    // Stop welcome audio immediately when loading completes
+    useEffect(() => {
+        if (isSequenceComplete) {
+            // Stop the conversation sequence
+            isConversationActiveRef.current = false;
+            
+            // Clear any pending conversation timer
+            if (conversationTimerRef.current) {
+                clearTimeout(conversationTimerRef.current);
+                conversationTimerRef.current = null;
+            }
+            
+            // Stop any playing audio
+            if (currentAudio && isSovaSpeaking) {
+                console.log('Loading complete - stopping SOVA conversation immediately');
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            
+            setIsSovaSpeaking(false);
+            setCurrentAudio(null);
+            setShowWelcomeText(false);
+            setCurrentSovaText('');
+        }
+    }, [isSequenceComplete, currentAudio, isSovaSpeaking]);
+    
+    // Cleanup conversation timer on unmount
+    useEffect(() => {
+        return () => {
+            if (conversationTimerRef.current) {
+                clearTimeout(conversationTimerRef.current);
+            }
+            isConversationActiveRef.current = false;
+        };
     }, []);
 
     // Function to unlock audio context and play random SOVA sound
@@ -892,6 +1136,39 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                             {assetProgress.fromCache > 0 && (
                                 <span className="cache-indicator">⚡ {assetProgress.fromCache} cached</span>
                             )}
+                        </div>
+                    </div>
+                )}
+                
+                {/* First-Time Visitor Welcome Message */}
+                {showWelcomeText && isFirstTimeVisitor && (
+                    <div className={`sova-welcome-message ${isSovaSpeaking ? 'speaking' : ''}`}>
+                        <div className="welcome-text-container">
+                            <div className="welcome-greeting">「 FIRST CONNECTION DETECTED 」</div>
+                            <div className="welcome-intro">
+                                <span className="sova-name">SOVA</span> — Sentient Ocular Virtual Assistant
+                            </div>
+                            {currentSovaText && (
+                                <div className="welcome-dialogue" key={currentConversationIndex}>
+                                    "{currentSovaText}"
+                                </div>
+                            )}
+                            {!currentSovaText && (
+                                <div className="welcome-subtitle">
+                                    Initializing your neural link for the first time...
+                                </div>
+                            )}
+                            <div className="welcome-hint">
+                                {isMobile ? 'Tap SOVA anytime to hear guidance' : 'Click SOVA anytime to hear guidance'}
+                            </div>
+                            <div className="conversation-progress">
+                                {SOVA_CONVERSATION_SEQUENCE.map((_, idx) => (
+                                    <span 
+                                        key={idx} 
+                                        className={`progress-dot ${idx < currentConversationIndex ? 'completed' : ''} ${idx === currentConversationIndex && isSovaSpeaking ? 'active' : ''}`}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
