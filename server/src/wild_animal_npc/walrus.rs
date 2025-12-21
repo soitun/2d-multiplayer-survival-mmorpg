@@ -455,7 +455,31 @@ impl AnimalBehavior for ArcticWalrusBehavior {
     }
     
     fn get_taming_foods(&self) -> Vec<&'static str> {
-        vec!["Raw Twigfish", "Cooked Twigfish"] // Fish items that can tame walruses
+        // Walruses love all fish and seafood - they're marine animals!
+        vec![
+            // Crab meat (walruses love crabs)
+            "Raw Crab Meat", "Cooked Crab Meat",
+            // Small fish
+            "Raw Twigfish", "Cooked Twigfish",
+            "Raw Herring", "Cooked Herring",
+            "Raw Smelt", "Cooked Smelt",
+            // Medium fish
+            "Raw Greenling", "Cooked Greenling",
+            "Raw Sculpin", "Cooked Sculpin",
+            "Raw Pacific Cod", "Cooked Pacific Cod",
+            "Raw Dolly Varden", "Cooked Dolly Varden",
+            "Raw Rockfish", "Cooked Rockfish",
+            "Raw Steelhead", "Cooked Steelhead",
+            // Large/premium fish
+            "Raw Pink Salmon", "Cooked Pink Salmon",
+            "Raw Sockeye Salmon", "Cooked Sockeye Salmon",
+            "Raw King Salmon", "Cooked King Salmon",
+            "Raw Halibut", "Cooked Halibut",
+            // Shellfish and mollusks
+            "Raw Black Katy Chiton", "Cooked Black Katy Chiton",
+            "Raw Sea Urchin", "Cooked Sea Urchin",
+            "Raw Blue Mussel", "Cooked Blue Mussel",
+        ]
     }
     
     fn get_chase_abandonment_multiplier(&self) -> f32 {
