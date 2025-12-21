@@ -456,6 +456,56 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setSOVALoadingState(state);
     }, []);
 
+    // === SOVA First-Time Tutorial Hint ===
+    // Play a tutorial hint sound after 2 minutes of first-ever gameplay session
+    // This reminds new players they can talk to SOVA by pressing V
+    const SOVA_TUTORIAL_DELAY_MS = 2 * 60 * 1000; // 2 minutes
+    const SOVA_TUTORIAL_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
+    
+    useEffect(() => {
+        // Check if tutorial hint has already been played
+        const hasPlayed = localStorage.getItem(SOVA_TUTORIAL_STORAGE_KEY);
+        if (hasPlayed) {
+            return; // Already played, don't schedule again
+        }
+
+        // Only start timer when local player exists (they're actually in-game)
+        if (!localPlayerId) {
+            return;
+        }
+
+        console.log('[GameScreen] 🎓 Scheduling SOVA tutorial hint in 2 minutes...');
+        
+        const timer = setTimeout(() => {
+            // Double-check it hasn't been played (in case of race condition)
+            if (localStorage.getItem(SOVA_TUTORIAL_STORAGE_KEY)) {
+                return;
+            }
+
+            console.log('[GameScreen] 🎓 Playing SOVA tutorial hint sound');
+            
+            try {
+                const audio = new Audio('/sounds/sova_tutorial_hint.mp3');
+                audio.volume = 0.8;
+                audio.play().catch(err => {
+                    console.warn('[GameScreen] Failed to play SOVA tutorial hint:', err);
+                });
+                
+                // Mark as played regardless of audio success
+                localStorage.setItem(SOVA_TUTORIAL_STORAGE_KEY, 'true');
+                console.log('[GameScreen] 🎓 SOVA tutorial hint marked as played');
+            } catch (err) {
+                console.warn('[GameScreen] Error creating SOVA tutorial audio:', err);
+                // Still mark as played to prevent repeated attempts
+                localStorage.setItem(SOVA_TUTORIAL_STORAGE_KEY, 'true');
+            }
+        }, SOVA_TUTORIAL_DELAY_MS);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [localPlayerId]);
+
     // Handle matronage creation - close delivery panel and open interface to matronage page
     const handleMatronageCreated = useCallback(() => {
         // Close the ALK delivery panel
