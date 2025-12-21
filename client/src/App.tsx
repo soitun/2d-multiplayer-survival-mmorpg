@@ -591,6 +591,21 @@ function AppContent() {
                 }
             });
         }
+
+        // Register error callback for harvestable resource interactions (e.g., seaweed harvest without snorkeling)
+        if (connection.reducers.onInteractWithHarvestableResource) {
+            connection.reducers.onInteractWithHarvestableResource((ctx: any, resourceId: bigint) => {
+                const status = ctx.event?.status;
+                if (status?.tag === 'Failed') {
+                    const errorMsg = status.value || '';
+                    console.log(`[App] interactWithHarvestableResource failed:`, errorMsg);
+                    // Play specific error sound for seaweed/underwater harvesting
+                    if (errorMsg.includes('underwater') || errorMsg.includes('snorkeling') || errorMsg.includes('seaweed')) {
+                        playImmediateSound('error_seaweed_above_water', 1.0);
+                    }
+                }
+            });
+        }
     }, [connection]);
 
     // --- Music System ---

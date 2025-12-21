@@ -35,7 +35,7 @@ export const CONTAINER_CONFIGS = {
     // Storage containers (hold items without consuming them)
     // Note: wooden_storage_box.slots is default; use getContainerConfig with entity for dynamic slot count based on boxType
     wooden_storage_box: { slots: 18, slotType: 'wooden_storage_box', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
-    player_corpse: { slots: 35, slotType: 'player_corpse', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false }, // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
+    player_corpse: { slots: 36, slotType: 'player_corpse', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false }, // Matches NUM_CORPSE_SLOTS (30 + 6 = 36 slots: 24 inv + 6 hotbar + 6 equipment)
     stash: { slots: 6, slotType: 'stash', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },
     rain_collector: { slots: 1, slotType: 'rain_collector', fieldPrefix: 'slot0InstanceId', hasToggle: false, hasLightExtinguish: false, special: true, gridCols: 1 },
     homestead_hearth: { slots: 20, slotType: 'homestead_hearth', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, gridCols: 6, special: false },

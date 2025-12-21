@@ -584,15 +584,16 @@ export const renderYSortedEntities = ({
       
       // === UNDERWATER SNORKELING MODE ===
       // When snorkeling, hide most land-based entities - player is underwater
-      // But allow underwater entities: players, living coral, submerged fumaroles, and seaweed
+      // But allow underwater entities: players, living coral, submerged fumaroles, seaweed, and dropped items
       if (isLocalPlayerSnorkeling) {
-        // Allow: players, living coral (always underwater), submerged fumaroles, and SeaweedBed resources
+        // Allow: players, living coral (always underwater), submerged fumaroles, SeaweedBed resources, and dropped items
         const isSeaweedBed = type === 'harvestable_resource' && 
           (entity as SpacetimeDBHarvestableResource).plantType?.tag === 'SeaweedBed';
         
         const isUnderwaterEntity = 
           type === 'player' || 
           type === 'living_coral' || 
+          type === 'dropped_item' || // Dropped items should be visible underwater (thrown harpoons, etc.)
           isSeaweedBed ||
           (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);
         

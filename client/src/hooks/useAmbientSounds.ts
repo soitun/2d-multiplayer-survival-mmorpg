@@ -182,13 +182,13 @@ const AMBIENT_CONFIG = {
     SOUNDS_BASE_PATH: '/sounds/ambient/',
     PITCH_VARIATION: 0.15, // ±7.5% pitch variation for natural feel
     VOLUME_VARIATION: 0.1, // ±5% volume variation
-    FADE_DURATION: 3000, // 3 second fade in/out for continuous sounds (increased for reliability)
+    FADE_DURATION: 1500, // 1.5 second fade in/out for continuous sounds (reduced for faster transitions)
     MAX_CONCURRENT_RANDOM: 3, // Maximum random sounds playing at once
     OVERLAP_PERCENTAGE: 0.15, // 15% overlap for more reliable seamless looping (increased from 10%)
     // Underwater audio effect configuration
     UNDERWATER_VOLUME_MULTIPLIER: 0.15, // Surface sounds reduced to 15% when underwater
     UNDERWATER_LOWPASS_FREQUENCY: 400, // Hz - cuts high frequencies (water muffles sound)
-    UNDERWATER_TRANSITION_DURATION: 500, // ms - quick but smooth transition
+    UNDERWATER_TRANSITION_DURATION: 300, // ms - fast transition when entering/exiting water
 } as const;
 
 // 🎵 SEAMLESS LOOPING SYSTEM - Based on useSoundSystem.ts logic

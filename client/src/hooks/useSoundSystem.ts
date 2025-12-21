@@ -94,6 +94,7 @@ const SOUND_DEFINITIONS = {
     error_jar_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Jar placement error sound (client-side immediate for instant feedback when trying to place soup back into broth pot output slot)
     error_broth_not_compatible: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Broth not compatible error sound (when trying to place incompatible item in broth pot)
     error_field_cauldron_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Field cauldron placement error sound (client-side immediate for instant feedback when trying to place cauldron without nearby campfire)
+    error_seaweed_above_water: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Error when trying to harvest seaweed while above water (not snorkeling) - client-side immediate
     done_burning: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Food became burnt sound (campfire/barbecue)
     barbecue_on: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barbecue turning on sound
     barbecue_off: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barbecue turning off sound
@@ -118,6 +119,7 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
     'error_jar_placement',
     'error_broth_not_compatible',
     'error_placement_failed',
+    'error_seaweed_above_water',
 ] as SoundType[]);
 
 // Track active error sounds to prevent multiple from playing simultaneously
@@ -358,6 +360,7 @@ const PRELOAD_SOUNDS = [
     'done_burning.mp3',                                      // 1 done burning variation (food became burnt)
     'crow_stealing.mp3',                                     // 1 crow stealing variation (when crow steals from player)
     'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
+    'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -670,6 +673,8 @@ const playLocalSound = async (
                 variationCount = 1; // crow_stealing.mp3
             } else if (soundType === 'cairn_unlock') {
                 variationCount = 1; // cairn_unlock.mp3
+            } else if (soundType === 'error_seaweed_above_water') {
+                variationCount = 1; // error_seaweed_above_water.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);

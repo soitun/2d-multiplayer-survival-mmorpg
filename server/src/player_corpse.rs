@@ -13,13 +13,16 @@ use std::time::Duration;
 // Import new models
 use crate::models::{ItemLocation, ContainerType, EquipmentSlotType, ContainerLocationData}; // <<< ADDED ContainerLocationData
 
+// Import active_equipment trait for ctx.db.active_equipment() access
+use crate::active_equipment::active_equipment;
+
 // Define constants for the corpse
 const DEFAULT_CORPSE_DESPAWN_SECONDS: u64 = 300; // Default to 5 minutes if no items or no respawn times set
 pub(crate) const CORPSE_COLLISION_RADIUS: f32 = 18.0; // Similar to box/campfire
 pub(crate) const CORPSE_COLLISION_Y_OFFSET: f32 = 10.0; // Similar to box/campfire
 pub(crate) const PLAYER_CORPSE_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + CORPSE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + CORPSE_COLLISION_RADIUS);
 pub(crate) const PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED: f32 = 64.0 * 64.0; // Similar interaction range
-pub(crate) const NUM_CORPSE_SLOTS: usize = 30 + 5; // 24 inv + 6 hotbar + 5 equipment (example)
+pub(crate) const NUM_CORPSE_SLOTS: usize = 30 + 6; // 24 inv + 6 hotbar + 6 equipment (Head=30, Chest=31, Legs=32, Feet=33, Hands=34, Back=35)
 pub(crate) const PLAYER_CORPSE_INITIAL_HEALTH: u32 = 100; // Health for harvesting the corpse itself
 
 // Import required items
@@ -97,6 +100,7 @@ pub struct PlayerCorpse {
     pub slot_instance_id_32: Option<u64>, pub slot_def_id_32: Option<u64>,
     pub slot_instance_id_33: Option<u64>, pub slot_def_id_33: Option<u64>,
     pub slot_instance_id_34: Option<u64>, pub slot_def_id_34: Option<u64>,
+    pub slot_instance_id_35: Option<u64>, pub slot_def_id_35: Option<u64>, // Slot 35 for Back equipment
 }
 
 impl ItemContainer for PlayerCorpse {
@@ -124,7 +128,7 @@ impl ItemContainer for PlayerCorpse {
             28 => self.slot_instance_id_28, 29 => self.slot_instance_id_29,
             30 => self.slot_instance_id_30, 31 => self.slot_instance_id_31,
             32 => self.slot_instance_id_32, 33 => self.slot_instance_id_33,
-            34 => self.slot_instance_id_34,
+            34 => self.slot_instance_id_34, 35 => self.slot_instance_id_35,
             _ => None, // Unreachable due to index check
         }
     }
@@ -149,7 +153,7 @@ impl ItemContainer for PlayerCorpse {
             28 => self.slot_def_id_28, 29 => self.slot_def_id_29,
             30 => self.slot_def_id_30, 31 => self.slot_def_id_31,
             32 => self.slot_def_id_32, 33 => self.slot_def_id_33,
-            34 => self.slot_def_id_34,
+            34 => self.slot_def_id_34, 35 => self.slot_def_id_35,
             _ => None,
         }
     }
@@ -192,6 +196,7 @@ impl ItemContainer for PlayerCorpse {
             32 => { self.slot_instance_id_32 = instance_id; self.slot_def_id_32 = def_id; },
             33 => { self.slot_instance_id_33 = instance_id; self.slot_def_id_33 = def_id; },
             34 => { self.slot_instance_id_34 = instance_id; self.slot_def_id_34 = def_id; },
+            35 => { self.slot_instance_id_35 = instance_id; self.slot_def_id_35 = def_id; },
             _ => {}, // Unreachable due to index check
         }
     }
@@ -683,6 +688,7 @@ fn transfer_inventory_to_corpse(ctx: &ReducerContext, dead_player: &Player) -> R
         slot_instance_id_32: None, slot_def_id_32: None,
         slot_instance_id_33: None, slot_def_id_33: None,
         slot_instance_id_34: None, slot_def_id_34: None,
+        slot_instance_id_35: None, slot_def_id_35: None,
     };
 
     // 3. Populate corpse slots and prepare items for location update
@@ -861,6 +867,8 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
     let player_id = player.identity;
     let inventory_table = ctx.db.inventory_item();
     let player_corpse_table = ctx.db.player_corpse();
+    let active_equip_table = ctx.db.active_equipment();
+    let players_table = ctx.db.player();
 
     log::info!("[OfflineCorpse] Creating offline corpse for player {} at ({:.1}, {:.1})", 
                player.username, player.position_x, player.position_y);
@@ -871,14 +879,53 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         Err(e) => log::warn!("[OfflineCorpse] Failed to clear active item for player {}: {}", player_id, e),
     }
 
+    // --- Clear all armor slots from ActiveEquipment ---
+    // This prevents the bug where equipment IDs persist after logging back in
+    if let Some(mut equipment) = active_equip_table.player_identity().find(player_id) {
+        let had_head_item = equipment.head_item_instance_id.is_some();
+        equipment.head_item_instance_id = None;
+        equipment.chest_item_instance_id = None;
+        equipment.legs_item_instance_id = None;
+        equipment.feet_item_instance_id = None;
+        equipment.hands_item_instance_id = None;
+        equipment.back_item_instance_id = None;
+        active_equip_table.player_identity().update(equipment);
+        log::info!("[OfflineCorpse] Cleared all armor slots from ActiveEquipment for player {}", player_id);
+        
+        // If head armor was equipped, also reset player state flags
+        if had_head_item {
+            if let Some(mut player_to_update) = players_table.identity().find(&player_id) {
+                let mut player_updated = false;
+                
+                if player_to_update.is_snorkeling {
+                    player_to_update.is_snorkeling = false;
+                    player_updated = true;
+                    log::info!("[OfflineCorpse] Player {} emerged from snorkeling on logout.", player_id);
+                }
+                
+                if player_to_update.is_headlamp_lit {
+                    player_to_update.is_headlamp_lit = false;
+                    player_updated = true;
+                    log::info!("[OfflineCorpse] Player {} extinguished headlamp on logout.", player_id);
+                }
+                
+                if player_updated {
+                    player_to_update.last_update = ctx.timestamp;
+                    players_table.identity().update(player_to_update);
+                }
+            }
+        }
+    }
+    // --- End clear armor slots ---
+
     // 1. Collect all items to be transferred from the player, organized by location type
     // Corpse slot mapping to preserve original locations:
     // - Slots 0-23: Inventory items (corpse slot = original inventory slot)
     // - Slots 24-29: Hotbar items (corpse slot = 24 + original hotbar slot)
-    // - Slots 30-34: Equipped items (corpse slot = 30 + equipment slot index)
+    // - Slots 30-35: Equipped items (Head=30, Chest=31, Legs=32, Feet=33, Hands=34, Back=35)
     let mut inventory_items: Vec<(u16, InventoryItem)> = Vec::new(); // (original_slot, item)
     let mut hotbar_items: Vec<(u8, InventoryItem)> = Vec::new();     // (original_slot, item)
-    let mut equipped_items: Vec<InventoryItem> = Vec::new();
+    let mut equipped_items: Vec<(EquipmentSlotType, InventoryItem)> = Vec::new(); // (slot_type, item)
     
     for item in inventory_table.iter() {
         match &item.location {
@@ -889,7 +936,8 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
                 hotbar_items.push((data.slot_index, item.clone()));
             }
             ItemLocation::Equipped(data) if data.owner_id == player_id => {
-                equipped_items.push(item.clone());
+                // Store the slot type along with the item for proper restoration
+                equipped_items.push((data.slot_type.clone(), item.clone()));
             }
             _ => {}
         }
@@ -950,6 +998,7 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         slot_instance_id_32: None, slot_def_id_32: None,
         slot_instance_id_33: None, slot_def_id_33: None,
         slot_instance_id_34: None, slot_def_id_34: None,
+        slot_instance_id_35: None, slot_def_id_35: None,
     };
 
     // 3. Populate corpse slots preserving original slot locations
@@ -989,18 +1038,27 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         }
     }
 
-    // Place equipped items in slots 30-34
-    let mut equipped_slot_idx: u8 = 30;
-    for item in equipped_items {
-        if equipped_slot_idx < NUM_CORPSE_SLOTS as u8 {
-            new_corpse.set_slot(equipped_slot_idx, Some(item.instance_id), Some(item.item_def_id));
+    // Place equipped items in slots 30-35 based on their equipment slot type
+    // Mapping: Head=30, Chest=31, Legs=32, Feet=33, Hands=34, Back=35
+    for (slot_type, item) in equipped_items {
+        let corpse_slot: u8 = match slot_type {
+            EquipmentSlotType::Head => 30,
+            EquipmentSlotType::Chest => 31,
+            EquipmentSlotType::Legs => 32,
+            EquipmentSlotType::Feet => 33,
+            EquipmentSlotType::Hands => 34,
+            EquipmentSlotType::Back => 35,
+        };
+        
+        if corpse_slot < NUM_CORPSE_SLOTS as u8 {
+            new_corpse.set_slot(corpse_slot, Some(item.instance_id), Some(item.item_def_id));
             updated_item_locations.push((item.instance_id, ItemLocation::Container(ContainerLocationData {
                 container_type: ContainerType::PlayerCorpse,
                 container_id: 0, // Placeholder, will be updated after insert
-                slot_index: equipped_slot_idx,
+                slot_index: corpse_slot,
             })));
-            equipped_slot_idx += 1;
             items_placed += 1;
+            log::debug!("[OfflineCorpse] Placed {:?} item {} in corpse slot {}", slot_type, item.instance_id, corpse_slot);
         } else {
             log::warn!("[OfflineCorpse] Equipped slot overflow for player {}. Item {} lost.", player_id, item.instance_id);
         }
@@ -1081,9 +1139,10 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     // Corpse slot mapping:
     // - Slots 0-23: Originally inventory items (restore to same inventory slot)
     // - Slots 24-29: Originally hotbar items (restore to hotbar slot = corpse_slot - 24)
-    // - Slots 30-34: Originally equipped items (restore to inventory - equipment auto-equips separately)
+    // - Slots 30-35: Originally equipped items (restore to equipment slots: Head=30, Chest=31, Legs=32, Feet=33, Hands=34, Back=35)
     let mut items_restored = 0u32;
     let mut items_not_found = 0u32;
+    let mut items_to_equip: Vec<(EquipmentSlotType, u64)> = Vec::new(); // (slot_type, item_instance_id)
 
     for slot_idx in 0..corpse.num_slots() as u8 {
         if let Some(item_instance_id) = corpse.get_slot_instance_id(slot_idx) {
@@ -1153,18 +1212,44 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
                         }
                     }
                 } else {
-                    // Was equipped (slots 30-34) - restore to inventory (equipment will auto-equip if needed)
-                    if let Some(inv_slot) = (0..NUM_PLAYER_INVENTORY_SLOTS as u16).find(|s| !occupied_inventory_slots.contains(s)) {
-                        item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                    // Was equipped (slots 30-35) - restore to original equipment slot
+                    // Mapping: 30=Head, 31=Chest, 32=Legs, 33=Feet, 34=Hands, 35=Back
+                    let equipment_slot_type = match slot_idx {
+                        30 => Some(EquipmentSlotType::Head),
+                        31 => Some(EquipmentSlotType::Chest),
+                        32 => Some(EquipmentSlotType::Legs),
+                        33 => Some(EquipmentSlotType::Feet),
+                        34 => Some(EquipmentSlotType::Hands),
+                        35 => Some(EquipmentSlotType::Back),
+                        _ => None,
+                    };
+                    
+                    if let Some(slot_type) = equipment_slot_type {
+                        // Restore to equipped location
+                        item.location = ItemLocation::Equipped(crate::models::EquippedLocationData {
                             owner_id: player_id,
-                            slot_index: inv_slot,
+                            slot_type: slot_type.clone(),
                         });
-                        occupied_inventory_slots.insert(inv_slot);
-                        log::debug!("[OfflineCorpse] Restored equipped item {} (def {}) to inventory slot {}", 
-                                   item_instance_id, item.item_def_id, inv_slot);
+                        
+                        // Track this item for ActiveEquipment update (we'll update after the loop)
+                        items_to_equip.push((slot_type, item_instance_id));
+                        
+                        log::debug!("[OfflineCorpse] Restored item {} (def {}) to {:?} equipment slot", 
+                                   item_instance_id, item.item_def_id, slot_type);
                     } else {
-                        log::warn!("[OfflineCorpse] No inventory room for equipped item {}. Marking as Unknown.", item_instance_id);
-                        item.location = ItemLocation::Unknown;
+                        // Fallback to inventory for any unexpected slot indices
+                        if let Some(inv_slot) = (0..NUM_PLAYER_INVENTORY_SLOTS as u16).find(|s| !occupied_inventory_slots.contains(s)) {
+                            item.location = ItemLocation::Inventory(crate::models::InventoryLocationData {
+                                owner_id: player_id,
+                                slot_index: inv_slot,
+                            });
+                            occupied_inventory_slots.insert(inv_slot);
+                            log::debug!("[OfflineCorpse] Restored equipped item {} (def {}) to inventory slot {} (unexpected corpse slot {})", 
+                                       item_instance_id, item.item_def_id, inv_slot, slot_idx);
+                        } else {
+                            log::warn!("[OfflineCorpse] No inventory room for equipped item {}. Marking as Unknown.", item_instance_id);
+                            item.location = ItemLocation::Unknown;
+                        }
                     }
                 }
                 inventory_table.instance_id().update(item);
@@ -1180,13 +1265,60 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
     log::info!("[OfflineCorpse] Restored {} items from corpse {} to player {} ({} items not found)", 
                items_restored, corpse_id, player_id, items_not_found);
 
-    // 4. Cancel any despawn schedule (shouldn't exist for offline corpses, but just in case)
+    // 4. Update ActiveEquipment table with restored equipment items
+    if !items_to_equip.is_empty() {
+        let active_equip_table = ctx.db.active_equipment();
+        
+        // Get or create ActiveEquipment for this player
+        let mut equipment = if let Some(existing) = active_equip_table.player_identity().find(player_id) {
+            existing
+        } else {
+            log::info!("[OfflineCorpse] Creating new ActiveEquipment row for player {:?}", player_id);
+            let new_equip = crate::active_equipment::ActiveEquipment { 
+                player_identity: player_id, 
+                equipped_item_def_id: None,
+                equipped_item_instance_id: None,
+                icon_asset_name: None,
+                swing_start_time_ms: 0,
+                loaded_ammo_def_id: None,
+                loaded_ammo_count: 0,
+                is_ready_to_fire: false,
+                preferred_arrow_type: None,
+                head_item_instance_id: None,
+                chest_item_instance_id: None,
+                legs_item_instance_id: None,
+                feet_item_instance_id: None,
+                hands_item_instance_id: None,
+                back_item_instance_id: None,
+            };
+            active_equip_table.insert(new_equip.clone());
+            new_equip
+        };
+        
+        // Set each equipment slot
+        for (slot_type, item_instance_id) in items_to_equip {
+            match slot_type {
+                EquipmentSlotType::Head => equipment.head_item_instance_id = Some(item_instance_id),
+                EquipmentSlotType::Chest => equipment.chest_item_instance_id = Some(item_instance_id),
+                EquipmentSlotType::Legs => equipment.legs_item_instance_id = Some(item_instance_id),
+                EquipmentSlotType::Feet => equipment.feet_item_instance_id = Some(item_instance_id),
+                EquipmentSlotType::Hands => equipment.hands_item_instance_id = Some(item_instance_id),
+                EquipmentSlotType::Back => equipment.back_item_instance_id = Some(item_instance_id),
+            }
+            log::debug!("[OfflineCorpse] Set {:?} equipment slot to item {}", slot_type, item_instance_id);
+        }
+        
+        active_equip_table.player_identity().update(equipment);
+        log::info!("[OfflineCorpse] Updated ActiveEquipment for player {}", player_id);
+    }
+
+    // 5. Cancel any despawn schedule (shouldn't exist for offline corpses, but just in case)
     if despawn_schedules.corpse_id().find(corpse_id as u64).is_some() {
         despawn_schedules.corpse_id().delete(corpse_id as u64);
         log::debug!("[OfflineCorpse] Cancelled despawn schedule for corpse {}", corpse_id);
     }
 
-    // 5. Delete the corpse - use the correct delete method
+    // 6. Delete the corpse - use the correct delete method
     let deleted = player_corpse_table.id().delete(corpse_id);
     if deleted {
         log::info!("[OfflineCorpse] Successfully deleted offline corpse {} after restoring items to player {}", 
@@ -1195,7 +1327,7 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
         log::error!("[OfflineCorpse] FAILED to delete offline corpse {} - corpse may still exist!", corpse_id);
     }
     
-    // 6. Verify corpse was actually deleted
+    // 7. Verify corpse was actually deleted
     if player_corpse_table.id().find(corpse_id).is_some() {
         log::error!("[OfflineCorpse] CRITICAL: Corpse {} still exists after delete call! This is a bug.", corpse_id);
         // Try deleting again as a fallback
