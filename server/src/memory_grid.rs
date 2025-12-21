@@ -212,14 +212,12 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "reed-harpoon" => Some((75, vec!["center"])),       // Branch 3 (120°): Water (splits later)
         "lantern" => Some((80, vec!["center"])),            // Branch 4 (180°): Food (splits later)
         "metal-pickaxe" => Some((60, vec!["center"])),      // Branch 5 (240°): Crafting (splits later)
-        // MELEE BRANCH (300°) - TWO LINEAR PATHS
-        // Left: Blade Path - Stone Spear → Machete → Battle Axe
-        // Right: Blunt Path - Stone Mace → War Hammer
-        "stone-spear" => Some((80, vec!["center"])),        // BLADE PATH T1
-        "stone-mace" => Some((70, vec!["center"])),         // BLUNT PATH T1
-        "machete" => Some((240, vec!["stone-spear"])),      // BLADE PATH T2
-        "war-hammer" => Some((280, vec!["stone-mace"])),    // BLUNT PATH T2
-        "battle-axe" => Some((600, vec!["machete"])),       // BLADE PATH T3
+        // MELEE BRANCH (300°) - Single linear path
+        // Stone Spear → Stone Mace → Battle Axe → War Hammer
+        "stone-spear" => Some((80, vec!["center"])),        // MELEE T1
+        "stone-mace" => Some((200, vec!["stone-spear"])),   // MELEE T2
+        "battle-axe" => Some((500, vec!["stone-mace"])),    // MELEE T3
+        "war-hammer" => Some((1000, vec!["battle-axe"])),   // MELEE T4
         
         // RELOCATED WEAPONS (no longer on melee branch)
         "bone-shiv" => Some((180, vec!["crossbow"])),       // Hunting branch - stealth weapon
@@ -232,7 +230,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // Day 3-7 - Split points for branches 3, 4, 5
         // ============================================
         "bone-arrow" => Some((200, vec!["crossbow"])),          // Branch 1: Crossbow → bone-arrow
-        "bush-knife" => Some((220, vec!["metal-hatchet"])),     // Branch 2: Metal-hatchet → bush-knife
         "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook (SPLIT POINT)
         "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight (SPLIT POINT)
         "headlamp" => Some((300, vec!["lantern"])),             // Branch 4: Lantern → headlamp (tallow hands-free light)
@@ -244,8 +241,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "fire-arrow" => Some((480, vec!["bone-arrow"])),
-        // Branch 2 (linear)
-        "large-wooden-storage-box" => Some((600, vec!["bush-knife"])),
         // Branch 3 UPPER (Fishing path @ 112°)
         "reed-fishing-rod" => Some((520, vec!["bone-gaff-hook"])),
         // Branch 3 LOWER (Water Collection path @ 128°)
@@ -265,8 +260,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "hollow-reed-arrow" => Some((1200, vec!["fire-arrow"])),
-        // Branch 2 (linear)
-        "metal-door" => Some((1280, vec!["large-wooden-storage-box"])),
         // Branch 3 UPPER (Fishing/Diving path)
         "reed-snorkel" => Some((1400, vec!["reed-fishing-rod"])),
         // Branch 3 CENTER (Water Mobility path)
@@ -291,8 +284,8 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),
-        // Branch 2 (linear)
-        "shelter" => Some((2600, vec!["metal-door"])),
+        // Branch 2 (linear) - simplified, removed bush-knife/large-wooden-storage-box/metal-door
+        "shelter" => Some((2600, vec!["metal-hatchet"])),
         // Branch 3 UPPER (Diving/Coral path)
         "diving-pick" => Some((2200, vec!["reed-snorkel"])),
         // Branch 4 UPPER (Cooking)
@@ -508,7 +501,6 @@ fn get_node_display_name(node_id: &str) -> String {
         "bone-shiv" => "Bone Shiv".to_string(),
         "kayak-paddle" => "Kayak Paddle".to_string(),
         "scythe" => "Scythe".to_string(),
-        "machete" => "Machete".to_string(),
         "metal-dagger" => "Metal Dagger".to_string(),
         "war-hammer" => "War Hammer".to_string(),
         "battle-axe" => "Battle Axe".to_string(),
@@ -517,7 +509,6 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 2
         "bone-arrow" => "Bone Arrow".to_string(),
-        "bush-knife" => "Bush Knife".to_string(),
         "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
         "flashlight" => "Flashlight".to_string(),
         "headlamp" => "Headlamp".to_string(),
@@ -525,7 +516,6 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 3
         "fire-arrow" => "Fire Arrow".to_string(),
-        "large-wooden-storage-box" => "Large Wooden Storage Box".to_string(),
         "reed-fishing-rod" => "Primitive Reed Fishing Rod".to_string(),
         "reed-rain-collector" => "Reed Rain Collector".to_string(),
         "barbecue" => "Barbecue".to_string(),
@@ -535,7 +525,6 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 4
         "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
-        "metal-door" => "Metal Door".to_string(),
         "reed-snorkel" => "Reed Diver's Helm".to_string(),
         "reed-flippers" => "Reed Flippers".to_string(),
         "plastic-water-jug" => "Plastic Water Jug".to_string(),
@@ -641,7 +630,6 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Bone Shiv" => Some("bone-shiv"),
         "Kayak Paddle" => Some("kayak-paddle"),
         "Scythe" => Some("scythe"),
-        "Machete" => Some("machete"),
         "Metal Dagger" => Some("metal-dagger"),
         "War Hammer" => Some("war-hammer"),
         "Battle Axe" => Some("battle-axe"),
@@ -650,7 +638,6 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 2 items
         "Bone Arrow" => Some("bone-arrow"),
-        "Bush Knife" => Some("bush-knife"),
         "Bone Gaff Hook" => Some("bone-gaff-hook"),
         "Flashlight" => Some("flashlight"),
         "Headlamp" => Some("headlamp"),
@@ -658,7 +645,6 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 3 items
         "Fire Arrow" => Some("fire-arrow"),
-        "Large Wooden Storage Box" => Some("large-wooden-storage-box"),
         "Primitive Reed Fishing Rod" => Some("reed-fishing-rod"),
         "Reed Rain Collector" => Some("reed-rain-collector"),
         "Barbecue" => Some("barbecue"),
@@ -667,7 +653,6 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 4 items
         "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
-        "Metal Door" => Some("metal-door"),
         "Reed Diver's Helm" => Some("reed-snorkel"),
         "Reed Flippers" => Some("reed-flippers"),
         "Plastic Water Jug" => Some("plastic-water-jug"),

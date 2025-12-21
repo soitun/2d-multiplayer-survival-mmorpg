@@ -2073,6 +2073,24 @@ pub fn damage_player(
     }
     // <<< END BROTH EFFECT >>>
 
+    // <<< STUN EFFECT: Blunt weapons have a chance to stun targets >>>
+    if item_def.damage_type == Some(crate::models::DamageType::Blunt) {
+        // Try to apply stun based on weapon type and random chance
+        let was_stunned = active_effects::try_apply_blunt_weapon_stun(
+            ctx,
+            attacker_id,
+            target_id,
+            &item_def.name,
+        );
+        if was_stunned {
+            log::info!(
+                "[Stun] Player {:?} was STUNNED by {:?}'s {} attack!",
+                target_id, attacker_id, item_def.name
+            );
+        }
+    }
+    // <<< END STUN EFFECT >>>
+
     // INTERRUPT BANDAGE IF DAMAGED
     active_effects::cancel_bandage_burst_effects(ctx, target_id);
 

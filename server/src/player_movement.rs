@@ -462,6 +462,23 @@ pub fn update_player_position_simple(
         }
     }
 
+    // 2b. Check if player is stunned - completely immobilize, only allow facing direction updates
+    if crate::active_effects::player_has_stun_effect(ctx, sender_id) {
+        let distance_moved = ((new_x - current_player.position_x).powi(2) + 
+                             (new_y - current_player.position_y).powi(2)).sqrt();
+        
+        if distance_moved > 0.5 { // Any significant movement is blocked
+            log::trace!("Stunned player {:?} attempted to move {:.1}px, but is stunned. Allowing facing direction update only.", 
+                       sender_id, distance_moved);
+            
+            // Don't reject the entire update - just update facing direction without moving
+            current_player.direction = facing_direction.clone();
+            current_player.last_update = ctx.timestamp;
+            players.identity().update(current_player);
+            return Ok(()); // Accept the facing direction update
+        }
+    }
+
     // 2. Check world bounds
     let effective_radius = get_effective_player_radius(current_player.is_crouching);
     if new_x < effective_radius || new_x > WORLD_WIDTH_PX - effective_radius ||

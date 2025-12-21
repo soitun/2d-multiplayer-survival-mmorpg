@@ -78,6 +78,7 @@ pub enum SoundType {
     SnorkelSubmerge,         // snorkel_submerge.mp3 (1 variation - when player submerges with snorkel)
     SnorkelEmerge,           // snorkel_emerge.mp3 (1 variation - when player emerges from water)
     ErrorSeaweedAboveWater,  // error_seaweed_above_water.mp3 (1 variation - when trying to harvest seaweed while above water)
+    Stun,                    // stun.mp3 (1 variation - when player is stunned by blunt weapon)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -157,6 +158,7 @@ impl SoundType {
             SoundType::SnorkelSubmerge => "snorkel_submerge",
             SoundType::SnorkelEmerge => "snorkel_emerge",
             SoundType::ErrorSeaweedAboveWater => "error_seaweed_above_water",
+            SoundType::Stun => "stun",
         }
     }
 
@@ -234,6 +236,7 @@ impl SoundType {
             SoundType::SnorkelSubmerge => 1, // snorkel_submerge.mp3 (single variation)
             SoundType::SnorkelEmerge => 1, // snorkel_emerge.mp3 (single variation)
             SoundType::ErrorSeaweedAboveWater => 1, // error_seaweed_above_water.mp3 (single variation)
+            SoundType::Stun => 1, // stun.mp3 (single variation)
         }
     }
 
@@ -1191,6 +1194,13 @@ pub fn emit_crow_stealing_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, vi
 pub fn emit_cairn_unlock_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::CairnUnlock, pos_x, pos_y, 1.5, 500.0, player_id) {
         log::warn!("Failed to emit cairn unlock sound: {}", e);
+    }
+}
+
+/// Emit stun sound (when a player is stunned by a blunt weapon)
+pub fn emit_stun_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::Stun, pos_x, pos_y, 1.0, 800.0, player_id) {
+        log::warn!("Failed to emit stun sound: {}", e);
     }
 }
 

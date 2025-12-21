@@ -2111,7 +2111,9 @@ export const useInputHandler = ({
         // --- End Jump Offset Calculation ---
 
         // Handle continuous swing check (removed movement tracking for weapons)
-        if (isMouseDownRef.current && !placementInfo && !isChatting && !isSearchingCraftRecipes && !isInventoryOpen) {
+        // NOTE: Continuous swing (holding left mouse) now works regardless of inventory UI state
+        // This enables chopping wood/mining while managing inventory (same behavior as auto-attack)
+        if (isMouseDownRef.current && !placementInfo && !isChatting && !isSearchingCraftRecipes) {
             // 🎣 FISHING INPUT FIX: Disable continuous swing while fishing
             if (!isFishing) {
                 attemptSwing(); // Call internal attemptSwing function

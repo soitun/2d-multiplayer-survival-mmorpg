@@ -12,6 +12,15 @@ export const LIVING_CORAL_WIDTH = 192; // Coral reef cluster width (doubled for 
 export const LIVING_CORAL_HEIGHT = 160; // Coral reef cluster height (doubled)
 export const LIVING_CORAL_COLLISION_RADIUS = 80; // Doubled collision radius for client collision checks
 
+// --- Shake Effect Constants ---
+const SHAKE_DURATION_MS = 300;     // How long the shake effect lasts when hit
+const SHAKE_INTENSITY_PX = 4;     // Shake intensity (underwater so slightly less than land entities)
+const VERTEX_SHAKE_SEGMENTS = 6;  // Number of vertical segments for vertex-based shaking
+
+// --- Client-side animation tracking for coral shakes ---
+const clientCoralShakeStartTimes = new Map<string, number>(); // coralId -> client timestamp when shake started
+const lastKnownServerCoralShakeTimes = new Map<string, number>(); // coralId -> last known server timestamp
+
 // --- Living Coral Variant Images Array ---
 // Use coral, coral1, coral2, coral3.png for visual variety in reef clusters
 const LIVING_CORAL_VARIANT_IMAGES = [
@@ -42,6 +51,41 @@ const livingCoralConfig: GroundEntityConfig<LivingCoral> = {
     getShadowParams: undefined,
 
     drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
+        // Calculate shake offsets for shadow synchronization
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        if (entity.lastHitTime) {
+            const coralId = entity.id.toString();
+            const serverShakeTime = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
+            const lastKnownServerTime = lastKnownServerCoralShakeTimes.get(coralId) || 0;
+            
+            if (serverShakeTime !== lastKnownServerTime) {
+                lastKnownServerCoralShakeTimes.set(coralId, serverShakeTime);
+                clientCoralShakeStartTimes.set(coralId, Date.now());
+            }
+            
+            const clientStartTime = clientCoralShakeStartTimes.get(coralId);
+            if (clientStartTime) {
+                const elapsedSinceShake = Date.now() - clientStartTime;
+                
+                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                    const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
+                    const currentShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                    
+                    // Use average shake intensity for shadow
+                    const averageShakeFactor = Math.pow(0.5, 1.8);
+                    const shadowShakeIntensity = currentShakeIntensity * averageShakeFactor;
+                    
+                    const timePhase = elapsedSinceShake / 50;
+                    const coralSeed = coralId.charCodeAt(0) % 100;
+                    
+                    shakeOffsetX = Math.sin(timePhase + coralSeed) * shadowShakeIntensity;
+                    shakeOffsetY = Math.cos(timePhase + coralSeed) * 0.5 * shadowShakeIntensity;
+                }
+            }
+        }
+
         // Draw subtle underwater shadow for coral (doubled size)
         drawDynamicGroundShadow({
             ctx,
@@ -55,19 +99,84 @@ const livingCoralConfig: GroundEntityConfig<LivingCoral> = {
             minStretchFactor: 0.4,  // Keep some shadow even at noon
             shadowBlur: 8,          // Softer underwater shadow (slightly larger for doubled size)
             pivotYOffset: 40,       // Pivot point for shadow (doubled for larger coral)
+            shakeOffsetX,           // Pass shake offsets so shadow moves with coral
+            shakeOffsetY
         });
     },
 
-    applyEffects: (ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress) => {
+    applyEffects: (ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress, targetImgWidth, targetImgHeight) => {
         // Apply subtle drop shadow for depth
         applyStandardDropShadow(ctx);
         
         // Add gentle underwater sway animation
         const swayOffset = Math.sin(nowMs / 2000 + entity.posX * 0.01) * 2;
         
+        // Calculate shake intensity when hit
+        let baseShakeIntensity = 0;
+        let shakeFactor = 0;
+        let shakeDirectionX = 0;
+        let shakeDirectionY = 0;
+
+        if (entity.lastHitTime) { 
+            const coralId = entity.id.toString();
+            const serverShakeTime = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
+            
+            // Check if this is a NEW shake by comparing server timestamps
+            const lastKnownServerTime = lastKnownServerCoralShakeTimes.get(coralId) || 0;
+            
+            if (serverShakeTime !== lastKnownServerTime) {
+                // NEW shake detected! Record both server time and client time
+                lastKnownServerCoralShakeTimes.set(coralId, serverShakeTime);
+                clientCoralShakeStartTimes.set(coralId, nowMs);
+            }
+            
+            // Calculate animation based on client time
+            const clientStartTime = clientCoralShakeStartTimes.get(coralId);
+            if (clientStartTime) {
+                const elapsedSinceShake = nowMs - clientStartTime;
+                
+                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                    shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS); 
+                    baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                    
+                    // Generate smooth, time-based shake direction using sine waves
+                    const timePhase = elapsedSinceShake / 50; // Faster oscillation (50ms per cycle)
+                    const coralSeed = coralId.charCodeAt(0) % 100; // Unique phase offset per coral
+                    
+                    // Use sine/cosine for smooth circular motion
+                    shakeDirectionX = Math.sin(timePhase + coralSeed);
+                    shakeDirectionY = Math.cos(timePhase + coralSeed) * 0.5; // Less vertical movement
+                }
+            }
+        }
+        
+        // Apply vertex-based shake effect (slicing) if shaking
+        if (baseShakeIntensity > 0 && targetImgWidth && targetImgHeight) {
+            // Vertex-based shake: different segments shake at different intensities
+            // Bottom is more anchored, top shakes more (like swaying in water)
+            for (let i = 0; i < VERTEX_SHAKE_SEGMENTS; i++) {
+                const segmentYStart = (i / VERTEX_SHAKE_SEGMENTS) * targetImgHeight;
+                const segmentYEnd = ((i + 1) / VERTEX_SHAKE_SEGMENTS) * targetImgHeight;
+                const segmentHeight = segmentYEnd - segmentYStart;
+                
+                // Progressive shake: more shake at the top
+                const segmentProgress = i / (VERTEX_SHAKE_SEGMENTS - 1);
+                const segmentShakeFactor = Math.pow(segmentProgress, 1.8); // Exponential falloff from bottom to top
+                const segmentShakeIntensity = baseShakeIntensity * segmentShakeFactor;
+                
+                // Calculate segment offset with directional shake
+                const segmentOffsetX = shakeDirectionX * segmentShakeIntensity + swayOffset;
+                const segmentOffsetY = shakeDirectionY * segmentShakeIntensity * 0.3;
+            }
+        }
+        
+        // Return combined sway and shake offsets for the entire entity
+        const totalOffsetX = swayOffset + (shakeDirectionX * baseShakeIntensity);
+        const totalOffsetY = shakeDirectionY * baseShakeIntensity * 0.3;
+        
         return {
-            offsetX: swayOffset,
-            offsetY: 0,
+            offsetX: totalOffsetX,
+            offsetY: totalOffsetY,
         };
     },
 

@@ -106,10 +106,10 @@ const BRANCH_ANGLES = {
 // 0.25 radians ≈ 14.3° - provides clean spacing between split paths
 const SPLIT_OFFSET = 0.25;
 
-// Melee branch offsets - TWO main paths: Blade (left) and Blunt (right)
-// ~15° separation between the two T1 starters for clean visual distinction
-const MELEE_PATH_OFFSET = 0.26;  // ~15° for T1 starters (spear left, mace right)
-const MELEE_BRANCH_OFFSET = 0.18;  // ~10° for T2 sub-branches within each path
+// Melee branch - Single linear path (Stone Spear → Stone Mace → Battle Axe → War Hammer)
+// No offset needed - all nodes along BRANCH_6 at 300°
+const MELEE_PATH_OFFSET = 0;  // Unused - kept for compatibility
+const MELEE_BRANCH_OFFSET = 0;  // Unused - kept for compatibility
 
 const getCategoryFromId = (nodeId: string): 'tool' | 'weapon' | 'armor' | 'crafting' | 'vehicle' | 'technology' | 'passive' => {
   // Passive abilities
@@ -242,9 +242,8 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Metal Pickaxe']
   },
   // ============================================
-  // MELEE BRANCH (300°) - TWO LINEAR PATHS
-  // Left: Blade Path - Stone Spear → Machete → Battle Axe
-  // Right: Blunt Path - Stone Mace → War Hammer
+  // MELEE BRANCH (300°) - Single Linear Path
+  // Stone Spear → Stone Mace → Battle Axe → War Hammer
   // ============================================
   { 
     id: 'stone-spear', 
@@ -253,7 +252,7 @@ export const MEMORY_GRID_NODES = [
     cost: 80, 
     tier: 1, 
     prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 120), // BLADE PATH T1
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 120), // MELEE T1
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Spear']
@@ -261,50 +260,38 @@ export const MEMORY_GRID_NODES = [
   { 
     id: 'stone-mace', 
     name: 'Stone Mace', 
-    description: 'Unlocks crafting the Stone Mace - a heavy stone lashed to a wooden handle. Slow but hits hard. Excellent for crushing.', 
-    cost: 70, 
-    tier: 1, 
-    prerequisites: ['center'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_PATH_OFFSET, 120), // BLUNT PATH T1
+    description: 'Unlocks crafting the Stone Mace - a heavy stone lashed to a wooden handle. Slow but hits hard. Excellent for crushing. Can stun enemies!', 
+    cost: 200, 
+    tier: 2, 
+    prerequisites: ['stone-spear'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 220), // MELEE T2
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['Stone Mace']
   },
   { 
-    id: 'machete', 
-    name: 'Machete', 
-    description: 'Unlocks crafting the Machete - a sturdy blade for hacking through brush and enemies. Fast, reliable, and deadly.', 
-    cost: 240, 
-    tier: 2, 
-    prerequisites: ['stone-spear'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 220), // BLADE PATH T2
+    id: 'battle-axe', 
+    name: 'Battle Axe', 
+    description: 'Unlocks crafting the Battle Axe - a brutal double-headed axe. Massive cleaving strikes with strong bleeding.', 
+    cost: 500, 
+    tier: 3, 
+    prerequisites: ['stone-mace'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 320), // MELEE T3
     category: 'weapon' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Machete']
+    unlocksItems: ['Battle Axe']
   },
   { 
     id: 'war-hammer', 
     name: 'War Hammer', 
-    description: 'Unlocks crafting the War Hammer - a devastating heavy blunt weapon. Slow but terrifying crushing power.', 
-    cost: 280, 
-    tier: 2, 
-    prerequisites: ['stone-mace'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 + MELEE_PATH_OFFSET, 220), // BLUNT PATH T2
+    description: 'Unlocks crafting the War Hammer - a devastating heavy blunt weapon. Slow but terrifying crushing power. Highest stun chance!', 
+    cost: 1000, 
+    tier: 4, 
+    prerequisites: ['battle-axe'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6, 420), // MELEE T4
     category: 'weapon' as const, 
     status: 'locked' as const,
     unlocksItems: ['War Hammer']
-  },
-  { 
-    id: 'battle-axe', 
-    name: 'Battle Axe', 
-    description: 'Unlocks crafting the Battle Axe - a brutal double-headed axe. Massive cleaving strikes with strong bleeding.', 
-    cost: 600, 
-    tier: 3, 
-    prerequisites: ['machete'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_6 - MELEE_PATH_OFFSET, 320), // BLADE PATH T3
-    category: 'weapon' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Battle Axe']
   },
   // OTHER MELEE WEAPONS - Relocated to appropriate branches
   // Bone Shiv & Metal Dagger → Ranged/Hunting branch (stealth theme)
@@ -1056,7 +1043,6 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Bone Shiv': 'bone-shiv',
   'Kayak Paddle': 'kayak-paddle',
   'Scythe': 'scythe',
-  'Machete': 'machete',
   'Metal Dagger': 'metal-dagger',
   'War Hammer': 'war-hammer',
   'Battle Axe': 'battle-axe',

@@ -87,6 +87,9 @@ pub enum EffectType {
     
     // === BREW CONSUMPTION COOLDOWN ===
     BrewCooldown,      // 60-second cooldown after consuming any broth pot brew (prevents spam)
+    
+    // === STUN EFFECT (from blunt weapons) ===
+    Stun,              // Immobilizes player completely for a short duration (from blunt/crushing weapons)
 }
 
 // Table defining food poisoning risks for different food items
@@ -193,7 +196,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -303,7 +306,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
             EffectType::PoisonCoating | EffectType::HarvestBoost);
         
-        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || is_broth_buff_effect {
+        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun || is_broth_buff_effect {
             // These effects are purely time-based, no per-tick processing needed
             // They just exist until they expire or are removed
             // Check for time-based expiration (this was missing, causing effects to persist indefinitely!)
@@ -643,6 +646,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // No per-tick stat changes, just a flag that expires after 60 seconds
                             amount_this_tick = 0.0;
                         },
+                        EffectType::Stun => {
+                            // Stun is a time-based immobilization effect from blunt weapons
+                            // Movement is blocked in player_movement.rs when this effect is active
+                            // No per-tick stat changes, just a flag that expires
+                            amount_this_tick = 0.0;
+                        },
                     }
 
                     if (player_to_update.health - old_health).abs() > f32::EPSILON {
@@ -678,7 +687,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             EffectType::PoisonCoating | EffectType::HarvestBoost);
         
         if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment || 
-           effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking ||
+           effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun ||
            is_broth_buff_effect_end_check {
             if current_time >= effect.ends_at {
                 effect_ended = true;
@@ -3394,4 +3403,175 @@ pub fn apply_brew_cooldown(ctx: &ReducerContext, player_id: Identity, item_def_i
             Err("Failed to apply brew cooldown effect".to_string())
         }
     }
+}
+
+// ============================================================================
+// STUN EFFECT SYSTEM (Blunt/Crushing Weapons)
+// ============================================================================
+// Blunt weapons have a chance to stun targets, completely immobilizing them
+// for a short duration. Heavier weapons have higher stun chances and longer durations.
+
+/// Stun duration in seconds by weapon tier (balanced for PvP)
+pub const STUN_DURATION_LIGHT: f32 = 1.5;    // Kayak Paddle, Fox Skull
+pub const STUN_DURATION_MEDIUM: f32 = 2.0;   // Stone Mace, Human Skull, Wolf Skull
+pub const STUN_DURATION_HEAVY: f32 = 2.5;    // Engineers Maul
+pub const STUN_DURATION_MASSIVE: f32 = 3.0;  // War Hammer, Military Crowbar
+
+/// Stun chance percentages by weapon (0.0 to 1.0)
+/// Returns (stun_chance, stun_duration) for a given blunt weapon name
+pub fn get_blunt_weapon_stun_params(weapon_name: &str) -> Option<(f32, f32)> {
+    match weapon_name {
+        // Light blunt weapons - low chance, short duration
+        "Kayak Paddle" => Some((0.05, STUN_DURATION_LIGHT)),     // 5% chance, 1.5s
+        "Fox Skull" => Some((0.06, STUN_DURATION_LIGHT)),        // 6% chance, 1.5s
+        
+        // Medium blunt weapons - moderate chance
+        "Human Skull" => Some((0.08, STUN_DURATION_MEDIUM)),     // 8% chance, 2.0s
+        "Stone Mace" => Some((0.10, STUN_DURATION_MEDIUM)),      // 10% chance, 2.0s
+        "Wolf Skull" => Some((0.12, STUN_DURATION_MEDIUM)),      // 12% chance, 2.0s
+        
+        // Heavy blunt weapons - high chance
+        "Engineers Maul" => Some((0.15, STUN_DURATION_HEAVY)),   // 15% chance, 2.5s
+        
+        // Massive blunt weapons - highest chance, longest duration
+        "War Hammer" => Some((0.18, STUN_DURATION_MASSIVE)),     // 18% chance, 3.0s
+        "Military Crowbar" => Some((0.20, STUN_DURATION_MASSIVE)), // 20% chance, 3.0s
+        
+        _ => None, // Not a blunt weapon or unknown weapon
+    }
+}
+
+/// Checks if a player currently has the stun effect active
+pub fn player_has_stun_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+}
+
+/// Gets the remaining stun time in seconds for a player
+/// Returns None if not stunned, Some(seconds) otherwise
+pub fn get_stun_remaining(ctx: &ReducerContext, player_id: Identity) -> Option<f32> {
+    let current_time = ctx.timestamp;
+    ctx.db.active_consumable_effect().iter()
+        .find(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+        .map(|effect| {
+            let ends_at_micros = effect.ends_at.to_micros_since_unix_epoch();
+            let now_micros = current_time.to_micros_since_unix_epoch();
+            let remaining_micros = ends_at_micros.saturating_sub(now_micros);
+            (remaining_micros as f32) / 1_000_000.0
+        })
+}
+
+/// Applies a stun effect to a player (immobilizes them for the specified duration)
+/// Stun does NOT stack - if already stunned, the new stun only applies if longer duration
+pub fn apply_stun_effect(
+    ctx: &ReducerContext, 
+    player_id: Identity, 
+    duration_seconds: f32,
+    attacker_id: Identity,
+    weapon_name: &str,
+) -> Result<(), String> {
+    // Check if target is in a safe zone - no stun in safe zones
+    if player_has_safe_zone_effect(ctx, player_id) {
+        log::debug!("[Stun] Player {:?} is in a safe zone - stun blocked", player_id);
+        return Ok(());
+    }
+    
+    // Check if target is already stunned
+    if let Some(remaining) = get_stun_remaining(ctx, player_id) {
+        if remaining >= duration_seconds {
+            // Already stunned for longer, don't override
+            log::debug!("[Stun] Player {:?} already stunned for {:.1}s (new stun would be {:.1}s)", 
+                player_id, remaining, duration_seconds);
+            return Ok(());
+        }
+        // New stun is longer - cancel existing and apply new
+        cancel_stun_effect(ctx, player_id);
+    }
+    
+    let current_time = ctx.timestamp;
+    let duration_micros = (duration_seconds * 1_000_000.0) as i64;
+    let ends_at = current_time + TimeDuration::from_micros(duration_micros);
+    
+    let stun_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Stun is from weapon attack, not item consumption
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at,
+        total_amount: Some(0.0), // No damage accumulation
+        amount_applied_so_far: Some(0.0),
+        effect_type: EffectType::Stun,
+        tick_interval_micros: 1_000_000, // 1 second (not really used)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(stun_effect) {
+        Ok(e) => {
+            log::info!(
+                "[Stun] Player {:?} STUNNED by {:?} using {} for {:.1}s (effect_id: {})", 
+                player_id, attacker_id, weapon_name, duration_seconds, e.effect_id
+            );
+            
+            // Emit stun sound at target position
+            if let Some(target_player) = ctx.db.player().identity().find(&player_id) {
+                crate::sound_events::emit_stun_sound(ctx, target_player.position_x, target_player.position_y, player_id);
+            }
+            
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[Stun] Failed to apply stun effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply stun effect".to_string())
+        }
+    }
+}
+
+/// Cancels any active stun effect for a player
+pub fn cancel_stun_effect(ctx: &ReducerContext, player_id: Identity) {
+    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().iter()
+        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+        .map(|e| e.effect_id)
+        .collect();
+
+    for effect_id in effects_to_cancel {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("[Stun] Cancelled stun effect {} for player {:?}", effect_id, player_id);
+    }
+}
+
+/// Attempts to apply stun based on weapon type and random chance
+/// Returns true if stun was successfully applied, false otherwise
+pub fn try_apply_blunt_weapon_stun(
+    ctx: &ReducerContext,
+    attacker_id: Identity,
+    target_id: Identity,
+    weapon_name: &str,
+) -> bool {
+    // Check if this is a blunt weapon with stun capability
+    if let Some((stun_chance, stun_duration)) = get_blunt_weapon_stun_params(weapon_name) {
+        // Roll for stun chance
+        let roll = ctx.rng().gen_range(0.0..1.0);
+        
+        if roll < stun_chance {
+            log::info!(
+                "[Stun] STUN PROC! {} rolled {:.2} < {:.2} chance. Applying {:.1}s stun to {:?}", 
+                weapon_name, roll, stun_chance, stun_duration, target_id
+            );
+            
+            if let Err(e) = apply_stun_effect(ctx, target_id, stun_duration, attacker_id, weapon_name) {
+                log::error!("[Stun] Failed to apply stun: {}", e);
+                return false;
+            }
+            return true;
+        } else {
+            log::debug!(
+                "[Stun] No stun proc: {} rolled {:.2} >= {:.2} chance", 
+                weapon_name, roll, stun_chance
+            );
+        }
+    }
+    
+    false
 }

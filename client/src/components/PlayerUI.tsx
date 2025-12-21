@@ -821,6 +821,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    case 'Stun':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'stunned',
+                            name: 'Stunned',
+                            emoji: '💫',
+                            type: 'negative' as const,
+                            description: 'Immobilized by a crushing blow!',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
                     case 'HealthRegen':
                     case 'BandageBurst':
                         effectApplies = true;

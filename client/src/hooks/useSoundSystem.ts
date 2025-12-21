@@ -95,6 +95,7 @@ const SOUND_DEFINITIONS = {
     error_broth_not_compatible: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Broth not compatible error sound (when trying to place incompatible item in broth pot)
     error_field_cauldron_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Field cauldron placement error sound (client-side immediate for instant feedback when trying to place cauldron without nearby campfire)
     error_seaweed_above_water: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Error when trying to harvest seaweed while above water (not snorkeling) - client-side immediate
+    stun: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.3, maxDistance: 800 }, // Stun effect applied (from blunt weapons)
     done_burning: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Food became burnt sound (campfire/barbecue)
     barbecue_on: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barbecue turning on sound
     barbecue_off: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barbecue turning off sound
@@ -361,6 +362,7 @@ const PRELOAD_SOUNDS = [
     'crow_stealing.mp3',                                     // 1 crow stealing variation (when crow steals from player)
     'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
     'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
+    'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -675,6 +677,8 @@ const playLocalSound = async (
                 variationCount = 1; // cairn_unlock.mp3
             } else if (soundType === 'error_seaweed_above_water') {
                 variationCount = 1; // error_seaweed_above_water.mp3
+            } else if (soundType === 'stun') {
+                variationCount = 1; // stun.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);
