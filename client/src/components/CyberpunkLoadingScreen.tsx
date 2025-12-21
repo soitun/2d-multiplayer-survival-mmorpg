@@ -6,9 +6,9 @@ import { useMobileDetection } from '../hooks/useMobileDetection';
 // ============================================================================
 // 🔧 DEBUG FLAGS: For testing the SOVA welcome sequence
 // ============================================================================
-const DEBUG_SIMULATE_SLOW_LOADING = true;   // Set to true to delay loading completion
+const DEBUG_SIMULATE_SLOW_LOADING = false;   // Set to true to delay loading completion
 const DEBUG_LOADING_DELAY_MS = 120000;      // 2 minutes - plenty of time for full sequence
-const DEBUG_FORCE_FIRST_VISIT = true;       // Set to true to always show welcome sequence (ignores localStorage)
+const DEBUG_FORCE_FIRST_VISIT = false;       // Set to true to always show welcome sequence (ignores localStorage)
 
 interface CyberpunkErrorBarProps {
     message: string;
@@ -414,70 +414,91 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const consoleLogsRef = useRef<HTMLDivElement>(null);
     const sovaAvatarRef = useRef<HTMLImageElement>(null);
 
-    const logs = React.useMemo(() => {
-        const baseLogs = authLoading ? [
-            "└─ Initializing quantum encryption protocols...",
-            "└─ Verifying neural identity matrix...",
-            "└─ Establishing secure link to authentication nexus...",
-            "└─ Authenticating biometric signature...",
-            "└─ [AUTH] Identity verified. Welcome, Survivor.",
-        ] : spacetimeLoading ? [
-            "└─ [AUTH] Identity verification complete.",
-            "└─ Scanning for Arkyv node broadcasts...",
-            "└─ [NETWORK] Detecting Zvezdanet backbone signals...",
-            "└─ Establishing quantum tunnel to Babachain...",
-            "└─ [CRYPTO] Synchronizing blockchain ledger...",
-            "└─ Handshaking with distributed survivor network...",
-            "└─ [MESH] P2P connection protocols active...",
-            "└─ [READY] Babachain connection established. Initializing world access...",
-        ] : [];
-
-        // Add REAL asset loading progress when not in auth/spacetime loading phases
-        if (!authLoading && !spacetimeLoading && assetProgress) {
-            const percentage = Math.round(assetProgress.totalProgress * 100);
+    // Track which loading phases have been announced to accumulate logs properly
+    const announcedPhasesRef = useRef<Set<string>>(new Set());
+    const [accumulatedLogs, setAccumulatedLogs] = useState<string[]>([]);
+    
+    // Accumulate logs as loading progresses - logs are ADDED, never removed
+    useEffect(() => {
+        const newLogs: string[] = [];
+        const announced = announcedPhasesRef.current;
+        
+        // Auth loading phase
+        if (authLoading && !announced.has('auth')) {
+            announced.add('auth');
+            newLogs.push("└─ [AUTH] Initializing secure connection...");
+        }
+        
+        // Auth complete
+        if (!authLoading && announced.has('auth') && !announced.has('auth_complete')) {
+            announced.add('auth_complete');
+            newLogs.push("└─ [AUTH] Identity verified. Welcome, Survivor.");
+        }
+        
+        // Spacetime loading phase
+        if (spacetimeLoading && !announced.has('spacetime')) {
+            announced.add('spacetime');
+            newLogs.push("└─ [NETWORK] Establishing quantum tunnel to Babachain...");
+        }
+        
+        // Spacetime complete
+        if (!spacetimeLoading && announced.has('spacetime') && !announced.has('spacetime_complete')) {
+            announced.add('spacetime_complete');
+            newLogs.push("└─ [MESH] Babachain connection established.");
+        }
+        
+        // Asset loading phases
+        if (assetProgress && !authLoading && !spacetimeLoading) {
             const cacheInfo = assetProgress.fromCache > 0 ? ` (${assetProgress.fromCache} cached)` : '';
             
-            if (assetProgress.phase === 'critical') {
-                baseLogs.push("└─ [INIT] Initializing core rendering systems...");
-                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
-                if (percentage > 10) {
-                    baseLogs.push(`└─ [LOAD] Core systems: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
-                }
-            } else if (assetProgress.phase === 'important') {
-                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
-                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
-                baseLogs.push(`└─ [LOAD] Environment textures: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
-            } else if (assetProgress.phase === 'secondary') {
-                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
-                baseLogs.push("└─ [ENV] Environment textures loaded.");
-                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
-                baseLogs.push(`└─ [LOAD] Item database: ${assetProgress.loadedCount}/${assetProgress.totalCount} assets${cacheInfo}`);
-            } else if (assetProgress.phase === 'complete') {
-                baseLogs.push("└─ [CORE] Core systems loaded successfully.");
-                baseLogs.push("└─ [ENV] Environment textures loaded.");
-                baseLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
-            }
-        }
-
-        // Add music preload status for non-auth loading
-        if (!authLoading && !spacetimeLoading) {
-            if (musicPreloadProgress > 0 && musicPreloadProgress < 1) {
-                const percentage = Math.round(musicPreloadProgress * 100);
-                baseLogs.push(`└─ [AUDIO] Preloading ambient soundtrack... ${percentage}%`);
-            } else if (musicPreloadComplete) {
-                baseLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
+            // Critical phase started
+            if ((assetProgress.phase === 'critical' || assetProgress.phase === 'important' || 
+                 assetProgress.phase === 'secondary' || assetProgress.phase === 'complete') && 
+                !announced.has('critical_start')) {
+                announced.add('critical_start');
+                newLogs.push("└─ [CORE] Core systems loaded successfully.");
             }
             
-            // Only show ready message when assets are actually loaded (respects debug delay)
-            if (effectiveAssetsLoaded) {
-                baseLogs.push("└─ [READY] All systems nominal. Entering world...");
-            } else if (DEBUG_SIMULATE_SLOW_LOADING && assetsLoaded && !debugDelayComplete) {
-                baseLogs.push("└─ [DEBUG] Simulating slow loading... please wait.");
+            // Important phase complete (ENV loaded)
+            if ((assetProgress.phase === 'secondary' || assetProgress.phase === 'complete') && 
+                !announced.has('important_complete')) {
+                announced.add('important_complete');
+                newLogs.push("└─ [ENV] Environment textures loaded.");
+            }
+            
+            // Secondary/Items complete
+            if (assetProgress.phase === 'complete' && !announced.has('secondary_complete')) {
+                announced.add('secondary_complete');
+                newLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
             }
         }
-
-        return baseLogs;
-    }, [authLoading, spacetimeLoading, musicPreloadProgress, musicPreloadComplete, assetProgress, assetsLoaded, effectiveAssetsLoaded, debugDelayComplete]);
+        
+        // Music preload complete
+        if (musicPreloadComplete && !announced.has('music_complete')) {
+            announced.add('music_complete');
+            newLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
+        }
+        
+        // Ready message
+        if (effectiveAssetsLoaded && !announced.has('ready')) {
+            announced.add('ready');
+            newLogs.push("└─ [READY] All systems nominal. Entering world...");
+        }
+        
+        // Debug delay message
+        if (DEBUG_SIMULATE_SLOW_LOADING && assetsLoaded && !debugDelayComplete && !announced.has('debug_delay')) {
+            announced.add('debug_delay');
+            newLogs.push("└─ [DEBUG] Simulating slow loading... please wait.");
+        }
+        
+        // Add any new logs
+        if (newLogs.length > 0) {
+            setAccumulatedLogs(prev => [...prev, ...newLogs]);
+        }
+    }, [authLoading, spacetimeLoading, musicPreloadComplete, assetProgress, assetsLoaded, effectiveAssetsLoaded, debugDelayComplete]);
+    
+    // Use accumulated logs for display
+    const logs = accumulatedLogs;
 
     // Auto-scroll to bottom function
     const scrollToBottom = () => {
@@ -971,19 +992,26 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     useEffect(() => {
         if (currentLogIndex < logs.length) {
-            console.log(`[CyberpunkLoadingScreen] Showing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
-            // Show logs faster when assets are loading (real progress), slower for simulated auth/spacetime
-            const baseDelay = assetProgress ? 100 : 300;
-            const randomDelay = assetProgress ? 50 : 200;
+            console.log(`[CyberpunkLoadingScreen] Queuing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
+            // Show logs with readable delay - faster during asset loading, slower otherwise
+            const baseDelay = assetProgress ? 150 : 300;
+            const randomDelay = assetProgress ? 100 : 200;
             const timer = setTimeout(() => {
-                setVisibleLogs(prev => [...prev, logs[currentLogIndex]]);
+                // Capture current index to avoid race conditions
+                setVisibleLogs(prev => {
+                    // Only add if we haven't already added this many logs
+                    if (prev.length === currentLogIndex) {
+                        return [...prev, logs[currentLogIndex]];
+                    }
+                    return prev;
+                });
                 setCurrentLogIndex(prev => prev + 1);
                 // Scroll to bottom after adding new log
                 setTimeout(scrollToBottom, 100);
             }, baseDelay + Math.random() * randomDelay);
 
             return () => clearTimeout(timer);
-        } else if (currentLogIndex >= logs.length && !isSequenceComplete && effectiveAssetsLoaded) {
+        } else if (currentLogIndex >= logs.length && logs.length > 0 && !isSequenceComplete && effectiveAssetsLoaded) {
             // Sequence is complete AND assets are loaded - show click to continue
             console.log(`[CyberpunkLoadingScreen] All logs complete and assets loaded, setting sequence complete${DEBUG_SIMULATE_SLOW_LOADING ? ' (debug delay was active)' : ''}`);
             const timer = setTimeout(() => {
@@ -1408,4 +1436,4 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     );
 };
 
-export default CyberpunkLoadingScreen; 
+export default CyberpunkLoadingScreen;
