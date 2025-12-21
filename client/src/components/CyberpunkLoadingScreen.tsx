@@ -524,9 +524,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
     }, [audioPreloaded, isFirstTimeVisitor, playWelcomeSound]);
     
-    // Stop welcome audio immediately when loading completes
+    // Track if we've already handled sequence completion
+    const hasHandledSequenceComplete = useRef(false);
+    
+    // Stop welcome audio immediately when loading completes (runs ONCE when isSequenceComplete becomes true)
     useEffect(() => {
-        if (isSequenceComplete) {
+        if (isSequenceComplete && !hasHandledSequenceComplete.current && isConversationActiveRef.current) {
+            hasHandledSequenceComplete.current = true;
+            
             // Stop the conversation sequence
             isConversationActiveRef.current = false;
             
@@ -536,15 +541,15 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                 conversationTimerRef.current = null;
             }
             
-            // Stop any playing audio
+            // Stop any playing CONVERSATION audio (only if conversation was active)
             if (currentAudio && isSovaSpeaking) {
-                console.log('Loading complete - stopping SOVA conversation immediately');
+                console.log('Loading complete - stopping SOVA welcome conversation immediately');
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
+                setIsSovaSpeaking(false);
+                setCurrentAudio(null);
             }
             
-            setIsSovaSpeaking(false);
-            setCurrentAudio(null);
             setShowWelcomeText(false);
             setCurrentSovaText('');
         }
