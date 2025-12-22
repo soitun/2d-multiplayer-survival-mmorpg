@@ -162,7 +162,7 @@ const BlogFooter: React.FC = () => {
                             { label: 'BABUSHKA\'S TOOLS', action: 'tools', section: true },
                             { label: 'FEATURES', action: 'features', section: true },
                             { label: 'FAQ', action: 'faq', section: true },
-                            { label: 'LORE', action: 'https://mybook.to/brothandbullets4', external: true },
+                            { label: 'LORE', action: 'https://www.babushkabook.com/reader/excerpts/tides-prologue-lagunov', external: true },
                             { label: 'BLOG', action: '/blog', internal: true },
                             { label: 'CONTACT', action: 'mailto:martin.erlic@gmail.com', external: true },
                         ].map((link) => (

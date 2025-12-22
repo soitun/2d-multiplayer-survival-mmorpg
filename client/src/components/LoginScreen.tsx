@@ -1093,86 +1093,97 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                             {/* Version Text with Learn More */}
                             <div style={{
                                 display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '17px',
+                                gap: '12px',
                                 marginTop: '19px',
                             }}>
-                                <span style={{
-                                    fontSize: '13.5px',
-                                    color: 'rgba(255, 255, 255, 0.97)',
-                                    fontWeight: 600,
-                                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                    textShadow: '1px 1px 3px rgba(60,18,0,0.7)',
-                                    letterSpacing: '0.7px',
+                                {/* First row: Early Access text and Learn More button */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '17px',
                                 }}>
-                                    Early Access Alpha v0.82
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const contentSection = document.querySelector('[data-content-section]');
-                                        if (contentSection) {
-                                            contentSection.scrollIntoView({
-                                                behavior: 'smooth',
-                                                block: 'start'
-                                            });
-                                        } else {
-                                            window.scrollTo({
-                                                top: window.innerHeight * 0.9,
-                                                behavior: 'smooth'
-                                            });
-                                        }
-                                    }}
-                                    style={{
-                                        background: 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)',
-                                        border: 'none',
-                                        color: '#852100',
-                                        fontWeight: 800,
-                                        padding: '7px 22px',
-                                        fontSize: '13px',
-                                        borderRadius: '18px',
-                                        boxShadow: '0 1.5px 11px 2px rgba(0,0,0,0.08)',
-                                        cursor: 'pointer',
+                                    <span style={{
+                                        fontSize: '13.5px',
+                                        color: 'rgba(255, 255, 255, 0.97)',
+                                        fontWeight: 600,
                                         fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                        textShadow: '1px 1px 3px rgba(255,255,255,0.15)',
-                                        transition: 'all 0.22s cubic-bezier(0.63, 0.1, 0.32, 1), box-shadow 0.13s',
-                                        letterSpacing: '1.2px',
-                                        position: 'relative',
-                                        userSelect: 'none',
-                                        overflow: 'hidden'
-                                    }}
-                                    className={isGleaming ? 'gleam-animating' : ''}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background =
-                                            'linear-gradient(92deg, #fff3e0, #ffb94f 50%, #ff8c00 90%, #e67c00)';
-                                        e.currentTarget.style.color = '#7a2200';
-                                        e.currentTarget.style.boxShadow = '0 0 21px 2px rgba(255,220,120,0.48), 0 3px 12px 0 rgba(0,0,0,0.22)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)';
-                                        e.currentTarget.style.color = '#852100';
-                                        e.currentTarget.style.boxShadow = '0 1.5px 11px 2px rgba(0,0,0,0.08)';
-                                    }}
-                                >
-                                    <span
+                                        textShadow: '1px 1px 3px rgba(60,18,0,0.7)',
+                                        letterSpacing: '0.7px',
+                                    }}>
+                                        Early Access Alpha v0.82
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const contentSection = document.querySelector('[data-content-section]');
+                                            if (contentSection) {
+                                                contentSection.scrollIntoView({
+                                                    behavior: 'smooth',
+                                                    block: 'start'
+                                                });
+                                            } else {
+                                                window.scrollTo({
+                                                    top: window.innerHeight * 0.9,
+                                                    behavior: 'smooth'
+                                                });
+                                            }
+                                        }}
                                         style={{
+                                            background: 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)',
+                                            border: 'none',
+                                            color: '#852100',
                                             fontWeight: 800,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "1.8px",
-                                            fontSize: 'inherit',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
+                                            padding: '7px 22px',
+                                            fontSize: '13px',
+                                            borderRadius: '18px',
+                                            boxShadow: '0 1.5px 11px 2px rgba(0,0,0,0.08)',
+                                            cursor: 'pointer',
+                                            fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                                            textShadow: '1px 1px 3px rgba(255,255,255,0.15)',
+                                            transition: 'all 0.22s cubic-bezier(0.63, 0.1, 0.32, 1), box-shadow 0.13s',
+                                            letterSpacing: '1.2px',
                                             position: 'relative',
-                                            zIndex: 1
+                                            userSelect: 'none',
+                                            overflow: 'hidden'
+                                        }}
+                                        className={isGleaming ? 'gleam-animating' : ''}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background =
+                                                'linear-gradient(92deg, #fff3e0, #ffb94f 50%, #ff8c00 90%, #e67c00)';
+                                            e.currentTarget.style.color = '#7a2200';
+                                            e.currentTarget.style.boxShadow = '0 0 21px 2px rgba(255,220,120,0.48), 0 3px 12px 0 rgba(0,0,0,0.22)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)';
+                                            e.currentTarget.style.color = '#852100';
+                                            e.currentTarget.style.boxShadow = '0 1.5px 11px 2px rgba(0,0,0,0.08)';
                                         }}
                                     >
-                                        learn more
-                                    </span>
-                                </button>
+                                        <span
+                                            style={{
+                                                fontWeight: 800,
+                                                textTransform: "uppercase",
+                                                letterSpacing: "1.8px",
+                                                fontSize: 'inherit',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                position: 'relative',
+                                                zIndex: 1
+                                            }}
+                                        >
+                                            learn more
+                                        </span>
+                                    </button>
+                                </div>
+                                
+                                {/* Second row: AI Disclosure button */}
                                 <button
                                     type="button"
                                     onClick={(e) => {
@@ -1208,6 +1219,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 >
                                     AI Disclosure
                                 </button>
+                                
                                 <style>{`
                                     .gleam-animating::before {
                                         content: '';
@@ -2094,7 +2106,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 { label: 'BABUSHKA\'S TOOLS', action: 'tools' },
                                 { label: 'FEATURES', action: 'features' },
                                 { label: 'FAQ', action: 'faq' },
-                                { label: 'LORE', action: 'https://www.babushkabook.com/', external: true },
+                                { label: 'LORE', action: 'https://www.babushkabook.com/reader/excerpts/tides-prologue-lagunov', external: true },
                                 { label: 'BLOG', action: '/blog', internal: true },
                                 { label: 'CONTACT', action: 'mailto:martin.erlic@gmail.com', external: true },
                             ].map((link) => (
