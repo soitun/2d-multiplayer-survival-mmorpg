@@ -151,12 +151,14 @@ pub fn spawn_living_corals_in_chunk(
 }
 
 // --- Storm Debris Spawning ---
-// Instead of a StormPile entity, heavy storms spawn individual items on beaches:
-// - HarvestableResource (BeachWoodPile/Driftwood)
+// Heavy storms (only HeavyStorm, the most intense weather) spawn individual items on beaches:
+// - HarvestableResource (BeachWoodPile/Driftwood) - reduced rate
 // - DroppedItem entities (Seaweed, Coral Fragments, Shells)
+// NOTE: Only spawns on Beach tiles (not Sand), and only if chunk is "picked clean" of existing debris
 
 /// Spawn storm debris on beaches after a Heavy Storm ends
-/// This replaces the old StormPile entity with individual harvestable/dropped items
+/// Only HeavyStorm (the most intense weather) triggers this - called from world_state.rs
+/// Only spawns if chunk has no existing storm debris (picked clean), Beach tiles only
 pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> Result<(), String> {
     use crate::{TileType, world_pos_to_tile_coords, get_tile_type_at_position, WORLD_WIDTH_TILES, TILE_SIZE_PX};
     use crate::harvestable_resource::create_harvestable_resource;
@@ -166,37 +168,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
     use crate::dropped_item::dropped_item as DroppedItemTableTrait;
     
-    // Check if there's already recent storm debris in this chunk (limit debris accumulation)
-    // Count driftwood (BeachWoodPile) in this chunk - if there's already 3+, skip spawning
-    let existing_driftwood_count = ctx.db.harvestable_resource()
-        .chunk_index()
-        .filter(chunk_index)
-        .filter(|r| r.plant_type == PlantType::BeachWoodPile && r.respawn_at.is_none())
-        .count();
-    
-    if existing_driftwood_count >= 3 {
-        log::info!("Storm debris skipped for chunk {} - already {} driftwood present", chunk_index, existing_driftwood_count);
-        return Ok(());
-    }
-    
-    // Limit total debris spawning based on existing count
-    let max_new_debris = (3 - existing_driftwood_count as u32).max(1);
-    
-    let mut rng = ctx.rng();
-    
-    // Calculate chunk bounds in pixels
-    let chunk_size = CHUNK_SIZE_TILES as f32;
-    let chunks_per_row = WORLD_WIDTH_TILES / CHUNK_SIZE_TILES;
-    let chunk_x = (chunk_index % chunks_per_row) as f32;
-    let chunk_y = (chunk_index / chunks_per_row) as f32;
-    
-    let tile_size = TILE_SIZE_PX as f32;
-    let chunk_start_x = chunk_x * chunk_size * tile_size;
-    let chunk_start_y = chunk_y * chunk_size * tile_size;
-    let chunk_end_x = chunk_start_x + (chunk_size * tile_size);
-    let chunk_end_y = chunk_start_y + (chunk_size * tile_size);
-    
-    // Pre-fetch item definition IDs
+    // Pre-fetch item definition IDs first (needed for debris check)
     let mut seaweed_id = None;
     let mut coral_frag_id = None;
     let mut shell_id = None;
@@ -217,8 +189,48 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     let coral_frag_id = coral_frag_id.ok_or("Coral Fragments item definition not found")?;
     let shell_id = shell_id.ok_or("Shell item definition not found")?;
     
-    // Spawn 2-5 debris items per chunk, but limited by existing debris
-    let spawn_count = rng.gen_range(2..=5).min(max_new_debris as i32) as u32;
+    // Check if there's ANY existing storm debris in this chunk
+    // This includes driftwood (BeachWoodPile) AND dropped items (seaweed, coral, shells)
+    
+    // Check for driftwood
+    let existing_driftwood = ctx.db.harvestable_resource()
+        .chunk_index()
+        .filter(chunk_index)
+        .any(|r| r.plant_type == PlantType::BeachWoodPile && r.respawn_at.is_none());
+    
+    // Check for dropped storm debris items (seaweed, coral fragments, shells)
+    let existing_dropped_debris = ctx.db.dropped_item()
+        .chunk_index()
+        .filter(chunk_index)
+        .any(|item| {
+            item.item_def_id == seaweed_id || 
+            item.item_def_id == coral_frag_id || 
+            item.item_def_id == shell_id
+        });
+    
+    // If ANY storm debris exists, skip spawning - wait until picked clean
+    if existing_driftwood || existing_dropped_debris {
+        log::debug!("Storm debris skipped for chunk {} - existing debris present (driftwood: {}, items: {})", 
+                   chunk_index, existing_driftwood, existing_dropped_debris);
+        return Ok(());
+    }
+    
+    let mut rng = ctx.rng();
+    
+    // Calculate chunk bounds in pixels
+    let chunk_size = CHUNK_SIZE_TILES as f32;
+    let chunks_per_row = WORLD_WIDTH_TILES / CHUNK_SIZE_TILES;
+    let chunk_x = (chunk_index % chunks_per_row) as f32;
+    let chunk_y = (chunk_index / chunks_per_row) as f32;
+    
+    let tile_size = TILE_SIZE_PX as f32;
+    let chunk_start_x = chunk_x * chunk_size * tile_size;
+    let chunk_start_y = chunk_y * chunk_size * tile_size;
+    let chunk_end_x = chunk_start_x + (chunk_size * tile_size);
+    let chunk_end_y = chunk_start_y + (chunk_size * tile_size);
+    
+    // Spawn 2-4 debris items per chunk when picked clean (rebalanced from 2-5)
+    let spawn_count = rng.gen_range(2..=4);
     
     let mut spawned_driftwood = 0;
     let mut spawned_items = 0;
@@ -235,21 +247,21 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
         // Convert to tile coordinates to check tile type
         let (tile_x, tile_y) = world_pos_to_tile_coords(pos_x, pos_y);
         
-        // Check if this is a beach tile
+        // Check if this is a beach tile (ONLY Beach, not Sand - storm debris washes up on shores)
         if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
-            if !matches!(tile_type, TileType::Beach | TileType::Sand) {
+            if tile_type != TileType::Beach {
                 continue;
             }
         } else {
             continue;
         }
         
-        // Determine what to spawn
+        // Determine what to spawn (REBALANCED: less driftwood, more coral fragments)
         let spawn_roll = rng.gen::<f32>();
         let item_chunk = calculate_chunk_index(pos_x, pos_y);
         
-        if spawn_roll < 0.40 {
-            // 40% chance: Spawn driftwood (BeachWoodPile harvestable resource)
+        if spawn_roll < 0.20 {
+            // 20% chance: Spawn driftwood (reduced from 40%)
             let driftwood = create_harvestable_resource(
                 PlantType::BeachWoodPile,
                 pos_x,
@@ -260,8 +272,8 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             ctx.db.harvestable_resource().insert(driftwood);
             spawned_driftwood += 1;
             log::info!("Storm spawned driftwood at ({:.1}, {:.1})", pos_x, pos_y);
-        } else if spawn_roll < 0.70 {
-            // 30% chance: Spawn seaweed
+        } else if spawn_roll < 0.50 {
+            // 30% chance: Spawn seaweed (unchanged)
             let quantity = rng.gen_range(1..=3);
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
@@ -275,9 +287,9 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             });
             spawned_items += 1;
             log::info!("Storm spawned {} seaweed at ({:.1}, {:.1})", quantity, pos_x, pos_y);
-        } else if spawn_roll < 0.90 {
-            // 20% chance: Spawn coral fragments
-            let quantity = rng.gen_range(1..=2);
+        } else if spawn_roll < 0.85 {
+            // 35% chance: Spawn coral fragments (increased from 20%)
+            let quantity = rng.gen_range(1..=3);
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
                 item_def_id: coral_frag_id,
@@ -291,7 +303,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             spawned_items += 1;
             log::info!("Storm spawned {} coral fragments at ({:.1}, {:.1})", quantity, pos_x, pos_y);
         } else {
-            // 10% chance: Spawn shell
+            // 15% chance: Spawn shell (increased from 10%)
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
                 item_def_id: shell_id,
