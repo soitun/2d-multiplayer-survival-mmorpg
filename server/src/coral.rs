@@ -155,10 +155,30 @@ pub fn spawn_living_corals_in_chunk(
 // - HarvestableResource (BeachWoodPile/Driftwood) - reduced rate
 // - DroppedItem entities (Seaweed, Coral Fragments, Shells)
 // NOTE: Only spawns on Beach tiles (not Sand), and only if chunk is "picked clean" of existing debris
+// NOTE: Only spawns in SHORE CHUNKS (chunks containing water) - not inland beach areas
+
+/// Check if a chunk is a "shore chunk" - has coastal beach tiles (near water)
+/// This ensures storm debris only spawns on actual coastlines, not inland beach areas
+/// 
+/// OPTIMIZED: Uses pre-computed coastal_spawn_point table - O(log n) btree lookup
+/// The coastal_spawn_point table contains beach tiles adjacent to water,
+/// so if ANY exist in this chunk, it's definitionally a shore chunk.
+fn is_shore_chunk(ctx: &ReducerContext, chunk_index: u32) -> bool {
+    use crate::coastal_spawn_point as CoastalSpawnPointTableTrait;
+    
+    // O(log n) btree index lookup - checks if ANY coastal spawn points exist in this chunk
+    // coastal_spawn_point.chunk_index has a btree index
+    ctx.db.coastal_spawn_point()
+        .chunk_index()
+        .filter(chunk_index)
+        .next()
+        .is_some()
+}
 
 /// Spawn storm debris on beaches after a Heavy Storm ends
 /// Only HeavyStorm (the most intense weather) triggers this - called from world_state.rs
 /// Only spawns if chunk has no existing storm debris (picked clean), Beach tiles only
+/// Only spawns in SHORE CHUNKS (chunks that contain water) - not inland beach areas
 pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> Result<(), String> {
     use crate::{TileType, world_pos_to_tile_coords, get_tile_type_at_position, WORLD_WIDTH_TILES, TILE_SIZE_PX};
     use crate::harvestable_resource::create_harvestable_resource;
@@ -167,6 +187,12 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     use crate::items::item_definition as ItemDefinitionTableTrait;
     use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
     use crate::dropped_item::dropped_item as DroppedItemTableTrait;
+    
+    // FIRST: Check if this is a shore chunk (contains water tiles)
+    // Storm debris only washes up on actual coastlines, not inland beach areas
+    if !is_shore_chunk(ctx, chunk_index) {
+        return Ok(()); // Silently skip non-coastal chunks
+    }
     
     // Pre-fetch item definition IDs first (needed for debris check)
     let mut seaweed_id = None;
