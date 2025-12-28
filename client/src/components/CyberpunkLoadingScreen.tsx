@@ -279,11 +279,10 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
 
         // Add music preload status for non-auth loading
-        if (!authLoading && !spacetimeLoading) {
-            if (musicPreloadProgress > 0 && musicPreloadProgress < 1) {
-                const percentage = Math.round(musicPreloadProgress * 100);
-                baseLogs.push(`└─ [AUDIO] Preloading ambient soundtrack... ${percentage}%`);
-            } else if (musicPreloadComplete) {
+        // Only show final [AUDIO] status when assets are complete to avoid duplicate logs
+        // (visibleLogs accumulates across phase changes, so we only add each log type once)
+        if (!authLoading && !spacetimeLoading && assetProgress?.phase === 'complete') {
+            if (musicPreloadComplete) {
                 baseLogs.push("└─ [AUDIO] Ambient soundtrack loaded. Environment ready.");
             }
             
