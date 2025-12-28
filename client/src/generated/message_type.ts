@@ -32,6 +32,7 @@ export type Message = {
   id: bigint,
   sender: __Identity,
   senderUsername: string,
+  senderTitle: string | undefined,
   text: string,
   sent: __Timestamp,
 };
@@ -52,6 +53,7 @@ export const Message = {
       { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "sender", algebraicType: __AlgebraicTypeValue.createIdentityType() },
       { name: "senderUsername", algebraicType: __AlgebraicTypeValue.String },
+      { name: "senderTitle", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
       { name: "text", algebraicType: __AlgebraicTypeValue.String },
       { name: "sent", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );

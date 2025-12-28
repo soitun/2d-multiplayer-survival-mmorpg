@@ -49,40 +49,6 @@ pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
     CompoundBuildingCollision { offset_x: -450.0, offset_y: 400.0, collision_radius: 140.0, collision_y_offset: 0.0 },
     // Shed
     CompoundBuildingCollision { offset_x: 0.0, offset_y: 500.0, collision_radius: 100.0, collision_y_offset: 0.0 },
-    
-    // ===== PERIMETER WALLS =====
-    // Walls use multiple collision circles to approximate rectangular collision
-    // Walls are shortened to leave gaps at corners for player access
-    
-    // North Wall - 4 collision points (moved to y=-690, shortened, leaving corner gaps)
-    CompoundBuildingCollision { offset_x: -375.0, offset_y: -690.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -125.0, offset_y: -690.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 125.0, offset_y: -690.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 375.0, offset_y: -690.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    
-    // South Wall - 4 collision points (moved to y=740, shortened, leaving corner gaps)
-    CompoundBuildingCollision { offset_x: -375.0, offset_y: 740.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -125.0, offset_y: 740.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 125.0, offset_y: 740.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 375.0, offset_y: 740.0, collision_radius: 130.0, collision_y_offset: 0.0 },
-    
-    // West Wall - 5 collision points (pushed to x=-680, y=50, height 1100, leaving corner gaps)
-    // Wall spans from y=-500 to y=600 (center at y=50, height 1100, anchorYOffset 550)
-    // Leave gaps at top corner (around y=-690 to -450) and bottom corner (around y=550 to 740)
-    CompoundBuildingCollision { offset_x: -680.0, offset_y: -400.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -680.0, offset_y: -200.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -680.0, offset_y: 0.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -680.0, offset_y: 200.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: -680.0, offset_y: 400.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    
-    // East Wall - 5 collision points (pushed to x=740, y=50, height 1100, leaving corner gaps)
-    // Wall spans from y=-500 to y=600 (center at y=50, height 1100, anchorYOffset 550)
-    // Leave gaps at top corner (around y=-690 to -450) and bottom corner (around y=550 to 740)
-    CompoundBuildingCollision { offset_x: 740.0, offset_y: -400.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 740.0, offset_y: -200.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 740.0, offset_y: 0.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 740.0, offset_y: 200.0, collision_radius: 120.0, collision_y_offset: 0.0 },
-    CompoundBuildingCollision { offset_x: 740.0, offset_y: 400.0, collision_radius: 120.0, collision_y_offset: 0.0 },
 ];
 
 /// Calculate the world center coordinates in pixels.

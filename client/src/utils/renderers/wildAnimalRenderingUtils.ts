@@ -102,9 +102,11 @@ interface AnimalMovementState {
 
 const animalMovementStates = new Map<string, AnimalMovementState>();
 
-// Interpolation settings - UPDATED for high-speed animals (750-800 px/s)
-const ANIMAL_INTERPOLATION_SPEED = 0.35; // Faster interpolation for high-speed movement
-const MAX_INTERPOLATION_DISTANCE = 200; // Higher threshold - animals can move 93px in 125ms at 750px/s
+// Interpolation settings - UPDATED for 500ms server tick interval
+// Animals can move ~375px in 500ms at 750px/s, so we need higher thresholds
+// Slower lerp speed compensates for larger gaps between server updates
+const ANIMAL_INTERPOLATION_SPEED = 0.20; // Slower interpolation for smoother movement with 500ms ticks
+const MAX_INTERPOLATION_DISTANCE = 500; // Higher threshold for 500ms tick interval (was 200 for 125ms)
 
 // --- Reusable Offscreen Canvas for Tinting ---
 const offscreenCanvas = document.createElement('canvas');

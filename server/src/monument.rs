@@ -1080,10 +1080,8 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         MonumentPlaceableConfig::campfire(-150.0, 200.0),
         MonumentPlaceableConfig::campfire(150.0, 200.0),
         // Two furnaces further back
-        MonumentPlaceableConfig::furnace(-200.0, -100.0),
-        MonumentPlaceableConfig::furnace(200.0, -100.0),
-        // Repair bench near the center
-        MonumentPlaceableConfig::repair_bench(0.0, -150.0),
+        MonumentPlaceableConfig::furnace(-300.0, -100.0),
+        MonumentPlaceableConfig::furnace(300.0, -100.0),
         // Rain collector off to the side
         MonumentPlaceableConfig::rain_collector(-250.0, 50.0),
     ]

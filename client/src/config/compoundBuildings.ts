@@ -452,60 +452,6 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionYOffset: 0,
   },
   
-  // ===== PERIMETER WALLS =====
-  // Walls are slightly shorter than the compound to leave gaps at corners
-  
-  // North Wall (top, long horizontal) - moved further north, shortened for corner gaps
-  {
-    id: 'wall_north',
-    offsetX: 0,
-    offsetY: -690,  // Pushed down a bit from -750
-    imagePath: 'wall_horizontal.png',
-    width: 1000,  // Shortened from 1200 for corner gaps
-    height: 64,
-    anchorYOffset: 32,
-    collisionRadius: 480,
-    collisionYOffset: 0,
-  },
-  
-  // South Wall (bottom, long horizontal) - moved further south, shortened for corner gaps
-  {
-    id: 'wall_south',
-    offsetX: 0,
-    offsetY: 740,  // Moved down from 550
-    imagePath: 'wall_horizontal.png',
-    width: 1000,  // Shortened from 1200 for corner gaps
-    height: 64,
-    anchorYOffset: 32,
-    collisionRadius: 480,
-    collisionYOffset: 0,
-  },
-  
-  // West Wall (left, tall vertical) - pushed outward, shortened from bottom
-  {
-    id: 'wall_west',
-    offsetX: -680,  // Pushed right a tad from -700
-    offsetY: 50,  // Shifted up slightly (reducing bottom height)
-    imagePath: 'wall_vertical.png',
-    width: 64,
-    height: 1100,  // Shortened from bottom (was 1200)
-    anchorYOffset: 550,  // Half of 1100
-    collisionRadius: 540,
-    collisionYOffset: 0,
-  },
-  
-  // East Wall (right, tall vertical) - pushed outward, shortened from bottom
-  {
-    id: 'wall_east',
-    offsetX: 740,  // Pushed further out from 600
-    offsetY: 50,  // Shifted up slightly (reducing bottom height)
-    imagePath: 'wall_vertical.png',
-    width: 64,
-    height: 1100,  // Shortened from bottom (was 1200)
-    anchorYOffset: 550,  // Half of 1100
-    collisionRadius: 540,
-    collisionYOffset: 0,
-  },
 ];
 
 /**

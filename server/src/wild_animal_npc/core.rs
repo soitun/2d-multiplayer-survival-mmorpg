@@ -80,7 +80,9 @@ pub const TAMING_PROTECT_RADIUS: f32 = 300.0; // How far tamed animals will go t
 pub const TAMING_PROTECT_RADIUS_SQUARED: f32 = TAMING_PROTECT_RADIUS * TAMING_PROTECT_RADIUS;
 
 // --- Constants ---
-pub const AI_TICK_INTERVAL_MS: u64 = 125; // AI processes 8 times per second
+// PERFORMANCE OPTIMIZATION: Reduced from 125ms (8x/sec) to 500ms (2x/sec)
+// This saves ~75% of reducer calls while client interpolation keeps movement smooth
+pub const AI_TICK_INTERVAL_MS: u64 = 500; // AI processes 2 times per second (was 8x)
 pub const MAX_ANIMALS_PER_CHUNK: u32 = 3;
 pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 
@@ -567,6 +569,14 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("Wild animal AI can only be processed by scheduler".to_string());
+    }
+
+    // PERFORMANCE OPTIMIZATION: Skip AI entirely if no players are online
+    // This saves significant compute when the server is idle (nobody playing)
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        log::trace!("No players online - skipping animal AI processing to save resources.");
+        return Ok(());
     }
 
     // Early return if there are no animals - prevents unnecessary processing

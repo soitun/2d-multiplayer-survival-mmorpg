@@ -15,6 +15,7 @@ import {
     COMPOUND_BUILDINGS, 
     getBuildingWorldPosition 
 } from '../../config/compoundBuildings';
+import { drawDynamicGroundShadow } from './shadowUtils';
 
 // Image cache for compound buildings (same pattern as alkStationRenderingUtils.ts)
 const buildingImages: Map<string, HTMLImageElement> = new Map();
@@ -332,6 +333,21 @@ export function renderMonument(
             }
         }
     }
+    
+    // Draw dynamic ground shadow (before building sprite, like ALK central compound)
+    drawDynamicGroundShadow({
+        ctx,
+        entityImage: img,
+        entityCenterX: worldX,
+        entityBaseY: worldY,
+        imageDrawWidth: building.width,
+        imageDrawHeight: building.height,
+        cycleProgress,
+        maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
+        maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
+        minStretchFactor: 0.2,
+        pivotYOffset: building.anchorYOffset, // Offset shadow pivot to account for building base
+    });
     
     // Apply transparency if needed
     if (shouldApplyTransparency) {
