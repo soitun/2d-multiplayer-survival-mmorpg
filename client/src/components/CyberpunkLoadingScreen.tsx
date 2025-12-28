@@ -254,29 +254,27 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         ] : [];
 
         // Add REAL asset loading progress when not in auth/spacetime loading phases
+        // NOTE: Log lines get "frozen" when added to visibleLogs, so we avoid showing 
+        // intermediate counts that would appear stuck. The progress bar shows real-time progress,
+        // and we only show final counts when loading is complete.
         if (!authLoading && !spacetimeLoading && assetProgress) {
-            const percentage = Math.round(assetProgress.totalProgress * 100);
-            const cacheInfo = assetProgress.fromCache > 0 ? ` (${assetProgress.fromCache} cached)` : '';
+            const finalCacheInfo = assetProgress.fromCache > 0 ? ` (${assetProgress.fromCache} cached)` : '';
             
             if (assetProgress.phase === 'critical') {
                 baseLogs.push("└─ [INIT] Initializing core rendering systems...");
-                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
-                if (percentage > 10) {
-                    baseLogs.push(`└─ [LOAD] Core systems: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
-                }
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
             } else if (assetProgress.phase === 'important') {
                 baseLogs.push("└─ [CORE] Core systems loaded successfully.");
-                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}: ${assetProgress.currentAsset}...`);
-                baseLogs.push(`└─ [LOAD] Environment textures: ${Math.round(assetProgress.phaseProgress * 100)}% complete${cacheInfo}`);
+                baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
             } else if (assetProgress.phase === 'secondary') {
                 baseLogs.push("└─ [CORE] Core systems loaded successfully.");
                 baseLogs.push("└─ [ENV] Environment textures loaded.");
                 baseLogs.push(`└─ [ASSETS] ${assetProgress.phaseName}...`);
-                baseLogs.push(`└─ [LOAD] Item database: ${assetProgress.loadedCount}/${assetProgress.totalCount} assets${cacheInfo}`);
             } else if (assetProgress.phase === 'complete') {
+                // Only show final accurate counts when loading is truly complete
                 baseLogs.push("└─ [CORE] Core systems loaded successfully.");
                 baseLogs.push("└─ [ENV] Environment textures loaded.");
-                baseLogs.push(`└─ [ITEMS] Item database loaded: ${assetProgress.totalCount} assets${cacheInfo}`);
+                baseLogs.push(`└─ [LOAD] Item database: ${assetProgress.totalCount}/${assetProgress.totalCount} assets${finalCacheInfo}`);
             }
         }
 

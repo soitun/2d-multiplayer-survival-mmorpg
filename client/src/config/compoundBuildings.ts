@@ -451,7 +451,6 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionRadius: 100,
     collisionYOffset: 0,
   },
-  
 ];
 
 /**

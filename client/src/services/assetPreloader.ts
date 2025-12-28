@@ -80,11 +80,14 @@ const IMPORTANT_ASSETS: { name: string; src: string }[] = [
 // Cache for loaded images
 const loadedImages: Map<string, HTMLImageElement> = new Map();
 
+// Service worker cache name - must match sw.js CACHE_NAME
+const SW_CACHE_NAME = 'game-assets-v2';
+
 // Check if an asset is in service worker cache
 async function isInCache(url: string): Promise<boolean> {
     if (!('caches' in window)) return false;
     try {
-        const cache = await caches.open('game-assets-v1');
+        const cache = await caches.open(SW_CACHE_NAME);
         const response = await cache.match(url);
         return !!response;
     } catch {

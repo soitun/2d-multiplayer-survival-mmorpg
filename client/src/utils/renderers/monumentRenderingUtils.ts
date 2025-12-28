@@ -335,6 +335,10 @@ export function renderMonument(
     }
     
     // Draw dynamic ground shadow (before building sprite, like ALK central compound)
+    // The sprite's visual base (where it touches ground) is at worldY + anchorYOffset
+    // (since drawY = worldY - height + anchorYOffset, sprite bottom = drawY + height = worldY + anchorYOffset)
+    // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
+    // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
     drawDynamicGroundShadow({
         ctx,
         entityImage: img,
@@ -346,7 +350,10 @@ export function renderMonument(
         maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
         maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
         minStretchFactor: 0.2,
-        pivotYOffset: building.anchorYOffset, // Offset shadow pivot to account for building base
+        // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
+        pivotYOffset: building.id.startsWith('guardpost') 
+            ? -building.anchorYOffset + 10  // Guardposts: perfect offset
+            : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
     });
     
     // Apply transparency if needed
