@@ -22,6 +22,8 @@ use crate::plants_database::{PLANT_CONFIGS, PlantType};
 use crate::world_state::Season;
 use crate::PLAYER_RADIUS;
 use crate::world_tile as WorldTileTableTrait;
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // Import table traits
 use crate::alk::alk_state as AlkStateTableTrait;
@@ -2320,6 +2322,7 @@ pub fn deliver_alk_contract(
     }
     
     // Update player contract
+    let was_completed = player_contract.status == AlkContractStatus::Completed;
     player_contract.delivered_quantity += items_consumed;
     if player_contract.delivered_quantity >= player_contract.target_quantity {
         player_contract.status = AlkContractStatus::Completed;
@@ -2331,8 +2334,25 @@ pub fn deliver_alk_contract(
               player_id, items_consumed, contract.item_name, bundles_delivered, 
               station.name, net_reward, fee);
     
-    if player_contract.status == AlkContractStatus::Completed {
+    if player_contract.status == AlkContractStatus::Completed && !was_completed {
         log::info!("✅ Contract {} completed!", player_contract_id);
+        
+        // Award XP and update stats for contract completion
+        if let Err(e) = crate::player_progression::award_xp(ctx, player_id, crate::player_progression::XP_CONTRACT_COMPLETED) {
+            log::error!("Failed to award XP for contract completion: {}", e);
+        }
+        
+        // Track contracts_completed stat and check achievements
+        // Also update total_shards_earned
+        {
+            let mut stats = crate::player_progression::get_or_init_player_stats(ctx, player_id);
+            stats.total_shards_earned += net_reward as u64;
+            stats.updated_at = ctx.timestamp;
+            ctx.db.player_stats().player_id().update(stats.clone());
+        }
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "contracts_completed", 1) {
+            log::error!("Failed to track contract completion stat: {}", e);
+        }
     }
     
     Ok(())

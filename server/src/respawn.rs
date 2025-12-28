@@ -14,6 +14,9 @@ use crate::items;
 // Import global constants from lib.rs
 use crate::{TILE_SIZE_PX, WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TileType};
 
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
+
 // Import player starting constants
 use crate::player_stats::{PLAYER_STARTING_HUNGER, PLAYER_STARTING_THIRST};
 
@@ -259,6 +262,12 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     current_player.is_dead = false; // Mark as alive again
     current_player.death_timestamp = None; // Clear death timestamp
     current_player.last_hit_time = None;
+    
+    // Update survival tracking in player stats
+    let mut stats = crate::player_progression::get_or_init_player_stats(ctx, sender_id);
+    stats.current_survival_start = Some(ctx.timestamp);
+    stats.updated_at = ctx.timestamp;
+    ctx.db.player_stats().player_id().update(stats);
     current_player.is_torch_lit = false; // Ensure torch is unlit on respawn
     current_player.is_knocked_out = false; // Reset knocked out state
     current_player.knocked_out_at = None; // Clear knocked out timestamp

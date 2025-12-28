@@ -167,6 +167,17 @@ export interface SpacetimeTableStates {
     matronageMembers: Map<string, any>; // ADDED: Matronage membership tracking
     matronageInvitations: Map<string, any>; // ADDED: Pending matronage invitations
     matronageOwedShards: Map<string, any>; // ADDED: Owed shard balances from matronage
+    // Player progression system tables
+    playerStats: Map<string, SpacetimeDB.PlayerStats>; // ADDED: Player XP, level, and stats
+    achievementDefinitions: Map<string, SpacetimeDB.AchievementDefinition>; // ADDED: Achievement definitions
+    playerAchievements: Map<string, SpacetimeDB.PlayerAchievement>; // ADDED: Unlocked achievements
+    achievementUnlockNotifications: Map<string, SpacetimeDB.AchievementUnlockNotification>; // ADDED: Achievement unlock notifications
+    levelUpNotifications: Map<string, SpacetimeDB.LevelUpNotification>; // ADDED: Level up notifications
+    dailyLoginNotifications: Map<string, SpacetimeDB.DailyLoginNotification>; // ADDED: Daily login reward notifications
+    progressNotifications: Map<string, SpacetimeDB.ProgressNotification>; // ADDED: Progress threshold notifications
+    comparativeStatNotifications: Map<string, SpacetimeDB.ComparativeStatNotification>; // ADDED: Comparative stats on death
+    leaderboardEntries: Map<string, SpacetimeDB.LeaderboardEntry>; // ADDED: Leaderboard entries
+    dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>; // ADDED: Daily login reward definitions
 }
 
 // Define the props the hook accepts
@@ -262,6 +273,17 @@ export const useSpacetimeTables = ({
     const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage membership tracking
     const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map()); // ADDED: Pending matronage invitations
     const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map()); // ADDED: Owed shard balances from matronage
+    // Player progression system state
+    const [playerStats, setPlayerStats] = useState<Map<string, SpacetimeDB.PlayerStats>>(() => new Map());
+    const [achievementDefinitions, setAchievementDefinitions] = useState<Map<string, SpacetimeDB.AchievementDefinition>>(() => new Map());
+    const [playerAchievements, setPlayerAchievements] = useState<Map<string, SpacetimeDB.PlayerAchievement>>(() => new Map());
+    const [achievementUnlockNotifications, setAchievementUnlockNotifications] = useState<Map<string, SpacetimeDB.AchievementUnlockNotification>>(() => new Map());
+    const [levelUpNotifications, setLevelUpNotifications] = useState<Map<string, SpacetimeDB.LevelUpNotification>>(() => new Map());
+    const [dailyLoginNotifications, setDailyLoginNotifications] = useState<Map<string, SpacetimeDB.DailyLoginNotification>>(() => new Map());
+    const [progressNotifications, setProgressNotifications] = useState<Map<string, SpacetimeDB.ProgressNotification>>(() => new Map());
+    const [comparativeStatNotifications, setComparativeStatNotifications] = useState<Map<string, SpacetimeDB.ComparativeStatNotification>>(() => new Map());
+    const [leaderboardEntries, setLeaderboardEntries] = useState<Map<string, SpacetimeDB.LeaderboardEntry>>(() => new Map());
+    const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1048,6 +1070,88 @@ export const useSpacetimeTables = ({
             const handleMessageUpdate = (ctx: any, oldMsg: SpacetimeDB.Message, newMsg: SpacetimeDB.Message) => setMessages(prev => new Map(prev).set(newMsg.id.toString(), newMsg));
             const handleMessageDelete = (ctx: any, msg: SpacetimeDB.Message) => setMessages(prev => { const newMap = new Map(prev); newMap.delete(msg.id.toString()); return newMap; });
 
+            // --- Player Progression System Handlers ---
+            const handlePlayerStatsInsert = (ctx: any, stats: SpacetimeDB.PlayerStats) => setPlayerStats(prev => new Map(prev).set(stats.playerId.toHexString(), stats));
+            const handlePlayerStatsUpdate = (ctx: any, oldStats: SpacetimeDB.PlayerStats, newStats: SpacetimeDB.PlayerStats) => setPlayerStats(prev => new Map(prev).set(newStats.playerId.toHexString(), newStats));
+            const handlePlayerStatsDelete = (ctx: any, stats: SpacetimeDB.PlayerStats) => setPlayerStats(prev => { const newMap = new Map(prev); newMap.delete(stats.playerId.toHexString()); return newMap; });
+
+            const handleAchievementDefinitionInsert = (ctx: any, def: SpacetimeDB.AchievementDefinition) => setAchievementDefinitions(prev => new Map(prev).set(def.id, def));
+            const handleAchievementDefinitionUpdate = (ctx: any, oldDef: SpacetimeDB.AchievementDefinition, newDef: SpacetimeDB.AchievementDefinition) => setAchievementDefinitions(prev => new Map(prev).set(newDef.id, newDef));
+            const handleAchievementDefinitionDelete = (ctx: any, def: SpacetimeDB.AchievementDefinition) => setAchievementDefinitions(prev => { const newMap = new Map(prev); newMap.delete(def.id); return newMap; });
+
+            const handlePlayerAchievementInsert = (ctx: any, achievement: SpacetimeDB.PlayerAchievement) => setPlayerAchievements(prev => new Map(prev).set(achievement.id.toString(), achievement));
+            const handlePlayerAchievementUpdate = (ctx: any, oldAchievement: SpacetimeDB.PlayerAchievement, newAchievement: SpacetimeDB.PlayerAchievement) => setPlayerAchievements(prev => new Map(prev).set(newAchievement.id.toString(), newAchievement));
+            const handlePlayerAchievementDelete = (ctx: any, achievement: SpacetimeDB.PlayerAchievement) => setPlayerAchievements(prev => { const newMap = new Map(prev); newMap.delete(achievement.id.toString()); return newMap; });
+
+            const handleAchievementUnlockNotificationInsert = (ctx: any, notif: SpacetimeDB.AchievementUnlockNotification) => {
+                // Only show notifications for local player
+                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                    setAchievementUnlockNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleAchievementUnlockNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.AchievementUnlockNotification, newNotif: SpacetimeDB.AchievementUnlockNotification) => {
+                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                    setAchievementUnlockNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
+                }
+            };
+            const handleAchievementUnlockNotificationDelete = (ctx: any, notif: SpacetimeDB.AchievementUnlockNotification) => setAchievementUnlockNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+
+            const handleLevelUpNotificationInsert = (ctx: any, notif: SpacetimeDB.LevelUpNotification) => {
+                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                    setLevelUpNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleLevelUpNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.LevelUpNotification, newNotif: SpacetimeDB.LevelUpNotification) => {
+                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                    setLevelUpNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
+                }
+            };
+            const handleLevelUpNotificationDelete = (ctx: any, notif: SpacetimeDB.LevelUpNotification) => setLevelUpNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+
+            const handleDailyLoginNotificationInsert = (ctx: any, notif: SpacetimeDB.DailyLoginNotification) => {
+                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                    setDailyLoginNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleDailyLoginNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.DailyLoginNotification, newNotif: SpacetimeDB.DailyLoginNotification) => {
+                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                    setDailyLoginNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
+                }
+            };
+            const handleDailyLoginNotificationDelete = (ctx: any, notif: SpacetimeDB.DailyLoginNotification) => setDailyLoginNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+
+            const handleProgressNotificationInsert = (ctx: any, notif: SpacetimeDB.ProgressNotification) => {
+                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                    setProgressNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleProgressNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.ProgressNotification, newNotif: SpacetimeDB.ProgressNotification) => {
+                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                    setProgressNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
+                }
+            };
+            const handleProgressNotificationDelete = (ctx: any, notif: SpacetimeDB.ProgressNotification) => setProgressNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+
+            const handleComparativeStatNotificationInsert = (ctx: any, notif: SpacetimeDB.ComparativeStatNotification) => {
+                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                    setComparativeStatNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleComparativeStatNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.ComparativeStatNotification, newNotif: SpacetimeDB.ComparativeStatNotification) => {
+                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                    setComparativeStatNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
+                }
+            };
+            const handleComparativeStatNotificationDelete = (ctx: any, notif: SpacetimeDB.ComparativeStatNotification) => setComparativeStatNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+
+            const handleLeaderboardEntryInsert = (ctx: any, entry: SpacetimeDB.LeaderboardEntry) => setLeaderboardEntries(prev => new Map(prev).set(entry.id.toString(), entry));
+            const handleLeaderboardEntryUpdate = (ctx: any, oldEntry: SpacetimeDB.LeaderboardEntry, newEntry: SpacetimeDB.LeaderboardEntry) => setLeaderboardEntries(prev => new Map(prev).set(newEntry.id.toString(), newEntry));
+            const handleLeaderboardEntryDelete = (ctx: any, entry: SpacetimeDB.LeaderboardEntry) => setLeaderboardEntries(prev => { const newMap = new Map(prev); newMap.delete(entry.id.toString()); return newMap; });
+
+            const handleDailyLoginRewardInsert = (ctx: any, reward: SpacetimeDB.DailyLoginReward) => setDailyLoginRewards(prev => new Map(prev).set(reward.day.toString(), reward));
+            const handleDailyLoginRewardUpdate = (ctx: any, oldReward: SpacetimeDB.DailyLoginReward, newReward: SpacetimeDB.DailyLoginReward) => setDailyLoginRewards(prev => new Map(prev).set(newReward.day.toString(), newReward));
+            const handleDailyLoginRewardDelete = (ctx: any, reward: SpacetimeDB.DailyLoginReward) => setDailyLoginRewards(prev => { const newMap = new Map(prev); newMap.delete(reward.day.toString()); return newMap; });
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
@@ -1796,6 +1900,17 @@ export const useSpacetimeTables = ({
             connection.db.recipe.onInsert(handleRecipeInsert); connection.db.recipe.onUpdate(handleRecipeUpdate); connection.db.recipe.onDelete(handleRecipeDelete);
             connection.db.craftingQueueItem.onInsert(handleCraftingQueueInsert); connection.db.craftingQueueItem.onUpdate(handleCraftingQueueUpdate); connection.db.craftingQueueItem.onDelete(handleCraftingQueueDelete);
             connection.db.message.onInsert(handleMessageInsert); connection.db.message.onUpdate(handleMessageUpdate); connection.db.message.onDelete(handleMessageDelete);
+            // Player progression system subscriptions
+            connection.db.playerStats.onInsert(handlePlayerStatsInsert); connection.db.playerStats.onUpdate(handlePlayerStatsUpdate); connection.db.playerStats.onDelete(handlePlayerStatsDelete);
+            connection.db.achievementDefinition.onInsert(handleAchievementDefinitionInsert); connection.db.achievementDefinition.onUpdate(handleAchievementDefinitionUpdate); connection.db.achievementDefinition.onDelete(handleAchievementDefinitionDelete);
+            connection.db.playerAchievement.onInsert(handlePlayerAchievementInsert); connection.db.playerAchievement.onUpdate(handlePlayerAchievementUpdate); connection.db.playerAchievement.onDelete(handlePlayerAchievementDelete);
+            connection.db.achievementUnlockNotification.onInsert(handleAchievementUnlockNotificationInsert); connection.db.achievementUnlockNotification.onUpdate(handleAchievementUnlockNotificationUpdate); connection.db.achievementUnlockNotification.onDelete(handleAchievementUnlockNotificationDelete);
+            connection.db.levelUpNotification.onInsert(handleLevelUpNotificationInsert); connection.db.levelUpNotification.onUpdate(handleLevelUpNotificationUpdate); connection.db.levelUpNotification.onDelete(handleLevelUpNotificationDelete);
+            connection.db.dailyLoginNotification.onInsert(handleDailyLoginNotificationInsert); connection.db.dailyLoginNotification.onUpdate(handleDailyLoginNotificationUpdate); connection.db.dailyLoginNotification.onDelete(handleDailyLoginNotificationDelete);
+            connection.db.progressNotification.onInsert(handleProgressNotificationInsert); connection.db.progressNotification.onUpdate(handleProgressNotificationUpdate); connection.db.progressNotification.onDelete(handleProgressNotificationDelete);
+            connection.db.comparativeStatNotification.onInsert(handleComparativeStatNotificationInsert); connection.db.comparativeStatNotification.onUpdate(handleComparativeStatNotificationUpdate); connection.db.comparativeStatNotification.onDelete(handleComparativeStatNotificationDelete);
+            connection.db.leaderboardEntry.onInsert(handleLeaderboardEntryInsert); connection.db.leaderboardEntry.onUpdate(handleLeaderboardEntryUpdate); connection.db.leaderboardEntry.onDelete(handleLeaderboardEntryDelete);
+            connection.db.dailyLoginReward.onInsert(handleDailyLoginRewardInsert); connection.db.dailyLoginReward.onUpdate(handleDailyLoginRewardUpdate); connection.db.dailyLoginReward.onDelete(handleDailyLoginRewardDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2193,6 +2308,37 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[MATRONAGE_OWED_SHARDS Sub Error]:", err))
                     .subscribe('SELECT * FROM matronage_owed_shards'),
+                // Player progression system subscriptions
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_STATS Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_stats'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ACHIEVEMENT_DEFINITION Sub Error]:", err))
+                    .subscribe('SELECT * FROM achievement_definition'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_ACHIEVEMENT Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_achievement'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[ACHIEVEMENT_UNLOCK_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM achievement_unlock_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[LEVEL_UP_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM level_up_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[DAILY_LOGIN_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM daily_login_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PROGRESS_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM progress_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[COMPARATIVE_STAT_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM comparative_stat_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[LEADERBOARD_ENTRY Sub Error]:", err))
+                    .subscribe('SELECT * FROM leaderboard_entry'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[DAILY_LOGIN_REWARD Sub Error]:", err))
+                    .subscribe('SELECT * FROM daily_login_reward'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2578,5 +2724,16 @@ export const useSpacetimeTables = ({
         matronageMembers, // ADDED: Matronage membership tracking
         matronageInvitations, // ADDED: Pending matronage invitations
         matronageOwedShards, // ADDED: Owed shard balances from matronage
+        // Player progression system
+        playerStats, // ADDED: Player XP, level, and stats
+        achievementDefinitions, // ADDED: Achievement definitions
+        playerAchievements, // ADDED: Unlocked achievements
+        achievementUnlockNotifications, // ADDED: Achievement unlock notifications
+        levelUpNotifications, // ADDED: Level up notifications
+        dailyLoginNotifications, // ADDED: Daily login reward notifications
+        progressNotifications, // ADDED: Progress threshold notifications
+        comparativeStatNotifications, // ADDED: Comparative stats on death
+        leaderboardEntries, // ADDED: Leaderboard entries
+        dailyLoginRewards, // ADDED: Daily login reward definitions
     };
 }; 

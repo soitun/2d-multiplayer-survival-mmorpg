@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTree, faCloudRain, faHeartPulse, faLeaf } from '@fortawesome/free-solid-svg-icons';
+import { faTree, faCloudRain, faHeartPulse, faLeaf, faCrown, faUsers } from '@fortawesome/free-solid-svg-icons';
 
 // Default visual settings based on optimal neural rendering thresholds
 export const DEFAULT_VISUAL_SETTINGS = {
@@ -9,6 +9,7 @@ export const DEFAULT_VISUAL_SETTINGS = {
     weatherOverlayEnabled: true,     // Enable weather overlay effects
     statusOverlaysEnabled: true,     // Enable cold/low health screen overlays
     grassEnabled: true,              // Enable grass rendering and subscriptions
+    alwaysShowPlayerNames: true,     // Show player names above heads at all times
 } as const;
 
 interface GameVisualSettingsMenuProps {
@@ -22,6 +23,15 @@ interface GameVisualSettingsMenuProps {
     onStatusOverlaysChange: (enabled: boolean) => void;
     grassEnabled: boolean;
     onGrassChange: (enabled: boolean) => void;
+    // NEW: Always show player names setting
+    alwaysShowPlayerNames: boolean;
+    onAlwaysShowPlayerNamesChange: (enabled: boolean) => void;
+    // NEW: Title selection props
+    playerStats?: Map<string, any>;
+    playerAchievements?: Map<string, any>;
+    achievementDefinitions?: Map<string, any>;
+    localPlayerIdentity?: string;
+    onTitleSelect?: (titleId: string | null) => void;
 }
 
 const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
@@ -35,12 +45,50 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
     onStatusOverlaysChange,
     grassEnabled,
     onGrassChange,
+    alwaysShowPlayerNames,
+    onAlwaysShowPlayerNamesChange,
+    playerStats,
+    playerAchievements,
+    achievementDefinitions,
+    localPlayerIdentity,
+    onTitleSelect,
 }) => {
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onBack();
         }
     };
+
+    // Get current player's active title and available titles
+    const { currentTitle, availableTitles } = useMemo(() => {
+        if (!localPlayerIdentity || !playerStats || !playerAchievements || !achievementDefinitions) {
+            return { currentTitle: null, availableTitles: [] };
+        }
+
+        // Get current player's stats
+        const stats = playerStats.get(localPlayerIdentity);
+        const currentTitleId = stats?.activeTitleId ?? null;
+
+        // Get all unlocked achievements that have titles
+        const titles: Array<{ id: string; title: string; description: string }> = [];
+        
+        // Iterate through player's unlocked achievements
+        playerAchievements.forEach((achievement: any) => {
+            if (achievement.playerId?.toHexString?.() === localPlayerIdentity) {
+                // Find the achievement definition to get the title
+                const definition = achievementDefinitions.get(achievement.achievementId);
+                if (definition?.titleReward) {
+                    titles.push({
+                        id: definition.titleReward,
+                        title: definition.titleReward,
+                        description: definition.name || 'Achievement Title',
+                    });
+                }
+            }
+        });
+
+        return { currentTitle: currentTitleId, availableTitles: titles };
+    }, [localPlayerIdentity, playerStats, playerAchievements, achievementDefinitions]);
 
     return (
         <>
@@ -389,6 +437,151 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             </label>
                         </div>
                     </div>
+
+                    {/* Always Show Player Names Setting */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#00ffff',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #00ffff',
+                            letterSpacing: '1px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            <FontAwesomeIcon 
+                                icon={faUsers} 
+                                style={{
+                                    color: '#00ffff',
+                                    textShadow: '0 0 8px #00ffff',
+                                    fontSize: '14px',
+                                }}
+                            />
+                            PLAYER NAMES: {alwaysShowPlayerNames ? 'ALWAYS VISIBLE' : 'HOVER ONLY'}
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#aaffff',
+                            marginBottom: '8px',
+                            opacity: 0.7,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            {alwaysShowPlayerNames 
+                                ? 'Player names shown above all characters' 
+                                : 'Player names shown only when hovering'
+                            }
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            gap: '15px',
+                        }}>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '14px',
+                                color: alwaysShowPlayerNames ? '#00ffff' : '#666',
+                                textShadow: alwaysShowPlayerNames ? '0 0 5px #00ffff' : 'none',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={alwaysShowPlayerNames}
+                                    onChange={(e) => onAlwaysShowPlayerNamesChange(e.target.checked)}
+                                    style={{
+                                        marginRight: '10px',
+                                        transform: 'scale(1.5)',
+                                        accentColor: '#00ffff',
+                                    }}
+                                />
+                                ALWAYS SHOW NAMES
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Player Title Selection */}
+                    {availableTitles.length > 0 && (
+                        <div style={{ marginBottom: '25px' }}>
+                            <div style={{
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '16px',
+                                color: '#ffd700',
+                                marginBottom: '12px',
+                                textShadow: '0 0 8px #ffd700',
+                                letterSpacing: '1px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <FontAwesomeIcon 
+                                    icon={faCrown} 
+                                    style={{
+                                        color: '#ffd700',
+                                        textShadow: '0 0 8px #ffd700',
+                                        fontSize: '14px',
+                                    }}
+                                />
+                                ACTIVE TITLE
+                            </div>
+                            <div style={{
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '12px',
+                                color: '#ffeeaa',
+                                marginBottom: '8px',
+                                opacity: 0.7,
+                                letterSpacing: '0.5px',
+                                textAlign: 'left',
+                            }}>
+                                Select a title to display in chat
+                            </div>
+                            <select
+                                value={currentTitle || ''}
+                                onChange={(e) => onTitleSelect?.(e.target.value || null)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 15px',
+                                    background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.9), rgba(30, 25, 5, 0.95))',
+                                    border: '2px solid #ffd700',
+                                    borderRadius: '6px',
+                                    color: '#ffd700',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    textShadow: '0 0 4px rgba(255, 215, 0, 0.6)',
+                                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.2), inset 0 0 5px rgba(255, 215, 0, 0.1)',
+                                }}
+                            >
+                                <option value="" style={{ background: '#1a1a2e', color: '#888' }}>
+                                    -- No Title --
+                                </option>
+                                {availableTitles.map((title) => (
+                                    <option 
+                                        key={title.id} 
+                                        value={title.id}
+                                        style={{ background: '#1a1a2e', color: '#ffd700' }}
+                                    >
+                                        «{title.title}» - {title.description}
+                                    </option>
+                                ))}
+                            </select>
+                            <div style={{
+                                marginTop: '8px',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '10px',
+                                color: '#888',
+                                opacity: 0.8,
+                            }}>
+                                {availableTitles.length} title{availableTitles.length !== 1 ? 's' : ''} unlocked
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles.menuButtons}>

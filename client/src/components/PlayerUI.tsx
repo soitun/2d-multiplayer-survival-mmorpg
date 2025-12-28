@@ -65,6 +65,7 @@ interface PlayerUIProps {
   isGameMenuOpen?: boolean;
   chunkWeather: Map<string, any>; // ADDED: Chunk-based weather
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>; // ADDED: Memory Grid unlocks
+  playerStats?: Map<string, any>; // ADDED: Player XP, level, and stats (using any to avoid import issues)
   isMobile?: boolean; // ADDED: Mobile detection for responsive layout
   // Crafting Screen props
   showCraftingScreen: boolean;
@@ -110,12 +111,43 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     isGameMenuOpen,
     chunkWeather,
     memoryGridProgress,
+    playerStats,
     isMobile = false,
     showCraftingScreen,
     onToggleCraftingScreen,
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
+    
+    // Get local player stats for XP bar
+    const localPlayerStats = useMemo(() => {
+        if (!identity || !playerStats) return null;
+        return playerStats.get(identity.toHexString()) || null;
+    }, [identity, playerStats]);
+    
+    // Calculate XP progress for current level
+    const xpProgress = useMemo(() => {
+        if (!localPlayerStats) return { current: 0, needed: 1, percent: 0, level: 1 };
+        
+        // XP formula: 100 * level^1.5 (matches server)
+        const xpForLevel = (level: number) => Math.floor(100 * Math.pow(level, 1.5));
+        
+        const level = localPlayerStats.level || 1;
+        const totalXp = Number(localPlayerStats.total_xp) || 0;
+        const xpForCurrentLevel = level > 1 ? xpForLevel(level) : 0;
+        const xpForNextLevel = xpForLevel(level + 1);
+        const xpInCurrentLevel = totalXp - xpForCurrentLevel;
+        const xpNeededForNext = xpForNextLevel - xpForCurrentLevel;
+        
+        const percent = xpNeededForNext > 0 ? Math.min(100, (xpInCurrentLevel / xpNeededForNext) * 100) : 0;
+        
+        return {
+            current: xpInCurrentLevel,
+            needed: xpNeededForNext,
+            percent,
+            level
+        };
+    }, [localPlayerStats]);
     // --- NEW STATE FOR NOTIFICATIONS ---
     const [acquisitionNotifications, setAcquisitionNotifications] = useState<NotificationItem[]>([]);
     const NOTIFICATION_DURATION = 3000; // ms
@@ -1338,6 +1370,33 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                                 }} />
                             </div>
                         </div>
+                        
+                        {/* XP Bar (Mobile) - Compact version */}
+                        {localPlayerStats && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ 
+                                    fontSize: '10px', 
+                                    color: '#00ff88', 
+                                    fontWeight: 'bold',
+                                    minWidth: '20px',
+                                    textAlign: 'center',
+                                }}>L{xpProgress.level}</span>
+                                <div style={{
+                                    width: '36px',
+                                    height: '6px',
+                                    background: 'rgba(0,0,0,0.5)',
+                                    borderRadius: '3px',
+                                    overflow: 'hidden',
+                                }}>
+                                    <div style={{
+                                        width: `${xpProgress.percent}%`,
+                                        height: '100%',
+                                        background: 'linear-gradient(90deg, #00cc66, #00ff88)',
+                                        transition: 'width 0.3s ease',
+                                    }} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     
                     {/* Status Effects - Positioned BELOW the Day/Night tracker with equal spacing */}
@@ -1408,6 +1467,35 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} />
                     <StatusBar label="Hunger" iconType="hunger" value={localPlayer.hunger} maxValue={250} barColor="#ffa040" glow={localPlayer.hunger < lowNeedThreshold} />
                     {/* <StatusBar label="Warmth" iconType="warmth" value={localPlayer.warmth} maxValue={100} barColor="#ffcc00" glow={localPlayer.warmth < lowNeedThreshold} /> */}
+                    {/* XP Bar */}
+                    {localPlayerStats && (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            marginTop: '8px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid rgba(0, 170, 255, 0.3)',
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '8px',
+                                color: '#00ffff',
+                                marginBottom: '2px',
+                            }}>
+                                <span>Level {xpProgress.level}</span>
+                                <span>{xpProgress.current} / {xpProgress.needed} XP</span>
+                            </div>
+                            <StatusBar 
+                                label="XP" 
+                                value={xpProgress.current} 
+                                maxValue={xpProgress.needed} 
+                                barColor="#00ff88" 
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 

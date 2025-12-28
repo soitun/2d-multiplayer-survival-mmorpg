@@ -142,6 +142,22 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         plant_entity_name,
         &mut ctx.rng().clone(),
     )?;
+    
+    // === PLAYER PROGRESSION: Award XP for harvesting ===
+    // Different XP for wild plants vs player-planted crops
+    let xp_amount = if resource.is_player_planted {
+        crate::player_progression::XP_CROP_HARVESTED
+    } else {
+        crate::player_progression::XP_PLANT_HARVESTED
+    };
+    if let Err(e) = crate::player_progression::award_xp(ctx, player_id, xp_amount) {
+        log::warn!("Failed to award XP for harvesting: {}", e);
+    }
+    // Track plants harvested for achievements
+    let harvest_count = primary_yield_amount as u64;
+    if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "plants_harvested", harvest_count) {
+        log::warn!("Failed to check harvest achievements: {}", e);
+    }
 
     // === SEAWEED-SPECIFIC BONUS DROPS ===
     // SeaweedBed grants bonus drops that make underwater farming worthwhile

@@ -1,0 +1,376 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Identity } from 'spacetimedb';
+import { useGameConnection } from '../contexts/GameConnectionContext';
+// LeaderboardEntry is accessed via SpacetimeDB namespace
+
+interface LeaderboardPanelProps {
+  playerIdentity: Identity | null;
+  leaderboardEntries: Map<string, any>;
+  onClose?: () => void;
+}
+
+type LeaderboardCategory = 'ShardsEarned' | 'LongestSurvival' | 'ContractsCompleted' | 'FishCaught' | 'CairnsDiscovered' | 'Level';
+
+const CATEGORY_DISPLAY_NAMES: Record<LeaderboardCategory, string> = {
+  ShardsEarned: 'Shards Earned',
+  LongestSurvival: 'Longest Survival',
+  ContractsCompleted: 'Contracts Completed',
+  FishCaught: 'Fish Caught',
+  CairnsDiscovered: 'Cairns Discovered',
+  Level: 'Level',
+};
+
+const CATEGORY_UNITS: Record<LeaderboardCategory, string> = {
+  ShardsEarned: 'shards',
+  LongestSurvival: 'seconds',
+  ContractsCompleted: 'contracts',
+  FishCaught: 'fish',
+  CairnsDiscovered: 'cairns',
+  Level: '',
+};
+
+const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
+  playerIdentity,
+  leaderboardEntries,
+  onClose,
+}) => {
+  const connection = useGameConnection();
+  const [selectedCategory, setSelectedCategory] = useState<LeaderboardCategory>('ShardsEarned');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // Filter entries by selected category and sort by rank
+  const filteredEntries = useMemo(() => {
+    const entries = Array.from(leaderboardEntries.values())
+      .filter(entry => entry.category === selectedCategory)
+      .sort((a, b) => a.rank - b.rank);
+    return entries;
+  }, [leaderboardEntries, selectedCategory]);
+
+  // Refresh leaderboard data
+  const refreshLeaderboard = async () => {
+    if (!connection.connection || !connection.isConnected) {
+      console.error('No connection to server');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Call the get_leaderboard reducer with the selected category
+      // Note: The reducer expects a LeaderboardCategory enum value
+      // We'll need to map our string to the enum
+      const categoryMap: Record<LeaderboardCategory, any> = {
+        ShardsEarned: { tag: 'ShardsEarned' },
+        LongestSurvival: { tag: 'LongestSurvival' },
+        ContractsCompleted: { tag: 'ContractsCompleted' },
+        FishCaught: { tag: 'FishCaught' },
+        CairnsDiscovered: { tag: 'CairnsDiscovered' },
+        Level: { tag: 'Level' },
+      };
+
+      // Note: Reducer name may need to be adjusted after bindings are regenerated
+      // The reducer is called get_leaderboard on the server
+      try {
+        (connection.connection.reducers as any).getLeaderboard(categoryMap[selectedCategory], 100);
+      } catch (error) {
+        console.error('Failed to call getLeaderboard reducer:', error);
+      }
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Failed to refresh leaderboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Refresh when category changes
+  useEffect(() => {
+    refreshLeaderboard();
+  }, [selectedCategory]);
+
+  // Format value based on category
+  const formatValue = (value: bigint, category: LeaderboardCategory): string => {
+    const numValue = Number(value);
+    
+    switch (category) {
+      case 'LongestSurvival':
+        // Convert seconds to hours:minutes:seconds
+        const hours = Math.floor(numValue / 3600);
+        const minutes = Math.floor((numValue % 3600) / 60);
+        const seconds = numValue % 60;
+        if (hours > 0) {
+          return `${hours}h ${minutes}m ${seconds}s`;
+        } else if (minutes > 0) {
+          return `${minutes}m ${seconds}s`;
+        } else {
+          return `${seconds}s`;
+        }
+      case 'ShardsEarned':
+        // Format large numbers with commas
+        return numValue.toLocaleString();
+      default:
+        return numValue.toLocaleString();
+    }
+  };
+
+  // Get rank emoji/icon
+  const getRankDisplay = (rank: number): string => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
+
+  // Check if entry is for current player
+  const isCurrentPlayer = (entry: any): boolean => {
+    if (!playerIdentity) return false;
+    return entry.player_id.toHexString() === playerIdentity.toHexString();
+  };
+
+  return (
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'rgba(15, 23, 35, 0.95)',
+      border: '2px solid #00d4ff',
+      borderRadius: '4px',
+      padding: '20px',
+      boxSizing: 'border-box',
+      color: '#ffffff',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        borderBottom: '1px solid rgba(0, 212, 255, 0.3)',
+        paddingBottom: '15px',
+      }}>
+        <h2 style={{
+          color: '#00d4ff',
+          margin: 0,
+          fontSize: '24px',
+          fontWeight: 'bold',
+          textShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
+        }}>
+          🏆 LEADERBOARD
+        </h2>
+        <button
+          onClick={refreshLeaderboard}
+          disabled={isLoading}
+          style={{
+            background: isLoading 
+              ? 'rgba(0, 212, 255, 0.3)' 
+              : 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%)',
+            border: '1px solid #00d4ff',
+            borderRadius: '4px',
+            color: '#ffffff',
+            padding: '8px 16px',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease',
+            opacity: isLoading ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!isLoading) {
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 212, 255, 0.6)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          {isLoading ? 'REFRESHING...' : '🔄 REFRESH'}
+        </button>
+      </div>
+
+      {/* Category Selector */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        marginBottom: '20px',
+      }}>
+        {(Object.keys(CATEGORY_DISPLAY_NAMES) as LeaderboardCategory[]).map((category) => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            style={{
+              background: selectedCategory === category
+                ? 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%)'
+                : 'rgba(0, 212, 255, 0.1)',
+              border: `1px solid ${selectedCategory === category ? '#00d4ff' : 'rgba(0, 212, 255, 0.3)'}`,
+              borderRadius: '4px',
+              color: '#ffffff',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+              textTransform: 'uppercase',
+            }}
+            onMouseEnter={(e) => {
+              if (selectedCategory !== category) {
+                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)';
+                e.currentTarget.style.borderColor = '#00d4ff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (selectedCategory !== category) {
+                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+              }
+            }}
+          >
+            {CATEGORY_DISPLAY_NAMES[category]}
+          </button>
+        ))}
+      </div>
+
+      {/* Leaderboard List */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingRight: '8px',
+      }}>
+        {filteredEntries.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            color: 'rgba(255, 255, 255, 0.6)',
+          }}>
+            {isLoading ? (
+              <div>
+                <div style={{
+                  fontSize: '18px',
+                  marginBottom: '10px',
+                }}>⏳</div>
+                <div>Loading leaderboard data...</div>
+              </div>
+            ) : (
+              <div>
+                <div style={{
+                  fontSize: '18px',
+                  marginBottom: '10px',
+                }}>📊</div>
+                <div>No entries found. Click REFRESH to load data.</div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}>
+            {filteredEntries.map((entry) => {
+              const isPlayer = isCurrentPlayer(entry);
+              return (
+                <div
+                  key={entry.id.toString()}
+                  style={{
+                    background: isPlayer
+                      ? 'linear-gradient(90deg, rgba(0, 212, 255, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)'
+                      : 'rgba(0, 0, 0, 0.3)',
+                    border: `1px solid ${isPlayer ? '#00d4ff' : 'rgba(0, 212, 255, 0.2)'}`,
+                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isPlayer ? '0 0 10px rgba(0, 212, 255, 0.3)' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isPlayer) {
+                      e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                      e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.4)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isPlayer) {
+                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.3)';
+                      e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.2)';
+                    }
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    flex: 1,
+                  }}>
+                    <div style={{
+                      fontSize: '20px',
+                      minWidth: '40px',
+                      textAlign: 'center',
+                    }}>
+                      {getRankDisplay(entry.rank)}
+                    </div>
+                    <div style={{
+                      flex: 1,
+                    }}>
+                      <div style={{
+                        fontWeight: isPlayer ? 'bold' : 'normal',
+                        color: isPlayer ? '#00d4ff' : '#ffffff',
+                        fontSize: '14px',
+                        marginBottom: '4px',
+                      }}>
+                        {entry.player_username || 'Unknown'}
+                        {isPlayer && (
+                          <span style={{
+                            marginLeft: '8px',
+                            fontSize: '11px',
+                            color: '#7c3aed',
+                          }}>(YOU)</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    color: '#00d4ff',
+                    textAlign: 'right',
+                  }}>
+                    {formatValue(entry.value, selectedCategory)}
+                    {CATEGORY_UNITS[selectedCategory] && (
+                      <span style={{
+                        fontSize: '12px',
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        marginLeft: '4px',
+                      }}>
+                        {CATEGORY_UNITS[selectedCategory]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        marginTop: '15px',
+        paddingTop: '15px',
+        borderTop: '1px solid rgba(0, 212, 255, 0.3)',
+        fontSize: '11px',
+        color: 'rgba(255, 255, 255, 0.6)',
+        textAlign: 'center',
+      }}>
+        Last updated: {lastRefresh.toLocaleTimeString()}
+      </div>
+    </div>
+  );
+};
+
+export default LeaderboardPanel;
+

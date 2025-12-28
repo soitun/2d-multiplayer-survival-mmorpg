@@ -4,6 +4,7 @@ import MemoryGrid from './MemoryGrid';
 import AlkPanel from './AlkPanel';
 import CairnsPanel from './CairnsPanel';
 import MatronagePanel from './MatronagePanel';
+import LeaderboardPanel from './LeaderboardPanel';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
@@ -22,7 +23,7 @@ import {
 import { Identity } from 'spacetimedb';
 import './InterfaceContainer.css';
 
-type InterfaceView = 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+type InterfaceView = 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
 
 interface InterfaceContainerProps {
   children: React.ReactNode;
@@ -55,6 +56,8 @@ interface InterfaceContainerProps {
   matronageOwedShards?: Map<string, any>;
   players?: Map<string, any>;
   playerUsername?: string;
+  // Leaderboard Panel data props
+  leaderboardEntries?: Map<string, any>;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -87,6 +90,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   matronageOwedShards,
   players,
   playerUsername = '',
+  leaderboardEntries,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentView, setCurrentView] = useState<InterfaceView>(initialView || 'minimap');
@@ -916,6 +920,22 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               matronageInvitations={matronageInvitations || new Map()}
               matronageOwedShards={matronageOwedShards || new Map()}
               players={players || new Map()}
+            />
+          </div>
+        );
+      case 'leaderboard':
+        return (
+          <div className="leaderboard-content" style={{
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
+            <LeaderboardPanel
+              playerIdentity={connection.dbIdentity || null}
+              leaderboardEntries={leaderboardEntries || new Map()}
+              onClose={onClose}
             />
           </div>
         );

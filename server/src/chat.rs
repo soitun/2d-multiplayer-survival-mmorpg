@@ -18,6 +18,8 @@ use crate::death_marker::death_marker as DeathMarkerTableTrait; // <<< ADDED Dea
 // Import matronage table traits for team chat
 use crate::matronage::matronage_member as MatronageMemberTableTrait;
 use crate::chat::team_message as TeamMessageTableTrait;
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Configuration Constants ---
 /// Set to false to disable kill command cooldown (useful for testing)
@@ -33,6 +35,8 @@ pub struct Message {
     #[auto_inc]
     pub id: u64,
     pub sender: Identity,
+    pub sender_username: String, // Plain username (no title prefix)
+    pub sender_title: Option<String>, // Active title from achievements (e.g., "Master Angler")
     pub text: String,
     pub sent: Timestamp, // Timestamp for sorting
 }
@@ -63,8 +67,10 @@ pub struct TeamMessage {
     pub matronage_id: u64,
     /// The sender's identity
     pub sender: Identity,
-    /// The sender's username (for display)
+    /// The sender's username (plain, no title prefix)
     pub sender_username: String,
+    /// The sender's active title from achievements (e.g., "Master Angler")
+    pub sender_title: Option<String>,
     /// The message text
     pub text: String,
     /// When the message was sent
@@ -204,6 +210,8 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                 let system_message = Message {
                     id: 0, // Auto-incremented
                     sender: ctx.identity(), // Module identity as sender for system messages
+                    sender_username: "SYSTEM".to_string(),
+                    sender_title: None, // System messages don't have titles
                     text: system_message_text,
                     sent: current_time,
                 };
@@ -232,6 +240,8 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                 let system_message = Message {
                     id: 0,
                     sender: ctx.identity(), // Module identity as sender
+                    sender_username: "SYSTEM".to_string(),
+                    sender_title: None, // System messages don't have titles
                     text: system_message_text,
                     sent: current_time,
                 };
@@ -395,19 +405,26 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                 let member = ctx.db.matronage_member().player_id().find(&sender_id);
                 match member {
                     Some(membership) => {
-                        // Get sender username
+                        // Get sender username (plain, no title)
                         let sender_username = ctx.db.player()
                             .identity()
                             .find(&sender_id)
                             .map(|p| p.username.clone())
                             .unwrap_or_else(|| format!("{:?}", sender_id));
                         
+                        // Get active title from player stats (separate field)
+                        let sender_title = ctx.db.player_stats()
+                            .player_id()
+                            .find(&sender_id)
+                            .and_then(|stats| stats.active_title_id.clone());
+                        
                         // Create team message
                         let team_msg = TeamMessage {
                             id: 0, // Auto-incremented
                             matronage_id: membership.matronage_id,
                             sender: sender_id,
-                            sender_username: sender_username.clone(),
+                            sender_username,
+                            sender_title,
                             text: message_text.clone(),
                             sent: current_time,
                         };
@@ -431,9 +448,22 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
     // --- End Command Handling ---
 
 
+    // Get sender username (plain, no title prefix)
+    let sender_player = ctx.db.player().identity().find(&ctx.sender);
+    let sender_username = sender_player.as_ref().map(|p| p.username.clone())
+        .unwrap_or_else(|| format!("{:?}", ctx.sender));
+    
+    // Get active title from player stats (separate field)
+    let sender_title = ctx.db.player_stats()
+        .player_id()
+        .find(&ctx.sender)
+        .and_then(|stats| stats.active_title_id.clone());
+    
     let new_message = Message {
         id: 0, // Auto-incremented
         sender: ctx.sender,
+        sender_username,
+        sender_title,
         text: text.clone(), // Clone text for logging after potential move
         sent: ctx.timestamp,
     };

@@ -210,7 +210,7 @@ interface GameCanvasProps {
   isMinimapOpen: boolean;
   setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
   // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
-  interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+  interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
   // Callback to reset the initial view after interface closes
   onInterfaceClose?: () => void;
   isChatting: boolean;
@@ -286,6 +286,11 @@ interface GameCanvasProps {
   matronageMembers?: Map<string, any>;
   matronageInvitations?: Map<string, any>;
   matronageOwedShards?: Map<string, any>;
+  // Leaderboard entries
+  leaderboardEntries?: Map<string, any>;
+  
+  // Always show player names above heads
+  alwaysShowPlayerNames?: boolean;
 
   // Mobile controls
   isMobile?: boolean;
@@ -401,6 +406,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   matronageMembers, // Matronage membership tracking
   matronageInvitations, // Pending matronage invitations
   matronageOwedShards, // Owed shard balances from matronage
+  leaderboardEntries, // Leaderboard entries
+  alwaysShowPlayerNames = true, // Always show player names above heads
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
   isMobile = false,
@@ -2467,7 +2474,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           currentAnimFrame,
           now_ms,
           0, // no jump offset for swimming players
-          false, // not persistently hovered
+          alwaysShowPlayerNames || isHovered, // show label if setting enabled or hovered
           activeConsumableEffects,
           localPlayerId,
           false, // not corpse
@@ -3021,7 +3028,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           currentAnimFrame,
           now_ms,
           0,
-          false,
+          alwaysShowPlayerNames || isHovered, // show label if setting enabled or hovered
           activeConsumableEffects,
           localPlayerId,
           false,
@@ -4308,6 +4315,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             matronageOwedShards={matronageOwedShards}
             players={players}
             playerUsername={localPlayer?.username || ''}
+            leaderboardEntries={leaderboardEntries}
           >
             <canvas
               ref={minimapCanvasRef}

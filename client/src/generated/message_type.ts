@@ -31,6 +31,7 @@ import {
 export type Message = {
   id: bigint,
   sender: __Identity,
+  senderUsername: string,
   text: string,
   sent: __Timestamp,
 };
@@ -50,6 +51,7 @@ export const Message = {
     _cached_Message_type_value.value.elements.push(
       { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "sender", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "senderUsername", algebraicType: __AlgebraicTypeValue.String },
       { name: "text", algebraicType: __AlgebraicTypeValue.String },
       { name: "sent", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );

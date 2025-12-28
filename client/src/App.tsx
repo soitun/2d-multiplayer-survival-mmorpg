@@ -17,6 +17,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginScreen from './components/LoginScreen';
 import GameScreen from './components/GameScreen';
 import CyberpunkLoadingScreen, { CyberpunkErrorBar } from './components/CyberpunkLoadingScreen';
+import AchievementNotification from './components/AchievementNotification';
+import LevelUpNotification from './components/LevelUpNotification';
 
 // Blog Components
 import BlogPage from './blog/BlogPage';
@@ -199,6 +201,12 @@ function AppContent() {
         return saved ? saved === 'true' : true; // true by default
     });
     
+    // Always show player names above heads (default ON)
+    const [alwaysShowPlayerNames, setAlwaysShowPlayerNames] = useState(() => {
+        const saved = localStorage.getItem('alwaysShowPlayerNames');
+        return saved ? saved === 'true' : true; // true by default
+    });
+    
     // --- Volume Change Handlers ---
     const handleMusicVolumeChange = useCallback((volume: number) => {
         console.log(`[App] handleMusicVolumeChange called with: ${volume.toFixed(3)}`);
@@ -241,6 +249,12 @@ function AppContent() {
         console.log(`[App] handleGrassChange called with: ${enabled}`);
         setGrassEnabled(enabled);
         localStorage.setItem('grassEnabled', enabled.toString());
+    }, []);
+    
+    const handleAlwaysShowPlayerNamesChange = useCallback((enabled: boolean) => {
+        console.log(`[App] handleAlwaysShowPlayerNamesChange called with: ${enabled}`);
+        setAlwaysShowPlayerNames(enabled);
+        localStorage.setItem('alwaysShowPlayerNames', enabled.toString());
     }, []);
 
     // --- Viewport State & Refs ---
@@ -309,6 +323,17 @@ function AppContent() {
       matronageMembers, // ADDED: Matronage membership tracking
       matronageInvitations, // ADDED: Pending matronage invitations
       matronageOwedShards, // ADDED: Owed shard balances from matronage
+      // Player progression system
+      playerStats, // ADDED: Player XP, level, and stats
+      achievementDefinitions, // ADDED: Achievement definitions
+      playerAchievements, // ADDED: Unlocked achievements
+      achievementUnlockNotifications, // ADDED: Achievement unlock notifications
+      levelUpNotifications, // ADDED: Level up notifications
+      dailyLoginNotifications, // ADDED: Daily login reward notifications
+      progressNotifications, // ADDED: Progress threshold notifications
+      comparativeStatNotifications, // ADDED: Comparative stats on death
+      leaderboardEntries, // ADDED: Leaderboard entries
+      dailyLoginRewards, // ADDED: Daily login reward definitions
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1216,6 +1241,7 @@ function AppContent() {
                 (() => { 
                     const localPlayerIdentityHex = dbIdentity ? dbIdentity.toHexString() : undefined;
                     return (
+                        <>
                         <GameScreen 
                             players={players}
                             trees={trees}
@@ -1305,6 +1331,8 @@ function AppContent() {
                             statusOverlaysEnabled={statusOverlaysEnabled}
                             onGrassChange={handleGrassChange}
                             grassEnabled={grassEnabled}
+                            alwaysShowPlayerNames={alwaysShowPlayerNames}
+                            onAlwaysShowPlayerNamesChange={handleAlwaysShowPlayerNamesChange}
                             soundSystem={soundSystemState}
                             playerDrinkingCooldowns={playerDrinkingCooldowns}
                             rainCollectors={rainCollectors}
@@ -1325,6 +1353,10 @@ function AppContent() {
                             alkState={alkState} // ADDED: ALK system state
                             playerShardBalance={playerShardBalance} // ADDED: Player shard balances
                             memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
+                            playerStats={playerStats} // ADDED: Player XP, level, and stats
+                            playerAchievements={playerAchievements} // ADDED: Player unlocked achievements
+                            achievementDefinitions={achievementDefinitions} // ADDED: Achievement definitions for title selection
+                            leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
@@ -1340,6 +1372,14 @@ function AppContent() {
                             onMobileSprintToggle={setMobileSprintOverride}
                             mobileSprintOverride={mobileSprintOverride}
                         />
+                        {/* Player Progression Notifications */}
+                        <AchievementNotification 
+                            notifications={Array.from(achievementUnlockNotifications.values())} 
+                        />
+                        <LevelUpNotification 
+                            notifications={Array.from(levelUpNotifications.values())} 
+                        />
+                        </>
                     );
                 })()
             )}

@@ -88,6 +88,7 @@ import {
     PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED player shard balance import
     MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED memory grid progress import
 } from '../generated';
+// PlayerStats is accessed via SpacetimeDB namespace
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
 import { InteractionTarget } from '../hooks/useInteractionManager';
@@ -212,7 +213,7 @@ interface GameScreenProps {
     isMinimapOpen: boolean;
     setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
     // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
-    interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
+    interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
     setInterfaceInitialView?: React.Dispatch<React.SetStateAction<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | undefined>>;
     // Callback to reset interface initial view (called when interface closes)
     onInterfaceClose?: () => void;
@@ -251,6 +252,9 @@ interface GameScreenProps {
     onStatusOverlaysChange: (enabled: boolean) => void;
     grassEnabled: boolean;
     onGrassChange: (enabled: boolean) => void;
+    // Always show player names above heads
+    alwaysShowPlayerNames: boolean;
+    onAlwaysShowPlayerNamesChange: (enabled: boolean) => void;
 
     // Sound system for immediate sound effects
     soundSystem: ReturnType<typeof import('../hooks/useSoundSystem').useSoundSystem>;
@@ -287,6 +291,14 @@ interface GameScreenProps {
     playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
     // Memory Grid progress for crafting unlocks
     memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
+    // Player stats (XP, level, achievements)
+    playerStats?: Map<string, any>;
+    // Player unlocked achievements (for title selection)
+    playerAchievements?: Map<string, any>;
+    // Achievement definitions (for title names)
+    achievementDefinitions?: Map<string, any>;
+    // Leaderboard entries
+    leaderboardEntries?: Map<string, any>;
 
     // Matronage system
     matronages?: Map<string, any>;
@@ -406,6 +418,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         onStatusOverlaysChange,
         grassEnabled,
         onGrassChange,
+        alwaysShowPlayerNames,
+        onAlwaysShowPlayerNamesChange,
         soundSystem,
         playerDrinkingCooldowns,
         playerDodgeRollStates,
@@ -545,6 +559,17 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const handleMenuClose = () => {
         setCurrentMenu(null);
     };
+
+    // Handle title selection - calls reducer to set active title
+    const handleTitleSelect = useCallback((titleId: string | null) => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.setActiveTitle(titleId ?? '');
+            } catch (error) {
+                console.error('[GameScreen] Failed to set active title:', error);
+            }
+        }
+    }, [props.connection]);
 
     const handleMenuNavigate = (menu: MenuType) => {
         setCurrentMenu(menu);
@@ -767,6 +792,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     onStatusOverlaysChange={onStatusOverlaysChange}
                     grassEnabled={grassEnabled}
                     onGrassChange={onGrassChange}
+                    alwaysShowPlayerNames={alwaysShowPlayerNames}
+                    onAlwaysShowPlayerNamesChange={onAlwaysShowPlayerNamesChange}
+                    playerStats={props.playerStats}
+                    playerAchievements={props.playerAchievements}
+                    achievementDefinitions={props.achievementDefinitions}
+                    localPlayerIdentity={props.localPlayerId}
+                    onTitleSelect={handleTitleSelect}
                 />
             )}
 
@@ -996,6 +1028,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 matronageMembers={props.matronageMembers}
                 matronageInvitations={props.matronageInvitations}
                 matronageOwedShards={props.matronageOwedShards}
+                leaderboardEntries={props.leaderboardEntries}
+                alwaysShowPlayerNames={alwaysShowPlayerNames}
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}
@@ -1058,6 +1092,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 worldState={worldState}
                 isGameMenuOpen={currentMenu !== null}
                 memoryGridProgress={props.memoryGridProgress}
+                playerStats={props.playerStats}
                 isMobile={props.isMobile}
                 showCraftingScreen={showCraftingScreenState}
                 onToggleCraftingScreen={() => setShowCraftingScreenState(prev => !prev)}

@@ -156,6 +156,7 @@ pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shi
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod repair_bench; // <<< ADDED: Repair bench for item repair
 mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
+mod player_progression; // <<< ADDED: Player progression system (XP, achievements, leaderboards)
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -329,6 +330,9 @@ pub use cooking_station::{
     place_cooking_station, pickup_cooking_station
 };
 
+// Re-export player progression reducers for client bindings
+pub use player_progression::{set_active_title, get_leaderboard};
+
 // Re-export stash reducers for client bindings  
 pub use stash::{
     place_stash, move_item_to_stash, quick_move_from_stash,
@@ -438,6 +442,16 @@ use crate::barrel::barrel as BarrelTableTrait; // <<< ADDED: Import Barrel table
 use crate::barrel::barrel_respawn_schedule as BarrelRespawnScheduleTableTrait; // <<< ADDED: Import BarrelRespawnSchedule table trait
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
 use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // <<< ADDED: Import PlayerCorpse table trait
+use crate::player_progression::player_stats as PlayerStatsTableTrait; // <<< ADDED: Import PlayerStats table trait
+use crate::player_progression::achievement_definition as AchievementDefinitionTableTrait; // <<< ADDED
+use crate::player_progression::player_achievement as PlayerAchievementTableTrait; // <<< ADDED
+use crate::player_progression::daily_login_reward as DailyLoginRewardTableTrait; // <<< ADDED
+use crate::player_progression::achievement_unlock_notification as AchievementUnlockNotificationTableTrait; // <<< ADDED
+use crate::player_progression::level_up_notification as LevelUpNotificationTableTrait; // <<< ADDED
+use crate::player_progression::daily_login_notification as DailyLoginNotificationTableTrait; // <<< ADDED
+use crate::player_progression::progress_notification as ProgressNotificationTableTrait; // <<< ADDED
+use crate::player_progression::comparative_stat_notification as ComparativeStatNotificationTableTrait; // <<< ADDED
+use crate::player_progression::leaderboard_entry as LeaderboardEntryTableTrait; // <<< ADDED
 
 // Use struct names directly for trait aliases
 use crate::crafting::Recipe as RecipeTableTrait;
@@ -687,6 +701,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     crate::items::seed_food_poisoning_risks(ctx)?;
     crate::items::seed_ranged_weapon_stats(ctx)?;
     crate::crafting::seed_recipes(ctx)?;
+    // Seed progression system data
+    crate::player_progression::seed_achievements(ctx)?;
+    crate::player_progression::seed_daily_login_rewards(ctx)?;
     // NOTE: seed_environment is now called AFTER world generation (see below)
 
     // Initialize the dropped item despawn schedule
@@ -986,6 +1003,77 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
         // Only update if something changed
         if player_updated {
             players.identity().update(player);
+        }
+        
+        // Check for daily login rewards
+        if let Some(world_state) = ctx.db.world_state().iter().next() {
+            let current_day = world_state.day_of_year;
+            let mut stats = crate::player_progression::get_or_init_player_stats(ctx, client_identity);
+            
+            // Check if this is a new day
+            if stats.last_login_day != current_day {
+                let days_since_last_login = if current_day > stats.last_login_day {
+                    current_day - stats.last_login_day
+                } else {
+                    // Year rollover
+                    (360 - stats.last_login_day) + current_day
+                };
+                
+                // Update streak (reset if gap > 1 day, otherwise increment)
+                if days_since_last_login == 1 {
+                    stats.login_streak_days += 1;
+                } else {
+                    stats.login_streak_days = 1; // Reset streak
+                }
+                
+                // Calculate reward day (1-7, loops)
+                let reward_day = ((stats.login_streak_days - 1) % 7) + 1;
+                
+                // Get daily reward
+                if let Some(daily_reward) = ctx.db.daily_login_reward().day().find(&reward_day) {
+                    // Award shards
+                    let memory_shard_def_id = ctx.db.item_definition().iter()
+                        .find(|def| def.name == "Memory Shard")
+                        .map(|def| def.id);
+                    
+                    if let Some(shard_def_id) = memory_shard_def_id {
+                        match crate::dropped_item::give_item_to_player_or_drop(ctx, client_identity, shard_def_id, daily_reward.shard_reward as u32) {
+                            Ok(_) => {
+                                log::info!("Daily login reward: {} shards awarded to player {}", daily_reward.shard_reward, client_identity);
+                            }
+                            Err(e) => {
+                                log::error!("Failed to award daily login shards: {}", e);
+                            }
+                        }
+                    }
+                    
+                    // Award XP
+                    if let Err(e) = crate::player_progression::award_xp(ctx, client_identity, daily_reward.bonus_xp) {
+                        log::error!("Failed to award daily login XP: {}", e);
+                    }
+                    
+                    // Update stats
+                    stats.total_shards_earned += daily_reward.shard_reward as u64;
+                    stats.last_login_day = current_day;
+                    stats.updated_at = ctx.timestamp;
+                    ctx.db.player_stats().player_id().update(stats.clone());
+                    
+                    // Send notification
+                    let notif = crate::player_progression::DailyLoginNotification {
+                        id: 0,
+                        player_id: client_identity,
+                        day: reward_day,
+                        shard_reward: daily_reward.shard_reward,
+                        bonus_xp: daily_reward.bonus_xp,
+                        streak_days: stats.login_streak_days,
+                        unlocked_at: ctx.timestamp,
+                    };
+                    ctx.db.daily_login_notification().insert(notif);
+                    
+                    log::info!("Daily login reward processed for player {}: Day {}, Streak {} days", 
+                              client_identity, reward_day, stats.login_streak_days);
+                }
+            }
         }
     } else {
         // Player might not be registered yet, which is fine. is_online will be set during registration.

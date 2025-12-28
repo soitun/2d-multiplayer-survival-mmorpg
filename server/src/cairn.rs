@@ -11,6 +11,8 @@ use crate::PLAYER_RADIUS;
 use crate::player; // Import Player table trait for ctx.db.player()
 use crate::dropped_item::give_item_to_player_or_drop;
 use crate::items::item_definition as ItemDefinitionTableTrait;
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Cairn Constants ---
 
@@ -231,6 +233,24 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
                 cairn_id
             );
         }
+        
+        // Award XP and update stats for cairn discovery
+        if let Err(e) = crate::player_progression::award_xp(ctx, player_id, crate::player_progression::XP_CAIRN_DISCOVERED) {
+            log::error!("Failed to award XP for cairn discovery: {}", e);
+        }
+        
+        // Track cairns_discovered stat and check achievements
+        // Also update total_shards_earned
+        {
+            let mut stats = crate::player_progression::get_or_init_player_stats(ctx, player_id);
+            stats.total_shards_earned += shard_reward as u64;
+            stats.updated_at = ctx.timestamp;
+            ctx.db.player_stats().player_id().update(stats.clone());
+        }
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "cairns_discovered", 1) {
+            log::error!("Failed to track cairn discovery stat: {}", e);
+        }
+        
         // Note: cairn_unlock sound is played client-side for instant feedback
     } else {
         log::info!(

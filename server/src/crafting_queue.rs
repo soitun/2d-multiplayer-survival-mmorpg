@@ -18,6 +18,8 @@ use crate::player as PlayerTableTrait;
 use crate::player_corpse::player_corpse as PlayerCorpseTableTrait;
 use crate::dropped_item; // For dropping items
 use crate::models::ItemLocation; // Corrected import
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 use crate::player_inventory::{find_first_empty_player_slot, get_player_item};
 
 // --- Crafting Queue Table ---
@@ -404,10 +406,11 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
         log::info!("[Crafting Check] Finishing item {} for player {:?}. Output: DefID {}, Qty {}",
                   item.queue_item_id, item.player_identity, item.output_item_def_id, item.output_quantity);
 
-        match crate::items::add_item_to_player_inventory(ctx, item.player_identity, item.output_item_def_id, item.output_quantity) {
+        let item_granted = match crate::items::add_item_to_player_inventory(ctx, item.player_identity, item.output_item_def_id, item.output_quantity) {
             Ok(_) => {
                  let item_name = ctx.db.item_definition().id().find(item.output_item_def_id).map(|d| d.name.clone()).unwrap_or_else(|| format!("ID {}", item.output_item_def_id));
                  log::info!("[Crafting Check] Granted {} {} to player {:?}", item.output_quantity, item_name, item.player_identity);
+                 true
             }
             Err(e) => {
                 log::warn!("[Crafting Check] Inventory full for player {:?}. Dropping item {}: {}", item.player_identity, item.output_item_def_id, e);
@@ -416,7 +419,25 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
                 if let Err(drop_err) = dropped_item::create_dropped_item_entity(ctx, item.output_item_def_id, item.output_quantity, drop_x, drop_y) {
                      log::error!("[Crafting Check] Failed to drop item {} for player {:?}: {}", item.output_item_def_id, item.player_identity, drop_err);
                      // Item is lost if dropping fails too
+                     false
+                } else {
+                     true // Item was dropped successfully
                 }
+            }
+        };
+
+        // Award XP and update stats if item was successfully granted or dropped
+        if item_granted {
+            // Award XP per item crafted
+            for _ in 0..item.output_quantity {
+                if let Err(e) = crate::player_progression::award_xp(ctx, item.player_identity, crate::player_progression::XP_ITEM_CRAFTED) {
+                    log::error!("Failed to award XP for crafting: {}", e);
+                }
+            }
+            
+            // Track items_crafted stat and check achievements
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, item.player_identity, "items_crafted", item.output_quantity as u64) {
+                log::error!("Failed to track crafting stat: {}", e);
             }
         }
 

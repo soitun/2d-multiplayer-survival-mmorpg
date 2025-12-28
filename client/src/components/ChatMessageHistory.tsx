@@ -7,7 +7,9 @@ import styles from './Chat.module.css';
 type CombinedMessage = (SpacetimeDBMessage | SpacetimeDBPrivateMessage | SpacetimeDBTeamMessage) & { 
   isPrivate?: boolean; 
   isTeam?: boolean;
-  senderDisplayNameOverride?: string; 
+  senderDisplayNameOverride?: string;
+  // Optional title field (for messages with sender_title)
+  senderTitle?: string | null;
 };
 
 interface ChatMessageHistoryProps {
@@ -38,9 +40,24 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
   const allSortedMessages = useMemo(() => {
     const combined: CombinedMessage[] = [];
 
-    messages.forEach(msg => combined.push(msg));
+    messages.forEach(msg => {
+      // Extract sender_title from the message if available
+      const msgWithTitle = msg as any;
+      combined.push({ 
+        ...msg, 
+        senderTitle: msgWithTitle.senderTitle ?? null 
+      });
+    });
     privateMessages.forEach(msg => combined.push({ ...msg, isPrivate: true }));
-    teamMessages.forEach(msg => combined.push({ ...msg, isTeam: true }));
+    teamMessages.forEach(msg => {
+      // Extract sender_title from team message if available
+      const msgWithTitle = msg as any;
+      combined.push({ 
+        ...msg, 
+        isTeam: true,
+        senderTitle: msgWithTitle.senderTitle ?? null
+      });
+    });
 
     combined.sort((a, b) => {
       const timeA = a.sent?.microsSinceUnixEpoch ?? 0n;
@@ -106,11 +123,13 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
         let isTeamMessage = false;
 
         let matronageTag: string | null = null;
+        let senderTitle: string | null = null;
 
         if (msg.isTeam) {
           // Team (Matronage) message
           const teamMsg = msg as SpacetimeDBTeamMessage;
           senderName = teamMsg.senderUsername;
+          senderTitle = msg.senderTitle ?? null;
           isTeamMessage = true;
           // Get matronage tag for sender
           matronageTag = getMatronageTag(teamMsg.sender);
@@ -123,8 +142,7 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
             // It's a whisper from another player
             senderName = privateMsg.senderDisplayName;
             isWhisper = true;
-            // Try to get matronage tag for whisper sender
-            // Note: We don't have sender identity for whispers, so we can't show matronage tag
+            // Note: We don't have sender identity for whispers, so we can't show matronage tag or title
           }
         } else {
           const publicMsg = msg as SpacetimeDBMessage;
@@ -133,6 +151,7 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
             isSystemMsg = true;
           } else {
             senderName = getPlayerName(publicMsg.sender);
+            senderTitle = msg.senderTitle ?? null;
             matronageTag = getMatronageTag(publicMsg.sender);
           }
         }
@@ -191,6 +210,9 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
                 {isTeamMessage && <span className={styles.teamPrefix}>[Team] </span>}
                 {matronageTag && (
                   <span className={styles.matronageTag}>{matronageTag} </span>
+                )}
+                {senderTitle && (
+                  <span className={styles.titleTag}>«{senderTitle}» </span>
                 )}
                 {senderName}:
               </span>

@@ -177,6 +177,8 @@ import { GetAvailableContracts } from "./get_available_contracts_reducer.ts";
 export { GetAvailableContracts };
 import { GetKnockedOutStatus } from "./get_knocked_out_status_reducer.ts";
 export { GetKnockedOutStatus };
+import { GetLeaderboard } from "./get_leaderboard_reducer.ts";
+export { GetLeaderboard };
 import { GetMinimapData } from "./get_minimap_data_reducer.ts";
 export { GetMinimapData };
 import { GetShardBalance } from "./get_shard_balance_reducer.ts";
@@ -523,6 +525,8 @@ import { SendMessage } from "./send_message_reducer.ts";
 export { SendMessage };
 import { SetActiveItemReducer } from "./set_active_item_reducer_reducer.ts";
 export { SetActiveItemReducer };
+import { SetActiveTitle } from "./set_active_title_reducer.ts";
+export { SetActiveTitle };
 import { SetPlayerPin } from "./set_player_pin_reducer.ts";
 export { SetPlayerPin };
 import { SetSprinting } from "./set_sprinting_reducer.ts";
@@ -701,6 +705,10 @@ import { WithdrawMatronageShards } from "./withdraw_matronage_shards_reducer.ts"
 export { WithdrawMatronageShards };
 
 // Import and reexport all table handle types
+import { AchievementDefinitionTableHandle } from "./achievement_definition_table.ts";
+export { AchievementDefinitionTableHandle };
+import { AchievementUnlockNotificationTableHandle } from "./achievement_unlock_notification_table.ts";
+export { AchievementUnlockNotificationTableHandle };
 import { ActiveConnectionTableHandle } from "./active_connection_table.ts";
 export { ActiveConnectionTableHandle };
 import { ActiveConsumableEffectTableHandle } from "./active_consumable_effect_table.ts";
@@ -761,6 +769,8 @@ import { CloudUpdateScheduleTableHandle } from "./cloud_update_schedule_table.ts
 export { CloudUpdateScheduleTableHandle };
 import { CoastalSpawnPointTableHandle } from "./coastal_spawn_point_table.ts";
 export { CoastalSpawnPointTableHandle };
+import { ComparativeStatNotificationTableHandle } from "./comparative_stat_notification_table.ts";
+export { ComparativeStatNotificationTableHandle };
 import { CompostProcessScheduleTableHandle } from "./compost_process_schedule_table.ts";
 export { CompostProcessScheduleTableHandle };
 import { ContinuousSoundTableHandle } from "./continuous_sound_table.ts";
@@ -769,6 +779,10 @@ import { CraftingFinishScheduleTableHandle } from "./crafting_finish_schedule_ta
 export { CraftingFinishScheduleTableHandle };
 import { CraftingQueueItemTableHandle } from "./crafting_queue_item_table.ts";
 export { CraftingQueueItemTableHandle };
+import { DailyLoginNotificationTableHandle } from "./daily_login_notification_table.ts";
+export { DailyLoginNotificationTableHandle };
+import { DailyLoginRewardTableHandle } from "./daily_login_reward_table.ts";
+export { DailyLoginRewardTableHandle };
 import { DeathMarkerTableHandle } from "./death_marker_table.ts";
 export { DeathMarkerTableHandle };
 import { DodgeRollCleanupScheduleTableHandle } from "./dodge_roll_cleanup_schedule_table.ts";
@@ -839,6 +853,10 @@ import { LargeQuarryTableHandle } from "./large_quarry_table.ts";
 export { LargeQuarryTableHandle };
 import { LastWhisperFromTableHandle } from "./last_whisper_from_table.ts";
 export { LastWhisperFromTableHandle };
+import { LeaderboardEntryTableHandle } from "./leaderboard_entry_table.ts";
+export { LeaderboardEntryTableHandle };
+import { LevelUpNotificationTableHandle } from "./level_up_notification_table.ts";
+export { LevelUpNotificationTableHandle };
 import { LivingCoralTableHandle } from "./living_coral_table.ts";
 export { LivingCoralTableHandle };
 import { MatronageTableHandle } from "./matronage_table.ts";
@@ -865,6 +883,8 @@ import { PlantedSeedGrowthScheduleTableHandle } from "./planted_seed_growth_sche
 export { PlantedSeedGrowthScheduleTableHandle };
 import { PlayerTableHandle } from "./player_table.ts";
 export { PlayerTableHandle };
+import { PlayerAchievementTableHandle } from "./player_achievement_table.ts";
+export { PlayerAchievementTableHandle };
 import { PlayerCorpseTableHandle } from "./player_corpse_table.ts";
 export { PlayerCorpseTableHandle };
 import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_schedule_table.ts";
@@ -885,12 +905,16 @@ import { PlayerShardBalanceTableHandle } from "./player_shard_balance_table.ts";
 export { PlayerShardBalanceTableHandle };
 import { PlayerStatScheduleTableHandle } from "./player_stat_schedule_table.ts";
 export { PlayerStatScheduleTableHandle };
+import { PlayerStatsTableHandle } from "./player_stats_table.ts";
+export { PlayerStatsTableHandle };
 import { PlayerWalkingSoundStateTableHandle } from "./player_walking_sound_state_table.ts";
 export { PlayerWalkingSoundStateTableHandle };
 import { PrivateMessageTableHandle } from "./private_message_table.ts";
 export { PrivateMessageTableHandle };
 import { ProcessEffectsScheduleTableHandle } from "./process_effects_schedule_table.ts";
 export { ProcessEffectsScheduleTableHandle };
+import { ProgressNotificationTableHandle } from "./progress_notification_table.ts";
+export { ProgressNotificationTableHandle };
 import { ProjectileTableHandle } from "./projectile_table.ts";
 export { ProjectileTableHandle };
 import { ProjectileUpdateScheduleTableHandle } from "./projectile_update_schedule_table.ts";
@@ -963,6 +987,12 @@ import { WorldTileTableHandle } from "./world_tile_table.ts";
 export { WorldTileTableHandle };
 
 // Import and reexport all types
+import { AchievementCategory } from "./achievement_category_type.ts";
+export { AchievementCategory };
+import { AchievementDefinition } from "./achievement_definition_type.ts";
+export { AchievementDefinition };
+import { AchievementUnlockNotification } from "./achievement_unlock_notification_type.ts";
+export { AchievementUnlockNotification };
 import { ActiveConnection } from "./active_connection_type.ts";
 export { ActiveConnection };
 import { ActiveConsumableEffect } from "./active_consumable_effect_type.ts";
@@ -1047,6 +1077,8 @@ import { CloudUpdateSchedule } from "./cloud_update_schedule_type.ts";
 export { CloudUpdateSchedule };
 import { CoastalSpawnPoint } from "./coastal_spawn_point_type.ts";
 export { CoastalSpawnPoint };
+import { ComparativeStatNotification } from "./comparative_stat_notification_type.ts";
+export { ComparativeStatNotification };
 import { CompostProcessSchedule } from "./compost_process_schedule_type.ts";
 export { CompostProcessSchedule };
 import { ContainerLocationData } from "./container_location_data_type.ts";
@@ -1063,6 +1095,10 @@ import { CraftingFinishSchedule } from "./crafting_finish_schedule_type.ts";
 export { CraftingFinishSchedule };
 import { CraftingQueueItem } from "./crafting_queue_item_type.ts";
 export { CraftingQueueItem };
+import { DailyLoginNotification } from "./daily_login_notification_type.ts";
+export { DailyLoginNotification };
+import { DailyLoginReward } from "./daily_login_reward_type.ts";
+export { DailyLoginReward };
 import { DamageType } from "./damage_type_type.ts";
 export { DamageType };
 import { DeathMarker } from "./death_marker_type.ts";
@@ -1157,6 +1193,12 @@ import { LargeQuarryType } from "./large_quarry_type_type.ts";
 export { LargeQuarryType };
 import { LastWhisperFrom } from "./last_whisper_from_type.ts";
 export { LastWhisperFrom };
+import { LeaderboardCategory } from "./leaderboard_category_type.ts";
+export { LeaderboardCategory };
+import { LeaderboardEntry } from "./leaderboard_entry_type.ts";
+export { LeaderboardEntry };
+import { LevelUpNotification } from "./level_up_notification_type.ts";
+export { LevelUpNotification };
 import { LivingCoral } from "./living_coral_type.ts";
 export { LivingCoral };
 import { Matronage } from "./matronage_type.ts";
@@ -1193,6 +1235,8 @@ import { PlantedSeedGrowthSchedule } from "./planted_seed_growth_schedule_type.t
 export { PlantedSeedGrowthSchedule };
 import { Player } from "./player_type.ts";
 export { Player };
+import { PlayerAchievement } from "./player_achievement_type.ts";
+export { PlayerAchievement };
 import { PlayerCorpse } from "./player_corpse_type.ts";
 export { PlayerCorpse };
 import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_type.ts";
@@ -1213,6 +1257,8 @@ import { PlayerShardBalance } from "./player_shard_balance_type.ts";
 export { PlayerShardBalance };
 import { PlayerStatSchedule } from "./player_stat_schedule_type.ts";
 export { PlayerStatSchedule };
+import { PlayerStats } from "./player_stats_type.ts";
+export { PlayerStats };
 import { PlayerWalkingSoundState } from "./player_walking_sound_state_type.ts";
 export { PlayerWalkingSoundState };
 import { PrivateMessage } from "./private_message_type.ts";
@@ -1221,6 +1267,10 @@ import { ProcessEffectsSchedule } from "./process_effects_schedule_type.ts";
 export { ProcessEffectsSchedule };
 import { ProductionEffectConfig } from "./production_effect_config_type.ts";
 export { ProductionEffectConfig };
+import { ProgressNotification } from "./progress_notification_type.ts";
+export { ProgressNotification };
+import { ProgressType } from "./progress_type_type.ts";
+export { ProgressType };
 import { Projectile } from "./projectile_type.ts";
 export { Projectile };
 import { ProjectileUpdateSchedule } from "./projectile_update_schedule_type.ts";
@@ -1316,6 +1366,24 @@ export { WorldTile };
 
 const REMOTE_MODULE = {
   tables: {
+    achievement_definition: {
+      tableName: "achievement_definition" as const,
+      rowType: AchievementDefinition.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (AchievementDefinition.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    achievement_unlock_notification: {
+      tableName: "achievement_unlock_notification" as const,
+      rowType: AchievementUnlockNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (AchievementUnlockNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     active_connection: {
       tableName: "active_connection" as const,
       rowType: ActiveConnection.getTypeScriptAlgebraicType(),
@@ -1586,6 +1654,15 @@ const REMOTE_MODULE = {
         colType: (CoastalSpawnPoint.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    comparative_stat_notification: {
+      tableName: "comparative_stat_notification" as const,
+      rowType: ComparativeStatNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ComparativeStatNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     compost_process_schedule: {
       tableName: "compost_process_schedule" as const,
       rowType: CompostProcessSchedule.getTypeScriptAlgebraicType(),
@@ -1620,6 +1697,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "queueItemId",
         colType: (CraftingQueueItem.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    daily_login_notification: {
+      tableName: "daily_login_notification" as const,
+      rowType: DailyLoginNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (DailyLoginNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    daily_login_reward: {
+      tableName: "daily_login_reward" as const,
+      rowType: DailyLoginReward.getTypeScriptAlgebraicType(),
+      primaryKey: "day",
+      primaryKeyInfo: {
+        colName: "day",
+        colType: (DailyLoginReward.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     death_marker: {
@@ -1937,6 +2032,24 @@ const REMOTE_MODULE = {
         colType: (LastWhisperFrom.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    leaderboard_entry: {
+      tableName: "leaderboard_entry" as const,
+      rowType: LeaderboardEntry.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (LeaderboardEntry.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    level_up_notification: {
+      tableName: "level_up_notification" as const,
+      rowType: LevelUpNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (LevelUpNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     living_coral: {
       tableName: "living_coral" as const,
       rowType: LivingCoral.getTypeScriptAlgebraicType(),
@@ -2054,6 +2167,15 @@ const REMOTE_MODULE = {
         colType: (Player.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    player_achievement: {
+      tableName: "player_achievement" as const,
+      rowType: PlayerAchievement.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (PlayerAchievement.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     player_corpse: {
       tableName: "player_corpse" as const,
       rowType: PlayerCorpse.getTypeScriptAlgebraicType(),
@@ -2144,6 +2266,15 @@ const REMOTE_MODULE = {
         colType: (PlayerStatSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    player_stats: {
+      tableName: "player_stats" as const,
+      rowType: PlayerStats.getTypeScriptAlgebraicType(),
+      primaryKey: "playerId",
+      primaryKeyInfo: {
+        colName: "playerId",
+        colType: (PlayerStats.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     player_walking_sound_state: {
       tableName: "player_walking_sound_state" as const,
       rowType: PlayerWalkingSoundState.getTypeScriptAlgebraicType(),
@@ -2169,6 +2300,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "jobId",
         colType: (ProcessEffectsSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    progress_notification: {
+      tableName: "progress_notification" as const,
+      rowType: ProgressNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ProgressNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     projectile: {
@@ -2779,6 +2919,10 @@ const REMOTE_MODULE = {
     get_knocked_out_status: {
       reducerName: "get_knocked_out_status",
       argsType: GetKnockedOutStatus.getTypeScriptAlgebraicType(),
+    },
+    get_leaderboard: {
+      reducerName: "get_leaderboard",
+      argsType: GetLeaderboard.getTypeScriptAlgebraicType(),
     },
     get_minimap_data: {
       reducerName: "get_minimap_data",
@@ -3472,6 +3616,10 @@ const REMOTE_MODULE = {
       reducerName: "set_active_item_reducer",
       argsType: SetActiveItemReducer.getTypeScriptAlgebraicType(),
     },
+    set_active_title: {
+      reducerName: "set_active_title",
+      argsType: SetActiveTitle.getTypeScriptAlgebraicType(),
+    },
     set_player_pin: {
       reducerName: "set_player_pin",
       argsType: SetPlayerPin.getTypeScriptAlgebraicType(),
@@ -3927,6 +4075,7 @@ export type Reducer = never
 | { name: "GenerateWorld", args: GenerateWorld }
 | { name: "GetAvailableContracts", args: GetAvailableContracts }
 | { name: "GetKnockedOutStatus", args: GetKnockedOutStatus }
+| { name: "GetLeaderboard", args: GetLeaderboard }
 | { name: "GetMinimapData", args: GetMinimapData }
 | { name: "GetShardBalance", args: GetShardBalance }
 | { name: "GrantBuildingPrivilegeFromHearth", args: GrantBuildingPrivilegeFromHearth }
@@ -4100,6 +4249,7 @@ export type Reducer = never
 | { name: "SeedWorldState", args: SeedWorldState }
 | { name: "SendMessage", args: SendMessage }
 | { name: "SetActiveItemReducer", args: SetActiveItemReducer }
+| { name: "SetActiveTitle", args: SetActiveTitle }
 | { name: "SetPlayerPin", args: SetPlayerPin }
 | { name: "SetSprinting", args: SetSprinting }
 | { name: "SetThrowAim", args: SetThrowAim }
@@ -5315,6 +5465,22 @@ export class RemoteReducers {
 
   removeOnGetKnockedOutStatus(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("get_knocked_out_status", callback);
+  }
+
+  getLeaderboard(category: LeaderboardCategory, limit: number) {
+    const __args = { category, limit };
+    let __writer = new __BinaryWriter(1024);
+    GetLeaderboard.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("get_leaderboard", __argsBuffer, this.setCallReducerFlags.getLeaderboardFlags);
+  }
+
+  onGetLeaderboard(callback: (ctx: ReducerEventContext, category: LeaderboardCategory, limit: number) => void) {
+    this.connection.onReducer("get_leaderboard", callback);
+  }
+
+  removeOnGetLeaderboard(callback: (ctx: ReducerEventContext, category: LeaderboardCategory, limit: number) => void) {
+    this.connection.offReducer("get_leaderboard", callback);
   }
 
   getMinimapData() {
@@ -8001,6 +8167,22 @@ export class RemoteReducers {
     this.connection.offReducer("set_active_item_reducer", callback);
   }
 
+  setActiveTitle(titleId: string | undefined) {
+    const __args = { titleId };
+    let __writer = new __BinaryWriter(1024);
+    SetActiveTitle.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("set_active_title", __argsBuffer, this.setCallReducerFlags.setActiveTitleFlags);
+  }
+
+  onSetActiveTitle(callback: (ctx: ReducerEventContext, titleId: string | undefined) => void) {
+    this.connection.onReducer("set_active_title", callback);
+  }
+
+  removeOnSetActiveTitle(callback: (ctx: ReducerEventContext, titleId: string | undefined) => void) {
+    this.connection.offReducer("set_active_title", callback);
+  }
+
   setPlayerPin(pinX: number, pinY: number) {
     const __args = { pinX, pinY };
     let __writer = new __BinaryWriter(1024);
@@ -9733,6 +9915,11 @@ export class SetReducerFlags {
     this.getKnockedOutStatusFlags = flags;
   }
 
+  getLeaderboardFlags: __CallReducerFlags = 'FullUpdate';
+  getLeaderboard(flags: __CallReducerFlags) {
+    this.getLeaderboardFlags = flags;
+  }
+
   getMinimapDataFlags: __CallReducerFlags = 'FullUpdate';
   getMinimapData(flags: __CallReducerFlags) {
     this.getMinimapDataFlags = flags;
@@ -10588,6 +10775,11 @@ export class SetReducerFlags {
     this.setActiveItemReducerFlags = flags;
   }
 
+  setActiveTitleFlags: __CallReducerFlags = 'FullUpdate';
+  setActiveTitle(flags: __CallReducerFlags) {
+    this.setActiveTitleFlags = flags;
+  }
+
   setPlayerPinFlags: __CallReducerFlags = 'FullUpdate';
   setPlayerPin(flags: __CallReducerFlags) {
     this.setPlayerPinFlags = flags;
@@ -11033,6 +11225,16 @@ export class SetReducerFlags {
 export class RemoteTables {
   constructor(private connection: __DbConnectionImpl) {}
 
+  get achievementDefinition(): AchievementDefinitionTableHandle<'achievement_definition'> {
+    // clientCache is a private property
+    return new AchievementDefinitionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AchievementDefinition>(REMOTE_MODULE.tables.achievement_definition));
+  }
+
+  get achievementUnlockNotification(): AchievementUnlockNotificationTableHandle<'achievement_unlock_notification'> {
+    // clientCache is a private property
+    return new AchievementUnlockNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<AchievementUnlockNotification>(REMOTE_MODULE.tables.achievement_unlock_notification));
+  }
+
   get activeConnection(): ActiveConnectionTableHandle<'active_connection'> {
     // clientCache is a private property
     return new ActiveConnectionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ActiveConnection>(REMOTE_MODULE.tables.active_connection));
@@ -11183,6 +11385,11 @@ export class RemoteTables {
     return new CoastalSpawnPointTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CoastalSpawnPoint>(REMOTE_MODULE.tables.coastal_spawn_point));
   }
 
+  get comparativeStatNotification(): ComparativeStatNotificationTableHandle<'comparative_stat_notification'> {
+    // clientCache is a private property
+    return new ComparativeStatNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ComparativeStatNotification>(REMOTE_MODULE.tables.comparative_stat_notification));
+  }
+
   get compostProcessSchedule(): CompostProcessScheduleTableHandle<'compost_process_schedule'> {
     // clientCache is a private property
     return new CompostProcessScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CompostProcessSchedule>(REMOTE_MODULE.tables.compost_process_schedule));
@@ -11201,6 +11408,16 @@ export class RemoteTables {
   get craftingQueueItem(): CraftingQueueItemTableHandle<'crafting_queue_item'> {
     // clientCache is a private property
     return new CraftingQueueItemTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CraftingQueueItem>(REMOTE_MODULE.tables.crafting_queue_item));
+  }
+
+  get dailyLoginNotification(): DailyLoginNotificationTableHandle<'daily_login_notification'> {
+    // clientCache is a private property
+    return new DailyLoginNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DailyLoginNotification>(REMOTE_MODULE.tables.daily_login_notification));
+  }
+
+  get dailyLoginReward(): DailyLoginRewardTableHandle<'daily_login_reward'> {
+    // clientCache is a private property
+    return new DailyLoginRewardTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DailyLoginReward>(REMOTE_MODULE.tables.daily_login_reward));
   }
 
   get deathMarker(): DeathMarkerTableHandle<'death_marker'> {
@@ -11378,6 +11595,16 @@ export class RemoteTables {
     return new LastWhisperFromTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LastWhisperFrom>(REMOTE_MODULE.tables.last_whisper_from));
   }
 
+  get leaderboardEntry(): LeaderboardEntryTableHandle<'leaderboard_entry'> {
+    // clientCache is a private property
+    return new LeaderboardEntryTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LeaderboardEntry>(REMOTE_MODULE.tables.leaderboard_entry));
+  }
+
+  get levelUpNotification(): LevelUpNotificationTableHandle<'level_up_notification'> {
+    // clientCache is a private property
+    return new LevelUpNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LevelUpNotification>(REMOTE_MODULE.tables.level_up_notification));
+  }
+
   get livingCoral(): LivingCoralTableHandle<'living_coral'> {
     // clientCache is a private property
     return new LivingCoralTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<LivingCoral>(REMOTE_MODULE.tables.living_coral));
@@ -11443,6 +11670,11 @@ export class RemoteTables {
     return new PlayerTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Player>(REMOTE_MODULE.tables.player));
   }
 
+  get playerAchievement(): PlayerAchievementTableHandle<'player_achievement'> {
+    // clientCache is a private property
+    return new PlayerAchievementTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerAchievement>(REMOTE_MODULE.tables.player_achievement));
+  }
+
   get playerCorpse(): PlayerCorpseTableHandle<'player_corpse'> {
     // clientCache is a private property
     return new PlayerCorpseTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCorpse>(REMOTE_MODULE.tables.player_corpse));
@@ -11493,6 +11725,11 @@ export class RemoteTables {
     return new PlayerStatScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerStatSchedule>(REMOTE_MODULE.tables.player_stat_schedule));
   }
 
+  get playerStats(): PlayerStatsTableHandle<'player_stats'> {
+    // clientCache is a private property
+    return new PlayerStatsTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerStats>(REMOTE_MODULE.tables.player_stats));
+  }
+
   get playerWalkingSoundState(): PlayerWalkingSoundStateTableHandle<'player_walking_sound_state'> {
     // clientCache is a private property
     return new PlayerWalkingSoundStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerWalkingSoundState>(REMOTE_MODULE.tables.player_walking_sound_state));
@@ -11506,6 +11743,11 @@ export class RemoteTables {
   get processEffectsSchedule(): ProcessEffectsScheduleTableHandle<'process_effects_schedule'> {
     // clientCache is a private property
     return new ProcessEffectsScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ProcessEffectsSchedule>(REMOTE_MODULE.tables.process_effects_schedule));
+  }
+
+  get progressNotification(): ProgressNotificationTableHandle<'progress_notification'> {
+    // clientCache is a private property
+    return new ProgressNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ProgressNotification>(REMOTE_MODULE.tables.progress_notification));
   }
 
   get projectile(): ProjectileTableHandle<'projectile'> {

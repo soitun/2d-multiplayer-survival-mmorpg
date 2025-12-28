@@ -7,6 +7,9 @@ use crate::dropped_item::give_item_to_player_or_drop;
 use crate::world_state::{world_state as WorldStateTableTrait, TimeOfDay, WeatherType, get_weather_for_position};
 use rand::Rng;
 
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
+
 // Fishing state tracking
 #[derive(SpacetimeType)]
 pub struct FishingState {
@@ -733,6 +736,16 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
         if added_items.is_empty() && dropped_items.is_empty() {
             log::error!("Player {} successful fishing but no items were given!", player_id);
             return Err("Failed to give any caught items".to_string());
+        }
+        
+        // Award XP and update stats for successful catch
+        if let Err(e) = crate::player_progression::award_xp(ctx, player_id, crate::player_progression::XP_FISH_CAUGHT) {
+            log::error!("Failed to award XP for fishing: {}", e);
+        }
+        
+        // Track fish_caught stat and check achievements
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "fish_caught", 1) {
+            log::error!("Failed to track fishing stat: {}", e);
         }
         
         log::info!("Player {} fishing complete: {} items to inventory, {} items dropped: {:?}", 

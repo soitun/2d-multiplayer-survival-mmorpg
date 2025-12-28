@@ -6,6 +6,10 @@ use std::time::Duration;
 
 use crate::inventory_management::ItemContainer;
 
+// Import table traits for player progression tables
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
+use crate::player_progression::comparative_stat_notification as ComparativeStatNotificationTableTrait;
+
 // --- StatThresholdsConfig Table Definition (Formerly GameConfig) ---
 pub const DEFAULT_LOW_NEED_THRESHOLD: f32 = 20.0;
 
@@ -903,6 +907,52 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                 log::info!("[DeathMarker] Inserting new death marker for player {:?} due to stats decay.", player.identity);
             }
             // --- End DeathMarker ---
+            
+            // --- Calculate Comparative Stats on Death ---
+            let mut stats = crate::player_progression::get_or_init_player_stats(ctx, player_id);
+            
+            // Calculate survival time for this run
+            let survival_time: u64 = if let Some(start_time) = stats.current_survival_start {
+                let elapsed_micros = ctx.timestamp.to_micros_since_unix_epoch()
+                    .saturating_sub(start_time.to_micros_since_unix_epoch());
+                (elapsed_micros / 1_000_000) as u64 // Convert to seconds
+            } else {
+                0
+            };
+            
+            // Update longest survival if this run was longer
+            if survival_time > stats.longest_survival_seconds {
+                stats.longest_survival_seconds = survival_time;
+            }
+            
+            // Update longest survival and save stats before deaths tracking
+            stats.updated_at = ctx.timestamp;
+            ctx.db.player_stats().player_id().update(stats.clone());
+            
+            // Calculate percentile for survival time
+            let all_survival_times: Vec<u64> = ctx.db.player_stats()
+                .iter()
+                .map(|s| s.longest_survival_seconds)
+                .collect();
+            let percentile = crate::player_progression::calculate_percentile(stats.longest_survival_seconds, &all_survival_times);
+            
+            // Send comparative stat notification
+            let notif = crate::player_progression::ComparativeStatNotification {
+                id: 0,
+                player_id,
+                stat_name: "Longest Survival".to_string(),
+                player_value: stats.longest_survival_seconds,
+                percentile,
+                message: format!("Your longest survival was longer than {:.1}% of players", percentile),
+                created_at: ctx.timestamp,
+            };
+            ctx.db.comparative_stat_notification().insert(notif);
+            
+            // Track deaths stat and check achievements (including first_death)
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "deaths", 1) {
+                log::error!("Failed to track death stat: {}", e);
+            }
+            // --- End Comparative Stats ---
         }
 
         // --- Update Player Table ---

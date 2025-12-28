@@ -126,7 +126,7 @@ pub fn is_grass_type_bramble(appearance_type: &GrassAppearanceType) -> bool {
     appearance_type.is_bramble()
 }
 
-#[spacetimedb::table(name = grass, public)]
+#[spacetimedb::table(name = grass, public, index(name = idx_chunk_health, btree(columns = [chunk_index, health])))]
 #[derive(Clone, Debug)]
 pub struct Grass {
     #[primary_key]
@@ -134,7 +134,6 @@ pub struct Grass {
     pub id: u64,
     pub pos_x: f32,
     pub pos_y: f32,
-    #[index(btree)]
     pub health: u32,
     pub appearance_type: GrassAppearanceType, // For different sprites/sway
     #[index(btree)]

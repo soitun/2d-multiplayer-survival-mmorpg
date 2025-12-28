@@ -244,10 +244,19 @@
 }
 
 .matronageTag {
-  color: #b464ff;
-  font-weight: normal;
+  color: #40ff40; /* Bright green for matronage - guild identity */
+  font-weight: bold;
   font-size: 12px;
-  opacity: 0.9;
+  text-shadow: 0 0 4px rgba(64, 255, 64, 0.6);
+}
+
+.titleTag {
+  color: #ffd700; /* Gold for achievement titles - personal glory */
+  font-weight: normal;
+  font-size: 11px;
+  font-style: italic;
+  text-shadow: 0 0 4px rgba(255, 215, 0, 0.6);
+  opacity: 0.95;
 }
 
 .messageText {

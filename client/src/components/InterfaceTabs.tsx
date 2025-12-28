@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './InterfaceTabs.css';
 
 interface InterfaceTabsProps {
-  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage';
-  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage') => void;
+  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
+  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard') => void;
   className?: string;
   hideEncyclopedia?: boolean;
 }
@@ -22,6 +22,7 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
   const isAlkActive = currentView === 'alk';
   const isCairnsActive = currentView === 'cairns';
   const isMatronageActive = currentView === 'matronage';
+  const isLeaderboardActive = currentView === 'leaderboard';
 
   return (
     <div className={`interface-tabs ${className}`}>
@@ -85,6 +86,16 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         onMouseLeave={() => setHoveredTab(null)}
       >
         MATRONAGE
+      </button>
+      
+      {/* LEADERBOARD Tab */}
+      <button
+        className={`tab leaderboard-tab ${isLeaderboardActive ? 'active' : 'inactive'} ${hoveredTab === 'leaderboard' ? 'hovered' : ''}`}
+        onClick={() => onViewChange('leaderboard')}
+        onMouseEnter={() => setHoveredTab('leaderboard')}
+        onMouseLeave={() => setHoveredTab(null)}
+      >
+        LEADERBOARD
       </button>
     </div>
   );

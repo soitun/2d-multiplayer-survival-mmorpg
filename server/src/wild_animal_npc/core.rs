@@ -43,6 +43,8 @@ use crate::campfire::Campfire; // ADDED: Concrete type for pre-fetching
 use crate::dropped_item::dropped_item as DroppedItemTableTrait; // Add dropped item table trait
 use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For foundation fear
 use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -1533,6 +1535,16 @@ pub fn damage_wild_animal(
             
             ctx.db.wild_animal().id().delete(&animal_id);
             log::info!("Wild animal {} killed by player {} - corpse created", animal_id, attacker_id);
+            
+            // Award XP and update stats for animal kill
+            if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_ANIMAL_KILLED) {
+                log::error!("Failed to award XP for animal kill: {}", e);
+            }
+            
+            // Track animals_killed stat and check achievements
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "animals_killed", 1) {
+                log::error!("Failed to track animal kill stat: {}", e);
+            }
         } else {
             // 🔥 FIRE FEAR OVERRIDE: If animal was afraid of fire but got attacked, they now ignore fire and retaliate
             if let Some(attacker) = ctx.db.player().identity().find(&attacker_id) {

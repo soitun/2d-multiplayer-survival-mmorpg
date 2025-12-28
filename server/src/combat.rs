@@ -64,6 +64,8 @@ use crate::consumables::MAX_HEALTH_VALUE;
 use crate::armor;
 // Player inventory imports (commented out previously, keeping them commented if unresolved)
 // use crate::player_inventory::{drop_all_inventory_on_death, drop_all_equipped_armor_on_death};
+// Import player progression table traits
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 // Import the player stats module
 use crate::player_stats;
 // Import the utils module
@@ -1363,6 +1365,17 @@ pub fn damage_tree(
         }
         
         log::info!("Tree {} destroyed by Player {:?}. Scheduling respawn.", tree_id, attacker_id);
+        
+        // Award XP and update stats for tree chopped
+        if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_TREE_CHOPPED) {
+            log::error!("Failed to award XP for tree chop: {}", e);
+        }
+        
+        // Track tree chopped stat and check achievements
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "trees_chopped", 1) {
+            log::error!("Failed to check achievements after tree chop: {}", e);
+        }
+        
         // Calculate random respawn time for trees
         let respawn_duration_secs = if tree::MIN_TREE_RESPAWN_TIME_SECS >= tree::MAX_TREE_RESPAWN_TIME_SECS {
             tree::MIN_TREE_RESPAWN_TIME_SECS
@@ -1555,6 +1568,17 @@ pub fn damage_stone(
         }
         
         log::info!("Stone {} depleted by Player {:?}. Scheduling respawn.", stone_id, attacker_id);
+        
+        // Award XP and update stats for stone mined
+        if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_STONE_MINED) {
+            log::error!("Failed to award XP for stone mining: {}", e);
+        }
+        
+        // Track stone mined stat and check achievements
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "stones_mined", 1) {
+            log::error!("Failed to check achievements after stone mining: {}", e);
+        }
+        
         // Calculate random respawn time for stones
         let respawn_duration_secs = if stone::MIN_STONE_RESPAWN_TIME_SECS >= stone::MAX_STONE_RESPAWN_TIME_SECS {
             stone::MIN_STONE_RESPAWN_TIME_SECS
@@ -1675,6 +1699,15 @@ pub fn damage_living_coral(
         if let Err(e) = grant_resource(ctx, attacker_id, "Pearl", 1) {
             log::error!("Failed to grant Pearl to player {:?}: {}", attacker_id, e);
         }
+    }
+    
+    // === PLAYER PROGRESSION: Award XP for coral mining ===
+    if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_CORAL_HARVESTED) {
+        log::warn!("Failed to award XP for coral mining: {}", e);
+    }
+    // Track coral mined for achievements
+    if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "corals_mined", 1) {
+        log::warn!("Failed to check coral mining achievements: {}", e);
     }
     
     if coral_destroyed {
