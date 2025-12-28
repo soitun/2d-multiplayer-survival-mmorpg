@@ -423,7 +423,7 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                             id: 0, // Auto-incremented
                             matronage_id: membership.matronage_id,
                             sender: sender_id,
-                            sender_username,
+                            sender_username: sender_username.clone(), // Clone for struct, keep original for logging
                             sender_title,
                             text: message_text.clone(),
                             sent: current_time,
