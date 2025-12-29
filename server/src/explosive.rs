@@ -228,12 +228,18 @@ pub fn place_explosive(ctx: &ReducerContext, item_instance_id: u64, world_x: f32
                         item_instance_id, babushka_def_id, matriarch_def_id, item_to_consume.item_def_id));
     };
 
-    // Consume the item
+    // Consume ONE item from the stack (not the entire stack)
     log::info!(
-        "[PlaceExplosive] Consuming item instance {} (Def ID: {}) from player {:?}",
-        item_instance_id, item_to_consume.item_def_id, sender_id
+        "[PlaceExplosive] Consuming 1 of {} item(s) from instance {} (Def ID: {}) from player {:?}",
+        item_to_consume.quantity, item_instance_id, item_to_consume.item_def_id, sender_id
     );
-    inventory_items.instance_id().delete(item_instance_id);
+    if item_to_consume.quantity > 1 {
+        let mut updated_item = item_to_consume.clone();
+        updated_item.quantity -= 1;
+        inventory_items.instance_id().update(updated_item);
+    } else {
+        inventory_items.instance_id().delete(item_instance_id);
+    }
 
     // Create explosive entity - fuse starts immediately
     let current_time = ctx.timestamp;

@@ -1562,28 +1562,43 @@ export function drawMinimapOntoCanvas({
       });
     }
   } else {
-    // DAYTIME: Show players in the same chunk as the local player
+    // DAYTIME: Show players in nearby chunks (same visibility as trees/stones via spatial subscriptions)
     // Players in same matronage = blue, others = red (enemies)
-    // No matronage requirement - chunk proximity is the only requirement
+    // Uses chunk-based filtering to match how trees/stones are spatially subscribed
     
     if (localPlayer) {
-      // Calculate local player's chunk index
-      const localPlayerChunkIndex = calculateChunkIndex(localPlayer.positionX, localPlayer.positionY);
+      // Calculate local player's chunk coordinates (matching spatial subscription logic)
+      const { chunkSizeTiles, tileSize } = gameConfig;
+      const localTileX = Math.floor(localPlayer.positionX / tileSize);
+      const localTileY = Math.floor(localPlayer.positionY / tileSize);
+      const localChunkX = Math.floor(localTileX / chunkSizeTiles);
+      const localChunkY = Math.floor(localTileY / chunkSizeTiles);
       
       // Check if local player is in a matronage (for coloring purposes)
       const localPlayerMatronageId = localPlayerId && matronageMembers 
         ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
         : null;
 
+      // Match the spatial subscription buffer size (CHUNK_BUFFER_SIZE = 1 in useSpacetimeTables)
+      // This means players visible in a 3x3 grid of chunks around you (same as trees/stones)
+      const PLAYER_CHUNK_BUFFER = 1;
+
       players.forEach((player, playerId) => {
         if (localPlayerId && playerId === localPlayerId) {
           return; // Skip local player, handled separately
         }
 
-        // Chunk check - only show players in the same chunk
-        const remotePlayerChunkIndex = calculateChunkIndex(player.positionX, player.positionY);
-        if (remotePlayerChunkIndex !== localPlayerChunkIndex) {
-          return; // Player not in same chunk
+        // Calculate remote player's chunk coordinates
+        const remoteTileX = Math.floor(player.positionX / tileSize);
+        const remoteTileY = Math.floor(player.positionY / tileSize);
+        const remoteChunkX = Math.floor(remoteTileX / chunkSizeTiles);
+        const remoteChunkY = Math.floor(remoteTileY / chunkSizeTiles);
+        
+        // Check if within chunk buffer (same logic as spatial subscriptions for trees/stones)
+        const chunkDistX = Math.abs(remoteChunkX - localChunkX);
+        const chunkDistY = Math.abs(remoteChunkY - localChunkY);
+        if (chunkDistX > PLAYER_CHUNK_BUFFER || chunkDistY > PLAYER_CHUNK_BUFFER) {
+          return; // Player outside chunk buffer range
         }
 
         const screenCoords = worldToMinimap(player.positionX, player.positionY);

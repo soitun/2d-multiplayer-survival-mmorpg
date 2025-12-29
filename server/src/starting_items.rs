@@ -37,10 +37,12 @@ pub enum LoadoutType {
     Swimming,
     /// Farming testing: Seeds, compost, fertilizer, water containers
     Farming,
+    /// Explosives testing: Babushka's Surprise and Matriarch's Wrath
+    Explosives,
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Explosives;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -256,6 +258,28 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Wooden Storage Box", 3, None, Some(10)),
             ("Camp Fire", 2, None, Some(11)),
             ("Bandage", 10, None, Some(12)),
+        ],
+
+        // ====================================================================
+        // EXPLOSIVES - Demolition and destruction testing
+        // ====================================================================
+        LoadoutType::Explosives => vec![
+            // Hotbar - Explosives ready to use
+            ("Babushka's Surprise", 10, Some(0), None),    // Tier 1 explosive
+            ("Matriarch's Wrath", 10, Some(1), None),     // Tier 2 explosive
+            ("Combat Ladle", 1, Some(2), None),           // Basic tool
+            ("Torch", 1, Some(3), None),
+            ("Reed Water Bottle", 1, Some(4), None),
+            ("Cerametal Field Cauldron Mk. II", 1, Some(5), None),
+            // Inventory - Lots of explosives
+            ("Babushka's Surprise", 50, None, Some(0)),
+            ("Babushka's Surprise", 50, None, Some(1)),
+            ("Matriarch's Wrath", 30, None, Some(2)),
+            ("Matriarch's Wrath", 30, None, Some(3)),
+            ("Bandage", 20, None, Some(4)),
+            ("Wood", 1000, None, Some(5)),               // For building test structures
+            ("Stone", 500, None, Some(6)),
+            ("Metal Fragments", 500, None, Some(7)),
         ],
     }
 }
