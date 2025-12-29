@@ -54,12 +54,7 @@ export type GrassAppearanceType = GrassAppearanceTypeVariants.PatchA |
   GrassAppearanceTypeVariants.AlpinePatchD |
   GrassAppearanceTypeVariants.TallGrassAlpineA |
   GrassAppearanceTypeVariants.TallGrassAlpineB |
-  GrassAppearanceTypeVariants.BeachGrassA |
-  GrassAppearanceTypeVariants.ReedBedsA |
-  GrassAppearanceTypeVariants.Bulrushes |
-  GrassAppearanceTypeVariants.LilyPads |
-  GrassAppearanceTypeVariants.SeaweedForest |
-  GrassAppearanceTypeVariants.AlgaeMats;
+  GrassAppearanceTypeVariants.BeachGrassA;
 
 let _cached_GrassAppearanceType_type_value: __AlgebraicTypeType | null = null;
 
@@ -96,11 +91,6 @@ export const GrassAppearanceType = {
   TallGrassAlpineA: { tag: "TallGrassAlpineA" } as const,
   TallGrassAlpineB: { tag: "TallGrassAlpineB" } as const,
   BeachGrassA: { tag: "BeachGrassA" } as const,
-  ReedBedsA: { tag: "ReedBedsA" } as const,
-  Bulrushes: { tag: "Bulrushes" } as const,
-  LilyPads: { tag: "LilyPads" } as const,
-  SeaweedForest: { tag: "SeaweedForest" } as const,
-  AlgaeMats: { tag: "AlgaeMats" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_GrassAppearanceType_type_value) return _cached_GrassAppearanceType_type_value;
@@ -131,11 +121,6 @@ export const GrassAppearanceType = {
       { name: "TallGrassAlpineA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TallGrassAlpineB", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BeachGrassA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ReedBedsA", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Bulrushes", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "LilyPads", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SeaweedForest", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "AlgaeMats", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_GrassAppearanceType_type_value;
   },

@@ -53,9 +53,4 @@ export type AlpinePatchD = { tag: "AlpinePatchD" };
 export type TallGrassAlpineA = { tag: "TallGrassAlpineA" };
 export type TallGrassAlpineB = { tag: "TallGrassAlpineB" };
 export type BeachGrassA = { tag: "BeachGrassA" };
-export type ReedBedsA = { tag: "ReedBedsA" };
-export type Bulrushes = { tag: "Bulrushes" };
-export type LilyPads = { tag: "LilyPads" };
-export type SeaweedForest = { tag: "SeaweedForest" };
-export type AlgaeMats = { tag: "AlgaeMats" };
 
