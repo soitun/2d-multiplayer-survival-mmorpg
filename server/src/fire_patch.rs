@@ -249,10 +249,16 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
         
         let radius_sq = FIRE_PATCH_STRUCTURE_DAMAGE_RADIUS * FIRE_PATCH_STRUCTURE_DAMAGE_RADIUS;
         
-        // Check walls
+        // Check walls - ONLY Twig (0) and Wood (1) tiers can be damaged by fire
+        // Stone (2) and Metal (3) are fire-resistant
         for mut wall in ctx.db.wall_cell().iter() {
             if wall.is_destroyed {
                 continue;
+            }
+            
+            // Skip fire-resistant tiers (Stone = 2, Metal = 3)
+            if wall.tier >= 2 {
+                continue; // Stone and Metal walls don't burn
             }
             
             // Calculate wall center position
@@ -264,19 +270,20 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
             let dist_sq = dx * dx + dy * dy;
             
             if dist_sq < radius_sq {
-                // Apply fire damage to wall
+                // Apply fire damage to wall (Twig/Wood only)
                 wall.health = (wall.health - FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK).max(0.0);
                 wall.last_hit_time = Some(current_time);
                 
+                let tier_name = if wall.tier == 0 { "Twig" } else { "Wood" };
                 log::info!(
-                    "[FirePatch] Fire patch {} damaged wall {} for {:.1} damage (health: {:.1})",
-                    fire_patch.id, wall.id, FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK, wall.health
+                    "[FirePatch] Fire patch {} damaged {} wall {} for {:.1} damage (health: {:.1})",
+                    fire_patch.id, tier_name, wall.id, FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK, wall.health
                 );
                 
                 if wall.health <= 0.0 {
                     wall.is_destroyed = true;
                     wall.destroyed_at = Some(current_time);
-                    log::info!("[FirePatch] Wall {} destroyed by fire", wall.id);
+                    log::info!("[FirePatch] {} wall {} destroyed by fire", tier_name, wall.id);
                 }
                 
                 let wall_id = wall.id; // Save ID before moving wall
@@ -300,10 +307,16 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
             }
         }
         
-        // Check foundations
+        // Check foundations - ONLY Twig (0) and Wood (1) tiers can be damaged by fire
+        // Stone (2) and Metal (3) are fire-resistant
         for mut foundation in ctx.db.foundation_cell().iter() {
             if foundation.is_destroyed {
                 continue;
+            }
+            
+            // Skip fire-resistant tiers (Stone = 2, Metal = 3)
+            if foundation.tier >= 2 {
+                continue; // Stone and Metal foundations don't burn
             }
             
             // Calculate foundation center position
@@ -315,25 +328,26 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
             let dist_sq = dx * dx + dy * dy;
             
             if dist_sq < radius_sq {
-                // Apply fire damage to foundation
+                // Apply fire damage to foundation (Twig/Wood only)
                 foundation.health = (foundation.health - FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK).max(0.0);
                 foundation.last_hit_time = Some(current_time);
                 
+                let tier_name = if foundation.tier == 0 { "Twig" } else { "Wood" };
                 log::info!(
-                    "[FirePatch] Fire patch {} damaged foundation {} for {:.1} damage (health: {:.1})",
-                    fire_patch.id, foundation.id, FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK, foundation.health
+                    "[FirePatch] Fire patch {} damaged {} foundation {} for {:.1} damage (health: {:.1})",
+                    fire_patch.id, tier_name, foundation.id, FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK, foundation.health
                 );
                 
                 if foundation.health <= 0.0 {
                     foundation.is_destroyed = true;
                     foundation.destroyed_at = Some(current_time);
-                    log::info!("[FirePatch] Foundation {} destroyed by fire", foundation.id);
+                    log::info!("[FirePatch] {} foundation {} destroyed by fire", tier_name, foundation.id);
                 }
                 
                 let foundation_id = foundation.id; // Save ID before moving foundation
                 ctx.db.foundation_cell().id().update(foundation);
                 
-                // Chance to propagate fire
+                // Chance to propagate fire (only to other wooden structures)
                 if rng.gen::<f32>() < FIRE_PROPAGATION_CHANCE {
                     let offset_x = rng.gen_range(-30.0..30.0);
                     let offset_y = rng.gen_range(-30.0..30.0);

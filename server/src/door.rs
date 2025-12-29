@@ -164,7 +164,20 @@ pub fn calculate_door_position(cell_x: i32, cell_y: i32, edge: BuildingEdge) -> 
     }
 }
 
+/// Returns the melee damage multiplier for a given door type
+/// Doors resist melee damage significantly to prevent bypassing walls
+/// Wood Door (type 0): Same resistance as Stone walls (10%)
+/// Metal Door (type 1): Same resistance as Metal walls (5%)
+fn get_door_damage_multiplier(door_type: u8) -> f32 {
+    match door_type {
+        DOOR_TYPE_WOOD => crate::building::MELEE_DAMAGE_MULT_STONE,  // Wood doors = Stone wall resistance
+        DOOR_TYPE_METAL => crate::building::MELEE_DAMAGE_MULT_METAL, // Metal doors = Metal wall resistance
+        _ => crate::building::MELEE_DAMAGE_MULT_METAL, // Unknown = Metal resistance
+    }
+}
+
 /// Apply damage to a door and handle destruction
+/// Damage is reduced based on door type - melee is ineffective vs doors (like walls)
 pub fn damage_door(
     ctx: &ReducerContext,
     attacker_id: Identity,
@@ -181,21 +194,27 @@ pub fn damage_door(
         return Err(format!("Door {} is already destroyed", door_id));
     }
     
+    // Apply melee damage reduction based on door type
+    // Doors resist melee significantly to prevent bypassing walls
+    let damage_multiplier = get_door_damage_multiplier(door.door_type);
+    let effective_damage = damage * damage_multiplier;
+    
     // Apply damage
-    door.health = (door.health - damage).max(0.0);
+    door.health = (door.health - effective_damage).max(0.0);
     door.last_hit_time = Some(current_time);
     door.last_damaged_by = Some(attacker_id);
     
+    let door_name = if door.door_type == DOOR_TYPE_WOOD { "Wood" } else { "Metal" };
     log::info!(
-        "[DoorDamage] Door {} took {:.1} damage from {:?}. Health: {:.1}/{:.1}",
-        door_id, damage, attacker_id, door.health, door.max_health
+        "[DoorDamage] {} Door {} took {:.1} damage (base: {:.1}, mult: {:.0}%) from {:?}. Health: {:.1}/{:.1}",
+        door_name, door_id, effective_damage, damage, damage_multiplier * 100.0, attacker_id, door.health, door.max_health
     );
     
     // Check if door is destroyed
     if door.health <= 0.0 {
         door.is_destroyed = true;
         door.destroyed_at = Some(current_time);
-        log::info!("[DoorDamage] Door {} destroyed by {:?}", door_id, attacker_id);
+        log::info!("[DoorDamage] {} Door {} destroyed by {:?}", door_name, door_id, attacker_id);
     }
     
     // Update door in database

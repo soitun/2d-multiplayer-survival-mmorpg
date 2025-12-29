@@ -53,6 +53,17 @@ pub const DOOR_WOOD_MAX_HEALTH: f32 = 1500.0;  // Matches STONE wall - ~5 min so
 pub const DOOR_STONE_MAX_HEALTH: f32 = 1500.0; // Same as wood door (no stone door exists)
 pub const DOOR_METAL_MAX_HEALTH: f32 = 4000.0; // Matches METAL wall - ~13 min solo raid
 
+// --- Melee Damage Reduction Multipliers ---
+// Melee weapons are ineffective against upgraded structures - explosives needed later
+// Twig: Full damage (early game entry point)
+// Wood: 25% damage (4x longer raids) - discourages pure melee raiding
+// Stone: 10% damage (10x longer raids) - melee is basically useless
+// Metal: 5% damage (20x longer raids) - need explosives to raid realistically
+pub const MELEE_DAMAGE_MULT_TWIG: f32 = 1.0;   // 100% damage - easy entry tier
+pub const MELEE_DAMAGE_MULT_WOOD: f32 = 0.25;  // 25% damage - melee raiding is slow
+pub const MELEE_DAMAGE_MULT_STONE: f32 = 0.10; // 10% damage - melee nearly useless
+pub const MELEE_DAMAGE_MULT_METAL: f32 = 0.05; // 5% damage - need explosives
+
 // Placement distance
 pub const BUILDING_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
 pub const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
@@ -1944,7 +1955,20 @@ pub fn destroy_wall(ctx: &ReducerContext, wall_id: u64) -> Result<(), String> {
 
 // --- Wall Damage Function ---
 
+/// Returns the melee damage multiplier for a given building tier
+/// Twig takes full damage, higher tiers resist melee significantly (like Rust)
+pub fn get_melee_damage_multiplier(tier: u8) -> f32 {
+    match tier {
+        0 => MELEE_DAMAGE_MULT_TWIG,   // Twig: 100%
+        1 => MELEE_DAMAGE_MULT_WOOD,   // Wood: 25%
+        2 => MELEE_DAMAGE_MULT_STONE,  // Stone: 10%
+        3 => MELEE_DAMAGE_MULT_METAL,  // Metal: 5%
+        _ => MELEE_DAMAGE_MULT_METAL,  // Unknown tiers get Metal resistance
+    }
+}
+
 /// Applies weapon damage to a wall (called from combat system or projectile collision)
+/// Damage is reduced based on wall tier - melee is ineffective vs upgraded structures
 pub fn damage_wall(
     ctx: &ReducerContext,
     attacker_id: Identity,
@@ -1962,14 +1986,27 @@ pub fn damage_wall(
         return Err("Wall is already destroyed.".to_string());
     }
     
+    // Apply melee damage reduction based on wall tier
+    // Higher tier walls resist melee damage significantly (Rust-like mechanics)
+    let damage_multiplier = get_melee_damage_multiplier(wall.tier);
+    let effective_damage = damage * damage_multiplier;
+    
     let old_health = wall.health;
-    wall.health = (wall.health - damage).max(0.0);
+    wall.health = (wall.health - effective_damage).max(0.0);
     wall.last_hit_time = Some(timestamp);
     wall.last_damaged_by = Some(attacker_id);
     
+    let tier_name = match wall.tier {
+        0 => "Twig",
+        1 => "Wood",
+        2 => "Stone",
+        3 => "Metal",
+        _ => "Unknown",
+    };
+    
     log::info!(
-        "Player {:?} hit Wall {} for {:.1} damage. Health: {:.1} -> {:.1}",
-        attacker_id, wall_id, damage, old_health, wall.health
+        "Player {:?} hit {} Wall {} for {:.1} damage (base: {:.1}, mult: {:.0}%). Health: {:.1} -> {:.1}",
+        attacker_id, tier_name, wall_id, effective_damage, damage, damage_multiplier * 100.0, old_health, wall.health
     );
     
     if wall.health <= 0.0 {
