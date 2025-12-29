@@ -102,7 +102,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.SnorkelEmerge |
   SoundTypeVariants.ErrorSeaweedAboveWater |
   SoundTypeVariants.Stun |
-  SoundTypeVariants.ExplosiveArming |
+  SoundTypeVariants.ExplosiveFuseBabushka |
+  SoundTypeVariants.ExplosiveFuseMatriarch |
   SoundTypeVariants.Explosion |
   SoundTypeVariants.ExplosiveDud |
   SoundTypeVariants.DoorDestroyed;
@@ -189,7 +190,8 @@ export const SoundType = {
   SnorkelEmerge: { tag: "SnorkelEmerge" } as const,
   ErrorSeaweedAboveWater: { tag: "ErrorSeaweedAboveWater" } as const,
   Stun: { tag: "Stun" } as const,
-  ExplosiveArming: { tag: "ExplosiveArming" } as const,
+  ExplosiveFuseBabushka: { tag: "ExplosiveFuseBabushka" } as const,
+  ExplosiveFuseMatriarch: { tag: "ExplosiveFuseMatriarch" } as const,
   Explosion: { tag: "Explosion" } as const,
   ExplosiveDud: { tag: "ExplosiveDud" } as const,
   DoorDestroyed: { tag: "DoorDestroyed" } as const,
@@ -270,7 +272,8 @@ export const SoundType = {
       { name: "SnorkelEmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorSeaweedAboveWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ExplosiveArming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ExplosiveFuseBabushka", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ExplosiveFuseMatriarch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Explosion", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ExplosiveDud", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DoorDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
