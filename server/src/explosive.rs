@@ -28,7 +28,9 @@ pub const EXPLOSIVE_PLACEMENT_MAX_DISTANCE: f32 = 100.0;
 pub const EXPLOSIVE_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = EXPLOSIVE_PLACEMENT_MAX_DISTANCE * EXPLOSIVE_PLACEMENT_MAX_DISTANCE;
 
 // Tier 1: Babushka's Surprise
-pub const TIER1_STRUCTURE_DAMAGE: f32 = 300.0;
+// Buffed from 300 to 375 for better cost-efficiency vs T2
+// With 20% dud chance + random fuse, T1 trades reliability for resource savings
+pub const TIER1_STRUCTURE_DAMAGE: f32 = 375.0;
 pub const TIER1_PLAYER_DAMAGE: f32 = 80.0;
 pub const TIER1_BLAST_RADIUS: f32 = 150.0;
 pub const TIER1_FUSE_MIN_SECS: f32 = 5.0;  // Very unreliable - 5-30 second range

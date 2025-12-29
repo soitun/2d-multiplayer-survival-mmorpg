@@ -37,7 +37,7 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Fire Arrow - Burn damage over time projectile
-        ItemBuilder::new("Fire Arrow", "An arrow wrapped with tallow-soaked cloth that ignites on impact, causing burn damage over time.", ItemCategory::Ammunition)
+        ItemBuilder::new("Fire Arrow", "An arrow wrapped with tallow-soaked cloth that ignites on impact, causing burn damage over time. Creates fire patches that burn Twig and Wood structures. Ineffective against Stone and Metal.", ItemCategory::Ammunition)
             .icon("fire_arrow.png")
             .stackable(25)
             // Note: These positive damage values are handled specially in projectile.rs

@@ -23,7 +23,7 @@ pub const FIRE_PATCH_DAMAGE_INTERVAL_SECS: f32 = 2.0; // Apply damage every 2 se
 pub const FIRE_PATCH_PLAYER_BURN_DAMAGE: f32 = 3.0; // Damage per tick to players
 pub const FIRE_PATCH_PLAYER_BURN_DURATION: f32 = 5.0; // 5 seconds of burn effect
 pub const FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK: f32 = 2.0; // Damage per tick to structures
-pub const FIRE_PROPAGATION_CHANCE: f32 = 0.15; // 15% chance to spread to nearby wooden structures
+pub const FIRE_PROPAGATION_CHANCE: f32 = 0.10; // 10% chance to spread to nearby wooden structures (reduced from 15% to prevent chain reactions)
 
 // --- Fire Patch Table ---
 #[table(name = fire_patch, public)]
