@@ -61,6 +61,36 @@
   box-shadow: 0 0 4px rgba(0, 255, 136, 0.3);
 }
 
+/* Achievements tab - gold accent for achievements */
+.achievements-tab.active {
+  background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+  color: #0f172a;
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.achievements-tab.inactive.hovered {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffffff;
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+}
+
+/* Leaderboard tab - cyan/blue accent for competition */
+.leaderboard-tab.active {
+  background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+  color: #ffffff;
+  border: 2px solid #00d4ff;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+.leaderboard-tab.inactive.hovered {
+  background: rgba(0, 212, 255, 0.15);
+  color: #ffffff;
+  border: 2px solid #00d4ff;
+  box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
+}
+
 .tab.disabled {
   background: rgba(20, 25, 35, 0.6) !important;
   color: #64748b !important;

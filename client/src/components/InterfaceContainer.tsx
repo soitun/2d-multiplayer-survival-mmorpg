@@ -5,6 +5,8 @@ import AlkPanel from './AlkPanel';
 import CairnsPanel from './CairnsPanel';
 import MatronagePanel from './MatronagePanel';
 import LeaderboardPanel from './LeaderboardPanel';
+import AchievementsPanel from './AchievementsPanel';
+import PlantEncyclopedia from './PlantEncyclopedia';
 import { MemoryGridNode } from './MemoryGridData';
 import { MINIMAP_DIMENSIONS } from './Minimap';
 import { useGameConnection } from '../contexts/GameConnectionContext';
@@ -19,11 +21,14 @@ import {
   ItemDefinition,
   Cairn,
   PlayerDiscoveredCairn,
+  AchievementDefinition,
+  PlayerAchievement,
+  PlantConfigDefinition,
 } from '../generated';
 import { Identity } from 'spacetimedb';
 import './InterfaceContainer.css';
 
-type InterfaceView = 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
+type InterfaceView = 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements';
 
 interface InterfaceContainerProps {
   children: React.ReactNode;
@@ -58,6 +63,11 @@ interface InterfaceContainerProps {
   playerUsername?: string;
   // Leaderboard Panel data props
   leaderboardEntries?: Map<string, any>;
+  // Achievements Panel data props
+  achievementDefinitions?: Map<string, AchievementDefinition>;
+  playerAchievements?: Map<string, PlayerAchievement>;
+  // Plant Encyclopedia data props
+  plantConfigs?: Map<string, PlantConfigDefinition>;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -91,6 +101,11 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   players,
   playerUsername = '',
   leaderboardEntries,
+  // Achievements Panel data props
+  achievementDefinitions,
+  playerAchievements,
+  // Plant Encyclopedia data props
+  plantConfigs,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentView, setCurrentView] = useState<InterfaceView>(initialView || 'minimap');
@@ -514,9 +529,9 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   const isMobileScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   // Base content container style to maintain consistent dimensions
-  // On mobile, use full available space; on desktop, use fixed minimap dimensions
+  // On mobile, use full available space; on desktop, use wider dimensions to accommodate Encyclopedia tab
   const contentContainerStyle: React.CSSProperties = {
-    width: isMobileScreen ? '100%' : `${MINIMAP_DIMENSIONS.width}px`,
+    width: isMobileScreen ? '100%' : `${Math.max(MINIMAP_DIMENSIONS.width, 900)}px`, // Wider for Encyclopedia
     height: isMobileScreen ? '100%' : `${MINIMAP_DIMENSIONS.height}px`,
     maxWidth: '100%',
     maxHeight: '100%',
@@ -764,42 +779,16 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         );
       case 'encyclopedia':
         return (
-          <div className="encyclopedia-content" style={{ 
+          <div className="encyclopedia-content" style={{
             ...contentContainerStyle,
-            padding: '20px', 
-            textAlign: 'center',
-            color: '#ffffff',
-            background: 'rgba(15, 23, 35, 0.95)', // Match minimap background
-            border: `2px solid #00d4ff`, // Match minimap border
-            borderRadius: '4px',
-            boxSizing: 'border-box', // Include padding in dimensions
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
           }}>
-            <h2 style={{ 
-              color: '#00d4ff', 
-              marginBottom: '20px',
-              fontSize: '24px',
-              fontWeight: 'bold'
-            }}>
-              📚 ENCYCLOPEDIA
-            </h2>
-            <p style={{ 
-              fontSize: '16px', 
-              lineHeight: '1.6',
-              maxWidth: '500px',
-              opacity: '0.9',
-              overflowY: 'auto', // Allow scrolling if content is too tall
-              maxHeight: '80%', // Limit content height
-            }}>
-              Welcome to the Encyclopedia! This will be your comprehensive guide to the world of survival.
-              <br /><br />
-              Here you'll find detailed information about:
-              <br />• Items and their crafting recipes
-              <br />• Creatures and their behaviors  
-              <br />• Environmental hazards and how to survive them
-              <br />• Advanced gameplay mechanics
-              <br /><br />
-              <em>Content coming soon...</em>
-            </p>
+            <PlantEncyclopedia
+              plantConfigs={plantConfigs || new Map()}
+            />
           </div>
         );
       case 'memory-grid':
@@ -939,6 +928,23 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
             />
           </div>
         );
+      case 'achievements':
+        return (
+          <div className="achievements-content" style={{
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
+            <AchievementsPanel
+              playerIdentity={connection.dbIdentity || null}
+              achievementDefinitions={achievementDefinitions || new Map()}
+              playerAchievements={playerAchievements || new Map()}
+              onClose={onClose}
+            />
+          </div>
+        );
       default:
         return (
           <div style={contentContainerStyle}>
@@ -970,43 +976,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         currentView={currentView}
         onViewChange={handleViewChange}
         className="interface-tabs"
-        hideEncyclopedia={true}
+        hideEncyclopedia={false}
       />
-      
-      <button
-        className="close-button"
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: '-40px',
-          right: '0px',
-          width: '40px',
-          height: '40px',
-          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-          border: '2px solid #ef4444',
-          borderRadius: '8px 8px 0 0',
-          color: '#ffffff',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1001,
-          transition: 'all 0.2s ease',
-          boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
-          e.currentTarget.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.7)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-          e.currentTarget.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.5)';
-        }}
-      >
-        ×
-      </button>
       
       <div className="interface-content">
         {renderContent()}

@@ -133,7 +133,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
         const xpForLevel = (level: number) => Math.floor(100 * Math.pow(level, 1.5));
         
         const level = localPlayerStats.level || 1;
-        const totalXp = Number(localPlayerStats.total_xp) || 0;
+        const totalXp = Number(localPlayerStats.totalXp) || 0;
         const xpForCurrentLevel = level > 1 ? xpForLevel(level) : 0;
         const xpForNextLevel = xpForLevel(level + 1);
         const xpInCurrentLevel = totalXp - xpForCurrentLevel;
@@ -1467,35 +1467,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} />
                     <StatusBar label="Hunger" iconType="hunger" value={localPlayer.hunger} maxValue={250} barColor="#ffa040" glow={localPlayer.hunger < lowNeedThreshold} />
                     {/* <StatusBar label="Warmth" iconType="warmth" value={localPlayer.warmth} maxValue={100} barColor="#ffcc00" glow={localPlayer.warmth < lowNeedThreshold} /> */}
-                    {/* XP Bar */}
-                    {localPlayerStats && (
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            marginTop: '8px',
-                            paddingTop: '8px',
-                            borderTop: '1px solid rgba(0, 170, 255, 0.3)',
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: '8px',
-                                color: '#00ffff',
-                                marginBottom: '2px',
-                            }}>
-                                <span>Level {xpProgress.level}</span>
-                                <span>{xpProgress.current} / {xpProgress.needed} XP</span>
-                            </div>
-                            <StatusBar 
-                                label="XP" 
-                                value={xpProgress.current} 
-                                maxValue={xpProgress.needed} 
-                                barColor="#00ff88" 
-                            />
-                        </div>
-                    )}
+                    {/* XP Bar moved to above Hotbar (WoW style) */}
                 </div>
             )}
 
@@ -1584,6 +1556,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     getSlotIndicator={getSlotIndicator}
                     handleHotLootSlotHover={handleHotLootSlotHover}
                     setHotLootCurrentHover={setHotLootCurrentHover}
+                    playerStats={playerStats}
                 />
             )}
 

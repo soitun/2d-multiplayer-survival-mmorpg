@@ -61,46 +61,6 @@
   /* Remove border-radius to prevent triple nested radius effect */
 }
 
-.close-button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #ffffff;
-  border: 2px solid #ff006e;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 
-    0 0 8px rgba(255, 0, 110, 0.4),
-    inset 0 0 4px rgba(255, 255, 255, 0.1);
-  z-index: 1001;
-  backdrop-filter: blur(5px);
-}
-
-.close-button:hover {
-  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-  border-color: #ff1f8a;
-  box-shadow: 
-    0 0 15px rgba(255, 0, 110, 0.7),
-    inset 0 0 8px rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-}
-
-.close-button:active {
-  transform: scale(0.95);
-  box-shadow: 
-    0 0 10px rgba(255, 0, 110, 0.5),
-    inset 0 0 6px rgba(0, 0, 0, 0.3);
-}
 
 /* Mobile responsive styles */
 @media (max-width: 768px) {
@@ -126,15 +86,6 @@
     overflow: auto;
   }
   
-  .close-button {
-    width: 44px;
-    height: 44px;
-    font-size: 22px;
-    top: 8px !important; /* Position at top with tabs */
-    right: 8px !important; /* Position to the right of tabs */
-    z-index: 9999 !important; /* Above InterfaceContainer to ensure it's clickable */
-    position: absolute !important;
-  }
 }
 
 @media (max-width: 480px) {
@@ -148,9 +99,4 @@
     border-radius: 6px;
   }
   
-  .close-button {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
-  }
 } 

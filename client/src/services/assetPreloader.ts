@@ -77,41 +77,120 @@ const IMPORTANT_ASSETS: { name: string; src: string }[] = [
     { name: 'Cloud 5', src: cloud5Texture },
 ];
 
-// Cache for loaded images
-const loadedImages: Map<string, HTMLImageElement> = new Map();
+// Cache for loaded images - persist across HMR for faster dev reloads
+// @ts-ignore - Attach to window to persist across HMR
+if (!window.__ASSET_PRELOADER_CACHE__) {
+    // @ts-ignore
+    window.__ASSET_PRELOADER_CACHE__ = new Map<string, HTMLImageElement>();
+}
+// @ts-ignore
+const loadedImages: Map<string, HTMLImageElement> = window.__ASSET_PRELOADER_CACHE__;
 
 // Service worker cache name - must match sw.js CACHE_NAME
 const SW_CACHE_NAME = 'game-assets-v2';
 
-// Check if an asset is in service worker cache
+// Track if SW is actually controlling (set by waitForServiceWorker)
+let swIsControlling = false;
+
+// Check if an asset is in service worker cache (with proper full URL matching)
 async function isInCache(url: string): Promise<boolean> {
+    // Skip all cache checks in dev mode - SW doesn't work with Vite anyway
+    if (import.meta.env.DEV) return false;
+    // If SW isn't controlling, don't bother checking cache (it won't be used anyway)
+    if (!swIsControlling) return false;
     if (!('caches' in window)) return false;
+    
     try {
         const cache = await caches.open(SW_CACHE_NAME);
-        const response = await cache.match(url);
-        return !!response;
-    } catch {
+        // Convert to full URL for proper Cache API matching
+        const fullUrl = new URL(url, window.location.origin).href;
+        const response = await cache.match(fullUrl);
+        const inCache = !!response;
+        if (inCache) {
+            console.debug(`[AssetPreloader] ✓ SW Cache hit: ${url.split('/').pop()}`);
+        }
+        return inCache;
+    } catch (e) {
+        console.warn('[AssetPreloader] Cache check failed:', e);
+        return false;
+    }
+}
+
+// Wait for Service Worker to be ready and controlling before preloading (production only)
+async function waitForServiceWorker(): Promise<boolean> {
+    if (!('serviceWorker' in navigator)) {
+        console.warn('[AssetPreloader] Service Workers not supported');
+        return false;
+    }
+    
+    try {
+        // Wait for SW to be ready
+        const registration = await navigator.serviceWorker.ready;
+        console.log('[AssetPreloader] Service Worker ready:', registration.scope);
+        
+        // Check if SW is controlling the page (important for caching!)
+        if (!navigator.serviceWorker.controller) {
+            console.warn('[AssetPreloader] ⚠️ SW is ready but NOT controlling - first visit or hard refresh');
+            
+            // The SW should claim clients on activation - wait a moment for clients.claim() to take effect
+            console.log('[AssetPreloader] Waiting for SW to claim this client...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (navigator.serviceWorker.controller) {
+                console.log('[AssetPreloader] ✅ SW now controlling after claim');
+                swIsControlling = true;
+                return true;
+            }
+            
+            // Still not controlling - suggest reload
+            console.warn('[AssetPreloader] SW still not controlling. Caching will work after page reload.');
+            return false;
+        }
+        
+        console.log('[AssetPreloader] ✅ Service Worker is controlling the page - cache should work!');
+        swIsControlling = true;
+        return true;
+    } catch (e) {
+        console.warn('[AssetPreloader] Service Worker not ready:', e);
         return false;
     }
 }
 
 // Load a single image with progress tracking
 function loadImage(src: string, name: string): Promise<{ image: HTMLImageElement; fromCache: boolean }> {
-    return new Promise(async (resolve, reject) => {
-        // Check if already loaded
+    return new Promise(async (resolve) => {
+        // Check if already loaded in memory (instant - true cache hit)
         if (loadedImages.has(src)) {
-            resolve({ image: loadedImages.get(src)!, fromCache: true });
+            const cachedImg = loadedImages.get(src)!;
+            // Make sure imageManager also has it
+            imageManager.preloadImage(src);
+            resolve({ image: cachedImg, fromCache: true });
             return;
         }
 
-        const fromCache = await isInCache(src);
+        // Check if in service worker cache BEFORE loading
+        const inSwCache = await isInCache(src);
+        const loadStartTime = performance.now();
         const img = new Image();
         
         img.onload = () => {
+            const loadTime = performance.now() - loadStartTime;
+            // Only count as "from cache" if:
+            // 1. We verified it's in SW cache, OR
+            // 2. It loaded VERY fast (< 20ms indicates browser disk/memory cache)
+            // Don't use 50ms - that's too generous and gives false positives
+            const wasFromCache = inSwCache || loadTime < 20;
+            
             loadedImages.set(src, img);
             // Also preload in imageManager for game use
             imageManager.preloadImage(src);
-            resolve({ image: img, fromCache });
+            
+            // Log slow loads for debugging
+            if (loadTime > 100) {
+                console.debug(`[AssetPreloader] 🐢 Slow: ${name} took ${loadTime.toFixed(0)}ms`);
+            }
+            
+            resolve({ image: img, fromCache: wasFromCache });
         };
         
         img.onerror = () => {
@@ -177,8 +256,17 @@ async function getItemIconAssets(): Promise<{ name: string; src: string }[]> {
 
 // Main preload function
 export async function preloadAllAssets(onProgress: ProgressCallback): Promise<void> {
-    console.log('[AssetPreloader] Starting asset preload...');
+    const isDev = import.meta.env.DEV;
+    console.log(`[AssetPreloader] Starting asset preload... (${isDev ? 'DEV mode - no SW cache' : 'PROD mode'})`);
     const startTime = performance.now();
+    
+    // Only bother with Service Worker in production
+    if (!isDev) {
+        const swReady = await waitForServiceWorker();
+        if (!swReady) {
+            console.warn('[AssetPreloader] ⚠️ Service Worker not ready - assets won\'t be cached!');
+        }
+    }
     
     // Get all secondary assets (item icons, etc.)
     const itemIconAssets = await getItemIconAssets();
@@ -269,7 +357,18 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
     
     // Complete!
     const elapsed = performance.now() - startTime;
-    console.log(`[AssetPreloader] ✅ Complete! Loaded ${loadedSoFar} assets in ${elapsed.toFixed(0)}ms (${totalFromCache} from cache)`);
+    const cachePercentage = totalAssets > 0 ? ((totalFromCache / totalAssets) * 100).toFixed(0) : 0;
+    const avgLoadTime = totalAssets > 0 ? (elapsed / totalAssets).toFixed(1) : 0;
+    
+    console.log(`[AssetPreloader] ✅ Complete! Loaded ${loadedSoFar} assets in ${elapsed.toFixed(0)}ms`);
+    console.log(`[AssetPreloader] 📊 Cache stats: ${totalFromCache}/${totalAssets} from cache (${cachePercentage}%)`);
+    console.log(`[AssetPreloader] ⏱️ Average load time: ${avgLoadTime}ms/asset`);
+    
+    if (elapsed < 1000 && totalFromCache > totalAssets * 0.5) {
+        console.log(`[AssetPreloader] 🚀 Fast load detected! Service Worker cache is working.`);
+    } else if (elapsed > 3000 && totalFromCache < totalAssets * 0.1) {
+        console.log(`[AssetPreloader] 🐢 Slow load detected. First visit or cache cleared.`);
+    }
     
     onProgress({
         phase: 'complete',

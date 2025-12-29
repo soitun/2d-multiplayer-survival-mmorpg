@@ -877,6 +877,8 @@ import { MessageTableHandle } from "./message_table.ts";
 export { MessageTableHandle };
 import { MinimapCacheTableHandle } from "./minimap_cache_table.ts";
 export { MinimapCacheTableHandle };
+import { PlantConfigDefinitionTableHandle } from "./plant_config_definition_table.ts";
+export { PlantConfigDefinitionTableHandle };
 import { PlantedSeedTableHandle } from "./planted_seed_table.ts";
 export { PlantedSeedTableHandle };
 import { PlantedSeedGrowthScheduleTableHandle } from "./planted_seed_growth_schedule_table.ts";
@@ -1227,6 +1229,10 @@ import { MovementPattern } from "./movement_pattern_type.ts";
 export { MovementPattern };
 import { OreType } from "./ore_type_type.ts";
 export { OreType };
+import { PlantCategory } from "./plant_category_type.ts";
+export { PlantCategory };
+import { PlantConfigDefinition } from "./plant_config_definition_type.ts";
+export { PlantConfigDefinition };
 import { PlantType } from "./plant_type_type.ts";
 export { PlantType };
 import { PlantedSeed } from "./planted_seed_type.ts";
@@ -2138,6 +2144,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (MinimapCache.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    plant_config_definition: {
+      tableName: "plant_config_definition" as const,
+      rowType: PlantConfigDefinition.getTypeScriptAlgebraicType(),
+      primaryKey: "plantType",
+      primaryKeyInfo: {
+        colName: "plantType",
+        colType: (PlantConfigDefinition.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     planted_seed: {
@@ -11653,6 +11668,11 @@ export class RemoteTables {
   get minimapCache(): MinimapCacheTableHandle<'minimap_cache'> {
     // clientCache is a private property
     return new MinimapCacheTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MinimapCache>(REMOTE_MODULE.tables.minimap_cache));
+  }
+
+  get plantConfigDefinition(): PlantConfigDefinitionTableHandle<'plant_config_definition'> {
+    // clientCache is a private property
+    return new PlantConfigDefinitionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlantConfigDefinition>(REMOTE_MODULE.tables.plant_config_definition));
   }
 
   get plantedSeed(): PlantedSeedTableHandle<'planted_seed'> {

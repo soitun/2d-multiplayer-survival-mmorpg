@@ -210,7 +210,7 @@ interface GameCanvasProps {
   isMinimapOpen: boolean;
   setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
   // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
-  interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
+  interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements';
   // Callback to reset the initial view after interface closes
   onInterfaceClose?: () => void;
   isChatting: boolean;
@@ -288,6 +288,11 @@ interface GameCanvasProps {
   matronageOwedShards?: Map<string, any>;
   // Leaderboard entries
   leaderboardEntries?: Map<string, any>;
+  // Achievements data
+  achievementDefinitions?: Map<string, any>;
+  playerAchievements?: Map<string, any>;
+  // Plant encyclopedia data
+  plantConfigs?: Map<string, any>;
   
   // Always show player names above heads
   alwaysShowPlayerNames?: boolean;
@@ -407,6 +412,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   matronageInvitations, // Pending matronage invitations
   matronageOwedShards, // Owed shard balances from matronage
   leaderboardEntries, // Leaderboard entries
+  achievementDefinitions, // Achievement definitions
+  playerAchievements, // Player unlocked achievements
+  plantConfigs, // Plant encyclopedia data
   alwaysShowPlayerNames = true, // Always show player names above heads
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
@@ -2809,6 +2817,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerBuildingClusterId,
         connection, // ADDED: Pass connection for cairn biome lookup
         isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
+        alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -3122,6 +3131,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playerBuildingClusterId,
           connection, // ADDED: Pass connection for cairn biome lookup
           isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
+          alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
         });
         currentBatch = [];
       }
@@ -4316,6 +4326,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             players={players}
             playerUsername={localPlayer?.username || ''}
             leaderboardEntries={leaderboardEntries}
+            achievementDefinitions={achievementDefinitions}
+            playerAchievements={playerAchievements}
+            plantConfigs={plantConfigs}
           >
             <canvas
               ref={minimapCanvasRef}

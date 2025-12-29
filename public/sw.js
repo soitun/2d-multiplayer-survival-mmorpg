@@ -97,6 +97,12 @@ self.addEventListener('fetch', (event) => {
     
     // For cacheable assets, use cache-first strategy
     if (matchesPattern(url, CACHEABLE_PATTERNS)) {
+        // Log the first few cacheable requests to debug
+        if (!self._loggedRequests) self._loggedRequests = 0;
+        if (self._loggedRequests < 5) {
+            console.log('[SW] Intercepting cacheable asset:', url.split('/').pop());
+            self._loggedRequests++;
+        }
         event.respondWith(cacheFirst(event.request));
         return;
     }
@@ -114,6 +120,7 @@ async function cacheFirst(request) {
         // Return cached version immediately
         // Also update cache in background (stale-while-revalidate)
         updateCache(request, cache);
+        console.debug('[SW] Cache HIT:', request.url.split('/').pop());
         return cachedResponse;
     }
     
@@ -127,6 +134,9 @@ async function cacheFirst(request) {
         if (networkResponse.ok && networkResponse.status !== 206) {
             // Clone because response can only be consumed once
             cache.put(request, networkResponse.clone());
+            console.debug('[SW] Cached NEW asset:', request.url.split('/').pop());
+        } else {
+            console.debug('[SW] NOT caching (status:', networkResponse.status, '):', request.url.split('/').pop());
         }
         
         return networkResponse;

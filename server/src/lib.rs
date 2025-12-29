@@ -701,6 +701,8 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     crate::items::seed_food_poisoning_risks(ctx)?;
     crate::items::seed_ranged_weapon_stats(ctx)?;
     crate::crafting::seed_recipes(ctx)?;
+    // Seed plant configuration data for Encyclopedia
+    crate::plants_database::populate_plant_config_definitions(ctx);
     // Seed progression system data
     crate::player_progression::seed_achievements(ctx)?;
     crate::player_progression::seed_daily_login_rewards(ctx)?;

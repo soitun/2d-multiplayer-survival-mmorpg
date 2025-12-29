@@ -442,6 +442,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
   connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
   isLocalPlayerSnorkeling?: boolean; // ADDED: Whether local player is snorkeling (underwater mode)
+  alwaysShowPlayerNames?: boolean; // ADDED: Show player names above heads at all times
 }
 
 
@@ -511,6 +512,7 @@ export const renderYSortedEntities = ({
   playerBuildingClusterId, // ADDED: Which building the player is in
   connection, // ADDED: Connection for tile biome lookup
   isLocalPlayerSnorkeling = false, // ADDED: Whether local player is snorkeling (underwater mode)
+  alwaysShowPlayerNames = false, // ADDED: Show player names above heads at all times
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -746,7 +748,7 @@ export const renderYSortedEntities = ({
          // No logging for players without dodge state - this is the normal case
          
          const currentlyHovered = isPlayerHovered(worldMouseX, worldMouseY, playerForRendering);
-         const isPersistentlyHovered = hoveredPlayerIds.has(playerId);
+         const isPersistentlyHovered = alwaysShowPlayerNames || hoveredPlayerIds.has(playerId);
          
          // Choose sprite based on priority: dodge roll > water > crouching > default
          let heroImg: HTMLImageElement | null;

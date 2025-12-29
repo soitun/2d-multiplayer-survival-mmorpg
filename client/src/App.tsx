@@ -151,7 +151,7 @@ function AppContent() {
     const [uiError, setUiError] = useState<string | null>(null);
     const [isMinimapOpen, setIsMinimapOpen] = useState<boolean>(false);
     // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
-    const [interfaceInitialView, setInterfaceInitialView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | undefined>(undefined);
+    const [interfaceInitialView, setInterfaceInitialView] = useState<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements' | undefined>(undefined);
     const [isChatting, setIsChatting] = useState<boolean>(false);
     const [isCraftingSearchFocused, setIsCraftingSearchFocused] = useState(false);
     // Auto-walking state is now managed by PlayerActionsContext via usePredictedMovement
@@ -334,6 +334,7 @@ function AppContent() {
       comparativeStatNotifications, // ADDED: Comparative stats on death
       leaderboardEntries, // ADDED: Leaderboard entries
       dailyLoginRewards, // ADDED: Daily login reward definitions
+      plantConfigDefinitions, // ADDED: Plant encyclopedia data
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -668,6 +669,23 @@ function AppContent() {
         // Only start preloading once
         if (assetPreloadStarted.current) return;
         assetPreloadStarted.current = true;
+        
+        // In dev mode, skip the loading screen - assets load on-demand via browser cache
+        if (import.meta.env.DEV) {
+            console.log('[App] DEV mode - skipping asset preloading (assets load on-demand)');
+            setAssetsLoaded(true);
+            setAssetProgress({
+                phase: 'complete',
+                phaseName: 'Dev Mode',
+                phaseProgress: 1,
+                totalProgress: 1,
+                loadedCount: 0,
+                totalCount: 0,
+                currentAsset: 'Skipped in dev',
+                fromCache: 0,
+            });
+            return;
+        }
         
         console.log('[App] Starting asset preloading...');
         
@@ -1357,6 +1375,7 @@ function AppContent() {
                             playerAchievements={playerAchievements} // ADDED: Player unlocked achievements
                             achievementDefinitions={achievementDefinitions} // ADDED: Achievement definitions for title selection
                             leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
+                            plantConfigDefinitions={plantConfigDefinitions} // ADDED: Plant encyclopedia data
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels

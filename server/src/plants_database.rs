@@ -1111,6 +1111,180 @@ lazy_static! {
     };
 }
 
+// --- Public SpacetimeDB Table for Client Access ---
+// This table exposes plant configuration data to clients for the Encyclopedia
+
+/// Category for organizing plants in the encyclopedia
+#[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
+pub enum PlantCategory {
+    Vegetable,      // Root crops, greens
+    Berry,          // Berry bushes
+    Mushroom,       // All fungi
+    Herb,           // Medicinal and culinary herbs
+    Fiber,          // Fiber-producing plants
+    Toxic,          // Poisonous plants
+    Arctic,         // Arctic/alpine specialty plants
+    ResourcePile,   // Resource piles (wood, stone, etc.)
+    Special,        // Memory shards, seaweed, etc.
+}
+
+/// Public table exposing plant yield configurations to clients
+#[spacetimedb::table(name = plant_config_definition, public)]
+#[derive(Clone, Debug)]
+pub struct PlantConfigDefinition {
+    #[primary_key]
+    pub plant_type: PlantType,
+    
+    /// Display name for the plant
+    pub entity_name: String,
+    
+    /// Category for filtering/sorting in encyclopedia
+    pub category: PlantCategory,
+    
+    /// Primary yield item name
+    pub primary_yield_item: String,
+    /// Minimum primary yield amount
+    pub primary_yield_min: u32,
+    /// Maximum primary yield amount  
+    pub primary_yield_max: u32,
+    
+    /// Secondary yield item name (empty string if none)
+    pub secondary_yield_item: String,
+    /// Minimum secondary yield amount
+    pub secondary_yield_min: u32,
+    /// Maximum secondary yield amount
+    pub secondary_yield_max: u32,
+    /// Chance (0.0-1.0) of getting secondary yield
+    pub secondary_yield_chance: f32,
+    
+    /// Seed item name needed to plant this (empty if non-plantable)
+    pub seed_type: String,
+    /// Chance (0.0-1.0) of getting seeds when harvesting
+    pub seed_drop_chance: f32,
+    
+    /// Where this plant spawns (for encyclopedia info)
+    pub spawn_location: String,
+    
+    /// Which seasons this plant grows in (comma-separated: "Spring,Summer,Autumn,Winter")
+    pub growing_seasons: String,
+}
+
+/// Helper to determine plant category from PlantType
+fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
+    match plant_type {
+        // Vegetables
+        PlantType::Potato | PlantType::Pumpkin | PlantType::Carrot | PlantType::Beets |
+        PlantType::Horseradish | PlantType::Corn | PlantType::Salsify => PlantCategory::Vegetable,
+        
+        // Berries
+        PlantType::Lingonberries | PlantType::Cloudberries | PlantType::Bilberries |
+        PlantType::WildStrawberries | PlantType::RowanBerries | PlantType::Cranberries |
+        PlantType::Crowberry => PlantCategory::Berry,
+        
+        // Mushrooms
+        PlantType::Chanterelle | PlantType::Porcini | PlantType::FlyAgaric |
+        PlantType::ShaggyInkCap | PlantType::DeadlyWebcap | PlantType::DestroyingAngel => PlantCategory::Mushroom,
+        
+        // Herbs
+        PlantType::Chicory | PlantType::Yarrow | PlantType::Chamomile | PlantType::Mint |
+        PlantType::Valerian | PlantType::Mugwort | PlantType::BearGarlic | 
+        PlantType::SiberianGinseng | PlantType::Sunflowers => PlantCategory::Herb,
+        
+        // Fiber plants
+        PlantType::BorealNettle | PlantType::Reed | PlantType::BeachLymeGrass |
+        PlantType::Dogbane | PlantType::BogCotton | PlantType::Flax |
+        PlantType::ArcticHairgrass => PlantCategory::Fiber,
+        
+        // Toxic plants
+        PlantType::Mandrake | PlantType::Belladonna | PlantType::Henbane |
+        PlantType::Datura | PlantType::Wolfsbane => PlantCategory::Toxic,
+        
+        // Arctic/Alpine plants
+        PlantType::ScurvyGrass | PlantType::SeaPlantain | PlantType::Glasswort |
+        PlantType::ArcticLichen | PlantType::MountainMoss | PlantType::ArcticPoppy => PlantCategory::Arctic,
+        
+        // Resource piles
+        PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
+        PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
+        PlantType::CharcoalPile => PlantCategory::ResourcePile,
+        
+        // Special
+        PlantType::MemoryShard | PlantType::SeaweedBed => PlantCategory::Special,
+    }
+}
+
+/// Helper to convert SpawnCondition to human-readable string
+fn spawn_condition_to_string(condition: &SpawnCondition) -> String {
+    match condition {
+        SpawnCondition::Forest => "Forest areas".to_string(),
+        SpawnCondition::Plains => "Open plains".to_string(),
+        SpawnCondition::NearWater => "Near water sources".to_string(),
+        SpawnCondition::Clearings => "Clearings & dirt roads".to_string(),
+        SpawnCondition::Coastal => "Coastal & beaches".to_string(),
+        SpawnCondition::InlandWater => "Along rivers & lakes".to_string(),
+        SpawnCondition::Tundra => "Tundra biome".to_string(),
+        SpawnCondition::Alpine => "Alpine mountains".to_string(),
+        SpawnCondition::Underwater => "Underwater (requires snorkeling)".to_string(),
+    }
+}
+
+/// Helper to convert seasons vec to comma-separated string
+fn seasons_to_string(seasons: &[Season]) -> String {
+    seasons.iter()
+        .map(|s| match s {
+            Season::Spring => "Spring",
+            Season::Summer => "Summer",
+            Season::Autumn => "Autumn",
+            Season::Winter => "Winter",
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// Populates the plant_config_definition table from PLANT_CONFIGS
+/// Should be called during server initialization
+pub fn populate_plant_config_definitions(ctx: &spacetimedb::ReducerContext) {
+    use spacetimedb::Table;
+    
+    // Clear existing entries first (in case of re-init)
+    let existing: Vec<_> = ctx.db.plant_config_definition().iter().collect();
+    for entry in existing {
+        ctx.db.plant_config_definition().plant_type().delete(&entry.plant_type);
+    }
+    
+    // Populate from PLANT_CONFIGS
+    for (plant_type, config) in PLANT_CONFIGS.iter() {
+        let definition = PlantConfigDefinition {
+            plant_type: *plant_type,
+            entity_name: config.entity_name.clone(),
+            category: get_plant_category(plant_type),
+            primary_yield_item: config.primary_yield.0.clone(),
+            primary_yield_min: config.primary_yield.1,
+            primary_yield_max: config.primary_yield.2,
+            secondary_yield_item: config.secondary_yield.as_ref()
+                .map(|(name, _, _, _)| name.clone())
+                .unwrap_or_default(),
+            secondary_yield_min: config.secondary_yield.as_ref()
+                .map(|(_, min, _, _)| *min)
+                .unwrap_or(0),
+            secondary_yield_max: config.secondary_yield.as_ref()
+                .map(|(_, _, max, _)| *max)
+                .unwrap_or(0),
+            secondary_yield_chance: config.secondary_yield.as_ref()
+                .map(|(_, _, _, chance)| *chance)
+                .unwrap_or(0.0),
+            seed_type: config.seed_type.clone(),
+            seed_drop_chance: config.seed_drop_chance,
+            spawn_location: spawn_condition_to_string(&config.spawn_condition),
+            growing_seasons: seasons_to_string(&config.growing_seasons),
+        };
+        
+        ctx.db.plant_config_definition().insert(definition);
+    }
+    
+    log::info!("Populated {} plant config definitions for encyclopedia", PLANT_CONFIGS.len());
+}
+
 // --- Helper Functions ---
 
 pub fn get_plant_config(plant_type: &PlantType) -> Option<&PlantConfig> {

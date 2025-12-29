@@ -178,6 +178,7 @@ export interface SpacetimeTableStates {
     comparativeStatNotifications: Map<string, SpacetimeDB.ComparativeStatNotification>; // ADDED: Comparative stats on death
     leaderboardEntries: Map<string, SpacetimeDB.LeaderboardEntry>; // ADDED: Leaderboard entries
     dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>; // ADDED: Daily login reward definitions
+    plantConfigDefinitions: Map<string, SpacetimeDB.PlantConfigDefinition>; // ADDED: Plant encyclopedia data
 }
 
 // Define the props the hook accepts
@@ -284,6 +285,7 @@ export const useSpacetimeTables = ({
     const [comparativeStatNotifications, setComparativeStatNotifications] = useState<Map<string, SpacetimeDB.ComparativeStatNotification>>(() => new Map());
     const [leaderboardEntries, setLeaderboardEntries] = useState<Map<string, SpacetimeDB.LeaderboardEntry>>(() => new Map());
     const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
+    const [plantConfigDefinitions, setPlantConfigDefinitions] = useState<Map<string, SpacetimeDB.PlantConfigDefinition>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1152,6 +1154,11 @@ export const useSpacetimeTables = ({
             const handleDailyLoginRewardUpdate = (ctx: any, oldReward: SpacetimeDB.DailyLoginReward, newReward: SpacetimeDB.DailyLoginReward) => setDailyLoginRewards(prev => new Map(prev).set(newReward.day.toString(), newReward));
             const handleDailyLoginRewardDelete = (ctx: any, reward: SpacetimeDB.DailyLoginReward) => setDailyLoginRewards(prev => { const newMap = new Map(prev); newMap.delete(reward.day.toString()); return newMap; });
 
+            // --- Plant Config Definition Subscriptions (for Encyclopedia) ---
+            const handlePlantConfigDefinitionInsert = (ctx: any, config: SpacetimeDB.PlantConfigDefinition) => setPlantConfigDefinitions(prev => new Map(prev).set(config.plantType?.tag || 'unknown', config));
+            const handlePlantConfigDefinitionUpdate = (ctx: any, oldConfig: SpacetimeDB.PlantConfigDefinition, newConfig: SpacetimeDB.PlantConfigDefinition) => setPlantConfigDefinitions(prev => new Map(prev).set(newConfig.plantType?.tag || 'unknown', newConfig));
+            const handlePlantConfigDefinitionDelete = (ctx: any, config: SpacetimeDB.PlantConfigDefinition) => setPlantConfigDefinitions(prev => { const newMap = new Map(prev); newMap.delete(config.plantType?.tag || 'unknown'); return newMap; });
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
@@ -1911,6 +1918,8 @@ export const useSpacetimeTables = ({
             connection.db.comparativeStatNotification.onInsert(handleComparativeStatNotificationInsert); connection.db.comparativeStatNotification.onUpdate(handleComparativeStatNotificationUpdate); connection.db.comparativeStatNotification.onDelete(handleComparativeStatNotificationDelete);
             connection.db.leaderboardEntry.onInsert(handleLeaderboardEntryInsert); connection.db.leaderboardEntry.onUpdate(handleLeaderboardEntryUpdate); connection.db.leaderboardEntry.onDelete(handleLeaderboardEntryDelete);
             connection.db.dailyLoginReward.onInsert(handleDailyLoginRewardInsert); connection.db.dailyLoginReward.onUpdate(handleDailyLoginRewardUpdate); connection.db.dailyLoginReward.onDelete(handleDailyLoginRewardDelete);
+            // Plant config definitions for Encyclopedia (populated on server init)
+            connection.db.plantConfigDefinition.onInsert(handlePlantConfigDefinitionInsert); connection.db.plantConfigDefinition.onUpdate(handlePlantConfigDefinitionUpdate); connection.db.plantConfigDefinition.onDelete(handlePlantConfigDefinitionDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2339,6 +2348,10 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[DAILY_LOGIN_REWARD Sub Error]:", err))
                     .subscribe('SELECT * FROM daily_login_reward'),
+                // Plant Encyclopedia data (static, populated on server init)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLANT_CONFIG_DEFINITION Sub Error]:", err))
+                    .subscribe('SELECT * FROM plant_config_definition'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2735,5 +2748,6 @@ export const useSpacetimeTables = ({
         comparativeStatNotifications, // ADDED: Comparative stats on death
         leaderboardEntries, // ADDED: Leaderboard entries
         dailyLoginRewards, // ADDED: Daily login reward definitions
+        plantConfigDefinitions, // ADDED: Plant encyclopedia data
     };
 }; 

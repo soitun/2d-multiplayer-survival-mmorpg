@@ -69,6 +69,8 @@ interface HotbarProps {
   getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
   handleHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
   setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
+  // XP bar props
+  playerStats?: Map<string, any>;
 }
 
 // Add tooltip interface
@@ -145,6 +147,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     getSlotIndicator,
     handleHotLootSlotHover,
     setHotLootCurrentHover,
+    playerStats,
 }) => {
   const [selectedSlot, setSelectedSlot] = useState<number>(-1);
   const [isVisualCooldownActive, setIsVisualCooldownActive] = useState<boolean>(false);
@@ -178,6 +181,32 @@ const Hotbar: React.FC<HotbarProps> = ({
   const hoveredSlotRef = useRef<number | null>(null); // Track which slot is currently hovered for tooltip
   const lastTooltipItemRef = useRef<{ instanceId: bigint; waterContentMl: number | undefined; quantity: number; isSaltWater: boolean | undefined } | null>(null); // Track last tooltip values for change detection
   const selectedSlotRef = useRef<number>(selectedSlot); // Immediate tracking for rapid clicks
+  
+  // XP Progress calculation for the XP bar above hotbar
+  const xpProgress = React.useMemo(() => {
+    if (!playerIdentity || !playerStats) return null;
+    const localPlayerStats = playerStats.get(playerIdentity.toHexString());
+    if (!localPlayerStats) return null;
+    
+    // XP formula: 100 * level^1.5 (matches server)
+    const xpForLevel = (level: number) => Math.floor(100 * Math.pow(level, 1.5));
+    
+    const level = localPlayerStats.level || 1;
+    const totalXp = Number(localPlayerStats.totalXp) || 0;
+    const xpForCurrentLevel = level > 1 ? xpForLevel(level) : 0;
+    const xpForNextLevel = xpForLevel(level + 1);
+    const xpInCurrentLevel = totalXp - xpForCurrentLevel;
+    const xpNeededForNext = xpForNextLevel - xpForCurrentLevel;
+    
+    const percent = xpNeededForNext > 0 ? Math.min(100, (xpInCurrentLevel / xpNeededForNext) * 100) : 0;
+    
+    return {
+      current: xpInCurrentLevel,
+      needed: xpNeededForNext,
+      percent,
+      level
+    };
+  }, [playerIdentity, playerStats]);
   const lastActivationRef = useRef<{ slot: number; timestamp: number } | null>(null); // Debounce rapid activations
   const lastKeyPressRef = useRef<{ key: string; timestamp: number } | null>(null); // Debounce keyboard events
   
@@ -1409,8 +1438,81 @@ const Hotbar: React.FC<HotbarProps> = ({
     };
   };
 
+  // Calculate hotbar width for XP bar alignment
+  const hotbarWidth = numSlots * (slotSize + slotMargin) - slotMargin + (slotMargin * 2) + 4; // slots + padding + border
+  
   return (
     <>
+      {/* XP Bar - Thin bar above hotbar (WoW style) */}
+      {xpProgress && !isMobile && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: `${hotbarBottom + slotSize + slotMargin * 2 + 8}px`, // Position above hotbar
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: `${hotbarWidth}px`,
+            height: '20px',
+            background: 'rgba(10, 5, 20, 0.9)',
+            borderRadius: '4px',
+            border: '1px solid rgba(0, 170, 255, 0.4)',
+            boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+            zIndex: 99,
+            overflow: 'hidden',
+            cursor: 'default',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          title={`Level ${xpProgress.level} - ${xpProgress.current} / ${xpProgress.needed} XP (${xpProgress.percent.toFixed(1)}%)`}
+        >
+          {/* XP Fill */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: `${xpProgress.percent}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #7c3aed, #a855f7)',
+              boxShadow: '0 0 8px rgba(168, 85, 247, 0.6)',
+              transition: 'width 0.5s ease-out',
+              zIndex: 0,
+            }}
+          />
+          {/* Level indicator on left */}
+          <div
+            style={{
+              position: 'relative',
+              left: '8px',
+              fontSize: '10px',
+              fontFamily: UI_FONT_FAMILY,
+              color: '#ffffff',
+              textShadow: '0 0 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(124, 58, 237, 0.5)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              fontWeight: 'bold',
+            }}
+          >
+            L{xpProgress.level}
+          </div>
+          {/* XP text on right */}
+          <div
+            style={{
+              position: 'absolute',
+              right: '8px',
+              fontSize: '9px',
+              fontFamily: UI_FONT_FAMILY,
+              color: 'rgba(255, 255, 255, 0.9)',
+              textShadow: '0 0 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(124, 58, 237, 0.5)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+          >
+            {xpProgress.current} / {xpProgress.needed}
+          </div>
+        </div>
+      )}
+      
       <div style={{
         position: 'fixed',
         bottom: `${hotbarBottom}px`,

@@ -213,8 +213,8 @@ interface GameScreenProps {
     isMinimapOpen: boolean;
     setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
     // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
-    interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
-    setInterfaceInitialView?: React.Dispatch<React.SetStateAction<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | undefined>>;
+    interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements';
+    setInterfaceInitialView?: React.Dispatch<React.SetStateAction<'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements' | undefined>>;
     // Callback to reset interface initial view (called when interface closes)
     onInterfaceClose?: () => void;
     isChatting: boolean;
@@ -299,6 +299,8 @@ interface GameScreenProps {
     achievementDefinitions?: Map<string, any>;
     // Leaderboard entries
     leaderboardEntries?: Map<string, any>;
+    // Plant encyclopedia data
+    plantConfigDefinitions?: Map<string, any>;
 
     // Matronage system
     matronages?: Map<string, any>;
@@ -1029,6 +1031,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 matronageInvitations={props.matronageInvitations}
                 matronageOwedShards={props.matronageOwedShards}
                 leaderboardEntries={props.leaderboardEntries}
+                achievementDefinitions={props.achievementDefinitions}
+                playerAchievements={props.playerAchievements}
+                plantConfigs={props.plantConfigDefinitions}
                 alwaysShowPlayerNames={alwaysShowPlayerNames}
                 // Mobile controls
                 isMobile={props.isMobile}

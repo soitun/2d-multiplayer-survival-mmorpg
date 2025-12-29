@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './InterfaceTabs.css';
 
 interface InterfaceTabsProps {
-  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard';
-  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard') => void;
+  currentView: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements';
+  onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements') => void;
   className?: string;
   hideEncyclopedia?: boolean;
 }
@@ -23,6 +23,7 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
   const isCairnsActive = currentView === 'cairns';
   const isMatronageActive = currentView === 'matronage';
   const isLeaderboardActive = currentView === 'leaderboard';
+  const isAchievementsActive = currentView === 'achievements';
 
   return (
     <div className={`interface-tabs ${className}`}>
@@ -96,6 +97,16 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         onMouseLeave={() => setHoveredTab(null)}
       >
         LEADERBOARD
+      </button>
+      
+      {/* ACHIEVEMENTS Tab */}
+      <button
+        className={`tab achievements-tab ${isAchievementsActive ? 'active' : 'inactive'} ${hoveredTab === 'achievements' ? 'hovered' : ''}`}
+        onClick={() => onViewChange('achievements')}
+        onMouseEnter={() => setHoveredTab('achievements')}
+        onMouseLeave={() => setHoveredTab(null)}
+      >
+        ACHIEVEMENTS
       </button>
     </div>
   );
