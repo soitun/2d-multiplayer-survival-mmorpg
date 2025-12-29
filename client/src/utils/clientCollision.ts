@@ -525,21 +525,20 @@ function getCollisionCandidates(
   );
   
   for (const seaStack of nearbySeaStacks) {
-    // Use circular collision (like trees) for smooth sliding behavior
-    // Scale the radius based on sea stack's scale property
+    // Use AABB collision (like cairns/runestones) with scaled dimensions
+    // The AABB is wider at the base and scales with the sea stack's scale property
     const seaStackScale = seaStack.scale || 1.0;
-    const scaledRadius = COLLISION_RADII.SEA_STACK * seaStackScale;
     
-    // Scale the Y offset based on sea stack scale - larger sea stacks need collision pushed up more
-    // Base offset is for scale 1.0, larger scales need proportionally larger offset
-    const scaledYOffset = COLLISION_OFFSETS.SEA_STACK.y * seaStackScale;
+    // Get scaled collision dimensions (matches server-side get_sea_stack_collision_dimensions)
+    const { halfWidth, halfHeight, yOffset } = getSeaStackCollisionDimensions(seaStackScale);
 
     shapes.push({
       id: seaStack.id.toString(),
       type: `sea_stack-${seaStack.id.toString()}`,
       x: seaStack.posX + COLLISION_OFFSETS.SEA_STACK.x,
-      y: seaStack.posY + scaledYOffset,
-      radius: scaledRadius // Circular collision for smooth sliding
+      y: seaStack.posY - yOffset, // Negative because yOffset moves collision UP from anchor
+      width: halfWidth * 2,  // AABB collision - full width
+      height: halfHeight * 2 // AABB collision - full height
     });
   }
   
@@ -966,6 +965,24 @@ export const SHELTER_DIMS = {
   HALF_HEIGHT: 62.5,   // SHELTER_AABB_HALF_HEIGHT
   AABB_CENTER_Y_OFFSET_FROM_POS_Y: 200, // SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y
 } as const;
+
+// Sea Stack AABB dimensions - wider at the base, scales with sea stack's scale property
+// These are BASE values for scale = 1.0, multiplied by the sea stack's actual scale
+// Exported for debug rendering
+export const SEA_STACK_DIMS = {
+  BASE_HALF_WIDTH: 80,   // Half-width at scale 1.0 (full width 160px) - wider than cairns for chunky rock base
+  BASE_HALF_HEIGHT: 35,  // Half-height at scale 1.0 (full height 70px)
+  BASE_Y_OFFSET: 70,     // Y offset at scale 1.0 (collision positioned 70px above anchor - lowered for better base positioning)
+} as const;
+
+// Helper function to get scaled sea stack collision dimensions (matches server-side)
+export function getSeaStackCollisionDimensions(scale: number): { halfWidth: number; halfHeight: number; yOffset: number } {
+  return {
+    halfWidth: SEA_STACK_DIMS.BASE_HALF_WIDTH * scale,
+    halfHeight: SEA_STACK_DIMS.BASE_HALF_HEIGHT * scale,
+    yOffset: SEA_STACK_DIMS.BASE_Y_OFFSET * scale,
+  };
+}
 
 // Performance optimization - debug disabled for production performance
 // const DEBUG_ENABLED = false;

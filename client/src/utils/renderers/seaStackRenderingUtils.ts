@@ -820,25 +820,28 @@ export function renderSeaStackWaterLineOnly(
 
 // === UNDERWATER SNORKELING MODE ===
 // Constants for underwater silhouette rendering
-// Must match values in clientCollision.ts for accurate collision representation
+// Must match AABB values in clientCollision.ts for accurate collision representation
 const UNDERWATER_SILHOUETTE_CONFIG = {
-  // Base radius matches COLLISION_RADII.SEA_STACK in clientCollision.ts
-  BASE_RADIUS: 60, // Same as collision system
-  // Y offset matches COLLISION_OFFSETS.SEA_STACK.y in clientCollision.ts
-  Y_OFFSET: 120, // Collision center is 120px above anchor point
-  // Feather amount (soft edge gradient)
-  FEATHER_RATIO: 0.4, // 40% of radius is feathered
+  // Base AABB dimensions match SEA_STACK_DIMS in clientCollision.ts
+  BASE_HALF_WIDTH: 80,   // Same as SEA_STACK_DIMS.BASE_HALF_WIDTH
+  BASE_HALF_HEIGHT: 35,  // Same as SEA_STACK_DIMS.BASE_HALF_HEIGHT
+  BASE_Y_OFFSET: 70,     // Same as SEA_STACK_DIMS.BASE_Y_OFFSET (lowered for better base positioning)
+  // Feather amount (soft edge gradient) - use average of dimensions for silhouette
+  FEATHER_RATIO: 0.4, // 40% of effective radius is feathered
   // Colors for underwater effect
   INNER_COLOR: 'rgba(10, 50, 70, 0.85)', // Dark teal center
   OUTER_COLOR: 'rgba(10, 50, 70, 0)', // Transparent edge
 };
 
 /**
- * Gets the collision radius for a sea stack - matches the actual collision system
- * Uses the same base radius as COLLISION_RADII.SEA_STACK scaled by the sea stack's scale
+ * Gets the effective collision radius for a sea stack's underwater silhouette
+ * Uses the average of AABB half-width and half-height for a circular silhouette
+ * that approximates the rectangular collision shape
  */
 function getSeaStackCollisionRadius(scale: number): number {
-  return UNDERWATER_SILHOUETTE_CONFIG.BASE_RADIUS * scale;
+  // Use the average of halfWidth and halfHeight for a circular approximation
+  const avgHalfDimension = (UNDERWATER_SILHOUETTE_CONFIG.BASE_HALF_WIDTH + UNDERWATER_SILHOUETTE_CONFIG.BASE_HALF_HEIGHT) / 2;
+  return avgHalfDimension * scale;
 }
 
 /**
@@ -858,10 +861,10 @@ export function renderSeaStackUnderwaterSilhouette(
   
   // Position from server data - posX/posY is the base anchor point
   const x = seaStack.posX;
-  // The silhouette should match the collision circle center exactly
+  // The silhouette should match the collision AABB center exactly
   // Scale the Y offset based on sea stack scale - larger sea stacks need silhouette pushed up more
-  // This matches the scaled offset in clientCollision.ts
-  const scaledYOffset = UNDERWATER_SILHOUETTE_CONFIG.Y_OFFSET * scale;
+  // This matches the scaled offset in clientCollision.ts (SEA_STACK_DIMS.BASE_Y_OFFSET)
+  const scaledYOffset = UNDERWATER_SILHOUETTE_CONFIG.BASE_Y_OFFSET * scale;
   const y = seaStack.posY - scaledYOffset;
   
   ctx.save();

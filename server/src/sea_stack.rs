@@ -1,4 +1,31 @@
 use spacetimedb::{table, SpacetimeType, Identity, ReducerContext};
+use crate::PLAYER_RADIUS;
+
+// ===== SEA STACK AABB COLLISION CONSTANTS =====
+// Sea stacks use AABB (Axis-Aligned Bounding Box) collision similar to cairns/runestones
+// but are WIDER at the base and SCALE with the sea stack's size property
+// These are BASE values for scale = 1.0, multiplied by the sea stack's actual scale
+
+/// Base half-width of sea stack AABB (wider than cairns for chunky rock base)
+pub const SEA_STACK_AABB_BASE_HALF_WIDTH: f32 = 80.0; // Full base width = 160px at scale 1.0
+
+/// Base half-height of sea stack AABB
+pub const SEA_STACK_AABB_BASE_HALF_HEIGHT: f32 = 35.0; // Full base height = 70px at scale 1.0
+
+/// Base Y offset from pos_y to AABB center (collision positioned above anchor point)
+pub const SEA_STACK_BASE_COLLISION_Y_OFFSET: f32 = 70.0; // 70px above anchor at scale 1.0 (lowered for better base positioning)
+
+/// Base distance check for collision culling (squared) - wider than player radius + max AABB diagonal
+pub const SEA_STACK_BASE_COLLISION_DISTANCE_SQ: f32 = 
+    (PLAYER_RADIUS + SEA_STACK_AABB_BASE_HALF_WIDTH * 1.5) * (PLAYER_RADIUS + SEA_STACK_AABB_BASE_HALF_WIDTH * 1.5);
+
+/// Helper to get scaled AABB dimensions for a sea stack
+pub fn get_sea_stack_collision_dimensions(scale: f32) -> (f32, f32, f32) {
+    let half_width = SEA_STACK_AABB_BASE_HALF_WIDTH * scale;
+    let half_height = SEA_STACK_AABB_BASE_HALF_HEIGHT * scale;
+    let y_offset = SEA_STACK_BASE_COLLISION_Y_OFFSET * scale;
+    (half_width, half_height, y_offset)
+}
 
 #[derive(SpacetimeType, Clone, Debug, PartialEq)]
 pub enum SeaStackVariant {

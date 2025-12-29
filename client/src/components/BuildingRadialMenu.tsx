@@ -15,8 +15,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faCube, 
   faShapes, 
-  faGripLinesVertical, 
-  faDoorOpen,
+  faGripLinesVertical,
   IconDefinition 
 } from '@fortawesome/free-solid-svg-icons';
 import { playImmediateSound } from '../hooks/useSoundSystem';
@@ -130,15 +129,6 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
       requirements: { wood: 15 }, // Wall cost: 15 wood
       available: woodCount >= 15,
       reason: woodCount < 15 ? `Need 15 wood (have ${woodCount})` : undefined,
-    },
-    {
-      mode: BuildingMode.Door,
-      name: 'Door',
-      icon: faDoorOpen,
-      description: 'Doorway entrance',
-      requirements: { wood: 0 },
-      available: false,
-      reason: 'Not implemented',
     },
   ];
 

@@ -9,6 +9,8 @@ use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
 use crate::cairn::{cairn as CairnTableTrait, CAIRN_AABB_HALF_WIDTH, CAIRN_AABB_HALF_HEIGHT, CAIRN_COLLISION_Y_OFFSET};
+// Import sea stack types for collision detection
+use crate::sea_stack::{sea_stack as SeaStackTableTrait, get_sea_stack_collision_dimensions};
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 // Player corpses have NO collision - players can walk over them to loot
 // Keeping minimal imports for spatial grid entity type matching only
@@ -89,6 +91,7 @@ pub fn calculate_slide_collision_with_grid(
     let stones = ctx.db.stone();
     let rune_stones = ctx.db.rune_stone(); // Access rune stone table
     let cairns = ctx.db.cairn(); // Access cairn table
+    let sea_stacks = ctx.db.sea_stack(); // Access sea stack table for AABB collision
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
     let player_corpses = ctx.db.player_corpse(); // Access player_corpse table
     let shelters = ctx.db.shelter(); // Access shelter table
@@ -497,6 +500,66 @@ pub fn calculate_slide_collision_with_grid(
                          }
                      }
                  }
+            },
+            spatial_grid::EntityType::SeaStack(sea_stack_id) => {
+                if let Some(sea_stack) = sea_stacks.id().find(sea_stack_id) {
+                    // SCALED AABB collision - dimensions scale with sea stack's scale property
+                    let (half_width, half_height, y_offset) = get_sea_stack_collision_dimensions(sea_stack.scale);
+                    let sea_stack_aabb_center_x = sea_stack.pos_x;
+                    let sea_stack_aabb_center_y = sea_stack.pos_y - y_offset;
+                    
+                    // AABB collision detection
+                    let closest_x = final_x.max(sea_stack_aabb_center_x - half_width).min(sea_stack_aabb_center_x + half_width);
+                    let closest_y = final_y.max(sea_stack_aabb_center_y - half_height).min(sea_stack_aabb_center_y + half_height);
+                    
+                    let dx_aabb = final_x - closest_x;
+                    let dy_aabb = final_y - closest_y;
+                    let dist_sq_aabb = dx_aabb * dx_aabb + dy_aabb * dy_aabb;
+                    let player_radius_sq = current_player_radius * current_player_radius;
+                    
+                    if dist_sq_aabb < player_radius_sq {
+                        log::debug!("Player-SeaStack AABB collision for slide: {:?} vs sea_stack {} (scale: {})", sender_id, sea_stack.id, sea_stack.scale);
+                        let collision_normal_x = dx_aabb;
+                        let collision_normal_y = dy_aabb;
+                        let normal_mag_sq = dist_sq_aabb;
+                        if normal_mag_sq > 0.0 {
+                            let normal_mag = normal_mag_sq.sqrt();
+                            let norm_x = collision_normal_x / normal_mag;
+                            let norm_y = collision_normal_y / normal_mag;
+                            let dot_product = server_dx * norm_x + server_dy * norm_y;
+                            
+                            // Only slide if moving toward the object (dot_product < 0)
+                            if dot_product < 0.0 {
+                                let projection_x = dot_product * norm_x;
+                                let projection_y = dot_product * norm_y;
+                                let slide_dx = server_dx - projection_x;
+                                let slide_dy = server_dy - projection_y;
+                                final_x = current_player_pos_x + slide_dx;
+                                final_y = current_player_pos_y + slide_dy;
+                                
+                                // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
+                                let final_closest_x = final_x.max(sea_stack_aabb_center_x - half_width).min(sea_stack_aabb_center_x + half_width);
+                                let final_closest_y = final_y.max(sea_stack_aabb_center_y - half_height).min(sea_stack_aabb_center_y + half_height);
+                                let final_dx = final_x - final_closest_x;
+                                let final_dy = final_y - final_closest_y;
+                                let final_dist_sq = final_dx * final_dx + final_dy * final_dy;
+                                if final_dist_sq < player_radius_sq {
+                                    let final_dist = final_dist_sq.sqrt();
+                                    let separation_direction = if final_dist > 0.001 {
+                                        (final_dx / final_dist, final_dy / final_dist)
+                                    } else {
+                                        (1.0, 0.0) // Default direction
+                                    };
+                                    let min_separation = current_player_radius + SLIDE_SEPARATION_DISTANCE;
+                                    final_x = final_closest_x + separation_direction.0 * min_separation;
+                                    final_y = final_closest_y + separation_direction.1 * min_separation;
+                                }
+                            }
+                            final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+                            final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+                        }
+                    }
+                }
             },
             spatial_grid::EntityType::WoodenStorageBox(box_id) => {
                 if let Some(box_instance) = wooden_storage_boxes.id().find(box_id) {
@@ -925,6 +988,7 @@ pub fn resolve_push_out_collision_with_grid(
     let stones = ctx.db.stone();
     let rune_stones = ctx.db.rune_stone(); // Access rune stone table for push-out
     let cairns = ctx.db.cairn(); // Access cairn table for push-out
+    let sea_stacks = ctx.db.sea_stack(); // Access sea stack table for push-out
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
     let player_corpses = ctx.db.player_corpse(); // Access player_corpse table
     let shelters = ctx.db.shelter(); // Access shelter table
@@ -1198,6 +1262,60 @@ pub fn resolve_push_out_collision_with_grid(
                             let aabb_right = cairn_aabb_center_x + CAIRN_AABB_HALF_WIDTH;
                             let aabb_top = cairn_aabb_center_y - CAIRN_AABB_HALF_HEIGHT;
                             let aabb_bottom = cairn_aabb_center_y + CAIRN_AABB_HALF_HEIGHT;
+                            
+                            let dist_to_left = (resolved_x - aabb_left).abs();
+                            let dist_to_right = (resolved_x - aabb_right).abs();
+                            let dist_to_top = (resolved_y - aabb_top).abs();
+                            let dist_to_bottom = (resolved_y - aabb_bottom).abs();
+                            
+                            let min_dist = dist_to_left.min(dist_to_right).min(dist_to_top).min(dist_to_bottom);
+                            
+                            if min_dist == dist_to_left {
+                                resolved_x = aabb_left - current_player_radius - separation_distance;
+                            } else if min_dist == dist_to_right {
+                                resolved_x = aabb_right + current_player_radius + separation_distance;
+                            } else if min_dist == dist_to_top {
+                                resolved_y = aabb_top - current_player_radius - separation_distance;
+                            } else {
+                                resolved_y = aabb_bottom + current_player_radius + separation_distance;
+                            }
+                        }
+                    }
+                },
+                spatial_grid::EntityType::SeaStack(sea_stack_id) => {
+                    log::debug!("[PushOutEntityType] Found SeaStack: {}", sea_stack_id);
+                    if let Some(sea_stack) = sea_stacks.id().find(sea_stack_id) {
+                        // SCALED AABB collision - dimensions scale with sea stack's scale property
+                        let (half_width, half_height, y_offset) = get_sea_stack_collision_dimensions(sea_stack.scale);
+                        let sea_stack_aabb_center_x = sea_stack.pos_x;
+                        let sea_stack_aabb_center_y = sea_stack.pos_y - y_offset;
+                        
+                        // AABB collision detection for push-out
+                        let closest_x = resolved_x.max(sea_stack_aabb_center_x - half_width).min(sea_stack_aabb_center_x + half_width);
+                        let closest_y = resolved_y.max(sea_stack_aabb_center_y - half_height).min(sea_stack_aabb_center_y + half_height);
+                        
+                        let dx_resolve = resolved_x - closest_x;
+                        let dy_resolve = resolved_y - closest_y;
+                        let dist_sq_resolve = dx_resolve * dx_resolve + dy_resolve * dy_resolve;
+                        let player_radius_sq = current_player_radius * current_player_radius;
+                        
+                        // OPTIMIZATION: Early exit with exact distance check
+                        if dist_sq_resolve >= player_radius_sq {
+                            continue;
+                        }
+                        
+                        overlap_found_in_iter = true;
+                        if dist_sq_resolve > 0.0 {
+                            let distance = dist_sq_resolve.sqrt();
+                            let overlap = (current_player_radius - distance) + separation_distance;
+                            resolved_x += (dx_resolve / distance) * overlap;
+                            resolved_y += (dy_resolve / distance) * overlap;
+                        } else {
+                            // Player center is inside the AABB - push to nearest face
+                            let aabb_left = sea_stack_aabb_center_x - half_width;
+                            let aabb_right = sea_stack_aabb_center_x + half_width;
+                            let aabb_top = sea_stack_aabb_center_y - half_height;
+                            let aabb_bottom = sea_stack_aabb_center_y + half_height;
                             
                             let dist_to_left = (resolved_x - aabb_left).abs();
                             let dist_to_right = (resolved_x - aabb_right).abs();
