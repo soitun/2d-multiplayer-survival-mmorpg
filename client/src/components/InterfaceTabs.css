@@ -30,20 +30,38 @@
   min-width: fit-content;
 }
 
+/* Fixed tab widths to match container width (924px total including margins) */
+/* Total: 110 + 130 + 130 + 110 + 85 + 105 + 115 + 125 + (2*7 margins) = 924px */
 .tab:first-child {
-  width: 110px;
+  width: 110px; /* GRU MAPS */
 }
 
 .encyclopedia-tab {
-  width: 130px;
+  width: 130px; /* ENCYCLOPEDIA */
 }
 
 .memory-grid-tab {
-  width: 130px;
+  width: 130px; /* MEMORY GRID */
 }
 
 .alk-tab {
-  width: 110px;
+  width: 110px; /* ALK BOARD */
+}
+
+.cairns-tab {
+  width: 85px; /* CAIRNS */
+}
+
+.matronage-tab {
+  width: 105px; /* MATRONAGE */
+}
+
+.leaderboard-tab {
+  width: 115px; /* LEADERBOARD */
+}
+
+.achievements-tab {
+  width: 125px; /* ACHIEVEMENTS */
 }
 
 /* ALK tab special styling - green accent for supply/commerce */
@@ -171,10 +189,15 @@
     max-width: 100px;
   }
   
+  /* Reset fixed widths on mobile */
   .tab:first-child,
   .encyclopedia-tab,
   .memory-grid-tab,
-  .alk-tab {
+  .alk-tab,
+  .cairns-tab,
+  .matronage-tab,
+  .leaderboard-tab,
+  .achievements-tab {
     width: auto;
   }
 }

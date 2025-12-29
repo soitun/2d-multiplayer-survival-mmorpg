@@ -392,18 +392,18 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     }
   };
 
-  // Add global CSS for smooth animations
+  // Add global CSS for smooth animations - uses GPU-accelerated transforms
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
       @keyframes cyberpunk-spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
       }
       
       @keyframes cyberpunk-spin-reverse {
-        0% { transform: translate(-50%, -50%) rotate(0deg); }
-        100% { transform: translate(-50%, -50%) rotate(-360deg); }
+        from { transform: rotate(0deg); }
+        to { transform: rotate(-360deg); }
       }
       
       @keyframes cyberpunk-pulse {
@@ -413,35 +413,40 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         }
         50% { 
           opacity: 0.6; 
-          transform: scale(1.1);
+          transform: scale(1.15);
         }
       }
       
       @keyframes cyberpunk-text-pulse {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
+        50% { opacity: 0.5; }
+      }
+      
+      @keyframes cyberpunk-glow-pulse {
+        0%, 100% { 
+          box-shadow: 0 0 8px #00d4ff, 0 0 16px rgba(0, 212, 255, 0.5);
+        }
+        50% { 
+          box-shadow: 0 0 16px #00d4ff, 0 0 32px rgba(0, 212, 255, 0.8);
+        }
       }
       
       .cyberpunk-spinner-outer {
-        will-change: transform;
-        animation: cyberpunk-spin 1.5s linear infinite;
-        transform-origin: center;
+        animation: cyberpunk-spin 1.2s linear infinite;
+        transform-origin: center center;
       }
       
       .cyberpunk-spinner-inner {
-        will-change: transform;
-        animation: cyberpunk-spin-reverse 1s linear infinite;
-        transform-origin: center;
+        animation: cyberpunk-spin-reverse 0.8s linear infinite;
+        transform-origin: center center;
       }
       
       .cyberpunk-pulse-dot {
-        will-change: transform, opacity;
-        animation: cyberpunk-pulse 1.2s ease-in-out infinite;
+        animation: cyberpunk-pulse 1s ease-in-out infinite, cyberpunk-glow-pulse 1s ease-in-out infinite;
       }
       
       .cyberpunk-text-pulse {
-        will-change: opacity;
-        animation: cyberpunk-text-pulse 2s ease-in-out infinite;
+        animation: cyberpunk-text-pulse 1.5s ease-in-out infinite;
       }
     `;
     document.head.appendChild(style);
@@ -528,10 +533,14 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   // Detect mobile screen size
   const isMobileScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
 
+  // Calculate container width to match tab bar width (8 tabs)
+  // GRU MAPS(110) + ENCYCLOPEDIA(130) + MEMORY GRID(130) + ALK(110) + CAIRNS(~85) + MATRONAGE(~105) + LEADERBOARD(~115) + ACHIEVEMENTS(~125) + margins(2px*7=14)
+  const INTERFACE_CONTAINER_WIDTH = 924; // Matches total tab width
+
   // Base content container style to maintain consistent dimensions
-  // On mobile, use full available space; on desktop, use wider dimensions to accommodate Encyclopedia tab
+  // On mobile, use full available space; on desktop, use width that matches all tabs combined
   const contentContainerStyle: React.CSSProperties = {
-    width: isMobileScreen ? '100%' : `${Math.max(MINIMAP_DIMENSIONS.width, 900)}px`, // Wider for Encyclopedia
+    width: isMobileScreen ? '100%' : `${INTERFACE_CONTAINER_WIDTH}px`,
     height: isMobileScreen ? '100%' : `${MINIMAP_DIMENSIONS.height}px`,
     maxWidth: '100%',
     maxHeight: '100%',
@@ -542,7 +551,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     overflow: 'hidden', // Prevent content from breaking the fixed dimensions
   };
 
-  // Loading overlay spinner component
+  // Loading overlay spinner component with proper GPU-accelerated animations
   const LoadingOverlay = () => (
     <div style={{
       position: 'absolute',
@@ -550,78 +559,82 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(15, 23, 35, 0.85)', // Semi-transparent overlay
+      background: 'rgba(15, 23, 35, 0.9)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 10, // Ensure it's on top
-      backdropFilter: 'blur(2px)', // Subtle blur effect
+      zIndex: 10,
+      backdropFilter: 'blur(3px)',
     }}>
-      {/* Outer rotating ring */}
-      <div 
-        className="cyberpunk-spinner-outer"
-        style={{
-          width: '80px',
-          height: '80px',
-          border: '3px solid transparent',
-          borderTop: '3px solid #00d4ff',
-          borderRight: '3px solid #7c3aed',
-          borderRadius: '50%',
-          position: 'relative',
-        }}
-      >
-        {/* Inner rotating ring */}
+      {/* Spinner container - centers the nested rings */}
+      <div style={{
+        position: 'relative',
+        width: '90px',
+        height: '90px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        {/* Outer rotating ring */}
+        <div 
+          className="cyberpunk-spinner-outer"
+          style={{
+            position: 'absolute',
+            width: '90px',
+            height: '90px',
+            border: '3px solid transparent',
+            borderTop: '3px solid #00d4ff',
+            borderRight: '3px solid #7c3aed',
+            borderRadius: '50%',
+            boxSizing: 'border-box',
+          }}
+        />
+        {/* Inner rotating ring (counter-clockwise) */}
         <div 
           className="cyberpunk-spinner-inner"
           style={{
-            width: '60px',
-            height: '60px',
+            position: 'absolute',
+            width: '66px',
+            height: '66px',
             border: '2px solid transparent',
             borderTop: '2px solid #7c3aed',
             borderLeft: '2px solid #00d4ff',
             borderRadius: '50%',
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
+            boxSizing: 'border-box',
           }}
-        >
-          {/* Center dot */}
-          <div 
-            className="cyberpunk-pulse-dot"
-            style={{
-              width: '8px',
-              height: '8px',
-              background: '#00d4ff',
-              borderRadius: '50%',
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 8px #00d4ff',
-            }} 
-          />
-        </div>
+        />
+        {/* Center pulsing dot */}
+        <div 
+          className="cyberpunk-pulse-dot"
+          style={{
+            position: 'absolute',
+            width: '12px',
+            height: '12px',
+            background: '#00d4ff',
+            borderRadius: '50%',
+          }} 
+        />
       </div>
       
       {/* Loading text */}
       <div style={{
-        marginTop: '20px',
+        marginTop: '24px',
         color: '#00d4ff',
         fontSize: '14px',
         fontWeight: 'bold',
         textAlign: 'center',
         fontFamily: 'monospace',
-        letterSpacing: '1px',
+        letterSpacing: '2px',
       }}>
         <div className="cyberpunk-text-pulse">
           INITIALIZING GRU MAPS
         </div>
         <div style={{ 
-          marginTop: '8px', 
-          fontSize: '12px', 
+          marginTop: '10px', 
+          fontSize: '11px', 
           color: '#7c3aed',
-          opacity: '0.8'
+          letterSpacing: '1px',
         }}>
           Scanning neural pathways...
         </div>
