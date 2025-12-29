@@ -181,6 +181,7 @@ export interface SpacetimeTableStates {
     leaderboardEntries: Map<string, SpacetimeDB.LeaderboardEntry>; // ADDED: Leaderboard entries
     dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>; // ADDED: Daily login reward definitions
     plantConfigDefinitions: Map<string, SpacetimeDB.PlantConfigDefinition>; // ADDED: Plant encyclopedia data
+    discoveredPlants: Map<string, SpacetimeDB.PlayerDiscoveredPlant>; // ADDED: Plants discovered by current player
 }
 
 // Define the props the hook accepts
@@ -289,6 +290,7 @@ export const useSpacetimeTables = ({
     const [leaderboardEntries, setLeaderboardEntries] = useState<Map<string, SpacetimeDB.LeaderboardEntry>>(() => new Map());
     const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
     const [plantConfigDefinitions, setPlantConfigDefinitions] = useState<Map<string, SpacetimeDB.PlantConfigDefinition>>(() => new Map());
+    const [discoveredPlants, setDiscoveredPlants] = useState<Map<string, SpacetimeDB.PlayerDiscoveredPlant>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1164,6 +1166,19 @@ export const useSpacetimeTables = ({
             const handlePlantConfigDefinitionUpdate = (ctx: any, oldConfig: SpacetimeDB.PlantConfigDefinition, newConfig: SpacetimeDB.PlantConfigDefinition) => setPlantConfigDefinitions(prev => new Map(prev).set(newConfig.plantType?.tag || 'unknown', newConfig));
             const handlePlantConfigDefinitionDelete = (ctx: any, config: SpacetimeDB.PlantConfigDefinition) => setPlantConfigDefinitions(prev => { const newMap = new Map(prev); newMap.delete(config.plantType?.tag || 'unknown'); return newMap; });
 
+            // --- Discovered Plants Subscriptions (for Encyclopedia filtering) ---
+            const handleDiscoveredPlantInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredPlant) => {
+                // Only track discoveries for the current player
+                if (connection?.identity && discovery.playerId.toHexString() === connection.identity.toHexString()) {
+                    setDiscoveredPlants(prev => new Map(prev).set(discovery.plantType?.tag || 'unknown', discovery));
+                }
+            };
+            const handleDiscoveredPlantDelete = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredPlant) => {
+                if (connection?.identity && discovery.playerId.toHexString() === connection.identity.toHexString()) {
+                    setDiscoveredPlants(prev => { const newMap = new Map(prev); newMap.delete(discovery.plantType?.tag || 'unknown'); return newMap; });
+                }
+            };
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
@@ -1948,6 +1963,7 @@ export const useSpacetimeTables = ({
             connection.db.dailyLoginReward.onInsert(handleDailyLoginRewardInsert); connection.db.dailyLoginReward.onUpdate(handleDailyLoginRewardUpdate); connection.db.dailyLoginReward.onDelete(handleDailyLoginRewardDelete);
             // Plant config definitions for Encyclopedia (populated on server init)
             connection.db.plantConfigDefinition.onInsert(handlePlantConfigDefinitionInsert); connection.db.plantConfigDefinition.onUpdate(handlePlantConfigDefinitionUpdate); connection.db.plantConfigDefinition.onDelete(handlePlantConfigDefinitionDelete);
+            connection.db.playerDiscoveredPlant.onInsert(handleDiscoveredPlantInsert); connection.db.playerDiscoveredPlant.onDelete(handleDiscoveredPlantDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2784,5 +2800,6 @@ export const useSpacetimeTables = ({
         leaderboardEntries, // ADDED: Leaderboard entries
         dailyLoginRewards, // ADDED: Daily login reward definitions
         plantConfigDefinitions, // ADDED: Plant encyclopedia data
+        discoveredPlants, // ADDED: Plants discovered by current player
     };
 }; 

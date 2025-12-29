@@ -336,6 +336,7 @@ function AppContent() {
       leaderboardEntries, // ADDED: Leaderboard entries
       dailyLoginRewards, // ADDED: Daily login reward definitions
       plantConfigDefinitions, // ADDED: Plant encyclopedia data
+      discoveredPlants, // ADDED: Plants discovered by current player
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1378,6 +1379,7 @@ function AppContent() {
                             achievementDefinitions={achievementDefinitions} // ADDED: Achievement definitions for title selection
                             leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
                             plantConfigDefinitions={plantConfigDefinitions} // ADDED: Plant encyclopedia data
+                            discoveredPlants={discoveredPlants} // ADDED: Plants discovered by current player
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels

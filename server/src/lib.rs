@@ -412,6 +412,7 @@ use crate::campfire::campfire as CampfireTableTrait;
 use crate::furnace::furnace as FurnaceTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
+use crate::harvestable_resource::player_discovered_plant as PlayerDiscoveredPlantTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::world_state::thunder_event_cleanup_schedule as ThunderEventCleanupScheduleTableTrait; // <<< ADDED: Import ThunderEventCleanupSchedule table trait
 use crate::items::inventory_item as InventoryItemTableTrait;

@@ -335,10 +335,19 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     const recipeList = useMemo(() => {
         return Array.from(recipes.values()).map(recipe => {
             const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+            const outputName = outputDef?.name || 'Unknown';
+            
+            // Override category for Tallow - treat as Material even though it's Consumable
+            // because it's a basic building material used in many recipes
+            let category = outputDef?.category || { tag: 'Material' };
+            if (outputName === 'Tallow') {
+                category = { tag: 'Material' };
+            }
+            
             return {
                 id: recipe.recipeId.toString(),
-                name: outputDef?.name || 'Unknown',
-                category: outputDef?.category || { tag: 'Material' },
+                name: outputName,
+                category: category,
                 materials: recipe.ingredients.map(ing => {
                     const ingDef = itemDefinitions.get(ing.itemDefId.toString());
                     return {
@@ -347,7 +356,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                     };
                 }),
                 output: {
-                    itemId: outputDef?.name || recipe.outputItemDefId.toString(),
+                    itemId: outputName,
                     quantity: recipe.outputQuantity
                 }
             };

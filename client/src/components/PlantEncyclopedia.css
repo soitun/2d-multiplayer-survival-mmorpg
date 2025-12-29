@@ -137,6 +137,53 @@
   border-radius: 8px;
 }
 
+/* Category Tooltip */
+.category-tooltip {
+  background: linear-gradient(135deg, rgba(20, 40, 30, 0.98), rgba(30, 60, 50, 0.98));
+  border: 1px solid rgba(76, 175, 80, 0.6);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  box-shadow: 
+    0 0 15px rgba(76, 175, 80, 0.4),
+    inset 0 0 10px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+.tooltip-content {
+  display: block;
+}
+
+.category-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 6px solid rgba(76, 175, 80, 0.6);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+    transform: translate(-100%, -50%) translateX(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-100%, -50%) translateX(0);
+  }
+}
+
 /* Plant List */
 .plants-list {
   flex: 1;
@@ -170,6 +217,40 @@
   font-style: italic;
 }
 
+.no-plants.discovery-message {
+  padding: 60px 30px;
+  font-style: normal;
+}
+
+.discovery-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  filter: grayscale(0.3);
+  animation: plantBounce 2s ease-in-out infinite;
+}
+
+@keyframes plantBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.discovery-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #4CAF50;
+  text-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+  margin-bottom: 12px;
+}
+
+.discovery-hint {
+  font-size: 12px;
+  color: #8BC34A;
+  line-height: 1.6;
+  max-width: 280px;
+  margin: 0 auto;
+  opacity: 0.9;
+}
+
 /* Plant Card */
 .plant-card {
   background: rgba(20, 40, 30, 0.6);
@@ -194,7 +275,7 @@
 .plant-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   padding: 10px 12px;
 }
 
@@ -202,6 +283,7 @@
   font-size: 18px;
   width: 26px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .plant-name {
@@ -209,6 +291,7 @@
   font-size: 14px;
   font-weight: bold;
   color: #e0e0e0;
+  text-align: left;
 }
 
 .expand-icon {

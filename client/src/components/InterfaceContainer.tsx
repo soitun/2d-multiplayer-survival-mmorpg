@@ -68,6 +68,8 @@ interface InterfaceContainerProps {
   playerAchievements?: Map<string, PlayerAchievement>;
   // Plant Encyclopedia data props
   plantConfigs?: Map<string, PlantConfigDefinition>;
+  // Plants discovered by current player (for encyclopedia filtering)
+  discoveredPlants?: Map<string, any>;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -106,6 +108,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   playerAchievements,
   // Plant Encyclopedia data props
   plantConfigs,
+  // Plants discovered by current player (for encyclopedia filtering)
+  discoveredPlants,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentView, setCurrentView] = useState<InterfaceView>(initialView || 'minimap');
@@ -647,7 +651,13 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     switch (currentView) {
       case 'minimap':
         return (
-          <div style={{ ...contentContainerStyle, position: 'relative' }}>
+          <div style={{ 
+            ...contentContainerStyle,
+            padding: '0',
+            background: 'transparent',
+            border: 'none',
+            position: 'relative',
+          }}>
             {children}
             {/* Toggle Controls Container */}
             <div style={{
@@ -801,6 +811,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
           }}>
             <PlantEncyclopedia
               plantConfigs={plantConfigs || new Map()}
+              discoveredPlants={discoveredPlants || new Map()}
             />
           </div>
         );

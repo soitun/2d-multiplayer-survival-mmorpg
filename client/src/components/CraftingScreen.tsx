@@ -133,6 +133,14 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             .sort((a, b) => Number(a.finishTime.microsSinceUnixEpoch - b.finishTime.microsSinceUnixEpoch));
     }, [craftingQueueItems, playerIdentity, currentTime]);
 
+    // Helper to get effective category (with overrides like Tallow -> Material)
+    const getEffectiveCategory = useCallback((outputDef: ItemDefinition | undefined): string => {
+        if (!outputDef) return 'Material';
+        // Override: Tallow is technically Consumable but functions as a Material in crafting
+        if (outputDef.name === 'Tallow') return 'Material';
+        return outputDef.category.tag;
+    }, []);
+
     // Calculate category counts
     const categoryCounts = useMemo(() => {
         const counts: Map<string, number> = new Map();
@@ -141,13 +149,13 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         recipes.forEach(recipe => {
             const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
             if (outputDef) {
-                const category = outputDef.category.tag;
+                const category = getEffectiveCategory(outputDef);
                 counts.set(category, (counts.get(category) || 0) + 1);
             }
         });
 
         return counts;
-    }, [recipes, itemDefinitions]);
+    }, [recipes, itemDefinitions, getEffectiveCategory]);
 
     // --- Helper functions (defined before useMemo that needs them) ---
     const calculateMaxCraftable = useCallback((recipe: Recipe): number => {
@@ -197,11 +205,11 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     const filteredRecipes = useMemo(() => {
         let filtered = Array.from(recipes.values());
 
-        // Category filter
+        // Category filter (using effective category for overrides like Tallow)
         if (selectedCategory !== 'All') {
             filtered = filtered.filter(recipe => {
                 const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
-                return outputDef?.category.tag === selectedCategory;
+                return getEffectiveCategory(outputDef) === selectedCategory;
             });
         }
 
@@ -223,15 +231,35 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             });
         }
 
-        // Sort: craftable first, then alphabetically
+        // Sort: exact matches first, then startsWith, then craftable, then alphabetically
+        const term = searchTerm.trim().toLowerCase();
         return filtered.sort((a, b) => {
+            const aName = itemDefinitions.get(a.outputItemDefId.toString())?.name || '';
+            const bName = itemDefinitions.get(b.outputItemDefId.toString())?.name || '';
+            const aNameLower = aName.toLowerCase();
+            const bNameLower = bName.toLowerCase();
+            
+            // If searching, exact matches come first
+            if (term) {
+                const aExact = aNameLower === term;
+                const bExact = bNameLower === term;
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                
+                // Then startsWith matches
+                const aStartsWith = aNameLower.startsWith(term);
+                const bStartsWith = bNameLower.startsWith(term);
+                if (aStartsWith && !bStartsWith) return -1;
+                if (!aStartsWith && bStartsWith) return 1;
+            }
+            
+            // Then craftable items
             const aCraftable = canCraft(a, 1);
             const bCraftable = canCraft(b, 1);
             if (aCraftable && !bCraftable) return -1;
             if (!aCraftable && bCraftable) return 1;
 
-            const aName = itemDefinitions.get(a.outputItemDefId.toString())?.name || '';
-            const bName = itemDefinitions.get(b.outputItemDefId.toString())?.name || '';
+            // Finally alphabetical
             return aName.localeCompare(bName);
         });
     }, [recipes, selectedCategory, searchTerm, itemDefinitions, canCraft]);

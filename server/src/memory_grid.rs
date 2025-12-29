@@ -268,6 +268,8 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "plastic-water-jug" => Some((1200, vec!["reed-rain-collector"])),
         // Branch 4 LOWER (Food Storage)
         "compost" => Some((1200, vec!["refrigerator"])),
+        // Branch 5 LOWER-LOWER (Demolition path) - Raiding explosives
+        "babushka-surprise" => Some((1200, vec!["repair-bench"])), // T4: Tier 1 explosive
         
         // ============================================
         // TIER 5 - Mid-Late Game (2400-3000 shards)
@@ -275,6 +277,8 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 4 LOWER (Food Storage / Farming) - capstone
         "scarecrow" => Some((2400, vec!["compost"])),
+        // Branch 5 LOWER-LOWER (Demolition path) - Tier 2 explosive
+        "matriarch-wrath" => Some((2400, vec!["babushka-surprise"])), // T5: Tier 2 explosive
         // Branch 5 UPPER (Passive Bonuses)
         "crafting-speed-1" => Some((1600, vec!["mining-efficiency"])),
         
@@ -539,6 +543,12 @@ fn get_node_display_name(node_id: &str) -> String {
         "diving-pick" => "Diving Pick".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
+        // Tier 4 (Demolition)
+        "babushka-surprise" => "Babushka's Surprise".to_string(),
+        
+        // Tier 5 (Demolition)
+        "matriarch-wrath" => "Matriarch's Wrath".to_string(),
+        
         // Tier 6
         "makarov-pm" => "Makarov PM".to_string(),
         
@@ -659,6 +669,10 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Cooking Station" => Some("cooking-station"),
         "Compost" => Some("compost"),
         "Scarecrow" => Some("scarecrow"),
+        "Babushka's Surprise" => Some("babushka-surprise"),
+        
+        // Tier 5 items (demolition branch)
+        "Matriarch's Wrath" => Some("matriarch-wrath"),
         
         // Tier 5 items
         "9x18mm Round" => Some("9x18mm-round"),

@@ -296,6 +296,8 @@ interface GameCanvasProps {
   playerAchievements?: Map<string, any>;
   // Plant encyclopedia data
   plantConfigs?: Map<string, any>;
+  // Plants discovered by current player (for encyclopedia filtering)
+  discoveredPlants?: Map<string, any>;
   
   // Always show player names above heads
   alwaysShowPlayerNames?: boolean;
@@ -419,6 +421,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   achievementDefinitions, // Achievement definitions
   playerAchievements, // Player unlocked achievements
   plantConfigs, // Plant encyclopedia data
+  discoveredPlants, // Plants discovered by current player
   alwaysShowPlayerNames = true, // Always show player names above heads
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
@@ -4348,6 +4351,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             achievementDefinitions={achievementDefinitions}
             playerAchievements={playerAchievements}
             plantConfigs={plantConfigs}
+            discoveredPlants={discoveredPlants}
           >
             <canvas
               ref={minimapCanvasRef}

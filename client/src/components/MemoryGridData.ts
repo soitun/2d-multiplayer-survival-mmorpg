@@ -535,6 +535,19 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Repair Bench']
   },
+  // Branch 5 LOWER-LOWER (Demolition path) - Raiding explosives
+  { 
+    id: 'babushka-surprise', 
+    name: 'Babushka\'s Surprise', 
+    description: 'Unlocks crafting Babushka\'s Surprise - a volatile improvised explosive wrapped in old cloth. Unreliable 5-30s fuse with 20% dud chance, but effective for raiding wooden structures.', 
+    cost: 1200, 
+    tier: 4, 
+    prerequisites: ['repair-bench'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 + SPLIT_OFFSET, 420),
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Babushka\'s Surprise']
+  },
 
   // ============================================
   // TIER 4 - Late Early-Game (1000-1600 shards)
@@ -644,6 +657,19 @@ export const MEMORY_GRID_NODES = [
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Scarecrow']
+  },
+  // Branch 5 LOWER-LOWER (Demolition path) - Tier 2 explosive
+  { 
+    id: 'matriarch-wrath', 
+    name: 'Matriarch\'s Wrath', 
+    description: 'Unlocks crafting Matriarch\'s Wrath - a sophisticated demolition device that tears through even the strongest fortifications. Reliable 10s fuse, massive damage.', 
+    cost: 2400, 
+    tier: 5, 
+    prerequisites: ['babushka-surprise'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 + SPLIT_OFFSET, 520),
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Matriarch\'s Wrath']
   },
   // Branch 5 UPPER (Passive Bonuses)
   { 
@@ -1075,6 +1101,10 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Cooking Station': 'cooking-station',
   'Compost': 'compost',
   'Scarecrow': 'scarecrow',
+  'Babushka\'s Surprise': 'babushka-surprise',
+  
+  // Tier 5 items (Demolition)
+  'Matriarch\'s Wrath': 'matriarch-wrath',
   
   // Tier 5 items
   '9x18mm Round': '9x18mm-round',

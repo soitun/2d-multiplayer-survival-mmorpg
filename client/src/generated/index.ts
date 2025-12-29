@@ -903,6 +903,8 @@ import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_
 export { PlayerCorpseDespawnScheduleTableHandle };
 import { PlayerDiscoveredCairnTableHandle } from "./player_discovered_cairn_table.ts";
 export { PlayerDiscoveredCairnTableHandle };
+import { PlayerDiscoveredPlantTableHandle } from "./player_discovered_plant_table.ts";
+export { PlayerDiscoveredPlantTableHandle };
 import { PlayerDodgeRollStateTableHandle } from "./player_dodge_roll_state_table.ts";
 export { PlayerDodgeRollStateTableHandle };
 import { PlayerDrinkingCooldownTableHandle } from "./player_drinking_cooldown_table.ts";
@@ -1265,6 +1267,8 @@ import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_ty
 export { PlayerCorpseDespawnSchedule };
 import { PlayerDiscoveredCairn } from "./player_discovered_cairn_type.ts";
 export { PlayerDiscoveredCairn };
+import { PlayerDiscoveredPlant } from "./player_discovered_plant_type.ts";
+export { PlayerDiscoveredPlant };
 import { PlayerDodgeRollState } from "./player_dodge_roll_state_type.ts";
 export { PlayerDodgeRollState };
 import { PlayerDrinkingCooldown } from "./player_drinking_cooldown_type.ts";
@@ -2250,6 +2254,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (PlayerDiscoveredCairn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    player_discovered_plant: {
+      tableName: "player_discovered_plant" as const,
+      rowType: PlayerDiscoveredPlant.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (PlayerDiscoveredPlant.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     player_dodge_roll_state: {
@@ -11830,6 +11843,11 @@ export class RemoteTables {
   get playerDiscoveredCairn(): PlayerDiscoveredCairnTableHandle<'player_discovered_cairn'> {
     // clientCache is a private property
     return new PlayerDiscoveredCairnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerDiscoveredCairn>(REMOTE_MODULE.tables.player_discovered_cairn));
+  }
+
+  get playerDiscoveredPlant(): PlayerDiscoveredPlantTableHandle<'player_discovered_plant'> {
+    // clientCache is a private property
+    return new PlayerDiscoveredPlantTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerDiscoveredPlant>(REMOTE_MODULE.tables.player_discovered_plant));
   }
 
   get playerDodgeRollState(): PlayerDodgeRollStateTableHandle<'player_dodge_roll_state'> {

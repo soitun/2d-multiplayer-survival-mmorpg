@@ -242,15 +242,35 @@ export const filterAndSortRecipes = (
   }
   
   // Search term filter
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase();
+  const term = searchTerm.trim().toLowerCase();
+  if (term) {
     filtered = filtered.filter(recipe => 
       recipe.name.toLowerCase().includes(term) ||
       recipe.materials.some(mat => mat.itemId.toLowerCase().includes(term))
     );
+    
+    // Sort with exact matches first, then by prediction score
+    return filtered
+      .map(recipe => ({
+        recipe,
+        isExactMatch: recipe.name.toLowerCase() === term,
+        isStartsWith: recipe.name.toLowerCase().startsWith(term),
+        score: calculateRecipePredictionScore(recipe, playerInventory, playerHotbar)
+      }))
+      .sort((a, b) => {
+        // Exact matches always first
+        if (a.isExactMatch && !b.isExactMatch) return -1;
+        if (!a.isExactMatch && b.isExactMatch) return 1;
+        // Then startsWith matches
+        if (a.isStartsWith && !b.isStartsWith) return -1;
+        if (!a.isStartsWith && b.isStartsWith) return 1;
+        // Then by prediction score
+        return b.score - a.score;
+      })
+      .map(item => item.recipe);
   }
   
-  // Apply prediction sorting
+  // No search term - apply prediction sorting
   return sortRecipesByPrediction(filtered, playerInventory, playerHotbar);
 };
 

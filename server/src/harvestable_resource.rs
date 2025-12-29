@@ -57,6 +57,46 @@ impl RespawnableResource for HarvestableResource {
     }
 }
 
+// --- Player Discovery Tracking ---
+
+/// Tracks which plant types each player has discovered (harvested at least once)
+#[spacetimedb::table(name = player_discovered_plant, public)]
+#[derive(Clone, Debug)]
+pub struct PlayerDiscoveredPlant {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    #[index(btree)]
+    pub player_id: Identity,
+    pub plant_type: PlantType,
+    pub discovered_at: Timestamp,
+}
+
+// Table trait for database access
+use crate::harvestable_resource::player_discovered_plant as PlayerDiscoveredPlantTableTrait;
+
+/// Helper function to check if a player has discovered a plant type
+pub fn has_player_discovered_plant(ctx: &ReducerContext, player_id: Identity, plant_type: &PlantType) -> bool {
+    ctx.db.player_discovered_plant()
+        .player_id()
+        .filter(&player_id)
+        .any(|discovery| &discovery.plant_type == plant_type)
+}
+
+/// Helper function to record a plant discovery for a player
+pub fn record_plant_discovery(ctx: &ReducerContext, player_id: Identity, plant_type: PlantType) {
+    // Check if already discovered
+    if !has_player_discovered_plant(ctx, player_id, &plant_type) {
+        ctx.db.player_discovered_plant().insert(PlayerDiscoveredPlant {
+            id: 0, // auto_inc
+            player_id,
+            plant_type: plant_type.clone(),
+            discovered_at: ctx.timestamp,
+        });
+        log::info!("🌿 Player {:?} discovered new plant type: {:?}", player_id, plant_type);
+    }
+}
+
 // --- Unified Generic Reducer ---
 
 /// Handles player interactions with any harvestable resource type
@@ -142,6 +182,9 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         plant_entity_name,
         &mut ctx.rng().clone(),
     )?;
+    
+    // === PLANT DISCOVERY: Track which plants this player has harvested ===
+    record_plant_discovery(ctx, player_id, resource.plant_type.clone());
     
     // === PLAYER PROGRESSION: Award XP for harvesting ===
     // Different XP for wild plants vs player-planted crops

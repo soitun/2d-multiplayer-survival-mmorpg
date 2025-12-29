@@ -305,6 +305,8 @@ interface GameScreenProps {
     leaderboardEntries?: Map<string, any>;
     // Plant encyclopedia data
     plantConfigDefinitions?: Map<string, any>;
+    // Plants discovered by current player (for encyclopedia filtering)
+    discoveredPlants?: Map<string, any>;
 
     // Matronage system
     matronages?: Map<string, any>;
@@ -1039,6 +1041,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 achievementDefinitions={props.achievementDefinitions}
                 playerAchievements={props.playerAchievements}
                 plantConfigs={props.plantConfigDefinitions}
+                discoveredPlants={props.discoveredPlants}
                 alwaysShowPlayerNames={alwaysShowPlayerNames}
                 // Mobile controls
                 isMobile={props.isMobile}

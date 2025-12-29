@@ -5,6 +5,7 @@ import {
   faWrench, faCrosshairs, faShield, faIndustry, faCar, 
   faBrain, faBolt, faCircleDot
 } from '@fortawesome/free-solid-svg-icons';
+import { getItemIcon } from '../utils/itemIconUtils';
 import './MemoryGridNode.css';
 
 // Import faction emblem images
@@ -14,6 +15,36 @@ import factionUniversity from '../assets/ui/faction_university.png';
 import factionDataAngels from '../assets/ui/faction_data_angels.png';
 import factionBattalion from '../assets/ui/faction_battalion.png';
 import factionAdmiralty from '../assets/ui/faction_admiralty.png';
+
+// Special mappings for items where icon filename doesn't match item name exactly
+const ITEM_ICON_MAPPINGS: Record<string, string> = {
+  'Bush Knife': 'machete.png', // Uses machete icon
+  'Large Wooden Storage Box': 'large_wood_box.png',
+  'Primitive Reed Fishing Rod': 'reed_fishing_rod.png',
+  'Reed Diver\'s Helm': 'reed_snorkel.png',
+  'Bone Gaff Hook': 'fishing_gaff_hook.png',
+  'Plastic Water Jug': 'water_jug.png',
+  'Headlamp': 'tallow_head_lamp.png',
+  'Lantern': 'lantern_off.png',
+};
+
+// Helper to get item icon from item name
+const getItemIconFromName = (itemName: string): string | null => {
+  // First check special mappings
+  if (ITEM_ICON_MAPPINGS[itemName]) {
+    return getItemIcon(ITEM_ICON_MAPPINGS[itemName]);
+  }
+  
+  // Convert item name to icon filename (e.g., "Metal Hatchet" -> "metal_hatchet.png")
+  // Handle possessives like "Babushka's" -> "babushka" (remove 's entirely)
+  const iconName = itemName
+    .toLowerCase()
+    .replace(/['']s\b/g, '')  // Remove possessive 's (e.g., "babushka's" -> "babushka")
+    .replace(/['']/g, '')     // Remove any remaining apostrophes
+    .replace(/\s+/g, '_')     // Replace spaces with underscores
+    .trim() + '.png';
+  return getItemIcon(iconName);
+};
 
 interface MemoryGridNodeProps {
   node: MemoryGridNode;
@@ -108,6 +139,15 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
       default: return faCircleDot;
     }
   }, [node.category]);
+
+  // Get item icon if this node unlocks items
+  const itemIcon = useMemo(() => {
+    if (node.unlocksItems && node.unlocksItems.length > 0) {
+      // Use the first item's icon
+      return getItemIconFromName(node.unlocksItems[0]);
+    }
+    return null;
+  }, [node.unlocksItems]);
 
   const isInteractable = node.status === 'available' || node.status === 'purchased';
   const isPurchaseable = node.status === 'available' && playerShards >= node.cost;
@@ -218,14 +258,15 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
           />
         )}
         
-        {/* Category icon (but NOT for unlock nodes - we'll render those separately) */}
+        {/* Item icon or category icon (but NOT for unlock nodes - we'll render those separately) */}
         {!isUnlockNode && (
           <foreignObject
-            x={-nodeSize * 0.3}
-            y={-nodeSize * 0.3}
-            width={nodeSize * 0.6}
-            height={nodeSize * 0.6}
+            x={itemIcon ? -nodeSize * 0.9 : -nodeSize * 0.3}
+            y={itemIcon ? -nodeSize * 0.9 : -nodeSize * 0.3}
+            width={itemIcon ? nodeSize * 1.8 : nodeSize * 0.6}
+            height={itemIcon ? nodeSize * 1.8 : nodeSize * 0.6}
             className={`node-icon ${node.status === 'locked' ? 'locked' : ''}`}
+            style={{ pointerEvents: 'none' }}
           >
             <div style={{ 
               display: 'flex', 
@@ -235,10 +276,26 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
               height: '100%',
               color: node.status === 'locked' ? '#9ca3af' : '#ffffff'
             }}>
-              <FontAwesomeIcon 
-                icon={nodeIcon} 
-                style={{ fontSize: nodeSize * 0.5 }}
-              />
+              {itemIcon ? (
+                <img 
+                  src={itemIcon}
+                  alt={node.name}
+                  style={{ 
+                    width: nodeSize * 1.6,
+                    height: nodeSize * 1.6,
+                    imageRendering: 'pixelated',
+                    filter: node.status === 'locked' 
+                      ? 'grayscale(100%) brightness(0.6) drop-shadow(0 0 3px rgba(0,0,0,0.9))' 
+                      : 'drop-shadow(0 0 4px rgba(0,0,0,0.9))',
+                    objectFit: 'contain'
+                  }}
+                />
+              ) : (
+                <FontAwesomeIcon 
+                  icon={nodeIcon} 
+                  style={{ fontSize: nodeSize * 0.5 }}
+                />
+              )}
             </div>
           </foreignObject>
         )}
