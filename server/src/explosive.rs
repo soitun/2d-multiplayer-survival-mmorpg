@@ -186,8 +186,8 @@ pub fn place_explosive(ctx: &ReducerContext, item_instance_id: u64, world_x: f32
     let item_to_consume = inventory_items.instance_id().find(item_instance_id)
         .ok_or_else(|| format!("Item instance {} not found.", item_instance_id))?;
 
-    // Validate ownership
-    match item_to_consume.location {
+    // Validate ownership (use ref to avoid partial move)
+    match &item_to_consume.location {
         ItemLocation::Inventory(data) => {
             if data.owner_id != sender_id {
                 return Err(format!("Item instance {} not owned by player {:?}.", item_instance_id, sender_id));
