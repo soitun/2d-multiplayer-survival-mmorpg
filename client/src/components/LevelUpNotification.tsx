@@ -14,11 +14,14 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
 }) => {
   const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.LevelUpNotification[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<bigint>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<bigint>>(new Set());
   const timeoutRefs = useRef<Map<bigint, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
-    // Display latest MAX_NOTIFICATIONS
-    const latestNotifications = notifications.slice(-MAX_NOTIFICATIONS);
+    // Display latest MAX_NOTIFICATIONS, excluding dismissed ones
+    const latestNotifications = notifications
+      .filter(notif => !dismissedIds.has(notif.id))
+      .slice(-MAX_NOTIFICATIONS);
     setVisibleNotifications(latestNotifications);
 
     // Clear existing timeouts
@@ -50,7 +53,7 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
       timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
       timeoutRefs.current.clear();
     };
-  }, [notifications]);
+  }, [notifications, dismissedIds]);
 
   const handleDismiss = (notifId: bigint) => {
     // Clear timeout if exists
@@ -59,6 +62,9 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
       clearTimeout(timeout);
       timeoutRefs.current.delete(notifId);
     }
+
+    // Add to dismissed set so it won't reappear from props
+    setDismissedIds(prev => new Set(prev).add(notifId));
 
     // Start fade out
     setFadingOutIds(prev => new Set(prev).add(notifId));

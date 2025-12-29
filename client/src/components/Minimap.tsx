@@ -1,4 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
+import { calculateChunkIndex } from '../utils/chunkUtils';
 import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart, LivingCoral as SpacetimeDBLivingCoral } from '../generated';
 import { useRef, useCallback } from 'react';
 
@@ -38,9 +39,11 @@ const REMOTE_PLAYER_DOT_COLOR = '#FF3366'; // BRIGHT PINK/RED - ENEMY THREAT COL
 const REMOTE_PLAYER_GLOW = '0 0 10px #FF3366'; // Pulsing glow for threats
 // Matronage member color (same matronage = friendly)
 const MATRONAGE_MEMBER_COLOR = '#00AAFF'; // Bright blue for same-matronage players
-// Vicinity radius for showing remote players (only if in matronage)
-const PLAYER_VISIBILITY_RADIUS = 2500; // 2500 pixels for vicinity check
-const PLAYER_VISIBILITY_RADIUS_SQ = PLAYER_VISIBILITY_RADIUS * PLAYER_VISIBILITY_RADIUS;
+// Enemy color (different matronage or no matronage = enemy)
+const ENEMY_PLAYER_COLOR = '#FF3366'; // Bright red for enemy players
+// Torch visibility radius at night (torches are beacons visible from far away)
+const TORCH_VISIBILITY_RADIUS = 3500; // 3500 pixels - torches visible from far at night
+const TORCH_VISIBILITY_RADIUS_SQ = TORCH_VISIBILITY_RADIUS * TORCH_VISIBILITY_RADIUS;
 // Resource colors - TACTICAL VISIBILITY (cover, landmarks, loot)
 // PvP Note: Resources are CRITICAL for tactical awareness - they're cover, ambush points, and landmarks
 const TREE_DOT_COLOR = 'rgba(55, 255, 122, 0.6)'; // Medium-bright green - COVER and CONCEALMENT
@@ -1459,34 +1462,34 @@ export function drawMinimapOntoCanvas({
   }
 
   // --- Draw Remote Players (THREAT INDICATORS) ---
-  // PvP Tactical Note: Remote players visibility is now controlled by matronage membership
-  // Only players in a matronage can see other players on minimap
+  // PvP Tactical Note: Show players in the same chunk as the local player
   // Night visibility: Only show if torch is lit (tactical advantage for stealth)
+  // Same matronage = blue (friendly), different/none = red (enemy)
   
-  // Check if local player is in a matronage (needed for both day and night)
+  // Check if local player is in a matronage (for coloring purposes)
   const localPlayerMatronageIdForNight = localPlayerId && matronageMembers 
     ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
     : null;
-  const isLocalPlayerInMatronageForNight = !!localPlayerMatronageIdForNight;
   
   if (showNightLights) {
-    // Only show remote players if local player is in a matronage
-    if (isLocalPlayerInMatronageForNight && localPlayer) {
+    // Show remote players with torches lit at night - torches are beacons visible from far away!
+    // This is intentionally a larger radius than daytime chunk visibility
+    if (localPlayer) {
       players.forEach((player, playerId) => {
         if (localPlayerId && playerId === localPlayerId) {
           return; // Skip local player, handled separately
         }
-
-        // Vicinity check - only show players within radius
-        const dx = player.positionX - localPlayer.positionX;
-        const dy = player.positionY - localPlayer.positionY;
-        const distSq = dx * dx + dy * dy;
-        if (distSq > PLAYER_VISIBILITY_RADIUS_SQ) {
-          return; // Player too far away
-        }
         
         // Only show remote players if they have torch lit (night stealth mechanic)
+        // Torches are visible from much farther away at night (like real torches!)
         if (player.isTorchLit) {
+          // Radius check - torches visible from far away at night
+          const dx = player.positionX - localPlayer.positionX;
+          const dy = player.positionY - localPlayer.positionY;
+          const distSq = dx * dx + dy * dy;
+          if (distSq > TORCH_VISIBILITY_RADIUS_SQ) {
+            return; // Torch too far away to see
+          }
           const screenCoords = worldToMinimap(player.positionX, player.positionY);
           if (screenCoords) {
             const x = screenCoords.x;
@@ -1495,7 +1498,7 @@ export function drawMinimapOntoCanvas({
 
             // Determine player color based on matronage membership
             const remotePlayerMatronageId = matronageMembers?.get(playerId)?.matronageId?.toString();
-            const isSameMatronage = remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageIdForNight;
+            const isSameMatronage = localPlayerMatronageIdForNight && remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageIdForNight;
             const torchColor = isSameMatronage ? '#66AAFF' : '#FF6600'; // Blue-tinted for allies, orange for others
             
             ctx.save();
@@ -1533,71 +1536,54 @@ export function drawMinimapOntoCanvas({
             ctx.shadowColor = torchColor;
             ctx.shadowBlur = 12;
             
-            // Use torch image if available, otherwise fallback to drawn player icon
-            if (torchOnImage && torchOnImage.complete && torchOnImage.naturalHeight !== 0) {
-              // Draw the torch image centered at the player location
-              ctx.drawImage(
-                torchOnImage,
-                x - size / 2,   // Center horizontally
-                y - size / 2,   // Center vertically
-                size,
-                size
-              );
-            } else {
-              // Fallback to drawn player icon if image not loaded
-              // Convert player direction to rotation angle (radians)
-              let rotation = 0;
-              switch (player.direction) {
-                case 'right': rotation = 0; break;           // Point right (0°)
-                case 'down': rotation = Math.PI / 2; break;  // Point down (90°)
-                case 'left': rotation = Math.PI; break;      // Point left (180°)
-                case 'up': rotation = -Math.PI / 2; break;   // Point up (-90°)
-                default: rotation = 0; break;                // Default to right
-              }
-              
-              // Draw torch-lit players with appropriate color
-              const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : REMOTE_PLAYER_DOT_COLOR;
-              drawPlayerIcon(
-                ctx, 
-                x, 
-                y, 
-                rotation, 
-                playerColor,
-                size
-              );
+            // Convert player direction to rotation angle (radians)
+            let rotation = 0;
+            switch (player.direction) {
+              case 'right': rotation = 0; break;           // Point right (0°)
+              case 'down': rotation = Math.PI / 2; break;  // Point down (90°)
+              case 'left': rotation = Math.PI; break;      // Point left (180°)
+              case 'up': rotation = -Math.PI / 2; break;   // Point up (-90°)
+              default: rotation = 0; break;                // Default to right
             }
+            
+            // Draw torch-lit players with appropriate color (blue for allies, orange for enemies)
+            drawPlayerIcon(
+              ctx, 
+              x, 
+              y, 
+              rotation, 
+              torchColor, // Use torchColor directly (blue for allies, orange for enemies)
+              size
+            );
             
             ctx.restore();
           }
         }
       });
     }
-    // If not in a matronage, no remote players are shown on minimap at night either
   } else {
-    // DAYTIME: Players visibility now controlled by matronage membership
-    // Only show remote players if local player is in a matronage
-    // Players in same matronage = blue, others = red
-    // Only show players within vicinity radius
+    // DAYTIME: Show players in the same chunk as the local player
+    // Players in same matronage = blue, others = red (enemies)
+    // No matronage requirement - chunk proximity is the only requirement
     
-    // Check if local player is in a matronage
-    const localPlayerMatronageId = localPlayerId && matronageMembers 
-      ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
-      : null;
-    const isLocalPlayerInMatronage = !!localPlayerMatronageId;
+    if (localPlayer) {
+      // Calculate local player's chunk index
+      const localPlayerChunkIndex = calculateChunkIndex(localPlayer.positionX, localPlayer.positionY);
+      
+      // Check if local player is in a matronage (for coloring purposes)
+      const localPlayerMatronageId = localPlayerId && matronageMembers 
+        ? matronageMembers.get(localPlayerId)?.matronageId?.toString() 
+        : null;
 
-    // Only render remote players if local player is in a matronage
-    if (isLocalPlayerInMatronage && localPlayer) {
       players.forEach((player, playerId) => {
         if (localPlayerId && playerId === localPlayerId) {
           return; // Skip local player, handled separately
         }
 
-        // Vicinity check - only show players within radius
-        const dx = player.positionX - localPlayer.positionX;
-        const dy = player.positionY - localPlayer.positionY;
-        const distSq = dx * dx + dy * dy;
-        if (distSq > PLAYER_VISIBILITY_RADIUS_SQ) {
-          return; // Player too far away
+        // Chunk check - only show players in the same chunk
+        const remotePlayerChunkIndex = calculateChunkIndex(player.positionX, player.positionY);
+        if (remotePlayerChunkIndex !== localPlayerChunkIndex) {
+          return; // Player not in same chunk
         }
 
         const screenCoords = worldToMinimap(player.positionX, player.positionY);
@@ -1606,9 +1592,10 @@ export function drawMinimapOntoCanvas({
           const y = screenCoords.y;
 
           // Determine player color based on matronage membership
+          // Same matronage = blue (friendly), different/none = red (enemy)
           const remotePlayerMatronageId = matronageMembers?.get(playerId)?.matronageId?.toString();
-          const isSameMatronage = remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageId;
-          const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : REMOTE_PLAYER_DOT_COLOR;
+          const isSameMatronage = localPlayerMatronageId && remotePlayerMatronageId && remotePlayerMatronageId === localPlayerMatronageId;
+          const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : ENEMY_PLAYER_COLOR;
 
           ctx.save();
 
@@ -1655,7 +1642,7 @@ export function drawMinimapOntoCanvas({
             default: rotation = 0; break;
           }
 
-          // Draw player with appropriate color (blue for same matronage, red for others)
+          // Draw player with appropriate color (blue for same matronage, red for enemies)
           drawPlayerIcon(
             ctx, 
             x, 
@@ -1669,7 +1656,6 @@ export function drawMinimapOntoCanvas({
         }
       });
     }
-    // If not in a matronage, no remote players are shown on minimap
   }
 
   // --- Draw Sleeping Bags ---
