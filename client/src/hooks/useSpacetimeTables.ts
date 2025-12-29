@@ -2401,6 +2401,10 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLANT_CONFIG_DEFINITION Sub Error]:", err))
                     .subscribe('SELECT * FROM plant_config_definition'),
+                // Player discovered plants (for encyclopedia filtering)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_DISCOVERED_PLANT Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_discovered_plant'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
