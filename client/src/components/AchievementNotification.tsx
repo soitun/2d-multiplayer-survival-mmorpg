@@ -66,7 +66,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   return (
     <div style={{
       position: 'fixed',
-      top: '140px', // Moved lower to avoid DayNightCycleTracker
+      top: '180px', // Positioned below DayNightCycleTracker (expanded ~165px tall)
       right: '15px',
       display: 'flex',
       flexDirection: 'column-reverse',

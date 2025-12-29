@@ -16,8 +16,15 @@ use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Cairn Constants ---
 
-// Collision and interaction settings
-pub(crate) const CAIRN_RADIUS: f32 = 30.0; // Reduced from 40.0 for smaller collision
+// Collision settings - 96x48 AABB collision (wider than runestones)
+pub(crate) const CAIRN_AABB_HALF_WIDTH: f32 = 48.0; // Half-width for 96x48 AABB
+pub(crate) const CAIRN_AABB_HALF_HEIGHT: f32 = 24.0; // Half-height for 96x48 AABB
+pub(crate) const CAIRN_COLLISION_Y_OFFSET: f32 = 24.0; // Y offset for AABB center from pos_y (same as runestones)
+// Maximum collision distance squared (player radius + half diagonal of AABB)
+pub(crate) const PLAYER_CAIRN_COLLISION_DISTANCE_SQUARED: f32 = 
+    (PLAYER_RADIUS + CAIRN_AABB_HALF_WIDTH * 1.414) * (PLAYER_RADIUS + CAIRN_AABB_HALF_WIDTH * 1.414);
+
+// Interaction settings
 pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE: f32 = 200.0; // Matches client-side distance for larger visual
 pub(crate) const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_CAIRN_INTERACTION_DISTANCE * PLAYER_CAIRN_INTERACTION_DISTANCE;

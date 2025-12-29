@@ -45,6 +45,8 @@ use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 // Import ALK station table trait
 use crate::alk::alk_station as AlkStationTableTrait;
+// Import cairn table trait
+use crate::cairn::cairn as CairnTableTrait;
 
 // Cell size should be larger than the largest collision radius to ensure
 // we only need to check adjacent cells. We use 8x the player radius for better performance with larger worlds.
@@ -84,6 +86,7 @@ pub enum EntityType {
     RuneStone(u64), // ADDED RuneStone entity type
     BasaltColumn(u64), // ADDED BasaltColumn entity type (decorative obstacle with collision)
     AlkStation(u32), // ADDED ALK delivery station entity type (large industrial structure with collision)
+    Cairn(u64), // ADDED Cairn entity type (monument with AABB collision)
     // EXCLUDED: Grass - removed for performance to fix rubber-banding issues
 }
 
@@ -136,7 +139,8 @@ impl SpatialGrid {
                             + HomesteadHearthTableTrait
                             + RuneStoneTableTrait
                             + BasaltColumnTableTrait
-                            + AlkStationTableTrait>
+                            + AlkStationTableTrait
+                            + CairnTableTrait>
                            (db: &DB, current_time: spacetimedb::Timestamp) -> Self {
         let mut grid = Self::new();
         grid.populate_from_world(db, current_time);
@@ -224,7 +228,8 @@ impl SpatialGrid {
                             + HomesteadHearthTableTrait
                             + RuneStoneTableTrait
                             + BasaltColumnTableTrait
-                            + AlkStationTableTrait>
+                            + AlkStationTableTrait
+                            + CairnTableTrait>
                                  (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -345,6 +350,11 @@ impl SpatialGrid {
             self.add_entity(EntityType::RuneStone(rune_stone.id), rune_stone.pos_x, rune_stone.pos_y);
         }
         
+        // Add cairns (monuments with AABB collision)
+        for cairn in db.cairn().iter() {
+            self.add_entity(EntityType::Cairn(cairn.id), cairn.pos_x, cairn.pos_y);
+        }
+        
         // Add basalt columns (decorative obstacles with collision)
         for basalt in db.basalt_column().iter() {
             self.add_entity(EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y);
@@ -370,7 +380,8 @@ impl SpatialGrid {
                                             + HomesteadHearthTableTrait
                                             + RuneStoneTableTrait
                                             + BasaltColumnTableTrait
-                                            + AlkStationTableTrait>
+                                            + AlkStationTableTrait
+                                            + CairnTableTrait>
                                            (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -478,6 +489,11 @@ impl SpatialGrid {
             entities_to_add.push((EntityType::RuneStone(rune_stone.id), rune_stone.pos_x, rune_stone.pos_y));
         }
         
+        // Add cairns (monuments with AABB collision)
+        for cairn in db.cairn().iter() {
+            entities_to_add.push((EntityType::Cairn(cairn.id), cairn.pos_x, cairn.pos_y));
+        }
+        
         // Add basalt columns (decorative obstacles with collision)
         for basalt in db.basalt_column().iter() {
             entities_to_add.push((EntityType::BasaltColumn(basalt.id), basalt.pos_x, basalt.pos_y));
@@ -548,7 +564,8 @@ pub fn get_cached_spatial_grid<DB: PlayerTableTrait + TreeTableTrait + StoneTabl
                                  + HomesteadHearthTableTrait
                                  + RuneStoneTableTrait
                                  + BasaltColumnTableTrait
-                                 + AlkStationTableTrait>
+                                 + AlkStationTableTrait
+                                 + CairnTableTrait>
                               (db: &DB, current_time: spacetimedb::Timestamp) -> &'static SpatialGrid {
     unsafe {
         // Check if we need to refresh the cache

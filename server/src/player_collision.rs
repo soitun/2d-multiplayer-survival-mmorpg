@@ -8,6 +8,7 @@ use crate::player as PlayerTableTrait;
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
+use crate::cairn::{cairn as CairnTableTrait, CAIRN_AABB_HALF_WIDTH, CAIRN_AABB_HALF_HEIGHT, CAIRN_COLLISION_Y_OFFSET};
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 // Player corpses have NO collision - players can walk over them to loot
 // Keeping minimal imports for spatial grid entity type matching only
@@ -87,6 +88,7 @@ pub fn calculate_slide_collision_with_grid(
     let trees = ctx.db.tree();
     let stones = ctx.db.stone();
     let rune_stones = ctx.db.rune_stone(); // Access rune stone table
+    let cairns = ctx.db.cairn(); // Access cairn table
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
     let player_corpses = ctx.db.player_corpse(); // Access player_corpse table
     let shelters = ctx.db.shelter(); // Access shelter table
@@ -416,6 +418,65 @@ pub fn calculate_slide_collision_with_grid(
                                  // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
                                  let final_closest_x = final_x.max(rune_stone_aabb_center_x - RUNE_STONE_AABB_HALF_WIDTH).min(rune_stone_aabb_center_x + RUNE_STONE_AABB_HALF_WIDTH);
                                  let final_closest_y = final_y.max(rune_stone_aabb_center_y - RUNE_STONE_AABB_HALF_HEIGHT).min(rune_stone_aabb_center_y + RUNE_STONE_AABB_HALF_HEIGHT);
+                                 let final_dx = final_x - final_closest_x;
+                                 let final_dy = final_y - final_closest_y;
+                                 let final_dist_sq = final_dx * final_dx + final_dy * final_dy;
+                                 if final_dist_sq < player_radius_sq {
+                                     let final_dist = final_dist_sq.sqrt();
+                                     let separation_direction = if final_dist > 0.001 {
+                                         (final_dx / final_dist, final_dy / final_dist)
+                                     } else {
+                                         (1.0, 0.0) // Default direction
+                                     };
+                                     let min_separation = current_player_radius + SLIDE_SEPARATION_DISTANCE;
+                                     final_x = final_closest_x + separation_direction.0 * min_separation;
+                                     final_y = final_closest_y + separation_direction.1 * min_separation;
+                                 }
+                             }
+                             final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+                             final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+                         }
+                     }
+                 }
+            },
+            spatial_grid::EntityType::Cairn(cairn_id) => {
+                 if let Some(cairn) = cairns.id().find(cairn_id) {
+                     // AABB collision - 96x48 box centered at pos_x, pos_y - offset
+                     let cairn_aabb_center_x = cairn.pos_x;
+                     let cairn_aabb_center_y = cairn.pos_y - CAIRN_COLLISION_Y_OFFSET;
+                     
+                     // AABB collision detection
+                     let closest_x = final_x.max(cairn_aabb_center_x - CAIRN_AABB_HALF_WIDTH).min(cairn_aabb_center_x + CAIRN_AABB_HALF_WIDTH);
+                     let closest_y = final_y.max(cairn_aabb_center_y - CAIRN_AABB_HALF_HEIGHT).min(cairn_aabb_center_y + CAIRN_AABB_HALF_HEIGHT);
+                     
+                     let dx_aabb = final_x - closest_x;
+                     let dy_aabb = final_y - closest_y;
+                     let dist_sq_aabb = dx_aabb * dx_aabb + dy_aabb * dy_aabb;
+                     let player_radius_sq = current_player_radius * current_player_radius;
+                     
+                     if dist_sq_aabb < player_radius_sq {
+                        log::debug!("Player-Cairn AABB collision for slide: {:?} vs cairn {}", sender_id, cairn.id);
+                         let collision_normal_x = dx_aabb;
+                         let collision_normal_y = dy_aabb;
+                         let normal_mag_sq = dist_sq_aabb;
+                         if normal_mag_sq > 0.0 {
+                             let normal_mag = normal_mag_sq.sqrt();
+                             let norm_x = collision_normal_x / normal_mag;
+                             let norm_y = collision_normal_y / normal_mag;
+                             let dot_product = server_dx * norm_x + server_dy * norm_y;
+                             
+                             // Only slide if moving toward the object (dot_product < 0)
+                             if dot_product < 0.0 {
+                                 let projection_x = dot_product * norm_x;
+                                 let projection_y = dot_product * norm_y;
+                                 let slide_dx = server_dx - projection_x;
+                                 let slide_dy = server_dy - projection_y;
+                                 final_x = current_player_pos_x + slide_dx;
+                                 final_y = current_player_pos_y + slide_dy;
+                                 
+                                 // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
+                                 let final_closest_x = final_x.max(cairn_aabb_center_x - CAIRN_AABB_HALF_WIDTH).min(cairn_aabb_center_x + CAIRN_AABB_HALF_WIDTH);
+                                 let final_closest_y = final_y.max(cairn_aabb_center_y - CAIRN_AABB_HALF_HEIGHT).min(cairn_aabb_center_y + CAIRN_AABB_HALF_HEIGHT);
                                  let final_dx = final_x - final_closest_x;
                                  let final_dy = final_y - final_closest_y;
                                  let final_dist_sq = final_dx * final_dx + final_dy * final_dy;
@@ -862,6 +923,8 @@ pub fn resolve_push_out_collision_with_grid(
     let players = ctx.db.player();
     let trees = ctx.db.tree();
     let stones = ctx.db.stone();
+    let rune_stones = ctx.db.rune_stone(); // Access rune stone table for push-out
+    let cairns = ctx.db.cairn(); // Access cairn table for push-out
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
     let player_corpses = ctx.db.player_corpse(); // Access player_corpse table
     let shelters = ctx.db.shelter(); // Access shelter table
@@ -1034,6 +1097,112 @@ pub fn resolve_push_out_collision_with_grid(
                             let dist_to_right = aabb_right - resolved_x;
                             let dist_to_top = resolved_y - aabb_top;
                             let dist_to_bottom = aabb_bottom - resolved_y;
+                            
+                            let min_dist = dist_to_left.min(dist_to_right).min(dist_to_top).min(dist_to_bottom);
+                            
+                            if min_dist == dist_to_left {
+                                resolved_x = aabb_left - current_player_radius - separation_distance;
+                            } else if min_dist == dist_to_right {
+                                resolved_x = aabb_right + current_player_radius + separation_distance;
+                            } else if min_dist == dist_to_top {
+                                resolved_y = aabb_top - current_player_radius - separation_distance;
+                            } else {
+                                resolved_y = aabb_bottom + current_player_radius + separation_distance;
+                            }
+                        }
+                    }
+                },
+                spatial_grid::EntityType::RuneStone(rune_stone_id) => {
+                    log::debug!("[PushOutEntityType] Found RuneStone: {}", rune_stone_id);
+                    if let Some(rune_stone) = rune_stones.id().find(rune_stone_id) {
+                        // AABB collision - 48x48 box centered at pos_x, pos_y - offset
+                        let rune_stone_aabb_center_x = rune_stone.pos_x;
+                        let rune_stone_aabb_center_y = rune_stone.pos_y - RUNE_STONE_COLLISION_Y_OFFSET;
+                        
+                        // AABB collision detection for push-out
+                        let closest_x = resolved_x.max(rune_stone_aabb_center_x - RUNE_STONE_AABB_HALF_WIDTH).min(rune_stone_aabb_center_x + RUNE_STONE_AABB_HALF_WIDTH);
+                        let closest_y = resolved_y.max(rune_stone_aabb_center_y - RUNE_STONE_AABB_HALF_HEIGHT).min(rune_stone_aabb_center_y + RUNE_STONE_AABB_HALF_HEIGHT);
+                        
+                        let dx_resolve = resolved_x - closest_x;
+                        let dy_resolve = resolved_y - closest_y;
+                        let dist_sq_resolve = dx_resolve * dx_resolve + dy_resolve * dy_resolve;
+                        let player_radius_sq = current_player_radius * current_player_radius;
+                        
+                        // OPTIMIZATION: Early exit with exact distance check
+                        if dist_sq_resolve >= player_radius_sq {
+                            continue;
+                        }
+                        
+                        overlap_found_in_iter = true;
+                        if dist_sq_resolve > 0.0 {
+                            let distance = dist_sq_resolve.sqrt();
+                            let overlap = (current_player_radius - distance) + separation_distance;
+                            resolved_x += (dx_resolve / distance) * overlap;
+                            resolved_y += (dy_resolve / distance) * overlap;
+                        } else {
+                            // Player center is inside the AABB - push to nearest face
+                            let aabb_left = rune_stone_aabb_center_x - RUNE_STONE_AABB_HALF_WIDTH;
+                            let aabb_right = rune_stone_aabb_center_x + RUNE_STONE_AABB_HALF_WIDTH;
+                            let aabb_top = rune_stone_aabb_center_y - RUNE_STONE_AABB_HALF_HEIGHT;
+                            let aabb_bottom = rune_stone_aabb_center_y + RUNE_STONE_AABB_HALF_HEIGHT;
+                            
+                            let dist_to_left = (resolved_x - aabb_left).abs();
+                            let dist_to_right = (resolved_x - aabb_right).abs();
+                            let dist_to_top = (resolved_y - aabb_top).abs();
+                            let dist_to_bottom = (resolved_y - aabb_bottom).abs();
+                            
+                            let min_dist = dist_to_left.min(dist_to_right).min(dist_to_top).min(dist_to_bottom);
+                            
+                            if min_dist == dist_to_left {
+                                resolved_x = aabb_left - current_player_radius - separation_distance;
+                            } else if min_dist == dist_to_right {
+                                resolved_x = aabb_right + current_player_radius + separation_distance;
+                            } else if min_dist == dist_to_top {
+                                resolved_y = aabb_top - current_player_radius - separation_distance;
+                            } else {
+                                resolved_y = aabb_bottom + current_player_radius + separation_distance;
+                            }
+                        }
+                    }
+                },
+                spatial_grid::EntityType::Cairn(cairn_id) => {
+                    log::debug!("[PushOutEntityType] Found Cairn: {}", cairn_id);
+                    if let Some(cairn) = cairns.id().find(cairn_id) {
+                        // AABB collision - 96x48 box centered at pos_x, pos_y - offset
+                        let cairn_aabb_center_x = cairn.pos_x;
+                        let cairn_aabb_center_y = cairn.pos_y - CAIRN_COLLISION_Y_OFFSET;
+                        
+                        // AABB collision detection for push-out
+                        let closest_x = resolved_x.max(cairn_aabb_center_x - CAIRN_AABB_HALF_WIDTH).min(cairn_aabb_center_x + CAIRN_AABB_HALF_WIDTH);
+                        let closest_y = resolved_y.max(cairn_aabb_center_y - CAIRN_AABB_HALF_HEIGHT).min(cairn_aabb_center_y + CAIRN_AABB_HALF_HEIGHT);
+                        
+                        let dx_resolve = resolved_x - closest_x;
+                        let dy_resolve = resolved_y - closest_y;
+                        let dist_sq_resolve = dx_resolve * dx_resolve + dy_resolve * dy_resolve;
+                        let player_radius_sq = current_player_radius * current_player_radius;
+                        
+                        // OPTIMIZATION: Early exit with exact distance check
+                        if dist_sq_resolve >= player_radius_sq {
+                            continue;
+                        }
+                        
+                        overlap_found_in_iter = true;
+                        if dist_sq_resolve > 0.0 {
+                            let distance = dist_sq_resolve.sqrt();
+                            let overlap = (current_player_radius - distance) + separation_distance;
+                            resolved_x += (dx_resolve / distance) * overlap;
+                            resolved_y += (dy_resolve / distance) * overlap;
+                        } else {
+                            // Player center is inside the AABB - push to nearest face
+                            let aabb_left = cairn_aabb_center_x - CAIRN_AABB_HALF_WIDTH;
+                            let aabb_right = cairn_aabb_center_x + CAIRN_AABB_HALF_WIDTH;
+                            let aabb_top = cairn_aabb_center_y - CAIRN_AABB_HALF_HEIGHT;
+                            let aabb_bottom = cairn_aabb_center_y + CAIRN_AABB_HALF_HEIGHT;
+                            
+                            let dist_to_left = (resolved_x - aabb_left).abs();
+                            let dist_to_right = (resolved_x - aabb_right).abs();
+                            let dist_to_top = (resolved_y - aabb_top).abs();
+                            let dist_to_bottom = (resolved_y - aabb_bottom).abs();
                             
                             let min_dist = dist_to_left.min(dist_to_right).min(dist_to_top).min(dist_to_bottom);
                             

@@ -989,6 +989,7 @@ fn is_near_crash_site(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
 use crate::campfire::{Campfire, CAMPFIRE_INITIAL_HEALTH, CAMPFIRE_MAX_HEALTH, INITIAL_CAMPFIRE_FUEL_AMOUNT};
 use crate::furnace::{Furnace, FURNACE_INITIAL_HEALTH, FURNACE_MAX_HEALTH, INITIAL_FURNACE_FUEL_AMOUNT};
 use crate::rain_collector::{RainCollector, RAIN_COLLECTOR_INITIAL_HEALTH, RAIN_COLLECTOR_MAX_HEALTH};
+use crate::lantern::{Lantern, LANTERN_INITIAL_HEALTH, LANTERN_MAX_HEALTH};
 use crate::wooden_storage_box::{
     WoodenStorageBox, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH,
     COOKING_STATION_INITIAL_HEALTH, COOKING_STATION_MAX_HEALTH,
@@ -998,6 +999,7 @@ use crate::wooden_storage_box::{
 use crate::campfire::campfire as CampfireTableTrait;
 use crate::furnace::furnace as FurnaceTableTrait;
 use crate::rain_collector::rain_collector as RainCollectorTableTrait;
+use crate::lantern::lantern as LanternTableTrait;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::environment::calculate_chunk_index;
 use spacetimedb::Identity;
@@ -1008,6 +1010,7 @@ pub enum MonumentPlaceableType {
     Campfire,
     Furnace,
     RainCollector,
+    Lantern,
     CookingStation,
     RepairBench,
 }
@@ -1065,6 +1068,15 @@ impl MonumentPlaceableConfig {
     pub fn repair_bench(offset_x: f32, offset_y: f32) -> Self {
         Self {
             placeable_type: MonumentPlaceableType::RepairBench,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+    
+    pub fn lantern(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Lantern,
             offset_x,
             offset_y,
             initial_fuel: None,
@@ -1255,6 +1267,41 @@ pub fn spawn_monument_placeables(
                     }
                     Err(e) => {
                         log::warn!("[MonumentPlaceables] Failed to spawn rain collector at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::Lantern => {
+                let lantern = Lantern {
+                    id: 0, // Auto-increment
+                    pos_x: world_x,
+                    pos_y: world_y + 32.0, // Same Y offset as player-placed
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    is_burning: false,
+                    fuel_instance_id_0: None,
+                    fuel_def_id_0: None,
+                    current_fuel_def_id: None,
+                    remaining_fuel_burn_time_secs: None,
+                    health: LANTERN_INITIAL_HEALTH,
+                    max_health: LANTERN_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    is_monument: true, // Mark as monument placeable
+                };
+                
+                match ctx.db.lantern().try_insert(lantern) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument lantern {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn lantern at ({:.1}, {:.1}): {}", 
                             world_x, world_y, e);
                     }
                 }

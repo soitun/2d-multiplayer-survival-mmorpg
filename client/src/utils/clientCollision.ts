@@ -270,12 +270,14 @@ function getCollisionCandidates(
   );
   
   for (const cairn of nearbyCairns) {
+    // Use AABB collision (96x48) instead of circular
     shapes.push({
       id: cairn.id.toString(),
       type: `cairn-${cairn.id.toString()}`,
       x: cairn.posX + COLLISION_OFFSETS.CAIRN.x,
       y: cairn.posY + COLLISION_OFFSETS.CAIRN.y,
-      radius: COLLISION_RADII.CAIRN
+      width: 96,  // 96x48 AABB collision (wider than runestones)
+      height: 48
     });
   }
   
@@ -914,7 +916,7 @@ export const COLLISION_RADII = {
   TREE: 24,
   STONE: 28,       // Smaller radius for flattened stones
   RUNE_STONE: 24,  // Half-width for 48x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
-  CAIRN: 64,       // Cairn collision radius (matches visual size ~256px / 4)
+  CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
   STORAGE_BOX: 25, // Much tighter radius for boxes
   RAIN_COLLECTOR: 30, // Increased to match server-side for easier targeting
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
@@ -936,7 +938,7 @@ export const COLLISION_OFFSETS = {
   TREE: { x: 0, y: -68 },      // Adjusted to keep top boundary similar while squishing from bottom
   STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
   RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
-  CAIRN: { x: 0, y: -64 },     // Cairn collision pushed UP to match visual base (where stones meet ground)
+  CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary

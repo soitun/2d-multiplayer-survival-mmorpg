@@ -264,10 +264,6 @@ export function renderAttackRangeDebug(
 
   // Only render if an item is equipped
   if (!equippedItemDef) {
-    // Debug: Log when no item is equipped (only occasionally to avoid spam)
-    if (Math.random() < 0.01) {
-      console.log('[AttackRangeDebug] No equipped item definition');
-    }
     return;
   }
   
@@ -280,17 +276,6 @@ export function renderAttackRangeDebug(
   const equipped = getWeaponRangeAndArc(equippedItemDef);
   const equippedRange = equipped.range;
   const equippedHalfArc = (equipped.arcDegrees / 2) * (Math.PI / 180);
-
-  // Debug logging (temporary)
-  console.log('[AttackRangeDebug] Rendering:', {
-    itemName: equippedItemDef.name,
-    range: equippedRange,
-    arcDegrees: equipped.arcDegrees,
-    facingDirection,
-    facingAngle,
-    playerX,
-    playerY
-  });
 
   // Draw attack range arc (shows ONLY the equipped weapon's arc, oriented by player direction)
   drawAttackRangeSemicircles(ctx, playerX, playerY, facingAngle, equippedItemDef);

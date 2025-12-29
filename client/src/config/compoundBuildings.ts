@@ -451,6 +451,47 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionRadius: 100,
     collisionYOffset: 0,
   },
+  
+  // ===== STREET LIGHTS AT CENTRAL ALK BUILDING =====
+  // Street light west of central building
+  {
+    id: 'streetlight_central_west',
+    offsetX: -150,
+    offsetY: 50,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
+      intensity: 1.0,
+    },
+  },
+  
+  // Street light east of central building
+  {
+    id: 'streetlight_central_east',
+    offsetX: 150,
+    offsetY: 50,
+    imagePath: 'guardpost.png',
+    width: 288,
+    height: 384,
+    anchorYOffset: 72,
+    collisionRadius: 30,
+    collisionYOffset: 0,
+    lightSource: {
+      radius: 250,
+      offsetX: 0,
+      offsetY: 100,
+      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
+      intensity: 1.0,
+    },
+  },
 ];
 
 /**

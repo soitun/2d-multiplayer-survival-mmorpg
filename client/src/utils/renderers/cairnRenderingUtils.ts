@@ -84,7 +84,7 @@ const cairnConfig: GroundEntityConfig<Cairn> = {
             imageDrawHeight,
             cycleProgress,
             maxShadowAlpha: 0.3,
-            pivotYOffset: -CAIRN_VISUAL_BASE_OFFSET, // Offset to account for visual base position
+            pivotYOffset: -CAIRN_VISUAL_BASE_OFFSET + 30, // Offset to account for visual base position, +30 to start shadow higher
         });
     },
 

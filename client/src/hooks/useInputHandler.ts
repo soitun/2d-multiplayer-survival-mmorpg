@@ -1291,6 +1291,20 @@ export const useInputHandler = ({
                     return;
                 }
                 
+                // ADDED: Cancel throw aim on left click DOWN (while holding right-click to prepare throw)
+                if (isAimingThrowRef.current) {
+                    isAimingThrowRef.current = false;
+                    if (connectionRef.current?.reducers) {
+                        try {
+                            connectionRef.current.reducers.setThrowAim(false);
+                        } catch (err) {
+                            console.error('[ThrowAim] Error cancelling throw aim:', err);
+                        }
+                    }
+                    event.preventDefault();
+                    return; // Don't process other left-click actions when cancelling throw
+                }
+                
                 // Normal left click logic for attacks, interactions, etc.
                 isMouseDownRef.current = true;
 
@@ -1566,7 +1580,6 @@ export const useInputHandler = ({
                         if (connectionRef.current?.reducers) {
                             try {
                                 connectionRef.current.reducers.setThrowAim(true);
-                                console.log('[ThrowAim] Entered throw aim mode with:', equippedItemDefForThrow.name);
                             } catch (err) {
                                 console.error('[ThrowAim] Error setting throw aim:', err);
                             }
@@ -1880,18 +1893,25 @@ export const useInputHandler = ({
                 const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
 
                 if (equippedItemDef && isItemThrowable(equippedItemDef)) {
-                    // console.log("[InputHandler] Right-click - attempting to throw item:", equippedItemDef.name);
                     event.preventDefault();
+                    
+                    // CRITICAL: Only throw if we're still in aim mode (not cancelled by left-click)
+                    if (!isAimingThrowRef.current) {
+                        console.log('[ThrowAim] Throw cancelled - aim was cancelled with left click');
+                        return;
+                    }
 
                     // Quick checks
                     if (!connectionRef.current?.reducers || !localPlayerId || isPlayerDead) {
                         // console.log("[InputHandler] Right-click throw - basic requirements not met");
+                        isAimingThrowRef.current = false;
                         return;
                     }
 
                     const player = localPlayerRef.current;
                     if (!player) {
                         // console.log("[InputHandler] Right-click throw - no local player found");
+                        isAimingThrowRef.current = false;
                         return;
                     }
 
@@ -1943,13 +1963,11 @@ export const useInputHandler = ({
                     }
                     
                     // Clear throw aim state after throwing
-                    if (isAimingThrowRef.current) {
-                        isAimingThrowRef.current = false;
-                        try {
-                            connectionRef.current.reducers.setThrowAim(false);
-                        } catch (err) {
-                            // Silently ignore - server will clear it anyway in throw_item
-                        }
+                    isAimingThrowRef.current = false;
+                    try {
+                        connectionRef.current.reducers.setThrowAim(false);
+                    } catch (err) {
+                        // Silently ignore - server will clear it anyway in throw_item
                     }
 
                     return; // Always return after handling throw

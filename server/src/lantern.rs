@@ -54,6 +54,8 @@ pub struct Lantern {
     pub destroyed_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
     pub last_damaged_by: Option<Identity>,
+    // Mark as monument placeable (indestructible, public access)
+    pub is_monument: bool,
 }
 
 // --- Scheduled Processing Table ---
@@ -364,6 +366,7 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        is_monument: false, // Player-placed lanterns are not monuments
     };
 
     let inserted_lantern = lanterns.try_insert(new_lantern.clone())

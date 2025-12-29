@@ -1,8 +1,12 @@
 import { Projectile as SpacetimeDBProjectile } from '../../generated';
 
-const ARROW_SCALE = 0.04; // Small size for arrows
-const BULLET_SCALE = 0.025; // Even smaller size for bullets
-const THROWN_ITEM_SCALE = 0.06; // Moderately larger size for thrown weapons (1.5x arrow size)
+// Scales updated for 64x64px item images (previously much smaller)
+// Default scales (will be overridden dynamically based on item definitions)
+const DEFAULT_ARROW_SCALE = 0.3; // Default arrow scale (Hunting Bow)
+const CROSSBOW_ARROW_SCALE = 0.28; // Crossbow arrow scale (slightly smaller)
+const BULLET_SCALE = 0.2; // Bullets from pistols (smaller than arrows)
+const DEFAULT_THROWN_SCALE = 0.7; // Default thrown item scale (non-weapons)
+const WEAPON_THROWN_SCALE = 0.9; // Thrown weapon scale (melee weapons like combat ladle)
 const ARROW_SPRITE_OFFSET_X = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 const ARROW_SPRITE_OFFSET_Y = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 
@@ -131,8 +135,36 @@ export const renderProjectile = ({
     angle = Math.atan2(instantaneousVelocityY, projectile.velocityX) + (Math.PI / 4);
   }
 
-  // Determine scale - thrown items are larger, bullets are smaller than arrows
-  const scale = isThrown ? THROWN_ITEM_SCALE : (isBullet ? BULLET_SCALE : ARROW_SCALE);
+  // Determine scale dynamically based on item definition to match equipped item rendering
+  let scale: number;
+  if (isBullet) {
+    scale = BULLET_SCALE; // Bullets stay small
+  } else if (isThrown) {
+    // Thrown items: match equipped item scale (0.9 for weapons, 0.7 for non-weapons)
+    if (itemDefinitions) {
+      const thrownItemDef = itemDefinitions.get(projectile.itemDefId.toString());
+      if (thrownItemDef) {
+        const isMeleeWeapon = thrownItemDef.category?.tag === "Weapon";
+        scale = isMeleeWeapon ? WEAPON_THROWN_SCALE : DEFAULT_THROWN_SCALE;
+      } else {
+        scale = DEFAULT_THROWN_SCALE; // Default if definition not found
+      }
+    } else {
+      scale = DEFAULT_THROWN_SCALE; // Default if itemDefinitions not provided
+    }
+  } else {
+    // Arrows: match equipped arrow scale (0.3 for bow, 0.28 for crossbow)
+    if (itemDefinitions) {
+      const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
+      if (weaponDef?.name === "Crossbow") {
+        scale = CROSSBOW_ARROW_SCALE;
+      } else {
+        scale = DEFAULT_ARROW_SCALE; // Default to bow arrow scale
+      }
+    } else {
+      scale = DEFAULT_ARROW_SCALE; // Default if itemDefinitions not provided
+    }
+  }
   
   const drawWidth = arrowImage.naturalWidth * scale;
   const drawHeight = arrowImage.naturalHeight * scale;
