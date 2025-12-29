@@ -56,14 +56,15 @@ export function triggerExplosionEffect(
     radius: number,
     tier: 'babushka' | 'matriarch'
 ): void {
-    activeExplosions.push({
+    const explosion = {
         x,
         y,
-        startTime: performance.now(),
-        duration: tier === 'babushka' ? 600 : 800, // Matriarch has longer explosion
-        radius,
+        startTime: Date.now(), // Use Date.now() to match currentTime from render loop
+        duration: tier === 'babushka' ? 1200 : 1600, // Longer duration for more visible effect
+        radius: Math.max(radius, 100), // Minimum radius for visibility
         tier
-    });
+    };
+    activeExplosions.push(explosion);
 }
 
 // --- Render Explosion Effect (pixel art style) ---
@@ -79,6 +80,7 @@ function renderExplosionEffect(
     
     ctx.save();
     
+    // Use world coordinates - the context is already translated
     const screenX = explosion.x;
     const screenY = explosion.y;
     
@@ -86,7 +88,7 @@ function renderExplosionEffect(
     // Phase 2: Fireball expansion (15-50%)
     // Phase 3: Smoke and debris (50-100%)
     
-    if (progress < 0.15) {
+    if (progress < 0.15) {  
         // Initial bright flash
         const flashProgress = progress / 0.15;
         const flashRadius = explosion.radius * 0.3 * flashProgress;
@@ -399,11 +401,6 @@ export function renderPlacedExplosives(
     // Preload images if not already done
     if (!imagesLoaded) {
         preloadExplosiveImages();
-    }
-    
-    // DEBUG: Log if we have any explosives to render
-    if (placedExplosives.size > 0) {
-        console.log(`[EXPLOSIVES] Rendering ${placedExplosives.size} explosives, camera at (${cameraX.toFixed(0)}, ${cameraY.toFixed(0)})`);
     }
     
     // Render each placed explosive in view

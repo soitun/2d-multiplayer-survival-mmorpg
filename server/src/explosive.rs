@@ -282,15 +282,8 @@ pub fn place_explosive(ctx: &ReducerContext, item_instance_id: u64, world_x: f32
         fuse_duration
     );
 
-    // Emit appropriate fuse sound based on explosive type (looping sound starts immediately)
-    match explosive_type {
-        ExplosiveType::BabushkaSurprise => {
-            crate::sound_events::emit_explosive_fuse_babushka_sound(ctx, world_x, world_y, sender_id);
-        },
-        ExplosiveType::MatriarchWrath => {
-            crate::sound_events::emit_explosive_fuse_matriarch_sound(ctx, world_x, world_y, sender_id);
-        },
-    }
+    // Start looping fuse sound (continuous sound that will stop when explosive detonates)
+    crate::sound_events::start_explosive_fuse_sound(ctx, inserted_explosive.id, world_x, world_y);
 
     Ok(())
 }
@@ -315,22 +308,13 @@ pub fn check_explosive_detonations(ctx: &ReducerContext, _schedule: ExplosiveDet
             continue;
         }
         
-        // Emit looping fuse sound periodically (every second) for active explosives
+        // Check if this explosive should detonate
         if let Some(detonates_at) = explosive.detonates_at {
-            if current_time < detonates_at {
-                // Still counting down - emit fuse sound
-                match explosive.explosive_type {
-                    ExplosiveType::BabushkaSurprise => {
-                        crate::sound_events::emit_explosive_fuse_babushka_sound(ctx, explosive.pos_x, explosive.pos_y, explosive.placed_by);
-                    },
-                    ExplosiveType::MatriarchWrath => {
-                        crate::sound_events::emit_explosive_fuse_matriarch_sound(ctx, explosive.pos_x, explosive.pos_y, explosive.placed_by);
-                    },
-                }
-            } else {
+            if current_time >= detonates_at {
                 // Time to detonate
                 explosives_to_detonate.push(explosive.id);
             }
+            // Note: Fuse sound is handled via ContinuousSound - no need to emit every second
         }
     }
     
@@ -359,6 +343,9 @@ fn detonate_explosive(ctx: &ReducerContext, explosive: PlacedExplosive) {
             dud_explosive.detonates_at = None; // Clear detonation time
             ctx.db.placed_explosive().id().update(dud_explosive);
             
+            // Stop the fuse sound when it fizzles
+            crate::sound_events::stop_explosive_fuse_sound(ctx, explosive.id);
+            
             log::info!("[DetonateExplosive] Explosive {} was a dud! Can be re-lit.", explosive.id);
             crate::sound_events::emit_explosive_dud_sound(ctx, explosive.pos_x, explosive.pos_y, explosive.placed_by);
             return;
@@ -367,6 +354,9 @@ fn detonate_explosive(ctx: &ReducerContext, explosive: PlacedExplosive) {
     
     // Apply explosion damage
     apply_explosion_damage(ctx, &explosive);
+    
+    // Stop the fuse sound (continuous sound created when explosive was placed)
+    crate::sound_events::stop_explosive_fuse_sound(ctx, explosive.id);
     
     // Emit explosion sound
     crate::sound_events::emit_explosion_sound(ctx, explosive.pos_x, explosive.pos_y, explosive.placed_by);
@@ -570,16 +560,8 @@ pub fn relight_dud_explosive(ctx: &ReducerContext, explosive_id: u64) -> Result<
     
     log::info!("[RelightDud] Explosive {} successfully re-lit! Will detonate in {:.1}s", explosive_id, explosive.fuse_duration_secs);
     
-    // Emit appropriate fuse sound based on explosive type
-    match explosive.explosive_type {
-        ExplosiveType::BabushkaSurprise => {
-            crate::sound_events::emit_explosive_fuse_babushka_sound(ctx, explosive.pos_x, explosive.pos_y, sender_id);
-        },
-        ExplosiveType::MatriarchWrath => {
-            crate::sound_events::emit_explosive_fuse_matriarch_sound(ctx, explosive.pos_x, explosive.pos_y, sender_id);
-        },
-    }
+    // Start looping fuse sound again
+    crate::sound_events::start_explosive_fuse_sound(ctx, explosive_id, explosive.pos_x, explosive.pos_y);
     
     Ok(())
 }
-

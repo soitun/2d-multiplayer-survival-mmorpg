@@ -1219,17 +1219,22 @@ pub fn emit_stun_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: 
     }
 }
 
-/// Emit Babushka's Surprise fuse sound (looping ticking sound)
-pub fn emit_explosive_fuse_babushka_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, placed_by: Identity) {
-    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::ExplosiveFuseBabushka, pos_x, pos_y, 1.0, 500.0, placed_by) {
-        log::warn!("Failed to emit Babushka fuse sound: {}", e);
+/// Start explosive fuse looping sound (same sound for all explosive types)
+pub fn start_explosive_fuse_sound(ctx: &ReducerContext, explosive_id: u64, pos_x: f32, pos_y: f32) {
+    let unique_id = create_unique_object_id("explosive", explosive_id);
+    log::info!("💣 STARTING EXPLOSIVE FUSE SOUND for explosive {} (unique_id: {}) at ({:.1}, {:.1})", 
+              explosive_id, unique_id, pos_x, pos_y);
+    if let Err(e) = start_continuous_sound(ctx, unique_id, SoundType::ExplosiveFuseBabushka, pos_x, pos_y, 1.0, 500.0) {
+        log::error!("Failed to start explosive fuse sound: {}", e);
     }
 }
 
-/// Emit Matriarch's Wrath fuse sound (looping ticking sound)
-pub fn emit_explosive_fuse_matriarch_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, placed_by: Identity) {
-    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::ExplosiveFuseMatriarch, pos_x, pos_y, 1.0, 500.0, placed_by) {
-        log::warn!("Failed to emit Matriarch fuse sound: {}", e);
+/// Stop explosive fuse looping sound
+pub fn stop_explosive_fuse_sound(ctx: &ReducerContext, explosive_id: u64) {
+    let unique_id = create_unique_object_id("explosive", explosive_id);
+    log::info!("💣 STOPPING EXPLOSIVE FUSE SOUND for explosive {} (unique_id: {})", explosive_id, unique_id);
+    if let Err(e) = remove_continuous_sound(ctx, unique_id) {
+        log::error!("Failed to stop explosive fuse sound: {}", e);
     }
 }
 
