@@ -19,6 +19,7 @@ pub enum PlantType {
     Beets,        // Cold-hardy root crop
     Horseradish,  // Extremely cold-hardy perennial - single best root crop for Aleutian Islands
     Corn,         // Cold-hardy variety - grows near water sources
+    Cabbage,      // Cold-hardy leafy vegetable - excellent for northern climates
     
     // === HERBS & MEDICINAL PLANTS (Arctic/Subarctic species) ===
     Chicory,      // Cold-hardy perennial herb
@@ -40,6 +41,7 @@ pub enum PlantType {
     SeaPlantain,  // Plantago maritima - Maritime plant, leaves available year-round
     Glasswort,    // Salicornia - Salt-tolerant maritime succulent
     ArcticHairgrass, // Deschampsia - Arctic grass providing fiber, grows year-round
+    Fireweed,        // Chamerion angustifolium - Common tundra plant with edible shoots
     // === NEW: ALPINE-SPECIFIC PLANTS ===
     ArcticLichen, // Lichen - Year-round alpine plant, slow-growing
     MountainMoss, // Moss - Year-round alpine plant, grows on rocks
@@ -260,6 +262,23 @@ lazy_static! {
             growing_seasons: vec![Season::Summer, Season::Autumn, Season::Winter], // Berries persist into winter
         });
         
+        configs.insert(PlantType::Fireweed, PlantConfig {
+            entity_name: "Fireweed".to_string(),
+            density_percent: 0.0015, // Moderate density (~375 plants across tundra)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 25.0 * 25.0,
+            min_stone_distance_sq: 20.0 * 20.0,
+            noise_threshold: 0.60,
+            primary_yield: ("Plant Fiber".to_string(), 2, 4), // Fireweed stalks provide fiber
+            secondary_yield: Some(("Fireweed Shoots".to_string(), 1, 3, 0.70)), // 70% chance for edible shoots
+            seed_type: "Fireweed Seeds".to_string(),
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
+            min_respawn_time_secs: 900, // 15 minutes
+            max_respawn_time_secs: 1500, // 25 minutes
+            spawn_condition: SpawnCondition::Tundra, // Tundra and TundraGrass only
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // Grows in warmer seasons
+        });
+        
         // === NEW: ALPINE-SPECIFIC PLANTS ===
         configs.insert(PlantType::ArcticLichen, PlantConfig {
             entity_name: "Arctic Lichen".to_string(),
@@ -431,6 +450,23 @@ lazy_static! {
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::NearWater, // Corn needs water nearby
             growing_seasons: vec![Season::Summer, Season::Autumn], // Warm season crop
+        });
+        
+        configs.insert(PlantType::Cabbage, PlantConfig {
+            entity_name: "Cabbage".to_string(),
+            density_percent: 0.0007, // Moderate density (~175 plants)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 20.0 * 20.0,
+            min_stone_distance_sq: 25.0 * 25.0,
+            noise_threshold: 0.65,
+            primary_yield: ("Cabbage".to_string(), 1, 2), // 1-2 cabbages per harvest
+            secondary_yield: Some(("Plant Fiber".to_string(), 1, 2, 0.60)), // 60% chance for outer leaves as fiber
+            seed_type: "Cabbage Seeds".to_string(),
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
+            min_respawn_time_secs: 900, // 15 minutes
+            max_respawn_time_secs: 1500, // 25 minutes
+            spawn_condition: SpawnCondition::Clearings, // Similar to potatoes - needs open areas
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // Cool to warm season crop
         });
         
         // === HERBS & MEDICINAL PLANTS ===
@@ -1174,7 +1210,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
     match plant_type {
         // Vegetables
         PlantType::Potato | PlantType::Pumpkin | PlantType::Carrot | PlantType::Beets |
-        PlantType::Horseradish | PlantType::Corn | PlantType::Salsify => PlantCategory::Vegetable,
+        PlantType::Horseradish | PlantType::Corn | PlantType::Salsify | PlantType::Cabbage => PlantCategory::Vegetable,
         
         // Berries
         PlantType::Lingonberries | PlantType::Cloudberries | PlantType::Bilberries |
@@ -1193,7 +1229,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Fiber plants
         PlantType::BorealNettle | PlantType::Reed | PlantType::BeachLymeGrass |
         PlantType::Dogbane | PlantType::BogCotton | PlantType::Flax |
-        PlantType::ArcticHairgrass => PlantCategory::Fiber,
+        PlantType::ArcticHairgrass | PlantType::Fireweed => PlantCategory::Fiber,
         
         // Toxic plants
         PlantType::Mandrake | PlantType::Belladonna | PlantType::Henbane |

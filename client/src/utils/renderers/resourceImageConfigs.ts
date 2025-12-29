@@ -25,10 +25,12 @@ import siberianGinsengImageSource from '../../assets/doodads/siberian_ginseng.pn
 import dogbaneImageSource from '../../assets/doodads/dogbane.png';
 import bogCottonImageSource from '../../assets/doodads/bog_cotton.png';
 import salsifyImageSource from '../../assets/doodads/salsify.png';
+import cabbageImageSource from '../../assets/doodads/cabbage.png';
 
 // NEW ARCTIC/SUBARCTIC PLANTS
 import scurvyGrassImageSource from '../../assets/doodads/scurvy_grass.png';
 import crowberriesImageSource from '../../assets/doodads/crowberries.png';
+import fireweedImageSource from '../../assets/doodads/fireweed.png';
 import seaPlantainImageSource from '../../assets/doodads/sea_plantain.png';
 import glasswortImageSource from '../../assets/doodads/glasswort.png';
 import arcticHairgrassImageSource from '../../assets/doodads/arctic_hairgrass.png';
@@ -107,10 +109,12 @@ export const RESOURCE_IMAGE_SOURCES = {
   BogCotton: bogCottonImageSource,
   Flax: flaxImageSource,
   Salsify: salsifyImageSource,
+  Cabbage: cabbageImageSource,
   
   // === NEW: ARCTIC/SUBARCTIC PLANTS (Botanically accurate for Aleutian Islands) ===
   ScurvyGrass: scurvyGrassImageSource,
   Crowberry: crowberriesImageSource,
+  Fireweed: fireweedImageSource,
   SeaPlantain: seaPlantainImageSource,
   Glasswort: glasswortImageSource,
   ArcticHairgrass: arcticHairgrassImageSource,

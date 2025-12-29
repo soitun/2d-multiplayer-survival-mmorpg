@@ -240,7 +240,40 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(90)
             .build(),
 
+        // Cabbage - Cold-hardy leafy vegetable
+        ItemBuilder::new("Cabbage", "A fresh, crisp cabbage head. Nutritious and filling when eaten raw or cooked.", ItemCategory::Consumable)
+            .icon("cabbage.png")
+            .stackable(10)
+            .consumable(8.0, 15.0, 5.0) // health, hunger, thirst - fresh and nutritious
+            .cookable(35.0, "Cooked Cabbage")
+            .respawn_time(200)
+            .build(),
 
+        ItemBuilder::new("Cooked Cabbage", "Tender cooked cabbage. A nutritious and filling vegetable dish.", ItemCategory::Consumable)
+            .icon("cooked_cabbage.png")
+            .stackable(10)
+            .consumable(22.0, 40.0, 12.0) // health, hunger, thirst - good nutrition when cooked
+            .cookable(45.0, "Burnt Cabbage")
+            .respawn_time(260)
+            .build(),
+
+        ItemBuilder::new("Burnt Cabbage", "Overcooked cabbage that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_cabbage.png")
+            .stackable(10)
+            .consumable(-2.0, 8.0, -8.0) // health, hunger, thirst
+            .crafting_output(12, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(60)
+            .build(),
+
+        // Fireweed Shoots - Edible tundra plant shoots
+        ItemBuilder::new("Fireweed Shoots", "Tender young fireweed shoots. A common tundra plant that provides a fresh, slightly sweet taste when eaten raw.", ItemCategory::Consumable)
+            .icon("fireweed_shoots.png")
+            .stackable(15)
+            .consumable(6.0, 10.0, 3.0) // health, hunger, thirst - fresh and nutritious
+            .cookable(30.0, "Charcoal") // Burns directly to charcoal - simple plant shoots just char
+            .respawn_time(180)
+            .build(),
 
         ItemBuilder::new("Chicory", "A bitter leafy green with a distinctive flavor. Can be eaten raw or cooked to reduce bitterness.", ItemCategory::Consumable)
             .icon("chicory.png")

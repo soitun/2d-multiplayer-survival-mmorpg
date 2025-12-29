@@ -221,6 +221,10 @@ import burntCornIcon from '../assets/items/burnt_corn.png';
 import beetsIcon from '../assets/items/beets.png';
 import horseradishIcon from '../assets/items/horseradish.png';
 import salsifyIcon from '../assets/items/salsify.png';
+import cabbageIcon from '../assets/items/cabbage.png';
+import cookedCabbageIcon from '../assets/items/cooked_cabbage.png';
+import burntCabbageIcon from '../assets/items/burnt_cabbage.png';
+import fireweedShootsIcon from '../assets/items/fireweed_shoots.png';
 
 // Mushrooms
 import flyAgaricIcon from '../assets/items/fly_agaric.png';
@@ -383,10 +387,12 @@ import cornSeedsIcon from '../assets/items/corn_seeds.png';
 import chamomileSeedsIcon from '../assets/items/chamomile_seeds.png';
 import chicorySeedsIcon from '../assets/items/chicory_seeds.png';
 import salsifySeedsIcon from '../assets/items/salsify_seeds.png';
+import cabbageSeedsIcon from '../assets/items/cabbage_seeds.png';
 
 // Arctic/Subarctic plant seeds
 import scurvyGrassSeedsIcon from '../assets/items/scurvy_grass_seeds.png';
 import crowberrySeedsIcon from '../assets/items/crowberry_seeds.png';
+import fireweedSeedsIcon from '../assets/items/fireweed_seeds.png';
 import seaPlantainSeedsIcon from '../assets/items/sea_plantain_seeds.png';
 import glasswortSeedsIcon from '../assets/items/glasswort_seeds.png';
 import beachLymeGrassSeedsIcon from '../assets/items/beach_lyme_grass_seeds.png';
@@ -661,6 +667,10 @@ const iconMap: { [key: string]: string | undefined } = {
   'beets.png': beetsIcon,
   'horseradish.png': horseradishIcon,
   'salsify.png': salsifyIcon,
+  'cabbage.png': cabbageIcon,
+  'cooked_cabbage.png': cookedCabbageIcon,
+  'burnt_cabbage.png': burntCabbageIcon,
+  'fireweed_shoots.png': fireweedShootsIcon,
   
   // Mushrooms
   'fly_agaric.png': flyAgaricIcon,
@@ -807,10 +817,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'chamomile_seeds.png': chamomileSeedsIcon,
   'chicory_seeds.png': chicorySeedsIcon,
   'salsify_seeds.png': salsifySeedsIcon,
+  'cabbage_seeds.png': cabbageSeedsIcon,
   
   // Arctic/Subarctic plant seeds
   'scurvy_grass_seeds.png': scurvyGrassSeedsIcon,
   'crowberry_seeds.png': crowberrySeedsIcon,
+  'fireweed_seeds.png': fireweedSeedsIcon,
   'sea_plantain_seeds.png': seaPlantainSeedsIcon,
   'glasswort_seeds.png': glasswortSeedsIcon,
   'beach_lyme_grass_seeds.png': beachLymeGrassSeedsIcon,

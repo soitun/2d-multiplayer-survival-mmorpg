@@ -85,6 +85,14 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
+        // Cabbage Seeds - Cold-hardy vegetable seeds
+        ItemBuilder::new("Cabbage Seeds", "Seeds for growing cabbage. Can be eaten but provide minimal nutrition.", ItemCategory::Placeable)
+            .icon("cabbage_seeds.png")
+            .stackable(80)
+            .respawn_time(420) // 7 minutes
+            .consumable(0.0, 0.5, 0.0) // health, hunger, thirst - minimal nutrition
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
+            .build(),
 
         // === ADDITIONAL VEGETABLE SEEDS ===
 
@@ -439,6 +447,15 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(1200) // 20 minutes - slow-growing perennial
             .consumable(0.5, 0.5, 1.0) // health, hunger, thirst - small but refreshing
             .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
+            .build(),
+
+        // Fireweed Seeds - Common tundra plant seeds
+        ItemBuilder::new("Fireweed Seeds", "Seeds for growing fireweed. A common tundra plant with edible shoots. Can be eaten but provide minimal nutrition.", ItemCategory::Placeable)
+            .icon("fireweed_seeds.png")
+            .stackable(70)
+            .respawn_time(900) // 15 minutes - common tundra plant
+            .consumable(0.5, 1.0, 0.0) // health, hunger, thirst - minimal nutrition
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
         // Sea Plantain Seeds - Maritime plant seeds
