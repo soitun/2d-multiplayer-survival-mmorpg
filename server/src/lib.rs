@@ -1532,10 +1532,19 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
                 },
                 crate::spatial_grid::EntityType::RuneStone(rune_stone_id) => {
                     if let Some(rune_stone) = rune_stones.id().find(&rune_stone_id) {
-                        let dx = spawn_x - rune_stone.pos_x;
-                        let dy = spawn_y - (rune_stone.pos_y - crate::rune_stone::RUNE_STONE_COLLISION_Y_OFFSET);
+                        // AABB collision detection
+                        let rune_stone_aabb_center_x = rune_stone.pos_x;
+                        let rune_stone_aabb_center_y = rune_stone.pos_y - crate::rune_stone::RUNE_STONE_COLLISION_Y_OFFSET;
+                        
+                        let closest_x = spawn_x.max(rune_stone_aabb_center_x - crate::rune_stone::RUNE_STONE_AABB_HALF_WIDTH).min(rune_stone_aabb_center_x + crate::rune_stone::RUNE_STONE_AABB_HALF_WIDTH);
+                        let closest_y = spawn_y.max(rune_stone_aabb_center_y - crate::rune_stone::RUNE_STONE_AABB_HALF_HEIGHT).min(rune_stone_aabb_center_y + crate::rune_stone::RUNE_STONE_AABB_HALF_HEIGHT);
+                        
+                        let dx = spawn_x - closest_x;
+                        let dy = spawn_y - closest_y;
                         let distance_sq = dx * dx + dy * dy;
-                        if distance_sq < (crate::rune_stone::PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED * 0.8) {
+                        let player_radius_sq = crate::PLAYER_RADIUS * crate::PLAYER_RADIUS;
+                        
+                        if distance_sq < (player_radius_sq * 0.8) {
                             collision = true;
                             last_collision_reason = format!("RuneStone collision at ({:.1}, {:.1})", rune_stone.pos_x, rune_stone.pos_y);
                             break;

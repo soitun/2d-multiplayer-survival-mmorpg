@@ -116,12 +116,20 @@ export const renderEquippedItem = (
   // --- End Shake Offset ---
 
   // --- Item Size and Position ---
-  // Skulls and fertilizer render at larger size (0.5 scale) - all other items use 0.05 scale
+  // Items are now 64x64px, so we need much larger scales than before
+  // Melee weapons need to be larger to be visible - using 0.9 scale (57px)
+  // Skulls and fertilizer render at larger size (0.75 scale = 48px)
+  // Other items use 0.7 scale (45px)
   const isSkull = itemDef.name === "Human Skull" || itemDef.name === "Fox Skull" || 
                    itemDef.name === "Wolf Skull" || itemDef.name === "Viper Skull" || 
                    itemDef.name === "Walrus Skull";
   const isFertilizer = itemDef.name === "Fertilizer";
-  const scale = (isSkull || isFertilizer) ? 0.5 : 0.05; // Skulls and fertilizer render at 50% size, other items at 5% scale
+  const isMeleeWeapon = itemDef.category?.tag === "Weapon";
+  // Updated scales for 64x64px images: 
+  // - Melee weapons: 0.9 scale (57px) for visibility
+  // - Skulls/fertilizer: 0.75 scale (48px)
+  // - Other items: 0.7 scale (45px)
+  const scale = isMeleeWeapon ? 0.9 : (isSkull || isFertilizer) ? 0.75 : 0.7; 
   const itemWidth = itemImgFromCaller.width * scale;
   const itemHeight = itemImgFromCaller.height * scale;
   let itemOffsetX = 0; 
@@ -236,8 +244,8 @@ export const renderEquippedItem = (
 
   } else if (itemDef.name === "Hunting Bow") {
 
-    // TEST: Increase scale for bows
-    const bowScale = 0.05; // Reverted from 0.25 to match default weapon/tool scale
+    // Updated scale for 64x64px images: bows use 0.5 scale (32px)
+    const bowScale = 0.5; // Updated for 64x64px images
     displayItemWidth = itemImgFromCaller.width * bowScale;
     displayItemHeight = itemImgFromCaller.height * bowScale;
 
@@ -270,7 +278,8 @@ export const renderEquippedItem = (
   } else if (itemDef.name === "Crossbow") {
 
     // Crossbow scale - slightly larger than bow to show its more substantial nature
-    const crossbowScale = 0.06; // Slightly larger than bow scale
+    // Updated for 64x64px images: crossbow uses 0.55 scale (35px) - slightly larger than bow
+    const crossbowScale = 0.55; // Updated for 64x64px images
     displayItemWidth = itemImgFromCaller.width * crossbowScale;
     displayItemHeight = itemImgFromCaller.height * crossbowScale;
 
@@ -632,7 +641,7 @@ export const renderEquippedItem = (
 
     // --- NEW: Draw Loaded Arrow on Bow ---
     if (loadedArrowImage && itemDef.name === "Hunting Bow") {
-        const arrowScale = 0.045; // Adjust as needed
+        const arrowScale = 0.3; // Updated for 64x64px images (~19px)
         const arrowWidth = loadedArrowImage.width * arrowScale;
         const arrowHeight = loadedArrowImage.height * arrowScale;
         // Arrow position and rotation settings per player direction
@@ -673,7 +682,7 @@ export const renderEquippedItem = (
     
     // --- NEW: Draw Loaded Arrow on Crossbow ---
     if (loadedArrowImage && itemDef.name === "Crossbow") {
-        const arrowScale = 0.04; // Slightly smaller for crossbow bolts
+        const arrowScale = 0.28; // Updated for 64x64px images (~18px) - slightly smaller than bow arrows
         const arrowWidth = loadedArrowImage.width * arrowScale;
         const arrowHeight = loadedArrowImage.height * arrowScale;
         // Arrow position and rotation settings per player direction

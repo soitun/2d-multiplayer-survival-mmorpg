@@ -288,6 +288,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteWidth: 64,
     spriteHeight: 128,
   },
+  
+  rune_stone: {
+    centerOffsetX: 0,
+    centerOffsetY: -24,  // AABB collision center offset (matches collision)
+    width: 48,           // 48x48 AABB collision
+    height: 48,
+    placementYOffset: 0,
+    spriteWidth: 300,    // Visual sprite width (doubled)
+    spriteHeight: 300,   // Visual sprite height (doubled)
+  },
 };
 
 /**

@@ -3431,6 +3431,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         stones,
         wildAnimals,
         players,
+        barrels,
+        grass,
       });
     }
     // --- End Render Attack Range Debug Overlay ---

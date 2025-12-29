@@ -33,7 +33,7 @@ use crate::grass; // RE-ADDED: grass module for destroyable grass
 // Specific constants needed
 use crate::tree::{MIN_TREE_RESPAWN_TIME_SECS, MAX_TREE_RESPAWN_TIME_SECS, TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED, TREE_INITIAL_HEALTH};
 use crate::stone::{MIN_STONE_RESPAWN_TIME_SECS, MAX_STONE_RESPAWN_TIME_SECS, STONE_COLLISION_Y_OFFSET, PLAYER_STONE_COLLISION_DISTANCE_SQUARED};
-use crate::rune_stone::{RUNE_STONE_COLLISION_Y_OFFSET, PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED};
+use crate::rune_stone::{RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
 use crate::wooden_storage_box::{WoodenStorageBox, BOX_COLLISION_RADIUS, BOX_COLLISION_Y_OFFSET, wooden_storage_box as WoodenStorageBoxTableTrait};
 use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for destroyable grass
 
@@ -3535,12 +3535,21 @@ fn resolve_knockback_collision(
         }
     }
     
-    // Check against rune stones (solid collision)
+    // Check against rune stones (AABB collision)
     for rune_stone in ctx.db.rune_stone().iter() {
-        let rune_stone_collision_center_y = rune_stone.pos_y - RUNE_STONE_COLLISION_Y_OFFSET;
-        let dx = proposed_x - rune_stone.pos_x;
-        let dy = proposed_y - rune_stone_collision_center_y;
-        if (dx * dx + dy * dy) < PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED {
+        let rune_stone_aabb_center_x = rune_stone.pos_x;
+        let rune_stone_aabb_center_y = rune_stone.pos_y - RUNE_STONE_COLLISION_Y_OFFSET;
+        
+        // AABB collision detection
+        let closest_x = proposed_x.max(rune_stone_aabb_center_x - RUNE_STONE_AABB_HALF_WIDTH).min(rune_stone_aabb_center_x + RUNE_STONE_AABB_HALF_WIDTH);
+        let closest_y = proposed_y.max(rune_stone_aabb_center_y - RUNE_STONE_AABB_HALF_HEIGHT).min(rune_stone_aabb_center_y + RUNE_STONE_AABB_HALF_HEIGHT);
+        
+        let dx = proposed_x - closest_x;
+        let dy = proposed_y - closest_y;
+        let dist_sq = dx * dx + dy * dy;
+        let player_radius_sq = crate::PLAYER_RADIUS * crate::PLAYER_RADIUS;
+        
+        if dist_sq < player_radius_sq {
             log::debug!("[KnockbackCollision] Player ID {:?} would collide with RuneStone ID {} at proposed ({:.1}, {:.1}). Reverting knockback.", 
                        colliding_player_id, rune_stone.id, proposed_x, proposed_y);
             return (current_x, current_y);

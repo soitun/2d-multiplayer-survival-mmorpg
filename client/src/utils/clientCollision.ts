@@ -86,7 +86,7 @@ const COLLISION_PERF = {
   PLAYER_CULL_DISTANCE_SQ: 200 * 200,    // Only check players within 200px
   TREE_CULL_DISTANCE_SQ: 250 * 250,      // Only check trees within 250px
   STONE_CULL_DISTANCE_SQ: 150 * 150,     // Only check stones within 150px
-  RUNE_STONE_CULL_DISTANCE_SQ: 300 * 300, // Only check rune stones within 300px (larger than trees due to bigger radius)
+  RUNE_STONE_CULL_DISTANCE_SQ: 200 * 200, // Only check rune stones within 200px (reduced for smaller collision)
   CAIRN_CULL_DISTANCE_SQ: 200 * 200,     // Only check cairns within 200px
   ANIMAL_CULL_DISTANCE_SQ: 300 * 300,    // Only check animals within 300px
   STRUCTURE_CULL_DISTANCE_SQ: 200 * 200, // Only check structures within 200px
@@ -249,12 +249,14 @@ function getCollisionCandidates(
   );
   
   for (const runeStone of nearbyRuneStones) {
+    // Use AABB collision (48x48) instead of circular
     shapes.push({
       id: runeStone.id.toString(),
       type: `runeStone-${runeStone.id.toString()}`,
       x: runeStone.posX + COLLISION_OFFSETS.RUNE_STONE.x,
       y: runeStone.posY + COLLISION_OFFSETS.RUNE_STONE.y,
-      radius: COLLISION_RADII.RUNE_STONE
+      width: 48,  // 48x48 AABB collision
+      height: 48
     });
   }
   
@@ -911,7 +913,7 @@ function getCollisionCandidates(
 export const COLLISION_RADII = {
   TREE: 24,
   STONE: 28,       // Smaller radius for flattened stones
-  RUNE_STONE: 80,  // Doubled from 40 to match doubled visual size (matches server-side RUNE_STONE_RADIUS)
+  RUNE_STONE: 24,  // Half-width for 48x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
   CAIRN: 64,       // Cairn collision radius (matches visual size ~256px / 4)
   STORAGE_BOX: 25, // Much tighter radius for boxes
   RAIN_COLLECTOR: 30, // Increased to match server-side for easier targeting
@@ -933,7 +935,7 @@ export const COLLISION_RADII = {
 export const COLLISION_OFFSETS = {
   TREE: { x: 0, y: -68 },      // Adjusted to keep top boundary similar while squishing from bottom
   STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
-  RUNE_STONE: { x: 0, y: -100 }, // Doubled from -50 to match doubled visual size (matches server-side RUNE_STONE_COLLISION_Y_OFFSET)
+  RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
   CAIRN: { x: 0, y: -64 },     // Cairn collision pushed UP to match visual base (where stones meet ground)
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
   RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base

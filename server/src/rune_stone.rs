@@ -17,11 +17,13 @@ use crate::harvestable_resource::harvestable_resource as HarvestableResourceTabl
 
 // --- Rune Stone Constants ---
 
-// Collision settings - reduced for better gameplay feel
-pub(crate) const RUNE_STONE_RADIUS: f32 = 50.0; // Reduced from 80.0 for smaller collision
-pub(crate) const RUNE_STONE_COLLISION_Y_OFFSET: f32 = 60.0; // Reduced from 100.0 for lower collision
+// Collision settings - 48x48 AABB collision
+pub(crate) const RUNE_STONE_AABB_HALF_WIDTH: f32 = 24.0; // Half-width for 48x48 AABB
+pub(crate) const RUNE_STONE_AABB_HALF_HEIGHT: f32 = 24.0; // Half-height for 48x48 AABB
+pub(crate) const RUNE_STONE_COLLISION_Y_OFFSET: f32 = 24.0; // Y offset for AABB center from pos_y
+// Maximum collision distance squared (player radius + half diagonal of AABB)
 pub(crate) const PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED: f32 = 
-    (PLAYER_RADIUS + RUNE_STONE_RADIUS) * (PLAYER_RADIUS + RUNE_STONE_RADIUS);
+    (PLAYER_RADIUS + RUNE_STONE_AABB_HALF_WIDTH * 1.414) * (PLAYER_RADIUS + RUNE_STONE_AABB_HALF_WIDTH * 1.414);
 
 // Spawning Parameters - Balanced for gameplay
 // Reduced density for 400x400 map: ~8-12 rune stones total (was 29)
