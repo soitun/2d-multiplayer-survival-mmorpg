@@ -722,12 +722,23 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // Assume App.tsx will need a handleStashInsert callback to cancel placement on success
           break;
         case "Babushka's Surprise":
-        case "Matriarch's Wrath":
+        case "Matriarch's Wrath": {
           // Explosive placement - player places explosive which starts fuse countdown
-          console.log(`[PlacementManager] Calling placeExplosive reducer with instance ID: ${placementInfo.instanceId}`);
+          // DEBUG: Calculate expected chunk index for the placement position
+          const CHUNK_SIZE_TILES = 16;
+          const TILE_SIZE_PX = 48;
+          const WORLD_WIDTH_CHUNKS = 38;
+          const placementTileX = Math.floor(worldX / TILE_SIZE_PX);
+          const placementTileY = Math.floor(worldY / TILE_SIZE_PX);
+          const placementChunkX = Math.floor(placementTileX / CHUNK_SIZE_TILES);
+          const placementChunkY = Math.floor(placementTileY / CHUNK_SIZE_TILES);
+          const expectedChunkIndex = placementChunkY * WORLD_WIDTH_CHUNKS + placementChunkX;
+          console.log(`[PlacementManager] Calling placeExplosive at PIXEL (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
+          console.log(`[PlacementManager] → Tile: (${placementTileX}, ${placementTileY}), Chunk: (${placementChunkX}, ${placementChunkY}), Expected chunk_index: ${expectedChunkIndex}`);
           connection.reducers.placeExplosive(placementInfo.instanceId, worldX, worldY);
           // Placement cancelled when PlacedExplosive entity is inserted
           break;
+        }
         case 'Shelter':
           // console.log(`[PlacementManager] Calling placeShelter reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeShelter(placementInfo.instanceId, worldX, worldY);

@@ -398,6 +398,8 @@ export const useSpacetimeTables = ({
                     return handle;
                 };
 
+                // DEBUG: Log that we're using batched subscriptions for this chunk
+                console.log(`[BATCHED_SUB] Using batched subscriptions for chunk ${chunkIndex} (includes placed_explosive)`);
                 const resourceQueries = [
                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
@@ -467,6 +469,8 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FertilizerPatch', `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FirePatch', `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`));
+                // DEBUG: Log when PlacedExplosive subscription is made
+                console.log(`[EXPLOSIVE_SUB] Subscribing to placed_explosive for chunk ${chunkIndex}`);
                 newHandlesForChunk.push(timedSubscribe('PlacedExplosive', `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
@@ -1543,6 +1547,11 @@ export const useSpacetimeTables = ({
 
             // Placed Explosive handlers
             const handlePlacedExplosiveInsert = (ctx: any, explosive: SpacetimeDB.PlacedExplosive) => {
+                const subscribedChunks = Array.from(subscribedChunksRef.current).sort((a, b) => a - b);
+                const isChunkSubscribed = subscribedChunksRef.current.has(explosive.chunkIndex);
+                console.log(`[EXPLOSIVE INSERT] id=${explosive.id}, type=${explosive.explosiveType.tag}, pos=(${explosive.posX.toFixed(1)}, ${explosive.posY.toFixed(1)}), chunk=${explosive.chunkIndex}`);
+                console.log(`[EXPLOSIVE INSERT] Subscribed chunks: [${subscribedChunks.slice(0, 20).join(', ')}${subscribedChunks.length > 20 ? '...' : ''}] (total: ${subscribedChunks.length})`);
+                console.log(`[EXPLOSIVE INSERT] Chunk ${explosive.chunkIndex} is ${isChunkSubscribed ? 'IN' : 'NOT IN'} subscribed chunks`);
                 setPlacedExplosives(prev => new Map(prev).set(explosive.id.toString(), explosive));
                 // Cancel placement if this explosive was placed by the local player
                 if (connection.identity && explosive.placedBy.isEqual(connection.identity)) {
@@ -2086,9 +2095,16 @@ export const useSpacetimeTables = ({
             }
 
             // Register PlacedExplosive callbacks - ADDED for raiding explosives
-            connection.db.placedExplosive.onInsert(handlePlacedExplosiveInsert);
-            connection.db.placedExplosive.onUpdate(handlePlacedExplosiveUpdate);
-            connection.db.placedExplosive.onDelete(handlePlacedExplosiveDelete);
+            console.log('[EXPLOSIVE_CALLBACKS] Registering PlacedExplosive callbacks...');
+            console.log('[EXPLOSIVE_CALLBACKS] connection.db.placedExplosive exists:', !!connection.db.placedExplosive);
+            if (connection.db.placedExplosive) {
+                connection.db.placedExplosive.onInsert(handlePlacedExplosiveInsert);
+                connection.db.placedExplosive.onUpdate(handlePlacedExplosiveUpdate);
+                connection.db.placedExplosive.onDelete(handlePlacedExplosiveDelete);
+                console.log('[EXPLOSIVE_CALLBACKS] PlacedExplosive callbacks registered!');
+            } else {
+                console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placedExplosive is undefined!');
+            }
 
             // Register WildAnimal callbacks - ADDED
             connection.db.wildAnimal.onInsert(handleWildAnimalInsert);
@@ -2512,6 +2528,8 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`, // ADDED: Fire patch initial spatial subscription
+                                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`, // ADDED: Placed explosive initial spatial subscription
                                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance (was causing 800+ updates/sec globally)
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,

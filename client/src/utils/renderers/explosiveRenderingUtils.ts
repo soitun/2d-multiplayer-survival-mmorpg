@@ -401,6 +401,11 @@ export function renderPlacedExplosives(
         preloadExplosiveImages();
     }
     
+    // DEBUG: Log if we have any explosives to render
+    if (placedExplosives.size > 0) {
+        console.log(`[EXPLOSIVES] Rendering ${placedExplosives.size} explosives, camera at (${cameraX.toFixed(0)}, ${cameraY.toFixed(0)})`);
+    }
+    
     // Render each placed explosive in view
     // Note: Explosives are deleted from the table when they detonate, so no need to check isDetonated
     placedExplosives.forEach((explosive) => {
