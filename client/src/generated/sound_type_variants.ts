@@ -100,4 +100,8 @@ export type SnorkelSubmerge = { tag: "SnorkelSubmerge" };
 export type SnorkelEmerge = { tag: "SnorkelEmerge" };
 export type ErrorSeaweedAboveWater = { tag: "ErrorSeaweedAboveWater" };
 export type Stun = { tag: "Stun" };
+export type ExplosiveArming = { tag: "ExplosiveArming" };
+export type Explosion = { tag: "Explosion" };
+export type ExplosiveDud = { tag: "ExplosiveDud" };
+export type DoorDestroyed = { tag: "DoorDestroyed" };
 

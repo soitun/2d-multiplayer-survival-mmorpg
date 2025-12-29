@@ -55,6 +55,8 @@ import { CheckBrewCache } from "./check_brew_cache_reducer.ts";
 export { CheckBrewCache };
 import { CheckBuildingPrivilegeDistance } from "./check_building_privilege_distance_reducer.ts";
 export { CheckBuildingPrivilegeDistance };
+import { CheckExplosiveDetonations } from "./check_explosive_detonations_reducer.ts";
+export { CheckExplosiveDetonations };
 import { CheckFinishedCrafting } from "./check_finished_crafting_reducer.ts";
 export { CheckFinishedCrafting };
 import { CheckPlantGrowth } from "./check_plant_growth_reducer.ts";
@@ -351,6 +353,8 @@ import { PlaceCookingStation } from "./place_cooking_station_reducer.ts";
 export { PlaceCookingStation };
 import { PlaceDoor } from "./place_door_reducer.ts";
 export { PlaceDoor };
+import { PlaceExplosive } from "./place_explosive_reducer.ts";
+export { PlaceExplosive };
 import { PlaceFoundation } from "./place_foundation_reducer.ts";
 export { PlaceFoundation };
 import { PlaceFurnace } from "./place_furnace_reducer.ts";
@@ -483,6 +487,8 @@ import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reduc
 export { RegenerateCompressedChunks };
 import { RegisterPlayer } from "./register_player_reducer.ts";
 export { RegisterPlayer };
+import { RelightDudExplosive } from "./relight_dud_explosive_reducer.ts";
+export { RelightDudExplosive };
 import { RemoveFromMatronage } from "./remove_from_matronage_reducer.ts";
 export { RemoveFromMatronage };
 import { RenameMatronage } from "./rename_matronage_reducer.ts";
@@ -793,6 +799,8 @@ import { DroppedItemTableHandle } from "./dropped_item_table.ts";
 export { DroppedItemTableHandle };
 import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_schedule_table.ts";
 export { DroppedItemDespawnScheduleTableHandle };
+import { ExplosiveDetonationScheduleTableHandle } from "./explosive_detonation_schedule_table.ts";
+export { ExplosiveDetonationScheduleTableHandle };
 import { FertilizerPatchTableHandle } from "./fertilizer_patch_table.ts";
 export { FertilizerPatchTableHandle };
 import { FertilizerPatchCleanupScheduleTableHandle } from "./fertilizer_patch_cleanup_schedule_table.ts";
@@ -877,6 +885,8 @@ import { MessageTableHandle } from "./message_table.ts";
 export { MessageTableHandle };
 import { MinimapCacheTableHandle } from "./minimap_cache_table.ts";
 export { MinimapCacheTableHandle };
+import { PlacedExplosiveTableHandle } from "./placed_explosive_table.ts";
+export { PlacedExplosiveTableHandle };
 import { PlantConfigDefinitionTableHandle } from "./plant_config_definition_table.ts";
 export { PlantConfigDefinitionTableHandle };
 import { PlantedSeedTableHandle } from "./planted_seed_table.ts";
@@ -1121,6 +1131,10 @@ import { EquipmentSlotType } from "./equipment_slot_type_type.ts";
 export { EquipmentSlotType };
 import { EquippedLocationData } from "./equipped_location_data_type.ts";
 export { EquippedLocationData };
+import { ExplosiveDetonationSchedule } from "./explosive_detonation_schedule_type.ts";
+export { ExplosiveDetonationSchedule };
+import { ExplosiveType } from "./explosive_type_type.ts";
+export { ExplosiveType };
 import { FertilizerPatch } from "./fertilizer_patch_type.ts";
 export { FertilizerPatch };
 import { FertilizerPatchCleanupSchedule } from "./fertilizer_patch_cleanup_schedule_type.ts";
@@ -1229,6 +1243,8 @@ import { MovementPattern } from "./movement_pattern_type.ts";
 export { MovementPattern };
 import { OreType } from "./ore_type_type.ts";
 export { OreType };
+import { PlacedExplosive } from "./placed_explosive_type.ts";
+export { PlacedExplosive };
 import { PlantCategory } from "./plant_category_type.ts";
 export { PlantCategory };
 import { PlantConfigDefinition } from "./plant_config_definition_type.ts";
@@ -1768,6 +1784,15 @@ const REMOTE_MODULE = {
         colType: (DroppedItemDespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    explosive_detonation_schedule: {
+      tableName: "explosive_detonation_schedule" as const,
+      rowType: ExplosiveDetonationSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ExplosiveDetonationSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     fertilizer_patch: {
       tableName: "fertilizer_patch" as const,
       rowType: FertilizerPatch.getTypeScriptAlgebraicType(),
@@ -2144,6 +2169,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (MinimapCache.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    placed_explosive: {
+      tableName: "placed_explosive" as const,
+      rowType: PlacedExplosive.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (PlacedExplosive.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     plant_config_definition: {
@@ -2690,6 +2724,10 @@ const REMOTE_MODULE = {
     check_building_privilege_distance: {
       reducerName: "check_building_privilege_distance",
       argsType: CheckBuildingPrivilegeDistance.getTypeScriptAlgebraicType(),
+    },
+    check_explosive_detonations: {
+      reducerName: "check_explosive_detonations",
+      argsType: CheckExplosiveDetonations.getTypeScriptAlgebraicType(),
     },
     check_finished_crafting: {
       reducerName: "check_finished_crafting",
@@ -3283,6 +3321,10 @@ const REMOTE_MODULE = {
       reducerName: "place_door",
       argsType: PlaceDoor.getTypeScriptAlgebraicType(),
     },
+    place_explosive: {
+      reducerName: "place_explosive",
+      argsType: PlaceExplosive.getTypeScriptAlgebraicType(),
+    },
     place_foundation: {
       reducerName: "place_foundation",
       argsType: PlaceFoundation.getTypeScriptAlgebraicType(),
@@ -3546,6 +3588,10 @@ const REMOTE_MODULE = {
     register_player: {
       reducerName: "register_player",
       argsType: RegisterPlayer.getTypeScriptAlgebraicType(),
+    },
+    relight_dud_explosive: {
+      reducerName: "relight_dud_explosive",
+      argsType: RelightDudExplosive.getTypeScriptAlgebraicType(),
     },
     remove_from_matronage: {
       reducerName: "remove_from_matronage",
@@ -4029,6 +4075,7 @@ export type Reducer = never
 | { name: "CheckAndConsolidateAllClusters", args: CheckAndConsolidateAllClusters }
 | { name: "CheckBrewCache", args: CheckBrewCache }
 | { name: "CheckBuildingPrivilegeDistance", args: CheckBuildingPrivilegeDistance }
+| { name: "CheckExplosiveDetonations", args: CheckExplosiveDetonations }
 | { name: "CheckFinishedCrafting", args: CheckFinishedCrafting }
 | { name: "CheckPlantGrowth", args: CheckPlantGrowth }
 | { name: "CheckResourceRespawns", args: CheckResourceRespawns }
@@ -4177,6 +4224,7 @@ export type Reducer = never
 | { name: "PlaceCampfire", args: PlaceCampfire }
 | { name: "PlaceCookingStation", args: PlaceCookingStation }
 | { name: "PlaceDoor", args: PlaceDoor }
+| { name: "PlaceExplosive", args: PlaceExplosive }
 | { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
 | { name: "PlaceHomesteadHearth", args: PlaceHomesteadHearth }
@@ -4243,6 +4291,7 @@ export type Reducer = never
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
+| { name: "RelightDudExplosive", args: RelightDudExplosive }
 | { name: "RemoveFromMatronage", args: RemoveFromMatronage }
 | { name: "RenameMatronage", args: RenameMatronage }
 | { name: "RepairItem", args: RepairItem }
@@ -4536,6 +4585,22 @@ export class RemoteReducers {
 
   removeOnCheckBuildingPrivilegeDistance(callback: (ctx: ReducerEventContext, schedule: BuildingPrivilegeCheckSchedule) => void) {
     this.connection.offReducer("check_building_privilege_distance", callback);
+  }
+
+  checkExplosiveDetonations(schedule: ExplosiveDetonationSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    CheckExplosiveDetonations.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("check_explosive_detonations", __argsBuffer, this.setCallReducerFlags.checkExplosiveDetonationsFlags);
+  }
+
+  onCheckExplosiveDetonations(callback: (ctx: ReducerEventContext, schedule: ExplosiveDetonationSchedule) => void) {
+    this.connection.onReducer("check_explosive_detonations", callback);
+  }
+
+  removeOnCheckExplosiveDetonations(callback: (ctx: ReducerEventContext, schedule: ExplosiveDetonationSchedule) => void) {
+    this.connection.offReducer("check_explosive_detonations", callback);
   }
 
   checkFinishedCrafting(schedule: CraftingFinishSchedule) {
@@ -6826,6 +6891,22 @@ export class RemoteReducers {
     this.connection.offReducer("place_door", callback);
   }
 
+  placeExplosive(itemInstanceId: bigint, worldX: number, worldY: number) {
+    const __args = { itemInstanceId, worldX, worldY };
+    let __writer = new __BinaryWriter(1024);
+    PlaceExplosive.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_explosive", __argsBuffer, this.setCallReducerFlags.placeExplosiveFlags);
+  }
+
+  onPlaceExplosive(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.onReducer("place_explosive", callback);
+  }
+
+  removeOnPlaceExplosive(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.offReducer("place_explosive", callback);
+  }
+
   placeFoundation(cellX: bigint, cellY: bigint, shape: number, tier: number) {
     const __args = { cellX, cellY, shape, tier };
     let __writer = new __BinaryWriter(1024);
@@ -7876,6 +7957,22 @@ export class RemoteReducers {
 
   removeOnRegisterPlayer(callback: (ctx: ReducerEventContext, username: string) => void) {
     this.connection.offReducer("register_player", callback);
+  }
+
+  relightDudExplosive(explosiveId: bigint) {
+    const __args = { explosiveId };
+    let __writer = new __BinaryWriter(1024);
+    RelightDudExplosive.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("relight_dud_explosive", __argsBuffer, this.setCallReducerFlags.relightDudExplosiveFlags);
+  }
+
+  onRelightDudExplosive(callback: (ctx: ReducerEventContext, explosiveId: bigint) => void) {
+    this.connection.onReducer("relight_dud_explosive", callback);
+  }
+
+  removeOnRelightDudExplosive(callback: (ctx: ReducerEventContext, explosiveId: bigint) => void) {
+    this.connection.offReducer("relight_dud_explosive", callback);
   }
 
   removeFromMatronage(targetPlayerId: __Identity) {
@@ -9625,6 +9722,11 @@ export class SetReducerFlags {
     this.checkBuildingPrivilegeDistanceFlags = flags;
   }
 
+  checkExplosiveDetonationsFlags: __CallReducerFlags = 'FullUpdate';
+  checkExplosiveDetonations(flags: __CallReducerFlags) {
+    this.checkExplosiveDetonationsFlags = flags;
+  }
+
   checkFinishedCraftingFlags: __CallReducerFlags = 'FullUpdate';
   checkFinishedCrafting(flags: __CallReducerFlags) {
     this.checkFinishedCraftingFlags = flags;
@@ -10355,6 +10457,11 @@ export class SetReducerFlags {
     this.placeDoorFlags = flags;
   }
 
+  placeExplosiveFlags: __CallReducerFlags = 'FullUpdate';
+  placeExplosive(flags: __CallReducerFlags) {
+    this.placeExplosiveFlags = flags;
+  }
+
   placeFoundationFlags: __CallReducerFlags = 'FullUpdate';
   placeFoundation(flags: __CallReducerFlags) {
     this.placeFoundationFlags = flags;
@@ -10683,6 +10790,11 @@ export class SetReducerFlags {
   registerPlayerFlags: __CallReducerFlags = 'FullUpdate';
   registerPlayer(flags: __CallReducerFlags) {
     this.registerPlayerFlags = flags;
+  }
+
+  relightDudExplosiveFlags: __CallReducerFlags = 'FullUpdate';
+  relightDudExplosive(flags: __CallReducerFlags) {
+    this.relightDudExplosiveFlags = flags;
   }
 
   removeFromMatronageFlags: __CallReducerFlags = 'FullUpdate';
@@ -11460,6 +11572,11 @@ export class RemoteTables {
     return new DroppedItemDespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroppedItemDespawnSchedule>(REMOTE_MODULE.tables.dropped_item_despawn_schedule));
   }
 
+  get explosiveDetonationSchedule(): ExplosiveDetonationScheduleTableHandle<'explosive_detonation_schedule'> {
+    // clientCache is a private property
+    return new ExplosiveDetonationScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ExplosiveDetonationSchedule>(REMOTE_MODULE.tables.explosive_detonation_schedule));
+  }
+
   get fertilizerPatch(): FertilizerPatchTableHandle<'fertilizer_patch'> {
     // clientCache is a private property
     return new FertilizerPatchTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FertilizerPatch>(REMOTE_MODULE.tables.fertilizer_patch));
@@ -11668,6 +11785,11 @@ export class RemoteTables {
   get minimapCache(): MinimapCacheTableHandle<'minimap_cache'> {
     // clientCache is a private property
     return new MinimapCacheTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MinimapCache>(REMOTE_MODULE.tables.minimap_cache));
+  }
+
+  get placedExplosive(): PlacedExplosiveTableHandle<'placed_explosive'> {
+    // clientCache is a private property
+    return new PlacedExplosiveTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlacedExplosive>(REMOTE_MODULE.tables.placed_explosive));
   }
 
   get plantConfigDefinition(): PlantConfigDefinitionTableHandle<'plant_config_definition'> {

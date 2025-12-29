@@ -223,6 +223,41 @@ pub fn damage_door(
     Ok(())
 }
 
+/// Applies explosive damage to a door (bypasses melee damage reduction)
+/// Used by explosion system - explosives are effective against all door types
+pub fn damage_door_explosive(
+    ctx: &ReducerContext,
+    door_id: u64,
+    damage: f32,
+) {
+    let doors = ctx.db.door();
+    
+    if let Some(mut door) = doors.id().find(door_id) {
+        if door.is_destroyed {
+            return;
+        }
+        
+        // Explosive damage bypasses melee reduction - full damage to all door types
+        let old_health = door.health;
+        door.health = (door.health - damage).max(0.0);
+        door.last_hit_time = Some(ctx.timestamp);
+        
+        let door_name = if door.door_type == DOOR_TYPE_WOOD { "Wood" } else { "Metal" };
+        
+        if door.health <= 0.0 {
+            door.is_destroyed = true;
+            door.destroyed_at = Some(ctx.timestamp);
+            crate::sound_events::emit_door_destroyed_sound(ctx, door.pos_x, door.pos_y, ctx.sender);
+            log::info!("[DoorExplosiveDamage] {} Door {} destroyed by explosion", door_name, door_id);
+        } else {
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, door.pos_x, door.pos_y, ctx.sender);
+            log::info!("[DoorExplosiveDamage] {} Door {} took {:.1} explosive damage, health: {:.1}", door_name, door_id, damage, door.health);
+        }
+        
+        doors.id().update(door);
+    }
+}
+
 /// Check if a world position collides with any closed door
 /// Returns pushback vector if collision detected
 /// Uses circle-AABB collision detection (like walls)

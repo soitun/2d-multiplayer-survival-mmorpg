@@ -2041,6 +2041,77 @@ pub fn damage_wall(
     Ok(())
 }
 
+/// Applies explosive damage to a wall (bypasses melee damage reduction)
+/// Used by explosion system - explosives are effective against all tiers
+pub fn damage_wall_explosive(
+    ctx: &ReducerContext,
+    wall_id: u64,
+    damage: f32,
+) {
+    let walls = ctx.db.wall_cell();
+    
+    if let Some(mut wall) = walls.id().find(&wall_id) {
+        if wall.is_destroyed {
+            return;
+        }
+        
+        // Explosive damage bypasses melee reduction - full damage to all tiers
+        let old_health = wall.health;
+        wall.health = (wall.health - damage).max(0.0);
+        wall.last_hit_time = Some(ctx.timestamp);
+        
+        let world_x = (wall.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        let world_y = (wall.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        
+        if wall.health <= 0.0 {
+            wall.is_destroyed = true;
+            wall.destroyed_at = Some(ctx.timestamp);
+            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender);
+            log::info!("[WallExplosiveDamage] Wall {} destroyed by explosion", wall_id);
+        } else {
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender);
+            log::info!("[WallExplosiveDamage] Wall {} took {:.1} explosive damage, health: {:.1}", wall_id, damage, wall.health);
+        }
+        
+        walls.id().update(wall);
+    }
+}
+
+/// Applies explosive damage to a foundation (bypasses melee damage reduction)
+pub fn damage_foundation_explosive(
+    ctx: &ReducerContext,
+    foundation_id: u64,
+    damage: f32,
+) {
+    let foundations = ctx.db.foundation_cell();
+    
+    if let Some(mut foundation) = foundations.id().find(&foundation_id) {
+        if foundation.is_destroyed {
+            return;
+        }
+        
+        // Explosive damage bypasses melee reduction - full damage to all tiers
+        let old_health = foundation.health;
+        foundation.health = (foundation.health - damage).max(0.0);
+        foundation.last_hit_time = Some(ctx.timestamp);
+        
+        let world_x = (foundation.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        let world_y = (foundation.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        
+        if foundation.health <= 0.0 {
+            foundation.is_destroyed = true;
+            foundation.destroyed_at = Some(ctx.timestamp);
+            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender);
+            log::info!("[FoundationExplosiveDamage] Foundation {} destroyed by explosion", foundation_id);
+        } else {
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender);
+            log::info!("[FoundationExplosiveDamage] Foundation {} took {:.1} explosive damage, health: {:.1}", foundation_id, damage, foundation.health);
+        }
+        
+        foundations.id().update(foundation);
+    }
+}
+
 // --- Projectile and Melee Collision Detection ---
 
 /// Checks if a line segment intersects with a wall edge

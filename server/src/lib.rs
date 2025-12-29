@@ -146,6 +146,7 @@ mod broth_pot; // <<< ADDED: Broth pot cooking system
 mod recipes; // <<< ADDED: Recipe system for broth pot cooking
 mod barbecue; // <<< ADDED: Barbecue cooking appliance system
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
+mod explosive; // <<< ADDED: Explosive system for raiding
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
 mod matronage; // <<< ADDED: Matronage pooled rewards system
@@ -211,6 +212,9 @@ pub use building::place_foundation;
 
 // ADD: Re-export door reducers
 pub use door::{place_door, interact_door, pickup_door};
+
+// ADD: Re-export explosive reducers
+pub use explosive::{place_explosive, relight_dud_explosive};
 
 // ADD: Re-export homestead hearth reducers for client bindings
 pub use homestead_hearth::{
@@ -735,6 +739,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize fire patch cleanup system
     crate::fire_patch::init_fire_patch_system(ctx)?;
+    
+    // ADD: Initialize explosive system
+    crate::explosive::init_explosive_system(ctx)?;
     
     // ADD: Initialize backpack consolidation system
     crate::backpack::init_backpack_consolidation_schedule(ctx)?;

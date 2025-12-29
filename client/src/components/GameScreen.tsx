@@ -64,6 +64,7 @@ import {
     WaterPatch as SpacetimeDBWaterPatch,
     FertilizerPatch as SpacetimeDBFertilizerPatch,
     FirePatch as SpacetimeDBFirePatch,
+    PlacedExplosive as SpacetimeDBPlacedExplosive,
     ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
     Cloud as SpacetimeDBCloud,
     Grass as SpacetimeDBGrass,
@@ -179,6 +180,9 @@ interface GameScreenProps {
 
     // Fire patches
     firePatches: Map<string, SpacetimeDBFirePatch>;
+
+    // Placed explosives (raiding bombs)
+    placedExplosives: Map<string, SpacetimeDBPlacedExplosive>;
 
     // Hot springs
     hotSprings: Map<string, any>; // HotSpring from generated types
@@ -1007,6 +1011,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 waterPatches={waterPatches}
                 fertilizerPatches={fertilizerPatches}
                 firePatches={props.firePatches}
+                placedExplosives={props.placedExplosives}
                 setMusicPanelVisible={setIsMusicPanelVisible}
                 environmentalVolume={props.environmentalVolume}
                 movementDirection={movementDirection}

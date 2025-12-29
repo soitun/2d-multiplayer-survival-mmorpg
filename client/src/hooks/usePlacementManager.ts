@@ -275,7 +275,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station']; // ADDED: Furnace, Barbecue, Matron's Chest, Large Wooden Storage Box, Refrigerator, Repair Bench, Cooking Station
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
   
   // Seeds that don't require water or beach (most seeds) cannot be planted on water
   const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -720,6 +720,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // console.log(`[PlacementManager] Calling placeStash reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeStash(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will need a handleStashInsert callback to cancel placement on success
+          break;
+        case "Babushka's Surprise":
+        case "Matriarch's Wrath":
+          // Explosive placement - player places explosive which starts fuse countdown
+          console.log(`[PlacementManager] Calling placeExplosive reducer with instance ID: ${placementInfo.instanceId}`);
+          connection.reducers.placeExplosive(placementInfo.instanceId, worldX, worldY);
+          // Placement cancelled when PlacedExplosive entity is inserted
           break;
         case 'Shelter':
           // console.log(`[PlacementManager] Calling placeShelter reducer with instance ID: ${placementInfo.instanceId}`);

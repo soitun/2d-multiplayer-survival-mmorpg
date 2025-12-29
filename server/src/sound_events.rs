@@ -79,6 +79,11 @@ pub enum SoundType {
     SnorkelEmerge,           // snorkel_emerge.mp3 (1 variation - when player emerges from water)
     ErrorSeaweedAboveWater,  // error_seaweed_above_water.mp3 (1 variation - when trying to harvest seaweed while above water)
     Stun,                    // stun.mp3 (1 variation - when player is stunned by blunt weapon)
+    ExplosiveFuseBabushka,  // explosive_fuse_babushka.mp3 (looping ticking sound for Babushka's Surprise fuse)
+    ExplosiveFuseMatriarch, // explosive_fuse_matriarch.mp3 (looping ticking sound for Matriarch's Wrath fuse)
+    Explosion,               // explosion.mp3 (1 variation - loud explosion sound, audible from far away)
+    ExplosiveDud,            // explosive_dud.mp3 (1 variation - fizzle sound when explosive fails to detonate)
+    DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -159,6 +164,11 @@ impl SoundType {
             SoundType::SnorkelEmerge => "snorkel_emerge",
             SoundType::ErrorSeaweedAboveWater => "error_seaweed_above_water",
             SoundType::Stun => "stun",
+            SoundType::ExplosiveFuseBabushka => "explosive_fuse_babushka",
+            SoundType::ExplosiveFuseMatriarch => "explosive_fuse_matriarch",
+            SoundType::Explosion => "explosion",
+            SoundType::ExplosiveDud => "explosive_dud",
+            SoundType::DoorDestroyed => "door_destroyed",
         }
     }
 
@@ -237,6 +247,11 @@ impl SoundType {
             SoundType::SnorkelEmerge => 1, // snorkel_emerge.mp3 (single variation)
             SoundType::ErrorSeaweedAboveWater => 1, // error_seaweed_above_water.mp3 (single variation)
             SoundType::Stun => 1, // stun.mp3 (single variation)
+            SoundType::ExplosiveFuseBabushka => 1, // explosive_fuse_babushka.mp3 (looping sound)
+            SoundType::ExplosiveFuseMatriarch => 1, // explosive_fuse_matriarch.mp3 (looping sound)
+            SoundType::Explosion => 1, // explosion.mp3 (single variation)
+            SoundType::ExplosiveDud => 1, // explosive_dud.mp3 (single variation)
+            SoundType::DoorDestroyed => 1, // door_destroyed.mp3 (single variation)
         }
     }
 
@@ -1201,6 +1216,41 @@ pub fn emit_cairn_unlock_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, pla
 pub fn emit_stun_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::Stun, pos_x, pos_y, 1.0, 800.0, player_id) {
         log::warn!("Failed to emit stun sound: {}", e);
+    }
+}
+
+/// Emit Babushka's Surprise fuse sound (looping ticking sound)
+pub fn emit_explosive_fuse_babushka_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, placed_by: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::ExplosiveFuseBabushka, pos_x, pos_y, 1.0, 500.0, placed_by) {
+        log::warn!("Failed to emit Babushka fuse sound: {}", e);
+    }
+}
+
+/// Emit Matriarch's Wrath fuse sound (looping ticking sound)
+pub fn emit_explosive_fuse_matriarch_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, placed_by: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::ExplosiveFuseMatriarch, pos_x, pos_y, 1.0, 500.0, placed_by) {
+        log::warn!("Failed to emit Matriarch fuse sound: {}", e);
+    }
+}
+
+/// Emit explosion sound (loud, audible from far away)
+pub fn emit_explosion_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::Explosion, pos_x, pos_y, 2.0, 2000.0, player_id) {
+        log::warn!("Failed to emit explosion sound: {}", e);
+    }
+}
+
+/// Emit explosive dud sound (fizzle when explosive fails to detonate)
+pub fn emit_explosive_dud_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::ExplosiveDud, pos_x, pos_y, 1.0, 200.0, player_id) {
+        log::warn!("Failed to emit explosive dud sound: {}", e);
+    }
+}
+
+/// Emit door destroyed sound (when door is destroyed)
+pub fn emit_door_destroyed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoorDestroyed, pos_x, pos_y, 1.0, 400.0, player_id) {
+        log::warn!("Failed to emit door destroyed sound: {}", e);
     }
 }
 

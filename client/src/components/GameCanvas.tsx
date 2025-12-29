@@ -26,6 +26,7 @@ import {
   WaterPatch as SpacetimeDBWaterPatch,
   FertilizerPatch as SpacetimeDBFertilizerPatch,
   FirePatch as SpacetimeDBFirePatch,
+  PlacedExplosive as SpacetimeDBPlacedExplosive,
   Cloud as SpacetimeDBCloud,
   ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
   Grass as SpacetimeDBGrass,
@@ -134,6 +135,7 @@ import { renderBarrelUnderwaterSilhouette } from '../utils/renderers/barrelRende
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
+import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
@@ -191,6 +193,7 @@ interface GameCanvasProps {
   waterPatches: Map<string, SpacetimeDBWaterPatch>;
   fertilizerPatches: Map<string, SpacetimeDBFertilizerPatch>;
   firePatches: Map<string, SpacetimeDBFirePatch>;
+  placedExplosives: Map<string, SpacetimeDBPlacedExplosive>;
   playerPins: Map<string, SpacetimeDBPlayerPin>;
   inventoryItems: Map<string, SpacetimeDBInventoryItem>;
   itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -335,6 +338,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   waterPatches,
   fertilizerPatches,
   firePatches,
+  placedExplosives,
   playerPins,
   inventoryItems,
   itemDefinitions,
@@ -2263,6 +2267,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       now_ms
     );
     // --- End Fire Patches ---
+
+    // --- Render Placed Explosives ---
+    // Placed explosives show as items on the ground with a pulsing fuse animation
+    renderPlacedExplosives(
+      ctx,
+      placedExplosives,
+      -currentCameraOffsetX, // Camera world X position
+      -currentCameraOffsetY, // Camera world Y position
+      currentCanvasWidth,
+      currentCanvasHeight,
+      now_ms
+    );
+    // --- End Placed Explosives ---
 
     // --- Render Sea Stacks (SERVER-AUTHORITATIVE SYSTEM) ---
     // DISABLED: Sea stacks are now rendered through the Y-sorted entities system for proper depth layering

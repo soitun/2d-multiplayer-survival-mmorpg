@@ -347,7 +347,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station']; // ADDED: Furnace, Barbecue, Repair Bench, Cooking Station
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -1404,6 +1404,10 @@ export function renderPlacementPreview({
         // Seeds should match the actual planted seed size (48x48)
         drawWidth = 48;  
         drawHeight = 48;
+    } else if (placementInfo.iconAssetName === 'babushka_surprise.png' || placementInfo.iconAssetName === 'matriarch_wrath.png') {
+        // Explosives preview - medium size for visibility
+        drawWidth = 64;
+        drawHeight = 64;
     }
 
     ctx.save();

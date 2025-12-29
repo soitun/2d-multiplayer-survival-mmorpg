@@ -443,6 +443,10 @@ import foxPeltIcon from '../assets/items/fox_pelt.png';
 import woodDoorIcon from '../assets/items/wood_door.png';
 import metalDoorIcon from '../assets/items/metal_door.png';
 
+// Explosives
+import babushkaSurpriseIcon from '../assets/items/babushka_surprise.png';
+import matriarchWrathIcon from '../assets/items/matriarch_wrath.png';
+
 // Misc/Special
 import deathMarkerIcon from '../assets/items/death_marker.png';
 
@@ -860,6 +864,10 @@ const iconMap: { [key: string]: string | undefined } = {
   // Building components
   'wood_door.png': woodDoorIcon,
   'metal_door.png': metalDoorIcon,
+  
+  // Explosives
+  'babushka_surprise.png': babushkaSurpriseIcon,
+  'matriarch_wrath.png': matriarchWrathIcon,
   
   // Misc/Special
   'death_marker.png': deathMarkerIcon,

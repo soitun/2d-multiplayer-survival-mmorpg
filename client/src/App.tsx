@@ -280,6 +280,7 @@ function AppContent() {
       waterPatches, // <<< ADD waterPatches destructuring
       fertilizerPatches, // <<< ADD fertilizerPatches destructuring
       firePatches, // <<< ADD firePatches destructuring
+      placedExplosives, // <<< ADD placedExplosives destructuring
       hotSprings, // <<< ADD hotSprings destructuring
       activeConsumableEffects, // <<< ADD activeConsumableEffects destructuring
       grass, // <<< ADD grass destructuring
@@ -1357,6 +1358,7 @@ function AppContent() {
                             waterPatches={waterPatches}
                             fertilizerPatches={fertilizerPatches}
                             firePatches={firePatches}
+                            placedExplosives={placedExplosives}
                             hotSprings={hotSprings}
                             isMusicPanelVisible={isMusicPanelVisible}
                             setIsMusicPanelVisible={setIsMusicPanelVisible}

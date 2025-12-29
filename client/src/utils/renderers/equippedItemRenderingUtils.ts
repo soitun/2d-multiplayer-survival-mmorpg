@@ -147,12 +147,6 @@ export const renderEquippedItem = (
   let rotation = 0;
   let isSwinging = false;
   let isSpearThrusting = false;
-  
-  // --- THROW AIM VISUAL ANGLE ---
-  // When player is aiming to throw, tilt the weapon UPWARD (wind-up) regardless of facing direction
-  const isAimingThrow = player.isAimingThrow ?? false;
-  // Calculate throw aim angle: tilt weapon ~45 degrees upward for clear visual feedback
-  const THROW_AIM_ANGLE = Math.PI / 4; // 45 degrees (more noticeable wind-up)
 
   // --- Define spear-specific orientation variables ---
   let spearRotation = 0; // This will be the primary rotation for the spear
@@ -429,20 +423,6 @@ export const renderEquippedItem = (
             rotation = currentAngle; 
           }
       }
-  }
-  
-  // --- THROW AIM ANGLE: Apply visual angle when aiming to throw (not swinging) ---
-  // Always tilt weapon UPWARD (backward) regardless of facing direction for natural wind-up
-  if (isAimingThrow && !isSwinging) {
-      // Tilt weapon UPWARD (backward) for all directions - natural throwing wind-up motion
-      // This shows the player "cocking back" the weapon upward before throwing
-      rotation -= THROW_AIM_ANGLE; // Always tilt upward/backward
-      
-      // For spears, apply the same upward tilt for wind-up
-      if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
-          spearRotation -= THROW_AIM_ANGLE; // Always tilt spear upward/backward
-      }
-      currentAngle = rotation; // Ensure currentAngle reflects throw aim
   }
   
   // --- Resolve the correct image to render ---

@@ -8,6 +8,7 @@ import {
 import { Identity } from 'spacetimedb';
 import { getChunkIndicesForViewport, getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
+import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
 
 
 // ===================================================================================================
@@ -116,6 +117,7 @@ export interface SpacetimeTableStates {
     waterPatches: Map<string, SpacetimeDB.WaterPatch>;
     fertilizerPatches: Map<string, SpacetimeDB.FertilizerPatch>;
     firePatches: Map<string, SpacetimeDB.FirePatch>;
+    placedExplosives: Map<string, SpacetimeDB.PlacedExplosive>; // ADDED: Placed explosive entities (bombs)
     hotSprings: Map<string, any>; // HotSpring - placeholder (hot springs are tile-based, not entities)
     recipes: Map<string, SpacetimeDB.Recipe>;
     craftingQueueItems: Map<string, SpacetimeDB.CraftingQueueItem>;
@@ -233,6 +235,7 @@ export const useSpacetimeTables = ({
     const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
     const [fertilizerPatches, setFertilizerPatches] = useState<Map<string, SpacetimeDB.FertilizerPatch>>(() => new Map());
     const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
+    const [placedExplosives, setPlacedExplosives] = useState<Map<string, SpacetimeDB.PlacedExplosive>>(() => new Map()); // ADDED: Placed explosives
     const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
@@ -411,6 +414,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
@@ -461,6 +465,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FertilizerPatch', `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FirePatch', `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('PlacedExplosive', `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
@@ -1521,6 +1526,29 @@ export const useSpacetimeTables = ({
                 setFirePatches(prev => { const newMap = new Map(prev); newMap.delete(firePatch.id.toString()); return newMap; });
             };
 
+            // Placed Explosive handlers
+            const handlePlacedExplosiveInsert = (ctx: any, explosive: SpacetimeDB.PlacedExplosive) => {
+                setPlacedExplosives(prev => new Map(prev).set(explosive.id.toString(), explosive));
+                // Cancel placement if this explosive was placed by the local player
+                if (connection.identity && explosive.placedBy.isEqual(connection.identity)) {
+                    cancelPlacementRef.current();
+                }
+            };
+            const handlePlacedExplosiveUpdate = (ctx: any, oldExplosive: SpacetimeDB.PlacedExplosive, newExplosive: SpacetimeDB.PlacedExplosive) => {
+                setPlacedExplosives(prev => new Map(prev).set(newExplosive.id.toString(), newExplosive));
+            };
+            const handlePlacedExplosiveDelete = (ctx: any, explosive: SpacetimeDB.PlacedExplosive) => {
+                setPlacedExplosives(prev => { const newMap = new Map(prev); newMap.delete(explosive.id.toString()); return newMap; });
+                
+                // Trigger explosion visual effect when explosive is deleted (detonated)
+                // Don't trigger for duds (they stay in the world with isDud = true)
+                if (!explosive.isDud) {
+                    const tier = explosive.explosiveType.tag === 'BabushkaSurprise' ? 'babushka' : 'matriarch';
+                    triggerExplosionEffect(explosive.posX, explosive.posY, explosive.blastRadius, tier);
+                    console.log(`[EXPLOSION] ${tier} explosive detonated at (${explosive.posX.toFixed(1)}, ${explosive.posY.toFixed(1)})`);
+                }
+            };
+
             // Wild Animal handlers - NOW USES SPATIAL SUBSCRIPTIONS (not global)
             // Performance fix: only receive updates for animals in nearby chunks (~5-15)
             // instead of all ~100 animals on the entire map
@@ -2040,6 +2068,11 @@ export const useSpacetimeTables = ({
             } else {
                 console.log('[FIRE_PATCH] No existing fire patches found in cache');
             }
+
+            // Register PlacedExplosive callbacks - ADDED for raiding explosives
+            connection.db.placedExplosive.onInsert(handlePlacedExplosiveInsert);
+            connection.db.placedExplosive.onUpdate(handlePlacedExplosiveUpdate);
+            connection.db.placedExplosive.onDelete(handlePlacedExplosiveDelete);
 
             // Register WildAnimal callbacks - ADDED
             connection.db.wildAnimal.onInsert(handleWildAnimalInsert);
@@ -2580,6 +2613,7 @@ export const useSpacetimeTables = ({
                 setRainCollectors(new Map());
                 setWaterPatches(new Map());
                 setFirePatches(new Map());
+                setPlacedExplosives(new Map());
                 setHotSprings(new Map());
                 setActiveConsumableEffects(new Map());
                 setClouds(new Map());
@@ -2691,6 +2725,7 @@ export const useSpacetimeTables = ({
         waterPatches,
         fertilizerPatches,
         firePatches,
+        placedExplosives, // ADDED: Placed explosive entities
         hotSprings,
         activeConsumableEffects,
         clouds,

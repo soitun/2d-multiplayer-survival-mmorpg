@@ -265,6 +265,65 @@ export const drawNameTag = (
   ctx.fillText(usernameText, spriteX, tagY + tagHeight / 2 + 4); // Use modified text
 };
 
+// --- THROW INDICATOR BUBBLE ---
+// Draws a chat bubble with 🤾 emoji above player when aiming to throw
+export const drawThrowIndicatorBubble = (
+  ctx: CanvasRenderingContext2D,
+  player: SpacetimeDBPlayer,
+  spriteTopY: number,
+  spriteX: number,
+  nowMs: number
+) => {
+  // Only show if player is aiming to throw
+  if (!player.isAimingThrow) return;
+  
+  // Bubble position above player's head (higher than name tag)
+  const bubbleX = spriteX;
+  const bubbleY = spriteTopY - 32; // Position well above head
+  
+  // Gentle bobbing animation
+  const bobOffset = Math.sin(nowMs * 0.008) * 2;
+  const finalY = bubbleY + bobOffset;
+  
+  ctx.save();
+  
+  // Draw chat bubble background
+  const bubbleRadius = 18;
+  
+  // Main bubble with gradient
+  const gradient = ctx.createRadialGradient(bubbleX, finalY, 0, bubbleX, finalY, bubbleRadius);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+  gradient.addColorStop(1, 'rgba(240, 240, 255, 0.9)');
+  
+  ctx.fillStyle = gradient;
+  ctx.strokeStyle = 'rgba(100, 100, 150, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(bubbleX, finalY, bubbleRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Chat bubble tail (speech bubble style - triangular pointer)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.strokeStyle = 'rgba(100, 100, 150, 0.7)';
+  ctx.beginPath();
+  ctx.moveTo(bubbleX - 5, finalY + bubbleRadius - 2);
+  ctx.lineTo(bubbleX, finalY + bubbleRadius + 10);
+  ctx.lineTo(bubbleX + 5, finalY + bubbleRadius - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  
+  // Draw the 🤾 emoji (person cartwheeling - represents throwing motion)
+  ctx.font = '20px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🤾', bubbleX, finalY);
+  
+  ctx.restore();
+};
+// --- END THROW INDICATOR BUBBLE ---
+
 // Renders a complete player (sprite, shadow, and conditional name tag)
 export const renderPlayer = (
   ctx: CanvasRenderingContext2D,
@@ -1100,5 +1159,8 @@ export const renderPlayer = (
     const showingDueToPersistentState = shouldShowLabel;
     const willShowLabel = showingDueToCurrentHover || showingDueToPersistentState;
     drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel);
+    
+    // Show throw indicator bubble when player is aiming to throw (both local and remote players)
+    drawThrowIndicatorBubble(ctx, player, spriteDrawY, currentDisplayX + shakeX, nowMs);
   }
 };
