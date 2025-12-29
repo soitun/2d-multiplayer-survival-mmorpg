@@ -29,13 +29,6 @@ import tallGrassAlpineBTextureUrl from '../../assets/doodads/tall_grass_alpine_b
 // Beach grass assets
 import tallGrassBeachATextureUrl from '../../assets/doodads/tall_grass_beach_a.png';
 
-// Water foliage assets
-import reedBedsATextureUrl from '../../assets/doodads/reed_beds_a.png';
-import bulrushesTextureUrl from '../../assets/doodads/bulrushes.png';
-import lilyPadsTextureUrl from '../../assets/doodads/lily_pads.png';
-import seaweedForestTextureUrl from '../../assets/doodads/seaweed_forest.png';
-import algaeMatsTextureUrl from '../../assets/doodads/algae_mats.png';
-
 // =============================================================================
 // GRASS RENDERING CONSTANTS
 // =============================================================================
@@ -131,16 +124,10 @@ const SWAYING_GRASS_TYPES = new Set<string>([
     'TallGrassAlpineA', // Will be available after bindings regeneration
     'TallGrassAlpineB', // Will be available after bindings regeneration
     'BeachGrassA', // Beach dune grass - sways in coastal wind
-    GrassAppearanceType.ReedBedsA.tag,
-    GrassAppearanceType.Bulrushes.tag,
-    GrassAppearanceType.SeaweedForest.tag,
-    // LilyPads and AlgaeMats do NOT sway (surface floaters)
 ]);
 
 // Grass types that should NOT have static rotation
 const NO_ROTATION_TYPES = new Set<string>([
-    GrassAppearanceType.LilyPads.tag,
-    GrassAppearanceType.AlgaeMats.tag,
 ]);
 
 // Fast helper functions
@@ -222,12 +209,6 @@ const grassAssetPaths: Record<string, string> = {
     'TallGrassAlpineB': tallGrassAlpineBTextureUrl,
     // Beach grass variants
     'BeachGrassA': tallGrassBeachATextureUrl,
-    // Water foliage
-    [GrassAppearanceType.ReedBedsA.tag]: reedBedsATextureUrl,
-    [GrassAppearanceType.Bulrushes.tag]: bulrushesTextureUrl,
-    [GrassAppearanceType.LilyPads.tag]: lilyPadsTextureUrl,
-    [GrassAppearanceType.SeaweedForest.tag]: seaweedForestTextureUrl,
-    [GrassAppearanceType.AlgaeMats.tag]: algaeMatsTextureUrl,
 };
 
 const grassTargetWidths: Record<string, number> = {
@@ -260,13 +241,6 @@ const grassTargetWidths: Record<string, number> = {
 
     // Beach grass variants
     'BeachGrassA': 128,
-
-    // Water foliage - distinctive but balanced
-    [GrassAppearanceType.ReedBedsA.tag]: 128, // Tall swaying reeds - medium-tall
-    [GrassAppearanceType.Bulrushes.tag]: 128,  // Classic cattails - medium size
-    [GrassAppearanceType.LilyPads.tag]: 128,    // Floating surface plants - medium
-    [GrassAppearanceType.SeaweedForest.tag]: 128, // Underwater kelp - medium
-    [GrassAppearanceType.AlgaeMats.tag]: 128,   // Surface algae patches - smaller, subtle
 };
 const DEFAULT_GRASS_WIDTH = 72; // Default for any unmapped types
 

@@ -881,15 +881,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         }
     }, [connection, container.containerId, container.containerEntity]);
 
-    // Don't render anything if no container
-    if (!container.containerType || !container.containerEntity) {
-        return null;
-    }
-
-    const config = getContainerConfig(container.containerType, container.containerEntity);
-
     // Check if heat source (campfire or fumarole) has attached broth pot
+    // IMPORTANT: This hook must be before any early returns to follow React rules of hooks
     const attachedBrothPot = useMemo(() => {
+        if (!container.containerType || !container.containerEntity) return null;
         if (container.containerType === 'campfire') {
             const campfire = container.containerEntity as SpacetimeDBCampfire;
             if (!campfire.attachedBrothPotId) return null;
@@ -898,28 +893,21 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             // For fumaroles, find the broth pot by checking attachedToFumaroleId
             const fumarole = container.containerEntity as any; // Fumarole type
             if (!fumarole || !fumarole.id) {
-                console.log('[Fumarole BrothPot] No fumarole or fumarole.id');
                 return null;
             }
-            
-            console.log('[Fumarole BrothPot] Looking for broth pot attached to fumarole ID:', fumarole.id, 'Type:', typeof fumarole.id);
-            console.log('[Fumarole BrothPot] Total broth pots:', brothPots.size);
             
             // Find broth pot attached to this fumarole
             for (const pot of brothPots.values()) {
                 const potData = pot as any;
-                console.log('[Fumarole BrothPot] Checking pot:', potData.id, 'attachedToFumaroleId:', potData.attachedToFumaroleId, 'Type:', typeof potData.attachedToFumaroleId, 'isDestroyed:', potData.isDestroyed);
                 
                 // Compare as strings to handle bigint vs number mismatch
                 const potFumaroleId = potData.attachedToFumaroleId ? potData.attachedToFumaroleId.toString() : null;
                 const currentFumaroleId = fumarole.id.toString();
                 
                 if (potFumaroleId === currentFumaroleId && !potData.isDestroyed) {
-                    console.log('[Fumarole BrothPot] Found attached broth pot:', potData.id);
                     return pot;
                 }
             }
-            console.log('[Fumarole BrothPot] No attached broth pot found');
         }
         return null;
     }, [container.containerType, container.containerEntity, brothPots]);
@@ -1161,6 +1149,14 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             console.error(`[WaterContainer QuickMove]`, e);
         }
     }, [attachedBrothPot, connection, lastDragCompleteTime]);
+
+    // Don't render anything if no container
+    // IMPORTANT: This early return must be AFTER all hooks to follow React rules of hooks
+    if (!container.containerType || !container.containerEntity) {
+        return null;
+    }
+
+    const config = getContainerConfig(container.containerType, container.containerEntity);
 
     return (
         <div className={styles.externalInventorySection}>
