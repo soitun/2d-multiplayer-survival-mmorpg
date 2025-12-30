@@ -602,8 +602,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                 }
             `}</style>
 
-            {/* Sticky Navigation Bar */}
-            {showStickyNav && (
+            {/* Sticky Navigation Bar - Always visible on mobile, scroll-triggered on desktop */}
+            {(isMobile || showStickyNav) && (
                 <div style={{
                     position: 'fixed',
                     top: 0,
@@ -642,36 +642,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                             alignItems: 'center',
                             gap: '12px',
                         }}>
-                            {/* Play Now Button */}
-                            <button
-                                onClick={scrollToTop}
-                                style={{
-                                    backgroundColor: '#ff8c00',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '8px 16px',
-                                    fontSize: '13px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px',
-                                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
-                                    transition: 'all 0.2s ease',
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#ff9d1a';
-                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#ff8c00';
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
-                                }}
-                            >
-                                PLAY
-                            </button>
+                            {/* Play Now Button - Only show after scrolling past the fold */}
+                            {showStickyNav && (
+                                <button
+                                    onClick={scrollToTop}
+                                    style={{
+                                        backgroundColor: '#ff8c00',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        padding: '8px 16px',
+                                        fontSize: '13px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                        boxShadow: '0 4px 12px rgba(255, 140, 0, 0.3)',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#ff9d1a';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 140, 0, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#ff8c00';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 140, 0, 0.3)';
+                                    }}
+                                >
+                                    PLAY
+                                </button>
+                            )}
                             <MobileNavMenu 
                                 navItems={[
                                     { label: 'ABOUT', selector: '[data-about-section]' },
@@ -766,10 +768,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             width: '100%', // Match the background image width exactly
             margin: 0,
             padding: 0,
-            backgroundColor: backgroundLoaded ? 'transparent' : '#1a1a2e', // Fallback color while loading
+            backgroundColor: '#000000', // Pure black background to match gradient
             backgroundImage: backgroundLoaded ? `url(${loginBackground})` : 'none',
             backgroundSize: '100% auto', // Show full width, scale height proportionally
-            backgroundPosition: 'center top',
+            backgroundPosition: isMobile ? 'center 70px' : 'center top', // Mobile: push down by nav bar height
             backgroundRepeat: 'no-repeat',
             backgroundAttachment: 'scroll',
             fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
@@ -787,7 +789,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                 left: 0,
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 4%, rgba(0,0,0,0.08) 8%, rgba(0,0,0,0.2) 12%, rgba(0,0,0,0.4) 16%, rgba(0,0,0,0.65) 20%, rgba(0,0,0,0.85) 23%, rgba(0,0,0,0.96) 25%, rgba(0,0,0,1) 27%, rgba(0,0,0,1) 100%)',
+                background: isMobile 
+                    ? 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.03) 20%, rgba(0,0,0,0.08) 25%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.25) 35%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0.92) 55%, rgba(0,0,0,1) 60%, rgba(0,0,0,1) 100%)'
+                    : 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 4%, rgba(0,0,0,0.08) 8%, rgba(0,0,0,0.2) 12%, rgba(0,0,0,0.4) 16%, rgba(0,0,0,0.65) 20%, rgba(0,0,0,0.85) 23%, rgba(0,0,0,0.96) 25%, rgba(0,0,0,1) 27%, rgba(0,0,0,1) 100%)',
                 pointerEvents: 'none', // Allow clicks to pass through
                 zIndex: 1,
             }} />
@@ -797,55 +801,60 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                 justifyContent: 'flex-start',
                 alignItems: 'center',
                 minHeight: '100vh',
-                paddingTop: 'calc(30vh - 10vw)', // Mobile (~375px): ~26vh. Desktop (~1200px): ~18vh
+                paddingTop: isMobile ? '90px' : 'calc(30vh - 10vw)', // Mobile: account for fixed nav bar (70px + 20px padding). Desktop: ~18vh
                 paddingBottom: '0px',
                 textAlign: 'center',
                 position: 'relative',
                 zIndex: 2, // Ensure content appears above the gradient overlay
             }}>
-                {/* Logo */}
-                {!logoLoaded && (
-                    <div style={{
-                        width: 'min(600px, 70vw)',
-                        height: '200px', // Approximate logo height
-                        marginBottom: 'clamp(20px, 4vh, 60px)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        animation: 'pulse 1.5s ease-in-out infinite alternate',
-                    }}>
-                        <div style={{
-                            fontSize: '24px',
-                            color: 'rgba(255, 255, 255, 0.5)',
-                            textAlign: 'center',
-                            fontWeight: 'bold',
-                        }}>
-                            BROTH & BULLETS
-                        </div>
-                    </div>
+                {/* Logo - Hidden on mobile since nav bar has logo */}
+                {!isMobile && (
+                    <>
+                        {!logoLoaded && (
+                            <div style={{
+                                width: 'min(600px, 70vw)',
+                                height: '200px', // Approximate logo height
+                                marginBottom: 'clamp(20px, 4vh, 60px)',
+                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                animation: 'pulse 1.5s ease-in-out infinite alternate',
+                            }}>
+                                <div style={{
+                                    fontSize: '24px',
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                }}>
+                                    BROTH & BULLETS
+                                </div>
+                            </div>
+                        )}
+                        <img
+                            src={logo}
+                            alt="Broth & Bullets Logo"
+                            loading="eager"
+                            fetchPriority="high"
+                            decoding="sync"
+                            style={{
+                                width: 'min(600px, 70vw)', // Responsive: 600px on desktop, 70% of viewport width on mobile (smaller)
+                                maxWidth: '600px',
+                                height: 'auto',
+                                marginBottom: 'clamp(20px, 4vh, 60px)', // Responsive margin, smaller on mobile
+                                display: logoLoaded ? 'block' : 'none',
+                                filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.8)) drop-shadow(0 0 40px rgba(255,255,255,0.2))',
+                                opacity: logoLoaded ? 1 : 0,
+                                transition: 'opacity 0.3s ease-in-out',
+                            }}
+                        />
+                    </>
                 )}
-                <img
-                    src={logo}
-                    alt="Broth & Bullets Logo"
-                    loading="eager"
-                    fetchPriority="high"
-                    decoding="sync"
-                    style={{
-                        width: 'min(600px, 70vw)', // Responsive: 600px on desktop, 70% of viewport width on mobile (smaller)
-                        maxWidth: '600px',
-                        height: 'auto',
-                        marginBottom: 'clamp(20px, 4vh, 60px)', // Responsive margin, smaller on mobile
-                        display: logoLoaded ? 'block' : 'none',
-                        filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.8)) drop-shadow(0 0 40px rgba(255,255,255,0.2))',
-                        opacity: logoLoaded ? 1 : 0,
-                        transition: 'opacity 0.3s ease-in-out',
-                    }}
-                />
 
                 <div style={{
                     textAlign: 'center',
+                    marginTop: isMobile ? '30vh' : '0', // Push content lower on mobile
                 }}>
 
                     {/* Display based on authentication and player existence */}
@@ -1121,18 +1130,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            const contentSection = document.querySelector('[data-content-section]');
-                                            if (contentSection) {
-                                                contentSection.scrollIntoView({
-                                                    behavior: 'smooth',
-                                                    block: 'start'
-                                                });
-                                            } else {
-                                                window.scrollTo({
-                                                    top: window.innerHeight * 0.9,
-                                                    behavior: 'smooth'
-                                                });
-                                            }
+                                            smoothScrollTo('[data-about-section]');
                                         }}
                                         style={{
                                             background: 'linear-gradient(90deg, #ffe0b2, #ffd180 40%, #ff8c00 90%, #cc6400)',
