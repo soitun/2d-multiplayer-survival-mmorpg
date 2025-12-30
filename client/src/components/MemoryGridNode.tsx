@@ -16,6 +16,9 @@ import factionDataAngels from '../assets/ui/faction_data_angels.png';
 import factionBattalion from '../assets/ui/faction_battalion.png';
 import factionAdmiralty from '../assets/ui/faction_admiralty.png';
 
+// Import center node icon (Neuroveil™ Ocular Interface)
+import ocularImplant from '../assets/items/ocular_implant.png';
+
 // Special mappings for items where icon filename doesn't match item name exactly
 const ITEM_ICON_MAPPINGS: Record<string, string> = {
   'Bush Knife': 'machete.png', // Uses machete icon
@@ -142,12 +145,16 @@ const MemoryGridNodeComponent: React.FC<MemoryGridNodeProps> = ({
 
   // Get item icon if this node unlocks items
   const itemIcon = useMemo(() => {
+    // Special case: Center node uses the ocular implant icon
+    if (node.id === 'center') {
+      return ocularImplant;
+    }
     if (node.unlocksItems && node.unlocksItems.length > 0) {
       // Use the first item's icon
       return getItemIconFromName(node.unlocksItems[0]);
     }
     return null;
-  }, [node.unlocksItems]);
+  }, [node.id, node.unlocksItems]);
 
   const isInteractable = node.status === 'available' || node.status === 'purchased';
   const isPurchaseable = node.status === 'available' && playerShards >= node.cost;
