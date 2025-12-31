@@ -1,4 +1,4 @@
-![Broth & Bullets - Alpha Launch](https://www.brothandbullets.com/images/blog/alpha-launch-cover.jpg)
+![Broth & Bullets - Alpha Launch](https://www.brothandbullets.com/images/blog/systems.png)
 
 # Vibe Coding Starter Pack: 2D Multiplayer Survival 
 
