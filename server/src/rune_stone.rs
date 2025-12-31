@@ -49,32 +49,37 @@ pub(crate) const RUNE_STONE_EFFECT_RADIUS_SQUARED: f32 = RUNE_STONE_EFFECT_RADIU
 pub(crate) const GREEN_RUNE_GROWTH_BOOST_MULTIPLIER: f32 = 1.5; // 1.5x growth rate for ALL plants
 pub(crate) const GREEN_RUNE_MAX_EFFECT_DISTANCE: f32 = RUNE_STONE_EFFECT_RADIUS;
 
-// Red (Production) Effect Constants - ALL crafting is faster + MASSIVE item spawning
+// Red (Production) Effect Constants - ALL crafting is faster + controlled item spawning
 pub(crate) const RED_RUNE_CRAFTING_TIME_REDUCTION: f32 = 0.667; // 1.5x crafting speed (0.667x time = 1.5x speed)
-pub(crate) const RED_RUNE_ITEMS_PER_NIGHT: u32 = 60; // Max items per night (7.5x increase!)
-pub(crate) const RED_RUNE_ITEM_SPAWN_INTERVAL_SECS: u64 = 50; // Check every 50 seconds (was 180)
-pub(crate) const RED_RUNE_MIN_ITEMS_PER_BURST: u32 = 1; // Minimum items per spawn burst
-pub(crate) const RED_RUNE_MAX_ITEMS_PER_BURST: u32 = 3; // Maximum items per spawn burst (randomized)
+pub(crate) const RED_RUNE_ITEMS_PER_NIGHT_MIN: u32 = 2; // Normal night: 2-3 items
+pub(crate) const RED_RUNE_ITEMS_PER_NIGHT_MAX: u32 = 3;
+pub(crate) const RED_RUNE_ITEMS_PER_NIGHT_FULL_MOON_MIN: u32 = 5; // Full moon: 5-6 items
+pub(crate) const RED_RUNE_ITEMS_PER_NIGHT_FULL_MOON_MAX: u32 = 6;
+pub(crate) const RED_RUNE_ITEM_SPAWN_INTERVAL_SECS: u64 = 60; // Check every 60 seconds
 pub(crate) const RED_RUNE_ITEM_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS;
 pub(crate) const RED_RUNE_ITEM_MIN_DISTANCE: f32 = 150.0;
+pub(crate) const RED_RUNE_ITEM_CHECK_RADIUS: f32 = 500.0; // Radius to check for existing items
 
-// Green (Agrarian) Effect Constants - Moderate seed spawning
-pub(crate) const GREEN_RUNE_SEEDS_PER_NIGHT: u32 = 12; // Max seeds per night (reasonable amount)
-pub(crate) const GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS: u64 = 120; // Check every 2 minutes
-pub(crate) const GREEN_RUNE_MIN_SEEDS_PER_BURST: u32 = 1; // Minimum seeds per spawn burst
-pub(crate) const GREEN_RUNE_MAX_SEEDS_PER_BURST: u32 = 2; // Maximum seeds per spawn burst (randomized)
+// Green (Agrarian) Effect Constants - Controlled seed spawning
+pub(crate) const GREEN_RUNE_SEEDS_PER_NIGHT_MIN: u32 = 2; // Normal night: 2-3 seeds
+pub(crate) const GREEN_RUNE_SEEDS_PER_NIGHT_MAX: u32 = 3;
+pub(crate) const GREEN_RUNE_SEEDS_PER_NIGHT_FULL_MOON_MIN: u32 = 5; // Full moon: 5-6 seeds
+pub(crate) const GREEN_RUNE_SEEDS_PER_NIGHT_FULL_MOON_MAX: u32 = 6;
+pub(crate) const GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS: u64 = 60; // Check every 60 seconds
 pub(crate) const GREEN_RUNE_SEED_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS;
 pub(crate) const GREEN_RUNE_SEED_MIN_DISTANCE: f32 = 150.0;
+pub(crate) const GREEN_RUNE_SEED_CHECK_RADIUS: f32 = 500.0; // Radius to check for existing seeds
 
-// Blue (Memory Shard) Effect Constants - BOOSTED for fast early progression
-// Night lasts 5 minutes (300 seconds), shards spawn every 30 seconds = ~10 spawns per night
-// With 25 shards max and 1-2 per spawn, expect ~15-20 shards/night/rune
-pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT: u32 = 25; // Max shards per night (doubled for early game rush)
-pub(crate) const BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS: u64 = 30; // Spawn every 30 seconds during night (4x faster!)
-pub(crate) const BLUE_RUNE_MIN_SHARDS_PER_BURST: u32 = 1; // Minimum shards per spawn
-pub(crate) const BLUE_RUNE_MAX_SHARDS_PER_BURST: u32 = 2; // Maximum shards per spawn (1-2 random)
-pub(crate) const BLUE_RUNE_SHARD_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS; // Spawn within full effect radius
-pub(crate) const BLUE_RUNE_SHARD_MIN_DISTANCE: f32 = 150.0; // Minimum distance from rune stone (spawn away from center)
+// Blue (Memory Shard) Effect Constants - Controlled shard spawning
+// Only spawn if previous night's shards have been picked up
+pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT_MIN: u32 = 2; // Normal night: 2-3 shards
+pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT_MAX: u32 = 3;
+pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT_FULL_MOON_MIN: u32 = 5; // Full moon: 5-6 shards
+pub(crate) const BLUE_RUNE_SHARDS_PER_NIGHT_FULL_MOON_MAX: u32 = 6;
+pub(crate) const BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS: u64 = 60; // Check every 60 seconds
+pub(crate) const BLUE_RUNE_SHARD_SPAWN_RADIUS: f32 = RUNE_STONE_EFFECT_RADIUS;
+pub(crate) const BLUE_RUNE_SHARD_MIN_DISTANCE: f32 = 150.0;
+pub(crate) const BLUE_RUNE_SHARD_CHECK_RADIUS: f32 = 500.0; // Radius to check for existing shards
 
 // Night Lighting Constants
 pub(crate) const RUNE_STONE_LIGHT_RADIUS: f32 = 400.0; // Light radius for night glow
@@ -182,6 +187,38 @@ pub fn generate_random_seed_loot_table(rng: &mut impl rand::Rng) -> Vec<String> 
         .take(num_seeds)
         .map(|s| s.to_string())
         .collect()
+}
+
+/// Count dropped items near a rune stone within a given radius
+/// Used to check if previous night's spawns haven't been picked up
+fn count_dropped_items_near_rune(
+    ctx: &spacetimedb::ReducerContext,
+    rune_x: f32,
+    rune_y: f32,
+    check_radius: f32,
+    item_def_id_filter: Option<u64>, // Optional filter for specific item type
+) -> u32 {
+    let check_radius_sq = check_radius * check_radius;
+    let mut count = 0u32;
+    
+    for dropped_item in ctx.db.dropped_item().iter() {
+        // If filter is specified, only count matching items
+        if let Some(filter_id) = item_def_id_filter {
+            if dropped_item.item_def_id != filter_id {
+                continue;
+            }
+        }
+        
+        let dx = dropped_item.pos_x - rune_x;
+        let dy = dropped_item.pos_y - rune_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= check_radius_sq {
+            count += 1;
+        }
+    }
+    
+    count
 }
 
 /// Filter a seed loot table to only include seeds that can grow in the current season
@@ -339,6 +376,7 @@ pub fn spawn_memory_shards_at_night(
     })?;
     
     let time_of_day = &world_state.time_of_day;
+    let is_full_moon = world_state.is_full_moon;
     
     // Only spawn during night periods (twilight evening to twilight morning)
     let is_night_period = matches!(
@@ -380,6 +418,13 @@ pub fn spawn_memory_shards_at_night(
     let mut rng = ctx.rng();
     let current_time = ctx.timestamp;
     
+    // Determine spawn count based on full moon
+    let (min_shards, max_shards) = if is_full_moon {
+        (BLUE_RUNE_SHARDS_PER_NIGHT_FULL_MOON_MIN, BLUE_RUNE_SHARDS_PER_NIGHT_FULL_MOON_MAX)
+    } else {
+        (BLUE_RUNE_SHARDS_PER_NIGHT_MIN, BLUE_RUNE_SHARDS_PER_NIGHT_MAX)
+    };
+    
     // Process all blue rune stones
     let mut rune_stones_to_update = Vec::new();
     
@@ -411,71 +456,74 @@ pub fn spawn_memory_shards_at_night(
         if is_new_night {
             config.shards_spawned_this_night = 0;
             config.night_start_time = Some(current_time);
-        }
-        
-        // Check if we can spawn more shards this night
-        if config.shards_spawned_this_night >= BLUE_RUNE_SHARDS_PER_NIGHT {
-            // Still need to update config even if not spawning
-            rune_stones_to_update.push((rune_stone.id, config));
-            continue; // Already spawned max shards this night
-        }
-        
-        // Check if enough time has passed since last spawn
-        let can_spawn = match config.last_shard_spawn_time {
-            Some(last_spawn) => {
-                let time_since_last = current_time.to_micros_since_unix_epoch()
-                    .saturating_sub(last_spawn.to_micros_since_unix_epoch());
-                time_since_last >= (BLUE_RUNE_SHARD_SPAWN_INTERVAL_SECS * 1_000_000) as i64
-            }
-            None => true, // First spawn of the night
-        };
-        
-        if can_spawn {
-            // Spawn a BURST of memory shards (1-2 per spawn) away from the rune stone center
-            // This creates PvP hotspots around the rune stone, not directly on it
-            let shards_to_spawn = rng.gen_range(BLUE_RUNE_MIN_SHARDS_PER_BURST..=BLUE_RUNE_MAX_SHARDS_PER_BURST);
-            let mut spawned_this_burst = 0;
             
-            for _ in 0..shards_to_spawn {
-                // Check if we've hit the night cap
-                if config.shards_spawned_this_night >= BLUE_RUNE_SHARDS_PER_NIGHT {
-                    break;
-                }
-                
-                let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-                let distance = rng.gen_range(BLUE_RUNE_SHARD_MIN_DISTANCE..BLUE_RUNE_SHARD_SPAWN_RADIUS);
-                let shard_x = rune_stone.pos_x + angle.cos() * distance;
-                let shard_y = rune_stone.pos_y + angle.sin() * distance;
-                
-                // Check if position is valid (not in water, etc.)
-                if !crate::environment::is_position_on_water(ctx, shard_x, shard_y) {
-                    let chunk_idx = crate::environment::calculate_chunk_index(shard_x, shard_y);
-                    
-                    // Create dropped item
-                    ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
-                        id: 0,
-                        item_def_id: memory_shard_def_id,
-                        quantity: 1,
-                        pos_x: shard_x,
-                        pos_y: shard_y,
-                        chunk_index: chunk_idx,
-                        created_at: current_time,
-                        item_data: None,
-                    });
-                    
-                    config.shards_spawned_this_night += 1;
-                    spawned_this_burst += 1;
-                }
-            }
+            // Check if there are unpicked shards from the previous night
+            let existing_shards = count_dropped_items_near_rune(
+                ctx,
+                rune_stone.pos_x,
+                rune_stone.pos_y,
+                BLUE_RUNE_SHARD_CHECK_RADIUS,
+                Some(memory_shard_def_id),
+            );
             
-            config.last_shard_spawn_time = Some(current_time);
-            
-            if spawned_this_burst > 0 {
+            if existing_shards > 0 {
+                // Previous shards haven't been picked up - skip spawning this night
                 log::info!(
-                    "Blue rune stone {} spawned {} memory shards (total: {}/{})",
-                    rune_stone.id, spawned_this_burst, config.shards_spawned_this_night, BLUE_RUNE_SHARDS_PER_NIGHT
+                    "Blue rune stone {} has {} unpicked shards nearby, skipping spawn this night",
+                    rune_stone.id, existing_shards
                 );
+                // Mark as already spawned max to prevent spawning this night
+                config.shards_spawned_this_night = max_shards;
+                rune_stones_to_update.push((rune_stone.id, config));
+                continue;
             }
+        }
+        
+        // Check if we've already spawned for this night
+        if config.shards_spawned_this_night > 0 {
+            rune_stones_to_update.push((rune_stone.id, config));
+            continue;
+        }
+        
+        // Spawn all shards for this night at once (2-3 normal, 5-6 full moon)
+        let shards_to_spawn = rng.gen_range(min_shards..=max_shards);
+        let mut spawned_count = 0;
+        
+        for _ in 0..shards_to_spawn {
+            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+            let distance = rng.gen_range(BLUE_RUNE_SHARD_MIN_DISTANCE..BLUE_RUNE_SHARD_SPAWN_RADIUS);
+            let shard_x = rune_stone.pos_x + angle.cos() * distance;
+            let shard_y = rune_stone.pos_y + angle.sin() * distance;
+            
+            // Check if position is valid (not in water, etc.)
+            if !crate::environment::is_position_on_water(ctx, shard_x, shard_y) {
+                let chunk_idx = crate::environment::calculate_chunk_index(shard_x, shard_y);
+                
+                // Create dropped item
+                ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
+                    id: 0,
+                    item_def_id: memory_shard_def_id,
+                    quantity: 1,
+                    pos_x: shard_x,
+                    pos_y: shard_y,
+                    chunk_index: chunk_idx,
+                    created_at: current_time,
+                    item_data: None,
+                });
+                
+                spawned_count += 1;
+            }
+        }
+        
+        config.shards_spawned_this_night = spawned_count;
+        config.last_shard_spawn_time = Some(current_time);
+        
+        if spawned_count > 0 {
+            log::info!(
+                "Blue rune stone {} spawned {} memory shards{}",
+                rune_stone.id, spawned_count,
+                if is_full_moon { " (full moon bonus!)" } else { "" }
+            );
         }
         
         // Store config for update
@@ -525,6 +573,7 @@ pub fn spawn_items_at_night(
     })?;
     
     let time_of_day = &world_state.time_of_day;
+    let is_full_moon = world_state.is_full_moon;
     
     // Only spawn during night periods
     let is_night_period = matches!(
@@ -552,6 +601,13 @@ pub fn spawn_items_at_night(
     let mut rng = ctx.rng();
     let current_time = ctx.timestamp;
     
+    // Determine spawn count based on full moon
+    let (min_items, max_items) = if is_full_moon {
+        (RED_RUNE_ITEMS_PER_NIGHT_FULL_MOON_MIN, RED_RUNE_ITEMS_PER_NIGHT_FULL_MOON_MAX)
+    } else {
+        (RED_RUNE_ITEMS_PER_NIGHT_MIN, RED_RUNE_ITEMS_PER_NIGHT_MAX)
+    };
+    
     // Process all red rune stones
     let mut rune_stones_to_update = Vec::new();
     
@@ -578,83 +634,89 @@ pub fn spawn_items_at_night(
         if is_new_night {
             config.items_spawned_this_night = 0;
             config.night_start_time = Some(current_time);
+            
+            // Check if there are unpicked items from the previous night
+            // We check for any dropped items (no filter) since red runes spawn various craftable items
+            let existing_items = count_dropped_items_near_rune(
+                ctx,
+                rune_stone.pos_x,
+                rune_stone.pos_y,
+                RED_RUNE_ITEM_CHECK_RADIUS,
+                None, // Check for any dropped item
+            );
+            
+            if existing_items > 0 {
+                // Previous items haven't been picked up - skip spawning this night
+                log::info!(
+                    "Red rune stone {} has {} unpicked items nearby, skipping spawn this night",
+                    rune_stone.id, existing_items
+                );
+                // Mark as already spawned max to prevent spawning this night
+                config.items_spawned_this_night = max_items;
+                rune_stones_to_update.push((rune_stone.id, config));
+                continue;
+            }
         }
         
-        // Check if we can spawn more items this night
-        if config.items_spawned_this_night >= RED_RUNE_ITEMS_PER_NIGHT {
+        // Check if we've already spawned for this night
+        if config.items_spawned_this_night > 0 {
             rune_stones_to_update.push((rune_stone.id, config));
             continue;
         }
         
-        // Check if enough time has passed since last spawn
-        let can_spawn = match config.last_item_spawn_time {
-            Some(last_spawn) => {
-                let time_since_last = current_time.to_micros_since_unix_epoch()
-                    .saturating_sub(last_spawn.to_micros_since_unix_epoch());
-                time_since_last >= (RED_RUNE_ITEM_SPAWN_INTERVAL_SECS * 1_000_000) as i64
-            }
-            None => true,
-        };
+        // Get all craftable items once
+        let craftable_items: Vec<_> = ctx.db.item_definition().iter()
+            .filter(|item| item.crafting_cost.is_some())
+            .collect();
         
-        if can_spawn {
-            // Get all craftable items once
-            let craftable_items: Vec<_> = ctx.db.item_definition().iter()
-                .filter(|item| item.crafting_cost.is_some())
-                .collect();
+        if craftable_items.is_empty() {
+            rune_stones_to_update.push((rune_stone.id, config));
+            continue;
+        }
+        
+        // Spawn all items for this night at once (2-3 normal, 5-6 full moon)
+        let items_to_spawn = rng.gen_range(min_items..=max_items);
+        let mut spawned_count = 0;
+        
+        for _ in 0..items_to_spawn {
+            // Pick a random craftable item
+            let item_def_id = craftable_items[rng.gen_range(0..craftable_items.len())].id;
             
-            if craftable_items.is_empty() {
-                rune_stones_to_update.push((rune_stone.id, config));
-                continue;
-            }
+            // Spawn item away from rune stone center in random location
+            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+            let distance = rng.gen_range(RED_RUNE_ITEM_MIN_DISTANCE..RED_RUNE_ITEM_SPAWN_RADIUS);
+            let item_x = rune_stone.pos_x + angle.cos() * distance;
+            let item_y = rune_stone.pos_y + angle.sin() * distance;
             
-            // Spawn a BURST of items (randomized 1-3 items per spawn)
-            let items_to_spawn = rng.gen_range(RED_RUNE_MIN_ITEMS_PER_BURST..=RED_RUNE_MAX_ITEMS_PER_BURST);
-            let mut spawned_this_burst = 0;
-            
-            for _ in 0..items_to_spawn {
-                // Check if we've hit the night cap
-                if config.items_spawned_this_night >= RED_RUNE_ITEMS_PER_NIGHT {
-                    break;
-                }
+            // Check if position is valid
+            if !crate::environment::is_position_on_water(ctx, item_x, item_y) {
+                let chunk_idx = crate::environment::calculate_chunk_index(item_x, item_y);
                 
-                // Pick a random craftable item
-                let item_def_id = craftable_items[rng.gen_range(0..craftable_items.len())].id;
+                // Create dropped item
+                ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
+                    id: 0,
+                    item_def_id,
+                    quantity: 1,
+                    pos_x: item_x,
+                    pos_y: item_y,
+                    chunk_index: chunk_idx,
+                    created_at: current_time,
+                    item_data: None,
+                });
                 
-                // Spawn item away from rune stone center in random location
-                let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-                let distance = rng.gen_range(RED_RUNE_ITEM_MIN_DISTANCE..RED_RUNE_ITEM_SPAWN_RADIUS);
-                let item_x = rune_stone.pos_x + angle.cos() * distance;
-                let item_y = rune_stone.pos_y + angle.sin() * distance;
-                
-                // Check if position is valid
-                if !crate::environment::is_position_on_water(ctx, item_x, item_y) {
-                    let chunk_idx = crate::environment::calculate_chunk_index(item_x, item_y);
-                    
-                    // Create dropped item
-                    ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
-                        id: 0,
-                        item_def_id,
-                        quantity: 1,
-                        pos_x: item_x,
-                        pos_y: item_y,
-                        chunk_index: chunk_idx,
-                        created_at: current_time,
-                        item_data: None,
-                    });
-                    
-                    config.items_spawned_this_night += 1;
-                    spawned_this_burst += 1;
-                }
+                spawned_count += 1;
             }
-            
-            config.last_item_spawn_time = Some(current_time);
-            
-            if spawned_this_burst > 0 {
-                log::info!(
-                    "Red rune stone {} spawned {} items (total: {})",
-                    rune_stone.id, spawned_this_burst, config.items_spawned_this_night
-                );
-            }
+        }
+        
+        config.items_spawned_this_night = spawned_count;
+        config.last_item_spawn_time = Some(current_time);
+        
+        if spawned_count > 0 {
+            log::info!(
+                "Red rune stone {} spawned {} items{}",
+                rune_stone.id, spawned_count,
+                if is_full_moon { " (full moon bonus!)" } else { "" }
+            );
         }
         
         rune_stones_to_update.push((rune_stone.id, config));
@@ -704,6 +766,7 @@ pub fn spawn_seeds_at_night(
     
     let time_of_day = &world_state.time_of_day;
     let current_season = world_state.current_season.clone();
+    let is_full_moon = world_state.is_full_moon;
     
     // Only spawn during night periods
     let is_night_period = matches!(
@@ -731,6 +794,13 @@ pub fn spawn_seeds_at_night(
     let mut rng = ctx.rng();
     let current_time = ctx.timestamp;
     
+    // Determine spawn count based on full moon
+    let (min_seeds, max_seeds) = if is_full_moon {
+        (GREEN_RUNE_SEEDS_PER_NIGHT_FULL_MOON_MIN, GREEN_RUNE_SEEDS_PER_NIGHT_FULL_MOON_MAX)
+    } else {
+        (GREEN_RUNE_SEEDS_PER_NIGHT_MIN, GREEN_RUNE_SEEDS_PER_NIGHT_MAX)
+    };
+    
     // Process all green rune stones
     let mut rune_stones_to_update = Vec::new();
     
@@ -757,108 +827,114 @@ pub fn spawn_seeds_at_night(
         if is_new_night {
             config.seeds_spawned_this_night = 0;
             config.night_start_time = Some(current_time);
+            
+            // Check if there are unpicked seeds from the previous night
+            // We check for any dropped items (no filter) since seeds spawn nearby
+            let existing_seeds = count_dropped_items_near_rune(
+                ctx,
+                rune_stone.pos_x,
+                rune_stone.pos_y,
+                GREEN_RUNE_SEED_CHECK_RADIUS,
+                None, // Check for any dropped item
+            );
+            
+            if existing_seeds > 0 {
+                // Previous seeds haven't been picked up - skip spawning this night
+                log::info!(
+                    "Green rune stone {} has {} unpicked items nearby, skipping spawn this night",
+                    rune_stone.id, existing_seeds
+                );
+                // Mark as already spawned max to prevent spawning this night
+                config.seeds_spawned_this_night = max_seeds;
+                rune_stones_to_update.push((rune_stone.id, config));
+                continue;
+            }
         }
         
-        // Check if we can spawn more seeds this night
-        if config.seeds_spawned_this_night >= GREEN_RUNE_SEEDS_PER_NIGHT {
+        // Check if we've already spawned for this night
+        if config.seeds_spawned_this_night > 0 {
             rune_stones_to_update.push((rune_stone.id, config));
             continue;
         }
         
-        // Check if enough time has passed since last spawn
-        let can_spawn = match config.last_seed_spawn_time {
-            Some(last_spawn) => {
-                let time_since_last = current_time.to_micros_since_unix_epoch()
-                    .saturating_sub(last_spawn.to_micros_since_unix_epoch());
-                time_since_last >= (GREEN_RUNE_SEED_SPAWN_INTERVAL_SECS * 1_000_000) as i64
-            }
-            None => true,
-        };
+        // Check if this rune stone has a loot table
+        if config.seed_loot_table.is_empty() {
+            log::warn!("Green rune stone {} has empty loot table, skipping spawn", rune_stone.id);
+            rune_stones_to_update.push((rune_stone.id, config));
+            continue;
+        }
         
-        if can_spawn {
-            // Check if this rune stone has a loot table
-            if config.seed_loot_table.is_empty() {
-                log::warn!("Green rune stone {} has empty loot table, skipping spawn", rune_stone.id);
-                rune_stones_to_update.push((rune_stone.id, config));
-                continue;
-            }
+        // Filter loot table to only include seeds that can grow in current season
+        let seasonal_seeds = filter_seeds_by_season(&config.seed_loot_table, &current_season);
+        
+        if seasonal_seeds.is_empty() {
+            // No seeds can grow in current season, skip spawning
+            log::debug!(
+                "Green rune stone {} has no seeds that can grow in {:?}, skipping spawn",
+                rune_stone.id, current_season
+            );
+            rune_stones_to_update.push((rune_stone.id, config));
+            continue;
+        }
+        
+        // Spawn all seeds for this night at once (2-3 normal, 5-6 full moon)
+        let seeds_to_spawn = rng.gen_range(min_seeds..=max_seeds);
+        let mut spawned_count = 0;
+        let mut spawned_seed_names = Vec::new();
+        
+        for _ in 0..seeds_to_spawn {
+            // Pick a random seed from the SEASONAL loot table
+            let seed_name = &seasonal_seeds[rng.gen_range(0..seasonal_seeds.len())];
             
-            // Filter loot table to only include seeds that can grow in current season
-            let seasonal_seeds = filter_seeds_by_season(&config.seed_loot_table, &current_season);
+            // Find the seed item definition
+            let seed_def_id = ctx.db.item_definition().iter()
+                .find(|def| &def.name == seed_name)
+                .map(|def| def.id);
             
-            if seasonal_seeds.is_empty() {
-                // No seeds can grow in current season, skip spawning
-                log::debug!(
-                    "Green rune stone {} has no seeds that can grow in {:?}, skipping spawn",
-                    rune_stone.id, current_season
-                );
-                rune_stones_to_update.push((rune_stone.id, config));
-                continue;
-            }
-            
-            // Spawn a BURST of seeds (randomized 1-2 seeds per spawn)
-            let seeds_to_spawn = rng.gen_range(GREEN_RUNE_MIN_SEEDS_PER_BURST..=GREEN_RUNE_MAX_SEEDS_PER_BURST);
-            let mut spawned_this_burst = 0;
-            let mut spawned_seed_names = Vec::new();
-            
-            for _ in 0..seeds_to_spawn {
-                // Check if we've hit the night cap
-                if config.seeds_spawned_this_night >= GREEN_RUNE_SEEDS_PER_NIGHT {
-                    break;
+            let seed_def_id = match seed_def_id {
+                Some(id) => id,
+                None => {
+                    log::warn!("Seed '{}' not found in item definitions", seed_name);
+                    continue;
                 }
-                
-                // Pick a random seed from the SEASONAL loot table
-                let seed_name = &seasonal_seeds[rng.gen_range(0..seasonal_seeds.len())];
-                
-                // Find the seed item definition
-                let seed_def_id = ctx.db.item_definition().iter()
-                    .find(|def| &def.name == seed_name)
-                    .map(|def| def.id);
-                
-                let seed_def_id = match seed_def_id {
-                    Some(id) => id,
-                    None => {
-                        log::warn!("Seed '{}' not found in item definitions", seed_name);
-                        continue;
-                    }
-                };
-                
-                // Spawn seed away from rune stone center in random location
-                let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-                let distance = rng.gen_range(GREEN_RUNE_SEED_MIN_DISTANCE..GREEN_RUNE_SEED_SPAWN_RADIUS);
-                let seed_x = rune_stone.pos_x + angle.cos() * distance;
-                let seed_y = rune_stone.pos_y + angle.sin() * distance;
-                
-                // Check if position is valid
-                if !crate::environment::is_position_on_water(ctx, seed_x, seed_y) {
-                    let chunk_idx = crate::environment::calculate_chunk_index(seed_x, seed_y);
-                    
-                    // Create dropped seed item
-                    ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
-                        id: 0,
-                        item_def_id: seed_def_id,
-                        quantity: 1,
-                        pos_x: seed_x,
-                        pos_y: seed_y,
-                        chunk_index: chunk_idx,
-                        created_at: current_time,
-                        item_data: None,
-                    });
-                    
-                    config.seeds_spawned_this_night += 1;
-                    spawned_this_burst += 1;
-                    spawned_seed_names.push(seed_name.clone());
-                }
-            }
+            };
             
-            config.last_seed_spawn_time = Some(current_time);
+            // Spawn seed away from rune stone center in random location
+            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+            let distance = rng.gen_range(GREEN_RUNE_SEED_MIN_DISTANCE..GREEN_RUNE_SEED_SPAWN_RADIUS);
+            let seed_x = rune_stone.pos_x + angle.cos() * distance;
+            let seed_y = rune_stone.pos_y + angle.sin() * distance;
             
-            if spawned_this_burst > 0 {
-                log::info!(
-                    "Green rune stone {} spawned {} seeds in {:?}: {:?} (total: {})",
-                    rune_stone.id, spawned_this_burst, current_season, spawned_seed_names, config.seeds_spawned_this_night
-                );
+            // Check if position is valid
+            if !crate::environment::is_position_on_water(ctx, seed_x, seed_y) {
+                let chunk_idx = crate::environment::calculate_chunk_index(seed_x, seed_y);
+                
+                // Create dropped seed item
+                ctx.db.dropped_item().insert(crate::dropped_item::DroppedItem {
+                    id: 0,
+                    item_def_id: seed_def_id,
+                    quantity: 1,
+                    pos_x: seed_x,
+                    pos_y: seed_y,
+                    chunk_index: chunk_idx,
+                    created_at: current_time,
+                    item_data: None,
+                });
+                
+                spawned_count += 1;
+                spawned_seed_names.push(seed_name.clone());
             }
+        }
+        
+        config.seeds_spawned_this_night = spawned_count;
+        config.last_seed_spawn_time = Some(current_time);
+        
+        if spawned_count > 0 {
+            log::info!(
+                "Green rune stone {} spawned {} seeds in {:?}: {:?}{}",
+                rune_stone.id, spawned_count, current_season, spawned_seed_names,
+                if is_full_moon { " (full moon bonus!)" } else { "" }
+            );
         }
         
         rune_stones_to_update.push((rune_stone.id, config));

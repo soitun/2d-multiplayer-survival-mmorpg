@@ -320,6 +320,9 @@ interface GameScreenProps {
     tapAnimation?: { x: number; y: number; startTime: number } | null;
     onMobileSprintToggle?: (enabled: boolean | undefined) => void;
     mobileSprintOverride?: boolean;
+
+    // SOVA Sound Box callback (for deterministic voice notifications)
+    showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void;
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
@@ -439,6 +442,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setIsMusicPanelVisible,
         movementDirection,
         chunkWeather,
+        showSovaSoundBox,
     } = props;
 
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -483,6 +487,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // This reminds new players they can talk to SOVA by pressing V
     const SOVA_TUTORIAL_DELAY_MS = 2 * 60 * 1000; // 2 minutes
     const SOVA_TUTORIAL_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
+    const showSovaSoundBoxRef = useRef(showSovaSoundBox);
+    
+    // Keep ref updated
+    useEffect(() => {
+        showSovaSoundBoxRef.current = showSovaSoundBox;
+    }, [showSovaSoundBox]);
     
     useEffect(() => {
         // Check if tutorial hint has already been played
@@ -509,7 +519,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             try {
                 const audio = new Audio('/sounds/sova_tutorial_hint.mp3');
                 audio.volume = 0.8;
-                audio.play().catch(err => {
+                audio.play().then(() => {
+                    // Show the sound box if callback is available
+                    if (showSovaSoundBoxRef.current) {
+                        showSovaSoundBoxRef.current(audio, 'SOVA: Press V to Talk');
+                    }
+                }).catch(err => {
                     console.warn('[GameScreen] Failed to play SOVA tutorial hint:', err);
                 });
                 

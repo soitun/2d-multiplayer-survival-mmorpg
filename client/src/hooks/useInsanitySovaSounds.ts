@@ -13,11 +13,13 @@
  * Sound files should be placed in: public/sounds/
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import type { Player } from '../generated';
 
 interface UseInsanitySovaSoundsProps {
   localPlayer: Player | undefined;
+  /** Callback to show the SOVA sound box when a sound starts playing */
+  onSoundPlay?: (audio: HTMLAudioElement, label: string) => void;
 }
 
 const INSANITY_THRESHOLDS = [25.0, 50.0, 75.0, 90.0, 100.0] as const;
@@ -52,10 +54,28 @@ function playInsanitySovaSound(threshold: number): HTMLAudioElement | null {
 // Export a way for other hooks to check if 100% sound is playing
 export const insanity100SoundRef = { current: null as HTMLAudioElement | null };
 
-export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProps): void {
+export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanitySovaSoundsProps): void {
   const lastThresholdRef = useRef<number>(0.0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingThresholdRef = useRef<number | null>(null); // Queue for sounds that couldn't play immediately
+  const onSoundPlayRef = useRef(onSoundPlay);
+  
+  // Keep callback ref updated
+  useEffect(() => {
+    onSoundPlayRef.current = onSoundPlay;
+  }, [onSoundPlay]);
+  
+  // Helper to get label for threshold
+  const getInsanityLabel = useCallback((threshold: number): string => {
+    switch (threshold) {
+      case 25: return 'SOVA: Insanity Warning';
+      case 50: return 'SOVA: Mind Fracturing';
+      case 75: return 'SOVA: Critical Insanity';
+      case 90: return 'SOVA: On The Edge';
+      case 100: return 'SOVA: Total Insanity';
+      default: return 'SOVA: Insanity Alert';
+    }
+  }, []);
   
   useEffect(() => {
     if (!localPlayer) {
@@ -92,6 +112,11 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
             const audio = playInsanitySovaSound(threshold);
             currentAudioRef.current = audio;
             
+            // Show sound box if callback is provided
+            if (audio && onSoundPlayRef.current) {
+              onSoundPlayRef.current(audio, getInsanityLabel(threshold));
+            }
+            
             // Track 100% sound specifically for Entrainment hook
             if (threshold === 100.0) {
               insanity100SoundRef.current = audio;
@@ -115,6 +140,11 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
                   const nextAudio = playInsanitySovaSound(pendingThreshold);
                   currentAudioRef.current = nextAudio;
                   
+                  // Show sound box for queued sound
+                  if (nextAudio && onSoundPlayRef.current) {
+                    onSoundPlayRef.current(nextAudio, getInsanityLabel(pendingThreshold));
+                  }
+                  
                   // Track 100% sound if this is it
                   if (pendingThreshold === 100.0) {
                     insanity100SoundRef.current = nextAudio;
@@ -136,6 +166,11 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
                         pendingThresholdRef.current = null;
                         const finalAudio = playInsanitySovaSound(nextPending);
                         currentAudioRef.current = finalAudio;
+                        
+                        // Show sound box for final queued sound
+                        if (finalAudio && onSoundPlayRef.current) {
+                          onSoundPlayRef.current(finalAudio, getInsanityLabel(nextPending));
+                        }
                         
                         // Track 100% sound if this is it
                         if (nextPending === 100.0) {
@@ -164,7 +199,7 @@ export function useInsanitySovaSounds({ localPlayer }: UseInsanitySovaSoundsProp
     
     // Update ref to track current threshold
     lastThresholdRef.current = currentThreshold;
-  }, [localPlayer]);
+  }, [localPlayer, getInsanityLabel]);
   
   // Cleanup on unmount
   useEffect(() => {

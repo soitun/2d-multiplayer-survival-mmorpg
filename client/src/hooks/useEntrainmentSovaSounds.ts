@@ -19,6 +19,8 @@ import { insanity100SoundRef } from './useInsanitySovaSounds';
 interface UseEntrainmentSovaSoundsProps {
   activeConsumableEffects: Map<string, ActiveConsumableEffect> | undefined;
   localPlayerId: string | undefined;
+  /** Callback to show the SOVA sound box when a sound starts playing */
+  onSoundPlay?: (audio: HTMLAudioElement, label: string) => void;
 }
 
 const ENTRAINMENT_QUOTE_COUNT = 6;
@@ -114,13 +116,20 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
 
 export function useEntrainmentSovaSounds({ 
   activeConsumableEffects, 
-  localPlayerId 
+  localPlayerId,
+  onSoundPlay 
 }: UseEntrainmentSovaSoundsProps): void {
   const quoteTimerRef = useRef<number | null>(null);
   const currentQuoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasEntrainmentRef = useRef<boolean>(false);
   const activeConsumableEffectsRef = useRef<Map<string, ActiveConsumableEffect> | undefined>(activeConsumableEffects);
   const localPlayerIdRef = useRef<string | undefined>(localPlayerId);
+  const onSoundPlayRef = useRef(onSoundPlay);
+  
+  // Keep callback ref updated
+  useEffect(() => {
+    onSoundPlayRef.current = onSoundPlay;
+  }, [onSoundPlay]);
   
   // Keep refs updated
   useEffect(() => {
@@ -179,6 +188,11 @@ export function useEntrainmentSovaSounds({
       const audio = playEntrainmentQuote();
       currentQuoteAudioRef.current = audio;
       
+      // Show sound box if callback is provided
+      if (audio && onSoundPlayRef.current) {
+        onSoundPlayRef.current(audio, 'SOVA: Entrainment');
+      }
+      
       // When quote finishes, schedule next one
       if (audio) {
         audio.addEventListener('ended', () => {
@@ -218,6 +232,11 @@ export function useEntrainmentSovaSounds({
       const audio = playEntrainmentQuote();
       currentQuoteAudioRef.current = audio;
       // console.log(`[SOVA Entrainment] Audio created: ${!!audio}`);
+      
+      // Show sound box if callback is provided
+      if (audio && onSoundPlayRef.current) {
+        onSoundPlayRef.current(audio, 'SOVA: Entrainment');
+      }
       
       // When first quote finishes, start the scheduling loop
       if (audio) {

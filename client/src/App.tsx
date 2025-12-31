@@ -48,6 +48,7 @@ import { usePredictedMovement } from './hooks/usePredictedMovement';
 import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
 import { useInsanitySovaSounds } from './hooks/useInsanitySovaSounds';
 import { useEntrainmentSovaSounds } from './hooks/useEntrainmentSovaSounds';
+import { useSovaSoundBox } from './hooks/useSovaSoundBox';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
 
@@ -394,13 +395,17 @@ function AppContent() {
         return totalBonus;
     }, [dbIdentity, activeEquipments, inventoryItems, itemDefinitions]);
     
+    // --- SOVA Sound Box Hook (for deterministic SOVA voice notifications) ---
+    const { showSovaSoundBox, SovaSoundBoxComponent } = useSovaSoundBox();
+    
     // --- Insanity SOVA Sounds Hook ---
-    useInsanitySovaSounds({ localPlayer });
+    useInsanitySovaSounds({ localPlayer, onSoundPlay: showSovaSoundBox });
     
     // --- Entrainment SOVA Sounds Hook (quotes + ambient) ---
     useEntrainmentSovaSounds({ 
       activeConsumableEffects, 
-      localPlayerId: dbIdentity?.toHexString() 
+      localPlayerId: dbIdentity?.toHexString(),
+      onSoundPlay: showSovaSoundBox 
     });
     
     // --- Mobile Detection ---
@@ -1394,6 +1399,8 @@ function AppContent() {
                             tapAnimation={tapAnimation}
                             onMobileSprintToggle={setMobileSprintOverride}
                             mobileSprintOverride={mobileSprintOverride}
+                            // SOVA Sound Box callback
+                            showSovaSoundBox={showSovaSoundBox}
                         />
                         {/* Player Progression Notifications */}
                         <AchievementNotification 
@@ -1402,6 +1409,8 @@ function AppContent() {
                         <LevelUpNotification 
                             notifications={Array.from(levelUpNotifications.values())} 
                         />
+                        {/* SOVA Sound Box - Deterministic voice notifications */}
+                        {SovaSoundBoxComponent}
                         </>
                     );
                 })()
