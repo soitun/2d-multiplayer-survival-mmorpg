@@ -1212,11 +1212,10 @@ export function drawMinimapOntoCanvas({
         
         // Draw "ALK" text for central compound only (it's larger/more important)
         if (isCentralCompound) {
-          ctx.font = 'bold 6px "Courier New", monospace';
+          ctx.font = 'bold 12px "Courier New", monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = '#ffffff';
-          ctx.fillText('ALK', x, y);
         }
         
         ctx.restore();

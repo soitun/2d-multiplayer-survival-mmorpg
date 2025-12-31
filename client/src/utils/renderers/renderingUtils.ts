@@ -549,15 +549,15 @@ export const renderYSortedEntities = ({
   // NOTE: Underwater shadows are now rendered separately in GameCanvas.tsx
   // before the water overlay, not here in renderYSortedEntities
   
-  // CRITICAL FIX FOR CEILING TILE GLITCHING:
-  // The Y-sorting comparator has explicit checks for fog/wall ordering, but it's still unreliable.
-  // Solution: Render in THREE SEPARATE PASSES with GUARANTEED order
-  // Pass 1: Everything except fog and walls (normal Y-sorted)
-  // Pass 2: Fog overlays ONLY (ceiling tiles)
-  // Pass 3: Walls ONLY (always on top of fog)
+  // RENDERING PASS ORDER:
+  // Pass 1: All Y-sorted entities (players, trees, placeables, ALL walls including south)
+  //         - Walls properly Y-sort with players/trees so entities south of walls render on top
+  // Pass 2-4: North doors (before ceiling tiles)
+  // Pass 5: Fog overlays / ceiling tiles (with exclusions for entrance ways and south walls)
+  // Pass 6: South doors (after ceiling tiles)
   
-  // First Pass: Render all non-fog, non-south-wall entities (players, trees, placeables, north/east/west walls, etc.)
-  // CRITICAL FIX: North/east/west walls are now rendered in Pass 1 for correct Y-sorting with players/placeables
+  // First Pass: Render all Y-sorted entities including ALL walls
+  // ALL walls now render in Pass 1 for correct Y-sorting with players/placeables/trees
   // South walls still render in Pass 6 (after ceiling tiles) so they appear on the exterior
   ySortedEntities.forEach(({ type, entity }) => {
       // Skip fog overlays and doors - they render in later passes
@@ -566,17 +566,15 @@ export const renderYSortedEntities = ({
         return;
       }
       
-      // Handle wall_cell: render north/east/west/diagonal walls here, skip south walls
+      // Handle wall_cell: render ALL walls in Y-sorted order
+      // CRITICAL FIX: South walls were previously in Pass 6 (after everything), causing them to 
+      // always render on top of players/trees even when the player is south of the wall.
+      // Now ALL walls render here in Pass 1, properly Y-sorted with other entities.
+      // Ceiling tiles already exclude south wall foundations (via southWallFoundations set).
       if (type === 'wall_cell') {
           const wall = entity as SpacetimeDBWallCell;
           
-          // Only skip south walls (edge 2) - they render in Pass 6 after ceiling tiles
-          if (wall.edge === 2) {
-              return;
-          }
-          
-          // Render north/east/west/diagonal walls in their Y-sorted position
-          // This fixes the issue where north walls would clip over players/placeables on the tile south
+          // Render ALL walls in their Y-sorted position
           const wallCellKey = `${wall.cellX},${wall.cellY}`;
           const wallClusterId = cellCoordToClusterId.get(wallCellKey);
           const playerInsideThisCluster = wallClusterId !== undefined && wallClusterId === playerBuildingClusterId;
@@ -1567,40 +1565,10 @@ export const renderYSortedEntities = ({
       }
   });
 
-  // PASS 6: Render south walls (AFTER ceiling tiles, so they appear ON TOP of ceiling tiles)
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'wall_cell') {
-          const wall = entity as SpacetimeDBWallCell;
+  // NOTE: Pass 6 (south walls) was removed - south walls now render in Pass 1 with proper Y-sorting
+  // This fixes the bug where south walls would always render on top of players/trees regardless of Y-position
 
-          // Only render south walls (edge 2) - they render after ceiling tiles
-          if (wall.edge !== 2) {
-              return;
-          }
-
-          // Determine if this wall belongs to the same building cluster the player is inside
-          const wallCellKey = `${wall.cellX},${wall.cellY}`;
-          const wallClusterId = cellCoordToClusterId.get(wallCellKey);
-          const playerInsideThisCluster = wallClusterId !== undefined && wallClusterId === playerBuildingClusterId;
-          const isEnclosed = wallClusterId ? clusterEnclosureStatus.get(wallClusterId) || false : false;
-
-          renderWall({
-              ctx,
-              wall: wall as any,
-              worldScale: 1.0,
-              viewOffsetX: -cameraOffsetX,
-              viewOffsetY: -cameraOffsetY,
-              foundationTileImagesRef: foundationTileImagesRef,
-              allWalls: allWalls,
-              cycleProgress: cycleProgress,
-              localPlayerPosition: localPlayerPosition,
-              playerInsideCluster: playerInsideThisCluster,
-              isClusterEnclosed: isEnclosed,
-              entranceWayFoundations: allEntranceWayFoundations,
-          });
-      }
-  });
-
-  // PASS 7: Render south doors (edge 2) AFTER ceiling tiles (so they appear ON TOP)
+  // PASS 6: Render south doors (edge 2) AFTER ceiling tiles (so they appear ON TOP)
   // South doors need to render above ceiling tiles to be visible
   // NOTE: North doors (edge 0) were already rendered in PASS 2.5 before ceiling tiles
   ySortedEntities.forEach(({ type, entity }) => {
