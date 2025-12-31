@@ -341,7 +341,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const [showRefreshDialog, setShowRefreshDialog] = useState(false);
 
     // SOVA message adder function from Chat component
-    const [sovaMessageAdder, setSOVAMessageAdder] = useState<((message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void) | null>(null);
+    const [sovaMessageAdder, setSOVAMessageAdder] = useState<((message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void) | null>(null);
 
     // Cairn unlock notification state
     const [cairnNotification, setCairnNotification] = useState<CairnNotification | null>(null);
@@ -368,7 +368,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     }, [sovaMessageAdder]);
 
     // Callback to receive SOVA message adder from Chat
-    const handleSOVAMessageAdderReady = useCallback((addMessage: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void) => {
+    const handleSOVAMessageAdderReady = useCallback((addMessage: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void) => {
         console.log('[GameScreen] Received SOVA message adder from Chat component');
         setSOVAMessageAdder(() => addMessage); // Use function form to avoid stale closure
     }, []);
@@ -488,11 +488,19 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const SOVA_TUTORIAL_DELAY_MS = 2 * 60 * 1000; // 2 minutes
     const SOVA_TUTORIAL_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
     const showSovaSoundBoxRef = useRef(showSovaSoundBox);
+    const sovaMessageAdderRef = useRef(sovaMessageAdder);
     
-    // Keep ref updated
+    // The tutorial message text
+    const SOVA_TUTORIAL_MESSAGE = `Hey, you.. Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... Wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
+    
+    // Keep refs updated
     useEffect(() => {
         showSovaSoundBoxRef.current = showSovaSoundBox;
     }, [showSovaSoundBox]);
+    
+    useEffect(() => {
+        sovaMessageAdderRef.current = sovaMessageAdder;
+    }, [sovaMessageAdder]);
     
     useEffect(() => {
         // Check if tutorial hint has already been played
@@ -524,8 +532,30 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     if (showSovaSoundBoxRef.current) {
                         showSovaSoundBoxRef.current(audio, 'SOVA: Press V to Talk');
                     }
+                    
+                    // Send the tutorial message to SOVA chat with tab flash
+                    if (sovaMessageAdderRef.current) {
+                        console.log('[GameScreen] 🎓 Sending SOVA tutorial message to chat');
+                        sovaMessageAdderRef.current({
+                            id: `sova-tutorial-${Date.now()}`,
+                            text: SOVA_TUTORIAL_MESSAGE,
+                            isUser: false,
+                            timestamp: new Date(),
+                            flashTab: true, // Flash the SOVA tab to draw attention
+                        });
+                    }
                 }).catch(err => {
                     console.warn('[GameScreen] Failed to play SOVA tutorial hint:', err);
+                    // Still send the message even if audio fails
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-tutorial-${Date.now()}`,
+                            text: SOVA_TUTORIAL_MESSAGE,
+                            isUser: false,
+                            timestamp: new Date(),
+                            flashTab: true,
+                        });
+                    }
                 });
                 
                 // Mark as played regardless of audio success

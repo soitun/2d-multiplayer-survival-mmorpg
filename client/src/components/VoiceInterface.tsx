@@ -41,7 +41,7 @@ interface VoiceInterfaceProps {
   isVisible: boolean;
   onTranscriptionComplete?: (text: string) => void;
   onError?: (error: string) => void;
-  onAddSOVAMessage?: ((message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void) | null;
+  onAddSOVAMessage?: ((message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void) | null;
   localPlayerIdentity?: string;
   // Game context for SOVA
   worldState?: any;

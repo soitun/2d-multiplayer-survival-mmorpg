@@ -17,7 +17,7 @@ interface ChatProps {
   isChatting: boolean; // Receive chat state
   setIsChatting: (isChatting: boolean) => void; // Receive state setter
   localPlayerIdentity: string | undefined; // Changed from string | null
-  onSOVAMessageAdderReady?: (addMessage: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void) => void;
+  onSOVAMessageAdderReady?: (addMessage: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void) => void;
   // Game context props for SOVA
   worldState?: any;
   localPlayer?: any;
@@ -80,6 +80,10 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const teamMessageSubscriptionRef = useRef<any | null>(null);
   const lastWhisperSubscriptionRef = useRef<any | null>(null);
   const isAnimating = useRef(false);
+  
+  // SOVA tab flash state - for drawing attention to the tab
+  const [isSovaTabFlashing, setIsSovaTabFlashing] = useState(false);
+  const sovaTabFlashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Define handleCloseChat first for dependency ordering
   const handleCloseChat = useCallback(() => {
@@ -443,20 +447,34 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   }, [connection, inputValue, setIsChatting, chatMode, onSayCommand, activeTab]);
 
   // Create the addSOVAMessage function to pass to parent
-  const addSOVAMessage = useCallback((message: { id: string; text: string; isUser: boolean; timestamp: Date }) => {
+  const addSOVAMessage = useCallback((message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => {
     // Safety check to prevent null/undefined messages
     if (!message || !message.id || !message.text) {
       console.error('[Chat] Invalid SOVA message received:', message);
       return;
     }
     
-    console.log('[Chat] Adding SOVA message:', message);
-    setSovaMessages(prev => [...prev, message]);
+    console.log('[Chat] Adding SOVA message:', message.id, message.isUser ? '(user)' : '(bot)', message.flashTab ? '(with flash)' : '');
+    setSovaMessages(prev => [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }]);
     
     // Auto-switch to SOVA tab when voice messages are added
     if (message.id.includes('voice')) {
       console.log('[Chat] Auto-switching to SOVA tab for voice message');
       setActiveTab('sova');
+    }
+    
+    // Flash the SOVA tab to draw attention if requested and not currently on SOVA tab
+    if (message.flashTab) {
+      console.log('[Chat] Flashing SOVA tab to draw attention');
+      // Clear any existing flash timeout
+      if (sovaTabFlashTimeoutRef.current) {
+        clearTimeout(sovaTabFlashTimeoutRef.current);
+      }
+      setIsSovaTabFlashing(true);
+      // Stop flashing after animation completes (3 sweeps at 1s each = 3s)
+      sovaTabFlashTimeoutRef.current = setTimeout(() => {
+        setIsSovaTabFlashing(false);
+      }, 3000);
     }
   }, []);
 
@@ -766,8 +784,17 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
           Global
         </button>
         <button 
-          className={`${styles.tab} ${activeTab === 'sova' ? styles.activeTab : ''}`}
-          onClick={() => handleTabSwitch('sova')}
+          className={`${styles.tab} ${activeTab === 'sova' ? styles.activeTab : ''} ${isSovaTabFlashing && activeTab !== 'sova' ? styles.sovaTabFlash : ''}`}
+          onClick={() => {
+            handleTabSwitch('sova');
+            // Stop flashing when user clicks on SOVA tab
+            if (isSovaTabFlashing) {
+              setIsSovaTabFlashing(false);
+              if (sovaTabFlashTimeoutRef.current) {
+                clearTimeout(sovaTabFlashTimeoutRef.current);
+              }
+            }
+          }}
         >
           SOVA
         </button>

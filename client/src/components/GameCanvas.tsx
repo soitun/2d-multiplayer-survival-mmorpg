@@ -222,7 +222,7 @@ interface GameCanvasProps {
   showInventory: boolean;
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
-  addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void; // ADDED: SOVA message adder for cairn lore
+  addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // ADDED: SOVA message adder for cairn lore
   onCairnNotification?: (notification: { id: string; cairnNumber: number; totalCairns: number; title: string; isFirstDiscovery: boolean; timestamp: number }) => void; // ADDED: Cairn unlock notification callback
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
