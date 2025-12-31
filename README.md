@@ -206,19 +206,20 @@ spacetime generate --lang typescript --out-dir ../client/src/generated --project
 *   🌦️ Dynamic Chunk-Based Weather: Evolving weather patterns with chunk-level granularity, smooth transitions, and gameplay effects (rain intensity, temperature, visibility)
 *   🌍 Procedural World Generation: Multi-biome terrain generation (grasslands, forests, beaches, rivers), island-based maps with configurable parameters, noise-based terrain shaping, and resource distribution
 *   🤖 Advanced AI: Hostile NPC behaviors (wolves, foxes), state-based AI systems (idle, wander, chase, attack, flee), pathfinding, aggression mechanics, and animal-specific behaviors
+*   🏛️ Monuments System: Pre-designed structures spawned in the world - abandoned buildings, caves, military outposts, research facilities with unique loot tables and environmental storytelling
+*   🏢 Central NPC Compound: Neutral trading hub with shared crafting stations, vending machines, AI-driven auction house, and insurance pool system for collective resource sharing
+*   👥 Team/Social Features: Shared map markers, team chat, private messaging, player notes, and group formation
+*   🍲 Broth System: Placeable broth pots over campfires with water filling mechanics, multi-ingredient cooking, stirring mini-game, and recipe spoilage mechanics
+*   🧱 Walls & Gates: Buildable wooden walls, lockable gates, lockable storage, fire arrow structure damage, and water-based fire extinguishing
+*   ⚔️ Tool/Weapon Durability
+*   🔫 Firearm System: Guns with ammo types, reloading mechanics, and recoil
 
 **Planned (📋):** 
-*   **Core Systems & World:**
-    *   🏛️ Monuments System: Pre-designed structures spawned in the world - abandoned buildings, caves, military outposts, research facilities with unique loot tables and environmental storytelling
-    *   🏢 Central NPC Compound: Neutral trading hub with shared crafting stations, vending machines, AI-driven auction house, and insurance pool system for collective resource sharing
-    *   👥 Team/Social Features: Shared map markers, team chat, private messaging, player notes, and group formation
-*   **Survival & Crafting:**
-    *   🍲 Broth System: Placeable broth pots over campfires with water filling mechanics, multi-ingredient cooking, stirring mini-game, and recipe spoilage mechanics
-*   **Base Building & Defense:**
-    *   🧱 Walls & Gates: Buildable wooden walls, lockable gates, lockable storage, fire arrow structure damage, and water-based fire extinguishing
-*   **Combat & Items:**
-    *   ⚔️ Tool/Weapon Durability
-    *   🔫 Firearm System: Guns with ammo types, reloading mechanics, and recoil
+*   🔫 Firearms & Advanced Combat: Need to add more gun types and maybe a "zoom" feature which will be tricky in 2D but I have some ideas (like partitioned viewport)
+*   🤖 Neutral Faction & NPCs: Need to add AI NPCs in the monuments (add more monuments) that you can interact with or give quests
+*   🔑 Social Auth (Steam, Discord, Twitch)
+*   🔬 Advanced Tech Tree: The "faction" unlocks which I'll work on if the game gets traction but as of now the main survival tech tree is fully unlocked
+*   🎨 Graphical Overhaul (Hiring Pixel Artists!)
 
 > **Note:** Between this project and others, I might be away for some time - usually tending to olive trees or working on freelance projects. Feel free to contribute! If you're interested in contributing to the main project, the planned features listed above would be fantastic starting points! I'd love to see what the community builds with this foundation. 🎮
 >
