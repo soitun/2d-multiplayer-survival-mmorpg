@@ -275,12 +275,14 @@ export function shouldMaskFoundation(
  * Detect entrance way foundations (foundations on the perimeter without walls OR doors on exposed edges)
  * Returns a Set of foundation cell coordinates (e.g., "cellX,cellY") that are entrance ways
  * 
- * A foundation is considered an entrance way if:
- * - It's on the perimeter (has at least one exposed edge)
- * - ALL of its exposed edges lack walls AND doors (true opening with no coverage)
+ * A foundation is considered an entrance way if ANY of the following are true:
+ * 1. It has an exposed SOUTH edge (edge 2) without a wall or door - the typical entry direction in 2D games
+ * 2. ALL of its exposed edges lack walls AND doors (true opening with no coverage - like a gazebo)
  * 
- * This prevents ceiling tiles from being skipped for foundations that have some walls/doors
- * but one open edge (which are still part of the enclosed structure).
+ * The south edge check is critical because:
+ * - In 2D isometric games, south-facing openings are the primary entry points
+ * - Corner foundations may have walls on west/east but an open south for entry
+ * - Players visually expect to see through south-facing openings, not be blocked by a roof
  * 
  * IMPORTANT: Doors count as coverage for an edge, so foundations with doors are NOT entrance ways.
  */
@@ -303,6 +305,7 @@ export function detectEntranceWayFoundations(
 
     let exposedEdgeCount = 0;
     let exposedEdgesWithoutCoverageCount = 0;
+    let hasOpenSouthEdge = false; // Track specifically if south edge is open
 
     for (const dir of directions) {
       const adjacentX = foundation.cellX + dir.dx;
@@ -341,13 +344,21 @@ export function detectEntranceWayFoundations(
         // Count exposed edges without any coverage (no wall AND no door)
         if (!hasWallOnThisEdge && !hasDoorOnThisEdge) {
           exposedEdgesWithoutCoverageCount++;
+          
+          // Check if this is the south edge (edge 2) - the primary entry direction
+          if (dir.edge === 2) {
+            hasOpenSouthEdge = true;
+          }
         }
       }
     }
 
-    // Only mark as entrance way if ALL exposed edges lack walls AND doors
-    // This means it's a true opening with no coverage at all
-    if (exposedEdgeCount > 0 && exposedEdgesWithoutCoverageCount === exposedEdgeCount) {
+    // Mark as entrance way if EITHER:
+    // 1. The south edge is exposed and has no wall/door (typical entry point)
+    // 2. ALL exposed edges lack walls AND doors (completely open like a gazebo)
+    const allExposedEdgesOpen = exposedEdgeCount > 0 && exposedEdgesWithoutCoverageCount === exposedEdgeCount;
+    
+    if (hasOpenSouthEdge || allExposedEdgesOpen) {
       const foundationKey = getFoundationCellKey(foundation.cellX, foundation.cellY);
       entranceWays.add(foundationKey);
     }

@@ -532,6 +532,20 @@ export const renderYSortedEntities = ({
       });
   }
   
+  // Precompute ALL entrance way foundations from fog_overlay entities
+  // Walls on entrance way foundations should always be visible (no ceiling hiding them)
+  const allEntranceWayFoundations = new Set<string>();
+  ySortedEntities.forEach(({ type, entity }) => {
+      if (type === 'fog_overlay') {
+          const fogEntity = entity as { entranceWayFoundations?: string[] };
+          if (fogEntity.entranceWayFoundations) {
+              fogEntity.entranceWayFoundations.forEach(coord => {
+                  allEntranceWayFoundations.add(coord);
+              });
+          }
+      }
+  });
+  
   // NOTE: Underwater shadows are now rendered separately in GameCanvas.tsx
   // before the water overlay, not here in renderYSortedEntities
   
@@ -580,6 +594,7 @@ export const renderYSortedEntities = ({
               localPlayerPosition: localPlayerPosition,
               playerInsideCluster: playerInsideThisCluster,
               isClusterEnclosed: isEnclosed,
+              entranceWayFoundations: allEntranceWayFoundations,
           });
           return;
       }
@@ -1566,6 +1581,7 @@ export const renderYSortedEntities = ({
           const wallCellKey = `${wall.cellX},${wall.cellY}`;
           const wallClusterId = cellCoordToClusterId.get(wallCellKey);
           const playerInsideThisCluster = wallClusterId !== undefined && wallClusterId === playerBuildingClusterId;
+          const isEnclosed = wallClusterId ? clusterEnclosureStatus.get(wallClusterId) || false : false;
 
           renderWall({
               ctx,
@@ -1578,6 +1594,8 @@ export const renderYSortedEntities = ({
               cycleProgress: cycleProgress,
               localPlayerPosition: localPlayerPosition,
               playerInsideCluster: playerInsideThisCluster,
+              isClusterEnclosed: isEnclosed,
+              entranceWayFoundations: allEntranceWayFoundations,
           });
       }
   });

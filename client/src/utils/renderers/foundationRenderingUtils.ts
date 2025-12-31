@@ -962,6 +962,7 @@ export interface RenderWallParams {
   localPlayerPosition?: { x: number; y: number } | null; // ADDED: Player position for transparency logic
   playerInsideCluster?: boolean; // ADDED: Only fade walls when player is inside this building cluster
   isClusterEnclosed?: boolean; // ADDED: Whether this wall's cluster is enclosed (has ceiling)
+  entranceWayFoundations?: Set<string>; // ADDED: Foundations that are entrance ways (no ceiling) - walls on these should always be visible
 }
 
 export function renderWall({
@@ -976,6 +977,7 @@ export function renderWall({
   localPlayerPosition,
   playerInsideCluster = false,
   isClusterEnclosed = false,
+  entranceWayFoundations,
 }: RenderWallParams): void {
   if (wall.isDestroyed) {
     return;
@@ -985,11 +987,17 @@ export function renderWall({
   // - South walls (edge 2): Always visible (exterior walls)
   // - North/East/West walls: Only hide when building is ENCLOSED and player is OUTSIDE
   // - During construction (not enclosed): Show all walls so player can see what they're building
+  // - EXCEPTION: Walls on entrance way foundations should ALWAYS be visible (no ceiling hiding them)
   const isEastWestWall = wall.edge === 1 || wall.edge === 3;
   const isNorthWall = wall.edge === 0;
   
+  // Check if this wall is on an entrance way foundation
+  const wallCellKey = `${wall.cellX},${wall.cellY}`;
+  const isOnEntranceWay = entranceWayFoundations?.has(wallCellKey) || false;
+  
   // Only hide interior walls if the building is actually enclosed AND player is outside
-  if (isClusterEnclosed && !playerInsideCluster) {
+  // BUT: Never hide walls on entrance way foundations - they have no ceiling to hide behind
+  if (isClusterEnclosed && !playerInsideCluster && !isOnEntranceWay) {
     if (isEastWestWall || isNorthWall) {
       return; // Hide interior walls when viewing enclosed building from outside
     }
