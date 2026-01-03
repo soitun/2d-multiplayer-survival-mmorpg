@@ -682,7 +682,7 @@ The project includes PowerShell scripts in the `server/` directory for streamlin
   - Publishes to `broth-bullets` on maincloud
   - Regenerates client bindings
   - **Commits from root directory** to capture all changes (server + client)
-  - Pushes to trigger Vercel deployment
+  - Pushes to trigger Railway deployment
   - Preserves existing data
 
 - **`deploy-production-clean.ps1`** - Fresh production deployment
@@ -690,7 +690,7 @@ The project includes PowerShell scripts in the `server/` directory for streamlin
   - Creates fresh database with latest schema
   - Regenerates client bindings
   - **Commits from root directory** to capture all changes (server + client)
-  - Pushes to trigger Vercel deployment
+  - Pushes to trigger Railway deployment
   - **⚠️ Wipes all production data** - use carefully
 
 ### Usage Examples
@@ -712,7 +712,7 @@ cd server/
 ./deploy-production-clean.ps1  # ⚠️ Use with caution!
 ```
 
-**📝 Important Note:** Production scripts automatically navigate to the root directory before committing to ensure all changes (both server and client bindings) are captured in the git commit. This ensures Vercel deployments include the latest generated client bindings.
+**📝 Important Note:** Production scripts automatically navigate to the root directory before committing to ensure all changes (both server and client bindings) are captured in the git commit. This ensures Railway deployments include the latest generated client bindings.
 
 ## 🎨 Art Generation Prompts
 
