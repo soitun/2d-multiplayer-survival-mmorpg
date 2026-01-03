@@ -3705,7 +3705,11 @@ pub fn damage_animal_corpse(
 
     // Grant resources based on RNG and animal type
     // Apply logarithmic bonus based on time alive
-    if animal_corpse.health > 0 && rng.gen_bool(actual_fat_chance) {
+    // Note: Crabs don't drop Animal Fat - they have exoskeletons, not fat reserves
+    if animal_corpse.health > 0 
+        && animal_corpse.animal_species != crate::wild_animal_npc::AnimalSpecies::BeachCrab
+        && rng.gen_bool(actual_fat_chance) 
+    {
         let base_fat = quantity_per_hit;
         let time_alive_bonus = calculate_fat_bonus_from_time_alive(animal_corpse.spawned_at, animal_corpse.death_time);
         let total_fat = base_fat + time_alive_bonus;
@@ -3740,14 +3744,17 @@ pub fn damage_animal_corpse(
         }
     }
 
-    // NEW: Universal Animal Leather drop for ALL animals (like Animal Fat/Bone)
-    // This gives all animals a chance to drop the universal leather resource
+    // Universal Animal Leather drop for most animals (like Animal Fat/Bone)
+    // Note: Crabs don't drop Animal Leather - they have shells/carapace instead
     let mut animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
     // Apply minimum floor for animal leather when using non-primary tools
     if is_non_primary_tool {
         animal_leather_chance = animal_leather_chance.max(MIN_BASIC_RESOURCE_CHANCE);
     }
-    if animal_corpse.health > 0 && rng.gen_bool(animal_leather_chance) {
+    if animal_corpse.health > 0 
+        && animal_corpse.animal_species != crate::wild_animal_npc::AnimalSpecies::BeachCrab
+        && rng.gen_bool(animal_leather_chance) 
+    {
         match grant_resource(ctx, attacker_id, "Animal Leather", quantity_per_hit) {
             Ok(_) => resources_granted.push(("Animal Leather".to_string(), quantity_per_hit)),
             Err(e) => log::error!("Failed to grant Animal Leather: {}", e),

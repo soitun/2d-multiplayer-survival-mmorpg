@@ -702,19 +702,7 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['9x18mm Round']
   },
-  // Branch 2 (linear)
-  { 
-    id: 'shelter', 
-    name: 'Shelter', 
-    description: 'Unlocks crafting Shelters - sturdy structures that provide significant protection.', 
-    cost: 2600, 
-    tier: 5, 
-    prerequisites: ['metal-door'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_2, 520),
-    category: 'crafting' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Shelter']
-  },
+  // NOTE: Shelter removed from Memory Grid - now always craftable as a starter base
   // Branch 5 UPPER (Passive Bonuses)
   { 
     id: 'crafting-speed-2', 
@@ -1108,7 +1096,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   
   // Tier 5 items
   '9x18mm Round': '9x18mm-round',
-  'Shelter': 'shelter',
+  // NOTE: Shelter removed - now always craftable as a starter base
   'Diving Pick': 'diving-pick',
   
   // Tier 6 items

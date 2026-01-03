@@ -101,6 +101,27 @@ where
         Ok(added_to_inventory) => {
             if added_to_inventory {
                 log::info!("Player {:?} collected {} of primary resource: {} (added to inventory).", player_id, primary_quantity_to_grant, primary_resource_name);
+                
+                // Check if this is a Memory Shard and trigger tutorial if player hasn't seen it
+                if primary_resource_name == "Memory Shard" {
+                    if let Some(mut player) = ctx.db.player().identity().find(player_id) {
+                        if !player.has_seen_memory_shard_tutorial {
+                            // First time harvesting a memory shard - trigger SOVA tutorial!
+                            crate::sound_events::emit_sova_memory_shard_tutorial_sound(
+                                ctx, 
+                                player.position_x, 
+                                player.position_y, 
+                                player_id
+                            );
+                            
+                            // Mark tutorial as seen
+                            player.has_seen_memory_shard_tutorial = true;
+                            ctx.db.player().identity().update(player);
+                            
+                            log::info!("[CollectResource] First Memory Shard harvest for player {:?} - SOVA tutorial triggered!", player_id);
+                        }
+                    }
+                }
             } else {
                 log::info!("Player {:?} collected {} of primary resource: {} (dropped near player - inventory full).", player_id, primary_quantity_to_grant, primary_resource_name);
             }

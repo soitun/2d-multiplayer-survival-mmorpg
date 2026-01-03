@@ -659,6 +659,7 @@ pub struct Player {
     pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
+    pub has_seen_memory_shard_tutorial: bool, // NEW: Tracks if player has seen SOVA's memory shard explanation
 }
 
 // Table to store the last attack timestamp for each player
@@ -1657,6 +1658,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
         shard_carry_start_time: None, // NEW: Not carrying shards initially
         offline_corpse_id: None, // No offline corpse for new players
+        has_seen_memory_shard_tutorial: false, // NEW: Player hasn't seen SOVA's memory shard explanation yet
     };
 
     // Insert the new player

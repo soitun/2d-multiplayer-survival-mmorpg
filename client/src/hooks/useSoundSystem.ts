@@ -76,6 +76,8 @@ const SOUND_DEFINITIONS = {
     swimming: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 450 }, // Player swimming sounds in water
     // UI/Item interaction sounds - immediate (no server sync needed)
     crush_bones: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Local client sound
+    // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
+    sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
     // Building sounds - server only (all players hear)
     foundation_wood_constructed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation placement sound
     foundation_wood_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to wood sound
@@ -1102,6 +1104,27 @@ export const useSoundSystem = ({
                     console.log(`🔊 Stopped bandaging sound for player ${playerKey}`);
                 }
                 return; // Don't play the stop_bandaging sound itself
+            }
+            
+            // Special handling for SOVA memory shard tutorial - emit event for GameScreen to handle
+            // GameScreen will play the audio with the SovaSoundBox waveform visualization
+            if (soundType === 'sova_memory_shard_tutorial') {
+                // Only trigger for the local player who picked up the shard
+                if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
+                    console.log(`🔮 [SOVA Tutorial] Memory shard tutorial triggered for local player`);
+                    
+                    // Emit custom event for GameScreen to handle (plays audio + shows waveform + adds chat message)
+                    const tutorialMessage = `Agent, you've acquired a Memory Shard — volatile data fragments from the old world. Be warned: the longer you carry these, the more they affect your perception. You'll notice your vision turning purple — that's the insanity effect building up. It's not harmful immediately, but don't hoard them for too long. Deposit your shards at any ALK station to stay safe and clear your mind. The purple will fade once you drop them off.`;
+                    
+                    window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial', {
+                        detail: {
+                            message: tutorialMessage,
+                            timestamp: new Date()
+                        }
+                    }));
+                }
+                // Don't play through sound system - GameScreen handles this with SovaSoundBox
+                return;
             }
             
             // Special handling for bandaging sounds - track them so they can be stopped

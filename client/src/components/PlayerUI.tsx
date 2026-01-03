@@ -1453,7 +1453,6 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                         barColor="#ff4040" 
                         hasActiveEffect={isHealthHealingOverTime}
                         hasBleedEffect={isPlayerBleeding}
-                        hasSeawaterPoisoningEffect={isPlayerSeawaterPoisoned}
                         hasFoodPoisoningEffect={isPlayerFoodPoisoned}
                         pendingHealAmount={pendingBandageHealAmount}
                         glow={localPlayer.health < lowNeedThreshold}
@@ -1464,7 +1463,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                       matching server logic for stat penalties/health loss. This helps players realize
                       why they're thirsty/hungry/cold and should take action soon.
                     */}
-                    <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} />
+                    <StatusBar label="Thirst" iconType="thirst" value={localPlayer.thirst} maxValue={250} barColor="#40a0ff" glow={localPlayer.thirst < lowNeedThreshold} hasSeawaterPoisoningEffect={isPlayerSeawaterPoisoned} />
                     <StatusBar label="Hunger" iconType="hunger" value={localPlayer.hunger} maxValue={250} barColor="#ffa040" glow={localPlayer.hunger < lowNeedThreshold} />
                     {/* <StatusBar label="Warmth" iconType="warmth" value={localPlayer.warmth} maxValue={100} barColor="#ffcc00" glow={localPlayer.warmth < lowNeedThreshold} /> */}
                     {/* XP Bar moved to above Hotbar (WoW style) */}

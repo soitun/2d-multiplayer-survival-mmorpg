@@ -84,6 +84,7 @@ pub enum SoundType {
     Explosion,               // explosion.mp3 (1 variation - loud explosion sound, audible from far away)
     ExplosiveDud,            // explosive_dud.mp3 (1 variation - fizzle sound when explosive fails to detonate)
     DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
+    SovaMemoryShardTutorial, // sova_memory_shard_tutorial.mp3 (SOVA explains memory shards on first pickup)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -169,6 +170,7 @@ impl SoundType {
             SoundType::Explosion => "explosion",
             SoundType::ExplosiveDud => "explosive_dud",
             SoundType::DoorDestroyed => "door_destroyed",
+            SoundType::SovaMemoryShardTutorial => "sova_memory_shard_tutorial",
         }
     }
 
@@ -252,6 +254,7 @@ impl SoundType {
             SoundType::Explosion => 1, // explosion.mp3 (single variation)
             SoundType::ExplosiveDud => 1, // explosive_dud.mp3 (single variation)
             SoundType::DoorDestroyed => 1, // door_destroyed.mp3 (single variation)
+            SoundType::SovaMemoryShardTutorial => 1, // sova_memory_shard_tutorial.mp3 (SOVA tutorial - single)
         }
     }
 
@@ -1257,6 +1260,17 @@ pub fn emit_door_destroyed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, p
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::DoorDestroyed, pos_x, pos_y, 1.0, 400.0, player_id) {
         log::warn!("Failed to emit door destroyed sound: {}", e);
     }
+}
+
+/// Emit SOVA memory shard tutorial sound (first time player picks up a memory shard)
+/// This triggers a full SOVA voice explanation about memory shards and the insanity system
+pub fn emit_sova_memory_shard_tutorial_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    // This sound is played at the player's location but with large distance so they always hear it
+    // The client will also add a SOVA chat message when this sound is received
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::SovaMemoryShardTutorial, pos_x, pos_y, 1.0, 10000.0, player_id) {
+        log::warn!("Failed to emit SOVA memory shard tutorial sound: {}", e);
+    }
+    log::info!("[SOVA Tutorial] Memory shard tutorial triggered for player {:?}", player_id);
 }
 
 // --- Client-Callable Rain Sound Reducers ---

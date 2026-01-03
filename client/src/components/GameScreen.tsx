@@ -573,6 +573,70 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         };
     }, [localPlayerId]);
 
+    // === SOVA Memory Shard Tutorial Event Listener ===
+    // Listen for the custom event from useSoundSystem when player picks up their first memory shard
+    // Uses the same SovaSoundBox waveform component as intro tutorial and insanity sounds
+    useEffect(() => {
+        const handleMemoryShardTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
+            console.log('[GameScreen] 🔮 Received memory shard tutorial event from sound system');
+            
+            // Play audio and show SOVA sound box with waveform visualization
+            // (same pattern as intro tutorial)
+            try {
+                const audio = new Audio('/sounds/sova_memory_shard_tutorial.mp3');
+                audio.volume = 0.8;
+                audio.play().then(() => {
+                    // Show the sound box with waveform if callback is available
+                    if (showSovaSoundBoxRef.current) {
+                        showSovaSoundBoxRef.current(audio, 'SOVA: Memory Shard Warning');
+                    }
+                    
+                    // Add SOVA message to chat with tab flash
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-memory-shard-tutorial-${Date.now()}`,
+                            text: event.detail.message,
+                            isUser: false,
+                            timestamp: event.detail.timestamp,
+                            flashTab: true, // Flash the SOVA tab to draw attention
+                        });
+                        console.log('[GameScreen] 🔮 Memory shard tutorial message added to SOVA chat');
+                    }
+                }).catch(err => {
+                    console.warn('[GameScreen] 🔮 Failed to play memory shard tutorial audio:', err);
+                    // Still add chat message even if audio fails
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-memory-shard-tutorial-${Date.now()}`,
+                            text: event.detail.message,
+                            isUser: false,
+                            timestamp: event.detail.timestamp,
+                            flashTab: true,
+                        });
+                    }
+                });
+            } catch (err) {
+                console.warn('[GameScreen] 🔮 Error creating memory shard tutorial audio:', err);
+                // Still add chat message even on error
+                if (sovaMessageAdderRef.current) {
+                    sovaMessageAdderRef.current({
+                        id: `sova-memory-shard-tutorial-${Date.now()}`,
+                        text: event.detail.message,
+                        isUser: false,
+                        timestamp: event.detail.timestamp,
+                        flashTab: true,
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('sova-memory-shard-tutorial', handleMemoryShardTutorial as EventListener);
+        
+        return () => {
+            window.removeEventListener('sova-memory-shard-tutorial', handleMemoryShardTutorial as EventListener);
+        };
+    }, []);
+
     // Handle matronage creation - close delivery panel and open interface to matronage page
     const handleMatronageCreated = useCallback(() => {
         // Close the ALK delivery panel

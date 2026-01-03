@@ -288,8 +288,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),
-        // Branch 2 (linear) - simplified, removed bush-knife/large-wooden-storage-box/metal-door
-        "shelter" => Some((2600, vec!["metal-hatchet"])),
+        // NOTE: Shelter removed from Memory Grid - now craftable from start as a beginner base
         // Branch 3 UPPER (Diving/Coral path)
         "diving-pick" => Some((2200, vec!["reed-snorkel"])),
         // Branch 4 UPPER (Cooking)
@@ -539,7 +538,7 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 5
         "9x18mm-round" => "9x18mm Round".to_string(),
-        "shelter" => "Shelter".to_string(),
+        // NOTE: Shelter removed from Memory Grid - now always craftable
         "diving-pick" => "Diving Pick".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
@@ -676,7 +675,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 5 items
         "9x18mm Round" => Some("9x18mm-round"),
-        "Shelter" => Some("shelter"),
+        // NOTE: Shelter removed - now always craftable as a starter base
         "Diving Pick" => Some("diving-pick"),
         
         // Tier 6 items

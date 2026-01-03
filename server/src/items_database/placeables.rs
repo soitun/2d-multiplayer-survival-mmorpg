@@ -148,13 +148,14 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
         // Shelter - STARTER protection structure (cheap but weak)
         // Designed as a quick early-game base before learning the building system.
         // Much cheaper than building, but also much weaker and not upgradeable.
+        // NOW CRAFTABLE FROM START - No Memory Grid unlock required!
         ItemBuilder::new("Shelter", "A quick starter shelter. Cheap to build but offers minimal protection. Upgrade to foundations and walls for real security.", ItemCategory::Placeable)
             .icon("shelter.png")
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 }, // Reduced from 150 - starter base
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },   // Reduced from 3 - starter base
             ])
-            .crafting_output(1, 20) // Quick to craft
+            .crafting_output(1, 15) // Faster to craft for early game
             .respawn_time(300)
             .build(),
 

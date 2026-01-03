@@ -226,7 +226,19 @@ export const sortRecipesByPrediction = (
     .map(item => item.recipe);
 };
 
+// Helper to check if a recipe can be crafted
+const canCraftRecipe = (recipe: Recipe, playerInventory: PlayerInventory): boolean => {
+  for (const material of recipe.materials) {
+    const available = playerInventory[material.itemId] || 0;
+    if (available < material.quantity) {
+      return false;
+    }
+  }
+  return recipe.materials.length > 0;
+};
+
 // Filter recipes with smart prediction scoring
+// IMPORTANT: Craftable items ALWAYS appear first, regardless of search term
 export const filterAndSortRecipes = (
   recipes: Recipe[],
   searchTerm: string,
@@ -248,30 +260,36 @@ export const filterAndSortRecipes = (
       recipe.name.toLowerCase().includes(term) ||
       recipe.materials.some(mat => mat.itemId.toLowerCase().includes(term))
     );
-    
-    // Sort with exact matches first, then by prediction score
-    return filtered
-      .map(recipe => ({
-        recipe,
-        isExactMatch: recipe.name.toLowerCase() === term,
-        isStartsWith: recipe.name.toLowerCase().startsWith(term),
-        score: calculateRecipePredictionScore(recipe, playerInventory, playerHotbar)
-      }))
-      .sort((a, b) => {
-        // Exact matches always first
+  }
+  
+  // Sort: CRAFTABLE ITEMS FIRST, then search relevance, then prediction score
+  return filtered
+    .map(recipe => ({
+      recipe,
+      canCraft: canCraftRecipe(recipe, playerInventory),
+      isExactMatch: term ? recipe.name.toLowerCase() === term : false,
+      isStartsWith: term ? recipe.name.toLowerCase().startsWith(term) : false,
+      score: calculateRecipePredictionScore(recipe, playerInventory, playerHotbar)
+    }))
+    .sort((a, b) => {
+      // FIRST PRIORITY: Craftable items always come first
+      if (a.canCraft && !b.canCraft) return -1;
+      if (!a.canCraft && b.canCraft) return 1;
+      
+      // SECOND PRIORITY: Within same craftability tier, search relevance
+      if (term) {
+        // Exact matches
         if (a.isExactMatch && !b.isExactMatch) return -1;
         if (!a.isExactMatch && b.isExactMatch) return 1;
         // Then startsWith matches
         if (a.isStartsWith && !b.isStartsWith) return -1;
         if (!a.isStartsWith && b.isStartsWith) return 1;
-        // Then by prediction score
-        return b.score - a.score;
-      })
-      .map(item => item.recipe);
-  }
-  
-  // No search term - apply prediction sorting
-  return sortRecipesByPrediction(filtered, playerInventory, playerHotbar);
+      }
+      
+      // THIRD PRIORITY: Prediction score (higher is better)
+      return b.score - a.score;
+    })
+    .map(item => item.recipe);
 };
 
 interface CraftingSearchBarProps {

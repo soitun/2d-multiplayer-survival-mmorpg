@@ -231,7 +231,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             });
         }
 
-        // Sort: exact matches first, then startsWith, then craftable, then alphabetically
+        // Sort: CRAFTABLE ITEMS FIRST, then search relevance, then alphabetically
         const term = searchTerm.trim().toLowerCase();
         return filtered.sort((a, b) => {
             const aName = itemDefinitions.get(a.outputItemDefId.toString())?.name || '';
@@ -239,7 +239,13 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             const aNameLower = aName.toLowerCase();
             const bNameLower = bName.toLowerCase();
             
-            // If searching, exact matches come first
+            // FIRST PRIORITY: Craftable items always come first
+            const aCraftable = canCraft(a, 1);
+            const bCraftable = canCraft(b, 1);
+            if (aCraftable && !bCraftable) return -1;
+            if (!aCraftable && bCraftable) return 1;
+            
+            // SECOND PRIORITY: Within same craftability tier, sort by search relevance
             if (term) {
                 const aExact = aNameLower === term;
                 const bExact = bNameLower === term;
@@ -252,14 +258,8 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                 if (aStartsWith && !bStartsWith) return -1;
                 if (!aStartsWith && bStartsWith) return 1;
             }
-            
-            // Then craftable items
-            const aCraftable = canCraft(a, 1);
-            const bCraftable = canCraft(b, 1);
-            if (aCraftable && !bCraftable) return -1;
-            if (!aCraftable && bCraftable) return 1;
 
-            // Finally alphabetical
+            // THIRD PRIORITY: Alphabetical
             return aName.localeCompare(bName);
         });
     }, [recipes, selectedCategory, searchTerm, itemDefinitions, canCraft]);
