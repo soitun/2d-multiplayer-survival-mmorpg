@@ -46,8 +46,9 @@ import { cors } from 'hono/cors';
 import fs from 'fs';
 import path from 'path';
 // Import our new modules
-import { db, type UserRecord, type AuthCodeData } from './database.js';
+import { db, type UserRecord, type AuthCodeData, type PasswordResetToken } from './database.js';
 import { initializeKeys, getPrivateKey, getPublicJWK, keyId } from './jwt-keys.js';
+import { Resend } from 'resend';
 
 /* -------------------------------------------------------------------------- */
 /* Config                                                                     */
@@ -56,6 +57,17 @@ const PORT        = config.port;
 const ISSUER_URL  = config.issuerUrl;
 const SALT_ROUNDS = config.saltRounds;
 const CLIENT_ID   = 'vibe-survival-game-client';
+const PASSWORD_RESET_EXPIRY_MINUTES = 15;
+
+// Initialize Resend for email sending
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+
+if (!resendApiKey) {
+  console.warn('[Config] RESEND_API_KEY not set - password reset emails will be logged to console only');
+} else {
+  console.log('[Config] Resend email service configured');
+}
 
 /* -------------------------------------------------------------------------- */
 /* Core Password Logic Handlers (Updated for database)                       */
@@ -177,6 +189,309 @@ async function success(ctx: any, value: any): Promise<Response> {
       return ctx.res;
   }
   return new Response('Issuer Success OK', { status: 200 });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helper Functions for Password Reset Pages                                   */
+/* -------------------------------------------------------------------------- */
+function renderForgotPasswordPage(opts: { error?: string; success?: string } = {}): string {
+  const { error, success } = opts;
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Forgot Password - Broth & Bullets</title>
+      <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+              min-height: 100vh;
+              background-image: url('/login_background.png');
+              background-size: cover;
+              background-position: top center;
+              background-repeat: no-repeat;
+              font-family: system-ui, -apple-system, sans-serif;
+              color: white;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+          }
+          .container {
+              background: rgba(0, 0, 0, 0.75);
+              backdrop-filter: blur(12px);
+              border: 2px solid rgba(255, 255, 255, 0.3);
+              border-radius: 16px;
+              padding: 60px 40px;
+              width: 90%;
+              max-width: 450px;
+              text-align: center;
+          }
+          .game-title { height: 90px; margin-bottom: 20px; }
+          .game-subtitle {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.8);
+              margin-bottom: 40px;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+          }
+          .form-title { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
+          .form-description {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.7);
+              margin-bottom: 30px;
+              line-height: 1.5;
+          }
+          .form-group { margin-bottom: 25px; text-align: left; }
+          label {
+              display: block;
+              margin-bottom: 8px;
+              font-size: 13px;
+              color: rgba(255, 255, 255, 0.9);
+              font-weight: 500;
+          }
+          input[type="email"] {
+              width: 100%;
+              padding: 16px 20px;
+              background: rgba(255, 255, 255, 0.1);
+              border: 2px solid rgba(255, 255, 255, 0.3);
+              border-radius: 12px;
+              color: white;
+              font-size: 16px;
+          }
+          input[type="email"]:focus {
+              outline: none;
+              border-color: #ff8c00;
+              background: rgba(255, 255, 255, 0.15);
+          }
+          input[type="email"]::placeholder { color: rgba(255, 255, 255, 0.5); }
+          .submit-button {
+              width: 100%;
+              padding: 18px 20px;
+              background: linear-gradient(135deg, #ff8c00 0%, #e67700 100%);
+              border: none;
+              border-radius: 12px;
+              color: white;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              margin-bottom: 30px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+          }
+          .submit-button:hover {
+              background: linear-gradient(135deg, #ffaa33 0%, #ff8c00 100%);
+          }
+          .divider {
+              height: 1px;
+              background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+              margin: 30px 0;
+          }
+          .form-link {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.8);
+          }
+          .form-link a {
+              color: #ff8c00;
+              text-decoration: none;
+              font-weight: 500;
+          }
+          .form-link a:hover { color: #ffaa33; text-decoration: underline; }
+          .error-message {
+              background: rgba(220, 53, 69, 0.15);
+              border: 1px solid rgba(220, 53, 69, 0.4);
+              border-radius: 8px;
+              padding: 12px;
+              margin-bottom: 20px;
+              font-size: 14px;
+              color: #ff6b6b;
+          }
+          .success-message {
+              background: rgba(40, 167, 69, 0.15);
+              border: 1px solid rgba(40, 167, 69, 0.4);
+              border-radius: 8px;
+              padding: 12px;
+              margin-bottom: 20px;
+              font-size: 14px;
+              color: #5cb85c;
+              line-height: 1.5;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="game-title">
+              <img src="/logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+          </div>
+          <div class="game-subtitle">2D Multiplayer Survival</div>
+          <h1 class="form-title">Forgot Password</h1>
+          ${success ? `<div class="success-message">${success}</div>` : `
+          <p class="form-description">Enter your email address and we'll send you a link to reset your password.</p>
+          ${error ? `<div class="error-message">${error}</div>` : ''}
+          <form method="post">
+              <div class="form-group">
+                  <label for="email">Email Address</label>
+                  <input id="email" name="email" type="email" autocomplete="email" required placeholder="Enter your email">
+              </div>
+              <button type="submit" class="submit-button">Send Reset Link</button>
+          </form>
+          `}
+          <div class="divider"></div>
+          <p class="form-link">Remember your password? <a href="/auth/password/login">Sign In</a></p>
+      </div>
+  </body>
+  </html>
+  `;
+}
+
+function renderResetPasswordPage(opts: { token?: string; email?: string; error?: string } = {}): string {
+  const { token, email, error } = opts;
+  const showForm = token && !error?.includes('Invalid') && !error?.includes('expired') && !error?.includes('already been used');
+  
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Password - Broth & Bullets</title>
+      <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+              min-height: 100vh;
+              background-image: url('/login_background.png');
+              background-size: cover;
+              background-position: top center;
+              font-family: system-ui, -apple-system, sans-serif;
+              color: white;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+          }
+          .container {
+              background: rgba(0, 0, 0, 0.75);
+              backdrop-filter: blur(12px);
+              border: 2px solid rgba(255, 255, 255, 0.3);
+              border-radius: 16px;
+              padding: 60px 40px;
+              width: 90%;
+              max-width: 450px;
+              text-align: center;
+          }
+          .game-title { height: 90px; margin-bottom: 20px; }
+          .game-subtitle {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.8);
+              margin-bottom: 40px;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+          }
+          .form-title { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
+          .form-description {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.7);
+              margin-bottom: 30px;
+              line-height: 1.5;
+          }
+          .form-group { margin-bottom: 25px; text-align: left; }
+          label {
+              display: block;
+              margin-bottom: 8px;
+              font-size: 13px;
+              color: rgba(255, 255, 255, 0.9);
+              font-weight: 500;
+          }
+          input[type="password"], input[type="email"] {
+              width: 100%;
+              padding: 16px 20px;
+              background: rgba(255, 255, 255, 0.1);
+              border: 2px solid rgba(255, 255, 255, 0.3);
+              border-radius: 12px;
+              color: white;
+              font-size: 16px;
+          }
+          input:focus {
+              outline: none;
+              border-color: #ff8c00;
+              background: rgba(255, 255, 255, 0.15);
+          }
+          input::placeholder { color: rgba(255, 255, 255, 0.5); }
+          input:disabled {
+              background: rgba(255, 255, 255, 0.05);
+              color: rgba(255, 255, 255, 0.5);
+          }
+          .submit-button {
+              width: 100%;
+              padding: 18px 20px;
+              background: linear-gradient(135deg, #ff8c00 0%, #e67700 100%);
+              border: none;
+              border-radius: 12px;
+              color: white;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              margin-bottom: 30px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+          }
+          .submit-button:hover {
+              background: linear-gradient(135deg, #ffaa33 0%, #ff8c00 100%);
+          }
+          .divider {
+              height: 1px;
+              background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+              margin: 30px 0;
+          }
+          .form-link {
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.8);
+          }
+          .form-link a {
+              color: #ff8c00;
+              text-decoration: none;
+              font-weight: 500;
+          }
+          .form-link a:hover { color: #ffaa33; text-decoration: underline; }
+          .error-message {
+              background: rgba(220, 53, 69, 0.15);
+              border: 1px solid rgba(220, 53, 69, 0.4);
+              border-radius: 8px;
+              padding: 12px;
+              margin-bottom: 20px;
+              font-size: 14px;
+              color: #ff6b6b;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="game-title">
+              <img src="/logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+          </div>
+          <div class="game-subtitle">2D Multiplayer Survival</div>
+          <h1 class="form-title">Reset Password</h1>
+          ${error ? `<div class="error-message">${error}</div>` : ''}
+          ${showForm ? `
+          <p class="form-description">Enter a new password for <strong>${email}</strong></p>
+          <form method="post">
+              <input type="hidden" name="token" value="${token}">
+              <div class="form-group">
+                  <label for="password">New Password</label>
+                  <input id="password" name="password" type="password" autocomplete="new-password" required placeholder="Enter new password" minlength="6">
+              </div>
+              <div class="form-group">
+                  <label for="confirm_password">Confirm Password</label>
+                  <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required placeholder="Confirm new password" minlength="6">
+              </div>
+              <button type="submit" class="submit-button">Reset Password</button>
+          </form>
+          ` : ''}
+          <div class="divider"></div>
+          <p class="form-link"><a href="/auth/password/forgot">Request New Reset Link</a> | <a href="/auth/password/login">Sign In</a></p>
+      </div>
+  </body>
+  </html>
+  `;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -850,6 +1165,8 @@ async function success(ctx: any, value: any): Promise<Response> {
                 </div>
                 
                 <button type="submit" class="submit-button">Sign In</button>
+                
+                <p class="form-link" style="margin-top: -15px; margin-bottom: 0;"><a href="/auth/password/forgot">Forgot Password?</a></p>
             </form>
             
             <div class="divider"></div>
@@ -1113,6 +1430,8 @@ async function success(ctx: any, value: any): Promise<Response> {
                             <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password">
                         </div>
                         <button type="submit" class="submit-button">Sign In</button>
+                        
+                        <p class="form-link" style="margin-top: -15px; margin-bottom: 0;"><a href="/auth/password/forgot">Forgot Password?</a></p>
                     </form>
                     <div class="divider"></div>
                     <p class="form-link">Don't have an account? <a href="/auth/password/register?${queryString}">Create Account</a></p>
@@ -1121,6 +1440,396 @@ async function success(ctx: any, value: any): Promise<Response> {
             </html>
           `);
       }
+  });
+
+  // --- Forgot Password Flow ---
+  app.get('/auth/password/forgot', (c) => {
+    return c.html(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Forgot Password - Broth & Bullets</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                min-height: 100vh;
+                width: 100%;
+                background-image: url('login_background.png');
+                background-size: cover;
+                background-position: top center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .container {
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(12px);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-radius: 16px;
+                padding: 60px 40px;
+                width: 90%;
+                max-width: 450px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                text-align: center;
+            }
+            .game-title { height: 90px; margin-bottom: 20px; }
+            .game-subtitle {
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.8);
+                margin-bottom: 40px;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+            }
+            .form-title {
+                font-size: 24px;
+                font-weight: 600;
+                margin-bottom: 15px;
+            }
+            .form-description {
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.7);
+                margin-bottom: 30px;
+                line-height: 1.5;
+            }
+            .form-group { margin-bottom: 25px; text-align: left; }
+            label {
+                display: block;
+                margin-bottom: 8px;
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.9);
+                font-weight: 500;
+            }
+            input[type="email"] {
+                width: 100%;
+                padding: 16px 20px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-radius: 12px;
+                color: white;
+                font-size: 16px;
+                transition: all 0.3s ease;
+            }
+            input[type="email"]:focus {
+                outline: none;
+                border-color: #ff8c00;
+                background: rgba(255, 255, 255, 0.15);
+            }
+            input[type="email"]::placeholder { color: rgba(255, 255, 255, 0.5); }
+            .submit-button {
+                width: 100%;
+                padding: 18px 20px;
+                background: linear-gradient(135deg, #ff8c00 0%, #e67700 100%);
+                border: none;
+                border-radius: 12px;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 30px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            .submit-button:hover {
+                background: linear-gradient(135deg, #ffaa33 0%, #ff8c00 100%);
+                transform: translateY(-2px);
+            }
+            .divider {
+                height: 1px;
+                background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+                margin: 30px 0;
+            }
+            .form-link {
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.8);
+            }
+            .form-link a {
+                color: #ff8c00;
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .form-link a:hover { color: #ffaa33; text-decoration: underline; }
+            .error-message {
+                background: rgba(220, 53, 69, 0.15);
+                border: 1px solid rgba(220, 53, 69, 0.4);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 20px;
+                font-size: 14px;
+                color: #ff6b6b;
+            }
+            .success-message {
+                background: rgba(40, 167, 69, 0.15);
+                border: 1px solid rgba(40, 167, 69, 0.4);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 20px;
+                font-size: 14px;
+                color: #5cb85c;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="game-title">
+                <img src="logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+            </div>
+            <div class="game-subtitle">2D Multiplayer Survival</div>
+            <h1 class="form-title">Forgot Password</h1>
+            <p class="form-description">Enter your email address and we'll send you a link to reset your password.</p>
+            <form method="post">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required placeholder="Enter your email">
+                </div>
+                <button type="submit" class="submit-button">Send Reset Link</button>
+            </form>
+            <div class="divider"></div>
+            <p class="form-link">Remember your password? <a href="/auth/password/login">Sign In</a></p>
+        </div>
+    </body>
+    </html>
+    `);
+  });
+
+  app.post('/auth/password/forgot', async (c) => {
+    const form = await c.req.formData();
+    const email = (form.get('email') as string)?.toLowerCase()?.trim();
+
+    if (!email) {
+      return c.html(renderForgotPasswordPage({ error: 'Please enter your email address.' }));
+    }
+
+    // Check if user exists
+    const user = await db.getUserByEmail(email);
+    
+    // Always show success message to prevent email enumeration attacks
+    const successHtml = renderForgotPasswordPage({ 
+      success: 'If an account with that email exists, we\'ve sent a password reset link. Please check your inbox and spam folder.' 
+    });
+
+    if (!user) {
+      console.log(`[ForgotPassword] No user found for email: ${email}`);
+      return c.html(successHtml);
+    }
+
+    // Generate secure token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MINUTES * 60 * 1000);
+
+    // Store token
+    await db.storePasswordResetToken(token, user.userId, email, expiresAt);
+
+    // Build reset link
+    const resetLink = `${ISSUER_URL}/auth/password/reset?token=${token}`;
+
+    // Send email
+    if (resend) {
+      try {
+        await resend.emails.send({
+          from: 'Broth & Bullets <noreply@brothandbullets.com>',
+          to: email,
+          subject: 'Reset your Broth & Bullets password',
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: system-ui, -apple-system, sans-serif; background-color: #1a1a2e; color: #ffffff; padding: 40px 20px; margin: 0;">
+              <div style="max-width: 500px; margin: 0 auto; background: rgba(40, 40, 60, 0.95); border-radius: 16px; padding: 40px; border: 2px solid rgba(255, 140, 0, 0.3);">
+                <h1 style="color: #ff8c00; margin-bottom: 20px; font-size: 24px;">Reset Your Password</h1>
+                <p style="color: rgba(255, 255, 255, 0.8); line-height: 1.6; margin-bottom: 30px;">
+                  You requested a password reset for your Broth & Bullets account. Click the button below to set a new password:
+                </p>
+                <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #ff8c00 0%, #e67700 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  Reset Password
+                </a>
+                <p style="color: rgba(255, 255, 255, 0.5); font-size: 13px; margin-top: 30px; line-height: 1.5;">
+                  This link will expire in ${PASSWORD_RESET_EXPIRY_MINUTES} minutes.<br><br>
+                  If you didn't request this reset, you can safely ignore this email.
+                </p>
+                <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 30px 0;">
+                <p style="color: rgba(255, 255, 255, 0.4); font-size: 12px;">
+                  Broth & Bullets - 2D Multiplayer Survival
+                </p>
+              </div>
+            </body>
+            </html>
+          `
+        });
+        console.log(`[ForgotPassword] Reset email sent to: ${email}`);
+      } catch (err) {
+        console.error('[ForgotPassword] Failed to send email:', err);
+        // Still show success to user to prevent enumeration
+      }
+    } else {
+      // Development: Log the reset link to console
+      console.log(`[ForgotPassword] DEV MODE - Reset link for ${email}: ${resetLink}`);
+    }
+
+    return c.html(successHtml);
+  });
+
+  app.get('/auth/password/reset', async (c) => {
+    const token = c.req.query('token');
+
+    if (!token) {
+      return c.html(renderResetPasswordPage({ error: 'Invalid or missing reset token.' }));
+    }
+
+    // Validate token
+    const resetToken = await db.getPasswordResetToken(token);
+    
+    if (!resetToken) {
+      return c.html(renderResetPasswordPage({ error: 'Invalid reset link. Please request a new one.' }));
+    }
+
+    if (resetToken.used) {
+      return c.html(renderResetPasswordPage({ error: 'This reset link has already been used. Please request a new one.' }));
+    }
+
+    if (new Date() > resetToken.expiresAt) {
+      return c.html(renderResetPasswordPage({ error: 'This reset link has expired. Please request a new one.' }));
+    }
+
+    return c.html(renderResetPasswordPage({ token, email: resetToken.email }));
+  });
+
+  app.post('/auth/password/reset', async (c) => {
+    const form = await c.req.formData();
+    const token = form.get('token') as string;
+    const password = form.get('password') as string;
+    const confirmPassword = form.get('confirm_password') as string;
+
+    if (!token) {
+      return c.html(renderResetPasswordPage({ error: 'Invalid reset token.' }));
+    }
+
+    // Validate token
+    const resetToken = await db.getPasswordResetToken(token);
+    
+    if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+      return c.html(renderResetPasswordPage({ error: 'Invalid or expired reset link. Please request a new one.' }));
+    }
+
+    // Validate password
+    if (!password || password.length < 6) {
+      return c.html(renderResetPasswordPage({ 
+        token, 
+        email: resetToken.email, 
+        error: 'Password must be at least 6 characters long.' 
+      }));
+    }
+
+    if (password !== confirmPassword) {
+      return c.html(renderResetPasswordPage({ 
+        token, 
+        email: resetToken.email, 
+        error: 'Passwords do not match.' 
+      }));
+    }
+
+    // Update password
+    const newPasswordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const updated = await db.updateUserPassword(resetToken.userId, newPasswordHash);
+
+    if (!updated) {
+      return c.html(renderResetPasswordPage({ 
+        token, 
+        email: resetToken.email, 
+        error: 'Failed to update password. Please try again.' 
+      }));
+    }
+
+    // Mark token as used
+    await db.markPasswordResetTokenUsed(token);
+
+    console.log(`[ResetPassword] Password successfully reset for user: ${resetToken.userId}`);
+
+    // Show success page
+    return c.html(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset - Broth & Bullets</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                min-height: 100vh;
+                background-image: url('/login_background.png');
+                background-size: cover;
+                background-position: top center;
+                font-family: system-ui, -apple-system, sans-serif;
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .container {
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(12px);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-radius: 16px;
+                padding: 60px 40px;
+                width: 90%;
+                max-width: 450px;
+                text-align: center;
+            }
+            .game-title { height: 90px; margin-bottom: 20px; }
+            .success-icon {
+                font-size: 64px;
+                margin-bottom: 20px;
+            }
+            .form-title { font-size: 24px; font-weight: 600; margin-bottom: 15px; color: #5cb85c; }
+            .form-description {
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.7);
+                margin-bottom: 30px;
+                line-height: 1.5;
+            }
+            .submit-button {
+                display: inline-block;
+                padding: 18px 40px;
+                background: linear-gradient(135deg, #ff8c00 0%, #e67700 100%);
+                border: none;
+                border-radius: 12px;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                text-decoration: none;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                transition: all 0.3s ease;
+            }
+            .submit-button:hover {
+                background: linear-gradient(135deg, #ffaa33 0%, #ff8c00 100%);
+                transform: translateY(-2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="game-title">
+                <img src="/logo_alt.png" alt="Broth & Bullets Logo" style="height: 100%; width: auto;">
+            </div>
+            <div class="success-icon">✓</div>
+            <h1 class="form-title">Password Reset Successful!</h1>
+            <p class="form-description">Your password has been successfully updated. You can now sign in with your new password.</p>
+            <a href="/auth/password/login" class="submit-button">Sign In</a>
+        </div>
+    </body>
+    </html>
+    `);
   });
 
   // Token endpoint - Updated for environment keys

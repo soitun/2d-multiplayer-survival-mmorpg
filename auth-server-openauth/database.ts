@@ -16,9 +16,18 @@ export interface AuthCodeData {
   redirectUri: string;
 }
 
+export interface PasswordResetToken {
+  token: string;
+  userId: string;
+  email: string;
+  expiresAt: Date;
+  used: boolean;
+}
+
 interface JsonStorage {
   users: UserRecord[];
   codes: { code: string; data: AuthCodeData; expiresAt: number }[];
+  resetTokens: { token: string; userId: string; email: string; expiresAt: number; used: boolean }[];
 }
 
 class DatabaseService {
@@ -45,7 +54,7 @@ class DatabaseService {
   private initJsonStorage() {
     // Only create/use JSON file in development mode
     if (!fs.existsSync(this.jsonFilePath)) {
-      const initialData: JsonStorage = { users: [], codes: [] };
+      const initialData: JsonStorage = { users: [], codes: [], resetTokens: [] };
       fs.writeFileSync(this.jsonFilePath, JSON.stringify(initialData, null, 2));
       console.log('[Database] Created users.json file for development');
     } else {
@@ -56,10 +65,15 @@ class DatabaseService {
   private readJsonStorage(): JsonStorage {
     try {
       const data = fs.readFileSync(this.jsonFilePath, 'utf8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      // Ensure resetTokens array exists for backward compatibility
+      if (!parsed.resetTokens) {
+        parsed.resetTokens = [];
+      }
+      return parsed;
     } catch (error) {
       console.warn('[Database] Failed to read users.json, creating new file');
-      const initialData: JsonStorage = { users: [], codes: [] };
+      const initialData: JsonStorage = { users: [], codes: [], resetTokens: [] };
       this.writeJsonStorage(initialData);
       return initialData;
     }
@@ -93,8 +107,19 @@ class DatabaseService {
       )
     `;
 
-    // Clean up expired codes
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL REFERENCES users(user_id),
+        email VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE
+      )
+    `;
+
+    // Clean up expired codes and tokens
     await this.sql`DELETE FROM auth_codes WHERE expires_at < CURRENT_TIMESTAMP`;
+    await this.sql`DELETE FROM password_reset_tokens WHERE expires_at < CURRENT_TIMESTAMP`;
   }
 
   // User operations
@@ -223,6 +248,97 @@ class DatabaseService {
       await this.sql`DELETE FROM auth_codes WHERE code = ${code}`;
     } else {
       this.memoryCodes.delete(code);
+    }
+  }
+
+  // Password reset token operations
+  async storePasswordResetToken(token: string, userId: string, email: string, expiresAt: Date): Promise<void> {
+    if (this.isProduction && this.sql) {
+      // First, invalidate any existing tokens for this user
+      await this.sql`UPDATE password_reset_tokens SET used = TRUE WHERE user_id = ${userId} AND used = FALSE`;
+      
+      await this.sql`
+        INSERT INTO password_reset_tokens (token, user_id, email, expires_at, used)
+        VALUES (${token}, ${userId}, ${email}, ${expiresAt}, FALSE)
+      `;
+    } else {
+      // Development: Use JSON file
+      const storage = this.readJsonStorage();
+      // Mark existing tokens for this user as used
+      storage.resetTokens = storage.resetTokens.map(t => 
+        t.userId === userId ? { ...t, used: true } : t
+      );
+      storage.resetTokens.push({
+        token,
+        userId,
+        email,
+        expiresAt: expiresAt.getTime(),
+        used: false
+      });
+      this.writeJsonStorage(storage);
+    }
+    console.info(`[Database] Stored password reset token for user ${userId}`);
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | null> {
+    if (this.isProduction && this.sql) {
+      const result = await this.sql`
+        SELECT token, user_id, email, expires_at, used
+        FROM password_reset_tokens
+        WHERE token = ${token}
+      `;
+      if (!result[0]) return null;
+      return {
+        token: result[0].token,
+        userId: result[0].user_id,
+        email: result[0].email,
+        expiresAt: new Date(result[0].expires_at),
+        used: result[0].used
+      };
+    } else {
+      // Development: Use JSON file
+      const storage = this.readJsonStorage();
+      const found = storage.resetTokens.find(t => t.token === token);
+      if (!found) return null;
+      return {
+        token: found.token,
+        userId: found.userId,
+        email: found.email,
+        expiresAt: new Date(found.expiresAt),
+        used: found.used
+      };
+    }
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<boolean> {
+    if (this.isProduction && this.sql) {
+      const result = await this.sql`
+        UPDATE password_reset_tokens
+        SET used = TRUE
+        WHERE token = ${token} AND used = FALSE
+      `;
+      return result.count > 0;
+    } else {
+      // Development: Use JSON file
+      const storage = this.readJsonStorage();
+      const tokenIndex = storage.resetTokens.findIndex(t => t.token === token && !t.used);
+      if (tokenIndex !== -1) {
+        storage.resetTokens[tokenIndex].used = true;
+        this.writeJsonStorage(storage);
+        return true;
+      }
+      return false;
+    }
+  }
+
+  async cleanupExpiredResetTokens(): Promise<void> {
+    const now = new Date();
+    if (this.isProduction && this.sql) {
+      await this.sql`DELETE FROM password_reset_tokens WHERE expires_at < ${now}`;
+    } else {
+      const storage = this.readJsonStorage();
+      storage.resetTokens = storage.resetTokens.filter(t => t.expiresAt > now.getTime());
+      this.writeJsonStorage(storage);
     }
   }
 }
