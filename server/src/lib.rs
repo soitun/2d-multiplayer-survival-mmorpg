@@ -1275,7 +1275,107 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
     let campfires = ctx.db.campfire();
     let wooden_storage_boxes = ctx.db.wooden_storage_box();
 
-    // --- Find a valid spawn position - Robust multi-strategy beach spawn ---
+    // --- Find a valid spawn position ---
+    // FIRST-TIME PLAYERS: Spawn at the shipwreck (thematic - they washed ashore from the wreck)
+    // FALLBACK: Random coastal beach spawn if shipwreck doesn't exist
+    
+    let mut spawn_x: f32 = 0.0;
+    let mut spawn_y: f32 = 0.0;
+    let mut found_shipwreck_spawn = false;
+    
+    // Try to spawn at shipwreck first (for new players - thematic spawn location)
+    if let Some(shipwreck_center) = ctx.db.shipwreck_part().iter().find(|part| part.is_center) {
+        log::info!("🚢 Found shipwreck center at ({:.0}, {:.0}) - attempting to spawn new player nearby", 
+                   shipwreck_center.world_x, shipwreck_center.world_y);
+        
+        // Generate spawn positions around the shipwreck (within 200-400 pixels of center)
+        let spawn_radius_min = 150.0;
+        let spawn_radius_max = 350.0;
+        let max_shipwreck_attempts = 30;
+        
+        for attempt in 0..max_shipwreck_attempts {
+            // Random angle and distance from shipwreck center
+            let angle = ctx.rng().gen_range(0.0..std::f32::consts::TAU);
+            let distance = ctx.rng().gen_range(spawn_radius_min..spawn_radius_max);
+            
+            let test_x = shipwreck_center.world_x + angle.cos() * distance;
+            let test_y = shipwreck_center.world_y + angle.sin() * distance;
+            
+            // Check if position is on valid terrain (beach)
+            let tile_x = (test_x / TILE_SIZE_PX as f32).floor() as i32;
+            let tile_y = (test_y / TILE_SIZE_PX as f32).floor() as i32;
+            
+            if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+                // Allow Beach or Grass tiles near shipwreck
+                if tile_type == TileType::Beach || tile_type == TileType::Grass {
+                    // Check for collisions using spatial grid
+                    let spatial_grid = crate::spatial_grid::get_cached_spatial_grid(&ctx.db, ctx.timestamp);
+                    let nearby_entities = spatial_grid.get_entities_in_range(test_x, test_y);
+                    
+                    let mut collision = false;
+                    for entity in nearby_entities {
+                        match entity {
+                            crate::spatial_grid::EntityType::Player(other_id) => {
+                                if other_id == sender_id { continue; }
+                                if let Some(other) = players.identity().find(&other_id) {
+                                    if other.is_dead { continue; }
+                                    let dx = test_x - other.position_x;
+                                    let dy = test_y - other.position_y;
+                                    if dx * dx + dy * dy < PLAYER_RADIUS * PLAYER_RADIUS * 4.0 {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                            },
+                            crate::spatial_grid::EntityType::Tree(tree_id) => {
+                                if let Some(tree) = trees.id().find(&tree_id) {
+                                    if tree.health == 0 { continue; }
+                                    let dx = test_x - tree.pos_x;
+                                    let dy = test_y - (tree.pos_y - crate::tree::TREE_COLLISION_Y_OFFSET);
+                                    if dx * dx + dy * dy < crate::tree::PLAYER_TREE_COLLISION_DISTANCE_SQUARED * 0.8 {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                            },
+                            crate::spatial_grid::EntityType::Stone(stone_id) => {
+                                if let Some(stone) = stones.id().find(&stone_id) {
+                                    if stone.health == 0 { continue; }
+                                    let dx = test_x - stone.pos_x;
+                                    let dy = test_y - (stone.pos_y - crate::stone::STONE_COLLISION_Y_OFFSET);
+                                    if dx * dx + dy * dy < crate::stone::PLAYER_STONE_COLLISION_DISTANCE_SQUARED * 0.8 {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                            },
+                            _ => {} // Ignore other entity types
+                        }
+                        if collision { break; }
+                    }
+                    
+                    if !collision {
+                        spawn_x = test_x;
+                        spawn_y = test_y;
+                        found_shipwreck_spawn = true;
+                        log::info!("🚢✨ SUCCESS: New player will spawn near shipwreck at ({:.1}, {:.1}) after {} attempts", 
+                                   spawn_x, spawn_y, attempt + 1);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if !found_shipwreck_spawn {
+            log::warn!("🚢 Could not find valid spawn near shipwreck after {} attempts, falling back to coastal spawn", 
+                       max_shipwreck_attempts);
+        }
+    } else {
+        log::info!("No shipwreck found in world, using coastal beach spawn");
+    }
+    
+    // FALLBACK: Coastal beach spawn if shipwreck spawn failed
+    if !found_shipwreck_spawn {
     
     // Strategy 1: Random sampling (fast, works most of the time)
     // Strategy 2: Perimeter scan (guaranteed to find beaches around island edge)
@@ -1463,8 +1563,6 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
     }
     
     // Step 2: Find a valid spawn point from candidate tiles (OPTIMIZED with spatial queries)
-    let mut spawn_x: f32;
-    let mut spawn_y: f32;
     let max_spawn_attempts = 50;
     let mut spawn_attempt = 0;
     let mut last_collision_reason = String::new();
@@ -1617,6 +1715,8 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
     let final_tile_y = (spawn_y / TILE_SIZE_PX as f32).floor() as i32;
     log::info!("FINAL SPAWN: Player {} will spawn at world coords ({:.1}, {:.1}) which is tile ({}, {})", 
                username, spawn_x, spawn_y, final_tile_x, final_tile_y);
+    
+    } // End of if !found_shipwreck_spawn block
     
     // --- End spawn position logic ---
 
