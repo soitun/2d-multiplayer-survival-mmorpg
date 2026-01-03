@@ -665,7 +665,7 @@ const tipSectionDefinitions = {
     },
 
     minimapInterface: {
-        title: '🗺️ Minimap & Interface',
+        title: '🌏 Minimap & Interface',
         tips: [
             // Minimap
             'Press G to toggle the minimap view.',
