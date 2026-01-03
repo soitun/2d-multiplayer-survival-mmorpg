@@ -132,6 +132,7 @@ export function renderPlayerCorpse({
     shardCarryStartTime: undefined, // Corpses are not carrying shards
     isSnorkeling: false, // Corpses are not snorkeling
     isAimingThrow: false, // Corpses are not aiming throws
+    hasSeenMemoryShardTutorial: false, // Corpses don't need tutorials
   };
 
   // Choose the appropriate hero sprite based on water status (corpses don't crouch)
