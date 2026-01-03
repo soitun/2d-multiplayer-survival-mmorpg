@@ -18,11 +18,11 @@ pub(crate) const TREE_SPAWN_WORLD_MARGIN_TILES: u32 = 3;
 pub(crate) const MAX_TREE_SEEDING_ATTEMPTS_FACTOR: u32 = 5;
 pub(crate) const MIN_TREE_DISTANCE_PX: f32 = 200.0;
 pub(crate) const MIN_TREE_DISTANCE_SQ: f32 = MIN_TREE_DISTANCE_PX * MIN_TREE_DISTANCE_PX;
-pub(crate) const TREE_INITIAL_HEALTH: u32 = 2000;
+pub(crate) const TREE_INITIAL_HEALTH: u32 = 800; // Reduced from 2000 - faster chopping
 
 // NEW: Resource depletion system - each tree has a random amount of resources
-pub(crate) const TREE_MIN_RESOURCES: u32 = 300; // Minimum wood per tree
-pub(crate) const TREE_MAX_RESOURCES: u32 = 1000; // Maximum wood per tree
+pub(crate) const TREE_MIN_RESOURCES: u32 = 150; // Minimum wood per tree (reduced from 300)
+pub(crate) const TREE_MAX_RESOURCES: u32 = 500; // Maximum wood per tree (reduced from 1000)
 
 // NEW Respawn Time Constants for Trees
 pub(crate) const MIN_TREE_RESPAWN_TIME_SECS: u64 = 600;  // 10 minutes
