@@ -31,9 +31,31 @@ interface ExplosionEffect {
     duration: number; // milliseconds
     radius: number;
     tier: 'babushka' | 'matriarch';
+    // Pre-computed random values for consistent debris/smoke
+    debrisAngles: number[];
+    debrisSpeeds: number[];
+    debrisColors: string[];
+    smokeAngles: number[];
+    smokeSizes: number[];
 }
 
 const activeExplosions: ExplosionEffect[] = [];
+
+// Pre-generate random values for explosion particles
+function generateExplosionParticles(tier: 'babushka' | 'matriarch'): Pick<ExplosionEffect, 'debrisAngles' | 'debrisSpeeds' | 'debrisColors' | 'smokeAngles' | 'smokeSizes'> {
+    const numDebris = tier === 'matriarch' ? 24 : 16;
+    const numSmoke = tier === 'matriarch' ? 20 : 14;
+    
+    const debrisColors = ['#8B4513', '#4A3728', '#5C4033', '#3D2B1F', '#6B4423', '#A0522D', '#CD853F'];
+    
+    return {
+        debrisAngles: Array.from({ length: numDebris }, () => Math.random() * Math.PI * 2),
+        debrisSpeeds: Array.from({ length: numDebris }, () => 0.5 + Math.random() * 1.5),
+        debrisColors: Array.from({ length: numDebris }, () => debrisColors[Math.floor(Math.random() * debrisColors.length)]),
+        smokeAngles: Array.from({ length: numSmoke }, () => Math.random() * Math.PI * 2),
+        smokeSizes: Array.from({ length: numSmoke }, () => 12 + Math.random() * 20),
+    };
+}
 
 // --- Preload Images ---
 
@@ -56,18 +78,28 @@ export function triggerExplosionEffect(
     radius: number,
     tier: 'babushka' | 'matriarch'
 ): void {
-    const explosion = {
+    // Make visual explosion MUCH larger than damage radius for dramatic effect
+    // Babushka: 150px damage -> 220px visual, Matriarch: 200px damage -> 320px visual
+    const visualRadius = tier === 'matriarch' 
+        ? Math.max(radius * 1.6, 280)  // Matriarch is BIG
+        : Math.max(radius * 1.4, 180); // Babushka is still impressive
+    
+    const particles = generateExplosionParticles(tier);
+    
+    const explosion: ExplosionEffect = {
         x,
         y,
-        startTime: Date.now(), // Use Date.now() to match currentTime from render loop
-        duration: tier === 'babushka' ? 1200 : 1600, // Longer duration for more visible effect
-        radius: Math.max(radius, 100), // Minimum radius for visibility
-        tier
+        startTime: Date.now(),
+        // Faster, more intense animations
+        duration: tier === 'babushka' ? 800 : 1100, // Faster = more intense
+        radius: visualRadius,
+        tier,
+        ...particles
     };
     activeExplosions.push(explosion);
 }
 
-// --- Render Explosion Effect (pixel art style) ---
+// --- Render Explosion Effect (INTENSE pixel art style) ---
 function renderExplosionEffect(
     ctx: CanvasRenderingContext2D,
     explosion: ExplosionEffect,
@@ -80,135 +112,190 @@ function renderExplosionEffect(
     
     ctx.save();
     
-    // Use world coordinates - the context is already translated
     const screenX = explosion.x;
     const screenY = explosion.y;
+    const isMatriarch = explosion.tier === 'matriarch';
     
-    // Phase 1: Initial flash (0-15%)
-    // Phase 2: Fireball expansion (15-50%)
-    // Phase 3: Smoke and debris (50-100%)
+    // Use easing for more dramatic expansion
+    const easeOutQuad = (t: number) => t * (2 - t);
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
     
-    if (progress < 0.15) {  
-        // Initial bright flash
-        const flashProgress = progress / 0.15;
-        const flashRadius = explosion.radius * 0.3 * flashProgress;
-        const flashAlpha = 1 - flashProgress * 0.3;
+    // === PHASE 1: INITIAL FLASH (0-10%) - Super bright, fast ===
+    if (progress < 0.10) {
+        const flashProgress = easeOutQuad(progress / 0.10);
+        const flashRadius = explosion.radius * 0.5 * flashProgress;
         
-        // White hot center
+        // Blinding white flash
+        ctx.globalAlpha = 1 - flashProgress * 0.3;
         const flashGradient = ctx.createRadialGradient(
             screenX, screenY, 0,
             screenX, screenY, flashRadius
         );
-        flashGradient.addColorStop(0, `rgba(255, 255, 255, ${flashAlpha})`);
-        flashGradient.addColorStop(0.3, `rgba(255, 255, 200, ${flashAlpha * 0.8})`);
-        flashGradient.addColorStop(0.6, `rgba(255, 200, 50, ${flashAlpha * 0.5})`);
-        flashGradient.addColorStop(1, `rgba(255, 100, 0, 0)`);
+        flashGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        flashGradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.95)');
+        flashGradient.addColorStop(0.4, 'rgba(255, 220, 100, 0.8)');
+        flashGradient.addColorStop(0.7, 'rgba(255, 150, 0, 0.5)');
+        flashGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
         
         ctx.fillStyle = flashGradient;
         ctx.beginPath();
         ctx.arc(screenX, screenY, flashRadius, 0, Math.PI * 2);
         ctx.fill();
         
-    } else if (progress < 0.5) {
-        // Fireball expansion phase
-        const fireProgress = (progress - 0.15) / 0.35;
-        const fireRadius = explosion.radius * (0.3 + fireProgress * 0.7);
-        const fireAlpha = 1 - fireProgress * 0.5;
+        // Secondary shockwave ring
+        ctx.strokeStyle = 'rgba(255, 200, 50, 0.8)';
+        ctx.lineWidth = 4 + flashProgress * 8;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, flashRadius * 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    // === PHASE 2: FIREBALL EXPANSION (10-45%) - Multiple waves of fire ===
+    if (progress >= 0.05 && progress < 0.45) {
+        const fireProgress = easeOutCubic((progress - 0.05) / 0.40);
+        const fireRadius = explosion.radius * (0.2 + fireProgress * 0.8);
+        const fireAlpha = 1 - fireProgress * 0.6;
         
-        // Draw multiple "pixel art" flame circles
-        const numFlames = explosion.tier === 'matriarch' ? 8 : 5;
-        for (let i = 0; i < numFlames; i++) {
-            const angle = (i / numFlames) * Math.PI * 2 + fireProgress * Math.PI;
-            const dist = fireRadius * 0.5 * (0.5 + Math.random() * 0.5);
-            const flameX = screenX + Math.cos(angle) * dist;
-            const flameY = screenY + Math.sin(angle) * dist;
-            const flameSize = 8 + Math.random() * 12;
-            
-            // Orange/red flame colors (pixel art style - no gradient, solid colors)
-            const colors = ['#FF6600', '#FF4400', '#FF8800', '#FFAA00', '#FF2200'];
-            ctx.fillStyle = colors[i % colors.length];
-            ctx.globalAlpha = fireAlpha * (0.7 + Math.random() * 0.3);
-            
-            // Draw as pixelated squares
-            ctx.fillRect(
-                Math.floor(flameX - flameSize / 2),
-                Math.floor(flameY - flameSize / 2),
-                Math.ceil(flameSize),
-                Math.ceil(flameSize)
-            );
-        }
-        
-        // Central fireball
+        // Inner white-hot core
         ctx.globalAlpha = fireAlpha;
+        const coreRadius = fireRadius * 0.4 * (1 - fireProgress * 0.5);
         const coreGradient = ctx.createRadialGradient(
             screenX, screenY, 0,
-            screenX, screenY, fireRadius * 0.6
+            screenX, screenY, coreRadius
         );
-        coreGradient.addColorStop(0, '#FFFF00');
-        coreGradient.addColorStop(0.3, '#FF8800');
-        coreGradient.addColorStop(0.6, '#FF4400');
-        coreGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-        
+        coreGradient.addColorStop(0, '#FFFFFF');
+        coreGradient.addColorStop(0.3, '#FFFFAA');
+        coreGradient.addColorStop(0.6, '#FFAA00');
+        coreGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
         ctx.fillStyle = coreGradient;
         ctx.beginPath();
-        ctx.arc(screenX, screenY, fireRadius * 0.6, 0, Math.PI * 2);
+        ctx.arc(screenX, screenY, coreRadius, 0, Math.PI * 2);
         ctx.fill();
         
-    } else {
-        // Smoke and debris phase
-        const smokeProgress = (progress - 0.5) / 0.5;
-        const smokeRadius = explosion.radius * (0.8 + smokeProgress * 0.4);
-        const smokeAlpha = 0.6 * (1 - smokeProgress);
+        // Multiple flame bursts - LOTS of them
+        const numFlames = isMatriarch ? 18 : 12;
+        for (let i = 0; i < numFlames; i++) {
+            const baseAngle = (i / numFlames) * Math.PI * 2;
+            const wobble = Math.sin(fireProgress * 6 + i) * 0.3;
+            const angle = baseAngle + wobble;
+            const dist = fireRadius * (0.3 + fireProgress * 0.6);
+            const flameX = screenX + Math.cos(angle) * dist;
+            const flameY = screenY + Math.sin(angle) * dist;
+            const flameSize = (isMatriarch ? 16 : 12) + fireProgress * 8;
+            
+            // Intense flame colors
+            const colors = ['#FFFF00', '#FFCC00', '#FF9900', '#FF6600', '#FF3300', '#FF0000'];
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.globalAlpha = fireAlpha * 0.9;
+            
+            // Draw flame as rotated diamond
+            ctx.save();
+            ctx.translate(flameX, flameY);
+            ctx.rotate(angle + Math.PI / 4);
+            ctx.fillRect(-flameSize / 2, -flameSize / 2, flameSize, flameSize);
+            ctx.restore();
+        }
         
-        // Draw smoke puffs (pixel art style)
-        const numPuffs = explosion.tier === 'matriarch' ? 12 : 8;
-        for (let i = 0; i < numPuffs; i++) {
-            const angle = (i / numPuffs) * Math.PI * 2;
-            const dist = smokeRadius * (0.3 + smokeProgress * 0.5);
-            const puffX = screenX + Math.cos(angle) * dist;
-            const puffY = screenY + Math.sin(angle) * dist - smokeProgress * 20; // Rise up
-            const puffSize = 10 + Math.random() * 15;
-            
-            // Gray/black smoke colors
-            const grayValue = 40 + Math.floor(Math.random() * 60);
-            ctx.fillStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-            ctx.globalAlpha = smokeAlpha * (0.5 + Math.random() * 0.5);
-            
-            // Draw as pixelated circles (octagon approximation)
+        // Expanding fire ring (shockwave effect)
+        ctx.globalAlpha = fireAlpha * 0.7;
+        ctx.strokeStyle = '#FF6600';
+        ctx.lineWidth = 6 - fireProgress * 4;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, fireRadius * 0.9, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Second shockwave (delayed)
+        if (fireProgress > 0.3) {
+            const wave2Progress = (fireProgress - 0.3) / 0.7;
+            ctx.globalAlpha = (1 - wave2Progress) * 0.5;
+            ctx.strokeStyle = '#FF4400';
+            ctx.lineWidth = 4 - wave2Progress * 3;
             ctx.beginPath();
-            ctx.arc(
-                Math.floor(puffX),
-                Math.floor(puffY),
-                Math.ceil(puffSize / 2),
-                0, Math.PI * 2
-            );
+            ctx.arc(screenX, screenY, fireRadius * wave2Progress * 1.2, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+    
+    // === PHASE 3: SMOKE & DEBRIS (30-100%) - Overlaps with fire ===
+    if (progress >= 0.30) {
+        const smokeProgress = easeOutQuad((progress - 0.30) / 0.70);
+        const smokeRadius = explosion.radius * (0.5 + smokeProgress * 0.6);
+        const smokeAlpha = 0.8 * (1 - smokeProgress * 0.9);
+        
+        // Billowing smoke clouds - use pre-computed values
+        const numPuffs = explosion.smokeAngles.length;
+        for (let i = 0; i < numPuffs; i++) {
+            const baseAngle = explosion.smokeAngles[i];
+            const angle = baseAngle + smokeProgress * 0.5;
+            const dist = smokeRadius * (0.2 + smokeProgress * 0.7);
+            const riseOffset = smokeProgress * (30 + i * 3); // Smoke rises
+            const puffX = screenX + Math.cos(angle) * dist;
+            const puffY = screenY + Math.sin(angle) * dist - riseOffset;
+            const puffSize = explosion.smokeSizes[i] * (0.8 + smokeProgress * 0.4);
+            
+            // Dark smoke with orange glow in early stages
+            const glowFade = Math.max(0, 1 - smokeProgress * 2);
+            const grayValue = 30 + smokeProgress * 40;
+            const r = Math.floor(grayValue + 60 * glowFade);
+            const g = Math.floor(grayValue + 20 * glowFade);
+            const b = Math.floor(grayValue);
+            
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.globalAlpha = smokeAlpha * (0.6 + (1 - i / numPuffs) * 0.4);
+            
+            ctx.beginPath();
+            ctx.arc(puffX, puffY, puffSize / 2, 0, Math.PI * 2);
             ctx.fill();
         }
         
-        // Debris particles
-        const numDebris = explosion.tier === 'matriarch' ? 10 : 6;
+        // Flying debris - use pre-computed values
+        const numDebris = explosion.debrisAngles.length;
         for (let i = 0; i < numDebris; i++) {
-            const angle = (i / numDebris) * Math.PI * 2 + smokeProgress * 0.5;
-            const dist = smokeRadius * smokeProgress;
-            const debrisX = screenX + Math.cos(angle) * dist;
-            const debrisY = screenY + Math.sin(angle) * dist + smokeProgress * 30 * (i % 3 - 1);
-            const debrisSize = 3 + Math.random() * 4;
+            const angle = explosion.debrisAngles[i];
+            const speed = explosion.debrisSpeeds[i];
+            const dist = smokeRadius * smokeProgress * speed;
             
-            // Brown/orange debris
-            ctx.fillStyle = i % 2 === 0 ? '#8B4513' : '#4A3728';
-            ctx.globalAlpha = smokeAlpha;
-            ctx.fillRect(
-                Math.floor(debrisX - debrisSize / 2),
-                Math.floor(debrisY - debrisSize / 2),
-                Math.ceil(debrisSize),
-                Math.ceil(debrisSize)
-            );
+            // Parabolic arc for debris
+            const gravity = smokeProgress * smokeProgress * 80;
+            const debrisX = screenX + Math.cos(angle) * dist;
+            const debrisY = screenY + Math.sin(angle) * dist * 0.6 + gravity;
+            
+            // Debris gets smaller as it flies
+            const debrisSize = (isMatriarch ? 6 : 4) * (1 - smokeProgress * 0.5);
+            
+            ctx.fillStyle = explosion.debrisColors[i];
+            ctx.globalAlpha = smokeAlpha * 1.2;
+            
+            // Rotating debris squares
+            ctx.save();
+            ctx.translate(debrisX, debrisY);
+            ctx.rotate(smokeProgress * 8 + i);
+            ctx.fillRect(-debrisSize / 2, -debrisSize / 2, debrisSize, debrisSize);
+            ctx.restore();
+        }
+        
+        // Ember sparks (late phase)
+        if (smokeProgress > 0.3 && smokeProgress < 0.9) {
+            const emberProgress = (smokeProgress - 0.3) / 0.6;
+            const numEmbers = isMatriarch ? 12 : 8;
+            for (let i = 0; i < numEmbers; i++) {
+                const angle = (i / numEmbers) * Math.PI * 2 + emberProgress * 2;
+                const dist = smokeRadius * 0.3 * (1 + emberProgress);
+                const emberX = screenX + Math.cos(angle) * dist;
+                const emberY = screenY + Math.sin(angle) * dist - emberProgress * 50;
+                
+                ctx.fillStyle = i % 2 === 0 ? '#FF6600' : '#FFAA00';
+                ctx.globalAlpha = (1 - emberProgress) * 0.8;
+                ctx.beginPath();
+                ctx.arc(emberX, emberY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
     
     ctx.globalAlpha = 1;
     ctx.restore();
-    return true; // Still rendering
+    return true;
 }
 
 // --- Render Fuse Smoke ---

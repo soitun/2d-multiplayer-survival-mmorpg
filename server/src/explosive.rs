@@ -23,6 +23,19 @@ use crate::shelter::shelter;
 use crate::building::wall_cell;
 use crate::building::foundation_cell;
 
+// Additional table traits for explosion damage
+use crate::tree::tree;
+use crate::stone::stone;
+use crate::grass::{grass, grass_respawn_schedule, GrassRespawnData, GrassRespawnSchedule, MIN_GRASS_RESPAWN_TIME_SECS, MAX_GRASS_RESPAWN_TIME_SECS};
+use crate::barrel::barrel;
+use crate::lantern::lantern;
+use crate::stash::stash;
+use crate::sleeping_bag::sleeping_bag;
+use crate::rain_collector::rain_collector;
+use crate::homestead_hearth::homestead_hearth;
+use crate::wild_animal_npc::core::wild_animal;
+use crate::coral::living_coral;
+
 // --- Explosive Constants ---
 pub const EXPLOSIVE_PLACEMENT_MAX_DISTANCE: f32 = 100.0;
 pub const EXPLOSIVE_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = EXPLOSIVE_PLACEMENT_MAX_DISTANCE * EXPLOSIVE_PLACEMENT_MAX_DISTANCE;
@@ -372,8 +385,14 @@ fn apply_explosion_damage(ctx: &ReducerContext, explosive: &PlacedExplosive) {
     // Damage structures (walls, doors, foundations)
     damage_structures_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
     
-    // Damage placeables (furnaces, boxes, etc.)
+    // Damage placeables (furnaces, boxes, lanterns, stashes, etc.)
     damage_placeables_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
+    
+    // Damage natural resources (trees, stones, grass, barrels, coral)
+    damage_resources_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
+    
+    // Damage wild animals
+    damage_animals_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.player_damage);
     
     // Damage players (friendly fire!)
     damage_players_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.player_damage);
@@ -427,7 +446,7 @@ fn damage_structures_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
 }
 
 // --- Placeable Damage ---
-fn damage_placeables_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, radius: f32, radius_sq: f32, damage: f32) {
+fn damage_placeables_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
     let current_time = ctx.timestamp;
     let attacker_id = ctx.sender; // Use explosive placer as attacker
     let mut rng = ctx.rng();
@@ -474,6 +493,189 @@ fn damage_placeables_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
         if dist_sq <= radius_sq {
             let _ = crate::shelter::damage_shelter(ctx, attacker_id, shelter.id, damage, current_time, &mut rng);
         }
+    }
+    
+    // Damage lanterns
+    for lantern in ctx.db.lantern().iter() {
+        let dx = lantern.pos_x - center_x;
+        let dy = lantern.pos_y - center_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= radius_sq {
+            let _ = crate::combat::damage_lantern(ctx, attacker_id, lantern.id, damage, current_time, &mut rng);
+        }
+    }
+    
+    // Damage stashes
+    for stash in ctx.db.stash().iter() {
+        let dx = stash.pos_x - center_x;
+        let dy = stash.pos_y - center_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= radius_sq {
+            let _ = crate::combat::damage_stash(ctx, attacker_id, stash.id, damage, current_time, &mut rng);
+        }
+    }
+    
+    // Damage sleeping bags
+    for bag in ctx.db.sleeping_bag().iter() {
+        let dx = bag.pos_x - center_x;
+        let dy = bag.pos_y - center_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= radius_sq {
+            let _ = crate::combat::damage_sleeping_bag(ctx, attacker_id, bag.id, damage, current_time, &mut rng);
+        }
+    }
+    
+    // Damage rain collectors
+    for collector in ctx.db.rain_collector().iter() {
+        let dx = collector.pos_x - center_x;
+        let dy = collector.pos_y - center_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= radius_sq {
+            let _ = crate::combat::damage_rain_collector(ctx, attacker_id, collector.id, damage, current_time, &mut rng);
+        }
+    }
+    
+    // Damage hearths
+    for hearth in ctx.db.homestead_hearth().iter() {
+        let dx = hearth.pos_x - center_x;
+        let dy = hearth.pos_y - center_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= radius_sq {
+            let _ = crate::homestead_hearth::damage_hearth(ctx, attacker_id, hearth.id, damage, current_time);
+        }
+    }
+}
+
+// --- Natural Resource Damage (Trees, Stones, Grass, Barrels, Coral) ---
+fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
+    let current_time = ctx.timestamp;
+    let attacker_id = ctx.sender;
+    let mut rng = ctx.rng();
+    
+    // Damage trees
+    let trees_to_damage: Vec<u64> = ctx.db.tree().iter()
+        .filter(|tree| {
+            let dx = tree.pos_x - center_x;
+            let dy = tree.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && tree.health > 0
+        })
+        .map(|tree| tree.id)
+        .collect();
+    
+    for tree_id in trees_to_damage {
+        // Trees give Wood when damaged by explosives
+        let _ = crate::combat::damage_tree(ctx, attacker_id, tree_id, damage, 0, "Wood", current_time, &mut rng);
+    }
+    
+    // Damage stones
+    let stones_to_damage: Vec<u64> = ctx.db.stone().iter()
+        .filter(|stone| {
+            let dx = stone.pos_x - center_x;
+            let dy = stone.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && stone.health > 0
+        })
+        .map(|stone| stone.id)
+        .collect();
+    
+    for stone_id in stones_to_damage {
+        // Stones give their respective ore when damaged
+        let _ = crate::combat::damage_stone(ctx, attacker_id, stone_id, damage, 0, "Stone", current_time, &mut rng);
+    }
+    
+    // Damage grass blades (instant destroy - grass has 1 HP)
+    let grass_to_destroy: Vec<(u64, f32, f32, crate::grass::GrassAppearanceType, u32, u32, f32)> = ctx.db.grass().iter()
+        .filter(|grass| {
+            // Skip brambles (indestructible)
+            if grass.appearance_type.is_bramble() {
+                return false;
+            }
+            let dx = grass.pos_x - center_x;
+            let dy = grass.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && grass.health > 0
+        })
+        .map(|grass| (grass.id, grass.pos_x, grass.pos_y, grass.appearance_type.clone(), grass.chunk_index, grass.sway_offset_seed, grass.sway_speed))
+        .collect();
+    
+    for (grass_id, pos_x, pos_y, appearance_type, chunk_index, sway_offset_seed, sway_speed) in grass_to_destroy {
+        // Schedule respawn
+        let respawn_secs = rng.gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
+        let respawn_time = current_time + spacetimedb::TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
+        
+        let respawn_data = GrassRespawnData {
+            pos_x,
+            pos_y,
+            appearance_type,
+            chunk_index,
+            sway_offset_seed,
+            sway_speed,
+        };
+        
+        let _ = ctx.db.grass_respawn_schedule().try_insert(GrassRespawnSchedule {
+            schedule_id: 0,
+            respawn_data,
+            scheduled_at: spacetimedb::ScheduleAt::Time(respawn_time),
+        });
+        
+        // Delete the grass
+        ctx.db.grass().id().delete(grass_id);
+    }
+    
+    // Damage barrels
+    let barrels_to_damage: Vec<u64> = ctx.db.barrel().iter()
+        .filter(|barrel| {
+            let dx = barrel.pos_x - center_x;
+            let dy = barrel.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && barrel.health > 0.0
+        })
+        .map(|barrel| barrel.id)
+        .collect();
+    
+    for barrel_id in barrels_to_damage {
+        let _ = crate::barrel::damage_barrel(ctx, attacker_id, barrel_id, damage, current_time, &mut rng);
+    }
+    
+    // Damage living coral
+    let corals_to_damage: Vec<u64> = ctx.db.living_coral().iter()
+        .filter(|coral| {
+            let dx = coral.pos_x - center_x;
+            let dy = coral.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && coral.health > 0
+        })
+        .map(|coral| coral.id)
+        .collect();
+    
+    for coral_id in corals_to_damage {
+        let _ = crate::combat::damage_living_coral(ctx, attacker_id, coral_id, damage, 0, current_time, &mut rng);
+    }
+}
+
+// --- Wild Animal Damage ---
+fn damage_animals_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
+    let attacker_id = ctx.sender;
+    
+    // Damage wild animals
+    let animals_to_damage: Vec<u64> = ctx.db.wild_animal().iter()
+        .filter(|animal| {
+            let dx = animal.pos_x - center_x;
+            let dy = animal.pos_y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            dist_sq <= radius_sq && animal.health > 0.0
+        })
+        .map(|animal| animal.id)
+        .collect();
+    
+    for animal_id in animals_to_damage {
+        let _ = crate::wild_animal_npc::core::damage_wild_animal(ctx, animal_id, damage, attacker_id);
     }
 }
 

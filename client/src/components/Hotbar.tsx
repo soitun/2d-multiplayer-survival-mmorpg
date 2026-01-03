@@ -585,6 +585,19 @@ const Hotbar: React.FC<HotbarProps> = ({
     }, timeoutDuration);
   }, [numSlots, findItemForSlot, cooldownSlot]); // Added cooldownSlot to dependencies
 
+  // Effect to clear selection when the selected slot becomes empty (e.g., after throwing a weapon)
+  useEffect(() => {
+    if (selectedSlot >= 0 && selectedSlot < numSlots) {
+      const itemInSelectedSlot = findItemForSlot(selectedSlot);
+      if (!itemInSelectedSlot) {
+        // The selected slot is now empty - clear the selection
+        console.log('[Hotbar] Selected slot', selectedSlot, 'is now empty, clearing selection');
+        setSelectedSlot(-1);
+        selectedSlotRef.current = -1;
+      }
+    }
+  }, [selectedSlot, numSlots, findItemForSlot, inventoryItems]); // inventoryItems triggers re-check when items change
+
   // Effect to auto-unequip weapons when entering water
   useEffect(() => {
     if (!localPlayer || !playerIdentity || !connection?.reducers) return;
