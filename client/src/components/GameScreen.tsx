@@ -502,10 +502,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         sovaMessageAdderRef.current = sovaMessageAdder;
     }, [sovaMessageAdder]);
     
-    // === Part 1: SOVA Crash Intro (30 seconds after spawn) ===
+    // === Part 1: SOVA Crash Intro (10 seconds after spawn) ===
     useEffect(() => {
         // Timing and storage constants
-        const SOVA_INTRO_CRASH_DELAY_MS = 30 * 1000; // 30 seconds
+        const SOVA_INTRO_CRASH_DELAY_MS = 10 * 1000; // 10 seconds - starts right when player begins playing
         const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
         const SOVA_INTRO_CRASH_MESSAGE = `Neural link established. This is SOVA — Strategic Ocular Visor Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're on an uncharted island in contested waters, and your survival is now my primary directive. The wreckage scattered supplies across the shoreline. Find food, water, shelter. Everything else can wait. For now, just stay alive.`;
         
@@ -529,7 +529,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             return;
         }
 
-        console.log('[GameScreen] 🚢 Scheduling SOVA crash intro in 30 seconds...');
+        console.log('[GameScreen] 🚢 Scheduling SOVA crash intro in 10 seconds...');
         
         const timer = setTimeout(() => {
             // Double-check it hasn't been played (in case of race condition)

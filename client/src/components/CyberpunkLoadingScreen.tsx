@@ -350,6 +350,16 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Function to unlock audio context and play random SOVA sound
     const attemptToPlayRandomSovaSound = useCallback(async () => {
+        // IMPORTANT: Don't play loading screen sounds on first-time players
+        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
+        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
+        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
+        
+        if (isFirstTimePlayer) {
+            console.log('[CyberpunkLoadingScreen] 🚫 Skipping loading screen audio - first-time player (intro tutorial will play in-game)');
+            return;
+        }
+        
         // Don't auto-play if we've already played something, if audio isn't ready, or if we're already attempting
         if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) {
             console.log('Skipping auto-play: already played, audio not ready, or attempt in progress');
@@ -424,6 +434,20 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     // Handle Sova avatar click to play random sounds
     const handleSovaClick = async () => {
         console.log('🔊 SOVA CLICKED! showAudioPrompt:', showAudioPrompt, 'isSovaSpeaking:', isSovaSpeaking, 'audioPreloaded:', audioPreloaded);
+        
+        // IMPORTANT: Don't play loading screen sounds on first-time players
+        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
+        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
+        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
+        
+        if (isFirstTimePlayer) {
+            console.log('[CyberpunkLoadingScreen] 🚫 First-time player - skipping loading screen audio (intro tutorial will play in-game)');
+            // Still allow dismissing the audio prompt if it's showing
+            if (showAudioPrompt) {
+                setShowAudioPrompt(false);
+            }
+            return;
+        }
         
         // If showing audio prompt, clicking SOVA should enable audio AND play a sound
         if (showAudioPrompt) {
@@ -547,6 +571,16 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Try to play random SOVA sound when component mounts and audio is preloaded
     useEffect(() => {
+        // IMPORTANT: Don't play loading screen sounds on first-time players
+        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
+        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
+        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
+        
+        if (isFirstTimePlayer) {
+            console.log('[CyberpunkLoadingScreen] 🚫 Skipping auto-play - first-time player (intro tutorial will play in-game)');
+            return;
+        }
+        
         // Only attempt auto-play if audio is preloaded and we haven't tried yet
         if (audioPreloaded && !hasPlayedReconnect.current) {
             console.log('Audio preloaded, attempting auto-play...');
@@ -670,6 +704,19 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     // Handle manual audio enable button click
     const handleEnableAudioClick = async () => {
         setShowAudioPrompt(false);
+        
+        // IMPORTANT: Don't play loading screen sounds on first-time players
+        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
+        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
+        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
+        
+        if (isFirstTimePlayer) {
+            console.log('[CyberpunkLoadingScreen] 🚫 First-time player - skipping audio enable sound (intro tutorial will play in-game)');
+            // Still unlock audio context for future use
+            setAudioContextUnlocked(true);
+            saveAudioPreference(true);
+            return;
+        }
         
         try {
             // Find the first available sound to play
