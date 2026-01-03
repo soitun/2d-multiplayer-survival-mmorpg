@@ -1158,6 +1158,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 basaltColumns={props.basaltColumns}
                 livingCorals={props.livingCorals}
                 addSOVAMessage={sovaMessageAdder || undefined} // ADDED: Pass SOVA message adder for cairn lore
+                showSovaSoundBox={showSovaSoundBox} // ADDED: Pass SOVA sound box for cairn lore audio with waveform
                 onCairnNotification={handleCairnNotification} // ADDED: Pass cairn notification callback
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}

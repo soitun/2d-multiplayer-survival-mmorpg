@@ -223,6 +223,7 @@ interface GameCanvasProps {
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
   addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // ADDED: SOVA message adder for cairn lore
+  showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void; // ADDED: SOVA sound box for cairn lore audio with waveform
   onCairnNotification?: (notification: { id: string; cairnNumber: number; totalCairns: number; title: string; isFirstDiscovery: boolean; timestamp: number }) => void; // ADDED: Cairn unlock notification callback
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
@@ -397,6 +398,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   movementDirection,
   isAutoWalking, // Auto-walk state for dodge roll detection
   addSOVAMessage, // ADDED: SOVA message adder for cairn lore
+  showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
   onCairnNotification, // ADDED: Cairn unlock notification callback
   playerDodgeRollStates,
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
@@ -1118,6 +1120,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
+    showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification, // ADDED: Cairn unlock notification callback
     onSetInteractingWith: onSetInteractingWith,
     isMinimapOpen,

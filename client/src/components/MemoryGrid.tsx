@@ -893,7 +893,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
                       pointerEvents: 'auto' // Re-enable pointer events for button
                     }}
                   >
-                    PURCHASE
+                    UNLOCK BLUEPRINT
                   </button>
                 )}
                 
@@ -990,7 +990,7 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
           fontFamily: 'monospace'
         }}
       >
-        Drag: Pan • Tap: Select • Double-tap: Purchase
+        Drag: Pan • Tap: Select • Double-tap: Unlock
       </div>
     </div>
   );

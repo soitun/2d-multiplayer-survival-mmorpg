@@ -8,13 +8,40 @@ interface AchievementNotificationProps {
 const MAX_NOTIFICATIONS = 3;
 const NOTIFICATION_TIMEOUT_MS = 6000; // Achievements stay for 6 seconds
 const FADE_OUT_DURATION_MS = 500; // Fade out animation duration
+const SEEN_ACHIEVEMENTS_STORAGE_KEY = 'broth_seen_achievement_notifications';
+
+// Load seen achievement IDs from localStorage
+function loadSeenAchievementIds(): Set<string> {
+  try {
+    const stored = localStorage.getItem(SEEN_ACHIEVEMENTS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch (e) {
+    console.warn('[AchievementNotification] Failed to load seen achievements from localStorage:', e);
+  }
+  return new Set();
+}
+
+// Save seen achievement IDs to localStorage
+function saveSeenAchievementIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(SEEN_ACHIEVEMENTS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch (e) {
+    console.warn('[AchievementNotification] Failed to save seen achievements to localStorage:', e);
+  }
+}
 
 const AchievementNotification: React.FC<AchievementNotificationProps> = ({ 
   notifications 
 }) => {
   const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.AchievementUnlockNotification[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  // Initialize dismissedIds from localStorage to persist across page reloads
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenAchievementIds());
   const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Dismiss a notification by id with fade animation
@@ -31,7 +58,12 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
     
     // Remove after fade animation completes
     setTimeout(() => {
-      setDismissedIds(prev => new Set(prev).add(id));
+      setDismissedIds(prev => {
+        const newSet = new Set(prev).add(id);
+        // Persist to localStorage so it won't show again on next login
+        saveSeenAchievementIds(newSet);
+        return newSet;
+      });
       setFadingOutIds(prev => {
         const next = new Set(prev);
         next.delete(id);

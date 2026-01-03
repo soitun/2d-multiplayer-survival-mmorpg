@@ -40,7 +40,7 @@ import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
 import { CAIRN_LORE_TIDBITS, CairnLoreEntry } from '../data/cairnLoreData';
 import { playImmediateSound } from './useSoundSystem';
 import { Cairn as SpacetimeDBCairn } from '../generated';
-import { playCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount } from '../utils/cairnAudioUtils';
+import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
@@ -80,7 +80,8 @@ interface InputHandlerProps {
     playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
     
     onSetInteractingWith: (target: any | null) => void;
-    addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date }) => void; // ADDED: SOVA message adder for cairn lore
+    addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // ADDED: SOVA message adder for cairn lore
+    showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void; // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification?: (notification: CairnNotification) => void; // ADDED: Cairn unlock notification callback
     isMinimapOpen: boolean;
     setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -166,6 +167,7 @@ export const useInputHandler = ({
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
+    showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification, // ADDED: Cairn unlock notification callback
     
     onSetInteractingWith,
@@ -962,9 +964,25 @@ export const useInputHandler = ({
                                             // to ensure it only plays on actual first discovery (after server confirms)
                                             
                                             if (loreEntry) {
-                                                // Play lore audio using the utility (uses lore index)
-                                                console.log(`[Cairn] Playing audio for lore index ${loreEntry.index}`);
-                                                playCairnLoreAudio(loreEntry.index, 0.9);
+                                                // Create lore audio element
+                                                console.log(`[Cairn] Creating audio for lore index ${loreEntry.index}`);
+                                                const loreAudio = createCairnLoreAudio(loreEntry.index, 0.9);
+                                                
+                                                // Play with SovaSoundBox if available (shows waveform, click to cancel)
+                                                if (loreAudio) {
+                                                    if (showSovaSoundBox) {
+                                                        loreAudio.play().then(() => {
+                                                            showSovaSoundBox(loreAudio, `SOVA: ${loreEntry.title}`);
+                                                        }).catch(err => {
+                                                            console.warn(`[Cairn] Failed to play lore audio:`, err);
+                                                        });
+                                                    } else {
+                                                        // Fallback: play without SovaSoundBox
+                                                        loreAudio.play().catch(err => {
+                                                            console.warn(`[Cairn] Failed to play lore audio (fallback):`, err);
+                                                        });
+                                                    }
+                                                }
                                                 
                                                 // Show notification
                                                 if (onCairnNotification) {
@@ -979,13 +997,14 @@ export const useInputHandler = ({
                                                     });
                                                 }
                                                 
-                                                // Add lore text to SOVA chat
+                                                // Add lore text to SOVA chat with tab flash
                                                 if (addSOVAMessage) {
                                                     addSOVAMessage({
                                                         id: `cairn_${cairnId}_${Date.now()}`,
                                                         text: loreEntry.text,
                                                         isUser: false,
-                                                        timestamp: new Date()
+                                                        timestamp: new Date(),
+                                                        flashTab: true // Flash the SOVA tab to draw attention
                                                     });
                                                 } else {
                                                     console.warn('[Cairn] addSOVAMessage not available, cannot display lore text');
