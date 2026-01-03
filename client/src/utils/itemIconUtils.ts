@@ -127,7 +127,6 @@ import stoneMaceIcon from '../assets/items/stone_mace.png';
 import warHammerIcon from '../assets/items/war_hammer.png';
 import boneShivIcon from '../assets/items/bone_shiv.png';
 import metalDaggerIcon from '../assets/items/metal_dagger.png';
-import combatMacheteIcon from '../assets/items/combat_machete.png';
 import battleAxeIcon from '../assets/items/battle_axe.png';
 
 // === AMMUNITION ===
@@ -583,7 +582,6 @@ const iconMap: { [key: string]: string | undefined } = {
   'war_hammer.png': warHammerIcon,
   'bone_shiv.png': boneShivIcon,
   'metal_dagger.png': metalDaggerIcon,
-  'combat_machete.png': combatMacheteIcon,
   'battle_axe.png': battleAxeIcon,
 
   // === AMMUNITION ===

@@ -91,7 +91,7 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             // Hotbar - Various melee weapons
             ("Wooden Spear", 1, Some(0), None),
             ("Stone Spear", 1, Some(1), None),
-            ("Machete", 1, Some(2), None),
+            ("Bush Knife", 1, Some(2), None),
             ("Battle Axe", 1, Some(3), None),
             ("Metal Dagger", 1, Some(4), None),
             ("Torch", 1, Some(5), None),
@@ -112,7 +112,7 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             // Hotbar
             ("Hunting Bow", 1, Some(0), None),
             ("Crossbow", 1, Some(1), None),
-            ("Machete", 1, Some(2), None),        // Backup melee
+            ("Bush Knife", 1, Some(2), None),        // Backup melee
             ("Torch", 1, Some(3), None),
             ("Reed Water Bottle", 1, Some(4), None),
             ("Bandage", 10, Some(5), None),

@@ -2310,7 +2310,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
                 // Spears & harpoons
                 "Stone Spear", "Wooden Spear", "Reed Harpoon",
                 // Blades
-                "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Machete", "Metal Dagger", "Bone Shiv", "Battle Axe",
+                "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Metal Dagger", "Bone Shiv", "Battle Axe",
                 // Blunt weapons (can stun!)
                 "Stone Mace", "War Hammer", "Kayak Paddle", "Engineers Maul", "Military Crowbar",
                 // Skulls (blunt, can stun!)

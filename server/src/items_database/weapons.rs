@@ -156,23 +156,6 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
         // === CRAFTABLE SWORDS & BLADES ===
         // Balanced slashing weapons - good damage and speed
 
-        // Machete - Mid-tier balanced sword
-        // TIER 2: The missing sword between spears and cutlass
-        // Tradeoff: Good all-rounder, no extreme strengths or weaknesses
-        ItemBuilder::new("Machete", "A sturdy blade designed for hacking through brush and enemies alike. Fast, reliable, and deadly. The survivor's workhorse weapon.", ItemCategory::Weapon)
-            .icon("combat_machete.png")
-            .weapon(32, 38, 0.7) // Good damage, good speed - balanced fighter
-            .damage_type(DamageType::Slash) // Slashing damage
-            .bleed_effect(2.5, 8.0, 1.0) // Moderate bleed - 20 total
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 125 },
-                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
-            ])
-            .crafting_output(1, 50)
-            .respawn_time(540)
-            .build(),
-
         // Battle Axe - Late-tier heavy slashing weapon
         // TIER 3: Expensive, high damage slash alternative to spear
         // Tradeoff: Highest craftable slash damage, slower than sword
