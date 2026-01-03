@@ -83,6 +83,27 @@ if (!window.__SOVA_AUDIO_FILES__) {
 // @ts-ignore
 const preloadedAudioFiles: { [key: string]: HTMLAudioElement } = window.__SOVA_AUDIO_FILES__;
 
+// Global function to stop all loading screen SOVA audio
+// This is called by useSovaSoundBox when a new tutorial/insanity sound plays
+// @ts-ignore
+window.__STOP_LOADING_SCREEN_SOVA_AUDIO__ = () => {
+    console.log('[CyberpunkLoadingScreen] 🔇 Stopping all loading screen SOVA audio...');
+    let stoppedAny = false;
+    for (let i = 1; i <= 21; i++) {
+        const audio = preloadedAudioFiles[i.toString()];
+        if (audio && !audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+            stoppedAny = true;
+            console.log(`[CyberpunkLoadingScreen] 🔇 Stopped loading screen audio ${i}`);
+        }
+    }
+    // Dispatch event to notify React component to update its state
+    if (stoppedAny) {
+        window.dispatchEvent(new CustomEvent('loading-screen-audio-stopped'));
+    }
+};
+
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
 
@@ -311,6 +332,20 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                 console.log('Audio preloading completed');
             });
         }
+    }, []);
+
+    // Listen for external audio stop events (when SovaSoundBox plays a new sound)
+    useEffect(() => {
+        const handleAudioStopped = () => {
+            console.log('[CyberpunkLoadingScreen] 🔇 Audio stopped externally, updating state');
+            setIsSovaSpeaking(false);
+            setCurrentAudio(null);
+        };
+        
+        window.addEventListener('loading-screen-audio-stopped', handleAudioStopped);
+        return () => {
+            window.removeEventListener('loading-screen-audio-stopped', handleAudioStopped);
+        };
     }, []);
 
     // Function to unlock audio context and play random SOVA sound

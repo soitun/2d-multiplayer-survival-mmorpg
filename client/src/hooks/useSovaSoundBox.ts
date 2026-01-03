@@ -45,10 +45,19 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA') => {
-    // Stop any existing audio first
+    // Stop any existing SovaSoundBox audio first
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+    }
+
+    // IMPORTANT: Also stop any loading screen SOVA audio that might be playing
+    // The loading screen has its own audio system with preloaded files
+    // This ensures tutorial/insanity sounds don't overlap with loading screen voice lines
+    // @ts-ignore
+    if (typeof window.__STOP_LOADING_SCREEN_SOVA_AUDIO__ === 'function') {
+      // @ts-ignore
+      window.__STOP_LOADING_SCREEN_SOVA_AUDIO__();
     }
 
     audioRef.current = audio;
