@@ -475,7 +475,7 @@ pub fn generate_fishing_village(
         //                                    
         //     SMOKE1 (-200, -120)  CAMPFIRE (0, 0)   SMOKE2 (+200, -120)
         //                                    
-        //          KAYAK (-180, +180)    DOCK (0, +220)                    <- WATER
+        //                              DOCK (0, +220)                    <- WATER
         //
         // We rotate these offsets based on water_direction to orient the village
         // =============================================================================
@@ -492,7 +492,7 @@ pub fn generate_fishing_village(
         // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
         //       offsets need careful tuning - positive values go INTO water!
         // LAYOUT: Tightened for cohesive village feel with smaller buildings
-        let structure_configs: [(&str, &str, f32, f32); 7] = [
+        let structure_configs: [(&str, &str, f32, f32); 6] = [
             // Huts - set back INLAND from campfire (negative = away from water)
             ("hut", "fv_hut1.png", -380.0, -400.0),    // Inland-left
             ("hut", "fv_hut2.png", 380.0, -400.0),     // Inland-right
@@ -505,9 +505,6 @@ pub fn generate_fishing_village(
             // Dock - EXTENDING INTO WATER, positioned away from smokeracks
             // Reduced towards_water offset from 450 to 300 for more reliable placement
             ("dock", "fv_dock.png", 280.0, 300.0),     // Right of campfire, extending into water
-            
-            // Kayak - ON THE BEACH, other side from dock
-            ("kayak", "fv_kayak.png", -280.0, 120.0),  // Left of campfire, at water's edge
         ];
         
         // Calculate perpendicular direction (along the shore)
@@ -552,12 +549,6 @@ pub fn generate_fishing_village(
                     continue;
                 }
                 log::info!("🏘️ Dock position check passed: shore_dist={:.1}", part_shore_dist);
-            } else if *part_type == "kayak" {
-                // Kayak sits at water's edge - allow up to 5 tiles into water  
-                if part_shore_dist < -5.0 || river_network[py][px] || lake_map[py][px] {
-                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
-                    continue;
-                }
             } else {
                 // Huts and smoke racks must be on land
                 if part_shore_dist < -1.0 || river_network[py][px] || lake_map[py][px] {
@@ -1111,10 +1102,7 @@ pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
 /// Get monument placeables for the Fishing Village monument
 pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // One functional campfire (the decorational one is the village center campfire)
-        MonumentPlaceableConfig::campfire(150.0, -100.0),
-        // Rain collector for fresh water - placed further from the smokeracks
-        MonumentPlaceableConfig::rain_collector(-320.0, -200.0),
+        // No placeables - fishing village only has decorative structures
     ]
 }
 
