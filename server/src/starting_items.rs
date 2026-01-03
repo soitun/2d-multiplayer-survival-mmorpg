@@ -111,7 +111,7 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
         LoadoutType::Ranged => vec![
             // Hotbar
             ("Hunting Bow", 1, Some(0), None),
-            ("Crossbow", 1, Some(1), None),
+            ("Combat Ladle", 1, Some(1), None),
             ("Machete", 1, Some(2), None),        // Backup melee
             ("Torch", 1, Some(3), None),
             ("Reed Water Bottle", 1, Some(4), None),
