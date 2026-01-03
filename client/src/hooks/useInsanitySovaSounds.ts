@@ -20,6 +20,8 @@ interface UseInsanitySovaSoundsProps {
   localPlayer: Player | undefined;
   /** Callback to show the SOVA sound box when a sound starts playing */
   onSoundPlay?: (audio: HTMLAudioElement, label: string) => void;
+  /** Callback to add a message to the SOVA chat tab (switches tab and flashes it) */
+  onAddMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void;
 }
 
 const INSANITY_THRESHOLDS = [25.0, 50.0, 75.0, 90.0, 100.0] as const;
@@ -54,16 +56,18 @@ function playInsanitySovaSound(threshold: number): HTMLAudioElement | null {
 // Export a way for other hooks to check if 100% sound is playing
 export const insanity100SoundRef = { current: null as HTMLAudioElement | null };
 
-export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanitySovaSoundsProps): void {
+export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }: UseInsanitySovaSoundsProps): void {
   const lastThresholdRef = useRef<number>(0.0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingThresholdRef = useRef<number | null>(null); // Queue for sounds that couldn't play immediately
   const onSoundPlayRef = useRef(onSoundPlay);
+  const onAddMessageRef = useRef(onAddMessage);
   
-  // Keep callback ref updated
+  // Keep callback refs updated
   useEffect(() => {
     onSoundPlayRef.current = onSoundPlay;
-  }, [onSoundPlay]);
+    onAddMessageRef.current = onAddMessage;
+  }, [onSoundPlay, onAddMessage]);
   
   // Helper to get label for threshold
   const getInsanityLabel = useCallback((threshold: number): string => {
@@ -74,6 +78,18 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanityS
       case 90: return 'SOVA: On The Edge';
       case 100: return 'SOVA: Total Insanity';
       default: return 'SOVA: Insanity Alert';
+    }
+  }, []);
+  
+  // Helper to get message text for threshold (shown in SOVA chat)
+  const getInsanityMessage = useCallback((threshold: number): string => {
+    switch (threshold) {
+      case 25: return '⚠️ Warning: Your mind is beginning to fray. Insanity at 25%.';
+      case 50: return '⚠️ Alert: Reality is slipping. Insanity at 50%.';
+      case 75: return '⚠️ Critical: The whispers grow louder. Insanity at 75%.';
+      case 90: return '⚠️ Danger: You are on the edge of madness. Insanity at 90%.';
+      case 100: return '⚠️ ENTRAINMENT: Total insanity reached. The island has claimed your mind.';
+      default: return '⚠️ Insanity level increasing...';
     }
   }, []);
   
@@ -117,6 +133,17 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanityS
               onSoundPlayRef.current(audio, getInsanityLabel(threshold));
             }
             
+            // Add message to SOVA chat tab (switches to tab and flashes it)
+            if (onAddMessageRef.current) {
+              onAddMessageRef.current({
+                id: `sova-insanity-${threshold}-${Date.now()}`,
+                text: getInsanityMessage(threshold),
+                isUser: false,
+                timestamp: new Date(),
+                flashTab: true,
+              });
+            }
+            
             // Track 100% sound specifically for Entrainment hook
             if (threshold === 100.0) {
               insanity100SoundRef.current = audio;
@@ -143,6 +170,17 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanityS
                   // Show sound box for queued sound
                   if (nextAudio && onSoundPlayRef.current) {
                     onSoundPlayRef.current(nextAudio, getInsanityLabel(pendingThreshold));
+                  }
+                  
+                  // Add message to SOVA chat tab for queued sound
+                  if (onAddMessageRef.current) {
+                    onAddMessageRef.current({
+                      id: `sova-insanity-${pendingThreshold}-${Date.now()}`,
+                      text: getInsanityMessage(pendingThreshold),
+                      isUser: false,
+                      timestamp: new Date(),
+                      flashTab: true,
+                    });
                   }
                   
                   // Track 100% sound if this is it
@@ -172,6 +210,17 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanityS
                           onSoundPlayRef.current(finalAudio, getInsanityLabel(nextPending));
                         }
                         
+                        // Add message to SOVA chat tab for final queued sound
+                        if (onAddMessageRef.current) {
+                          onAddMessageRef.current({
+                            id: `sova-insanity-${nextPending}-${Date.now()}`,
+                            text: getInsanityMessage(nextPending),
+                            isUser: false,
+                            timestamp: new Date(),
+                            flashTab: true,
+                          });
+                        }
+                        
                         // Track 100% sound if this is it
                         if (nextPending === 100.0) {
                           insanity100SoundRef.current = finalAudio;
@@ -199,7 +248,7 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay }: UseInsanityS
     
     // Update ref to track current threshold
     lastThresholdRef.current = currentThreshold;
-  }, [localPlayer, getInsanityLabel]);
+  }, [localPlayer, getInsanityLabel, getInsanityMessage]);
   
   // Cleanup on unmount
   useEffect(() => {

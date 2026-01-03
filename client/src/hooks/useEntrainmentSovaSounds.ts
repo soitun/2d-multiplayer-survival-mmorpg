@@ -21,6 +21,8 @@ interface UseEntrainmentSovaSoundsProps {
   localPlayerId: string | undefined;
   /** Callback to show the SOVA sound box when a sound starts playing */
   onSoundPlay?: (audio: HTMLAudioElement, label: string) => void;
+  /** Callback to add a message to the SOVA chat tab (switches tab and flashes it) */
+  onAddMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void;
 }
 
 const ENTRAINMENT_QUOTE_COUNT = 6;
@@ -117,7 +119,8 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
 export function useEntrainmentSovaSounds({ 
   activeConsumableEffects, 
   localPlayerId,
-  onSoundPlay 
+  onSoundPlay,
+  onAddMessage
 }: UseEntrainmentSovaSoundsProps): void {
   const quoteTimerRef = useRef<number | null>(null);
   const currentQuoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -125,11 +128,13 @@ export function useEntrainmentSovaSounds({
   const activeConsumableEffectsRef = useRef<Map<string, ActiveConsumableEffect> | undefined>(activeConsumableEffects);
   const localPlayerIdRef = useRef<string | undefined>(localPlayerId);
   const onSoundPlayRef = useRef(onSoundPlay);
+  const onAddMessageRef = useRef(onAddMessage);
   
-  // Keep callback ref updated
+  // Keep callback refs updated
   useEffect(() => {
     onSoundPlayRef.current = onSoundPlay;
-  }, [onSoundPlay]);
+    onAddMessageRef.current = onAddMessage;
+  }, [onSoundPlay, onAddMessage]);
   
   // Keep refs updated
   useEffect(() => {
@@ -193,6 +198,17 @@ export function useEntrainmentSovaSounds({
         onSoundPlayRef.current(audio, 'SOVA: Entrainment');
       }
       
+      // Add message to SOVA chat tab (switches to tab and flashes it)
+      if (onAddMessageRef.current) {
+        onAddMessageRef.current({
+          id: `sova-entrainment-${Date.now()}`,
+          text: '🌀 The island speaks through you... Entrainment active.',
+          isUser: false,
+          timestamp: new Date(),
+          flashTab: true,
+        });
+      }
+      
       // When quote finishes, schedule next one
       if (audio) {
         audio.addEventListener('ended', () => {
@@ -236,6 +252,17 @@ export function useEntrainmentSovaSounds({
       // Show sound box if callback is provided
       if (audio && onSoundPlayRef.current) {
         onSoundPlayRef.current(audio, 'SOVA: Entrainment');
+      }
+      
+      // Add message to SOVA chat tab (switches to tab and flashes it)
+      if (onAddMessageRef.current) {
+        onAddMessageRef.current({
+          id: `sova-entrainment-first-${Date.now()}`,
+          text: '🌀 Entrainment has begun... The island speaks through you.',
+          isUser: false,
+          timestamp: new Date(),
+          flashTab: true,
+        });
       }
       
       // When first quote finishes, start the scheduling loop

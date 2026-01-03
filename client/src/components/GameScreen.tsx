@@ -103,6 +103,10 @@ import VoiceInterface from './VoiceInterface';
 import SOVALoadingBar from './SOVALoadingBar';
 import { useVoiceInterface } from '../hooks/useVoiceInterface';
 
+// Import SOVA sound hooks (insanity/entrainment voices)
+import { useInsanitySovaSounds } from '../hooks/useInsanitySovaSounds';
+import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
+
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -655,6 +659,69 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         };
     }, [localPlayerId]);
 
+    // === SOVA First Resource Interaction Tutorial Event Listener ===
+    // Listen for the custom event from useSoundSystem when player first interacts with a resource
+    // (chopping tree, mining stone, harvesting plant, picking up item, hitting barrel)
+    useEffect(() => {
+        const handleFirstResourceTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
+            console.log('[GameScreen] 🌿 Received first resource tutorial event from sound system');
+            
+            // Play audio and show SOVA sound box with waveform visualization
+            try {
+                const audio = new Audio('/sounds/sova_first_resource_tutorial.mp3');
+                audio.volume = 0.8;
+                audio.play().then(() => {
+                    // Show the sound box with waveform if callback is available
+                    if (showSovaSoundBoxRef.current) {
+                        showSovaSoundBoxRef.current(audio, 'SOVA: Survival Tip');
+                    }
+                    
+                    // Add SOVA message to chat with tab flash
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-first-resource-tutorial-${Date.now()}`,
+                            text: event.detail.message,
+                            isUser: false,
+                            timestamp: event.detail.timestamp,
+                            flashTab: true, // Flash the SOVA tab to draw attention
+                        });
+                        console.log('[GameScreen] 🌿 First resource tutorial message added to SOVA chat');
+                    }
+                }).catch(err => {
+                    console.warn('[GameScreen] 🌿 Failed to play first resource tutorial audio:', err);
+                    // Still add chat message even if audio fails
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-first-resource-tutorial-${Date.now()}`,
+                            text: event.detail.message,
+                            isUser: false,
+                            timestamp: event.detail.timestamp,
+                            flashTab: true,
+                        });
+                    }
+                });
+            } catch (err) {
+                console.warn('[GameScreen] 🌿 Error creating first resource tutorial audio:', err);
+                // Still add chat message even on error
+                if (sovaMessageAdderRef.current) {
+                    sovaMessageAdderRef.current({
+                        id: `sova-first-resource-tutorial-${Date.now()}`,
+                        text: event.detail.message,
+                        isUser: false,
+                        timestamp: event.detail.timestamp,
+                        flashTab: true,
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('sova-first-resource-tutorial', handleFirstResourceTutorial as EventListener);
+        
+        return () => {
+            window.removeEventListener('sova-first-resource-tutorial', handleFirstResourceTutorial as EventListener);
+        };
+    }, []);
+    
     // === SOVA Memory Shard Tutorial Event Listener ===
     // Listen for the custom event from useSoundSystem when player picks up their first memory shard
     // Uses the same SovaSoundBox waveform component as intro tutorial and insanity sounds
@@ -740,6 +807,22 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Find local player for viewport calculations
     const localPlayer = localPlayerId ? players.get(localPlayerId) : undefined;
+
+    // === SOVA Insanity & Entrainment Sound Hooks ===
+    // These play SOVA voice lines when player crosses insanity thresholds or has Entrainment effect
+    // Moved from App.tsx to GameScreen.tsx so we have access to sovaMessageAdder for tab switching/flashing
+    useInsanitySovaSounds({ 
+        localPlayer, 
+        onSoundPlay: showSovaSoundBox,
+        onAddMessage: sovaMessageAdder || undefined
+    });
+    
+    useEntrainmentSovaSounds({ 
+        activeConsumableEffects, 
+        localPlayerId,
+        onSoundPlay: showSovaSoundBox,
+        onAddMessage: sovaMessageAdder || undefined
+    });
 
     // Use our custom hook to get camera offsets
     const { cameraOffsetX, cameraOffsetY } = useSpeechBubbleManager(localPlayer);

@@ -46,8 +46,7 @@ import { useAuthErrorHandler } from './hooks/useAuthErrorHandler';
 import { useMovementInput } from './hooks/useMovementInput';
 import { usePredictedMovement } from './hooks/usePredictedMovement';
 import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
-import { useInsanitySovaSounds } from './hooks/useInsanitySovaSounds';
-import { useEntrainmentSovaSounds } from './hooks/useEntrainmentSovaSounds';
+// NOTE: useInsanitySovaSounds and useEntrainmentSovaSounds are now called in GameScreen.tsx
 import { useSovaSoundBox } from './hooks/useSovaSoundBox';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
@@ -398,15 +397,8 @@ function AppContent() {
     // --- SOVA Sound Box Hook (for deterministic SOVA voice notifications) ---
     const { showSovaSoundBox, SovaSoundBoxComponent } = useSovaSoundBox();
     
-    // --- Insanity SOVA Sounds Hook ---
-    useInsanitySovaSounds({ localPlayer, onSoundPlay: showSovaSoundBox });
-    
-    // --- Entrainment SOVA Sounds Hook (quotes + ambient) ---
-    useEntrainmentSovaSounds({ 
-      activeConsumableEffects, 
-      localPlayerId: dbIdentity?.toHexString(),
-      onSoundPlay: showSovaSoundBox 
-    });
+    // NOTE: Insanity & Entrainment SOVA sound hooks are now in GameScreen.tsx
+    // This allows them to access sovaMessageAdder for automatic tab switching/flashing
     
     // --- Mobile Detection ---
     const isMobile = useMobileDetection();

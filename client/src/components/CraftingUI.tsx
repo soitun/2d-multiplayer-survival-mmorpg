@@ -332,8 +332,11 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     }>>([]);
 
     // Convert recipes to the format expected by CraftingSearchBar
+    // IMPORTANT: Filter out locked recipes - they shouldn't appear in Quick Craft menu at all
     const recipeList = useMemo(() => {
-        return Array.from(recipes.values()).map(recipe => {
+        return Array.from(recipes.values())
+            .filter(recipe => isRecipeUnlockedByMemoryGrid(recipe)) // Hide locked recipes
+            .map(recipe => {
             const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
             const outputName = outputDef?.name || 'Unknown';
             
@@ -361,7 +364,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                 }
             };
         });
-    }, [recipes, itemDefinitions]);
+    }, [recipes, itemDefinitions, isRecipeUnlockedByMemoryGrid]);
 
     // Convert player inventory to the format expected by CraftingSearchBar  
     const inventoryForFiltering = useMemo(() => {

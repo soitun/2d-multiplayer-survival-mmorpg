@@ -457,13 +457,14 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     console.log('[Chat] Adding SOVA message:', message.id, message.isUser ? '(user)' : '(bot)', message.flashTab ? '(with flash)' : '');
     setSovaMessages(prev => [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }]);
     
-    // Auto-switch to SOVA tab when voice messages are added
-    if (message.id.includes('voice')) {
-      console.log('[Chat] Auto-switching to SOVA tab for voice message');
+    // Auto-switch to SOVA tab when voice messages are added OR when flashTab is requested
+    // This ensures users see SOVA's important messages (tutorials, warnings, lore, etc.)
+    if (message.id.includes('voice') || message.flashTab) {
+      console.log('[Chat] Auto-switching to SOVA tab for important message');
       setActiveTab('sova');
     }
     
-    // Flash the SOVA tab to draw attention if requested and not currently on SOVA tab
+    // Flash the SOVA tab to draw attention if requested
     if (message.flashTab) {
       console.log('[Chat] Flashing SOVA tab to draw attention');
       // Clear any existing flash timeout

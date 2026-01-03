@@ -1106,6 +1106,34 @@ export const useSoundSystem = ({
                 return; // Don't play the stop_bandaging sound itself
             }
             
+            // === SOVA First Resource Tutorial - triggers on first resource interaction ===
+            // Resource interaction sounds: tree_chop, stone_hit, harvest_plant, item_pickup, barrel_hit
+            const RESOURCE_INTERACTION_SOUNDS = ['tree_chop', 'stone_hit', 'harvest_plant', 'item_pickup', 'barrel_hit'];
+            const FIRST_RESOURCE_STORAGE_KEY = 'broth_sova_first_resource_played';
+            
+            if (RESOURCE_INTERACTION_SOUNDS.includes(soundType)) {
+                // Only trigger for the local player
+                if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
+                    // Check if first resource tutorial has already been played
+                    if (!localStorage.getItem(FIRST_RESOURCE_STORAGE_KEY)) {
+                        console.log(`🌿 [SOVA Tutorial] First resource interaction detected (${soundType}) - triggering tutorial`);
+                        
+                        // Mark as played immediately to prevent multiple triggers
+                        localStorage.setItem(FIRST_RESOURCE_STORAGE_KEY, 'true');
+                        
+                        // Emit custom event for GameScreen to handle (plays audio + shows waveform + adds chat message)
+                        const tutorialMessage = `Good on you for taking initiative — gathering resources is the key to survival out here. Your first priority should be shelter. Find a safe spot, gather some wood and rope — you can craft rope from plant fibers — and build yourself a basic shelter. Maybe throw a sleeping bag inside too. That gives you a respawn point if things go sideways. Which they will. Trust me.`;
+                        
+                        window.dispatchEvent(new CustomEvent('sova-first-resource-tutorial', {
+                            detail: {
+                                message: tutorialMessage,
+                                timestamp: new Date()
+                            }
+                        }));
+                    }
+                }
+            }
+            
             // Special handling for SOVA memory shard tutorial - emit event for GameScreen to handle
             // GameScreen will play the audio with the SovaSoundBox waveform visualization
             if (soundType === 'sova_memory_shard_tutorial') {
