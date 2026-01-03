@@ -121,7 +121,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Scarecrow - Deters crows within a large radius
-        ItemBuilder::new("Scarecrow", "A makeshift scarecrow cobbled together from driftwood and scraps. Deters crows from stealing food within a 750px radius. Protect your campfires and barbecues!", ItemCategory::Placeable)
+        ItemBuilder::new("Scarecrow", "A makeshift scarecrow cobbled together from driftwood and scraps. Deters crows from destroying crops and stealing food from campfires and barbecues!", ItemCategory::Placeable)
             .icon("scarecrow.png")
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
