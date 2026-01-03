@@ -855,6 +855,42 @@ const tipSectionDefinitions = {
             'Check your Cairns tab to see which lore entries you\'re still missing.',
             'Discovering all cairns provides a complete picture of the island\'s mystery.',
         ]
+    },
+
+    memoryShards: {
+        title: '💎 Memory Shards',
+        tips: [
+            // What are Memory Shards
+            'Memory Shards are mysterious crystalline fragments that keep appearing on this island.',
+            'SOVA can integrate Memory Shards to upgrade your loadout and unlock new blueprints.',
+            'They\'re the island\'s de facto currency - earn them by completing work orders and discovering cairns.',
+            
+            // How to Earn Shards
+            'Complete ALK work orders (deliveries) to earn Memory Shards as rewards.',
+            'Discover new cairns - rarer lore categories give more shards (25 to 200).',
+            'Join a Matronage to pool work order rewards with your team.',
+            
+            // Insanity Effect
+            'WARNING: Carrying Memory Shards affects your perception over time.',
+            'The longer you carry shards, the more your vision turns purple - this is the insanity effect.',
+            'Insanity isn\'t immediately dangerous, but don\'t hoard shards for too long.',
+            'Drop shards on the ground temporarily if you need a mental break.',
+            'Store shards in a storage box at your base to keep them safe without the insanity buildup.',
+            'The purple effect fades once you\'re no longer carrying shards.',
+            
+            // Using Shards
+            'Access the Memory Grid through your Interface Panel (M key → Memory Grid tab).',
+            'The Memory Grid is a network of interconnected nodes representing upgrades and blueprints.',
+            'Each node costs a certain amount of Memory Shards to unlock.',
+            'Unlocking a node may grant new crafting recipes, stat upgrades, or special abilities.',
+            'You must unlock connected nodes in sequence - plan your upgrade path carefully!',
+            
+            // Strategic Tips
+            'Prioritize unlocks that match your playstyle - combat, crafting, or survival.',
+            'Some recipes are locked behind Memory Grid nodes - check what you need to unlock.',
+            'Balance shard spending between immediate needs and long-term upgrades.',
+            'Keep some shards in storage to avoid losing them all on death.',
+        ]
     }
 };
 
@@ -881,6 +917,7 @@ const tipSectionOrder = [
     'deathRespawn',
     'minimapInterface',
     'cairnsLore',
+    'memoryShards',
     'matronages',
     'chatCommands',
     'multiplayer'
