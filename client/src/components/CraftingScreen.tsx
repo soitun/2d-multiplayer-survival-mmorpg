@@ -231,7 +231,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             });
         }
 
-        // Sort: CRAFTABLE ITEMS FIRST, then search relevance, then alphabetically
+        // Sort: UNLOCKED FIRST, then CRAFTABLE, then search relevance, then alphabetically
         const term = searchTerm.trim().toLowerCase();
         return filtered.sort((a, b) => {
             const aName = itemDefinitions.get(a.outputItemDefId.toString())?.name || '';
@@ -239,13 +239,19 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             const aNameLower = aName.toLowerCase();
             const bNameLower = bName.toLowerCase();
             
-            // FIRST PRIORITY: Craftable items always come first
-            const aCraftable = canCraft(a, 1);
-            const bCraftable = canCraft(b, 1);
+            // FIRST PRIORITY: Unlocked items always come before locked items
+            const aUnlocked = isRecipeUnlockedByMemoryGrid(a);
+            const bUnlocked = isRecipeUnlockedByMemoryGrid(b);
+            if (aUnlocked && !bUnlocked) return -1;
+            if (!aUnlocked && bUnlocked) return 1;
+            
+            // SECOND PRIORITY: Craftable items come before non-craftable (within unlock tier)
+            const aCraftable = aUnlocked && canCraft(a, 1);
+            const bCraftable = bUnlocked && canCraft(b, 1);
             if (aCraftable && !bCraftable) return -1;
             if (!aCraftable && bCraftable) return 1;
             
-            // SECOND PRIORITY: Within same craftability tier, sort by search relevance
+            // THIRD PRIORITY: Within same tier, sort by search relevance
             if (term) {
                 const aExact = aNameLower === term;
                 const bExact = bNameLower === term;
@@ -259,10 +265,10 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                 if (!aStartsWith && bStartsWith) return 1;
             }
 
-            // THIRD PRIORITY: Alphabetical
+            // FOURTH PRIORITY: Alphabetical
             return aName.localeCompare(bName);
         });
-    }, [recipes, selectedCategory, searchTerm, itemDefinitions, canCraft]);
+    }, [recipes, selectedCategory, searchTerm, itemDefinitions, canCraft, isRecipeUnlockedByMemoryGrid]);
 
     // --- Crafting Handlers ---
     const handleCraftItem = (recipeId: bigint, quantity: number) => {

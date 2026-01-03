@@ -1163,7 +1163,25 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             {/* Dynamic Title */}
             <h3 className={styles.sectionTitle}>{container.containerTitle}</h3>
 
-            {/* Fumarole Incineration Indicator - pulsing animation */}
+            {/* Fumarole Helper Text - always show for new players */}
+            {container.containerType === 'fumarole' && !attachedBrothPot && container.items.every(item => item === null) && (
+                <div style={{
+                    marginTop: '8px',
+                    marginBottom: '12px',
+                    padding: '8px 12px',
+                    backgroundColor: 'rgba(100, 100, 120, 0.15)',
+                    border: '1px solid rgba(150, 150, 170, 0.3)',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    fontSize: '12px',
+                    color: '#aab',
+                    fontStyle: 'italic'
+                }}>
+                    🌋 Add items to <strong style={{ color: '#ff8c46' }}>incinerate</strong> them into charcoal
+                </div>
+            )}
+            
+            {/* Fumarole Incineration Indicator - pulsing animation (when items present) */}
             {container.containerType === 'fumarole' && container.items.some(item => item !== null && item.definition.name !== 'Charcoal') && (
                 <div style={{
                     marginTop: '8px',
