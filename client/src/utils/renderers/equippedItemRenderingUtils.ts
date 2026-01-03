@@ -238,8 +238,8 @@ export const renderEquippedItem = (
 
   } else if (itemDef.name === "Hunting Bow") {
 
-    // Updated scale for 64x64px images: bows use 0.5 scale (32px)
-    const bowScale = 0.5; // Updated for 64x64px images
+    // Full 64x64px rendering for bows
+    const bowScale = 1.0;
     displayItemWidth = itemImgFromCaller.width * bowScale;
     displayItemHeight = itemImgFromCaller.height * bowScale;
 
@@ -271,9 +271,8 @@ export const renderEquippedItem = (
 
   } else if (itemDef.name === "Crossbow") {
 
-    // Crossbow scale - slightly larger than bow to show its more substantial nature
-    // Updated for 64x64px images: crossbow uses 0.55 scale (35px) - slightly larger than bow
-    const crossbowScale = 0.55; // Updated for 64x64px images
+    // Full 64x64px rendering for crossbows
+    const crossbowScale = 1.0;
     displayItemWidth = itemImgFromCaller.width * crossbowScale;
     displayItemHeight = itemImgFromCaller.height * crossbowScale;
 
@@ -297,6 +296,39 @@ export const renderEquippedItem = (
         itemOffsetX = gameConfig.spriteWidth * -0.25;
         itemOffsetY = 2.0;
         rotation = 0; // Point crossbow right (0° is correct, this is our reference)
+        break;
+    }
+    
+    pivotX = player.positionX + shakeX + itemOffsetX;
+    pivotY = player.positionY - jumpOffset + shakeY + itemOffsetY;
+
+  } else if (itemDef.name === "Makarov PM") {
+
+    // Full 64x64px rendering for pistols
+    const pistolScale = 1.0;
+    displayItemWidth = itemImgFromCaller.width * pistolScale;
+    displayItemHeight = itemImgFromCaller.height * pistolScale;
+
+    switch (player.direction) {
+      case 'up':
+        itemOffsetX = gameConfig.spriteWidth * 0.25;
+        itemOffsetY = -gameConfig.spriteHeight * 0.05;
+        rotation = -Math.PI / 2; // Point pistol upward
+        break;
+      case 'down':
+        itemOffsetX = gameConfig.spriteWidth * -0.25;
+        itemOffsetY = gameConfig.spriteHeight * 0.25;
+        rotation = Math.PI / 2; // Point pistol downward
+        break;
+      case 'left':
+        itemOffsetX = -gameConfig.spriteWidth * 0.25;
+        itemOffsetY = 0;
+        rotation = Math.PI / 2; // Rotate counterclockwise 90°
+        break;
+      case 'right':
+        itemOffsetX = gameConfig.spriteWidth * -0.25;
+        itemOffsetY = 2.0;
+        rotation = 0; // Point pistol right
         break;
     }
     
@@ -598,7 +630,7 @@ export const renderEquippedItem = (
 
     // --- NEW: Draw Loaded Arrow on Bow ---
     if (loadedArrowImage && itemDef.name === "Hunting Bow") {
-        const arrowScale = 0.3; // Updated for 64x64px images (~19px)
+        const arrowScale = 0.7; // Match projectile size
         const arrowWidth = loadedArrowImage.width * arrowScale;
         const arrowHeight = loadedArrowImage.height * arrowScale;
         // Arrow position and rotation settings per player direction
@@ -639,7 +671,7 @@ export const renderEquippedItem = (
     
     // --- NEW: Draw Loaded Arrow on Crossbow ---
     if (loadedArrowImage && itemDef.name === "Crossbow") {
-        const arrowScale = 0.28; // Updated for 64x64px images (~18px) - slightly smaller than bow arrows
+        const arrowScale = 0.7; // Match projectile size
         const arrowWidth = loadedArrowImage.width * arrowScale;
         const arrowHeight = loadedArrowImage.height * arrowScale;
         // Arrow position and rotation settings per player direction

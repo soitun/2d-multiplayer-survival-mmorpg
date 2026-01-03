@@ -1,12 +1,11 @@
 import { Projectile as SpacetimeDBProjectile } from '../../generated';
 
-// Scales updated for 64x64px item images (previously much smaller)
-// Default scales (will be overridden dynamically based on item definitions)
-const DEFAULT_ARROW_SCALE = 0.3; // Default arrow scale (Hunting Bow)
-const CROSSBOW_ARROW_SCALE = 0.28; // Crossbow arrow scale (slightly smaller)
-const BULLET_SCALE = 0.2; // Bullets from pistols (smaller than arrows)
-const DEFAULT_THROWN_SCALE = 0.7; // Default thrown item scale (non-weapons)
-const WEAPON_THROWN_SCALE = 0.9; // Thrown weapon scale (melee weapons like combat ladle)
+// Full 64x64px rendering for all projectiles
+const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)
+const CROSSBOW_ARROW_SCALE = 0.7; // Full size crossbow bolts
+const BULLET_SCALE = 0.7; // Full size bullets from pistols
+const DEFAULT_THROWN_SCALE = 0.7; // Full size thrown items
+const WEAPON_THROWN_SCALE = 0.7; // Full size thrown weapons (melee weapons like combat ladle)
 const ARROW_SPRITE_OFFSET_X = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 const ARROW_SPRITE_OFFSET_Y = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 
