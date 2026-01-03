@@ -30,7 +30,8 @@ import {
 import * as AnimalStateVariants from './animal_state_variants'
 
 // The tagged union or sum type for the algebraic type `AnimalState`.
-export type AnimalState = AnimalStateVariants.Patrolling |
+export type AnimalState = AnimalStateVariants.Idle |
+  AnimalStateVariants.Patrolling |
   AnimalStateVariants.Chasing |
   AnimalStateVariants.Attacking |
   AnimalStateVariants.Fleeing |
@@ -56,6 +57,7 @@ export const AnimalState = {
   // assert!(foo.tag === "A");
   // assert!(foo.value === 42);
   // ```
+  Idle: { tag: "Idle" } as const,
   Patrolling: { tag: "Patrolling" } as const,
   Chasing: { tag: "Chasing" } as const,
   Attacking: { tag: "Attacking" } as const,
@@ -76,6 +78,7 @@ export const AnimalState = {
     if (_cached_AnimalState_type_value) return _cached_AnimalState_type_value;
     _cached_AnimalState_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
     _cached_AnimalState_type_value.value.variants.push(
+      { name: "Idle", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Patrolling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Chasing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Attacking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

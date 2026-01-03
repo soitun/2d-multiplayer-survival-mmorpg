@@ -86,6 +86,16 @@ pub const AI_TICK_INTERVAL_MS: u64 = 500; // AI processes 2 times per second (wa
 pub const MAX_ANIMALS_PER_CHUNK: u32 = 3;
 pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 
+// VIEWPORT-BASED CULLING OPTIMIZATION
+// Animals outside this range from ALL players are completely frozen (no processing)
+// This is ~1.5x the viewport size to ensure smooth transitions as players move
+const ANIMAL_ACTIVE_ZONE_RADIUS: f32 = 1400.0; // ~viewport diagonal + buffer
+const ANIMAL_ACTIVE_ZONE_SQUARED: f32 = ANIMAL_ACTIVE_ZONE_RADIUS * ANIMAL_ACTIVE_ZONE_RADIUS;
+// Minimum distance to a player for an animal to start wandering (vs staying still)
+// Animals within active zone but outside this range will stay Idle (not wander)
+const WANDER_ACTIVATION_DISTANCE: f32 = 900.0; // ~viewport width
+const WANDER_ACTIVATION_DISTANCE_SQUARED: f32 = WANDER_ACTIVATION_DISTANCE * WANDER_ACTIVATION_DISTANCE;
+
 // === ANIMAL WALKING SOUND CONSTANTS ===
 // DISABLED: Animal walking sounds temporarily removed due to duplicate sound playback issues
 // const ANIMAL_WALKING_SOUND_DISTANCE_THRESHOLD: f32 = 80.0; // Minimum distance for a footstep (normal walking)
@@ -147,6 +157,7 @@ pub enum AnimalSpecies {
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
 pub enum AnimalState {
+    Idle,          // Stationary - waiting for player to enter perception range (PERFORMANCE: no movement processing)
     Patrolling,
     Chasing,
     Attacking,
@@ -155,8 +166,8 @@ pub enum AnimalState {
     Burrowed,
     Investigating,
     Alert,
-    Following,     // NEW: Following tamed player
-    Protecting,    // NEW: Attacking enemies of tamed player
+    Following,     // Following tamed player
+    Protecting,    // Attacking enemies of tamed player
     Flying,        // Birds patrolling in flight over vast distances
     FlyingChase,   // Birds aggressively chasing players in flight
     Grounded,      // Birds on the ground - either still or walking in tiny circles
@@ -610,10 +621,25 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
         let animal_id = animal.id;
         let animal_species = animal.species;
         
+        // VIEWPORT CULLING OPTIMIZATION: Skip animals far from all players
+        // They remain frozen in place until a player gets close
+        // Exception: Tamed animals always process (they follow their owner)
+        // Exception: Animals actively chasing/fleeing should finish their action
+        let is_tamed = animal.tamed_by.is_some();
+        let is_active_state = matches!(animal.state, 
+            AnimalState::Chasing | AnimalState::Attacking | AnimalState::Fleeing | 
+            AnimalState::Following | AnimalState::Protecting | AnimalState::FlyingChase |
+            AnimalState::Scavenging | AnimalState::Stealing
+        );
+        
+        if !is_tamed && !is_active_state && !is_any_player_in_active_zone(&prefetched.all_players, &animal) {
+            // Animal is far from all players and not doing anything important
+            // Skip all processing - they stay frozen in place
+            continue;
+        }
+        
         // Process this animal and catch any errors
         let process_result = (|| -> Result<(), String> {
-            // No hiding logic - all animals are always active
-
             let behavior = animal.species.get_behavior();
             let stats = behavior.get_stats();
             
@@ -635,10 +661,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
                         // CRITICAL FIX: Don't attack dead players - prevents duplicate corpse creation
                         if target_player.is_dead || target_player.health <= 0.0 {
-                            // Player is dead - stop chasing and return to patrolling
+                            // Player is dead - stop chasing and go idle (not wander)
                             log::info!("[WildAnimal:{}] Stopping chase - target player {} is dead (health: {:.1})", 
                                      animal.id, target_id, target_player.health);
-                            transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "target died");
+                            transition_to_state(&mut animal, AnimalState::Idle, current_time, None, "target died");
                         } else {
                             let distance_sq = get_distance_squared(
                                 animal.pos_x, animal.pos_y,
@@ -696,6 +722,24 @@ fn update_animal_ai_state(
         // Clear fire fear override when fleeing due to low health
         animal.fire_fear_overridden_by = None;
         return Ok(());
+    }
+    
+    // IDLE WAKE-UP: Animals in Idle state check if they should start moving
+    // This happens when a player gets close enough to potentially see them
+    if animal.state == AnimalState::Idle {
+        // Check if any player is within detection range OR close enough to warrant wandering
+        if !nearby_players.is_empty() {
+            // Player detected nearby - wake up and potentially start chasing
+            // Detection logic below will handle the state transition
+            log::debug!("{:?} {} waking from Idle - player detected nearby", animal.species, animal.id);
+            // Don't transition yet - let the normal detection logic handle it below
+        } else {
+            // No players in detection range - stay in Idle
+            // Only skip remaining logic if no players are within wander activation distance
+            // (The prefetched player data in nearby_players is filtered by perception range,
+            //  so if it's empty, definitely stay idle)
+            return Ok(());
+        }
     }
 
     // CENTRALIZED FEAR LOGIC - Foundation fear applies to ALL animals regardless of group size
@@ -1013,6 +1057,12 @@ fn execute_animal_movement(
             }
         },
         
+        AnimalState::Idle => {
+            // PERFORMANCE: Idle state - animal stays completely still
+            // No movement, no animation updates (except facing direction)
+            // Wake-up to Patrolling is handled in update_animal_ai_state when player gets close
+        },
+        
         _ => {} // Other states (Attacking, Hiding, Burrowed) don't move continuously
     }
 
@@ -1130,6 +1180,44 @@ fn find_nearby_players_prefetched(all_players: &[Player], animal: &WildAnimal, s
         })
         .cloned()
         .collect()
+}
+
+/// VIEWPORT CULLING: Check if ANY player is within the active processing zone
+/// Animals outside this zone are completely frozen (no AI processing at all)
+/// This is a cheap O(n) check where n = number of online players (usually 1-10)
+fn is_any_player_in_active_zone(all_players: &[Player], animal: &WildAnimal) -> bool {
+    for player in all_players {
+        let dist_sq = get_distance_squared(
+            animal.pos_x, animal.pos_y,
+            player.position_x, player.position_y
+        );
+        if dist_sq <= ANIMAL_ACTIVE_ZONE_SQUARED {
+            return true;
+        }
+    }
+    false
+}
+
+/// WANDER ACTIVATION: Check if ANY player is close enough for animal to start wandering
+/// Animals within active zone but outside this range stay in Idle state (stationary)
+/// This prevents animals from wandering when they're technically "active" but not visible
+fn get_closest_player_distance_squared(all_players: &[Player], animal: &WildAnimal) -> f32 {
+    let mut closest_dist_sq = f32::MAX;
+    for player in all_players {
+        let dist_sq = get_distance_squared(
+            animal.pos_x, animal.pos_y,
+            player.position_x, player.position_y
+        );
+        if dist_sq < closest_dist_sq {
+            closest_dist_sq = dist_sq;
+        }
+    }
+    closest_dist_sq
+}
+
+/// Check if animal should be wandering (player close enough to see them)
+fn should_animal_wander(all_players: &[Player], animal: &WildAnimal) -> bool {
+    get_closest_player_distance_squared(all_players, animal) <= WANDER_ACTIVATION_DISTANCE_SQUARED
 }
 
 fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &AnimalStats, nearby_players: &[Player]) -> Option<Player> {
@@ -2518,6 +2606,19 @@ pub fn transition_to_state(
     
     // Clear fire fear override when appropriate
     match new_state {
+        AnimalState::Idle => {
+            // Clear fire fear override when going idle
+            if animal.fire_fear_overridden_by.is_some() {
+                log::debug!("{:?} {} clearing fire fear override - going idle", 
+                           animal.species, animal.id);
+                animal.fire_fear_overridden_by = None;
+            }
+            animal.target_player_id = None;
+            // Clear any investigation targets
+            animal.investigation_x = None;
+            animal.investigation_y = None;
+        },
+        
         AnimalState::Patrolling => {
             // Clear fire fear override when returning to patrol
             if animal.fire_fear_overridden_by.is_some() {
@@ -2755,10 +2856,11 @@ pub fn execute_standard_flee(
         };
         
         if distance_to_target <= 50.0 || time_fleeing > max_flee_time {
-            transition_to_state(animal, AnimalState::Patrolling, current_time, None, "flee completed");
+            // PERFORMANCE: Go to Idle instead of Patrolling - animal stops moving until player nearby
+            transition_to_state(animal, AnimalState::Idle, current_time, None, "flee completed");
             animal.investigation_x = None;
             animal.investigation_y = None;
-            log::debug!("{:?} {} finished fleeing - returning to patrol", animal.species, animal.id);
+            log::debug!("{:?} {} finished fleeing - going idle (no wandering)", animal.species, animal.id);
         }
     }
 }
@@ -3146,13 +3248,14 @@ pub fn handle_chase_state(
             // Check if should stop chasing based on distance
             let behavior = animal.species.get_behavior();
             if should_stop_chasing(animal, &target_player, stats, &behavior) {
-                transition_to_state(animal, AnimalState::Patrolling, current_time, None, "player escaped");
-                log::debug!("{:?} {} stopping chase - player too far", animal.species, animal.id);
+                // PERFORMANCE: Go to Idle instead of Patrolling - animal stops until player nearby
+                transition_to_state(animal, AnimalState::Idle, current_time, None, "player escaped");
+                log::debug!("{:?} {} stopping chase - going idle", animal.species, animal.id);
                 return Ok(());
             }
         } else {
-            // Target lost
-            transition_to_state(animal, AnimalState::Patrolling, current_time, None, "target lost");
+            // Target lost - go idle instead of wandering
+            transition_to_state(animal, AnimalState::Idle, current_time, None, "target lost");
         }
     }
     Ok(())
@@ -3544,8 +3647,8 @@ pub fn handle_tamed_following(
                     if time_since_taming > 60000 { // 60 seconds after owner death
                         animal.tamed_by = None;
                         animal.tamed_at = None;
-                        transition_to_state(animal, AnimalState::Patrolling, current_time, None, "owner died - becoming wild");
-                        log::info!("{:?} {} became wild again after owner death", animal.species, animal.id);
+                        transition_to_state(animal, AnimalState::Idle, current_time, None, "owner died - becoming wild");
+                        log::info!("{:?} {} became wild again after owner death - going idle", animal.species, animal.id);
                     }
                 }
                 return;
@@ -3600,11 +3703,11 @@ pub fn handle_tamed_following(
                 }
             }
         } else {
-            // Owner not found - become wild again
+            // Owner not found - become wild again (go idle, not wander)
             animal.tamed_by = None;
             animal.tamed_at = None;
-            transition_to_state(animal, AnimalState::Patrolling, current_time, None, "owner not found - becoming wild");
-            log::info!("{:?} {} became wild again - owner not found", animal.species, animal.id);
+            transition_to_state(animal, AnimalState::Idle, current_time, None, "owner not found - becoming wild");
+            log::info!("{:?} {} became wild again - owner not found, going idle", animal.species, animal.id);
         }
     }
 }

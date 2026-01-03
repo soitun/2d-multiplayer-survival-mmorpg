@@ -315,6 +315,16 @@ pub fn move_item_to_hotbar(ctx: &ReducerContext, item_instance_id: u64, target_h
             return Ok(());
         }
 
+        // --- Check if TARGET item (being swapped OUT) was the active/equipped item ---
+        let mut target_was_active_item = false;
+        if let Some(active_equip) = active_equip_table.player_identity().find(sender_id) {
+            if active_equip.equipped_item_instance_id == Some(target_item.instance_id) {
+                target_was_active_item = true;
+                log::info!("[MoveHotbar] Target item {} in slot {} was the active equipped item.", 
+                    target_item.instance_id, target_hotbar_slot);
+            }
+        }
+
         log::debug!("[MoveHotbar] Target slot {} occupied by {}. Trying merge/swap for item {}.", 
                  target_hotbar_slot, target_item.instance_id, item_instance_id);
         
@@ -363,8 +373,29 @@ pub fn move_item_to_hotbar(ctx: &ReducerContext, item_instance_id: u64, target_h
                         clear_specific_item_from_equipment_slots(ctx, sender_id, item_to_move.instance_id);
                         log::debug!("[MoveHotbar Swap] Cleared equipment slot {:?} for item {} after swap.", data.slot_type, item_to_move.instance_id);
                     }
+                } else if target_was_active_item {
+                    // TARGET item (being swapped OUT) was the active/equipped item.
+                    // The new item (item_to_move) is now in that slot - update active equipment to it if it's equippable.
+                    let is_new_item_equippable = item_def_to_move.is_equippable && 
+                        (item_def_to_move.category == crate::items::ItemCategory::Weapon ||
+                         item_def_to_move.category == crate::items::ItemCategory::Tool ||
+                         item_def_to_move.category == crate::items::ItemCategory::RangedWeapon);
+                    
+                    if is_new_item_equippable {
+                        // Set the new item as active (it replaced the old one in the active slot)
+                        log::info!("[MoveHotbar Swap] Target was active, new item {} is equippable. Setting as new active item.", item_instance_id);
+                        if let Err(e) = crate::active_equipment::set_active_item_reducer(ctx, item_instance_id) {
+                            log::warn!("[MoveHotbar Swap] Failed to set new item {} as active: {}", item_instance_id, e);
+                        }
+                    } else {
+                        // New item isn't equippable, just clear the active equipment
+                        log::info!("[MoveHotbar Swap] Target was active, but new item {} is not equippable. Clearing active.", item_instance_id);
+                        if let Err(e) = crate::active_equipment::clear_active_item_reducer(ctx, sender_id) {
+                            log::warn!("[MoveHotbar Swap] Failed to clear active status: {}", e);
+                        }
+                    }
                 } else if was_active_item {
-                     // If it was an active item (from inv/hotbar) and swapped, it should be cleared as active
+                     // If SOURCE item was an active item (from inv/hotbar) and swapped, it should be cleared as active
                     if let Err(e) = crate::active_equipment::clear_active_item_reducer(ctx, sender_id) {
                         log::warn!("[MoveHotbar Swap] Failed to clear active status for item {}: {}", item_instance_id, e);
                     }

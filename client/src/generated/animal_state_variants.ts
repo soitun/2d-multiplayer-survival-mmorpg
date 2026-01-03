@@ -28,6 +28,7 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
+export type Idle = { tag: "Idle" };
 export type Patrolling = { tag: "Patrolling" };
 export type Chasing = { tag: "Chasing" };
 export type Attacking = { tag: "Attacking" };
