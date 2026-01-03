@@ -261,34 +261,37 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
 
         // === EXPLOSIVES ===
 
-        // Babushka's Surprise - Tier 1 explosive
+        // Babushka's Surprise - Tier 1 explosive (BALANCED: 150 gunpowder = 150 sulfur + 300 charcoal)
+        // Has 20% dud chance and unreliable 5-30s fuse, so lower cost is justified
         ItemBuilder::new("Babushka's Surprise", "A volatile concoction wrapped in old cloth and sealed with rendered fat. My grandmother always said: 'When the wolves come to your door, show them what a proper housewife can do.' Unreliable but effective against wooden structures.", ItemCategory::Placeable)
             .icon("babushka_surprise.png")
             .stackable(5)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Gunpowder".to_string(), quantity: 750 },
-                CostIngredient { item_name: "Tallow".to_string(), quantity: 30 },
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 25 },
-                CostIngredient { item_name: "Animal Fat".to_string(), quantity: 20 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Gunpowder".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Animal Fat".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
-            .crafting_output(1, 60)
+            .crafting_output(1, 45)
             .respawn_time(900)
             .build(),
 
-        // Matriarch's Wrath - Tier 2 explosive
-        ItemBuilder::new("Matriarch's Wrath", "The old matriarchs of Gred had a saying: 'A grandmother's love can move mountains - her fury can level them.' This is the recipe they never wrote down. A sophisticated demolition device that will tear through even the strongest fortifications.", ItemCategory::Placeable)
+        // Matriarch's Wrath - Tier 2 explosive (BALANCED: 300 gunpowder + 75 limestone)
+        // Requires diving for limestone - ties endgame raiding to underwater economy
+        // Reliable 10s fuse, no dud chance, 2.67x damage - premium explosive worth the grind
+        ItemBuilder::new("Matriarch's Wrath", "The old matriarchs of Gred had a saying: 'A grandmother's love can move mountains - her fury can level them.' This is the recipe they never wrote down. A sophisticated demolition device using coral limestone as a stabilizer. Will tear through even the strongest fortifications.", ItemCategory::Placeable)
             .icon("matriarch_wrath.png")
             .stackable(3)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Gunpowder".to_string(), quantity: 2_500 },
-                CostIngredient { item_name: "Tallow".to_string(), quantity: 50 },
-                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 75 },
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 40 },
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 40 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Gunpowder".to_string(), quantity: 300 },
+                CostIngredient { item_name: "Limestone".to_string(), quantity: 75 }, // Underwater economy - requires diving!
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 20 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 40 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 90)
+            .crafting_output(1, 60)
             .respawn_time(1200)
             .build(),
     ]

@@ -42,7 +42,7 @@ pub enum LoadoutType {
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Explosives;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Ranged;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
