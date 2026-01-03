@@ -302,6 +302,9 @@ interface GameCanvasProps {
   
   // Always show player names above heads
   alwaysShowPlayerNames?: boolean;
+  
+  // Player stats for title display on name labels
+  playerStats?: Map<string, any>;
 
   // Mobile controls
   isMobile?: boolean;
@@ -425,6 +428,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   plantConfigs, // Plant encyclopedia data
   discoveredPlants, // Plants discovered by current player
   alwaysShowPlayerNames = true, // Always show player names above heads
+  playerStats, // Player stats for title display on name labels
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
   isMobile = false,
@@ -2841,6 +2845,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         connection, // ADDED: Pass connection for cairn biome lookup
         isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
         alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
+        playerStats, // ADDED: Pass player stats for title display on name labels
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -3155,6 +3160,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           connection, // ADDED: Pass connection for cairn biome lookup
           isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
           alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
+          playerStats, // ADDED: Pass player stats for title display on name labels
         });
         currentBatch = [];
       }

@@ -1348,6 +1348,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 plantConfigs={props.plantConfigDefinitions}
                 discoveredPlants={props.discoveredPlants}
                 alwaysShowPlayerNames={alwaysShowPlayerNames}
+                playerStats={props.playerStats} // ADDED: For title display on player name labels
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}

@@ -96,6 +96,45 @@ const tipSectionDefinitions = {
         ]
     },
     
+    levelingSystem: {
+        title: '⭐ Leveling & XP',
+        tips: [
+            // What is the leveling system
+            'Gain XP by doing almost anything - gathering, crafting, fishing, hunting, and simply surviving.',
+            'Leveling up tracks your overall progress and unlocks achievements at milestone levels.',
+            'XP required increases with each level, so higher levels take longer.',
+            
+            // XP Sources (how to earn XP)
+            'Discovering cairns: +50 XP - exploring the island\'s lore is rewarding!',
+            'Completing ALK contracts: +25 XP per delivery.',
+            'Killing animals: +15 XP - hunting is dangerous but lucrative.',
+            'Catching fish: +10 XP per fish - a relaxing way to level.',
+            'Crafting items: +5 XP per item crafted.',
+            'Mining coral underwater: +3 XP per harvest.',
+            'Chopping trees: +2 XP per tree.',
+            'Mining stone: +2 XP per deposit.',
+            'Harvesting wild plants: +2 XP per plant.',
+            'Harvesting farmed crops: +1 XP per harvest.',
+            'Surviving: +1 XP per minute you stay alive!',
+            
+            // Level Milestones & Achievements
+            'Level 10: "Rising Star" achievement - you\'re getting established!',
+            'Level 25: "Established" achievement + title - a respected survivor.',
+            'Level 50: "Seasoned" achievement + title - a veteran of the island.',
+            'Level 100: "Legend of the Compound" achievement + "Legend" title - transcend the system.',
+            
+            // Daily Login Rewards
+            'Log in daily to receive bonus shards and XP that increase with your streak.',
+            'Day 1: 10 shards + 25 XP → Day 7: 150 shards + 500 XP (7-day cycle).',
+            'Maintain your login streak for maximum rewards - missing a day resets the streak!',
+            
+            // Viewing Progress
+            'Your level and XP bar are displayed in the top-left corner of the screen.',
+            'Check the Achievements tab to see what achievements you\'ve earned and can unlock.',
+            'Some achievements grant titles you can display next to your name.',
+        ]
+    },
+    
     survival: {
         title: '💖 Survival Tips',
         tips: [
@@ -897,6 +936,7 @@ const tipSectionDefinitions = {
 // Order in which sections appear in the game tips menu
 const tipSectionOrder = [
     'gettingStarted',
+    'levelingSystem',
     'survival',
     'dayNightCycle',
     'seasons',

@@ -443,6 +443,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
   isLocalPlayerSnorkeling?: boolean; // ADDED: Whether local player is snorkeling (underwater mode)
   alwaysShowPlayerNames?: boolean; // ADDED: Show player names above heads at all times
+  playerStats?: Map<string, any>; // ADDED: Player stats for title display on name labels
 }
 
 
@@ -513,6 +514,7 @@ export const renderYSortedEntities = ({
   connection, // ADDED: Connection for tile biome lookup
   isLocalPlayerSnorkeling = false, // ADDED: Whether local player is snorkeling (underwater mode)
   alwaysShowPlayerNames = false, // ADDED: Show player names above heads at all times
+  playerStats, // ADDED: Player stats for title display on name labels
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -854,6 +856,10 @@ export const renderYSortedEntities = ({
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
               
+              // Get player's active title from playerStats
+              const playerStatsEntry = playerStats?.get(playerId);
+              const playerActiveTitle = playerStatsEntry?.activeTitleId || null;
+              
               renderPlayer(
                       ctx, 
                       playerForRender, 
@@ -879,7 +885,8 @@ export const renderYSortedEntities = ({
                 isDodgeRolling, // NEW: pass dodge roll state
                 dodgeRollProgress, // NEW: pass dodge roll progress
                 playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
-                isLocalPlayerSnorkeling // NEW: pass viewer's underwater state for underwater-from-above effects
+                isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
+                playerActiveTitle // NEW: pass player's active title for name label
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} - cannot render`);
@@ -917,6 +924,10 @@ export const renderYSortedEntities = ({
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
               
+              // Get player's active title from playerStats (same lookup as up/left case)
+              const playerStatsEntry2 = playerStats?.get(playerId);
+              const playerActiveTitle2 = playerStatsEntry2?.activeTitleId || null;
+              
               renderPlayer(
                   ctx, 
                   playerForRender, 
@@ -942,7 +953,8 @@ export const renderYSortedEntities = ({
                 isDodgeRolling, // NEW: pass dodge roll state
                 dodgeRollProgress, // NEW: pass dodge roll progress
                 playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
-                isLocalPlayerSnorkeling // NEW: pass viewer's underwater state for underwater-from-above effects
+                isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
+                playerActiveTitle2 // NEW: pass player's active title for name label
               );
             } else {
               console.log(`[DEBUG] heroImg is null for player ${playerId} (down/right) - cannot render`);

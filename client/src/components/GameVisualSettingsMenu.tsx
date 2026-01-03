@@ -163,7 +163,17 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
                 </div>
 
-                <div style={{ padding: '20px 0' }}>
+                {/* Scrollable content area */}
+                <div 
+                    style={{ 
+                        padding: '20px 0',
+                        maxHeight: 'calc(80vh - 200px)', // Account for header and buttons
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        paddingRight: '10px', // Space for scrollbar
+                    }}
+                    className="visual-cortex-scroll"
+                >
                     {/* Tree Shadows Setting */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
@@ -506,82 +516,108 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         </div>
                     </div>
 
-                    {/* Player Title Selection */}
-                    {availableTitles.length > 0 && (
-                        <div style={{ marginBottom: '25px' }}>
-                            <div style={{
-                                fontFamily: '"Press Start 2P", cursive',
-                                fontSize: '16px',
-                                color: '#ffd700',
-                                marginBottom: '12px',
-                                textShadow: '0 0 8px #ffd700',
-                                letterSpacing: '1px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                            }}>
-                                <FontAwesomeIcon 
-                                    icon={faCrown} 
-                                    style={{
-                                        color: '#ffd700',
-                                        textShadow: '0 0 8px #ffd700',
-                                        fontSize: '14px',
-                                    }}
-                                />
-                                ACTIVE TITLE
-                            </div>
-                            <div style={{
-                                fontFamily: '"Press Start 2P", cursive',
-                                fontSize: '12px',
-                                color: '#ffeeaa',
-                                marginBottom: '8px',
-                                opacity: 0.7,
-                                letterSpacing: '0.5px',
-                                textAlign: 'left',
-                            }}>
-                                Select a title to display in chat
-                            </div>
-                            <select
-                                value={currentTitle || ''}
-                                onChange={(e) => onTitleSelect?.(e.target.value || null)}
+                    {/* Player Title Selection - Always show */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#ffd700',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #ffd700',
+                            letterSpacing: '1px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            <FontAwesomeIcon 
+                                icon={faCrown} 
                                 style={{
-                                    width: '100%',
-                                    padding: '10px 15px',
-                                    background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.9), rgba(30, 25, 5, 0.95))',
-                                    border: '2px solid #ffd700',
-                                    borderRadius: '6px',
                                     color: '#ffd700',
-                                    fontFamily: '"Press Start 2P", cursive',
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    textShadow: '0 0 4px rgba(255, 215, 0, 0.6)',
-                                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.2), inset 0 0 5px rgba(255, 215, 0, 0.1)',
+                                    textShadow: '0 0 8px #ffd700',
+                                    fontSize: '14px',
                                 }}
-                            >
-                                <option value="" style={{ background: '#1a1a2e', color: '#888' }}>
-                                    -- No Title --
-                                </option>
-                                {availableTitles.map((title) => (
-                                    <option 
-                                        key={title.id} 
-                                        value={title.id}
-                                        style={{ background: '#1a1a2e', color: '#ffd700' }}
-                                    >
-                                        «{title.title}» - {title.description}
-                                    </option>
-                                ))}
-                            </select>
-                            <div style={{
-                                marginTop: '8px',
-                                fontFamily: '"Press Start 2P", cursive',
-                                fontSize: '10px',
-                                color: '#888',
-                                opacity: 0.8,
-                            }}>
-                                {availableTitles.length} title{availableTitles.length !== 1 ? 's' : ''} unlocked
-                            </div>
+                            />
+                            ACTIVE TITLE
                         </div>
-                    )}
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#ffeeaa',
+                            marginBottom: '8px',
+                            opacity: 0.7,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            Select a title to display above your head & in chat
+                        </div>
+                        {availableTitles.length > 0 ? (
+                            <>
+                                <select
+                                    value={currentTitle || ''}
+                                    onChange={(e) => onTitleSelect?.(e.target.value || null)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 15px',
+                                        background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.9), rgba(30, 25, 5, 0.95))',
+                                        border: '2px solid #ffd700',
+                                        borderRadius: '6px',
+                                        color: '#ffd700',
+                                        fontFamily: '"Press Start 2P", cursive',
+                                        fontSize: '11px',
+                                        cursor: 'pointer',
+                                        textShadow: '0 0 4px rgba(255, 215, 0, 0.6)',
+                                        boxShadow: '0 0 10px rgba(255, 215, 0, 0.2), inset 0 0 5px rgba(255, 215, 0, 0.1)',
+                                    }}
+                                >
+                                    <option value="" style={{ background: '#1a1a2e', color: '#888' }}>
+                                        -- No Title --
+                                    </option>
+                                    {availableTitles.map((title) => (
+                                        <option 
+                                            key={title.id} 
+                                            value={title.id}
+                                            style={{ background: '#1a1a2e', color: '#ffd700' }}
+                                        >
+                                            «{title.title}» - {title.description}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div style={{
+                                    marginTop: '8px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '10px',
+                                    color: '#888',
+                                    opacity: 0.8,
+                                }}>
+                                    {availableTitles.length} title{availableTitles.length !== 1 ? 's' : ''} unlocked
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{
+                                padding: '15px',
+                                background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.6), rgba(30, 25, 5, 0.7))',
+                                border: '2px dashed #665500',
+                                borderRadius: '6px',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '14px',
+                                    color: '#888',
+                                    marginBottom: '8px',
+                                }}>
+                                    No titles unlocked yet
+                                </div>
+                                <div style={{
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '12px',
+                                    color: '#666',
+                                }}>
+                                    Earn achievements to unlock titles!
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className={styles.menuButtons}>
@@ -660,6 +696,34 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         100% { 
                             text-shadow: 0 0 15px rgba(0, 255, 136, 1), 0 0 30px rgba(0, 255, 136, 0.6);
                         }
+                    }
+                    
+                    /* Cyberpunk styled scrollbar */
+                    .visual-cortex-scroll::-webkit-scrollbar {
+                        width: 8px;
+                    }
+                    
+                    .visual-cortex-scroll::-webkit-scrollbar-track {
+                        background: rgba(0, 20, 40, 0.8);
+                        border-radius: 4px;
+                        border: 1px solid rgba(0, 255, 136, 0.2);
+                    }
+                    
+                    .visual-cortex-scroll::-webkit-scrollbar-thumb {
+                        background: linear-gradient(180deg, #00ff88 0%, #00aa66 100%);
+                        border-radius: 4px;
+                        box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+                    }
+                    
+                    .visual-cortex-scroll::-webkit-scrollbar-thumb:hover {
+                        background: linear-gradient(180deg, #00ffaa 0%, #00cc88 100%);
+                        box-shadow: 0 0 12px rgba(0, 255, 136, 0.8);
+                    }
+                    
+                    /* Firefox scrollbar */
+                    .visual-cortex-scroll {
+                        scrollbar-width: thin;
+                        scrollbar-color: #00ff88 rgba(0, 20, 40, 0.8);
                     }
                 `}</style>
             </div>

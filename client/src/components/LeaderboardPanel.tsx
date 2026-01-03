@@ -9,14 +9,14 @@ interface LeaderboardPanelProps {
   onClose?: () => void;
 }
 
-type LeaderboardCategory = 'ShardsEarned' | 'LongestSurvival' | 'ContractsCompleted' | 'FishCaught' | 'CairnsDiscovered' | 'Level';
+// Note: CairnsDiscovered removed from leaderboard - discovering cairns is trivial and just for lore
+type LeaderboardCategory = 'ShardsEarned' | 'LongestSurvival' | 'ContractsCompleted' | 'FishCaught' | 'Level';
 
 const CATEGORY_DISPLAY_NAMES: Record<LeaderboardCategory, string> = {
   ShardsEarned: 'Shards Earned',
   LongestSurvival: 'Longest Survival',
   ContractsCompleted: 'Contracts Completed',
   FishCaught: 'Fish Caught',
-  CairnsDiscovered: 'Cairns Discovered',
   Level: 'Level',
 };
 
@@ -25,7 +25,6 @@ const CATEGORY_UNITS: Record<LeaderboardCategory, string> = {
   LongestSurvival: 'seconds',
   ContractsCompleted: 'contracts',
   FishCaught: 'fish',
-  CairnsDiscovered: 'cairns',
   Level: '',
 };
 
@@ -71,7 +70,6 @@ const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
         LongestSurvival: { tag: 'LongestSurvival' },
         ContractsCompleted: { tag: 'ContractsCompleted' },
         FishCaught: { tag: 'FishCaught' },
-        CairnsDiscovered: { tag: 'CairnsDiscovered' },
         Level: { tag: 'Level' },
       };
 

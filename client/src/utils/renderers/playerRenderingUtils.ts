@@ -235,21 +235,27 @@ export const drawNameTag = (
   spriteTopY: number, // dy from drawPlayer calculation
   spriteX: number, // Added new parameter for shaken X position
   isOnline: boolean, // <<< CHANGED: Pass explicit online status
-  showLabel: boolean = true // Add parameter to control visibility
+  showLabel: boolean = true, // Add parameter to control visibility
+  activeTitle?: string | null // ADDED: Player's active title to display
 ) => {
   if (!showLabel) return; // Skip rendering if not showing label
   
   // --- MODIFIED: Use passed isOnline flag ---
   // Don't add "(offline)" if username already contains it (e.g., offline corpses from server)
   const alreadyHasOfflineTag = player.username.toLowerCase().includes('(offline)');
-  const usernameText = isOnline || alreadyHasOfflineTag
+  let displayText = isOnline || alreadyHasOfflineTag
     ? player.username
     : `${player.username} (offline)`;
+  
+  // Add title if present (format: «Title» Username)
+  if (activeTitle && isOnline) {
+    displayText = `«${activeTitle}» ${player.username}`;
+  }
   // --- END MODIFICATION ---
 
   ctx.font = PLAYER_NAME_FONT;
   ctx.textAlign = 'center';
-  const textWidth = ctx.measureText(usernameText).width; // Use modified text
+  const textWidth = ctx.measureText(displayText).width;
   const tagPadding = 4;
   const tagHeight = 16;
   const tagWidth = textWidth + tagPadding * 2;
@@ -261,8 +267,25 @@ export const drawNameTag = (
   ctx.roundRect(tagX, tagY, tagWidth, tagHeight, 5);
   ctx.fill();
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(usernameText, spriteX, tagY + tagHeight / 2 + 4); // Use modified text
+  // Title gets gold color, username stays white
+  if (activeTitle && isOnline) {
+    // Draw title in gold
+    const titleText = `«${activeTitle}» `;
+    const titleWidth = ctx.measureText(titleText).width;
+    const usernameWidth = ctx.measureText(player.username).width;
+    const totalWidth = titleWidth + usernameWidth;
+    const startX = spriteX - totalWidth / 2;
+    
+    ctx.fillStyle = '#ffd700'; // Gold color for title
+    ctx.textAlign = 'left';
+    ctx.fillText(titleText, startX, tagY + tagHeight / 2 + 4);
+    
+    ctx.fillStyle = '#FFFFFF'; // White for username
+    ctx.fillText(player.username, startX + titleWidth, tagY + tagHeight / 2 + 4);
+  } else {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(displayText, spriteX, tagY + tagHeight / 2 + 4);
+  }
 };
 
 // --- THROW INDICATOR BUBBLE ---
@@ -350,7 +373,8 @@ export const renderPlayer = (
   isDodgeRolling?: boolean, // NEW: Whether the player is currently dodge rolling
   dodgeRollProgress?: number, // NEW: Progress of the dodge roll (0.0 to 1.0)
   isSnorkeling?: boolean, // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
-  isViewerUnderwater?: boolean // NEW: Whether the local player (viewer) is underwater - affects remote snorkeling player rendering
+  isViewerUnderwater?: boolean, // NEW: Whether the local player (viewer) is underwater - affects remote snorkeling player rendering
+  activeTitle?: string | null // NEW: Player's active title to display above name
 ) => {
   // REMOVE THE NAME TAG RENDERING BLOCK FROM HERE
   // const { positionX, positionY, direction, color, username } = player;
@@ -1149,16 +1173,16 @@ export const renderPlayer = (
   // - Living players: when hovered or shouldShowLabel is true
   // - Corpses: when shouldShowLabel is true (so players can identify whose corpse it is)
   if (isCorpse) {
-    // Corpses always show nametag if shouldShowLabel is true
+    // Corpses always show nametag if shouldShowLabel is true (no title for corpses)
     if (shouldShowLabel) {
-      drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, true);
+      drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, true, null);
     }
   } else if (!player.isDead) {
     // Living players: show based on hover or persistent label state
     const showingDueToCurrentHover = isHovered;
     const showingDueToPersistentState = shouldShowLabel;
     const willShowLabel = showingDueToCurrentHover || showingDueToPersistentState;
-    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel);
+    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel, activeTitle);
     
     // Show throw indicator bubble when player is aiming to throw (both local and remote players)
     drawThrowIndicatorBubble(ctx, player, spriteDrawY, currentDisplayX + shakeX, nowMs);
