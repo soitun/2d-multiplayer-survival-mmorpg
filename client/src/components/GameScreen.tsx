@@ -491,7 +491,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const sovaMessageAdderRef = useRef(sovaMessageAdder);
     
     // The tutorial message text
-    const SOVA_TUTORIAL_MESSAGE = `Hey, you.. Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... Wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
+    const SOVA_TUTORIAL_MESSAGE = `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... Wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
     
     // Keep refs updated
     useEffect(() => {
