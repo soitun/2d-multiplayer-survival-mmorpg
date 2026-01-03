@@ -490,21 +490,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // Part 1: Crash Intro (30 seconds) - Introduces SOVA, lore context, stakes
     // Part 2: Press V Hint (3.5 minutes) - Teaches SOVA chat mechanic
     
-    // Timing constants
-    const SOVA_INTRO_CRASH_DELAY_MS = 30 * 1000; // 30 seconds
-    const SOVA_TUTORIAL_HINT_DELAY_MS = 3.5 * 60 * 1000; // 3.5 minutes (after crash intro)
-    
-    // Storage keys (separate so each can be tracked independently)
-    const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-    const SOVA_TUTORIAL_HINT_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
-    
     const showSovaSoundBoxRef = useRef(showSovaSoundBox);
     const sovaMessageAdderRef = useRef(sovaMessageAdder);
-    
-    // Tutorial message texts
-    const SOVA_INTRO_CRASH_MESSAGE = `Neural link established. This is SOVA — Strategic Ocular Visor Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're on an uncharted island in contested waters, and your survival is now my primary directive. The wreckage scattered supplies across the shoreline. Find food, water, shelter. Everything else can wait. For now, just stay alive.`;
-    
-    const SOVA_TUTORIAL_HINT_MESSAGE = `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
     
     // Keep refs updated
     useEffect(() => {
@@ -517,14 +504,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     
     // === Part 1: SOVA Crash Intro (30 seconds after spawn) ===
     useEffect(() => {
+        // Timing and storage constants
+        const SOVA_INTRO_CRASH_DELAY_MS = 30 * 1000; // 30 seconds
+        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
+        const SOVA_INTRO_CRASH_MESSAGE = `Neural link established. This is SOVA — Strategic Ocular Visor Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're on an uncharted island in contested waters, and your survival is now my primary directive. The wreckage scattered supplies across the shoreline. Find food, water, shelter. Everything else can wait. For now, just stay alive.`;
+        
         // Check if crash intro has already been played
         const hasPlayed = localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
+        
+        console.log('[GameScreen] 🚢 SOVA crash intro check:', { 
+            hasPlayed: !!hasPlayed, 
+            localPlayerId: localPlayerId ? 'present' : 'missing',
+            willSchedule: !hasPlayed && !!localPlayerId 
+        });
+        
         if (hasPlayed) {
+            console.log('[GameScreen] 🚢 SOVA crash intro already played, skipping');
             return; // Already played, don't schedule again
         }
 
         // Only start timer when local player exists (they're actually in-game)
         if (!localPlayerId) {
+            console.log('[GameScreen] 🚢 No localPlayerId yet, waiting...');
             return;
         }
 
@@ -533,18 +534,25 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         const timer = setTimeout(() => {
             // Double-check it hasn't been played (in case of race condition)
             if (localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
+                console.log('[GameScreen] 🚢 Race condition: crash intro already marked as played');
                 return;
             }
 
-            console.log('[GameScreen] 🚢 Playing SOVA crash intro sound');
+            console.log('[GameScreen] 🚢 Playing SOVA crash intro sound NOW');
+            
+            // Mark as played FIRST to prevent any race conditions
+            localStorage.setItem(SOVA_INTRO_CRASH_STORAGE_KEY, 'true');
             
             try {
                 const audio = new Audio('/sounds/sova_intro_crash.mp3');
                 audio.volume = 0.8;
                 audio.play().then(() => {
+                    console.log('[GameScreen] 🚢 SOVA crash intro audio playing successfully');
                     // Show the sound box if callback is available
                     if (showSovaSoundBoxRef.current) {
                         showSovaSoundBoxRef.current(audio, 'SOVA: Neural Link Established');
+                    } else {
+                        console.warn('[GameScreen] 🚢 showSovaSoundBox not available');
                     }
                     
                     // Send the tutorial message to SOVA chat with tab flash
@@ -557,6 +565,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                             timestamp: new Date(),
                             flashTab: true, // Flash the SOVA tab to draw attention
                         });
+                    } else {
+                        console.warn('[GameScreen] 🚢 sovaMessageAdder not available');
                     }
                 }).catch(err => {
                     console.warn('[GameScreen] Failed to play SOVA crash intro:', err);
@@ -572,31 +582,42 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     }
                 });
                 
-                // Mark as played regardless of audio success
-                localStorage.setItem(SOVA_INTRO_CRASH_STORAGE_KEY, 'true');
                 console.log('[GameScreen] 🚢 SOVA crash intro marked as played');
             } catch (err) {
                 console.warn('[GameScreen] Error creating SOVA crash intro audio:', err);
-                // Still mark as played to prevent repeated attempts
-                localStorage.setItem(SOVA_INTRO_CRASH_STORAGE_KEY, 'true');
             }
         }, SOVA_INTRO_CRASH_DELAY_MS);
 
         return () => {
+            console.log('[GameScreen] 🚢 Clearing SOVA crash intro timer (component cleanup)');
             clearTimeout(timer);
         };
     }, [localPlayerId]);
     
     // === Part 2: SOVA Tutorial Hint (3.5 minutes after spawn) ===
     useEffect(() => {
+        // Timing and storage constants
+        const SOVA_TUTORIAL_HINT_DELAY_MS = 3.5 * 60 * 1000; // 3.5 minutes
+        const SOVA_TUTORIAL_HINT_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
+        const SOVA_TUTORIAL_HINT_MESSAGE = `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
+        
         // Check if tutorial hint has already been played
         const hasPlayed = localStorage.getItem(SOVA_TUTORIAL_HINT_STORAGE_KEY);
+        
+        console.log('[GameScreen] 🎓 SOVA tutorial hint check:', { 
+            hasPlayed: !!hasPlayed, 
+            localPlayerId: localPlayerId ? 'present' : 'missing',
+            willSchedule: !hasPlayed && !!localPlayerId 
+        });
+        
         if (hasPlayed) {
+            console.log('[GameScreen] 🎓 SOVA tutorial hint already played, skipping');
             return; // Already played, don't schedule again
         }
 
         // Only start timer when local player exists (they're actually in-game)
         if (!localPlayerId) {
+            console.log('[GameScreen] 🎓 No localPlayerId yet, waiting...');
             return;
         }
 
@@ -605,18 +626,25 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         const timer = setTimeout(() => {
             // Double-check it hasn't been played (in case of race condition)
             if (localStorage.getItem(SOVA_TUTORIAL_HINT_STORAGE_KEY)) {
+                console.log('[GameScreen] 🎓 Race condition: tutorial hint already marked as played');
                 return;
             }
 
-            console.log('[GameScreen] 🎓 Playing SOVA tutorial hint sound');
+            console.log('[GameScreen] 🎓 Playing SOVA tutorial hint sound NOW');
+            
+            // Mark as played FIRST to prevent any race conditions
+            localStorage.setItem(SOVA_TUTORIAL_HINT_STORAGE_KEY, 'true');
             
             try {
                 const audio = new Audio('/sounds/sova_tutorial_hint.mp3');
                 audio.volume = 0.8;
                 audio.play().then(() => {
+                    console.log('[GameScreen] 🎓 SOVA tutorial hint audio playing successfully');
                     // Show the sound box if callback is available
                     if (showSovaSoundBoxRef.current) {
                         showSovaSoundBoxRef.current(audio, 'SOVA: Press V to Talk');
+                    } else {
+                        console.warn('[GameScreen] 🎓 showSovaSoundBox not available');
                     }
                     
                     // Send the tutorial message to SOVA chat with tab flash
@@ -629,6 +657,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                             timestamp: new Date(),
                             flashTab: true, // Flash the SOVA tab to draw attention
                         });
+                    } else {
+                        console.warn('[GameScreen] 🎓 sovaMessageAdder not available');
                     }
                 }).catch(err => {
                     console.warn('[GameScreen] Failed to play SOVA tutorial hint:', err);
