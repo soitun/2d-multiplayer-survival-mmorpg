@@ -559,7 +559,7 @@ const tipSectionDefinitions = {
     },
 
     matronages: {
-        title: '🏛️ Matronages (Teams)',
+        title: '🤝 Matronages (Teams)',
         tips: [
             // What are Matronages
             'Matronages are player-formed teams that pool work order rewards and share resources.',
