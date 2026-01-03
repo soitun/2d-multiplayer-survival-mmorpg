@@ -1142,7 +1142,7 @@ export const useSoundSystem = ({
                     console.log(`🔮 [SOVA Tutorial] Memory shard tutorial triggered for local player`);
                     
                     // Emit custom event for GameScreen to handle (plays audio + shows waveform + adds chat message)
-                    const tutorialMessage = `Agent, you've acquired a Memory Shard — volatile data fragments from the old world. Be warned: the longer you carry these, the more they affect your perception. You'll notice your vision turning purple — that's the insanity effect building up. It's not harmful immediately, but don't hoard them for too long. Deposit your shards at any ALK station to stay safe and clear your mind. The purple will fade once you drop them off.`;
+                    const tutorialMessage = `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`;
                     
                     window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial', {
                         detail: {
