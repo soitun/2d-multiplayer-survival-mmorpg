@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { CraftingQueueItem, ItemDefinition } from '../generated';
+import React, { useEffect, useState, useCallback } from 'react';
+import { CraftingQueueItem, ItemDefinition, DbConnection } from '../generated';
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 
@@ -7,14 +7,27 @@ interface ActiveCraftingQueueUIProps {
   craftingQueueItems: Map<string, CraftingQueueItem>;
   itemDefinitions: Map<string, ItemDefinition>;
   playerIdentity: Identity | null;
+  connection: DbConnection | null;
 }
 
 const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
   craftingQueueItems,
   itemDefinitions,
   playerIdentity,
+  connection,
 }) => {
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [isHovering, setIsHovering] = useState(false);
+
+  // Cancel crafting handler
+  const handleCancelCraft = useCallback((queueItemId: bigint) => {
+    if (!connection?.reducers) return;
+    try {
+      connection.reducers.cancelCraftingItem(queueItemId);
+    } catch (err) {
+      console.error("Error calling cancelCraftingItem reducer:", err);
+    }
+  }, [connection]);
 
   // Timer to update remaining time every second
   useEffect(() => {
@@ -73,29 +86,76 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
   const isNearComplete = remainingTime <= 5;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '15px',
-      right: '285px',
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 10, 20, 0.95)',
-      color: '#00ffff',
-      padding: '10px 14px',
-      borderRadius: '2px',
-      border: isNearComplete ? '1px solid #00ff88' : '1px solid #00ffff',
-      boxShadow: isNearComplete 
-        ? '0 0 20px rgba(0, 255, 136, 0.7), inset 0 0 20px rgba(0, 255, 136, 0.1)' 
-        : '0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.05)',
-      fontFamily: "'Courier New', 'Consolas', 'Monaco', monospace",
-      fontSize: '11px',
-      fontWeight: 'bold',
-      minWidth: '220px',
-      zIndex: 75,
-      backdropFilter: 'blur(4px)',
-      overflow: 'hidden',
-      transition: 'all 0.3s ease-out',
-    }}>
+    <div 
+      style={{
+        position: 'fixed',
+        bottom: '15px',
+        right: '285px',
+        display: 'flex',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 10, 20, 0.95)',
+        color: '#00ffff',
+        padding: '10px 14px',
+        borderRadius: '2px',
+        border: isNearComplete ? '1px solid #00ff88' : '1px solid #00ffff',
+        boxShadow: isNearComplete 
+          ? '0 0 20px rgba(0, 255, 136, 0.7), inset 0 0 20px rgba(0, 255, 136, 0.1)' 
+          : '0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.05)',
+        fontFamily: "'Courier New', 'Consolas', 'Monaco', monospace",
+        fontSize: '11px',
+        fontWeight: 'bold',
+        minWidth: '220px',
+        zIndex: 75,
+        backdropFilter: 'blur(4px)',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease-out',
+        cursor: 'default',
+      }}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {/* Cancel button - appears on hover */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCancelCraft(activeItem.queueItemId);
+        }}
+        title="Cancel crafting"
+        style={{
+          position: 'absolute',
+          top: '4px',
+          right: '4px',
+          width: '18px',
+          height: '18px',
+          padding: 0,
+          background: isHovering ? 'rgba(255, 51, 102, 0.3)' : 'transparent',
+          border: isHovering ? '1px solid rgba(255, 51, 102, 0.6)' : '1px solid transparent',
+          borderRadius: '2px',
+          color: isHovering ? '#ff3366' : 'transparent',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          zIndex: 10,
+          transition: 'all 0.2s ease-out',
+          textShadow: isHovering ? '0 0 6px rgba(255, 51, 102, 0.8)' : 'none',
+          boxShadow: isHovering ? '0 0 10px rgba(255, 51, 102, 0.4)' : 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 51, 102, 0.5)';
+          e.currentTarget.style.border = '1px solid rgba(255, 51, 102, 0.8)';
+          e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.6)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = isHovering ? 'rgba(255, 51, 102, 0.3)' : 'transparent';
+          e.currentTarget.style.border = isHovering ? '1px solid rgba(255, 51, 102, 0.6)' : '1px solid transparent';
+          e.currentTarget.style.boxShadow = isHovering ? '0 0 10px rgba(255, 51, 102, 0.4)' : 'none';
+        }}
+      >
+        ✕
+      </button>
       {/* Scanline effect overlay */}
       <div style={{
         position: 'absolute',

@@ -1276,6 +1276,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 craftingQueueItems={craftingQueueItems}
                 itemDefinitions={itemDefinitions}
                 playerIdentity={identity}
+                connection={connection}
             />
             {/* --- END NEW --- */}
 

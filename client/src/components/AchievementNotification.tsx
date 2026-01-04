@@ -3,6 +3,7 @@ import * as SpacetimeDB from '../generated';
 
 interface AchievementNotificationProps {
   notifications: SpacetimeDB.AchievementUnlockNotification[];
+  onOpenAchievements?: () => void;
 }
 
 const MAX_NOTIFICATIONS = 3;
@@ -36,7 +37,8 @@ function saveSeenAchievementIds(ids: Set<string>): void {
 }
 
 const AchievementNotification: React.FC<AchievementNotificationProps> = ({ 
-  notifications 
+  notifications,
+  onOpenAchievements,
 }) => {
   const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.AchievementUnlockNotification[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
@@ -124,7 +126,13 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
         return (
           <div
             key={notifId}
-            onClick={() => dismissNotification(notifId)}
+            onClick={() => {
+              // Open achievements panel when clicking the notification
+              if (onOpenAchievements) {
+                onOpenAchievements();
+              }
+              dismissNotification(notifId);
+            }}
             className={`achievement-container ${isFadingOut ? 'fade-out' : 'fade-in'}`}
             style={{
               position: 'relative',
@@ -132,6 +140,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
               pointerEvents: 'auto',
               animationDelay: `${animationDelay}s`,
             }}
+            title="Click to view all achievements"
           >
             {/* Gradient border container */}
             <div className="achievement-glow-container">

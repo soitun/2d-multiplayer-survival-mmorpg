@@ -6,7 +6,7 @@
  * Network-first for API calls and dynamic content.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `game-assets-${CACHE_VERSION}`;
 
 // Assets to precache on install (critical path)
@@ -85,6 +85,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = event.request.url;
     
+    // Skip non-HTTP(S) schemes - Cache API only supports http/https
+    // This prevents errors from chrome-extension://, file://, etc.
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return;
+    }
+    
     // Skip non-GET requests
     if (event.request.method !== 'GET') {
         return;
@@ -133,8 +139,13 @@ async function cacheFirst(request) {
         // and cannot be stored in the Cache API
         if (networkResponse.ok && networkResponse.status !== 206) {
             // Clone because response can only be consumed once
-            cache.put(request, networkResponse.clone());
-            console.debug('[SW] Cached NEW asset:', request.url.split('/').pop());
+            try {
+                cache.put(request, networkResponse.clone());
+                console.debug('[SW] Cached NEW asset:', request.url.split('/').pop());
+            } catch (e) {
+                // Silently ignore cache errors (e.g., unsupported schemes that slipped through)
+                console.debug('[SW] Cache put failed:', e.message);
+            }
         } else {
             console.debug('[SW] NOT caching (status:', networkResponse.status, '):', request.url.split('/').pop());
         }
@@ -154,8 +165,13 @@ async function networkFirst(request) {
         
         // Cache successful, complete responses (not partial 206 responses)
         if (networkResponse.ok && networkResponse.status !== 206) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(request, networkResponse.clone());
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                cache.put(request, networkResponse.clone());
+            } catch (e) {
+                // Silently ignore cache errors
+                console.debug('[SW] Cache put failed:', e.message);
+            }
         }
         
         return networkResponse;
@@ -179,7 +195,11 @@ async function updateCache(request, cache) {
         const networkResponse = await fetch(request);
         // Only cache complete responses (not partial 206 responses)
         if (networkResponse.ok && networkResponse.status !== 206) {
-            await cache.put(request, networkResponse);
+            try {
+                await cache.put(request, networkResponse);
+            } catch {
+                // Silently ignore cache errors
+            }
         }
     } catch {
         // Silently fail - cached version is still valid

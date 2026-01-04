@@ -510,9 +510,9 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
         {/* Center Circle */}
         <div className={`voice-interface-center ${voiceState.isRecording ? 'recording' : 'idle'}`}>
           {isProcessing ? (
-            <div className="voice-interface-processing">⚡</div>
+            <div className="voice-interface-processing">◉</div>
           ) : voiceState.error ? (
-            <div className="voice-interface-error">❌</div>
+            <div className="voice-interface-error">⚠</div>
           ) : (
             <img 
               src={sovaIcon} 
@@ -530,19 +530,19 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
         {/* Status Text */}
         <div className="voice-interface-status">
           {voiceState.isTranscribing ? (
-            'PROCESSING SPEECH...'
+            '◈ PROCESSING SPEECH ◈'
           ) : voiceState.isGeneratingResponse ? (
-            'GENERATING RESPONSE...'
+            '◈ GENERATING RESPONSE ◈'
           ) : voiceState.isSynthesizingVoice ? (
-            'CREATING VOICE...'
+            '◈ SYNTHESIZING VOICE ◈'
           ) : voiceState.isPlayingAudio ? (
-            'PLAYING RESPONSE...'
+            '◈ TRANSMITTING ◈'
           ) : voiceState.isRecording ? (
-            `LISTENING... ${recordingDuration}s`
+            `◈ LISTENING... ${recordingDuration}s ◈`
           ) : voiceState.error ? (
-            'ERROR - CHECK CONSOLE'
+            '⚠ SYSTEM ERROR ⚠'
           ) : (
-            'VOICE READY - HOLD V TO SPEAK'
+            'HOLD [V] TO TRANSMIT'
           )}
         </div>
 

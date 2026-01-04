@@ -1396,7 +1396,11 @@ function AppContent() {
                         />
                         {/* Player Progression Notifications */}
                         <AchievementNotification 
-                            notifications={Array.from(achievementUnlockNotifications.values())} 
+                            notifications={Array.from(achievementUnlockNotifications.values())}
+                            onOpenAchievements={() => {
+                                setInterfaceInitialView('achievements');
+                                setIsMinimapOpen(true);
+                            }}
                         />
                         <LevelUpNotification 
                             notifications={Array.from(levelUpNotifications.values())} 
