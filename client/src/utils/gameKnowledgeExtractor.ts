@@ -909,13 +909,17 @@ const tipSectionDefinitions = {
             'Discover new cairns - rarer lore categories give more shards (25 to 200).',
             'Join a Matronage to pool work order rewards with your team.',
             
-            // Insanity Effect
-            'WARNING: Carrying Memory Shards affects your perception over time.',
-            'The longer you carry shards, the more your vision turns purple - this is the insanity effect.',
-            'Insanity isn\'t immediately dangerous, but don\'t hoard shards for too long.',
-            'Drop shards on the ground temporarily if you need a mental break.',
-            'Store shards in a storage box at your base to keep them safe without the insanity buildup.',
-            'The purple effect fades once you\'re no longer carrying shards.',
+            // Insanity Effect - NEW PLAYER FRIENDLY
+            'NEW PLAYERS: Carrying less than 200 Memory Shards is COMPLETELY SAFE - no insanity at all!',
+            'This gives you time to learn the game, build a base, and set up storage before worrying about insanity.',
+            'Once you carry 200+ shards, insanity slowly builds up over time (purple visual effect).',
+            'The longer you carry 200+ shards, the faster insanity increases - don\'t hoard for too long!',
+            'Insanity increases faster when carrying more shards (200 = slow, 500+ = much faster).',
+            'ALK safe zones (Central Compound and substations) pause insanity buildup while inside.',
+            'Store shards in a storage box at your base to keep them safe without insanity buildup.',
+            'Insanity decays quickly when you drop below 200 shards - rapid recovery if under 50% insanity.',
+            'WARNING: Reaching 100% insanity applies a permanent "Entrainment" debuff - avoid this at all costs!',
+            'The healthy gameplay loop: mine shards → deposit at base → spend on upgrades → repeat.',
             
             // Using Shards
             'Access the Memory Grid through your Interface Panel (M key → Memory Grid tab).',
