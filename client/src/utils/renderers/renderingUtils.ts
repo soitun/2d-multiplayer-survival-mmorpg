@@ -607,12 +607,17 @@ export const renderYSortedEntities = ({
         const isSeaweedBed = type === 'harvestable_resource' && 
           (entity as SpacetimeDBHarvestableResource).plantType?.tag === 'SeaweedBed';
         
+        // Planted SeaweedBed seeds (player-planted seaweed) should also be visible underwater
+        const isPlantedSeaweed = type === 'planted_seed' && 
+          (entity as SpacetimeDBPlantedSeed).plantType?.tag === 'SeaweedBed';
+        
         const isUnderwaterEntity = 
           type === 'player' || 
           type === 'living_coral' || 
           type === 'dropped_item' || // Dropped items should be visible underwater (thrown harpoons, etc.)
           type === 'projectile' || // Projectiles should be visible underwater (thrown harpoons in flight, etc.)
           isSeaweedBed ||
+          isPlantedSeaweed || // Planted seaweed fronds visible underwater
           (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);
         
         if (!isUnderwaterEntity) {
@@ -1237,7 +1242,35 @@ export const renderYSortedEntities = ({
       } else if (type === 'planted_seed') {
           const plantedSeed = entity as SpacetimeDBPlantedSeed;
           const plantedSeedImg = doodadImagesRef.current?.get('planted_seed.png');
-          renderPlantedSeed(ctx, plantedSeed, nowMs, cycleProgress, plantedSeedImg);
+          
+          // Check if this is an underwater planted seed (seaweed)
+          const isUnderwaterPlant = plantedSeed.plantType?.tag === 'SeaweedBed';
+          
+          if (isUnderwaterPlant) {
+              // Underwater seaweed rendering with visibility from both above and below water
+              const viewingFromAbove = !isLocalPlayerSnorkeling;
+              
+              if (viewingFromAbove) {
+                  // Viewing seaweed from above water - apply blur and transparency
+                  const savedFilter = ctx.filter;
+                  ctx.filter = 'blur(2px)';
+                  ctx.globalAlpha = 0.6; // Semi-transparent when viewed from above
+                  renderPlantedSeed(ctx, plantedSeed, nowMs, cycleProgress, plantedSeedImg);
+                  ctx.filter = savedFilter;
+                  ctx.globalAlpha = 1.0;
+              } else {
+                  // Underwater view - render clearly with teal underwater tint
+                  ctx.save();
+                  ctx.globalAlpha = 1.0;
+                  // Apply subtle teal tint for underwater ambiance
+                  ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+                  renderPlantedSeed(ctx, plantedSeed, nowMs, cycleProgress, plantedSeedImg);
+                  ctx.restore();
+              }
+          } else {
+              // Normal land-based planted seeds
+              renderPlantedSeed(ctx, plantedSeed, nowMs, cycleProgress, plantedSeedImg);
+          }
       } else if (type === 'rain_collector') {
           const rainCollector = entity as SpacetimeDBRainCollector;
           renderRainCollector(ctx, rainCollector, nowMs, cycleProgress);

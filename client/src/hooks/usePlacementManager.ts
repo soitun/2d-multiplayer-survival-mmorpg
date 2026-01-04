@@ -109,7 +109,7 @@ function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; 
 }
 
 /**
- * Checks if a world position is on a water tile (Sea type).
+ * Checks if a world position is on a water tile (Sea or HotSpringWater type).
  * Uses compressed chunk data for efficient lookup.
  * Returns true if the position is on water.
  */
@@ -122,7 +122,8 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
   
   // Use compressed chunk data lookup
   const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-  const isWater = tileType === 'Sea';
+  // Match both regular water (Sea) and hot spring water - consistent with placementRenderingUtils
+  const isWater = tileType === 'Sea' || tileType === 'HotSpringWater';
   
   console.log(`[WaterCheck] Tile at (${tileX}, ${tileY}): type=${tileType}, isWater=${isWater}`);
   
@@ -239,6 +240,31 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
 }
 
 /**
+ * Checks if Seaweed Frond placement is valid (any water tile, no shore restriction).
+ * Returns true if placement should be blocked.
+ * No snorkeling required - just needs to be on water.
+ */
+function isSeaweedFrondPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    console.log('[SeaweedFrond] No connection, allowing placement');
+    return false;
+  }
+  
+  // Seaweed Fronds can be planted on any water tile (no shore restriction)
+  const isOnWater = isPositionOnWater(connection, worldX, worldY);
+  console.log(`[SeaweedFrond] Position (${worldX.toFixed(1)}, ${worldY.toFixed(1)}) - isOnWater: ${isOnWater}`);
+  
+  if (!isOnWater) {
+    console.log('[SeaweedFrond] BLOCKED: Not on water');
+    return true; // Block if not on water
+  }
+  
+  // No snorkeling required - just need to be on water
+  console.log('[SeaweedFrond] VALID: Placement allowed on water tile');
+  return false; // Valid placement on client side
+}
+
+/**
  * Checks if Beach Lyme Grass Seeds placement is valid (beach tiles only).
  * Returns true if placement should be blocked.
  */
@@ -256,7 +282,8 @@ function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, world
 /**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
- * Reed Rhizomes have special handling and require water instead.
+ * Reed Rhizomes have special handling and require water near shore.
+ * Seaweed Fronds have special handling and require water (no shore restriction).
  * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
@@ -264,7 +291,21 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     return false;
   }
 
-  // Special case: Seeds that require water placement (like Reed Rhizome)
+  const itemNameLower = placementInfo.itemName.toLowerCase().trim();
+  
+  console.log(`[WaterPlacement] Checking item: "${placementInfo.itemName}" (lower: "${itemNameLower}")`);
+
+  // Special case: Seaweed Frond - must be on water (no shore restriction, no snorkeling required)
+  const isSeaweedItem = itemNameLower.includes('seaweed') || itemNameLower.includes('frond');
+  console.log(`[WaterPlacement] isSeaweedItem: ${isSeaweedItem}`);
+  
+  if (isSeaweedItem) {
+    const result = isSeaweedFrondPlacementBlocked(connection, worldX, worldY);
+    console.log(`[WaterPlacement] Seaweed placement blocked: ${result}`);
+    return result;
+  }
+
+  // Special case: Reed Rhizome - must be on water NEAR shore
   if (requiresWaterPlacement(placementInfo.itemName)) {
     return isReedRhizomePlacementBlocked(connection, worldX, worldY);
   }
@@ -647,13 +688,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     // Check for monument zone restriction
     if (isMonumentZonePlacementBlocked(connection, worldX, worldY)) {
       // setPlacementError("Cannot place in monument zones");
-      // Play error sound for monument zone placement
+      // Play monument-specific error sound based on item type
       if (isSeedItemValid(placementInfo.itemName)) {
-        console.log('[PlacementManager] Client-side validation: Cannot plant in monument zones, playing error sound');
-        playImmediateSound('error_planting', 1.0);
+        console.log('[PlacementManager] Client-side validation: Cannot plant in protected monument zone, playing planting monument error sound');
+        playImmediateSound('error_planting_monument', 1.0);
       } else {
-        console.log('[PlacementManager] Client-side validation: Cannot place in monument zones, playing error sound');
-        playImmediateSound('error_chest_placement', 1.0);
+        console.log('[PlacementManager] Client-side validation: Cannot place in protected monument zone, playing monument error sound');
+        playImmediateSound('error_foundation_monument', 1.0);
       }
       return; // Don't proceed with placement
     }

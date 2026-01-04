@@ -421,7 +421,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Seaweed Frond - Underwater plant propagation (vegetative reproduction via frond cutting)
-        ItemBuilder::new("Seaweed Frond", "A segment of seaweed thallus that can regrow into a full plant. Must be planted underwater while snorkeling.", ItemCategory::Placeable)
+        ItemBuilder::new("Seaweed Frond", "A segment of seaweed thallus that can regrow into a full plant. Plant on any water tile.", ItemCategory::Placeable)
             .icon("seaweed_frond.png")
             .stackable(20)
             .respawn_time(600) // 10 minutes

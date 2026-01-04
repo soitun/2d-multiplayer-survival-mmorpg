@@ -549,22 +549,15 @@ fn validate_glasswort_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(
 }
 
 /// Validate seaweed frond planting location
-/// Seaweed fronds can only be planted underwater and player must be snorkeling
+/// Seaweed fronds can only be planted on water tiles (no snorkeling required)
 /// Unlike reed rhizomes (which must be near shore), seaweed can be planted anywhere in water
-fn validate_seaweed_frond_planting(ctx: &ReducerContext, player_id: spacetimedb::Identity, x: f32, y: f32) -> Result<(), String> {
-    // Check if it's a water tile
-    if !is_water_tile(ctx, x, y) {
-        return Err("Seaweed Frond can only be planted underwater".to_string());
+fn validate_seaweed_frond_planting(_ctx: &ReducerContext, _player_id: spacetimedb::Identity, x: f32, y: f32) -> Result<(), String> {
+    // Check if it's a water tile - that's the only requirement
+    if !is_water_tile(_ctx, x, y) {
+        return Err("Seaweed Frond can only be planted on water tiles".to_string());
     }
     
-    // Check if player is snorkeling
-    let player = ctx.db.player().identity().find(player_id)
-        .ok_or_else(|| "Player not found".to_string())?;
-    
-    if !player.is_snorkeling {
-        return Err("You must be underwater (snorkeling) to plant seaweed".to_string());
-    }
-    
+    // No snorkeling requirement - players can plant from the surface
     // No shore distance restriction - seaweed can be planted anywhere in water
     log::info!("Seaweed Frond planting validated at ({:.1}, {:.1})", x, y);
     Ok(())

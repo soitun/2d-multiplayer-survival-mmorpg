@@ -654,7 +654,7 @@ lazy_static! {
             seed_drop_chance: 0.80, // 55% chance - important fiber crop must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1200, // 20 minutes
-            spawn_condition: SpawnCondition::InlandWater,
+            spawn_condition: SpawnCondition::NearWater, // Bog Cotton grows in wet meadows NEAR water, not IN water
             growing_seasons: vec![Season::Summer],
         });
         

@@ -275,24 +275,6 @@ const AIDisclosurePage: React.FC = () => {
                         🔥 THE CAMPFIRE AT THE END OF TIME
                     </h2>
                     
-                    <div style={{
-                        backgroundColor: 'rgba(255, 140, 0, 0.15)',
-                        border: '1px solid rgba(255, 140, 0, 0.4)',
-                        borderRadius: '8px',
-                        padding: '28px',
-                        marginBottom: '24px',
-                    }}>
-                        <p style={{
-                            fontSize: '18px',
-                            color: 'rgba(255, 255, 255, 0.95)',
-                            margin: 0,
-                            lineHeight: '1.9',
-                            fontStyle: 'italic',
-                        }}>
-                            "In a world where machines can paint and compose, what remains uniquely human? <strong style={{ color: '#ff8c00' }}>Storytelling.</strong> The raw, authentic narratives that emerge from lived experience, from joy and suffering, from the depths of the soul. These cannot be fabricated. They can only be told."
-                        </p>
-                    </div>
-                    
                     <p style={{
                         fontSize: '16px',
                         color: 'rgba(255, 255, 255, 0.85)',

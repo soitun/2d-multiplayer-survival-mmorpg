@@ -311,6 +311,22 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
 }
 
 /**
+ * Checks if Seaweed Frond placement is valid (any water tile, no shore restriction).
+ * Returns true if placement should be blocked.
+ * No snorkeling required - just needs to be on water.
+ */
+function isSeaweedFrondPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) return false;
+    
+    // Seaweed Fronds must be on water (any water tile - no shore restriction, no snorkeling required)
+    if (!isPositionOnWater(connection, worldX, worldY)) {
+        return true; // Block if not on water
+    }
+    
+    return false; // Valid placement on water tile
+}
+
+/**
  * Checks if Beach Lyme Grass Seeds placement is valid (beach tiles only).
  * Returns true if placement should be blocked.
  */
@@ -328,7 +344,8 @@ function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, world
 /**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
- * Reed Rhizomes have special handling and require water instead.
+ * Reed Rhizomes have special handling and require water near shore.
+ * Seaweed Fronds have special handling and require water (no shore restriction).
  * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
@@ -336,7 +353,17 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
         return false;
     }
 
-    // Special case: Seeds that require water placement (like Reed Rhizome)
+    const itemNameLower = placementInfo.itemName.toLowerCase().trim();
+
+    // Special case: Seaweed Frond - must be on water (no shore restriction, no snorkeling required)
+    // Match both "seaweed" and "frond" to handle "Seaweed Frond" item
+    const isSeaweedItem = itemNameLower.includes('seaweed') || itemNameLower.includes('frond');
+    
+    if (isSeaweedItem) {
+        return isSeaweedFrondPlacementBlocked(connection, worldX, worldY);
+    }
+
+    // Special case: Reed Rhizome - must be on water NEAR shore
     if (requiresWaterPlacement(placementInfo.itemName)) {
         return isReedRhizomePlacementBlocked(connection, worldX, worldY);
     }
