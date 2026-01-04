@@ -30,4 +30,5 @@ import {
 
 export type Arrow = { tag: "Arrow" };
 export type Bullet = { tag: "Bullet" };
+export type HarpoonDart = { tag: "HarpoonDart" };
 

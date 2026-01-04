@@ -31,7 +31,8 @@ import * as AmmoTypeVariants from './ammo_type_variants'
 
 // The tagged union or sum type for the algebraic type `AmmoType`.
 export type AmmoType = AmmoTypeVariants.Arrow |
-  AmmoTypeVariants.Bullet;
+  AmmoTypeVariants.Bullet |
+  AmmoTypeVariants.HarpoonDart;
 
 let _cached_AmmoType_type_value: __AlgebraicTypeType | null = null;
 
@@ -45,6 +46,7 @@ export const AmmoType = {
   // ```
   Arrow: { tag: "Arrow" } as const,
   Bullet: { tag: "Bullet" } as const,
+  HarpoonDart: { tag: "HarpoonDart" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_AmmoType_type_value) return _cached_AmmoType_type_value;
@@ -52,6 +54,7 @@ export const AmmoType = {
     _cached_AmmoType_type_value.value.variants.push(
       { name: "Arrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Bullet", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HarpoonDart", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_AmmoType_type_value;
   },
