@@ -450,17 +450,24 @@ export const renderEquippedItem = (
   const preAnimationPivotX = pivotX;
   const preAnimationPivotY = pivotY;
 
-  // --- Arrow Rendering for Loaded Bow/Crossbow ---
-  // Only show arrow when weapon is TRULY ready to fire (after reload cooldown)
+  // --- Arrow/Dart Rendering for Loaded Bow/Crossbow/Harpoon Gun ---
+  // Only show ammo when weapon is TRULY ready to fire (after reload cooldown)
   // The server sets isReadyToFire=true immediately on reload, but actual firing is blocked
   // by a cooldown based on reload_time_secs. We mirror this check client-side for accurate UX.
   let loadedArrowImage: HTMLImageElement | undefined = undefined;
-  if ((itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow") && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
+  const isRangedWeaponWithVisibleAmmo = itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow" || itemDef.name === "Reed Harpoon Gun";
+  if (isRangedWeaponWithVisibleAmmo && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
     // Check if reload cooldown has elapsed since last shot (swing_start_time_ms)
-    // Hunting Bow: 850ms reload, Crossbow: 2300ms reload
+    // Hunting Bow: 850ms reload, Crossbow: 2300ms reload, Reed Harpoon Gun: 1800ms reload
     const HUNTING_BOW_RELOAD_MS = 850;
     const CROSSBOW_RELOAD_MS = 2300;
-    const reloadTimeMs = itemDef.name === "Hunting Bow" ? HUNTING_BOW_RELOAD_MS : CROSSBOW_RELOAD_MS;
+    const HARPOON_GUN_RELOAD_MS = 1800;
+    let reloadTimeMs = HUNTING_BOW_RELOAD_MS;
+    if (itemDef.name === "Crossbow") {
+      reloadTimeMs = CROSSBOW_RELOAD_MS;
+    } else if (itemDef.name === "Reed Harpoon Gun") {
+      reloadTimeMs = HARPOON_GUN_RELOAD_MS;
+    }
     
     const lastShotTimeMs = Number(equipment.swingStartTimeMs);
     const timeSinceLastShot = now_ms - lastShotTimeMs;
@@ -471,12 +478,12 @@ export const renderEquippedItem = (
       if (ammoDef && ammoDef.iconAssetName) {
           loadedArrowImage = itemImages.get(ammoDef.iconAssetName); // Use ammo's icon
           if (!loadedArrowImage) {
-              // console.warn(`[RenderEquipped] Image for loaded arrow '${ammoDef.iconAssetName}' not found.`);
+              // console.warn(`[RenderEquipped] Image for loaded ammo '${ammoDef.iconAssetName}' not found.`);
           }
       }
     }
   }
-  // --- END Arrow Rendering ---
+  // --- END Arrow/Dart Rendering ---
 
   // --- Swing/Thrust Animation --- 
   const swingStartTime = Number(equipment.swingStartTimeMs);
@@ -605,7 +612,21 @@ export const renderEquippedItem = (
     ctx.scale(-1, 1); // Flip horizontally
   } else if (itemDef.name === "Reed Harpoon Gun") {
     ctx.rotate(rotation); // Apply calculated harpoon gun rotation
-    ctx.scale(-1, 1); // Flip horizontally (same as crossbow)
+    // Apply direction-specific flipping for proper orientation
+    switch (player.direction) {
+      case 'up':
+        ctx.scale(-1, -1); // Flip both horizontally and vertically when facing up
+        break;
+      case 'left':
+        ctx.scale(1, 1); // No flip when facing left (already correct orientation)
+        break;
+      case 'down':
+        ctx.scale(-1, 1); // Flip horizontally when facing down
+        break;
+      case 'right':
+        ctx.scale(-1, 1); // Flip horizontally when facing right
+        break;
+    }
   } else {
     // Non-spear items might have a different base orientation/flip before animation
     // Ensure this scale doesn't affect bandage animation logic if it's drawn separately with its own save/restore
