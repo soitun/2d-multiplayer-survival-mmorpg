@@ -498,28 +498,48 @@ export const renderEquippedItem = (
   // This eliminates the "bunched up swings" problem on high-latency connections.
   if (isLocalPlayer) {
     const clientSwingElapsed = getLocalPlayerSwingElapsed();
+    const isInGracePeriod = shouldIgnoreServerSwing();
+    
     if (clientSwingElapsed >= 0) {
-      // Local player has an active client-initiated swing - use it for immediate animation
+      // Client-initiated swing is active - use it for immediate animation
       elapsedSwingTime = clientSwingElapsed;
-    } else if (swingStartTime > 0 && !shouldIgnoreServerSwing()) {
-      // Fallback to server timestamp ONLY if:
-      // 1. No client swing is active (clientSwingElapsed < 0)
-      // 2. We're not in the grace period after a client-authoritative swing completed
-      // This prevents the "double swing" bug where server confirmation triggers a second animation
+      // IMPORTANT: Track the server swing time during client animation
+      // so we don't replay it after animation ends or grace period expires
+      if (swingStartTime > 0) {
+        lastKnownServerSwingTimes.set(playerId, swingStartTime);
+      }
+    } else if (isInGracePeriod) {
+      // In grace period after client animation completed - suppress any animation
+      // but keep tracking server time to prevent re-triggering when grace period ends
+      if (swingStartTime > 0) {
+        lastKnownServerSwingTimes.set(playerId, swingStartTime);
+      }
+      // Set elapsed time beyond duration to ensure isSwinging = false
+      // This prevents the "second swing" visual during grace period
+      elapsedSwingTime = SWING_DURATION_MS + 1;
+    } else if (swingStartTime > 0) {
+      // Not in client animation or grace period - use server timestamps
+      // This path is for server-authoritative swings that weren't covered by client animation
       const clientStartTime = clientSwingStartTimes.get(playerId);
       const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
       
       if (swingStartTime !== lastKnownServerTime) {
+        // NEW swing detected from server (different timestamp than what we tracked)
         lastKnownServerSwingTimes.set(playerId, swingStartTime);
         clientSwingStartTimes.set(playerId, now_ms);
         elapsedSwingTime = 0;
       } else if (clientStartTime) {
+        // Continue existing server-tracked swing animation
         elapsedSwingTime = now_ms - clientStartTime;
+      } else {
+        // Server has a swing time we've already handled via client animation - don't animate
+        elapsedSwingTime = SWING_DURATION_MS + 1;
       }
     } else {
-      // No active swing OR we're in grace period - clean up tracking
+      // No active swing at all (server swing time is 0) - clean up tracking
       clientSwingStartTimes.delete(playerId);
       lastKnownServerSwingTimes.delete(playerId);
+      elapsedSwingTime = SWING_DURATION_MS + 1; // Ensure no animation
     }
   } else {
     // SERVER-AUTHORITATIVE for other players (we don't predict their actions)
