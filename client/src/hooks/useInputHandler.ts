@@ -530,6 +530,8 @@ export const useInputHandler = ({
             if (nowUnarmed - lastClientSwingAttemptRef.current < SWING_COOLDOWN_MS) return;
             if (nowUnarmed - Number(localEquipment?.swingStartTimeMs || 0) < SWING_COOLDOWN_MS) return;
             try {
+                // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
+                registerLocalPlayerSwing();
                 // 🔊 IMMEDIATE SOUND: Play weapon swing sound for instant feedback
                 // playWeaponSwingSound(0.8);
                 connectionRef.current.reducers.useEquippedItem();
@@ -551,6 +553,8 @@ export const useInputHandler = ({
             if (now - lastClientSwingAttemptRef.current < attackIntervalMs) return;
             if (now - Number(localEquipment.swingStartTimeMs) < attackIntervalMs) return;
             try {
+                // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
+                registerLocalPlayerSwing();
                 // 🔊 IMMEDIATE SOUND: Only play generic swing for non-resource tools
                 const activeItem = activeEquipmentsRef.current.get(localPlayerId || '');
                 const itemDef = itemDefinitionsRef.current.get(activeItem?.equippedItemDefId?.toString() || '');
@@ -1742,6 +1746,8 @@ export const useInputHandler = ({
                 if (nowUnarmed - lastClientSwingAttemptRef.current < SWING_COOLDOWN_MS) return;
                 if (nowUnarmed - Number(localEquipment?.swingStartTimeMs || 0) < SWING_COOLDOWN_MS) return;
                 try {
+                    // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
+                    registerLocalPlayerSwing();
                     // 🔊 IMMEDIATE SOUND: Play unarmed swing sound
                     // playWeaponSwingSound(0.8);
                     connectionRef.current.reducers.useEquippedItem();
@@ -1764,6 +1770,8 @@ export const useInputHandler = ({
                 if (now - lastClientSwingAttemptRef.current < attackIntervalMs) return;
                 if (now - Number(localEquipment.swingStartTimeMs) < attackIntervalMs) return;
                 try {
+                    // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
+                    registerLocalPlayerSwing();
                     // 🔊 IMMEDIATE SOUND: Only play generic swing for non-resource tools
                     const isResourceTool = itemDef?.name && (
                         itemDef.name.toLowerCase().includes('hatchet') || 

@@ -98,6 +98,18 @@ pub(crate) const INSANITY_MINING_INCREASE: f32 = 1.5; // Insanity increase when 
 pub(crate) const INSANITY_SHARD_SCALING_EXPONENT: f32 = 0.35; // More gradual scaling: shard_count^0.35
 // This means: 1 shard = 1x, 10 shards = 2.2x, 50 shards = 3.6x, 100 shards = 4.5x, 500 shards = 7.4x
 
+// NEW: Minimum shard count before insanity kicks in
+// This makes the game accessible for new players who need time to:
+// 1. Learn basic survival mechanics (food, water, warmth)
+// 2. Explore and accidentally collect shards from random nodes
+// 3. Build their first base (Shelter + Wooden Storage Box)
+// 4. Understand the mine → deposit → spend gameplay loop
+// 
+// Threshold of 200 = ~2-3 memory nodes worth, enough for the "learning phase"
+// Insanity only becomes a concern AFTER they have infrastructure to deposit shards
+// This allows safe collection of enough shards for several Tier 1-2 upgrades (60-280 shards each)
+pub(crate) const INSANITY_MINIMUM_SHARD_THRESHOLD: u32 = 200;
+
 // Time-based multiplier: the longer you carry shards, the worse it gets
 // Creates urgency to drop off shards regularly rather than hoarding during long sessions
 pub(crate) const INSANITY_TIME_MULTIPLIER_MAX: f32 = 8.0; // Maximum time-based multiplier (8x at 15+ minutes)
@@ -603,27 +615,31 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         }
         
         // Track shard carry start time for time-based insanity scaling
+        // NOTE: Only track time when carrying ENOUGH shards to trigger insanity (100+)
         let mut shard_carry_start_time_to_update = player.shard_carry_start_time;
         
         // Update shard carry start time tracking
-        if memory_shard_count > 0 && player.shard_carry_start_time.is_none() {
-            // Started carrying shards - record the time
+        // Only start tracking when player has enough shards to trigger insanity
+        if memory_shard_count >= INSANITY_MINIMUM_SHARD_THRESHOLD && player.shard_carry_start_time.is_none() {
+            // Started carrying enough shards for insanity - record the time
             shard_carry_start_time_to_update = Some(current_time);
-            log::info!("Player {:?} started carrying {} memory shards", player_id, memory_shard_count);
-        } else if memory_shard_count == 0 && player.shard_carry_start_time.is_some() {
-            // Dropped all shards - clear the time
+            log::info!("Player {:?} started carrying {} memory shards (>= {} threshold)", player_id, memory_shard_count, INSANITY_MINIMUM_SHARD_THRESHOLD);
+        } else if memory_shard_count < INSANITY_MINIMUM_SHARD_THRESHOLD && player.shard_carry_start_time.is_some() {
+            // Dropped below threshold - clear the time
             shard_carry_start_time_to_update = None;
-            log::info!("Player {:?} dropped all memory shards", player_id);
+            log::info!("Player {:?} dropped below {} memory shard threshold (now has {})", player_id, INSANITY_MINIMUM_SHARD_THRESHOLD, memory_shard_count);
         }
         
-        // Calculate insanity change: increases when holding shards with TIME-BASED SCALING
+        // Calculate insanity change: increases when holding ENOUGH shards (100+) with TIME-BASED SCALING
+        // IMPORTANT: Insanity does NOT build up if you have less than 100 shards (new player friendly)
         // IMPORTANT: Insanity increase is HALTED while in ALK station safe zones
         let mut insanity_change_per_sec = 0.0;
         
         // Check if player is in an ALK station safe zone (central compound or substations)
         let is_in_alk_safe_zone = crate::active_effects::is_player_in_safe_zone(ctx, player.position_x, player.position_y);
         
-        if memory_shard_count > 0 && !is_in_alk_safe_zone {
+        // Only increase insanity if carrying 100+ shards AND not in a safe zone
+        if memory_shard_count >= INSANITY_MINIMUM_SHARD_THRESHOLD && !is_in_alk_safe_zone {
             // Calculate time-based multiplier: the longer you carry shards, the worse it gets
             // This creates urgency to drop off shards regularly rather than hoarding
             let time_multiplier = if let Some(start_time) = shard_carry_start_time_to_update {
@@ -653,13 +669,29 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                 "Player {:?} insanity: {} shards, time_mult={:.2}x, shard_mult={:.2}x, rate={:.4}/sec",
                 player_id, memory_shard_count, time_multiplier, shard_multiplier, insanity_change_per_sec
             );
-        } else if memory_shard_count > 0 && is_in_alk_safe_zone {
-            // Player is holding shards but in ALK safe zone - insanity increase is halted
+        } else if memory_shard_count >= INSANITY_MINIMUM_SHARD_THRESHOLD && is_in_alk_safe_zone {
+            // Player is holding enough shards but in ALK safe zone - insanity increase is halted
             // Time multiplier continues to accumulate (they're still carrying shards)
             // This gives players time to rest after completing contracts before heading back to base
             insanity_change_per_sec = 0.0;
             log::trace!("Player {:?} is in ALK safe zone - insanity increase halted (holding {} shards)", 
                 player_id, memory_shard_count);
+        } else if memory_shard_count > 0 && memory_shard_count < INSANITY_MINIMUM_SHARD_THRESHOLD {
+            // Player has shards but not enough to trigger insanity (new player friendly!)
+            // Still allow insanity to decay if they had it before
+            let current_insanity = player.insanity;
+            
+            if current_insanity > 0.0 {
+                if current_insanity < INSANITY_RAPID_DECAY_THRESHOLD {
+                    insanity_change_per_sec = -INSANITY_RAPID_DECAY_PER_SECOND;
+                } else {
+                    insanity_change_per_sec = -INSANITY_SLOW_DECAY_PER_SECOND;
+                }
+                log::trace!(
+                    "Player {:?} has {} shards (below {} threshold) - insanity decaying at {:.2}/sec",
+                    player_id, memory_shard_count, INSANITY_MINIMUM_SHARD_THRESHOLD, insanity_change_per_sec
+                );
+            }
         } else {
             // Not holding memory shards - DECAY insanity
             // KEY MECHANIC: Rapid decay if under 50%, slow decay if 50%+
