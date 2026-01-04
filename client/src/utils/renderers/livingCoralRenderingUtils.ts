@@ -187,93 +187,32 @@ const livingCoralConfig: GroundEntityConfig<LivingCoral> = {
     fallbackColor: '#FF6B6B', // Coral pink fallback color
 };
 
-// Offscreen canvas for underwater tinting (reused for performance)
-let offscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
-let offscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
-
-function getOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
-    if (!offscreenCanvas || offscreenCanvas.width < width || offscreenCanvas.height < height) {
-        // Create or resize offscreen canvas
-        if (typeof OffscreenCanvas !== 'undefined') {
-            offscreenCanvas = new OffscreenCanvas(width, height);
-        } else {
-            offscreenCanvas = document.createElement('canvas');
-            offscreenCanvas.width = width;
-            offscreenCanvas.height = height;
-        }
-        offscreenCtx = offscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-    }
-    return { canvas: offscreenCanvas, ctx: offscreenCtx! };
-}
-
 /**
  * Renders a living coral entity (underwater harvestable resource).
  * Living coral uses the combat system like stones - attack with Diving Pick to harvest.
- * @param applyUnderwaterTint - If true, applies teal underwater tint (when viewer is snorkeling)
+ * Note: Underwater tinting is now handled via CSS filter in renderingUtils.ts for consistency.
  */
 export function renderLivingCoral(
     ctx: CanvasRenderingContext2D,
     coral: LivingCoral,
     nowMs: number,
-    cycleProgress: number,
-    applyUnderwaterTint: boolean = false
+    cycleProgress: number
 ): void {
     // Don't render if coral is respawning (depleted)
     if (coral.respawnAt !== undefined && coral.respawnAt !== null) {
         return;
     }
     
-    // Calculate draw position
-    const drawX = coral.posX - LIVING_CORAL_WIDTH / 2;
-    const drawY = coral.posY - LIVING_CORAL_HEIGHT + 40;
-    
-    if (applyUnderwaterTint) {
-        // Use offscreen canvas for proper tinting
-        const padding = 20; // Extra padding for shadows/effects
-        const canvasWidth = LIVING_CORAL_WIDTH + padding * 2;
-        const canvasHeight = LIVING_CORAL_HEIGHT + padding * 2;
-        const { canvas, ctx: offCtx } = getOffscreenCanvas(canvasWidth, canvasHeight);
-        
-        // Clear the offscreen canvas
-        offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-        
-        // Save and translate to render coral at center of offscreen canvas
-        offCtx.save();
-        offCtx.translate(padding + LIVING_CORAL_WIDTH / 2 - coral.posX, padding + LIVING_CORAL_HEIGHT - 40 - coral.posY);
-        
-        // Render coral to offscreen canvas
-        renderConfiguredGroundEntity({
-            ctx: offCtx as CanvasRenderingContext2D,
-            entity: coral,
-            config: livingCoralConfig,
-            nowMs,
-            entityPosX: coral.posX,
-            entityPosY: coral.posY,
-            cycleProgress,
-        });
-        
-        offCtx.restore();
-        
-        // Apply teal tint using source-atop (only affects drawn pixels)
-        offCtx.globalCompositeOperation = 'source-atop';
-        offCtx.fillStyle = 'rgba(12, 62, 79, 0.35)'; // Teal underwater tint
-        offCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-        offCtx.globalCompositeOperation = 'source-over';
-        
-        // Draw the tinted result to main canvas
-        ctx.drawImage(canvas, drawX - padding, drawY - padding);
-    } else {
-        // Normal rendering without tint
-        renderConfiguredGroundEntity({
-            ctx,
-            entity: coral,
-            config: livingCoralConfig,
-            nowMs,
-            entityPosX: coral.posX,
-            entityPosY: coral.posY,
-            cycleProgress,
-        });
-    }
+    // Render coral
+    renderConfiguredGroundEntity({
+        ctx,
+        entity: coral,
+        config: livingCoralConfig,
+        nowMs,
+        entityPosX: coral.posX,
+        entityPosY: coral.posY,
+        cycleProgress,
+    });
 }
 
 /**

@@ -5,7 +5,7 @@ const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)
 const CROSSBOW_ARROW_SCALE = 0.7; // Full size crossbow bolts
 const BULLET_SCALE = 0.7; // Full size bullets from pistols
 const DEFAULT_THROWN_SCALE = 0.7; // Full size thrown items
-const WEAPON_THROWN_SCALE = 0.7; // Full size thrown weapons (melee weapons like combat ladle)
+const WEAPON_THROWN_SCALE = 1.0; // Full size thrown weapons (melee weapons like combat ladle)
 const ARROW_SPRITE_OFFSET_X = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 const ARROW_SPRITE_OFFSET_Y = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 
@@ -25,6 +25,7 @@ interface RenderProjectileProps {
   arrowImage: HTMLImageElement;
   currentTimeMs: number;
   itemDefinitions?: Map<string, any>; // NEW: Add itemDefinitions to determine weapon type
+  applyUnderwaterTint?: boolean; // Apply teal underwater tint when projectile is underwater
 }
 
 export const renderProjectile = ({
@@ -33,6 +34,7 @@ export const renderProjectile = ({
   arrowImage,
   currentTimeMs,
   itemDefinitions, // NEW: Add itemDefinitions parameter
+  applyUnderwaterTint = false, // Apply teal underwater tint when projectile is underwater
 }: RenderProjectileProps) => {
   if (!arrowImage || !arrowImage.complete || arrowImage.naturalHeight === 0) {
     console.warn('[DEBUG] Arrow image not loaded or invalid for projectile:', projectile.id);
@@ -169,6 +171,12 @@ export const renderProjectile = ({
   const drawHeight = arrowImage.naturalHeight * scale;
 
   ctx.save();
+  
+  // Apply teal underwater tint when projectile is underwater (consistent with other underwater entities)
+  if (applyUnderwaterTint) {
+    ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+  }
+  
   // Use sub-pixel positioning for smoother movement
   ctx.translate(Math.round(currentX * 10) / 10 + ARROW_SPRITE_OFFSET_X, Math.round(currentY * 10) / 10 + ARROW_SPRITE_OFFSET_Y);
   ctx.rotate(angle);

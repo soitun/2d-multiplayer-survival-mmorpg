@@ -761,7 +761,8 @@ export function useInteractionFinder({
             }
 
             // Find closest water position
-            if (connection) {
+            // IMPORTANT: Don't allow drinking while snorkeling (underwater) - prevents race condition with fumarole interaction
+            if (connection && !localPlayer.isSnorkeling) {
                 // Check if player has drinking cooldown first
                 const playerIdHex = localPlayer.identity.toHexString();
                 const drinkingCooldown = playerDrinkingCooldowns?.get(playerIdHex);

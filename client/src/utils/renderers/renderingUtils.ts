@@ -1060,8 +1060,13 @@ export const renderYSortedEntities = ({
               renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
               ctx.restore();
             } else {
-              // Underwater view: render seaweed clearly (no tint needed - underwater ambient provides context)
+              // Underwater view - render clearly with teal underwater tint
+              ctx.save();
+              ctx.globalAlpha = 1.0;
+              // Apply subtle teal tint for underwater ambiance (same as planted seaweed)
+              ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
               renderHarvestableResource(ctx, resource, nowMs, cycleProgress);
+              ctx.restore();
             }
           } else {
             // Normal harvestable resources - use unified renderer
@@ -1123,7 +1128,18 @@ export const renderYSortedEntities = ({
       } else if (type === 'dropped_item') {
           const droppedItem = entity as SpacetimeDBDroppedItem;
           const itemDef = itemDefinitions.get(droppedItem.itemDefId.toString());
-          renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+          
+          // Apply underwater teal tint when snorkeling (items visible underwater)
+          if (isLocalPlayerSnorkeling) {
+              ctx.save();
+              ctx.globalAlpha = 1.0;
+              // Apply subtle teal tint for underwater ambiance (same as seaweed/planted seeds)
+              ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+              ctx.restore();
+          } else {
+              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+          }
       } else if (type === 'sleeping_bag') {
           const sleepingBag = entity as SpacetimeDBSleepingBag;
           renderSleepingBag(ctx, sleepingBag, nowMs, cycleProgress);
@@ -1235,6 +1251,7 @@ export const renderYSortedEntities = ({
                   arrowImage: projectileImage, // Note: parameter name is still 'arrowImage' but now handles both
                   currentTimeMs: nowMs,
                   itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
+                  applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
               });
           } else {
               console.warn(`🏹 [RENDER] Image not loaded: ${projectileImageName} for projectile ${projectile.id}`);
@@ -1366,12 +1383,19 @@ export const renderYSortedEntities = ({
               const savedFilter = ctx.filter;
               ctx.filter = 'blur(2px)';
               ctx.globalAlpha = 0.7; // Slightly transparent when viewed from above
-              renderFumarole(ctx, fumarole, nowMs, cycleProgress, false); // No tint when viewing from above
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
               ctx.filter = savedFilter;
               ctx.globalAlpha = 1.0;
+          } else if (applyUnderwaterTint) {
+              // Underwater view - render with CSS filter teal tint (consistent with other underwater entities)
+              ctx.save();
+              ctx.globalAlpha = 1.0;
+              ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
+              ctx.restore();
           } else {
-              // Render with teal tint if snorkeling and fumarole is submerged
-              renderFumarole(ctx, fumarole, nowMs, cycleProgress, applyUnderwaterTint);
+              // Normal rendering (non-submerged fumaroles)
+              renderFumarole(ctx, fumarole, nowMs, cycleProgress);
           }
           
           if (isTheClosestTarget && !viewingSubmergedFromAbove) {
@@ -1394,12 +1418,16 @@ export const renderYSortedEntities = ({
               const savedFilter = ctx.filter;
               ctx.filter = 'blur(2px)';
               ctx.globalAlpha = 0.6; // More transparent when viewed from above water
-              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress, false);
+              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress);
               ctx.filter = savedFilter;
               ctx.globalAlpha = 1.0;
           } else {
-              // Underwater view - render clearly with teal underwater tint
-              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress, true);
+              // Underwater view - render with CSS filter teal tint (consistent with other underwater entities)
+              ctx.save();
+              ctx.globalAlpha = 1.0;
+              ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+              renderLivingCoral(ctx, livingCoral, nowMs, cycleProgress);
+              ctx.restore();
           }
       } else if (type === 'alk_station') {
           const alkStation = entity as SpacetimeDBAlkStation;

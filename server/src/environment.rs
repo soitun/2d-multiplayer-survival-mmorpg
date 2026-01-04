@@ -2165,6 +2165,175 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let mut spawned_basalt_positions: Vec<(f32, f32)> = Vec::new();
     let mut spawned_fumarole_positions: Vec<(f32, f32)> = Vec::new();
     
+    // === GUARANTEED MINIMUM FUMAROLES PER QUARRY CLUSTER ===
+    // Detect distinct quarry clusters using flood-fill/union-find approach
+    // Each cluster MUST get at least 1 fumarole for warmth (important for gameplay!)
+    log::info!("🔥 Detecting quarry clusters to guarantee minimum fumaroles...");
+    
+    // Build a set of quarry tile positions for fast lookup
+    let quarry_tile_set: std::collections::HashSet<(i32, i32)> = quarry_tiles.iter().cloned().collect();
+    let mut visited: std::collections::HashSet<(i32, i32)> = std::collections::HashSet::new();
+    let mut quarry_clusters: Vec<Vec<(i32, i32)>> = Vec::new();
+    
+    // Flood-fill to find connected quarry tile clusters
+    for &start_tile in &quarry_tiles {
+        if visited.contains(&start_tile) {
+            continue;
+        }
+        
+        // BFS to find all connected tiles in this cluster
+        let mut cluster: Vec<(i32, i32)> = Vec::new();
+        let mut queue: std::collections::VecDeque<(i32, i32)> = std::collections::VecDeque::new();
+        queue.push_back(start_tile);
+        visited.insert(start_tile);
+        
+        while let Some((tx, ty)) = queue.pop_front() {
+            cluster.push((tx, ty));
+            
+            // Check 8-connected neighbors (including diagonals for quarry clusters)
+            for dx in -1..=1 {
+                for dy in -1..=1 {
+                    if dx == 0 && dy == 0 { continue; }
+                    let neighbor = (tx + dx, ty + dy);
+                    if quarry_tile_set.contains(&neighbor) && !visited.contains(&neighbor) {
+                        visited.insert(neighbor);
+                        queue.push_back(neighbor);
+                    }
+                }
+            }
+        }
+        
+        if !cluster.is_empty() {
+            quarry_clusters.push(cluster);
+        }
+    }
+    
+    log::info!("🔥 Found {} distinct quarry clusters", quarry_clusters.len());
+    
+    // For each cluster, spawn at least 1 fumarole near the center
+    let mut guaranteed_fumaroles_spawned = 0;
+    for (cluster_idx, cluster) in quarry_clusters.iter().enumerate() {
+        // Find cluster center (average position)
+        let sum_x: i32 = cluster.iter().map(|(x, _)| *x).sum();
+        let sum_y: i32 = cluster.iter().map(|(_, y)| *y).sum();
+        let center_x = sum_x as f32 / cluster.len() as f32;
+        let center_y = sum_y as f32 / cluster.len() as f32;
+        
+        // Find the tile closest to the center
+        let mut best_tile = cluster[0];
+        let mut best_dist_sq = f32::MAX;
+        for &(tx, ty) in cluster {
+            let dx = tx as f32 - center_x;
+            let dy = ty as f32 - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            if dist_sq < best_dist_sq {
+                best_dist_sq = dist_sq;
+                best_tile = (tx, ty);
+            }
+        }
+        
+        // Convert to world coordinates
+        let world_x_px = (best_tile.0 as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+        let world_y_px = (best_tile.1 as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+        
+        // Check collision with trees and stones (skip other fumaroles since this is guaranteed)
+        let mut too_close = false;
+        const MIN_GUARANTEED_FUMAROLE_TREE_DIST_SQ: f32 = 80.0 * 80.0;
+        const MIN_GUARANTEED_FUMAROLE_STONE_DIST_SQ: f32 = 60.0 * 60.0;
+        
+        for (tx, ty) in &spawned_tree_positions {
+            let dx = world_x_px - tx;
+            let dy = world_y_px - ty;
+            if (dx * dx + dy * dy) < MIN_GUARANTEED_FUMAROLE_TREE_DIST_SQ {
+                too_close = true;
+                break;
+            }
+        }
+        
+        if !too_close {
+            for (sx, sy) in &spawned_stone_positions {
+                let dx = world_x_px - sx;
+                let dy = world_y_px - sy;
+                if (dx * dx + dy * dy) < MIN_GUARANTEED_FUMAROLE_STONE_DIST_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+        }
+        
+        // If center tile is blocked, try nearby tiles in the cluster
+        if too_close {
+            let mut found_alternative = false;
+            // Sort cluster tiles by distance to center for priority
+            let mut sorted_cluster = cluster.clone();
+            sorted_cluster.sort_by(|a, b| {
+                let da = (a.0 as f32 - center_x).powi(2) + (a.1 as f32 - center_y).powi(2);
+                let db = (b.0 as f32 - center_x).powi(2) + (b.1 as f32 - center_y).powi(2);
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            
+            for &(alt_x, alt_y) in sorted_cluster.iter().skip(1).take(20) {
+                let alt_world_x = (alt_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let alt_world_y = (alt_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut alt_too_close = false;
+                for (tx, ty) in &spawned_tree_positions {
+                    let dx = alt_world_x - tx;
+                    let dy = alt_world_y - ty;
+                    if (dx * dx + dy * dy) < MIN_GUARANTEED_FUMAROLE_TREE_DIST_SQ {
+                        alt_too_close = true;
+                        break;
+                    }
+                }
+                if !alt_too_close {
+                    for (sx, sy) in &spawned_stone_positions {
+                        let dx = alt_world_x - sx;
+                        let dy = alt_world_y - sy;
+                        if (dx * dx + dy * dy) < MIN_GUARANTEED_FUMAROLE_STONE_DIST_SQ {
+                            alt_too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if !alt_too_close {
+                    // Spawn at alternative position
+                    let chunk_idx = calculate_chunk_index(alt_world_x, alt_world_y);
+                    let fumarole = crate::fumarole::Fumarole::new(alt_world_x, alt_world_y, chunk_idx);
+                    if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
+                        total_spawned_fumarole_count += 1;
+                        guaranteed_fumaroles_spawned += 1;
+                        spawned_fumarole_positions.push((alt_world_x, alt_world_y));
+                        let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
+                        log::info!("🔥 Cluster #{}: Spawned GUARANTEED fumarole at ({:.0}, {:.0}) [alternative position, {} tiles]",
+                                   cluster_idx + 1, alt_world_x, alt_world_y, cluster.len());
+                        found_alternative = true;
+                        break;
+                    }
+                }
+            }
+            
+            if !found_alternative {
+                log::warn!("🔥 Cluster #{}: Could not find valid position for guaranteed fumarole ({} tiles)", 
+                          cluster_idx + 1, cluster.len());
+            }
+        } else {
+            // Spawn at center position
+            let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+            let fumarole = crate::fumarole::Fumarole::new(world_x_px, world_y_px, chunk_idx);
+            if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
+                total_spawned_fumarole_count += 1;
+                guaranteed_fumaroles_spawned += 1;
+                spawned_fumarole_positions.push((world_x_px, world_y_px));
+                let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
+                log::info!("🔥 Cluster #{}: Spawned GUARANTEED fumarole at ({:.0}, {:.0}) [center, {} tiles]",
+                           cluster_idx + 1, world_x_px, world_y_px, cluster.len());
+            }
+        }
+    }
+    
+    log::info!("🔥 Spawned {} GUARANTEED fumaroles (1 per quarry cluster)", guaranteed_fumaroles_spawned);
+    
     // Spawn entities on a proportion of quarry tiles
     // Target for 600x600 map (2 large + 4 small quarries):
     // - Large quarries (2): 5-6 stones each = 10-12 total

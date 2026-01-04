@@ -532,6 +532,12 @@ export const renderEquippedItem = (
   // --- End Image Resolution ---
 
   ctx.save(); // Overall item rendering context save (applies to pivot translation and general orientation)
+  
+  // Apply teal underwater tint when snorkeling (consistent with other underwater entities)
+  if (applyUnderwaterTint) {
+    ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+  }
+  
   ctx.translate(pivotX, pivotY); 
 
   // Apply general orientation/scaling based on player direction (and spear specifics)
@@ -774,10 +780,9 @@ export const renderEquippedItem = (
 
   ctx.restore(); // Restore overall item rendering context (matches the first ctx.save() in this block)
 
-  // Note: Underwater tinting for equipped items is handled differently - the player's underwater
-  // visual effect (snorkeling sprite) already provides the teal tint context. Additional tinting
-  // on the equipped item was causing visual artifacts (squares), so it has been removed.
-  // The applyUnderwaterTint parameter is kept for API compatibility but no longer applies tint.
+  // Note: Underwater tinting for equipped items now uses CSS filter (ctx.filter) applied at the start
+  // of this function. This approach is consistent with other underwater entities (coral, fumaroles,
+  // seaweed, dropped items) and avoids the visual artifacts that the old offscreen canvas approach caused.
 
   // --- Draw Attack Visual Effect --- 
   if (isSwinging) { 

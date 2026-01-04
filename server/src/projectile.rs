@@ -2304,7 +2304,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
             // Allow specific throwable items
             let throwable_names = [
                 // Tools
-                "Rock", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle",
+                "Rock", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle", "Diving Pick",
                 // Basic melee
                 "Bone Club", "Bone Knife", "Wooden Club", "Bone Gaff Hook",
                 // Spears & harpoons
