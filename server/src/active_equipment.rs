@@ -277,8 +277,10 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
                 needs_update = true;
             }
             // If equipping something else and snorkeling, emerge from water
-            // EXCEPTION: Underwater-capable items (Reed Harpoon, Diving Pick, Seaweed Frond) can be used while snorkeling
-            let is_underwater_capable = matches!(item_def.name.as_str(), "Reed Harpoon" | "Diving Pick" | "Seaweed Frond");
+            // EXCEPTION: Underwater-capable items can be used while snorkeling
+            let is_underwater_capable = matches!(item_def.name.as_str(), 
+                "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick" | "Seaweed Frond"
+            );
             if player.is_snorkeling && !is_underwater_capable {
                 player.is_snorkeling = false;
                 crate::sound_events::emit_snorkel_emerge_sound(ctx, player.position_x, player.position_y, sender_id);

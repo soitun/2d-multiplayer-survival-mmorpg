@@ -249,13 +249,14 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // THE "AMPHIBIOUS WEAPON" - Works both underwater and on land
         // - Only ranged weapon usable while swimming/snorkeling
         // - Small 2-dart magazine for underwater hunting
-        // - Moderate damage, slower fire rate, specialized niche
+        // - Crossbow-like ballistics: fast projectile, good range, accurate
+        // - Slower reload between shots, but magazine allows follow-up
         RangedWeaponStats {
             item_name: "Reed Harpoon Gun".to_string(),
-            weapon_range: 450.0,       // Shorter range - underwater visibility limits
-            projectile_speed: 600.0,   // Slower projectile - water resistance
-            accuracy: 0.82,            // 82% accuracy - compensates for underwater distortion
-            reload_time_secs: 1.2,     // Slow reload - deliberate shots underwater
+            weapon_range: 650.0,       // Similar to crossbow range (680)
+            projectile_speed: 900.0,   // Fast dart speed like crossbow (920)
+            accuracy: 0.90,            // 90% accuracy - pneumatic precision
+            reload_time_secs: 1.8,     // Time between shots (slower than bow, faster than crossbow)
             magazine_capacity: 2,      // 2-dart magazine - limited capacity
         },
     ];

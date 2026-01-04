@@ -82,12 +82,12 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
         log::info!("Player {:?} submerged with snorkel.", sender_id);
         
         // Clear non-underwater-capable items when submerging
-        // EXCEPTION: Reed Harpoon and Diving Pick can be used underwater
+        // EXCEPTION: Underwater weapons and tools can stay equipped
         if let Some(mut equip) = active_equipments_table.player_identity().find(&sender_id) {
             if let Some(equipped_def_id) = equip.equipped_item_def_id {
                 // Check if the equipped item is underwater-capable
                 let is_underwater_capable = if let Some(item_def) = item_defs_table.id().find(equipped_def_id) {
-                    matches!(item_def.name.as_str(), "Reed Harpoon" | "Diving Pick")
+                    matches!(item_def.name.as_str(), "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick")
                 } else {
                     false
                 };

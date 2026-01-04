@@ -382,6 +382,39 @@ export const renderEquippedItem = (
     pivotX = player.positionX + shakeX + itemOffsetX;
     pivotY = player.positionY - jumpOffset + shakeY + itemOffsetY;
 
+  } else if (itemDef.name === "Reed Harpoon Gun") {
+
+    // Full 64x64px rendering for harpoon gun (similar to crossbow positioning)
+    const harpoonGunScale = 1.0;
+    displayItemWidth = itemImgFromCaller.width * harpoonGunScale;
+    displayItemHeight = itemImgFromCaller.height * harpoonGunScale;
+
+    switch (player.direction) {
+      case 'up':
+        itemOffsetX = gameConfig.spriteWidth * 0.25;
+        itemOffsetY = -gameConfig.spriteHeight * 0.05;
+        rotation = -Math.PI / 2; // Point harpoon gun upward
+        break;
+      case 'down':
+        itemOffsetX = gameConfig.spriteWidth * -0.25;
+        itemOffsetY = gameConfig.spriteHeight * 0.25;
+        rotation = Math.PI / 2; // Point harpoon gun downward
+        break;
+      case 'left':
+        itemOffsetX = -gameConfig.spriteWidth * 0.25;
+        itemOffsetY = 0;
+        rotation = Math.PI / 2; // Rotate counterclockwise 90°
+        break;
+      case 'right':
+        itemOffsetX = gameConfig.spriteWidth * -0.25;
+        itemOffsetY = 2.0;
+        rotation = 0; // Point harpoon gun right
+        break;
+    }
+    
+    pivotX = player.positionX + shakeX + itemOffsetX;
+    pivotY = player.positionY - jumpOffset + shakeY + itemOffsetY;
+
   } else {
     // Original logic for other items' pivot and default orientation
     switch (player.direction) {
@@ -570,6 +603,9 @@ export const renderEquippedItem = (
   } else if (itemDef.name === "Crossbow") {
     ctx.rotate(rotation); // Apply calculated crossbow rotation
     ctx.scale(-1, 1); // Flip horizontally
+  } else if (itemDef.name === "Reed Harpoon Gun") {
+    ctx.rotate(rotation); // Apply calculated harpoon gun rotation
+    ctx.scale(-1, 1); // Flip horizontally (same as crossbow)
   } else {
     // Non-spear items might have a different base orientation/flip before animation
     // Ensure this scale doesn't affect bandage animation logic if it's drawn separately with its own save/restore
@@ -791,6 +827,47 @@ export const renderEquippedItem = (
         ctx.translate(arrowOffsetX, arrowOffsetY); // Move to bolt position
         ctx.rotate(arrowRotation); // Apply independent bolt rotation
         ctx.drawImage(loadedArrowImage, -arrowWidth / 2, -arrowHeight / 2, arrowWidth, arrowHeight);
+        ctx.restore(); // Restore context
+    }
+    
+    // --- NEW: Draw Loaded Dart on Reed Harpoon Gun ---
+    if (loadedArrowImage && itemDef.name === "Reed Harpoon Gun") {
+        const dartScale = 0.7; // Match projectile size
+        const dartWidth = loadedArrowImage.width * dartScale;
+        const dartHeight = loadedArrowImage.height * dartScale;
+        // Dart position and rotation settings per player direction
+        let dartOffsetX = 0; // Independent dart position
+        let dartOffsetY = 0;
+        let dartRotation = 0; // Independent dart rotation
+        
+        switch (player.direction) {
+            case 'up':
+                dartOffsetX = -displayItemWidth * 0.15; 
+                dartOffsetY = -displayItemHeight * -0.15;
+                dartRotation = -Math.PI / 2; // Point dart upward
+                break;
+            case 'down':
+                dartOffsetX = displayItemWidth * -0.15;
+                dartOffsetY = -displayItemHeight * -0.15;
+                dartRotation = -Math.PI / 2;
+                break;
+            case 'left':
+                dartOffsetX = displayItemWidth * 0.0; 
+                dartOffsetY = -displayItemHeight * -0.15;
+                dartRotation = Math.PI + (Math.PI / 2);
+                break;
+            case 'right':
+                dartOffsetX = -displayItemWidth * 0.0; 
+                dartOffsetY = -displayItemHeight * 0.0;
+                dartRotation = Math.PI + (Math.PI / 2);
+                break;
+        }
+        
+        // Draw dart with independent rotation
+        ctx.save(); // Save current context for dart-specific transforms
+        ctx.translate(dartOffsetX, dartOffsetY); // Move to dart position
+        ctx.rotate(dartRotation); // Apply independent dart rotation
+        ctx.drawImage(loadedArrowImage, -dartWidth / 2, -dartHeight / 2, dartWidth, dartHeight);
         ctx.restore(); // Restore context
     }
     // --- END NEW ---
