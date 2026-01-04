@@ -42,6 +42,7 @@ import { playImmediateSound } from './useSoundSystem';
 import { Cairn as SpacetimeDBCairn } from '../generated';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
+import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
 // If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.

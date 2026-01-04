@@ -71,6 +71,37 @@ const WATER_DRINKING_WOBBLES = 6; // Gentle wobbles for drinking
 const clientSwingStartTimes = new Map<string, number>(); // playerId -> client timestamp when swing started
 const lastKnownServerSwingTimes = new Map<string, number>(); // playerId -> last known server timestamp for the swing
 
+// --- CLIENT-AUTHORITATIVE SWING TRACKING (for local player only) ---
+// This allows the local player's swing animation to start IMMEDIATELY on click,
+// without waiting for server round-trip. Other players still use server timestamps.
+let localPlayerClientSwingStartTime: number = 0; // When local player initiated swing (client time)
+let localPlayerSwingDuration: number = SWING_DURATION_MS; // How long the swing should last
+
+/**
+ * Call this from the input handler when the local player initiates a swing.
+ * This allows the animation to start immediately without waiting for server confirmation.
+ * @param duration - Optional custom swing duration (defaults to SWING_DURATION_MS)
+ */
+export function registerLocalPlayerSwing(duration?: number): void {
+  localPlayerClientSwingStartTime = performance.now();
+  localPlayerSwingDuration = duration ?? SWING_DURATION_MS;
+}
+
+/**
+ * Check if the local player has an active client-initiated swing animation.
+ * Returns the elapsed time since the swing started, or -1 if no active swing.
+ */
+export function getLocalPlayerSwingElapsed(): number {
+  if (localPlayerClientSwingStartTime === 0) return -1;
+  const elapsed = performance.now() - localPlayerClientSwingStartTime;
+  if (elapsed >= localPlayerSwingDuration) {
+    // Swing animation complete, reset
+    localPlayerClientSwingStartTime = 0;
+    return -1;
+  }
+  return elapsed;
+}
+
 // --- Helper Function for Rendering Equipped Item ---
 export const renderEquippedItem = (
   ctx: CanvasRenderingContext2D,
@@ -401,28 +432,55 @@ export const renderEquippedItem = (
   // --- Swing/Thrust Animation --- 
   const swingStartTime = Number(equipment.swingStartTimeMs);
   const playerId = player.identity.toHexString();
+  const isLocalPlayer = localPlayerId && playerId === localPlayerId;
   let elapsedSwingTime = 0;
   let currentAngle = 0; 
   let thrustDistance = 0; 
 
-  // Check if this is a NEW swing by comparing server timestamps
-  if (swingStartTime > 0) {
-    const clientStartTime = clientSwingStartTimes.get(playerId);
-    const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
-    
-    if (swingStartTime !== lastKnownServerTime) {
-      // NEW swing detected! Record both server time and client time
-      lastKnownServerSwingTimes.set(playerId, swingStartTime);
-      clientSwingStartTimes.set(playerId, now_ms);
-      elapsedSwingTime = 0;
-    } else if (clientStartTime) {
-      // Use client-tracked time for animation
-      elapsedSwingTime = now_ms - clientStartTime;
+  // CLIENT-AUTHORITATIVE SWING FOR LOCAL PLAYER
+  // For the local player, check client-initiated swing FIRST for immediate feedback.
+  // This eliminates the "bunched up swings" problem on high-latency connections.
+  if (isLocalPlayer) {
+    const clientSwingElapsed = getLocalPlayerSwingElapsed();
+    if (clientSwingElapsed >= 0) {
+      // Local player has an active client-initiated swing - use it for immediate animation
+      elapsedSwingTime = clientSwingElapsed;
+    } else if (swingStartTime > 0) {
+      // Fallback to server timestamp if no client swing (shouldn't happen often)
+      const clientStartTime = clientSwingStartTimes.get(playerId);
+      const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
+      
+      if (swingStartTime !== lastKnownServerTime) {
+        lastKnownServerSwingTimes.set(playerId, swingStartTime);
+        clientSwingStartTimes.set(playerId, now_ms);
+        elapsedSwingTime = 0;
+      } else if (clientStartTime) {
+        elapsedSwingTime = now_ms - clientStartTime;
+      }
+    } else {
+      clientSwingStartTimes.delete(playerId);
+      lastKnownServerSwingTimes.delete(playerId);
     }
   } else {
-    // Clean up tracking for this player if no active swing
-    clientSwingStartTimes.delete(playerId);
-    lastKnownServerSwingTimes.delete(playerId);
+    // SERVER-AUTHORITATIVE for other players (we don't predict their actions)
+    if (swingStartTime > 0) {
+      const clientStartTime = clientSwingStartTimes.get(playerId);
+      const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
+      
+      if (swingStartTime !== lastKnownServerTime) {
+        // NEW swing detected! Record both server time and client time
+        lastKnownServerSwingTimes.set(playerId, swingStartTime);
+        clientSwingStartTimes.set(playerId, now_ms);
+        elapsedSwingTime = 0;
+      } else if (clientStartTime) {
+        // Use client-tracked time for animation
+        elapsedSwingTime = now_ms - clientStartTime;
+      }
+    } else {
+      // Clean up tracking for this player if no active swing
+      clientSwingStartTimes.delete(playerId);
+      lastKnownServerSwingTimes.delete(playerId);
+    }
   }
 
   if (elapsedSwingTime < SWING_DURATION_MS) {
