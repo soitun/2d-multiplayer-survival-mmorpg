@@ -270,11 +270,10 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
     setIsMinimized(!isMinimized);
   };
 
-  // Minimized view - just the emoji
+  // Minimized view - just the emoji with hover tooltips
   if (isMinimized) {
     return (
       <div
-        onClick={toggleMinimized}
         style={{
           position: 'fixed',
           top: '15px',
@@ -308,17 +307,110 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <img 
-            src={getSeasonIcon(worldState.currentSeason)} 
-            alt={getSeasonDisplay(worldState.currentSeason)}
-            style={{ width: '16px', height: '16px', objectFit: 'contain' }}
-          />
-          <img 
-            src={clockIcon} 
-            alt="Time"
-            style={{ width: '16px', height: '16px', objectFit: 'contain' }}
-          />
+          {/* Season icon with tooltip */}
+          <div 
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setHoveredElement('season')}
+            onMouseLeave={() => setHoveredElement(null)}
+          >
+            <img 
+              src={getSeasonIcon(worldState.currentSeason)} 
+              alt={getSeasonDisplay(worldState.currentSeason)}
+              onClick={(e) => { e.stopPropagation(); toggleMinimized(); }}
+              style={{ 
+                width: '16px', 
+                height: '16px', 
+                objectFit: 'contain',
+                transition: 'transform 0.2s ease',
+                transform: hoveredElement === 'season' ? 'scale(1.2)' : 'scale(1)'
+              }}
+            />
+            {hoveredElement === 'season' && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%) rotate(15deg)', // Counter-rotate to keep text level
+                marginTop: '12px',
+                padding: '6px 12px',
+                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
+                border: `2px solid ${getSeasonColor(worldState.currentSeason)}`,
+                borderRadius: '6px',
+                boxShadow: `0 0 20px ${getSeasonColor(worldState.currentSeason)}80, inset 0 0 10px ${getSeasonColor(worldState.currentSeason)}40`,
+                backdropFilter: 'blur(10px)',
+                whiteSpace: 'nowrap',
+                fontSize: '10px',
+                fontFamily: UI_FONT_FAMILY,
+                color: getSeasonColor(worldState.currentSeason),
+                textShadow: `0 0 8px ${getSeasonColor(worldState.currentSeason)}`,
+                zIndex: 100,
+                pointerEvents: 'none',
+                animation: 'tooltipSlideIn 0.2s ease-out'
+              }}>
+                {getSeasonDisplay(worldState.currentSeason)}
+              </div>
+            )}
+          </div>
+          
+          {/* Clock icon with tooltip */}
+          <div 
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setHoveredElement('timeOfDay')}
+            onMouseLeave={() => setHoveredElement(null)}
+          >
+            <img 
+              src={clockIcon} 
+              alt="Time"
+              onClick={(e) => { e.stopPropagation(); toggleMinimized(); }}
+              style={{ 
+                width: '16px', 
+                height: '16px', 
+                objectFit: 'contain',
+                transition: 'transform 0.2s ease',
+                transform: hoveredElement === 'timeOfDay' ? 'scale(1.2)' : 'scale(1)'
+              }}
+            />
+            {hoveredElement === 'timeOfDay' && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%) rotate(15deg)', // Counter-rotate to keep text level
+                marginTop: '12px',
+                padding: '6px 12px',
+                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
+                border: `2px solid ${UI_BORDER_COLOR}`,
+                borderRadius: '6px',
+                boxShadow: `0 0 20px rgba(0, 170, 255, 0.8), inset 0 0 10px rgba(0, 170, 255, 0.4)`,
+                backdropFilter: 'blur(10px)',
+                whiteSpace: 'nowrap',
+                fontSize: '10px',
+                fontFamily: UI_FONT_FAMILY,
+                color: '#00ffff',
+                textShadow: '0 0 8px rgba(0, 255, 255, 0.8)',
+                zIndex: 100,
+                pointerEvents: 'none',
+                animation: 'tooltipSlideIn 0.2s ease-out'
+              }}>
+                {getTimeOfDayDisplay(worldState.timeOfDay)}
+                {worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') && ' - Full Moon'}
+              </div>
+            )}
+          </div>
         </div>
+        
+        <style>{`
+          @keyframes tooltipSlideIn {
+            0% { 
+              opacity: 0; 
+              transform: translateX(-50%) rotate(15deg) translateY(-5px);
+            }
+            100% { 
+              opacity: 1; 
+              transform: translateX(-50%) rotate(15deg) translateY(0);
+            }
+          }
+        `}</style>
       </div>
     );
   }

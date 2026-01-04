@@ -454,24 +454,27 @@ export const renderEquippedItem = (
   // Only show ammo when weapon is TRULY ready to fire (after reload cooldown)
   // The server sets isReadyToFire=true immediately on reload, but actual firing is blocked
   // by a cooldown based on reload_time_secs. We mirror this check client-side for accurate UX.
+  // EXCEPTION: Reed Harpoon Gun works like a gun - dart shows immediately when loaded
   let loadedArrowImage: HTMLImageElement | undefined = undefined;
   const isRangedWeaponWithVisibleAmmo = itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow" || itemDef.name === "Reed Harpoon Gun";
   if (isRangedWeaponWithVisibleAmmo && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
-    // Check if reload cooldown has elapsed since last shot (swing_start_time_ms)
-    // Hunting Bow: 850ms reload, Crossbow: 2300ms reload, Reed Harpoon Gun: 1800ms reload
-    const HUNTING_BOW_RELOAD_MS = 850;
-    const CROSSBOW_RELOAD_MS = 2300;
-    const HARPOON_GUN_RELOAD_MS = 1800;
-    let reloadTimeMs = HUNTING_BOW_RELOAD_MS;
-    if (itemDef.name === "Crossbow") {
-      reloadTimeMs = CROSSBOW_RELOAD_MS;
-    } else if (itemDef.name === "Reed Harpoon Gun") {
-      reloadTimeMs = HARPOON_GUN_RELOAD_MS;
-    }
+    // Reed Harpoon Gun: No reload delay visual - dart shows immediately like a gun
+    // Bows/Crossbows: Have reload animations so we wait for cooldown before showing ammo
+    const isHarpoonGun = itemDef.name === "Reed Harpoon Gun";
     
-    const lastShotTimeMs = Number(equipment.swingStartTimeMs);
-    const timeSinceLastShot = now_ms - lastShotTimeMs;
-    const reloadComplete = lastShotTimeMs === 0 || timeSinceLastShot >= reloadTimeMs;
+    let reloadComplete = true; // Default to true for harpoon gun
+    
+    if (!isHarpoonGun) {
+      // Check if reload cooldown has elapsed since last shot (swing_start_time_ms)
+      // Hunting Bow: 850ms reload, Crossbow: 2300ms reload
+      const HUNTING_BOW_RELOAD_MS = 850;
+      const CROSSBOW_RELOAD_MS = 2300;
+      let reloadTimeMs = itemDef.name === "Crossbow" ? CROSSBOW_RELOAD_MS : HUNTING_BOW_RELOAD_MS;
+      
+      const lastShotTimeMs = Number(equipment.swingStartTimeMs);
+      const timeSinceLastShot = now_ms - lastShotTimeMs;
+      reloadComplete = lastShotTimeMs === 0 || timeSinceLastShot >= reloadTimeMs;
+    }
     
     if (reloadComplete) {
       const ammoDef = itemDefinitions.get(String(equipment.loadedAmmoDefId));
@@ -635,13 +638,13 @@ export const renderEquippedItem = (
     // Apply direction-specific flipping for proper orientation
     switch (player.direction) {
       case 'up':
-        ctx.scale(-1, -1); // Flip both horizontally and vertically when facing up
+        ctx.scale(-1, 1); // Flip vertically when facing up
         break;
       case 'left':
-        ctx.scale(1, 1); // No flip when facing left (already correct orientation)
+        ctx.scale(-1, 1); // Flip vertically when facing left
         break;
       case 'down':
-        ctx.scale(-1, 1); // Flip horizontally when facing down
+        ctx.scale(-1, -1); // Flip horizontally when facing down
         break;
       case 'right':
         ctx.scale(-1, 1); // Flip horizontally when facing right
