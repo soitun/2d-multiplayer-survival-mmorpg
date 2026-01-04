@@ -101,6 +101,7 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
   const woodCount = getWoodCount();
 
   // Define building options
+  // NOTE: Triangle Foundation is temporarily hidden until optimized
   const buildingOptions: BuildingOption[] = [
     {
       mode: BuildingMode.Foundation,
@@ -111,16 +112,17 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
       available: woodCount >= 50,
       reason: woodCount < 50 ? `Need 50 wood (have ${woodCount})` : undefined,
     },
-    {
-      mode: BuildingMode.Foundation,
-      name: 'Triangle Foundation',
-      icon: faShapes,
-      description: 'Triangular foundation piece',
-      requirements: { wood: 25 },
-      available: woodCount >= 25,
-      reason: woodCount < 25 ? `Need 25 wood (have ${woodCount})` : undefined,
-      isTriangle: true, // ADDED: Flag to indicate this is a triangle foundation
-    },
+    // Triangle Foundation - temporarily disabled
+    // {
+    //   mode: BuildingMode.Foundation,
+    //   name: 'Triangle Foundation',
+    //   icon: faShapes,
+    //   description: 'Triangular foundation piece',
+    //   requirements: { wood: 25 },
+    //   available: woodCount >= 25,
+    //   reason: woodCount < 25 ? `Need 25 wood (have ${woodCount})` : undefined,
+    //   isTriangle: true, // ADDED: Flag to indicate this is a triangle foundation
+    // },
     {
       mode: BuildingMode.Wall,
       name: 'Wall',

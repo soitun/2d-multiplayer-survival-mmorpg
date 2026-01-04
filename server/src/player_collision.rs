@@ -1549,6 +1549,87 @@ pub fn resolve_push_out_collision_with_grid(
             overlap_found_in_iter = true;
         }
         
+        // Check wall collisions for push-out - walls are NOT in spatial grid, checked via tile coordinates
+        // This fixes wall clipping by pushing players out of walls they've somehow ended up inside
+        const WALL_COLLISION_THICKNESS: f32 = 6.0; // Same as slide collision
+        const CHECK_RADIUS_TILES: i32 = 2; // Check walls within 2 tiles
+        
+        let player_tile_x = (resolved_x / TILE_SIZE_PX as f32).floor() as i32;
+        let player_tile_y = (resolved_y / TILE_SIZE_PX as f32).floor() as i32;
+        
+        for tile_offset_x in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
+            for tile_offset_y in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
+                let check_tile_x = player_tile_x + tile_offset_x;
+                let check_tile_y = player_tile_y + tile_offset_y;
+                
+                // Find walls on this tile
+                for wall in wall_cells.idx_cell_coords().filter((check_tile_x, check_tile_y)) {
+                    if wall.is_destroyed { continue; }
+                    
+                    // Calculate wall edge collision bounds
+                    let tile_left = check_tile_x as f32 * TILE_SIZE_PX as f32;
+                    let tile_top = check_tile_y as f32 * TILE_SIZE_PX as f32;
+                    let tile_right = tile_left + TILE_SIZE_PX as f32;
+                    let tile_bottom = tile_top + TILE_SIZE_PX as f32;
+                    
+                    // Determine wall edge bounds based on edge direction
+                    // Edge 0 = North (top), 1 = East (right), 2 = South (bottom), 3 = West (left)
+                    let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match wall.edge {
+                        0 => { // North (top edge) - horizontal line
+                            (tile_left, tile_right, tile_top - WALL_COLLISION_THICKNESS / 2.0, tile_top + WALL_COLLISION_THICKNESS / 2.0)
+                        },
+                        1 => { // East (right edge) - vertical line
+                            (tile_right - WALL_COLLISION_THICKNESS / 2.0, tile_right + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        },
+                        2 => { // South (bottom edge) - horizontal line
+                            (tile_left, tile_right, tile_bottom - WALL_COLLISION_THICKNESS / 2.0, tile_bottom + WALL_COLLISION_THICKNESS / 2.0)
+                        },
+                        3 => { // West (left edge) - vertical line
+                            (tile_left - WALL_COLLISION_THICKNESS / 2.0, tile_left + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        },
+                        _ => continue, // Skip diagonal or invalid edges
+                    };
+                    
+                    // Check if player circle intersects wall AABB
+                    let closest_x = resolved_x.max(wall_min_x).min(wall_max_x);
+                    let closest_y = resolved_y.max(wall_min_y).min(wall_max_y);
+                    let dx = resolved_x - closest_x;
+                    let dy = resolved_y - closest_y;
+                    let dist_sq = dx * dx + dy * dy;
+                    
+                    if dist_sq < current_player_radius * current_player_radius {
+                        // Player is overlapping wall - push them out
+                        overlap_found_in_iter = true;
+                        
+                        if dist_sq > 0.001 {
+                            // Push directly away from closest point on wall
+                            let dist = dist_sq.sqrt();
+                            let push_amount = current_player_radius - dist + separation_distance;
+                            resolved_x += (dx / dist) * push_amount;
+                            resolved_y += (dy / dist) * push_amount;
+                        } else {
+                            // Player center is exactly on or inside wall - push perpendicular to wall
+                            match wall.edge {
+                                0 => { // North wall - push down (positive Y)
+                                    resolved_y = wall_max_y + current_player_radius + separation_distance;
+                                },
+                                1 => { // East wall - push left (negative X)
+                                    resolved_x = wall_min_x - current_player_radius - separation_distance;
+                                },
+                                2 => { // South wall - push up (negative Y)
+                                    resolved_y = wall_min_y - current_player_radius - separation_distance;
+                                },
+                                3 => { // West wall - push right (positive X)
+                                    resolved_x = wall_max_x + current_player_radius + separation_distance;
+                                },
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         // Compound building collision REMOVED - handled client-side only
 
         resolved_x = resolved_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
