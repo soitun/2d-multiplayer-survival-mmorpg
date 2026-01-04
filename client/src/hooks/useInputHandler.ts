@@ -1452,6 +1452,8 @@ export const useInputHandler = ({
                 if (localPlayerId && connectionRef.current?.reducers) {
                     // console.log("[InputHandler MOUSEDOWN] Calling useEquippedItem for melee/tool or unarmed.");
                     try {
+                        // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
+                        registerLocalPlayerSwing();
                         // 🔊 IMMEDIATE SOUND: Only play generic swing for non-resource tools
                         const activeItem = activeEquipmentsRef.current.get(localPlayerId);
                         const itemDef = itemDefinitionsRef.current.get(activeItem?.equippedItemDefId?.toString() || '');

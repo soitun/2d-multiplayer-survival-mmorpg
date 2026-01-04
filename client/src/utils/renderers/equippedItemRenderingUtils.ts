@@ -76,6 +76,11 @@ const lastKnownServerSwingTimes = new Map<string, number>(); // playerId -> last
 // without waiting for server round-trip. Other players still use server timestamps.
 let localPlayerClientSwingStartTime: number = 0; // When local player initiated swing (client time)
 let localPlayerSwingDuration: number = SWING_DURATION_MS; // How long the swing should last
+let localPlayerSwingGracePeriodEnd: number = 0; // Time until we should ignore server swing updates
+
+// Grace period after client animation completes where we ignore server swing timestamps
+// This prevents the "double swing" bug where server confirmation triggers a second animation
+const SERVER_SWING_GRACE_PERIOD_MS = 300;
 
 /**
  * Call this from the input handler when the local player initiates a swing.
@@ -85,6 +90,8 @@ let localPlayerSwingDuration: number = SWING_DURATION_MS; // How long the swing 
 export function registerLocalPlayerSwing(duration?: number): void {
   localPlayerClientSwingStartTime = performance.now();
   localPlayerSwingDuration = duration ?? SWING_DURATION_MS;
+  // Grace period extends past animation end to account for server round-trip latency
+  localPlayerSwingGracePeriodEnd = localPlayerClientSwingStartTime + localPlayerSwingDuration + SERVER_SWING_GRACE_PERIOD_MS;
 }
 
 /**
@@ -95,11 +102,20 @@ export function getLocalPlayerSwingElapsed(): number {
   if (localPlayerClientSwingStartTime === 0) return -1;
   const elapsed = performance.now() - localPlayerClientSwingStartTime;
   if (elapsed >= localPlayerSwingDuration) {
-    // Swing animation complete, reset
+    // Swing animation complete, reset start time but keep grace period active
     localPlayerClientSwingStartTime = 0;
     return -1;
   }
   return elapsed;
+}
+
+/**
+ * Check if we should ignore server swing timestamps.
+ * Returns true if we're within the grace period after a client-authoritative swing.
+ * This prevents the server confirmation from triggering a second animation.
+ */
+export function shouldIgnoreServerSwing(): boolean {
+  return performance.now() < localPlayerSwingGracePeriodEnd;
 }
 
 // --- Helper Function for Rendering Equipped Item ---
@@ -445,8 +461,11 @@ export const renderEquippedItem = (
     if (clientSwingElapsed >= 0) {
       // Local player has an active client-initiated swing - use it for immediate animation
       elapsedSwingTime = clientSwingElapsed;
-    } else if (swingStartTime > 0) {
-      // Fallback to server timestamp if no client swing (shouldn't happen often)
+    } else if (swingStartTime > 0 && !shouldIgnoreServerSwing()) {
+      // Fallback to server timestamp ONLY if:
+      // 1. No client swing is active (clientSwingElapsed < 0)
+      // 2. We're not in the grace period after a client-authoritative swing completed
+      // This prevents the "double swing" bug where server confirmation triggers a second animation
       const clientStartTime = clientSwingStartTimes.get(playerId);
       const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
       
@@ -458,6 +477,7 @@ export const renderEquippedItem = (
         elapsedSwingTime = now_ms - clientStartTime;
       }
     } else {
+      // No active swing OR we're in grace period - clean up tracking
       clientSwingStartTimes.delete(playerId);
       lastKnownServerSwingTimes.delete(playerId);
     }
