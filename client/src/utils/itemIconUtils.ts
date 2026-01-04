@@ -102,6 +102,7 @@ import reedHarpoonIcon from '../assets/items/reed_harpoon.png';
 
 import huntingBowIcon from '../assets/items/bow.png';
 import crossbowIcon from '../assets/items/crossbow.png';
+import reedHarpoonGunIcon from '../assets/items/reed_harpoon_gun.png';
 
 // Military weapons
 import macheteIcon from '../assets/items/machete.png';
@@ -139,6 +140,9 @@ import hollowReedArrowIcon from '../assets/items/hollow_reed_arrow.png';
 
 // Bullets
 import pistolRoundIcon from '../assets/items/9x18mm_round.png';
+
+// Harpoon darts
+import reedHarpoonDartIcon from '../assets/items/reed_harpoon_dart.png';
 
 // === ARMOR ===
 // Protective equipment and clothing
@@ -557,6 +561,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'reed_harpoon.png': reedHarpoonIcon,
   'bow.png': huntingBowIcon,
   'crossbow.png': crossbowIcon,
+  'reed_harpoon_gun.png': reedHarpoonGunIcon,
   
   // Military weapons
   'machete.png': macheteIcon,
@@ -590,6 +595,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'fire_arrow.png': fireArrowIcon,
   'hollow_reed_arrow.png': hollowReedArrowIcon,
   '9x18mm_round.png': pistolRoundIcon,
+  'reed_harpoon_dart.png': reedHarpoonDartIcon,
 
   // === ARMOR ===
   // Cloth armor

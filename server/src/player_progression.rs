@@ -60,6 +60,22 @@ pub const PROGRESS_THRESHOLD_75: f32 = 0.75;
 pub const PROGRESS_THRESHOLD_90: f32 = 0.9;
 
 // ============================================================================
+// HELPER FUNCTIONS FOR ACHIEVEMENT CHECKS
+// ============================================================================
+
+/// Count bits set in a specific range of a bitmask (inclusive start, inclusive end)
+/// Used for category-based plant achievements
+pub fn count_category_bits(bitmask: u64, start_bit: u32, end_bit: u32) -> u32 {
+    let mut count = 0;
+    for bit in start_bit..=end_bit {
+        if (bitmask >> bit) & 1 == 1 {
+            count += 1;
+        }
+    }
+    count
+}
+
+// ============================================================================
 // ENUMS
 // ============================================================================
 
@@ -119,9 +135,29 @@ pub struct PlayerStats {
     pub items_crafted: u32,
     pub trees_chopped: u32,
     pub stones_mined: u32,
-    pub corals_mined: u32,        // NEW: Underwater coral mining
-    pub plants_harvested: u32,    // NEW: Foraging wild plants
+    pub corals_mined: u32,        // Underwater coral mining
+    pub plants_harvested: u32,    // Foraging wild plants
+    pub unique_fish_bitmask: u32, // Bitmask tracking unique fish types caught (bit 0 = Twigfish, etc.)
+    pub unique_plant_bitmask: u64, // Bitmask tracking unique plant types harvested (64 bits for 58 plants)
+    pub seeds_planted: u32,       // Count of seeds/crops planted by player
     pub deaths: u32,
+    
+    // Weapon-specific kill tracking
+    pub bow_kills: u32,           // Kills with Hunting Bow
+    pub crossbow_kills: u32,      // Kills with Crossbow
+    pub gun_kills: u32,           // Kills with Makarov PM (firearms)
+    pub harpoon_gun_kills: u32,   // Kills with Reed Harpoon Gun
+    pub melee_kills: u32,         // All melee weapon kills
+    pub spear_kills: u32,         // Kills with spears specifically
+    
+    // Taming tracking (specific achievement)
+    pub walrus_tamed: bool,       // Has player tamed a walrus? (specific achievement)
+    
+    // Barrel/Loot tracking
+    pub barrels_destroyed: u32,   // Total barrels destroyed/looted
+    
+    // Brewing tracking
+    pub brews_completed: u32,     // Total successful brews
     pub play_time_seconds: u64,
     pub longest_survival_seconds: u64,
     pub current_survival_start: Option<Timestamp>, // When current survival run started
@@ -301,7 +337,19 @@ pub fn get_or_init_player_stats(ctx: &ReducerContext, player_id: Identity) -> Pl
         stones_mined: 0,
         corals_mined: 0,
         plants_harvested: 0,
+        unique_fish_bitmask: 0,
+        unique_plant_bitmask: 0,
+        seeds_planted: 0,
         deaths: 0,
+        bow_kills: 0,
+        crossbow_kills: 0,
+        gun_kills: 0,
+        harpoon_gun_kills: 0,
+        melee_kills: 0,
+        spear_kills: 0,
+        walrus_tamed: false,
+        barrels_destroyed: 0,
+        brews_completed: 0,
         play_time_seconds: 0,
         longest_survival_seconds: 0,
         current_survival_start: Some(ctx.timestamp),
@@ -392,7 +440,21 @@ pub fn track_stat_and_check_achievements(
         "stones_mined" => stats.stones_mined += amount as u32,
         "corals_mined" => stats.corals_mined += amount as u32,
         "plants_harvested" => stats.plants_harvested += amount as u32,
+        "seeds_planted" => stats.seeds_planted += amount as u32,
         "deaths" => stats.deaths += amount as u32,
+        // Weapon-specific kills
+        "bow_kills" => stats.bow_kills += amount as u32,
+        "crossbow_kills" => stats.crossbow_kills += amount as u32,
+        "gun_kills" => stats.gun_kills += amount as u32,
+        "harpoon_gun_kills" => stats.harpoon_gun_kills += amount as u32,
+        "melee_kills" => stats.melee_kills += amount as u32,
+        "spear_kills" => stats.spear_kills += amount as u32,
+        // Barrel/Loot
+        "barrels_destroyed" => stats.barrels_destroyed += amount as u32,
+        // Brewing
+        "brews_completed" => stats.brews_completed += amount as u32,
+        // Walrus taming (boolean, set to true if any amount)
+        "walrus_tamed" => stats.walrus_tamed = true,
         _ => {
             log::warn!("Unknown stat type: {}", stat_type);
             return Ok(());
@@ -434,34 +496,86 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "cairn_hunter" => stats.cairns_discovered >= 10,
             "cairn_all" => stats.cairns_discovered >= 26,
             
-            // Fishing achievements
+            // Fishing achievements (tiered progression)
             "fish_10" => stats.fish_caught >= 10,
+            "fish_25" => stats.fish_caught >= 25,
+            "fish_50" => stats.fish_caught >= 50,
             "fish_100" => stats.fish_caught >= 100,
+            "fish_250" => stats.fish_caught >= 250,
+            "fish_500" => stats.fish_caught >= 500,
             
-            // Coral/Diving achievements
+            // Fish variety achievements (unique types caught)
+            "fish_types_3" => (stats.unique_fish_bitmask.count_ones()) >= 3,
+            "fish_types_8" => (stats.unique_fish_bitmask.count_ones()) >= 8,
+            "fish_types_12" => (stats.unique_fish_bitmask.count_ones()) >= 12,
+            "fish_types_16" => (stats.unique_fish_bitmask.count_ones()) >= 16,
+            
+            // Coral/Diving achievements (tiered progression)
             "coral_10" => stats.corals_mined >= 10,
+            "coral_25" => stats.corals_mined >= 25,
+            "coral_50" => stats.corals_mined >= 50,
             "coral_100" => stats.corals_mined >= 100,
             
-            // Plant/Foraging achievements
+            // Plant/Foraging achievements (tiered progression)
             "plants_50" => stats.plants_harvested >= 50,
+            "plants_100" => stats.plants_harvested >= 100,
+            "plants_250" => stats.plants_harvested >= 250,
             "plants_500" => stats.plants_harvested >= 500,
             
-            // Combat achievements
+            // Plant variety achievements (unique types harvested - uses 64-bit bitmask)
+            "plant_types_5" => (stats.unique_plant_bitmask.count_ones()) >= 5,
+            "plant_types_15" => (stats.unique_plant_bitmask.count_ones()) >= 15,
+            "plant_types_30" => (stats.unique_plant_bitmask.count_ones()) >= 30,
+            "plant_types_49" => (stats.unique_plant_bitmask.count_ones()) >= 49,
+            
+            // Category completion achievements (specific bitmask ranges)
+            // Berry category: bits 0-6 (7 types)
+            "berry_collector" => count_category_bits(stats.unique_plant_bitmask, 0, 6) >= 7,
+            // Mushroom category: bits 7-12 (6 types)
+            "mushroom_master" => count_category_bits(stats.unique_plant_bitmask, 7, 12) >= 6,
+            // Herb category: bits 13-21 (9 types)
+            "herb_master" => count_category_bits(stats.unique_plant_bitmask, 13, 21) >= 9,
+            // Toxic category: bits 22-26 (5 types)
+            "toxic_expert" => count_category_bits(stats.unique_plant_bitmask, 22, 26) >= 5,
+            // Arctic category: bits 27-32 (6 types)
+            "arctic_botanist" => count_category_bits(stats.unique_plant_bitmask, 27, 32) >= 6,
+            // Vegetable category: bits 33-40 (8 types)
+            "vegetable_farmer" => count_category_bits(stats.unique_plant_bitmask, 33, 40) >= 8,
+            // Fiber category: bits 41-48 (8 types)
+            "fiber_gatherer" => count_category_bits(stats.unique_plant_bitmask, 41, 48) >= 8,
+            
+            // Farming achievements (seeds planted)
+            "farmer_10" => stats.seeds_planted >= 10,
+            "farmer_50" => stats.seeds_planted >= 50,
+            "farmer_100" => stats.seeds_planted >= 100,
+            "farmer_250" => stats.seeds_planted >= 250,
+            
+            // Combat achievements (tiered progression)
             "animals_10" => stats.animals_killed >= 10,
+            "animals_25" => stats.animals_killed >= 25,
+            "animals_50" => stats.animals_killed >= 50,
             "animals_100" => stats.animals_killed >= 100,
             
-            // Resource gathering achievements
+            // Resource gathering achievements (tiered progression)
             "trees_100" => stats.trees_chopped >= 100,
+            "trees_250" => stats.trees_chopped >= 250,
+            "trees_500" => stats.trees_chopped >= 500,
             "trees_1000" => stats.trees_chopped >= 1000,
             "stones_100" => stats.stones_mined >= 100,
+            "stones_250" => stats.stones_mined >= 250,
+            "stones_500" => stats.stones_mined >= 500,
             "stones_1000" => stats.stones_mined >= 1000,
             
-            // Crafting achievements
+            // Crafting achievements (tiered progression)
             "crafted_50" => stats.items_crafted >= 50,
+            "crafted_100" => stats.items_crafted >= 100,
+            "crafted_250" => stats.items_crafted >= 250,
             "crafted_500" => stats.items_crafted >= 500,
             
-            // Survival time achievements
+            // Survival time achievements (tiered progression)
             "survivor_1h" => stats.longest_survival_seconds >= 3600,
+            "survivor_6h" => stats.longest_survival_seconds >= 21600,
+            "survivor_12h" => stats.longest_survival_seconds >= 43200,
             "survivor_24h" => stats.longest_survival_seconds >= 86400,
             
             // Login streak achievements
@@ -479,10 +593,59 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "level_50" => stats.level >= 50,
             "level_100" => stats.level >= 100,
             
-            // Death achievements
+            // Death achievements (tiered progression)
             "first_death" => stats.deaths >= 1,
             "deaths_10" => stats.deaths >= 10,
             "deaths_50" => stats.deaths >= 50,
+            "deaths_100" => stats.deaths >= 100,
+            
+            // === "FIRST" MILESTONE ACHIEVEMENTS ===
+            // These reward players for their first action in each category
+            "first_fish" => stats.fish_caught >= 1,
+            "first_kill" => stats.animals_killed >= 1,
+            "first_plant" => stats.plants_harvested >= 1,
+            "first_tree" => stats.trees_chopped >= 1,
+            "first_stone" => stats.stones_mined >= 1,
+            "first_seed" => stats.seeds_planted >= 1,
+            "first_craft" => stats.items_crafted >= 1,
+            "first_coral" => stats.corals_mined >= 1,
+            "first_brew" => stats.brews_completed >= 1,
+            "first_barrel" => stats.barrels_destroyed >= 1,
+            
+            // === WEAPON-SPECIFIC KILL ACHIEVEMENTS ===
+            // Ranged weapons
+            "bow_kills_10" => stats.bow_kills >= 10,
+            "bow_kills_50" => stats.bow_kills >= 50,
+            "bow_kills_100" => stats.bow_kills >= 100,
+            "crossbow_kills_10" => stats.crossbow_kills >= 10,
+            "crossbow_kills_50" => stats.crossbow_kills >= 50,
+            "crossbow_kills_100" => stats.crossbow_kills >= 100,
+            "gun_kills_10" => stats.gun_kills >= 10,
+            "gun_kills_50" => stats.gun_kills >= 50,
+            "gun_kills_100" => stats.gun_kills >= 100,
+            // Harpoon Gun
+            "harpoon_gun_kills_10" => stats.harpoon_gun_kills >= 10,
+            "harpoon_gun_kills_50" => stats.harpoon_gun_kills >= 50,
+            "harpoon_gun_kills_100" => stats.harpoon_gun_kills >= 100,
+            // Melee weapons
+            "melee_kills_10" => stats.melee_kills >= 10,
+            "melee_kills_50" => stats.melee_kills >= 50,
+            "melee_kills_100" => stats.melee_kills >= 100,
+            "spear_kills_25" => stats.spear_kills >= 25,
+            "spear_kills_100" => stats.spear_kills >= 100,
+            
+            // === TAMING ACHIEVEMENT (Specific) ===
+            "walrus_tamer" => stats.walrus_tamed,
+            
+            // === BARREL ACHIEVEMENTS ===
+            "barrels_10" => stats.barrels_destroyed >= 10,
+            "barrels_50" => stats.barrels_destroyed >= 50,
+            "barrels_100" => stats.barrels_destroyed >= 100,
+            
+            // === BREWING ACHIEVEMENTS ===
+            "brews_5" => stats.brews_completed >= 5,
+            "brews_25" => stats.brews_completed >= 25,
+            "brews_100" => stats.brews_completed >= 100,
             
             // Shard achievements
             "shards_1000" => stats.total_shards_earned >= 1000,
@@ -670,6 +833,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
+            id: "fish_25".to_string(),
+            name: "Hobbyist Angler".to_string(),
+            description: "Catch 25 fish".to_string(),
+            icon: "🎣".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fish_50".to_string(),
+            name: "Skilled Angler".to_string(),
+            description: "Catch 50 fish".to_string(),
+            icon: "🎣".to_string(),
+            xp_reward: 100,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
             id: "fish_100".to_string(),
             name: "Master Angler".to_string(),
             description: "Catch 100 fish".to_string(),
@@ -679,12 +860,85 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
+            id: "fish_250".to_string(),
+            name: "Seasoned Fisher".to_string(),
+            description: "Catch 250 fish - the sea provides".to_string(),
+            icon: "🐟".to_string(),
+            xp_reward: 400,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fish_500".to_string(),
+            name: "Lord of the Bering".to_string(),
+            description: "Catch 500 fish - master the frigid waters".to_string(),
+            icon: "🦈".to_string(),
+            xp_reward: 600,
+            title_reward: Some("Lord of the Bering".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        // Fish variety achievements (unique types)
+        AchievementDefinition {
+            id: "fish_types_3".to_string(),
+            name: "Variety Sampler".to_string(),
+            description: "Catch 3 different types of fish".to_string(),
+            icon: "🐠".to_string(),
+            xp_reward: 50,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fish_types_8".to_string(),
+            name: "Diverse Angler".to_string(),
+            description: "Catch 8 different types of fish".to_string(),
+            icon: "🐡".to_string(),
+            xp_reward: 150,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fish_types_12".to_string(),
+            name: "Fish Connoisseur".to_string(),
+            description: "Catch 12 different types of fish".to_string(),
+            icon: "🎏".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Fish Connoisseur".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fish_types_16".to_string(),
+            name: "Complete Ichthyologist".to_string(),
+            description: "Catch all 16 fish types - catalog the Bering Sea".to_string(),
+            icon: "📖".to_string(),
+            xp_reward: 500,
+            title_reward: Some("Ichthyologist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
             id: "survivor_1h".to_string(),
             name: "Survivor".to_string(),
             description: "Survive for 1 hour".to_string(),
             icon: "⏱️".to_string(),
             xp_reward: 100,
             title_reward: None,
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "survivor_6h".to_string(),
+            name: "Enduring".to_string(),
+            description: "Survive for 6 hours".to_string(),
+            icon: "⏰".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Enduring".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "survivor_12h".to_string(),
+            name: "Hardened".to_string(),
+            description: "Survive for 12 hours".to_string(),
+            icon: "💪".to_string(),
+            xp_reward: 350,
+            title_reward: Some("Hardened".to_string()),
             category: AchievementCategory::Survival,
         },
         AchievementDefinition {
@@ -764,7 +1018,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Exploration,
         },
         
-        // Underwater/Diving themed (Bering Sea lore)
+        // Underwater/Diving themed (Bering Sea lore) - tiered progression
         AchievementDefinition {
             id: "coral_10".to_string(),
             name: "Shallow Diver".to_string(),
@@ -772,6 +1026,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "🪸".to_string(),
             xp_reward: 50,
             title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "coral_25".to_string(),
+            name: "Reef Explorer".to_string(),
+            description: "Mine coral 25 times".to_string(),
+            icon: "🪸".to_string(),
+            xp_reward: 100,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "coral_50".to_string(),
+            name: "Deep Diver".to_string(),
+            description: "Mine coral 50 times".to_string(),
+            icon: "🤿".to_string(),
+            xp_reward: 175,
+            title_reward: Some("Deep Diver".to_string()),
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
@@ -784,7 +1056,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         
-        // Gathering/Foraging themed
+        // Gathering/Foraging themed (tiered progression)
         AchievementDefinition {
             id: "plants_50".to_string(),
             name: "Forager".to_string(),
@@ -792,6 +1064,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "🌿".to_string(),
             xp_reward: 75,
             title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "plants_100".to_string(),
+            name: "Gatherer".to_string(),
+            description: "Harvest 100 wild plants".to_string(),
+            icon: "🌾".to_string(),
+            xp_reward: 125,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "plants_250".to_string(),
+            name: "Experienced Forager".to_string(),
+            description: "Harvest 250 wild plants".to_string(),
+            icon: "🌻".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Experienced Forager".to_string()),
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
@@ -804,7 +1094,148 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         
-        // Combat themed
+        // Plant Variety Achievements (unique types harvested)
+        AchievementDefinition {
+            id: "plant_types_5".to_string(),
+            name: "Curious Forager".to_string(),
+            description: "Harvest 5 different plant types".to_string(),
+            icon: "🔍".to_string(),
+            xp_reward: 50,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "plant_types_15".to_string(),
+            name: "Amateur Botanist".to_string(),
+            description: "Harvest 15 different plant types".to_string(),
+            icon: "📚".to_string(),
+            xp_reward: 150,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "plant_types_30".to_string(),
+            name: "Experienced Botanist".to_string(),
+            description: "Harvest 30 different plant types".to_string(),
+            icon: "🎓".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Experienced Botanist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "plant_types_49".to_string(),
+            name: "Master Botanist".to_string(),
+            description: "Harvest all 49 plant types - a true expert of island flora!".to_string(),
+            icon: "🏆".to_string(),
+            xp_reward: 750,
+            title_reward: Some("Master Botanist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        
+        // Category Completion Achievements
+        AchievementDefinition {
+            id: "berry_collector".to_string(),
+            name: "Berry Picker".to_string(),
+            description: "Harvest all 7 berry types - from lingonberries to cloudberries".to_string(),
+            icon: "🫐".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Berry Picker".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "mushroom_master".to_string(),
+            name: "Mycologist".to_string(),
+            description: "Harvest all 6 mushroom types - even the deadly ones!".to_string(),
+            icon: "🍄".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Mycologist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "herb_master".to_string(),
+            name: "Master Herbalist".to_string(),
+            description: "Harvest all 9 herb types - from yarrow to ginseng".to_string(),
+            icon: "🌿".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Master Herbalist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "toxic_expert".to_string(),
+            name: "Toxicologist".to_string(),
+            description: "Harvest all 5 toxic plants - brave and knowledgeable!".to_string(),
+            icon: "☠️".to_string(),
+            xp_reward: 350,
+            title_reward: Some("Toxicologist".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "arctic_botanist".to_string(),
+            name: "Arctic Explorer".to_string(),
+            description: "Harvest all 6 arctic/alpine plant types".to_string(),
+            icon: "❄️".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Arctic Explorer".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "vegetable_farmer".to_string(),
+            name: "Green Thumb".to_string(),
+            description: "Harvest all 8 vegetable types - master the island's crops".to_string(),
+            icon: "🥕".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Green Thumb".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "fiber_gatherer".to_string(),
+            name: "Fiber Expert".to_string(),
+            description: "Harvest all 8 fiber plant types - essential for survival".to_string(),
+            icon: "🧵".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Fiber Expert".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        
+        // Farming Achievements (seeds planted)
+        AchievementDefinition {
+            id: "farmer_10".to_string(),
+            name: "Farmer".to_string(),
+            description: "Plant 10 seeds - begin your farming journey".to_string(),
+            icon: "🌱".to_string(),
+            xp_reward: 50,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "farmer_50".to_string(),
+            name: "Dedicated Farmer".to_string(),
+            description: "Plant 50 seeds".to_string(),
+            icon: "🌾".to_string(),
+            xp_reward: 125,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "farmer_100".to_string(),
+            name: "Agricultural Pioneer".to_string(),
+            description: "Plant 100 seeds - taming the wild island".to_string(),
+            icon: "🚜".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Agricultural Pioneer".to_string()),
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "farmer_250".to_string(),
+            name: "Master Farmer".to_string(),
+            description: "Plant 250 seeds - your farm feeds the compound".to_string(),
+            icon: "🏡".to_string(),
+            xp_reward: 500,
+            title_reward: Some("Master Farmer".to_string()),
+            category: AchievementCategory::Crafting,
+        },
+        
+        // Combat themed (tiered progression)
         AchievementDefinition {
             id: "animals_10".to_string(),
             name: "Hunter".to_string(),
@@ -812,6 +1243,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "🏹".to_string(),
             xp_reward: 75,
             title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "animals_25".to_string(),
+            name: "Competent Hunter".to_string(),
+            description: "Kill 25 wild animals".to_string(),
+            icon: "🏹".to_string(),
+            xp_reward: 125,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "animals_50".to_string(),
+            name: "Skilled Hunter".to_string(),
+            description: "Kill 50 wild animals".to_string(),
+            icon: "🎯".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Skilled Hunter".to_string()),
             category: AchievementCategory::Combat,
         },
         AchievementDefinition {
@@ -824,7 +1273,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Combat,
         },
         
-        // Resource gathering themed (volcanic island)
+        // Resource gathering themed (volcanic island) - tiered progression
         AchievementDefinition {
             id: "trees_100".to_string(),
             name: "Woodcutter".to_string(),
@@ -832,6 +1281,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "🪓".to_string(),
             xp_reward: 100,
             title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "trees_250".to_string(),
+            name: "Lumberjack".to_string(),
+            description: "Chop down 250 trees".to_string(),
+            icon: "🪓".to_string(),
+            xp_reward: 175,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "trees_500".to_string(),
+            name: "Forest Tamer".to_string(),
+            description: "Chop down 500 trees".to_string(),
+            icon: "🌲".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Forest Tamer".to_string()),
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
@@ -853,6 +1320,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         AchievementDefinition {
+            id: "stones_250".to_string(),
+            name: "Stone Mason".to_string(),
+            description: "Mine 250 stone deposits".to_string(),
+            icon: "⛏️".to_string(),
+            xp_reward: 175,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "stones_500".to_string(),
+            name: "Rock Breaker".to_string(),
+            description: "Mine 500 stone deposits".to_string(),
+            icon: "🪨".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Rock Breaker".to_string()),
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
             id: "stones_1000".to_string(),
             name: "Volcanic Born".to_string(),
             description: "Mine 1000 stones - harness the island's ancient fire".to_string(),
@@ -862,7 +1347,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Collection,
         },
         
-        // Crafting themed
+        // Crafting themed - tiered progression
         AchievementDefinition {
             id: "crafted_50".to_string(),
             name: "Tinkerer".to_string(),
@@ -870,6 +1355,24 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "🔧".to_string(),
             xp_reward: 75,
             title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "crafted_100".to_string(),
+            name: "Crafter".to_string(),
+            description: "Craft 100 items".to_string(),
+            icon: "🔧".to_string(),
+            xp_reward: 125,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "crafted_250".to_string(),
+            name: "Industrious".to_string(),
+            description: "Craft 250 items".to_string(),
+            icon: "🛠️".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Industrious".to_string()),
             category: AchievementCategory::Crafting,
         },
         AchievementDefinition {
@@ -922,7 +1425,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             category: AchievementCategory::Survival,
         },
         
-        // Death-related (The Freeze lore)
+        // Death-related (The Freeze lore) - tiered progression
         AchievementDefinition {
             id: "deaths_10".to_string(),
             name: "Resilient".to_string(),
@@ -939,6 +1442,15 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             icon: "👻".to_string(),
             xp_reward: 250,
             title_reward: Some("Ghost".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "deaths_100".to_string(),
+            name: "Phoenix".to_string(),
+            description: "Die 100 times - rise from the ashes, again and again".to_string(),
+            icon: "🔥".to_string(),
+            xp_reward: 500,
+            title_reward: Some("Phoenix".to_string()),
             category: AchievementCategory::Survival,
         },
         
@@ -971,6 +1483,329 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 600,
             title_reward: Some("Shard Baron".to_string()),
             category: AchievementCategory::Collection,
+        },
+        
+        // === "FIRST" MILESTONE ACHIEVEMENTS ===
+        // Rewarding players for their first action in each category
+        AchievementDefinition {
+            id: "first_fish".to_string(),
+            name: "First Catch".to_string(),
+            description: "Catch your first fish".to_string(),
+            icon: "🎣".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_kill".to_string(),
+            name: "First Blood".to_string(),
+            description: "Kill your first wild animal".to_string(),
+            icon: "🩸".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "first_plant".to_string(),
+            name: "First Harvest".to_string(),
+            description: "Harvest your first wild plant".to_string(),
+            icon: "🌿".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_tree".to_string(),
+            name: "Timber!".to_string(),
+            description: "Chop down your first tree".to_string(),
+            icon: "🪓".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_stone".to_string(),
+            name: "Rock Solid".to_string(),
+            description: "Mine your first stone".to_string(),
+            icon: "⛏️".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_seed".to_string(),
+            name: "Green Beginnings".to_string(),
+            description: "Plant your first seed".to_string(),
+            icon: "🌱".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_craft".to_string(),
+            name: "Maker".to_string(),
+            description: "Craft your first item".to_string(),
+            icon: "🔨".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "first_coral".to_string(),
+            name: "Deep Discovery".to_string(),
+            description: "Mine your first coral".to_string(),
+            icon: "🪸".to_string(),
+            xp_reward: 10,
+            title_reward: None,
+            category: AchievementCategory::Collection,
+        },
+        AchievementDefinition {
+            id: "first_brew".to_string(),
+            name: "Alchemist".to_string(),
+            description: "Complete your first brew".to_string(),
+            icon: "⚗️".to_string(),
+            xp_reward: 15,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "first_barrel".to_string(),
+            name: "Scavenger".to_string(),
+            description: "Destroy your first supply barrel".to_string(),
+            icon: "🛢️".to_string(),
+            xp_reward: 15,
+            title_reward: None,
+            category: AchievementCategory::Exploration,
+        },
+        
+        // === WEAPON-SPECIFIC KILL ACHIEVEMENTS ===
+        // Bow achievements
+        AchievementDefinition {
+            id: "bow_kills_10".to_string(),
+            name: "Bowman".to_string(),
+            description: "Kill 10 animals with a bow".to_string(),
+            icon: "🏹".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "bow_kills_50".to_string(),
+            name: "Sharpshooter".to_string(),
+            description: "Kill 50 animals with a bow".to_string(),
+            icon: "🏹".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Sharpshooter".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "bow_kills_100".to_string(),
+            name: "Deadshot Archer".to_string(),
+            description: "Kill 100 animals with a bow - master of the hunt".to_string(),
+            icon: "🎯".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Deadshot Archer".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        // Crossbow achievements
+        AchievementDefinition {
+            id: "crossbow_kills_10".to_string(),
+            name: "Bolt Slinger".to_string(),
+            description: "Kill 10 animals with a crossbow".to_string(),
+            icon: "🎯".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "crossbow_kills_50".to_string(),
+            name: "Crossbow Expert".to_string(),
+            description: "Kill 50 animals with a crossbow".to_string(),
+            icon: "⚔️".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Crossbow Expert".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "crossbow_kills_100".to_string(),
+            name: "Silent Death".to_string(),
+            description: "Kill 100 animals with a crossbow - one shot, one kill".to_string(),
+            icon: "💀".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Silent Death".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        // Gun achievements
+        AchievementDefinition {
+            id: "gun_kills_10".to_string(),
+            name: "Armed".to_string(),
+            description: "Kill 10 animals with a firearm".to_string(),
+            icon: "🔫".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "gun_kills_50".to_string(),
+            name: "Gunslinger".to_string(),
+            description: "Kill 50 animals with a firearm".to_string(),
+            icon: "🔫".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Gunslinger".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "gun_kills_100".to_string(),
+            name: "Soviet Sharpshooter".to_string(),
+            description: "Kill 100 animals with a firearm - the Makarov speaks".to_string(),
+            icon: "☭".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Soviet Sharpshooter".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        // Harpoon Gun achievements
+        AchievementDefinition {
+            id: "harpoon_gun_kills_10".to_string(),
+            name: "Underwater Hunter".to_string(),
+            description: "Kill 10 animals with the Reed Harpoon Gun".to_string(),
+            icon: "🔱".to_string(),
+            xp_reward: 100,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "harpoon_gun_kills_50".to_string(),
+            name: "Aquatic Assassin".to_string(),
+            description: "Kill 50 animals with the Reed Harpoon Gun".to_string(),
+            icon: "🔱".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Aquatic Assassin".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "harpoon_gun_kills_100".to_string(),
+            name: "Poseidon's Wrath".to_string(),
+            description: "Kill 100 animals with the Reed Harpoon Gun - master of underwater combat".to_string(),
+            icon: "🌊".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Poseidon's Wrath".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        // Melee achievements
+        AchievementDefinition {
+            id: "melee_kills_10".to_string(),
+            name: "Up Close".to_string(),
+            description: "Kill 10 animals with melee weapons".to_string(),
+            icon: "⚔️".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "melee_kills_50".to_string(),
+            name: "Brawler".to_string(),
+            description: "Kill 50 animals with melee weapons".to_string(),
+            icon: "🗡️".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Brawler".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "melee_kills_100".to_string(),
+            name: "Berserker".to_string(),
+            description: "Kill 100 animals with melee weapons - embrace the chaos".to_string(),
+            icon: "💪".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Berserker".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        // Spear achievements
+        AchievementDefinition {
+            id: "spear_kills_25".to_string(),
+            name: "Spearman".to_string(),
+            description: "Kill 25 animals with spears".to_string(),
+            icon: "🔱".to_string(),
+            xp_reward: 125,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "spear_kills_100".to_string(),
+            name: "Primal Hunter".to_string(),
+            description: "Kill 100 animals with spears - like the ancient Aleut warriors".to_string(),
+            icon: "🦣".to_string(),
+            xp_reward: 350,
+            title_reward: Some("Primal Hunter".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        
+        // === TAMING ACHIEVEMENT (Specific) ===
+        AchievementDefinition {
+            id: "walrus_tamer".to_string(),
+            name: "Walrus Whisperer".to_string(),
+            description: "Tame an Arctic Walrus - a true bond with the Bering's most formidable beast".to_string(),
+            icon: "🦭".to_string(),
+            xp_reward: 500,
+            title_reward: Some("Walrus Whisperer".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        
+        // === BARREL ACHIEVEMENTS ===
+        AchievementDefinition {
+            id: "barrels_10".to_string(),
+            name: "Looter".to_string(),
+            description: "Destroy 10 supply barrels".to_string(),
+            icon: "🛢️".to_string(),
+            xp_reward: 50,
+            title_reward: None,
+            category: AchievementCategory::Exploration,
+        },
+        AchievementDefinition {
+            id: "barrels_50".to_string(),
+            name: "Treasure Hunter".to_string(),
+            description: "Destroy 50 supply barrels".to_string(),
+            icon: "💰".to_string(),
+            xp_reward: 150,
+            title_reward: Some("Treasure Hunter".to_string()),
+            category: AchievementCategory::Exploration,
+        },
+        AchievementDefinition {
+            id: "barrels_100".to_string(),
+            name: "Soviet Salvager".to_string(),
+            description: "Destroy 100 supply barrels - what did the ALK leave behind?".to_string(),
+            icon: "📦".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Soviet Salvager".to_string()),
+            category: AchievementCategory::Exploration,
+        },
+        
+        // === BREWING ACHIEVEMENTS ===
+        AchievementDefinition {
+            id: "brews_5".to_string(),
+            name: "Apprentice Brewer".to_string(),
+            description: "Complete 5 brews".to_string(),
+            icon: "🍵".to_string(),
+            xp_reward: 50,
+            title_reward: None,
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "brews_25".to_string(),
+            name: "Cauldron Master".to_string(),
+            description: "Complete 25 brews".to_string(),
+            icon: "🫖".to_string(),
+            xp_reward: 150,
+            title_reward: Some("Cauldron Master".to_string()),
+            category: AchievementCategory::Crafting,
+        },
+        AchievementDefinition {
+            id: "brews_100".to_string(),
+            name: "Grand Alchemist".to_string(),
+            description: "Complete 100 brews - master of the Broth Pot".to_string(),
+            icon: "⚗️".to_string(),
+            xp_reward: 350,
+            title_reward: Some("Grand Alchemist".to_string()),
+            category: AchievementCategory::Crafting,
         },
     ];
     

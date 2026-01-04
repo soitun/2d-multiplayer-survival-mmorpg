@@ -764,6 +764,11 @@ pub fn plant_seed(
     log::info!("PLANT_SEED: SUCCESS - Player {:?} planted {} at ({:.1}, {:.1}) - will mature in {} seconds", 
               player_id, item_def.name, plant_pos_x, plant_pos_y, growth_time_secs);
     
+    // Track seeds_planted stat for farming achievements
+    if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "seeds_planted", 1) {
+        log::warn!("Failed to track seed planting stat: {}", e);
+    }
+    
     // Emit plant seed sound
     crate::sound_events::emit_plant_seed_sound(ctx, plant_pos_x, plant_pos_y, player_id);
     

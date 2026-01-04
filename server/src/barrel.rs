@@ -366,6 +366,11 @@ pub fn damage_barrel(
             log::error!("[BarrelDamage] Failed to generate loot for barrel {}: {}", barrel_id, e);
         }
         
+        // Track barrels_destroyed stat for achievements
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "barrels_destroyed", 1) {
+            log::error!("[BarrelDamage] Failed to track barrel destroyed stat: {}", e);
+        }
+        
         // Emit destruction sound
         crate::sound_events::emit_barrel_destroyed_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
     } else {

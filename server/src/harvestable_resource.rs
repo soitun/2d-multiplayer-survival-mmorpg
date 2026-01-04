@@ -16,6 +16,7 @@ use crate::plants_database::{PlantType, PlantConfig, SpawnCondition, PLANT_CONFI
 // Table trait imports for database access
 use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
 use crate::player as PlayerTableTrait;
+use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Unified Harvestable Resource Table ---
 
@@ -94,6 +95,26 @@ pub fn record_plant_discovery(ctx: &ReducerContext, player_id: Identity, plant_t
             discovered_at: ctx.timestamp,
         });
         log::info!("🌿 Player {:?} discovered new plant type: {:?}", player_id, plant_type);
+        
+        // Update unique_plant_bitmask in PlayerStats for achievement tracking
+        if let Some(bit_index) = crate::plants_database::get_plant_bit_index(&plant_type) {
+            let stats_table = ctx.db.player_stats();
+            if let Some(mut stats) = stats_table.player_id().find(&player_id) {
+                let old_mask = stats.unique_plant_bitmask;
+                stats.unique_plant_bitmask |= 1u64 << bit_index;
+                
+                // Only update and check achievements if we actually discovered a new plant type
+                if stats.unique_plant_bitmask != old_mask {
+                    stats.updated_at = ctx.timestamp;
+                    stats_table.player_id().update(stats);
+                    
+                    // Check plant variety achievements
+                    if let Err(e) = crate::player_progression::check_achievements(ctx, player_id) {
+                        log::warn!("Failed to check plant variety achievements: {}", e);
+                    }
+                }
+            }
+        }
     }
 }
 

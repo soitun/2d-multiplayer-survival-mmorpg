@@ -42,7 +42,7 @@ pub enum LoadoutType {
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;  
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Swimming;  
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -224,8 +224,8 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Reed Diver's Helm", 1, None, Some(2)),   // Snorkel for underwater exploration
             ("Bandage", 10, None, Some(3)),
             ("Camp Fire", 3, None, Some(4)),
-            ("Wooden Storage Box", 2, None, Some(5)),
-            ("Plant Fiber", 100, None, Some(6)),
+            ("Reed Harpoon Gun", 1, None, Some(5)),
+            ("Reed Harpoon Dart", 100, None, Some(6)),
             ("Common Reed Stalk", 50, None, Some(7)),
             ("Rope", 20, None, Some(8)),
             ("Reed Flippers", 1, None, Some(9)),

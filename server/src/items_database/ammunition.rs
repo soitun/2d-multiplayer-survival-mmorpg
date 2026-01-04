@@ -89,5 +89,23 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .crafting_output(5, 3) // Makes 5 rounds, takes 3 seconds
             .respawn_time(180)
             .build(),
+
+        // === HARPOON DARTS ===
+        // Underwater projectile ammunition for harpoon guns
+
+        // Reed Harpoon Dart - Standard harpoon ammunition
+        ItemBuilder::new("Reed Harpoon Dart", "A streamlined dart designed for the Reed Harpoon Gun. The bone tip is weighted for stability underwater.", ItemCategory::Ammunition)
+            .icon("reed_harpoon_dart.png")
+            .stackable(20)
+            .pvp_damage(3, 5) // Adds slight bonus damage (3-5) to weapon base
+            .ammo_type(AmmoType::HarpoonDart)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 5 },
+            ])
+            .crafting_output(2, 4) // Makes 2 darts, takes 4 seconds
+            .respawn_time(200)
+            .build(),
     ]
 }

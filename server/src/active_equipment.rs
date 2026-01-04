@@ -416,15 +416,27 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
     let magazine_capacity = weapon_stats.as_ref().map(|s| s.magazine_capacity).unwrap_or(0);
 
     // Determine the compatible ammo type based on weapon
-    // Bows and Crossbows use Arrow ammunition, Pistols/Firearms use Bullet ammunition
+    // Bows and Crossbows use Arrow ammunition
+    // Firearms (Makarov PM, etc.) use Bullet ammunition
+    // Harpoon Guns use HarpoonDart ammunition
     let is_firearm = item_def.name == "Makarov PM"; // Add more firearms here as they're added
-    let required_ammo_type = if is_firearm {
+    let is_harpoon_gun = item_def.name == "Reed Harpoon Gun"; // Underwater harpoon weapons
+    
+    let required_ammo_type = if is_harpoon_gun {
+        crate::models::AmmoType::HarpoonDart
+    } else if is_firearm {
         crate::models::AmmoType::Bullet
     } else {
         crate::models::AmmoType::Arrow
     };
     
-    let ammo_type_name = if is_firearm { "ammunition" } else { "arrows" };
+    let ammo_type_name = if is_harpoon_gun { 
+        "harpoon darts" 
+    } else if is_firearm { 
+        "ammunition" 
+    } else { 
+        "arrows" 
+    };
     
     // Find all available compatible ammo types in player's inventory/hotbar
     let mut available_ammo: Vec<(String, u64)> = Vec::new(); // (name, def_id)
@@ -574,8 +586,14 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
             sender_id, rounds_to_load, selected_ammo.0, item_def.name, 
             current_loaded + rounds_to_load, magazine_capacity);
         
-        // Emit reload sound for magazine-based weapons (pistol)
-        sound_events::emit_reload_pistol_sound(ctx, player.position_x, player.position_y, sender_id);
+        // Emit reload sound for magazine-based weapons
+        if is_harpoon_gun {
+            // Use crossbow sound as placeholder for harpoon gun (mechanical loading)
+            sound_events::emit_reload_crossbow_sound(ctx, player.position_x, player.position_y, sender_id);
+        } else {
+            // Pistol reload sound
+            sound_events::emit_reload_pistol_sound(ctx, player.position_x, player.position_y, sender_id);
+        }
     } else {
         // Single-shot weapon (bow, crossbow) - existing behavior
         // Just mark as ready to fire, ammo consumed on fire

@@ -23,8 +23,8 @@ use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Configuration Constants ---
 /// Set to false to disable kill command cooldown (useful for testing)
-/// Set to true to enable normal cooldown behavior
-const ENABLE_KILL_COMMAND_COOLDOWN: bool = false;
+/// Set to true to enable normal cooldown behavior (5 minute cooldown)
+const ENABLE_KILL_COMMAND_COOLDOWN: bool = true;
 
 // --- Table Definitions ---
 
@@ -110,11 +110,24 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                         
                         if elapsed_seconds < crate::KILL_COMMAND_COOLDOWN_SECONDS {
                             let remaining_cooldown = crate::KILL_COMMAND_COOLDOWN_SECONDS - elapsed_seconds;
+                            // Format time nicely (X minutes Y seconds or just Y seconds)
+                            let time_message = if remaining_cooldown >= 60 {
+                                let minutes = remaining_cooldown / 60;
+                                let seconds = remaining_cooldown % 60;
+                                if seconds > 0 {
+                                    format!("{} minute{} {} second{}", minutes, if minutes > 1 { "s" } else { "" }, seconds, if seconds > 1 { "s" } else { "" })
+                                } else {
+                                    format!("{} minute{}", minutes, if minutes > 1 { "s" } else { "" })
+                                }
+                            } else {
+                                format!("{} second{}", remaining_cooldown, if remaining_cooldown > 1 { "s" } else { "" })
+                            };
+                            
                             let private_feedback = PrivateMessage {
                                 id: 0, // Auto-incremented
                                 recipient_identity: sender_id,
                                 sender_display_name: "SYSTEM".to_string(),
-                                text: format!("You can use {} again in {} seconds.", command, remaining_cooldown),
+                                text: format!("You did that too recently. Try again in {}.", time_message),
                                 sent: current_time,
                             };
                             ctx.db.private_message().insert(private_feedback);

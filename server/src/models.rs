@@ -184,8 +184,9 @@ pub enum ImmunityType {
 /// Enum to differentiate between ammunition types for weapon compatibility
 #[derive(SpacetimeType, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum AmmoType {
-    Arrow,     // Arrows for bows and crossbows
-    Bullet,    // Bullets for pistols and firearms
+    Arrow,        // Arrows for bows and crossbows
+    Bullet,       // Bullets for pistols and firearms
+    HarpoonDart,  // Harpoon darts for underwater harpoon guns
 }
 
 /// Struct containing all armor resistance values for different damage types

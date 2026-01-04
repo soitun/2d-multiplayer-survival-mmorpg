@@ -9,6 +9,7 @@ use rand::Rng;
 
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
+use crate::player_progression::PlayerStats;
 
 // Fishing state tracking
 #[derive(SpacetimeType)]
@@ -82,6 +83,34 @@ pub struct FishEntry {
     pub weather_preference: FishWeatherPreference, // NEW: Weather preference
     pub base_weight: f32,      // Base spawn weight within its tier
     pub deep_water_bonus: f32, // Extra weight when fishing in deep water (0.0 to 1.0)
+}
+
+// Map fish names to bit positions for unique fish tracking (0-15 for 16 fish types)
+// This bitmask is stored in PlayerStats.unique_fish_bitmask
+pub fn get_fish_bit_index(fish_name: &str) -> Option<u32> {
+    match fish_name {
+        // Common (Tier 1): Bits 0-5
+        "Raw Twigfish" => Some(0),
+        "Raw Herring" => Some(1),
+        "Raw Smelt" => Some(2),
+        "Raw Black Katy Chiton" => Some(3),
+        "Raw Sea Urchin" => Some(4),
+        "Raw Blue Mussel" => Some(5),
+        // Uncommon (Tier 2): Bits 6-8
+        "Raw Greenling" => Some(6),
+        "Raw Sculpin" => Some(7),
+        "Raw Pacific Cod" => Some(8),
+        // Rare (Tier 3): Bits 9-11
+        "Raw Dolly Varden" => Some(9),
+        "Raw Rockfish" => Some(10),
+        "Raw Steelhead" => Some(11),
+        // Premium (Tier 4): Bits 12-15
+        "Raw Pink Salmon" => Some(12),
+        "Raw Sockeye Salmon" => Some(13),
+        "Raw King Salmon" => Some(14),
+        "Raw Halibut" => Some(15),
+        _ => None, // Not a tracked fish type (junk items)
+    }
 }
 
 // Get all available fish with their spawn parameters
@@ -746,6 +775,35 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
         // Track fish_caught stat and check achievements
         if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "fish_caught", 1) {
             log::error!("Failed to track fishing stat: {}", e);
+        }
+        
+        // Track unique fish types caught (update bitmask)
+        for item_name in generated_loot.iter() {
+            if let Some(bit_index) = get_fish_bit_index(item_name) {
+                // Get player stats and update bitmask
+                let mut stats = crate::player_progression::get_or_init_player_stats(ctx, player_id);
+                let old_bitmask = stats.unique_fish_bitmask;
+                let new_bit = 1u32 << bit_index;
+                
+                // Only update if this is a NEW fish type
+                if (old_bitmask & new_bit) == 0 {
+                    stats.unique_fish_bitmask |= new_bit;
+                    stats.updated_at = ctx.timestamp;
+                    
+                    // Calculate unique count before updating (stats will be moved)
+                    let unique_count = stats.unique_fish_bitmask.count_ones();
+                    
+                    ctx.db.player_stats().player_id().update(stats);
+                    
+                    log::info!("🐟 Player {} caught new fish type: {} (bit {}). Total unique types: {}/16", 
+                              player_id, item_name, bit_index, unique_count);
+                    
+                    // Check for fish variety achievements
+                    if let Err(e) = crate::player_progression::check_achievements(ctx, player_id) {
+                        log::error!("Failed to check fish variety achievements: {}", e);
+                    }
+                }
+            }
         }
         
         log::info!("Player {} fishing complete: {} items to inventory, {} items dropped: {:?}", 

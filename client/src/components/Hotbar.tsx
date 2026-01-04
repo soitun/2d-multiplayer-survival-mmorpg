@@ -308,7 +308,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Reed Harpoon', // Allow reed harpoon to be used in water
+      'Reed Harpoon', // Allow reed harpoon melee weapon to be used in water
+      'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
       'Diving Pick' // Allow diving pick for underwater coral harvesting
     ];
     // Torch is only allowed in water when NOT snorkeling (can't light a torch underwater!)
@@ -609,12 +610,13 @@ const Hotbar: React.FC<HotbarProps> = ({
         const currentItem = findItemForSlot(selectedSlot);
         if (currentItem) {
           // Don't auto-unequip allowed items in water
-          const allowedInWater = [
-            'Reed Water Bottle', 
-            'Plastic Water Jug',
-            'Reed Harpoon', // Allow reed harpoon to stay equipped in water
-            'Diving Pick' // Allow diving pick for underwater coral harvesting
-          ];
+    const allowedInWater = [
+      'Reed Water Bottle', 
+      'Plastic Water Jug',
+      'Reed Harpoon', // Allow reed harpoon melee weapon to stay equipped in water
+      'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
+      'Diving Pick' // Allow diving pick for underwater coral harvesting
+    ];
           // Torch is only allowed in water when NOT snorkeling (can't use underwater!)
           if (!localPlayer.isSnorkeling && currentItem.definition.name === 'Torch') {
             return; // Keep torch equipped in water (but not underwater)
@@ -803,7 +805,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     const allowedInWater = [
       'Reed Water Bottle', 
       'Plastic Water Jug',
-      'Reed Harpoon', // Allow reed harpoon to be used in water
+      'Reed Harpoon', // Allow reed harpoon melee weapon to be used in water
+      'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
       'Diving Pick' // Allow diving pick for underwater coral harvesting
     ];
     

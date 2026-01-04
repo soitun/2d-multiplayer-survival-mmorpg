@@ -562,6 +562,9 @@ pub fn fire_projectile(
         sound_events::emit_shoot_bow_sound(ctx, spawn_x, spawn_y, player_id);
     } else if item_def.name == "Makarov PM" {
         sound_events::emit_shoot_pistol_sound(ctx, spawn_x, spawn_y, player_id);
+    } else if item_def.name == "Reed Harpoon Gun" {
+        // Use crossbow sound as placeholder for harpoon gun (mechanical projectile)
+        sound_events::emit_shoot_crossbow_sound(ctx, spawn_x, spawn_y, player_id);
     }
 
     // Update last attack timestamp
@@ -1983,8 +1986,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                              weapon_item_def.name, ammo_item_def.name, final_damage);
                 }
 
-                // Apply damage to wild animal
-                match crate::wild_animal_npc::damage_wild_animal(ctx, wild_animal.id, final_damage, projectile.owner_id) {
+                // Apply damage to wild animal (with weapon tracking for achievements)
+                match crate::wild_animal_npc::damage_wild_animal_with_weapon(ctx, wild_animal.id, final_damage, projectile.owner_id, Some(&weapon_item_def.name)) {
                     Ok(_) => {
                         log::info!("Projectile from {:?} (weapon: {} + ammo: {}) dealt {:.1} damage to wild animal {}.", 
                                  projectile.owner_id, weapon_item_def.name, ammo_item_def.name, final_damage, wild_animal.id);

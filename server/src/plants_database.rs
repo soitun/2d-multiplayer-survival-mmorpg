@@ -1390,4 +1390,89 @@ pub fn get_seasonal_plants(season: &Season) -> Vec<(PlantType, &PlantConfig)> {
         .filter(|(plant_type, _)| can_grow_in_season(plant_type, season))
         .map(|(plant_type, config)| (*plant_type, config))
         .collect()
+}
+
+/// Map plant types to bit positions for unique plant tracking (0-48 for 49 trackable plants)
+/// This bitmask is stored in PlayerStats.unique_plant_bitmask (u64)
+/// 
+/// Category ranges for achievement tracking:
+/// - Bits 0-6:   Berries (7 types)
+/// - Bits 7-12:  Mushrooms (6 types)
+/// - Bits 13-21: Herbs (9 types)
+/// - Bits 22-26: Toxic (5 types)
+/// - Bits 27-32: Arctic (6 types)
+/// - Bits 33-40: Vegetables (8 types)
+/// - Bits 41-48: Fiber (8 types)
+/// 
+/// Not tracked: Resource piles (WoodPile, etc.), MemoryShard, SeaweedBed
+pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
+    match plant_type {
+        // ===== BERRIES (Bits 0-6) =====
+        PlantType::Lingonberries => Some(0),
+        PlantType::Cloudberries => Some(1),
+        PlantType::Bilberries => Some(2),
+        PlantType::WildStrawberries => Some(3),
+        PlantType::RowanBerries => Some(4),
+        PlantType::Cranberries => Some(5),
+        PlantType::Crowberry => Some(6),
+        
+        // ===== MUSHROOMS (Bits 7-12) =====
+        PlantType::Chanterelle => Some(7),
+        PlantType::Porcini => Some(8),
+        PlantType::FlyAgaric => Some(9),
+        PlantType::ShaggyInkCap => Some(10),
+        PlantType::DeadlyWebcap => Some(11),
+        PlantType::DestroyingAngel => Some(12),
+        
+        // ===== HERBS (Bits 13-21) =====
+        PlantType::Chicory => Some(13),
+        PlantType::Yarrow => Some(14),
+        PlantType::Chamomile => Some(15),
+        PlantType::Mint => Some(16),
+        PlantType::Valerian => Some(17),
+        PlantType::Mugwort => Some(18),
+        PlantType::BearGarlic => Some(19),
+        PlantType::SiberianGinseng => Some(20),
+        PlantType::Sunflowers => Some(21),
+        
+        // ===== TOXIC (Bits 22-26) =====
+        PlantType::Mandrake => Some(22),
+        PlantType::Belladonna => Some(23),
+        PlantType::Henbane => Some(24),
+        PlantType::Datura => Some(25),
+        PlantType::Wolfsbane => Some(26),
+        
+        // ===== ARCTIC/ALPINE (Bits 27-32) =====
+        PlantType::ScurvyGrass => Some(27),
+        PlantType::SeaPlantain => Some(28),
+        PlantType::Glasswort => Some(29),
+        PlantType::ArcticLichen => Some(30),
+        PlantType::MountainMoss => Some(31),
+        PlantType::ArcticPoppy => Some(32),
+        
+        // ===== VEGETABLES (Bits 33-40) =====
+        PlantType::Potato => Some(33),
+        PlantType::Pumpkin => Some(34),
+        PlantType::Carrot => Some(35),
+        PlantType::Beets => Some(36),
+        PlantType::Horseradish => Some(37),
+        PlantType::Corn => Some(38),
+        PlantType::Salsify => Some(39),
+        PlantType::Cabbage => Some(40),
+        
+        // ===== FIBER PLANTS (Bits 41-48) =====
+        PlantType::BorealNettle => Some(41),
+        PlantType::Reed => Some(42),
+        PlantType::BeachLymeGrass => Some(43),
+        PlantType::Dogbane => Some(44),
+        PlantType::BogCotton => Some(45),
+        PlantType::Flax => Some(46),
+        PlantType::ArcticHairgrass => Some(47),
+        PlantType::Fireweed => Some(48),
+        
+        // ===== NOT TRACKED (Resource piles, special items) =====
+        PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
+        PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
+        PlantType::CharcoalPile | PlantType::MemoryShard | PlantType::SeaweedBed => None,
+    }
 } 

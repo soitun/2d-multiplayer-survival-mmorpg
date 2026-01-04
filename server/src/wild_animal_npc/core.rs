@@ -1577,12 +1577,14 @@ pub fn spawn_wild_animal(
     Ok(())
 }
 
-#[spacetimedb::reducer]
-pub fn damage_wild_animal(
+/// Internal function to handle animal damage with optional weapon tracking
+/// weapon_name: Optional weapon name for tracking weapon-specific kill achievements
+pub fn damage_wild_animal_with_weapon(
     ctx: &ReducerContext,
     animal_id: u64,
     damage: f32,
     attacker_id: Identity,
+    weapon_name: Option<&str>,
 ) -> Result<(), String> {
     let mut rng = ctx.rng();
     
@@ -1643,6 +1645,22 @@ pub fn damage_wild_animal(
             if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "animals_killed", 1) {
                 log::error!("Failed to track animal kill stat: {}", e);
             }
+            
+            // Track weapon-specific kill achievement if weapon name provided
+            if let Some(wep_name) = weapon_name {
+                let weapon_stat = categorize_weapon_for_achievement(wep_name);
+                if !weapon_stat.is_empty() {
+                    if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, weapon_stat, 1) {
+                        log::error!("Failed to track weapon kill stat '{}': {}", weapon_stat, e);
+                    }
+                    // Spears also count as melee kills
+                    if weapon_stat == "spear_kills" {
+                        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "melee_kills", 1) {
+                            log::error!("Failed to track melee kill stat for spear: {}", e);
+                        }
+                    }
+                }
+            }
         } else {
             // 🔥 FIRE FEAR OVERRIDE: If animal was afraid of fire but got attacked, they now ignore fire and retaliate
             if let Some(attacker) = ctx.db.player().identity().find(&attacker_id) {
@@ -1682,6 +1700,70 @@ pub fn damage_wild_animal(
     }
     
     Ok(())
+}
+
+/// Categorize weapon name into achievement stat category
+fn categorize_weapon_for_achievement(weapon_name: &str) -> &'static str {
+    let name_lower = weapon_name.to_lowercase();
+    
+    // Ranged - Bow
+    if name_lower.contains("bow") && !name_lower.contains("crossbow") {
+        return "bow_kills";
+    }
+    
+    // Ranged - Crossbow
+    if name_lower.contains("crossbow") {
+        return "crossbow_kills";
+    }
+    
+    // Ranged - Harpoon Gun (must check before generic "gun" check)
+    if name_lower.contains("harpoon gun") {
+        return "harpoon_gun_kills";
+    }
+    
+    // Ranged - Firearms (Makarov, etc.)
+    if name_lower.contains("makarov") || name_lower.contains("pistol") || name_lower.contains("gun") 
+       || name_lower.contains("rifle") || name_lower.contains("firearm") {
+        return "gun_kills";
+    }
+    
+    // Melee - Reed Harpoon (melee weapon, not the gun)
+    // Note: "Reed Harpoon" without "Gun" is a melee weapon
+    if name_lower == "reed harpoon" {
+        return "spear_kills"; // Melee harpoon counts as spear
+    }
+    
+    // Melee - Spears (specific category within melee)
+    if name_lower.contains("spear") {
+        // Track both spear_kills AND melee_kills for spears
+        // We'll handle the dual-tracking in the caller
+        return "spear_kills";
+    }
+    
+    // Melee - All other melee weapons
+    // Maces, hammers, daggers, axes, swords, cutlass, bayonet, crowbar, maul, scythe, paddle, skulls
+    if name_lower.contains("mace") || name_lower.contains("hammer") || name_lower.contains("dagger") 
+       || name_lower.contains("axe") || name_lower.contains("sword") || name_lower.contains("cutlass")
+       || name_lower.contains("bayonet") || name_lower.contains("crowbar") || name_lower.contains("maul")
+       || name_lower.contains("scythe") || name_lower.contains("paddle") || name_lower.contains("skull")
+       || name_lower.contains("shiv") {
+        return "melee_kills";
+    }
+    
+    // Default - if weapon not recognized, don't track
+    ""
+}
+
+/// Original reducer wrapper for backward compatibility
+/// Delegates to damage_wild_animal_with_weapon with no weapon tracking
+#[spacetimedb::reducer]
+pub fn damage_wild_animal(
+    ctx: &ReducerContext,
+    animal_id: u64,
+    damage: f32,
+    attacker_id: Identity,
+) -> Result<(), String> {
+    damage_wild_animal_with_weapon(ctx, animal_id, damage, attacker_id, None)
 }
 
 /// NEW: Handle wild animal vs wild animal combat
@@ -3568,6 +3650,13 @@ pub fn handle_animal_eat_food(
         // For now we'll just log it
         log::info!("💖 {:?} {} has been tamed by player {} after eating {}! Hearts appearing for {}ms", 
                   animal.species, animal.id, tamer.identity, dropped_item.item_def_id, TAMING_HEART_EFFECT_DURATION_MS);
+        
+        // Track walrus taming achievement specifically
+        if animal.species == AnimalSpecies::ArcticWalrus {
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, tamer.identity, "walrus_tamed", 1) {
+                log::error!("Failed to track walrus taming stat: {}", e);
+            }
+        }
         
         Ok(true) // Successfully tamed
     } else {

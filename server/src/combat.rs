@@ -3418,7 +3418,8 @@ pub fn process_attack(
             damage_furnace(ctx, attacker_id, *furnace_id, damage, timestamp, rng)
         },
         TargetId::WildAnimal(animal_id) => {
-            crate::wild_animal_npc::damage_wild_animal(ctx, *animal_id, damage, attacker_id)
+            // Use weapon-tracked version for melee kills achievement tracking
+            crate::wild_animal_npc::damage_wild_animal_with_weapon(ctx, *animal_id, damage, attacker_id, Some(&item_def.name))
                 .map(|_| AttackResult {
                     hit: true,
                     target_type: Some(TargetType::Animal),

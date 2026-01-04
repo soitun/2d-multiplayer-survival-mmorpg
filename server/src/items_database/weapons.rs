@@ -297,6 +297,28 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .respawn_time(900) // 15 min respawn in world
             .build(),
 
+        // === UNDERWATER RANGED WEAPONS ===
+        // Specialized ranged weapons designed for underwater combat
+
+        // Reed Harpoon Gun - Underwater ranged weapon with 2-dart magazine
+        // BALANCED: Works both underwater and on land, slower fire rate, limited capacity
+        // Tradeoff: Can be used in water unlike other ranged weapons, but lower capacity and damage
+        ItemBuilder::new("Reed Harpoon Gun", "A pneumatic harpoon launcher crafted from reeds and bone. Designed for underwater hunting, it functions both above and below the surface. Uses specialized reed harpoon darts.", ItemCategory::RangedWeapon)
+            .icon("reed_harpoon_gun.png")
+            .stackable(1)
+            .weapon(35, 42, 0.0) // Moderate damage (35-42) - balanced for underwater use
+            .damage_type(DamageType::Projectile)
+            .equippable(None)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 5 },
+            ])
+            .crafting_output(1, 60) // 60 seconds to craft
+            .respawn_time(900) // 15 min respawn in world
+            .build(),
+
         // === FIREARMS ===
         // Soviet-era firearms that use bullet ammunition
 

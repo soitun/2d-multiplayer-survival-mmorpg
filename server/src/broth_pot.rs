@@ -2031,6 +2031,11 @@ pub fn process_broth_pot_logic_scheduled(
             // Stop boiling sound
             sound_events::stop_soup_boiling_sound(ctx, broth_pot_id);
             
+            // Track brews_completed stat for the player who placed this broth pot
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, broth_pot.placed_by, "brews_completed", 1) {
+                log::error!("[BrothPot] Failed to track brew completion stat: {}", e);
+            }
+            
             log::info!("[BrothPot] Completed brewing {} in pot {} (consumed {}mL water)", 
                       output_name, broth_pot_id, BREWING_WATER_REQUIREMENT_ML);
         }
