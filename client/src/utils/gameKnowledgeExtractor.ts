@@ -915,7 +915,7 @@ const tipSectionDefinitions = {
             'Once you carry 200+ shards, insanity slowly builds up over time (purple visual effect).',
             'The longer you carry 200+ shards, the faster insanity increases - don\'t hoard for too long!',
             'Insanity increases faster when carrying more shards (200 = slow, 500+ = much faster).',
-            'ALK safe zones (Central Compound and substations) pause insanity buildup while inside.',
+            'Safe zones (Central Compound, ALK substations, and Fishing Village) pause insanity buildup while inside.',
             'Store shards in a storage box at your base to keep them safe without insanity buildup.',
             'Insanity decays quickly when you drop below 200 shards - rapid recovery if under 50% insanity.',
             'WARNING: Reaching 100% insanity applies a permanent "Entrainment" debuff - avoid this at all costs!',
