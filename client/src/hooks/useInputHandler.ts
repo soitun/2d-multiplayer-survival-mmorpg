@@ -661,10 +661,8 @@ export const useInputHandler = ({
                             return !prev;
                         });
                         return; // Handled
-                    case 'g': // Handle minimap toggle here
-                        setIsMinimapOpen((prev: boolean) => !prev);
-                        event.preventDefault(); // Prevent typing 'g' in chat etc.
-                        return;
+                    // NOTE: 'g' key for map is now handled in GameScreen.tsx 
+                    // to properly manage interfaceInitialView (always opens to map)
                     case 'm': // Handle music panel toggle here
                         setMusicPanelVisible(prev => !prev);
                         event.preventDefault(); // Prevent typing 'm' in chat etc.

@@ -873,7 +873,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
     
     let quests = vec![
         // ===========================================
-        // PHASE 1: GATHERING BASICS (No tools needed)
+        // PHASE 1: GETTING TO SHELTER FAST
         // ===========================================
         
         // Quest 1: Harvest Plants (introduces foraging - no tools required)
@@ -881,98 +881,56 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             id: "tutorial_01_harvest_plants".to_string(),
             order_index: 0,
             name: "Foraging Basics".to_string(),
-            description: "Harvest 5 wild plants by pressing E near bushes and fiber plants.".to_string(),
+            description: "Harvest 3 wild plants by pressing E near bushes and fiber plants.".to_string(),
             objective_type: QuestObjectiveType::HarvestPlant,
             target_id: None,
-            target_amount: 5,
+            target_amount: 3,
             xp_reward: 15,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Agent, welcome to the island. First, let's gather some basic materials. Look for plants on the ground - fiber, berries, herbs. Press E to harvest them.".to_string(),
-            sova_complete_message: "Good instincts. Plant fiber is essential for rope and cloth. Keep foraging.".to_string(),
+            sova_start_message: "Agent, welcome to the island. First, gather some plant fiber. Look for plants on the ground - press E to harvest them.".to_string(),
+            sova_complete_message: "Good instincts. Plant fiber is essential for rope. You'll need rope to build your shelter.".to_string(),
             sova_hint_message: "Walk around and look for plants. Press E when you see the interaction prompt.".to_string(),
         },
         
-        // ===========================================
-        // PHASE 2: BASIC TOOLS (Unlocks resource gathering)
-        // ===========================================
-        
-        // Quest 2: Craft Stone Hatchet (first tool - enables wood gathering)
+        // Quest 2: Craft Rope (needed for shelter)
         TutorialQuestDefinition {
-            id: "tutorial_02_craft_hatchet".to_string(),
+            id: "tutorial_02_craft_rope".to_string(),
             order_index: 1,
-            name: "First Tool".to_string(),
-            description: "Craft a Stone Hatchet from the crafting menu.".to_string(),
+            name: "Rope Making".to_string(),
+            description: "Craft 2 Rope from Cloth in the crafting menu.".to_string(),
             objective_type: QuestObjectiveType::CraftSpecificItem,
-            target_id: Some("Stone Hatchet".to_string()),
-            target_amount: 1,
-            xp_reward: 25,
-            shard_reward: 10,
+            target_id: Some("Rope".to_string()),
+            target_amount: 2,
+            xp_reward: 20,
+            shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Now you need tools. Press B to open crafting and make a Stone Hatchet. You'll need wood and stone - chop trees for wood and mine stone from formations with your combat ladle.".to_string(),
-            sova_complete_message: "Excellent. A hatchet is your best friend for gathering wood. Equip it to your hotbar.".to_string(),
-            sova_hint_message: "Press C to open crafting. Stone Hatchet needs 200 wood and 100 stone. Look for loose wood and stones on the ground first.".to_string(),
+            sova_start_message: "Press C to open crafting. First make Cloth from Plant Fiber, then craft Rope from the Cloth. You'll need 2 rope for your shelter.".to_string(),
+            sova_complete_message: "Rope secured. Essential for building structures.".to_string(),
+            sova_hint_message: "Press C to craft. Find Cloth first (needs Plant Fiber), then craft Rope from Cloth.".to_string(),
         },
         
-        // Quest 3: Chop Trees (introduces wood gathering with tools)
+        // Quest 3: Chop 1 Tree (get wood for shelter - use combat ladle)
         TutorialQuestDefinition {
-            id: "tutorial_03_chop_trees".to_string(),
+            id: "tutorial_03_chop_tree".to_string(),
             order_index: 2,
             name: "Timber!".to_string(),
-            description: "Chop down 5 trees for wood.".to_string(),
+            description: "Chop down 1 tree for wood using your combat ladle.".to_string(),
             objective_type: QuestObjectiveType::GatherWood,
             target_id: None,
-            target_amount: 5,
-            xp_reward: 30,
-            shard_reward: 10,
-            unlock_recipe: None,
-            sova_start_message: "Time to put that hatchet to work. Find trees and attack them to gather wood. You'll need lots of it for building.".to_string(),
-            sova_complete_message: "Well done. Trees are your primary source of wood. Keep your hatchet handy.".to_string(),
-            sova_hint_message: "Equip your Stone Hatchet and left-click on trees. Each tree gives multiple logs when destroyed.".to_string(),
-        },
-        
-        // Quest 4: Craft Stone Pickaxe (enables stone/ore gathering)
-        TutorialQuestDefinition {
-            id: "tutorial_04_craft_pickaxe".to_string(),
-            order_index: 3,
-            name: "Mining Equipment".to_string(),
-            description: "Craft a Stone Pickaxe for mining.".to_string(),
-            objective_type: QuestObjectiveType::CraftSpecificItem,
-            target_id: Some("Stone Pickaxe".to_string()),
             target_amount: 1,
-            xp_reward: 25,
-            shard_reward: 10,
+            xp_reward: 20,
+            shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "A pickaxe will let you mine stone and ore. Craft one now - the recipe is similar to the hatchet.".to_string(),
-            sova_complete_message: "Now you can mine. Stone formations and ore veins await.".to_string(),
-            sova_hint_message: "Press C to open crafting. Stone Pickaxe needs 200 wood and 100 stone. You should have enough from chopping trees.".to_string(),
+            sova_start_message: "You need wood for your shelter. Use your combat ladle to chop a tree - left-click to attack it.".to_string(),
+            sova_complete_message: "Wood acquired. Now you have everything for your first shelter.".to_string(),
+            sova_hint_message: "Equip your combat ladle and left-click on a tree to chop it down.".to_string(),
         },
         
-        // Quest 5: Mine Stone (introduces mining)
+        // Quest 4: Build Shelter (THE GOAL - get shelter ASAP)
         TutorialQuestDefinition {
-            id: "tutorial_05_mine_stone".to_string(),
-            order_index: 4,
-            name: "Breaking Ground".to_string(),
-            description: "Mine 30 stone from rock formations.".to_string(),
-            objective_type: QuestObjectiveType::GatherStone,
-            target_id: None,
-            target_amount: 30,
-            xp_reward: 35,
-            shard_reward: 15,
-            unlock_recipe: None,
-            sova_start_message: "Stone is the foundation of progress. Find gray rock formations and mine them with your pickaxe.".to_string(),
-            sova_complete_message: "Stone secured. You're building a solid foundation, agent.".to_string(),
-            sova_hint_message: "Look for large gray rocks. Equip your pickaxe and attack them to gather stone.".to_string(),
-        },
-        
-        // ===========================================
-        // PHASE 3: SHELTER & BASE BUILDING
-        // ===========================================
-        
-        // Quest 6: Build Shelter (introduces building)
-        TutorialQuestDefinition {
-            id: "tutorial_06_build_shelter".to_string(),
-            order_index: 5,
+            id: "tutorial_04_build_shelter".to_string(),
+            order_index: 3,
             name: "Home Base".to_string(),
             description: "Craft and place a Shelter to establish your base.".to_string(),
             objective_type: QuestObjectiveType::PlaceShelter,
@@ -981,15 +939,74 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,
-            sova_start_message: "Shelter is survival. Craft a Shelter and place it somewhere safe. This will be your home base. It requires 100 wood and 2 rope.".to_string(),
-            sova_complete_message: "Your base is established. It's basic, but it's yours. Defend it well.".to_string(),
-            sova_hint_message: "You'll need rope - craft it from plant fiber first. Then craft the Shelter and place it with right-click.".to_string(),
+            sova_start_message: "Shelter is survival. Press C to craft a Shelter - it needs 100 wood and 2 rope. Place it somewhere safe with right-click.".to_string(),
+            sova_complete_message: "Your base is established. Well done, agent. Now let's expand your capabilities.".to_string(),
+            sova_hint_message: "Press C to open crafting. Find Shelter - needs 100 wood and 2 rope. Right-click to place it.".to_string(),
         },
         
-        // Quest 7: Build Campfire (introduces fire/cooking)
+        // ===========================================
+        // PHASE 2: RESOURCE GATHERING & TOOLS
+        // ===========================================
+        
+        // Quest 5: Mine Stone (introduces mining with ladle first)
         TutorialQuestDefinition {
-            id: "tutorial_07_build_campfire".to_string(),
+            id: "tutorial_05_mine_stone".to_string(),
+            order_index: 4,
+            name: "Breaking Ground".to_string(),
+            description: "Mine 200 stone from rock formations.".to_string(),
+            objective_type: QuestObjectiveType::GatherStone,
+            target_id: None,
+            target_amount: 200,
+            xp_reward: 35,
+            shard_reward: 15,
+            unlock_recipe: None,
+            sova_start_message: "Stone is essential for better tools. Find gray rock formations and attack them with your ladle to gather stone.".to_string(),
+            sova_complete_message: "Stone secured. Now you can craft proper tools.".to_string(),
+            sova_hint_message: "Look for large gray rocks. Attack them to gather stone.".to_string(),
+        },
+        
+        // Quest 6: Craft Stone Hatchet (better wood gathering)
+        TutorialQuestDefinition {
+            id: "tutorial_06_craft_hatchet".to_string(),
+            order_index: 5,
+            name: "Better Tools".to_string(),
+            description: "Craft a Stone Hatchet for faster wood gathering.".to_string(),
+            objective_type: QuestObjectiveType::CraftSpecificItem,
+            target_id: Some("Stone Hatchet".to_string()),
+            target_amount: 1,
+            xp_reward: 25,
+            shard_reward: 10,
+            unlock_recipe: None,
+            sova_start_message: "A proper hatchet will make gathering wood much faster. Press C and craft a Stone Hatchet.".to_string(),
+            sova_complete_message: "Excellent. The hatchet is your best friend for gathering wood. Equip it to your hotbar.".to_string(),
+            sova_hint_message: "Press C to open crafting. Stone Hatchet needs wood and stone.".to_string(),
+        },
+        
+        // Quest 7: Craft Stone Pickaxe (enables efficient stone/ore gathering)
+        TutorialQuestDefinition {
+            id: "tutorial_07_craft_pickaxe".to_string(),
             order_index: 6,
+            name: "Mining Equipment".to_string(),
+            description: "Craft a Stone Pickaxe for efficient mining.".to_string(),
+            objective_type: QuestObjectiveType::CraftSpecificItem,
+            target_id: Some("Stone Pickaxe".to_string()),
+            target_amount: 1,
+            xp_reward: 25,
+            shard_reward: 10,
+            unlock_recipe: None,
+            sova_start_message: "A pickaxe will let you mine stone and ore much faster. Craft one now.".to_string(),
+            sova_complete_message: "Now you can mine efficiently. Stone formations and ore veins are yours for the taking.".to_string(),
+            sova_hint_message: "Press C to open crafting. Stone Pickaxe needs wood and stone.".to_string(),
+        },
+        
+        // ===========================================
+        // PHASE 3: BASE EXPANSION
+        // ===========================================
+        
+        // Quest 8: Build Campfire (introduces fire/cooking)
+        TutorialQuestDefinition {
+            id: "tutorial_08_build_campfire".to_string(),
+            order_index: 7,
             name: "Light in the Dark".to_string(),
             description: "Craft and place a Camp Fire near your shelter.".to_string(),
             objective_type: QuestObjectiveType::PlaceCampfire,
@@ -998,15 +1015,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
-            sova_start_message: "Fire means warmth, light, and cooked food. Craft a Camp Fire and place it near your shelter. It only needs 25 wood and 10 stone.".to_string(),
-            sova_complete_message: "Fire established. Cook raw meat to avoid food poisoning, and stay warm through the cold nights.".to_string(),
-            sova_hint_message: "Open crafting with C, find Camp Fire. Place it near your shelter - you can cook food by putting it inside.".to_string(),
+            sova_start_message: "Fire means warmth, light, and cooked food. Craft a Camp Fire and place it near your shelter.".to_string(),
+            sova_complete_message: "Fire established. Cook raw meat to avoid food poisoning, and stay warm through cold nights.".to_string(),
+            sova_hint_message: "Open crafting with C, find Camp Fire. Place it near your shelter.".to_string(),
         },
         
-        // Quest 8: Build Storage Box (introduces storage)
+        // Quest 9: Build Storage Box (introduces storage)
         TutorialQuestDefinition {
-            id: "tutorial_08_storage_box".to_string(),
-            order_index: 7,
+            id: "tutorial_09_storage_box".to_string(),
+            order_index: 8,
             name: "Secure Your Loot".to_string(),
             description: "Craft and place a Wooden Storage Box.".to_string(),
             objective_type: QuestObjectiveType::PlaceStorageBox,
@@ -1015,15 +1032,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
-            sova_start_message: "You can't carry everything. Craft a Wooden Storage Box to stash your surplus materials safely. Just 100 wood.".to_string(),
+            sova_start_message: "You can't carry everything. Craft a Wooden Storage Box to stash your surplus materials safely.".to_string(),
             sova_complete_message: "Storage secured. Your base is taking shape.".to_string(),
             sova_hint_message: "Craft the Wooden Storage Box and place it. Press E to open it and transfer items.".to_string(),
         },
         
-        // Quest 9: Build Sleeping Bag (introduces respawn)
+        // Quest 10: Build Sleeping Bag (introduces respawn)
         TutorialQuestDefinition {
-            id: "tutorial_09_sleeping_bag".to_string(),
-            order_index: 8,
+            id: "tutorial_10_sleeping_bag".to_string(),
+            order_index: 9,
             name: "Rest Point".to_string(),
             description: "Craft and place a Sleeping Bag for respawning.".to_string(),
             objective_type: QuestObjectiveType::PlaceSleepingBag,
@@ -1032,7 +1049,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 30,
             shard_reward: 15,
             unlock_recipe: None,
-            sova_start_message: "Death comes for all, but you choose where to return. Place a Sleeping Bag - it sets your respawn point. You'll need 15 cloth.".to_string(),
+            sova_start_message: "Death comes for all, but you choose where to return. Place a Sleeping Bag - it sets your respawn point.".to_string(),
             sova_complete_message: "Respawn point set. Now death is just a minor setback.".to_string(),
             sova_hint_message: "Craft Cloth from Plant Fiber first. Then craft the Sleeping Bag and place it inside your shelter.".to_string(),
         },
@@ -1041,10 +1058,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 4: SURVIVAL SKILLS
         // ===========================================
         
-        // Quest 10: Eat Food (introduces hunger)
+        // Quest 11: Eat Food (introduces hunger)
         TutorialQuestDefinition {
-            id: "tutorial_10_eat_food".to_string(),
-            order_index: 9,
+            id: "tutorial_11_eat_food".to_string(),
+            order_index: 10,
             name: "Fuel for Survival".to_string(),
             description: "Eat 3 food items to restore hunger.".to_string(),
             objective_type: QuestObjectiveType::EatFood,
@@ -1058,10 +1075,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Place food on your hotbar and press the number key to consume it. Cooked food is safer and more nutritious.".to_string(),
         },
         
-        // Quest 11: Kill an Animal (introduces combat and animal resources)
+        // Quest 12: Kill an Animal (introduces combat and animal resources)
         TutorialQuestDefinition {
-            id: "tutorial_11_kill_animal".to_string(),
-            order_index: 10,
+            id: "tutorial_12_kill_animal".to_string(),
+            order_index: 11,
             name: "The Hunt".to_string(),
             description: "Kill 3 wild animals for meat and resources.".to_string(),
             objective_type: QuestObjectiveType::KillAnyAnimal,
@@ -1075,10 +1092,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Equip a weapon or your hatchet. Approach animals and attack. Don't forget to harvest the corpse with E!".to_string(),
         },
         
-        // Quest 12: Hunt more animals (need animal fat for furnace)
+        // Quest 13: Hunt more animals (need animal fat for furnace)
         TutorialQuestDefinition {
-            id: "tutorial_12_hunt_more".to_string(),
-            order_index: 11,
+            id: "tutorial_13_hunt_more".to_string(),
+            order_index: 12,
             name: "Fat of the Land".to_string(),
             description: "Kill 5 more animals to gather Animal Fat for a Furnace.".to_string(),
             objective_type: QuestObjectiveType::KillAnyAnimal,
@@ -1096,10 +1113,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 5: METAL PROGRESSION
         // ===========================================
         
-        // Quest 13: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
+        // Quest 14: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
         TutorialQuestDefinition {
-            id: "tutorial_13_build_furnace".to_string(),
-            order_index: 12,
+            id: "tutorial_14_build_furnace".to_string(),
+            order_index: 13,
             name: "Industrial Revolution".to_string(),
             description: "Craft and place a Furnace for smelting metal.".to_string(),
             objective_type: QuestObjectiveType::PlaceFurnace,
@@ -1113,10 +1130,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Make sure you have 50 Animal Fat. Craft the Furnace and place it. It needs fuel (wood) to smelt ore.".to_string(),
         },
         
-        // Quest 14: Craft Metal Tool (introduces metal progression)
+        // Quest 15: Craft Metal Tool (introduces metal progression)
         TutorialQuestDefinition {
-            id: "tutorial_14_craft_metal_tool".to_string(),
-            order_index: 13,
+            id: "tutorial_15_craft_metal_tool".to_string(),
+            order_index: 14,
             name: "Forged in Fire".to_string(),
             description: "Craft a Metal Hatchet or Metal Pickaxe.".to_string(),
             objective_type: QuestObjectiveType::CraftAnyItem,
@@ -1134,10 +1151,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 6: ECONOMY & MEMORY SYSTEM
         // ===========================================
         
-        // Quest 15: Catch Fish (introduces fishing)
+        // Quest 16: Catch Fish (introduces fishing)
         TutorialQuestDefinition {
-            id: "tutorial_15_catch_fish".to_string(),
-            order_index: 14,
+            id: "tutorial_16_catch_fish".to_string(),
+            order_index: 15,
             name: "Gone Fishing".to_string(),
             description: "Catch 3 fish from the water.".to_string(),
             objective_type: QuestObjectiveType::CatchAnyFish,
@@ -1151,10 +1168,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Craft a Basic Fishing Rod. Stand near water, equip it, and cast with left click. Watch for the bobber to dip.".to_string(),
         },
         
-        // Quest 16: Discover first Cairn (introduces exploration & memory shards)
+        // Quest 17: Discover first Cairn (introduces exploration & memory shards)
         TutorialQuestDefinition {
-            id: "tutorial_16_discover_cairn".to_string(),
-            order_index: 15,
+            id: "tutorial_17_discover_cairn".to_string(),
+            order_index: 16,
             name: "Ancient Memories".to_string(),
             description: "Discover and interact with a stone cairn.".to_string(),
             objective_type: QuestObjectiveType::DiscoverCairn,
@@ -1168,10 +1185,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Cairns are small stone stacks. Press E to interact when nearby. They reward Memory Shards and tell stories of the island.".to_string(),
         },
         
-        // Quest 17: Discover more cairns (main source of shards)
+        // Quest 18: Discover more cairns (main source of shards)
         TutorialQuestDefinition {
-            id: "tutorial_17_discover_more_cairns".to_string(),
-            order_index: 16,
+            id: "tutorial_18_discover_more_cairns".to_string(),
+            order_index: 17,
             name: "Fragments of Memory".to_string(),
             description: "Discover 3 more stone cairns across the island.".to_string(),
             objective_type: QuestObjectiveType::DiscoverCairn,
@@ -1185,10 +1202,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Explore the island. Stone cairns are scattered everywhere - small piles of stacked rocks. Press E to interact and claim your reward.".to_string(),
         },
         
-        // Quest 18: Deliver ALK Contract (introduces the economy)
+        // Quest 19: Deliver ALK Contract (introduces the economy)
         TutorialQuestDefinition {
-            id: "tutorial_18_alk_contract".to_string(),
-            order_index: 17,
+            id: "tutorial_19_alk_contract".to_string(),
+            order_index: 18,
             name: "Enter the Economy".to_string(),
             description: "Accept and complete 1 ALK contract delivery.".to_string(),
             objective_type: QuestObjectiveType::DeliverAlkContract,
@@ -1207,7 +1224,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         table.insert(quest);
     }
     
-    let quest_count = 18; // Updated count
+    let quest_count = 19; // Updated count (added rope crafting quest)
     log::info!("[Quests] Seeded {} tutorial quests", quest_count);
     Ok(())
 }

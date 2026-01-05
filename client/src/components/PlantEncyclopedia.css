@@ -99,6 +99,7 @@
 
 .category-btn {
   display: flex;
+  flex-direction: row; /* Explicitly set row direction (left to right) */
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
@@ -127,6 +128,7 @@
 
 .cat-icon {
   font-size: 13px;
+  order: 1; /* Ensure icon appears first (on the left) */
 }
 
 .cat-count {
@@ -135,6 +137,7 @@
   background: rgba(0, 0, 0, 0.3);
   padding: 1px 5px;
   border-radius: 8px;
+  order: 2; /* Ensure count appears second (on the right) */
 }
 
 /* Category Tooltip */
@@ -162,25 +165,25 @@
 .category-tooltip::after {
   content: '';
   position: absolute;
-  left: 100%;
+  right: 100%;
   top: 50%;
   transform: translateY(-50%);
   width: 0;
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 6px solid rgba(76, 175, 80, 0.6);
+  border-right: 6px solid rgba(76, 175, 80, 0.6);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 @keyframes tooltipFadeIn {
   0% {
     opacity: 0;
-    transform: translate(-100%, -50%) translateX(10px);
+    transform: translateY(-50%) translateX(10px);
   }
   100% {
     opacity: 1;
-    transform: translate(-100%, -50%) translateX(0);
+    transform: translateY(-50%) translateX(0);
   }
 }
 

@@ -8,13 +8,14 @@ import {
 } from '../generated';
 import { Identity } from 'spacetimedb';
 
-// Style constants (matching DayNightCycleTracker)
-const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98))';
+// Style constants - Cyberpunk theme
+const UI_BG_COLOR = 'linear-gradient(135deg, rgba(10, 5, 20, 0.95), rgba(15, 8, 30, 0.98))';
 const UI_BORDER_COLOR = '#00aaff';
-const UI_SHADOW = '0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)';
+const UI_SHADOW = '0 0 25px rgba(0, 170, 255, 0.4), inset 0 0 15px rgba(0, 170, 255, 0.15)';
 const UI_FONT_FAMILY = '"Press Start 2P", cursive';
 const SOVA_PURPLE = '#c084fc';
-const SOVA_CYAN = '#00aaff';
+const SOVA_CYAN = '#00ffff';
+const GLOW_CYAN = '0 0 12px rgba(0, 255, 255, 0.6)';
 
 interface SovaDirectivesIndicatorProps {
     // Quest definitions
@@ -98,22 +99,22 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
 
     const containerStyle: React.CSSProperties = {
         position: 'fixed',
-        top: isMobile ? '100px' : '133px', // Position BELOW DayNightCycleTracker (which ends ~120px) with extra spacing
-        right: isMobile ? '10px' : '15px', // Align with DayNightCycleTracker
+        top: isMobile ? '120px' : '165px', // Position below DayNightCycleTracker with clear spacing
+        right: isMobile ? '10px' : '15px',
         zIndex: 1000,
         background: UI_BG_COLOR,
         border: `2px solid ${hasNewNotification || pulseAnimation ? SOVA_PURPLE : UI_BORDER_COLOR}`,
-        borderRadius: '8px',
+        borderRadius: '10px',
         boxShadow: pulseAnimation 
-            ? `0 0 30px rgba(192, 132, 252, 0.6), inset 0 0 15px rgba(192, 132, 252, 0.2)` 
+            ? `0 0 35px rgba(192, 132, 252, 0.6), inset 0 0 18px rgba(192, 132, 252, 0.2)` 
             : UI_SHADOW,
-        padding: isMobile ? '10px 14px' : '12px 18px',
+        padding: isMobile ? '12px 16px' : '14px 20px',
         fontFamily: UI_FONT_FAMILY,
         cursor: 'pointer',
         transition: 'all 0.3s ease',
-        transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+        transform: isHovered ? 'scale(1.03)' : 'scale(1)',
         animation: pulseAnimation ? 'sovaPulse 1s ease-in-out infinite' : 'none',
-        minWidth: isMobile ? '150px' : '180px',
+        minWidth: isMobile ? '170px' : '200px',
     };
 
     const titleStyle: React.CSSProperties = {
@@ -121,10 +122,10 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
         alignItems: 'center',
         gap: '10px',
         color: SOVA_CYAN,
-        fontSize: isMobile ? '10px' : '12px', // Increased from 8px/10px
+        fontSize: isMobile ? '11px' : '13px',
         fontWeight: 'bold',
-        marginBottom: '6px',
-        textShadow: '0 0 10px rgba(0, 170, 255, 0.5)',
+        marginBottom: '8px',
+        textShadow: GLOW_CYAN,
     };
 
     const statusStyle: React.CSSProperties = {
@@ -132,27 +133,29 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
         alignItems: 'center',
         gap: '10px',
         color: '#e0e0e0',
-        fontSize: isMobile ? '9px' : '11px', // Increased from 6px/8px
+        fontSize: isMobile ? '10px' : '12px',
     };
 
     const dotStyle = (active: boolean): React.CSSProperties => ({
-        width: '6px',
-        height: '6px',
+        width: '8px',
+        height: '8px',
         borderRadius: '50%',
         backgroundColor: active ? '#4ade80' : '#6b7280',
-        boxShadow: active ? '0 0 8px rgba(74, 222, 128, 0.6)' : 'none',
+        boxShadow: active ? '0 0 10px rgba(74, 222, 128, 0.7)' : 'none',
+        flexShrink: 0,
     });
 
     const notificationDotStyle: React.CSSProperties = {
         position: 'absolute' as const,
-        top: '-4px',
-        right: '-4px',
-        width: '12px',
-        height: '12px',
+        top: '-5px',
+        right: '-5px',
+        width: '14px',
+        height: '14px',
         borderRadius: '50%',
         backgroundColor: '#f43f5e',
-        boxShadow: '0 0 10px rgba(244, 63, 94, 0.6)',
+        boxShadow: '0 0 12px rgba(244, 63, 94, 0.7)',
         animation: 'notificationPulse 1.5s ease-in-out infinite',
+        border: '2px solid rgba(10, 5, 20, 0.9)',
     };
 
     // Get progress display for current tutorial quest
@@ -185,19 +188,21 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
                 onClick={handleClick}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                title="Press J to open Directives"
             >
                 {/* Notification dot */}
                 {hasNewNotification && <div style={notificationDotStyle} />}
                 
                 {/* Title */}
                 <div style={titleStyle}>
-                    <span style={{ fontSize: '14px' }}>📡</span>
-                    <span>SOVA DIRECTIVES</span>
+                    <span style={{ fontSize: isMobile ? '14px' : '16px' }}>📡</span>
+                    <span>DIRECTIVES</span>
                     <span style={{ 
                         color: SOVA_PURPLE, 
-                        opacity: 0.7,
-                        fontSize: isMobile ? '8px' : '9px',
+                        fontSize: isMobile ? '9px' : '11px',
+                        padding: '3px 6px',
+                        background: 'rgba(192, 132, 252, 0.15)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(192, 132, 252, 0.3)',
                     }}>
                         [J]
                     </span>

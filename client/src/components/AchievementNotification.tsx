@@ -109,13 +109,14 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   return (
     <div style={{
       position: 'fixed',
-      top: '180px',
-      right: '15px',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       gap: '10px',
-      zIndex: 150,
+      zIndex: 200,
       pointerEvents: 'none',
     }}>
       {visibleNotifications.map((notif, index) => {

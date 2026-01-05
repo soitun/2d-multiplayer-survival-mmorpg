@@ -374,6 +374,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const openQuestsPanel = useCallback(() => setIsQuestsPanelOpen(true), []);
     const closeQuestsPanel = useCallback(() => setIsQuestsPanelOpen(false), []);
 
+    // Track whether DayNightCycleTracker is expanded (not minimized)
+    // Used to conditionally hide SovaDirectivesIndicator when tracker is minimized
+    const [isDayNightExpanded, setIsDayNightExpanded] = useState(true);
+    const handleDayNightMinimizedChange = useCallback((isMinimized: boolean) => {
+        setIsDayNightExpanded(!isMinimized);
+    }, []);
+
     // 🎣 FISHING INPUT FIX: Track fishing state to disable input
     const [isFishing, setIsFishing] = useState(false);
 
@@ -1097,10 +1104,11 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setIsMinimapOpen(true);
     }, [handleSetInteractingWith, setInterfaceInitialView, setIsMinimapOpen]);
 
-    // Reset interface initial view when interface closes (so next open defaults to minimap)
+    // Reset interface initial view when interface closes (G always opens to map)
     const handleInterfaceClose = useCallback(() => {
-        setInterfaceInitialView?.(undefined);
-    }, [setInterfaceInitialView]);
+        setInterfaceInitialView?.(undefined); // Reset so G opens to map (default)
+        setIsMinimapOpen(false);
+    }, [setInterfaceInitialView, setIsMinimapOpen]);
 
     // You can also add a useEffect here if the above doesn't show up
     useEffect(() => {
@@ -1199,6 +1207,39 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             else if ((event.key === 'j' || event.key === 'J') && !isChatting) {
                 setIsQuestsPanelOpen(prev => !prev);
             }
+            // Handle G key for map panel (always opens to map)
+            else if ((event.key === 'g' || event.key === 'G') && !isChatting) {
+                event.preventDefault();
+                event.stopPropagation(); // Prevent useInputHandler from also handling this
+                if (isMinimapOpen) {
+                    // If already on map (undefined = map), close it
+                    // If on another tab, switch to map first
+                    if (interfaceInitialView === undefined || interfaceInitialView === 'minimap') {
+                        // Already on map - close
+                        setIsMinimapOpen(false);
+                    } else {
+                        // On another tab (achievements, etc.) - switch to map
+                        setInterfaceInitialView?.(undefined);
+                    }
+                } else {
+                    // Open to map (reset interfaceInitialView to ensure map view)
+                    setInterfaceInitialView?.(undefined);
+                    setIsMinimapOpen(true);
+                }
+            }
+            // Handle Y key for achievements panel (toggle behavior)
+            else if ((event.key === 'y' || event.key === 'Y') && !isChatting) {
+                event.preventDefault();
+                if (isMinimapOpen && interfaceInitialView === 'achievements') {
+                    // Already showing achievements - close it
+                    setInterfaceInitialView?.(undefined);
+                    setIsMinimapOpen(false);
+                } else {
+                    // Not showing achievements - open/switch to it
+                    setInterfaceInitialView?.('achievements');
+                    setIsMinimapOpen(true);
+                }
+            }
             // Handle Arrow keys for time debug cycler (only when menu is closed and not typing)
             else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentMenu === null && !isChatting) {
                 event.preventDefault();
@@ -1232,7 +1273,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [currentMenu, worldState?.timeOfDay?.tag, connection, isChatting]); // Include dependencies
+    }, [currentMenu, worldState?.timeOfDay?.tag, connection, isChatting, isMinimapOpen, interfaceInitialView, setIsMinimapOpen, setInterfaceInitialView]); // Include all dependencies
 
     // Handler for refresh dialog actions
     const handleRefreshConfirm = () => {
@@ -1698,18 +1739,21 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 chunkWeather={chunkWeather}
                 localPlayer={localPlayer}
                 isMobile={props.isMobile}
+                onMinimizedChange={handleDayNightMinimizedChange}
             />
-            {/* SOVA Directives Indicator (Quest System) */}
-            <SovaDirectivesIndicator
-                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
-                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
-                playerTutorialProgress={props.playerTutorialProgress || new Map()}
-                playerDailyQuests={props.playerDailyQuests || new Map()}
-                localPlayerId={props.playerIdentity || undefined}
-                onOpenQuestsPanel={openQuestsPanel}
-                hasNewNotification={hasNewQuestNotification}
-                isMobile={props.isMobile}
-            />
+            {/* SOVA Directives Indicator (Quest System) - Hidden when DayNightCycleTracker is minimized */}
+            {isDayNightExpanded && (
+                <SovaDirectivesIndicator
+                    tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
+                    dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
+                    playerTutorialProgress={props.playerTutorialProgress || new Map()}
+                    playerDailyQuests={props.playerDailyQuests || new Map()}
+                    localPlayerId={props.playerIdentity || undefined}
+                    onOpenQuestsPanel={openQuestsPanel}
+                    hasNewNotification={hasNewQuestNotification}
+                    isMobile={props.isMobile}
+                />
+            )}
             {/* Quest Panel Overlay */}
             <QuestsPanel
                 isOpen={isQuestsPanelOpen}

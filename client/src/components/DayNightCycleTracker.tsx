@@ -40,11 +40,18 @@ interface DayNightCycleTrackerProps {
   chunkWeather: Map<string, any>;
   localPlayer: Player | undefined;
   isMobile?: boolean;
+  onMinimizedChange?: (isMinimized: boolean) => void;
 }
 
-const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState, chunkWeather, localPlayer, isMobile = false }) => {
+const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState, chunkWeather, localPlayer, isMobile = false, onMinimizedChange }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<'season' | 'timeOfDay' | null>(null);
+
+  // Notify parent when minimized state changes
+  const handleSetMinimized = (minimized: boolean) => {
+    setIsMinimized(minimized);
+    onMinimizedChange?.(minimized);
+  };
 
   // Calculate current chunk index and get chunk weather
   const currentChunkWeather = useMemo(() => {
@@ -267,7 +274,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState,
 
   // Toggle minimize/maximize
   const toggleMinimized = () => {
-    setIsMinimized(!isMinimized);
+    handleSetMinimized(!isMinimized);
   };
 
   // Minimized view - just the emoji with hover tooltips

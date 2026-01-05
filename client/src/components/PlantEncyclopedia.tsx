@@ -275,7 +275,6 @@ const PlantEncyclopedia: React.FC<PlantEncyclopediaProps> = ({ plantConfigs, dis
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Filter to only show discovered plants
   const discoveredPlantConfigs = useMemo(() => {
@@ -431,20 +430,29 @@ const PlantEncyclopedia: React.FC<PlantEncyclopediaProps> = ({ plantConfigs, dis
         <button
           className={`category-btn ${selectedCategory === null ? 'active' : ''}`}
           onClick={() => setSelectedCategory(null)}
-          onMouseEnter={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setHoveredCategory('All');
-            setTooltipPosition({
-              x: rect.left,
-              y: rect.top + rect.height / 2
-            });
-          }}
-          onMouseLeave={() => {
-            setHoveredCategory(null);
-            setTooltipPosition(null);
-          }}
+          onMouseEnter={() => setHoveredCategory('All')}
+          onMouseLeave={() => setHoveredCategory(null)}
+          style={{ position: 'relative' }}
         >
           All
+          {/* Tooltip */}
+          {hoveredCategory === 'All' && (
+            <div
+              className="category-tooltip"
+              style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                marginLeft: '8px',
+                pointerEvents: 'none',
+                zIndex: 10000,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span className="tooltip-content">All Categories</span>
+            </div>
+          )}
         </button>
         {sortedCategories.map(cat => {
           const config = CATEGORY_CONFIG[cat];
@@ -454,49 +462,36 @@ const PlantEncyclopedia: React.FC<PlantEncyclopediaProps> = ({ plantConfigs, dis
               key={cat}
               className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
               onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
-              style={{ '--cat-color': config?.color || '#666' } as React.CSSProperties}
-              onMouseEnter={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setHoveredCategory(cat);
-                setTooltipPosition({
-                  x: rect.left,
-                  y: rect.top + rect.height / 2
-                });
-              }}
-              onMouseLeave={() => {
-                setHoveredCategory(null);
-                setTooltipPosition(null);
-              }}
+              style={{ '--cat-color': config?.color || '#666', position: 'relative' } as React.CSSProperties}
+              onMouseEnter={() => setHoveredCategory(cat)}
+              onMouseLeave={() => setHoveredCategory(null)}
             >
               <span className="cat-icon">{config?.icon || '❓'}</span>
               <span className="cat-count">{count}</span>
+              {/* Tooltip */}
+              {hoveredCategory === cat && (
+                <div
+                  className="category-tooltip"
+                  style={{
+                    position: 'absolute',
+                    left: '100%',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    marginLeft: '8px',
+                    pointerEvents: 'none',
+                    zIndex: 10000,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span className="tooltip-content">{config?.name || cat}</span>
+                </div>
+              )}
             </button>
           );
         })}
         </div>
       )}
 
-      {/* Custom Styled Tooltip */}
-      {hasDiscoveredAny && hoveredCategory && tooltipPosition && (
-        <div
-          className="category-tooltip"
-          style={{
-            position: 'fixed',
-            left: `${tooltipPosition.x}px`,
-            top: `${tooltipPosition.y}px`,
-            transform: 'translate(-100%, -50%)',
-            marginLeft: '-8px',
-            pointerEvents: 'none',
-            zIndex: 10000
-          }}
-        >
-          <span className="tooltip-content">
-            {hoveredCategory === 'All' 
-              ? 'All Categories' 
-              : CATEGORY_CONFIG[hoveredCategory]?.name || hoveredCategory}
-          </span>
-        </div>
-      )}
 
       {/* Plant List */}
       <div className="plants-list">

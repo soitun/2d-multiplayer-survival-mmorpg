@@ -2520,6 +2520,28 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_DISCOVERED_PLANT Sub Error]:", err))
                     .subscribe('SELECT * FROM player_discovered_plant'),
+                // Quest system subscriptions
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[TUTORIAL_QUEST_DEFINITION Sub Error]:", err))
+                    .subscribe('SELECT * FROM tutorial_quest_definition'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[DAILY_QUEST_DEFINITION Sub Error]:", err))
+                    .subscribe('SELECT * FROM daily_quest_definition'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_TUTORIAL_PROGRESS Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_tutorial_progress'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[PLAYER_DAILY_QUEST Sub Error]:", err))
+                    .subscribe('SELECT * FROM player_daily_quest'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[QUEST_COMPLETION_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM quest_completion_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[QUEST_PROGRESS_NOTIFICATION Sub Error]:", err))
+                    .subscribe('SELECT * FROM quest_progress_notification'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[SOVA_QUEST_MESSAGE Sub Error]:", err))
+                    .subscribe('SELECT * FROM sova_quest_message'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;

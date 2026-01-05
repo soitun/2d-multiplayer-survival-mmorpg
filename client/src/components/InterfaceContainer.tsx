@@ -117,9 +117,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   
   // Update currentView when initialView changes (e.g., reopening to a specific tab)
   useEffect(() => {
-    if (initialView) {
-      setCurrentView(initialView);
-    }
+    // If initialView is set, use it; if undefined/null, default to 'minimap'
+    setCurrentView(initialView || 'minimap');
   }, [initialView]);
   
   // Grid coordinates visibility preference (stored in localStorage)
