@@ -1184,7 +1184,7 @@ export const renderPlayer = (
     const willShowLabel = showingDueToCurrentHover || showingDueToPersistentState;
     drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel, activeTitle);
     
-    // Show throw indicator bubble when player is aiming to throw (both local and remote players)
-    drawThrowIndicatorBubble(ctx, player, spriteDrawY, currentDisplayX + shakeX, nowMs);
+    // NOTE: Throw indicator bubble disabled - was confusing for players
+    // drawThrowIndicatorBubble(ctx, player, spriteDrawY, currentDisplayX + shakeX, nowMs);
   }
 };

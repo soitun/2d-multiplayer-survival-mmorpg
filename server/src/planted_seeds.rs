@@ -412,6 +412,36 @@ fn calculate_growth_rate_multiplier(ctx: &ReducerContext) -> (f32, crate::world_
     (time_multiplier, world_state.current_season, world_state.time_of_day)
 }
 
+/// Calculate the initial growth multiplier for a newly planted seed
+/// This gives a quick estimate based on current conditions (refined by growth ticks)
+fn calculate_initial_growth_multiplier(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+    plant_type: &PlantType,
+) -> f32 {
+    // Get base multipliers
+    let (base_time_multiplier, _season, current_time_of_day) = calculate_growth_rate_multiplier(ctx);
+    
+    // Calculate individual multipliers
+    let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, pos_x, pos_y);
+    let fertilizer_multiplier = 1.0; // No fertilizer patches at planting time (would need a planted seed)
+    let soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, pos_x, pos_y);
+    let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, pos_x, pos_y, plant_type);
+    
+    // Calculate mushroom bonus if applicable
+    let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, pos_x, pos_y, plant_type, &current_time_of_day);
+    
+    // If green rune stone is active, apply positive bonuses only (ignore penalties)
+    if green_rune_multiplier > 1.0 {
+        green_rune_multiplier * water_multiplier * mushroom_bonus * soil_multiplier
+    } else {
+        // Apply base time multiplier (which includes time of day effects)
+        // Note: We don't have full environmental data at planting, so this is an estimate
+        base_time_multiplier.max(0.1) * water_multiplier * mushroom_bonus * soil_multiplier
+    }
+}
+
 // --- Initialization ---
 
 /// Initialize the plant growth checking system (called from main init)
@@ -852,7 +882,16 @@ pub fn plant_seed(
         ctx.rng().gen_range(min_growth_time_secs..=max_growth_time_secs)
     };
     
-    let maturity_time = ctx.timestamp + TimeDuration::from(Duration::from_secs(growth_time_secs));
+    // Calculate initial growth multiplier based on current environmental conditions
+    // This gives a better initial estimate for will_mature_at (will be refined by growth ticks)
+    let initial_multiplier = calculate_initial_growth_multiplier(ctx, final_plant_x, final_plant_y, &plant_type);
+    let adjusted_growth_secs = if initial_multiplier > 0.0 {
+        (growth_time_secs as f32 / initial_multiplier) as u64
+    } else {
+        growth_time_secs * 10 // Very slow if no growth (night time, etc.)
+    };
+    
+    let maturity_time = ctx.timestamp + TimeDuration::from(Duration::from_secs(adjusted_growth_secs));
     let chunk_index = calculate_chunk_index(final_plant_x, final_plant_y);
     
     log::info!("PLANT_SEED: Creating planted seed - growth time: {}s, chunk: {}", growth_time_secs, chunk_index);
@@ -1169,13 +1208,15 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             // Calculate green rune stone bonus (agrarian effect)
             let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
             
-            // PvP-oriented: If green rune stone is active, apply it with soil bonus but ignore other penalties
+            // PvP-oriented: If green rune stone is active, stack ALL positive bonuses but ignore penalties
             // This guarantees good growth for farmers near green rune stones
             if green_rune_multiplier > 1.0 {
-                // Green rune stone active - apply rune + soil bonuses only (ignore weather/cloud penalties)
-                green_rune_multiplier * soil_multiplier
+                // Green rune stone active - apply ALL positive bonuses, ignore penalties (cloud, crowding, shelter, night)
+                // Positive bonuses: rune stone, water, fertilizer, soil, mushroom, light (if beneficial)
+                let positive_light = light_multiplier.max(1.0); // Only keep light bonus, not penalty
+                green_rune_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier * positive_light
             } else {
-                // No green rune stone - apply all normal modifiers
+                // No green rune stone - apply all normal modifiers (including penalties)
                 base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier
             }
         };
