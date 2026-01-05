@@ -194,6 +194,7 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
             case 10: return 'Tundra'; // Arctic tundra (northern regions)
             case 11: return 'Alpine'; // High-altitude rocky terrain
             case 12: return 'TundraGrass'; // Grassy patches in tundra biome
+            case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
             default: return 'Grass';
         }
     }

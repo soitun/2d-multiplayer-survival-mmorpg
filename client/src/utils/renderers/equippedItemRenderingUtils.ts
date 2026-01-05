@@ -926,7 +926,8 @@ export const renderEquippedItem = (
   // seaweed, dropped items) and avoids the visual artifacts that the old offscreen canvas approach caused.
 
   // --- Draw Attack Visual Effect --- 
-  if (isSwinging) { 
+  // Attack cone disabled - too distracting visually
+  if (false && isSwinging) { 
     // Get the weapon's actual attack range and arc for the range indicator
     const weaponParams = getWeaponAttackParams(itemDef);
     const attackRange = weaponParams.range;

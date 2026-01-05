@@ -88,6 +88,7 @@ function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number
           case 10: return 'Tundra';
           case 11: return 'Alpine';
           case 12: return 'TundraGrass'; // Grassy patches in tundra biome
+          case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
           default: return 'Grass';
         }
       }

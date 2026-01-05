@@ -1093,9 +1093,8 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
 /// Get monument placeables for the Shipwreck monument
 pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // Two campfires near the wreckage for survivors
-        MonumentPlaceableConfig::campfire(-100.0, 80.0),
-        MonumentPlaceableConfig::campfire(100.0, 80.0),
+        // Single campfire north of the main shipwreck part (hull1.png center)
+        MonumentPlaceableConfig::campfire(0.0, -200.0),
     ]
 }
 

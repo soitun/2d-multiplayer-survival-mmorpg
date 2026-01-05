@@ -881,7 +881,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         log::info!("[UseEquippedItem] Stone Tiller detected - attempting to till soil");
         
         // Calculate the position in front of the player (one tile ahead in facing direction)
-        let till_distance = crate::TILE_SIZE_PX as f32 * 1.5; // 1.5 tiles ahead
+        // Player sprite is centered, so we target 1 tile ahead to hit the adjacent tile
+        let till_distance = crate::TILE_SIZE_PX as f32; // 1 tile ahead (48px)
         let (dir_x, dir_y) = match player.direction.as_str() {
             "up" => (0.0, -1.0),
             "down" => (0.0, 1.0),

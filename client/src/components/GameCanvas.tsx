@@ -528,6 +528,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return itemDef?.name === 'Repair Hammer';
   }, [localPlayerId, activeEquipments, itemDefinitions]);
 
+  // Check if Stone Tiller is equipped (for tile preview)
+  const hasStoneTiller = useMemo(() => {
+    if (!localPlayerId || !activeEquipments || !itemDefinitions) return false;
+    const equipment = activeEquipments.get(localPlayerId);
+    if (!equipment?.equippedItemDefId) return false;
+    const itemDef = itemDefinitions.get(String(equipment.equippedItemDefId));
+    return itemDef?.name === 'Stone Tiller';
+  }, [localPlayerId, activeEquipments, itemDefinitions]);
+
   // Foundation targeting when Repair Hammer is equipped
   const { targetedFoundation, targetTileX, targetTileY } = useFoundationTargeting(
     connection,
@@ -972,6 +981,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         case 10: return 'Tundra'; // Arctic tundra (northern regions)
         case 11: return 'Alpine'; // High-altitude rocky terrain
         case 12: return 'TundraGrass'; // Grassy patches in tundra biome
+        case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
         default: return 'Grass';
       }
     };
@@ -3431,6 +3441,44 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     // --- End Render Y-Sort Debug Overlay ---
+
+    // --- Render Stone Tiller Target Preview ---
+    if (hasStoneTiller && localPlayer) {
+      const TILE_SIZE = 48;
+      const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
+      const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
+      const facingDir = localFacingDirection || localPlayer.direction;
+      
+      // Calculate target tile (1 tile ahead in facing direction, matching server logic)
+      let targetOffsetX = 0;
+      let targetOffsetY = 0;
+      switch (facingDir) {
+        case 'up':    targetOffsetY = -TILE_SIZE; break;
+        case 'down':  targetOffsetY = TILE_SIZE; break;
+        case 'left':  targetOffsetX = -TILE_SIZE; break;
+        case 'right': targetOffsetX = TILE_SIZE; break;
+      }
+      
+      // Calculate the center of the target position
+      const targetCenterX = playerX + targetOffsetX;
+      const targetCenterY = playerY + targetOffsetY;
+      
+      // Convert to tile coordinates and back to get snapped tile position
+      const targetTileX = Math.floor(targetCenterX / TILE_SIZE);
+      const targetTileY = Math.floor(targetCenterY / TILE_SIZE);
+      const tileWorldX = targetTileX * TILE_SIZE;
+      const tileWorldY = targetTileY * TILE_SIZE;
+      
+      // Draw the preview rectangle
+      ctx.save();
+      ctx.fillStyle = 'rgba(139, 115, 85, 0.35)'; // Semi-transparent brown (dirt color)
+      ctx.strokeStyle = 'rgba(139, 115, 85, 0.8)'; // Solid brown border
+      ctx.lineWidth = 2;
+      ctx.fillRect(tileWorldX, tileWorldY, TILE_SIZE, TILE_SIZE);
+      ctx.strokeRect(tileWorldX, tileWorldY, TILE_SIZE, TILE_SIZE);
+      ctx.restore();
+    }
+    // --- End Stone Tiller Target Preview ---
 
     // --- Render Attack Range Debug Overlay ---
     if (showAttackRangeDebug && localPlayer) {

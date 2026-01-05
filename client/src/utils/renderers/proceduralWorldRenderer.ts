@@ -308,7 +308,9 @@ export class ProceduralWorldRenderer {
         
         // === NORMAL RENDERING ===
         // Render base texture
-        const image = this.tileCache.images.get(`${tileTypeName}_base`);
+        // Map Tilled tiles to use Dirt base texture (Tilled uses Dirt graphics)
+        const baseTextureKey = tileTypeName === 'Tilled' ? 'Dirt' : tileTypeName;
+        const image = this.tileCache.images.get(`${baseTextureKey}_base`);
         
         if (image && image.complete && image.naturalHeight !== 0) {
             ctx.drawImage(image, pixelX, pixelY, pixelSize, pixelSize);
@@ -649,6 +651,7 @@ export class ProceduralWorldRenderer {
                 ctx.fillStyle = '#8FBC8F';
                 break;
             case 'Dirt':
+            case 'Tilled': // Tilled uses same graphics as Dirt
                 ctx.fillStyle = '#8B7355';
                 break;
             case 'DirtRoad':
