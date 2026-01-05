@@ -158,6 +158,12 @@ pub struct PlayerStats {
     
     // Brewing tracking
     pub brews_completed: u32,     // Total successful brews
+    
+    // Insanity tracking (for achievements)
+    pub max_insanity_reached: f32,   // Highest insanity % ever reached (0.0-100.0)
+    pub times_entrained: u32,        // How many times player reached 100% insanity (Entrainment)
+    pub insanity_thresholds_crossed: u8, // Bitmask: bit 0=25%, bit 1=50%, bit 2=75%, bit 3=90%, bit 4=100%
+    
     pub play_time_seconds: u64,
     pub longest_survival_seconds: u64,
     pub current_survival_start: Option<Timestamp>, // When current survival run started
@@ -350,6 +356,9 @@ pub fn get_or_init_player_stats(ctx: &ReducerContext, player_id: Identity) -> Pl
         walrus_tamed: false,
         barrels_destroyed: 0,
         brews_completed: 0,
+        max_insanity_reached: 0.0,
+        times_entrained: 0,
+        insanity_thresholds_crossed: 0,
         play_time_seconds: 0,
         longest_survival_seconds: 0,
         current_survival_start: Some(ctx.timestamp),
@@ -647,6 +656,18 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "brews_25" => stats.brews_completed >= 25,
             "brews_100" => stats.brews_completed >= 100,
             
+            // === INSANITY / SOVA ACHIEVEMENTS ===
+            // Threshold-based (uses bitmask: bit 0=25%, bit 1=50%, bit 2=75%, bit 3=90%, bit 4=100%)
+            "insanity_25" => (stats.insanity_thresholds_crossed & 0b00001) != 0,  // bit 0
+            "insanity_50" => (stats.insanity_thresholds_crossed & 0b00010) != 0,  // bit 1
+            "insanity_75" => (stats.insanity_thresholds_crossed & 0b00100) != 0,  // bit 2
+            "insanity_90" => (stats.insanity_thresholds_crossed & 0b01000) != 0,  // bit 3
+            "insanity_100" => (stats.insanity_thresholds_crossed & 0b10000) != 0, // bit 4 (also times_entrained >= 1)
+            // Entrainment count achievements
+            "entrainment_5" => stats.times_entrained >= 5,
+            "entrainment_10" => stats.times_entrained >= 10,
+            "entrainment_25" => stats.times_entrained >= 25,
+            
             // Shard achievements
             "shards_1000" => stats.total_shards_earned >= 1000,
             "shards_10000" => stats.total_shards_earned >= 10000,
@@ -714,6 +735,58 @@ fn unlock_achievement(
 /// Check level-based achievements
 fn check_level_achievements(ctx: &ReducerContext, player_id: Identity, level: u32) -> Result<(), String> {
     check_achievements(ctx, player_id)
+}
+
+/// Track insanity threshold crossing and check for achievements
+/// Called from player_stats.rs when a player crosses an insanity threshold
+/// 
+/// Arguments:
+/// - `threshold`: The insanity threshold that was crossed (25.0, 50.0, 75.0, 90.0, or 100.0)
+/// - `current_insanity`: The player's current insanity value
+pub fn track_insanity_threshold(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    threshold: f32,
+    current_insanity: f32,
+) -> Result<(), String> {
+    let stats_table = ctx.db.player_stats();
+    let mut stats = get_or_init_player_stats(ctx, player_id);
+    
+    // Update max insanity if this is higher
+    if current_insanity > stats.max_insanity_reached {
+        stats.max_insanity_reached = current_insanity;
+    }
+    
+    // Set the appropriate bit in the bitmask based on threshold
+    // bit 0=25%, bit 1=50%, bit 2=75%, bit 3=90%, bit 4=100%
+    let bit_to_set = match threshold as u32 {
+        25 => 0b00001,  // bit 0
+        50 => 0b00010,  // bit 1
+        75 => 0b00100,  // bit 2
+        90 => 0b01000,  // bit 3
+        100 => {
+            // Reaching 100% (Entrainment) - increment counter and set bit
+            stats.times_entrained += 1;
+            log::info!("Player {} experienced Entrainment! Total count: {}", player_id, stats.times_entrained);
+            0b10000  // bit 4
+        },
+        _ => {
+            log::warn!("Unknown insanity threshold: {}", threshold);
+            0
+        }
+    };
+    
+    // Set the bit (idempotent operation - can call multiple times safely)
+    stats.insanity_thresholds_crossed |= bit_to_set;
+    stats.updated_at = ctx.timestamp;
+    
+    // Update stats
+    stats_table.player_id().update(stats);
+    
+    // Check for newly unlocked achievements
+    check_achievements(ctx, player_id)?;
+    
+    Ok(())
 }
 
 /// Check progress notifications (50%, 75%, 90% thresholds)
@@ -1806,6 +1879,81 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 350,
             title_reward: Some("Grand Alchemist".to_string()),
             category: AchievementCategory::Crafting,
+        },
+        
+        // === INSANITY / SOVA ACHIEVEMENTS ===
+        // Themed around the mysterious memory shard system and SOVA's whispers
+        AchievementDefinition {
+            id: "insanity_25".to_string(),
+            name: "Whispers Begin".to_string(),
+            description: "Reach 25% insanity - SOVA's first warning echoes in your mind".to_string(),
+            icon: "👁️".to_string(),
+            xp_reward: 25,
+            title_reward: None,
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "insanity_50".to_string(),
+            name: "Mind Unraveling".to_string(),
+            description: "Reach 50% insanity - the voices grow louder, reality blurs".to_string(),
+            icon: "🌀".to_string(),
+            xp_reward: 50,
+            title_reward: Some("Unstable".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "insanity_75".to_string(),
+            name: "Edge of Oblivion".to_string(),
+            description: "Reach 75% insanity - you stand at the precipice of the Void".to_string(),
+            icon: "🕳️".to_string(),
+            xp_reward: 75,
+            title_reward: Some("Void-Touched".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "insanity_90".to_string(),
+            name: "Void's Embrace".to_string(),
+            description: "Reach 90% insanity - SOVA screams, reality fractures".to_string(),
+            icon: "💀".to_string(),
+            xp_reward: 100,
+            title_reward: Some("Void-Walker".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "insanity_100".to_string(),
+            name: "Entrained".to_string(),
+            description: "Reach 100% insanity - you have become one with the Entrainment".to_string(),
+            icon: "☠️".to_string(),
+            xp_reward: 200,
+            title_reward: Some("Entrained".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "entrainment_5".to_string(),
+            name: "Familiar Darkness".to_string(),
+            description: "Experience Entrainment 5 times - the Void knows your name".to_string(),
+            icon: "🔮".to_string(),
+            xp_reward: 150,
+            title_reward: Some("Void Addict".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "entrainment_10".to_string(),
+            name: "Beyond Redemption".to_string(),
+            description: "Experience Entrainment 10 times - is there anything left of you?".to_string(),
+            icon: "👻".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Hollow One".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "entrainment_25".to_string(),
+            name: "SOVA's Favorite".to_string(),
+            description: "Experience Entrainment 25 times - she speaks to you now, always".to_string(),
+            icon: "🎭".to_string(),
+            xp_reward: 500,
+            title_reward: Some("SOVA's Vessel".to_string()),
+            category: AchievementCategory::Survival,
         },
     ];
     

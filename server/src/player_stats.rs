@@ -759,6 +759,14 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             }
         }
         
+        // Track insanity achievements when crossing thresholds (only on INCREASE, not decrease)
+        // This triggers achievement unlocks for reaching each insanity level
+        if new_threshold > player.last_insanity_threshold {
+            if let Err(e) = crate::player_progression::track_insanity_threshold(ctx, player_id, new_threshold, new_insanity) {
+                log::warn!("Failed to track insanity achievement for player {:?}: {}", player_id, e);
+            }
+        }
+        
         // Check if insanity reached max - apply Entrainment effect (permanent debuff)
         if new_insanity >= PLAYER_MAX_INSANITY && !crate::active_effects::player_has_entrainment_effect(ctx, player_id) {
             log::warn!("Player {:?} reached maximum insanity ({:.1}) - applying Entrainment effect!", player_id, new_insanity);
