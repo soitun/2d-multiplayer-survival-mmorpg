@@ -108,7 +108,9 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.ExplosiveDud |
   SoundTypeVariants.DoorDestroyed |
   SoundTypeVariants.SovaMemoryShardTutorial |
-  SoundTypeVariants.TillDirt;
+  SoundTypeVariants.TillDirt |
+  SoundTypeVariants.ErrorTillingFailed |
+  SoundTypeVariants.ErrorTillingDirt;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -199,6 +201,8 @@ export const SoundType = {
   DoorDestroyed: { tag: "DoorDestroyed" } as const,
   SovaMemoryShardTutorial: { tag: "SovaMemoryShardTutorial" } as const,
   TillDirt: { tag: "TillDirt" } as const,
+  ErrorTillingFailed: { tag: "ErrorTillingFailed" } as const,
+  ErrorTillingDirt: { tag: "ErrorTillingDirt" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -283,6 +287,8 @@ export const SoundType = {
       { name: "DoorDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SovaMemoryShardTutorial", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TillDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ErrorTillingFailed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ErrorTillingDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

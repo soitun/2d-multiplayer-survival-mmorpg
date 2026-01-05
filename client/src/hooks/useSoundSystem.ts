@@ -79,6 +79,8 @@ const SOUND_DEFINITIONS = {
     // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
     sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
     till_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 200 }, // Tilling soil with Stone Tiller
+    error_tilling_failed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 50 }, // SOVA: "This ground cannot be tilled"
+    error_tilling_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 50 }, // SOVA: "This soil has already been prepared"
     // Building sounds - server only (all players hear)
     foundation_wood_constructed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation placement sound
     foundation_wood_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to wood sound

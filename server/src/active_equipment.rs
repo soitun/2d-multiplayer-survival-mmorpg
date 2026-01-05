@@ -917,7 +917,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         
         // Attempt to till the soil
         match tilled_tiles::till_tile_at_position(ctx, till_x, till_y, sender_id) {
-            Ok(true) => {
+            tilled_tiles::TillResult::Success => {
                 log::info!("[UseEquippedItem] Player {:?} successfully tilled soil at ({:.1}, {:.1})", 
                           sender_id, till_x, till_y);
                 
@@ -939,12 +939,35 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
                     }
                 }
             },
-            Ok(false) => {
-                log::debug!("[UseEquippedItem] Player {:?} could not till at ({:.1}, {:.1}) - invalid location", 
+            tilled_tiles::TillResult::AlreadyTilled => {
+                log::debug!("[UseEquippedItem] Player {:?} tried to till already-prepared soil at ({:.1}, {:.1})", 
                           sender_id, till_x, till_y);
-                // No error message - just couldn't till (monument, water, already tilled, etc.)
+                // Play "already tilled" error sound (SOVA voice)
+                let _ = crate::sound_events::emit_sound_at_position_with_distance(
+                    ctx, 
+                    crate::sound_events::SoundType::ErrorTillingDirt,
+                    player.position_x, 
+                    player.position_y, 
+                    1.0, // volume
+                    1.0 * crate::TILE_SIZE_PX as f32, // Only player hears
+                    sender_id,
+                );
             },
-            Err(e) => {
+            tilled_tiles::TillResult::CannotTill => {
+                log::debug!("[UseEquippedItem] Player {:?} cannot till at ({:.1}, {:.1}) - invalid tile type", 
+                          sender_id, till_x, till_y);
+                // Play "cannot till" error sound (SOVA voice)
+                let _ = crate::sound_events::emit_sound_at_position_with_distance(
+                    ctx, 
+                    crate::sound_events::SoundType::ErrorTillingFailed,
+                    player.position_x, 
+                    player.position_y, 
+                    1.0, // volume
+                    1.0 * crate::TILE_SIZE_PX as f32, // Only player hears
+                    sender_id,
+                );
+            },
+            tilled_tiles::TillResult::Error(e) => {
                 log::error!("[UseEquippedItem] Error tilling at ({:.1}, {:.1}): {}", till_x, till_y, e);
             }
         }

@@ -117,6 +117,7 @@ import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarb
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
+import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
 import { renderProjectile } from '../utils/renderers/projectileRenderingUtils';
@@ -3443,40 +3444,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End Render Y-Sort Debug Overlay ---
 
     // --- Render Stone Tiller Target Preview ---
-    if (hasStoneTiller && localPlayer) {
-      const TILE_SIZE = 48;
+    if (hasStoneTiller && localPlayer && connection) {
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const facingDir = localFacingDirection || localPlayer.direction;
       
-      // Calculate target tile (1 tile ahead in facing direction, matching server logic)
-      let targetOffsetX = 0;
-      let targetOffsetY = 0;
-      switch (facingDir) {
-        case 'up':    targetOffsetY = -TILE_SIZE; break;
-        case 'down':  targetOffsetY = TILE_SIZE; break;
-        case 'left':  targetOffsetX = -TILE_SIZE; break;
-        case 'right': targetOffsetX = TILE_SIZE; break;
-      }
-      
-      // Calculate the center of the target position
-      const targetCenterX = playerX + targetOffsetX;
-      const targetCenterY = playerY + targetOffsetY;
-      
-      // Convert to tile coordinates and back to get snapped tile position
-      const targetTileX = Math.floor(targetCenterX / TILE_SIZE);
-      const targetTileY = Math.floor(targetCenterY / TILE_SIZE);
-      const tileWorldX = targetTileX * TILE_SIZE;
-      const tileWorldY = targetTileY * TILE_SIZE;
-      
-      // Draw the preview rectangle
-      ctx.save();
-      ctx.fillStyle = 'rgba(139, 115, 85, 0.35)'; // Semi-transparent brown (dirt color)
-      ctx.strokeStyle = 'rgba(139, 115, 85, 0.8)'; // Solid brown border
-      ctx.lineWidth = 2;
-      ctx.fillRect(tileWorldX, tileWorldY, TILE_SIZE, TILE_SIZE);
-      ctx.strokeRect(tileWorldX, tileWorldY, TILE_SIZE, TILE_SIZE);
-      ctx.restore();
+      renderTillerPreview({
+        ctx,
+        connection,
+        playerX,
+        playerY,
+        facingDirection: facingDir,
+      });
     }
     // --- End Stone Tiller Target Preview ---
 

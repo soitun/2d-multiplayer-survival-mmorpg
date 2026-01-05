@@ -86,6 +86,8 @@ pub enum SoundType {
     DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
     SovaMemoryShardTutorial, // sova_memory_shard_tutorial.mp3 (SOVA explains memory shards on first pickup)
     TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
+    ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
+    ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -173,6 +175,8 @@ impl SoundType {
             SoundType::DoorDestroyed => "door_destroyed",
             SoundType::SovaMemoryShardTutorial => "sova_memory_shard_tutorial",
             SoundType::TillDirt => "till_dirt",
+            SoundType::ErrorTillingFailed => "error_tilling_failed",
+            SoundType::ErrorTillingDirt => "error_tilling_dirt",
         }
     }
 
@@ -258,6 +262,8 @@ impl SoundType {
             SoundType::DoorDestroyed => 1, // door_destroyed.mp3 (single variation)
             SoundType::SovaMemoryShardTutorial => 1, // sova_memory_shard_tutorial.mp3 (SOVA tutorial - single)
             SoundType::TillDirt => 1, // till_dirt.mp3 (tilling soil with Stone Tiller)
+            SoundType::ErrorTillingFailed => 1, // error_tilling_failed.mp3 (SOVA error for non-tillable ground)
+            SoundType::ErrorTillingDirt => 1, // error_tilling_dirt.mp3 (SOVA error for already-tilled ground)
         }
     }
 

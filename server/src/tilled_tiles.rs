@@ -113,27 +113,40 @@ pub fn get_soil_growth_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f
     1.0 // No bonus
 }
 
+/// Result of attempting to till a tile
+#[derive(Debug, Clone, PartialEq)]
+pub enum TillResult {
+    /// Successfully tilled the tile
+    Success,
+    /// Tile is already tilled (natural dirt counts as already prepared)
+    AlreadyTilled,
+    /// Tile type cannot be tilled (water, monument area, asphalt, etc.)
+    CannotTill,
+    /// Error during tilling operation
+    Error(String),
+}
+
 /// Till a tile at the specified world coordinates
-/// Returns Ok(true) if tilled, Ok(false) if couldn't be tilled, Err for errors
+/// Returns TillResult indicating success or the specific failure reason
 pub fn till_tile_at_position(
     ctx: &ReducerContext,
     world_x: f32,
     world_y: f32,
     tilled_by: Identity,
-) -> Result<bool, String> {
+) -> TillResult {
     // Convert world position to tile coordinates
     let (tile_x, tile_y) = world_pos_to_tile_coords(world_x, world_y);
     
     // Check if position is on a monument (not tillable)
     if is_position_on_monument(ctx, world_x, world_y) {
         log::debug!("Cannot till at ({}, {}): monument area", tile_x, tile_y);
-        return Ok(false);
+        return TillResult::CannotTill;
     }
     
     // Check if tile is already tilled
     if is_tile_tilled(ctx, tile_x, tile_y) {
         log::debug!("Tile at ({}, {}) is already tilled", tile_x, tile_y);
-        return Ok(false);
+        return TillResult::AlreadyTilled;
     }
     
     // Get current tile type
@@ -141,22 +154,32 @@ pub fn till_tile_at_position(
         Some(t) => t,
         None => {
             log::warn!("Could not get tile type at ({}, {})", tile_x, tile_y);
-            return Err("Could not get tile type".to_string());
+            return TillResult::Error("Could not get tile type".to_string());
         }
     };
+    
+    // Check if tile type can be tilled
+    // Natural Dirt is already "prepared soil" - treat as already tilled
+    if current_tile_type == TileType::Dirt {
+        log::debug!("Tile at ({}, {}) is natural dirt (already prepared)", tile_x, tile_y);
+        return TillResult::AlreadyTilled;
+    }
     
     // Check if this tile type can be tilled
     if !current_tile_type.can_be_tilled() {
         log::debug!("Tile type {:?} at ({}, {}) cannot be tilled", current_tile_type, tile_x, tile_y);
-        return Ok(false);
+        return TillResult::CannotTill;
     }
     
     // Store original tile type for reversion
     let original_type_u8 = current_tile_type.to_u8();
     
     // Update the world chunk data to change the tile to Tilled
-    if !update_tile_in_chunk(ctx, tile_x, tile_y, TileType::Tilled)? {
-        return Err("Failed to update tile in chunk data".to_string());
+    match update_tile_in_chunk(ctx, tile_x, tile_y, TileType::Tilled) {
+        Ok(false) | Err(_) => {
+            return TillResult::Error("Failed to update tile in chunk data".to_string());
+        }
+        Ok(true) => {}
     }
     
     // Store metadata for reversion
@@ -177,11 +200,11 @@ pub fn till_tile_at_position(
         Ok(_) => {
             log::info!("Tilled tile at ({}, {}) by {:?}, reverts at {:?}", 
                       tile_x, tile_y, tilled_by, reverts_at);
-            Ok(true)
+            TillResult::Success
         }
         Err(e) => {
             log::error!("Failed to insert tilled tile metadata: {:?}", e);
-            Err("Failed to store tilled tile metadata".to_string())
+            TillResult::Error("Failed to store tilled tile metadata".to_string())
         }
     }
 }
@@ -348,12 +371,12 @@ pub fn till_ground(ctx: &ReducerContext, world_x: f32, world_y: f32) -> Result<(
     }
     
     // Attempt to till the tile
-    match till_tile_at_position(ctx, world_x, world_y, player_id)? {
-        true => {
-            // Play sound effect (using HarvestPlant as placeholder until we add a specific TillGround sound)
+    match till_tile_at_position(ctx, world_x, world_y, player_id) {
+        TillResult::Success => {
+            // Play sound effect
             let _ = emit_sound_at_position_with_distance(
                 ctx,
-                SoundType::HarvestPlant, // Using HarvestPlant for tilling sound
+                SoundType::TillDirt,
                 world_x,
                 world_y,
                 1.0,
@@ -362,6 +385,30 @@ pub fn till_ground(ctx: &ReducerContext, world_x: f32, world_y: f32) -> Result<(
             );
             Ok(())
         }
-        false => Err("Cannot till this location".to_string())
+        TillResult::AlreadyTilled => {
+            let _ = emit_sound_at_position_with_distance(
+                ctx,
+                SoundType::ErrorTillingDirt,
+                world_x,
+                world_y,
+                1.0,
+                50.0,
+                player_id,
+            );
+            Err("This soil is already prepared".to_string())
+        }
+        TillResult::CannotTill => {
+            let _ = emit_sound_at_position_with_distance(
+                ctx,
+                SoundType::ErrorTillingFailed,
+                world_x,
+                world_y,
+                1.0,
+                50.0,
+                player_id,
+            );
+            Err("This ground cannot be tilled".to_string())
+        }
+        TillResult::Error(e) => Err(e)
     }
 }

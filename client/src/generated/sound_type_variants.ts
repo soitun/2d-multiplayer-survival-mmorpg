@@ -107,4 +107,6 @@ export type ExplosiveDud = { tag: "ExplosiveDud" };
 export type DoorDestroyed = { tag: "DoorDestroyed" };
 export type SovaMemoryShardTutorial = { tag: "SovaMemoryShardTutorial" };
 export type TillDirt = { tag: "TillDirt" };
+export type ErrorTillingFailed = { tag: "ErrorTillingFailed" };
+export type ErrorTillingDirt = { tag: "ErrorTillingDirt" };
 

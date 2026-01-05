@@ -97,10 +97,10 @@ export const DUAL_GRID_LOOKUP: ReadonlyArray<{ row: number; col: number }> = [
     { row: 2, col: 2 },  // 3  (0011) = Bottom edge (A8)
     { row: 4, col: 1 },  // 4  (0100) = TR different → Concave TR (B3)
     { row: 1, col: 3 },  // 5  (0101) = Right edge (A6)
-    { row: 3, col: 3 },  // 6  (0110) = Diagonal TR+BL → C1
+    { row: 4, col: 3 },  // 6  (0110) = Diagonal TR+BL → C2 (SWAPPED with 9)
     { row: 2, col: 3 },  // 7  (0111) = Convex TL corner (A1) - SWAPPED with 14
     { row: 4, col: 2 },  // 8  (1000) = TL different → Concave TL (B4)
-    { row: 4, col: 3 },  // 9  (1001) = Diagonal TL+BR → C2
+    { row: 3, col: 3 },  // 9  (1001) = Diagonal TL+BR → C1 (SWAPPED with 6)
     { row: 1, col: 1 },  // 10 (1010) = Left edge (A4)
     { row: 2, col: 1 },  // 11 (1011) = Convex TR corner (A3) - SWAPPED with 13
     { row: 0, col: 2 },  // 12 (1100) = Top edge (A2)
@@ -238,23 +238,19 @@ function getTerrainPriority(terrainType: string): number {
 }
 
 /**
- * Determine if a diagonal tile (index 6 or 9) needs horizontal flipping
- * based on the surrounding tile context.
+ * Determine if a diagonal tile (index 6 or 9) should use the alternate diagonal.
  * 
- * Index 6 (0110): TR+BL are secondary → diagonal from TR to BL
- * Index 9 (1001): TL+BR are secondary → diagonal from TL to BR
+ * The dual-grid renders at half-tile offsets, so the tile at (logicalX, logicalY)
+ * is influenced by corners at: TL(x,y), TR(x+1,y), BL(x,y+1), BR(x+1,y+1)
  * 
- * Heuristic: Check the neighbors of the secondary corners to determine
- * which diagonal orientation creates better connections.
+ * Index 6 (0110): TR+BL are secondary → default diagonal cuts TR to BL
+ * Index 9 (1001): TL+BR are secondary → default diagonal cuts TL to BR
  * 
- * For index 6: Check neighbors of TR and BL (the secondary corners)
- * - If the neighbor to the right of TR is primary, and neighbor below BL is primary,
- *   the current TR→BL diagonal is correct (don't flip)
- * - If those neighbors suggest TL→BR would connect better, flip
- * 
- * For index 9: Similar logic but for TL and BR neighbors
+ * To determine correct diagonal, check adjacent dual-grid cells:
+ * - If secondary terrain continues diagonally in the TL↔BR direction, use TL↔BR diagonal
+ * - If secondary terrain continues diagonally in the TR↔BL direction, use TR↔BL diagonal
  */
-function shouldFlipDiagonalHorizontal(
+function shouldSwapDiagonal(
     dualGridIndex: number,
     logicalX: number,
     logicalY: number,
@@ -266,41 +262,60 @@ function shouldFlipDiagonalHorizontal(
         return false;
     }
     
-    // TEMPORARY: Always flip index 6 to test if flipping works
-    // TODO: Replace with proper heuristic based on neighbor analysis
+    // Helper to check if a tile is secondary (not primary)
+    const isSecondary = (x: number, y: number): boolean => {
+        const tile = worldTiles.get(`${x}_${y}`);
+        const type = getTileType(tile);
+        return type !== primaryTerrain;
+    };
+    
+    // Check adjacent tiles to determine diagonal direction
+    // We look at the tiles diagonally adjacent to determine flow
+    
+    // Get the 4 corner types for this dual-grid cell
+    const tlSecondary = isSecondary(logicalX, logicalY);
+    const trSecondary = isSecondary(logicalX + 1, logicalY);
+    const blSecondary = isSecondary(logicalX, logicalY + 1);
+    const brSecondary = isSecondary(logicalX + 1, logicalY + 1);
+    
+    // Check neighbors in each diagonal direction to see where the secondary terrain continues
+    // TL↔BR direction: check above-left of TL and below-right of BR
+    const aboveLeftSecondary = isSecondary(logicalX - 1, logicalY - 1);
+    const belowRightSecondary = isSecondary(logicalX + 2, logicalY + 2);
+    
+    // TR↔BL direction: check above-right of TR and below-left of BL
+    const aboveRightSecondary = isSecondary(logicalX + 2, logicalY - 1);
+    const belowLeftSecondary = isSecondary(logicalX - 1, logicalY + 2);
+    
+    // Count how many tiles support each diagonal direction
+    let tlBrScore = 0;
+    let trBlScore = 0;
+    
+    // If secondary terrain continues in TL↔BR direction
+    if (tlSecondary && (aboveLeftSecondary || isSecondary(logicalX - 1, logicalY) || isSecondary(logicalX, logicalY - 1))) {
+        tlBrScore++;
+    }
+    if (brSecondary && (belowRightSecondary || isSecondary(logicalX + 2, logicalY + 1) || isSecondary(logicalX + 1, logicalY + 2))) {
+        tlBrScore++;
+    }
+    
+    // If secondary terrain continues in TR↔BL direction  
+    if (trSecondary && (aboveRightSecondary || isSecondary(logicalX + 2, logicalY) || isSecondary(logicalX + 1, logicalY - 1))) {
+        trBlScore++;
+    }
+    if (blSecondary && (belowLeftSecondary || isSecondary(logicalX - 1, logicalY + 1) || isSecondary(logicalX, logicalY + 2))) {
+        trBlScore++;
+    }
+    
+    // Index 6 default is TR↔BL diagonal (C2), index 9 default is TL↔BR diagonal (C1)
+    // Swap if the other diagonal has a higher score
     if (dualGridIndex === 6) {
-        return true; // Always flip index 6 for now
+        // Default is TR↔BL, swap to TL↔BR if that scores higher
+        return tlBrScore > trBlScore;
+    } else {
+        // Default is TL↔BR, swap to TR↔BL if that scores higher  
+        return trBlScore > tlBrScore;
     }
-    
-    // For index 9, use neighbor-based logic
-    if (dualGridIndex === 9) {
-        // Get the 4 corner tiles
-        const tlTile = worldTiles.get(`${logicalX}_${logicalY}`);
-        const trTile = worldTiles.get(`${logicalX + 1}_${logicalY}`);
-        const blTile = worldTiles.get(`${logicalX}_${logicalY + 1}`);
-        const brTile = worldTiles.get(`${logicalX + 1}_${logicalY + 1}`);
-        
-        const trType = getTileType(trTile);
-        const blType = getTileType(blTile);
-        
-        // Index 9: TL and BR are secondary, TR and BL are primary
-        // Check if TR and BL neighbors suggest TR→BL diagonal would connect better
-        const rightOfTR = worldTiles.get(`${logicalX + 2}_${logicalY}`);
-        const belowBL = worldTiles.get(`${logicalX}_${logicalY + 2}`);
-        
-        const rightOfTRType = getTileType(rightOfTR);
-        const belowBLType = getTileType(belowBL);
-        
-        // If neighbors of TR and BL are also primary, flip to create TR→BL diagonal
-        const trNeighborIsPrimary = !rightOfTR || rightOfTRType === primaryTerrain;
-        const blNeighborIsPrimary = !belowBL || belowBLType === primaryTerrain;
-        
-        if (trNeighborIsPrimary && blNeighborIsPrimary) {
-            return true;
-        }
-    }
-    
-    return false;
 }
 
 /**
@@ -493,7 +508,7 @@ export function getDualGridTileInfo(
     // Check if diagonal tiles need horizontal flipping for better connections
     // Use original index before inversion to determine flip, since flip is about
     // the actual pattern, not the tileset orientation
-    const flipHorizontal = shouldFlipDiagonalHorizontal(
+    const flipHorizontal = shouldSwapDiagonal(
         originalDualGridIndex,
         logicalX,
         logicalY,
@@ -645,7 +660,7 @@ export function getDualGridTileInfoMultiLayer(
         // Check if diagonal tiles need horizontal flipping for better connections
         // Use original index before inversion to determine flip, since flip is about
         // the actual pattern, not the tileset orientation
-        const flipHorizontal = shouldFlipDiagonalHorizontal(
+        const flipHorizontal = shouldSwapDiagonal(
             originalDualGridIndex,
             logicalX,
             logicalY,
