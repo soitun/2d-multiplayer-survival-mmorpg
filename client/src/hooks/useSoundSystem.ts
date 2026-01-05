@@ -78,6 +78,7 @@ const SOUND_DEFINITIONS = {
     crush_bones: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Local client sound
     // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
     sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
+    till_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 200 }, // Tilling soil with Stone Tiller
     // Building sounds - server only (all players hear)
     foundation_wood_constructed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation placement sound
     foundation_wood_upgraded: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 700 }, // Foundation upgraded to wood sound

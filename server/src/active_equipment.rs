@@ -21,6 +21,8 @@ use crate::combat::{RESPAWN_TIME_MS};
 use crate::combat::{
     find_targets_in_cone, find_best_target, process_attack, TargetId
 };
+// Tilled tiles system import
+use crate::tilled_tiles;
 
 // Consumable and active effects imports
 use crate::consumables::MAX_HEALTH_VALUE;
@@ -872,6 +874,83 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         log::debug!("[UseEquippedItem] {} equipped - skipping swing (non-weapon utility item)", item_def.name);
         return Ok(());
     }
+    
+    // --- STONE TILLER HANDLING ---
+    // Stone Tiller converts terrain tiles to tilled soil for farming
+    if item_def.name == "Stone Tiller" {
+        log::info!("[UseEquippedItem] Stone Tiller detected - attempting to till soil");
+        
+        // Calculate the position in front of the player (one tile ahead in facing direction)
+        let till_distance = crate::TILE_SIZE_PX as f32 * 1.5; // 1.5 tiles ahead
+        let (dir_x, dir_y) = match player.direction.as_str() {
+            "up" => (0.0, -1.0),
+            "down" => (0.0, 1.0),
+            "left" => (-1.0, 0.0),
+            "right" => (1.0, 0.0),
+            _ => (0.0, 1.0), // Default to down
+        };
+        
+        let till_x = player.position_x + dir_x * till_distance;
+        let till_y = player.position_y + dir_y * till_distance;
+        
+        // Update swing time to show the animation
+        let mut current_equipment_mut = current_equipment.clone();
+        current_equipment_mut.swing_start_time_ms = now_ms;
+        active_equipments.player_identity().update(current_equipment_mut);
+        
+        // Play swing sound
+        crate::sound_events::emit_weapon_swing_sound(ctx, player.position_x, player.position_y, sender_id);
+        
+        // Update attack timestamp
+        if item_def.attack_interval_secs.is_some() && item_def.attack_interval_secs.unwrap_or(0.0) > 0.0 {
+            let new_last_attack_record = PlayerLastAttackTimestamp {
+                player_id: sender_id,
+                last_attack_timestamp: now_ts,
+            };
+            if player_last_attack_timestamps.player_id().find(&sender_id).is_some() {
+                player_last_attack_timestamps.player_id().update(new_last_attack_record);
+            } else {
+                player_last_attack_timestamps.insert(new_last_attack_record);
+            }
+        }
+        
+        // Attempt to till the soil
+        match tilled_tiles::till_tile_at_position(ctx, till_x, till_y, sender_id) {
+            Ok(true) => {
+                log::info!("[UseEquippedItem] Player {:?} successfully tilled soil at ({:.1}, {:.1})", 
+                          sender_id, till_x, till_y);
+                
+                // Play tilling sound
+                let _ = crate::sound_events::emit_sound_at_position_with_distance(
+                    ctx, 
+                    crate::sound_events::SoundType::TillDirt,
+                    till_x, 
+                    till_y, 
+                    1.0, // volume
+                    3.0 * crate::TILE_SIZE_PX as f32, // 3 tile hearing range
+                    sender_id,
+                );
+                
+                // Reduce durability on successful till
+                if crate::durability::has_durability_system(&item_def) {
+                    if let Err(e) = crate::durability::reduce_durability_on_hit(ctx, equipped_item_instance_id) {
+                        log::error!("[UseEquippedItem] Failed to reduce tiller durability: {}", e);
+                    }
+                }
+            },
+            Ok(false) => {
+                log::debug!("[UseEquippedItem] Player {:?} could not till at ({:.1}, {:.1}) - invalid location", 
+                          sender_id, till_x, till_y);
+                // No error message - just couldn't till (monument, water, already tilled, etc.)
+            },
+            Err(e) => {
+                log::error!("[UseEquippedItem] Error tilling at ({:.1}, {:.1}): {}", till_x, till_y, e);
+            }
+        }
+        
+        return Ok(());
+    }
+    // --- END STONE TILLER HANDLING ---
     
     let mut current_equipment_mut = current_equipment.clone(); // Clone to modify for swing time
     current_equipment_mut.swing_start_time_ms = now_ms;

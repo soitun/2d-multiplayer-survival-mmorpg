@@ -65,6 +65,7 @@ import stoneHatchetIcon from '../assets/items/stone_hatchet.png';
 import metalHatchetIcon from '../assets/items/metal_hatchet.png';
 import stonePickaxeIcon from '../assets/items/stone_pickaxe.png';
 import metalPickaxeIcon from '../assets/items/metal_pickaxe.png';
+import stoneTillerIcon from '../assets/items/stone_tiller.png';
 import divingPickIcon from '../assets/items/diving_pick.png';
 import rockItemIcon from '../assets/items/rock_item.png';
 import combatLadleIcon from '../assets/items/combat_ladle.png';
@@ -523,6 +524,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'metal_hatchet.png': metalHatchetIcon,
   'stone_pickaxe.png': stonePickaxeIcon,
   'metal_pickaxe.png': metalPickaxeIcon,
+  'stone_tiller.png': stoneTillerIcon,
   'rock_item.png': rockItemIcon,
   'combat_ladle.png': combatLadleIcon,
   'bone_club.png': boneClubIcon,

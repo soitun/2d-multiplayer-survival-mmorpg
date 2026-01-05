@@ -85,6 +85,7 @@ pub enum SoundType {
     ExplosiveDud,            // explosive_dud.mp3 (1 variation - fizzle sound when explosive fails to detonate)
     DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
     SovaMemoryShardTutorial, // sova_memory_shard_tutorial.mp3 (SOVA explains memory shards on first pickup)
+    TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -171,6 +172,7 @@ impl SoundType {
             SoundType::ExplosiveDud => "explosive_dud",
             SoundType::DoorDestroyed => "door_destroyed",
             SoundType::SovaMemoryShardTutorial => "sova_memory_shard_tutorial",
+            SoundType::TillDirt => "till_dirt",
         }
     }
 
@@ -255,6 +257,7 @@ impl SoundType {
             SoundType::ExplosiveDud => 1, // explosive_dud.mp3 (single variation)
             SoundType::DoorDestroyed => 1, // door_destroyed.mp3 (single variation)
             SoundType::SovaMemoryShardTutorial => 1, // sova_memory_shard_tutorial.mp3 (SOVA tutorial - single)
+            SoundType::TillDirt => 1, // till_dirt.mp3 (tilling soil with Stone Tiller)
         }
     }
 
