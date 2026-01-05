@@ -1,8 +1,14 @@
 import React, { useMemo } from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType, FertilizerPatch } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType, FertilizerPatch, WorldChunkData } from '../generated';
 import styles from './PlantedSeedTooltip.module.css';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { RESOURCE_IMAGE_SOURCES } from '../utils/renderers/resourceImageConfigs';
+
+// Tile type constants (must match server TileType enum)
+const TILE_TYPE_DIRT = 1;
+const TILE_TYPE_TILLED = 13;
+const TILE_SIZE_PX = 48;
+const CHUNK_SIZE_TILES = 16;
 
 interface PlantedSeedTooltipProps {
   seed: PlantedSeed;
@@ -20,6 +26,7 @@ interface PlantedSeedTooltipProps {
   trees: Map<string, Tree>; // Added for mushroom tree cover check
   runeStones: Map<string, RuneStone>; // Added for rune stone growth boost check
   fertilizerPatches: Map<string, FertilizerPatch>; // Added for fertilizer/compost effect
+  worldChunkData?: Map<string, WorldChunkData>; // Added for checking soil type
 }
 
 const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({ 
@@ -36,7 +43,8 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   furnaces,
   trees,
   runeStones,
-  fertilizerPatches
+  fertilizerPatches,
+  worldChunkData
 }) => {
   if (!visible || !seed) {
     return null;
@@ -287,12 +295,48 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return false;
   };
 
+  // Check if seed is on prepared soil (Dirt or Tilled) for growth bonus
+  const isOnPreparedSoil = (): boolean => {
+    if (!worldChunkData) return false;
+    
+    // Calculate tile coordinates from world position
+    const tileX = Math.floor(seed.posX / TILE_SIZE_PX);
+    const tileY = Math.floor(seed.posY / TILE_SIZE_PX);
+    
+    // Calculate chunk coordinates
+    const chunkX = Math.floor(tileX / CHUNK_SIZE_TILES);
+    const chunkY = Math.floor(tileY / CHUNK_SIZE_TILES);
+    
+    // Get the chunk
+    const chunkKey = `${chunkX},${chunkY}`;
+    const chunk = worldChunkData.get(chunkKey);
+    if (!chunk) return false;
+    
+    // Calculate local tile position within the chunk
+    let localTileX = tileX % CHUNK_SIZE_TILES;
+    let localTileY = tileY % CHUNK_SIZE_TILES;
+    
+    // Handle negative tile coordinates
+    if (localTileX < 0) localTileX += CHUNK_SIZE_TILES;
+    if (localTileY < 0) localTileY += CHUNK_SIZE_TILES;
+    
+    // Get tile index and type
+    const tileIndex = localTileY * CHUNK_SIZE_TILES + localTileX;
+    if (tileIndex >= chunk.tileTypes.length) return false;
+    
+    const tileType = chunk.tileTypes[tileIndex];
+    
+    // Check if it's Dirt (1) or Tilled (13)
+    return tileType === TILE_TYPE_DIRT || tileType === TILE_TYPE_TILLED;
+  };
+
   const cloudCoverage = calculateCloudCoverage();
   const waterPatchEffect = getWaterPatchEffect();
   const fertilizerPatchEffect = getFertilizerPatchEffect();
   const nearTree = isNearTree();
   const nearGreenRuneStone = isNearGreenRuneStone();
   const lightEffects = calculateLightEffects();
+  const onPreparedSoil = isOnPreparedSoil();
   
   // Use chunk-specific weather if available, otherwise fall back to global weather
   const currentWeather = seedChunkWeather?.currentWeather?.tag || worldState?.currentWeather.tag || 'Clear';
@@ -459,6 +503,16 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
               <span className={styles.conditionLabel}>Green Rune Stone:</span>
               <span className={`${styles.conditionValue} ${styles.positive}`}>
                 💚 Active +50%
+              </span>
+            </div>
+          )}
+          
+          {/* Prepared Soil (Dirt or Tilled) */}
+          {onPreparedSoil && (
+            <div className={styles.conditionRow}>
+              <span className={styles.conditionLabel}>Prepared Soil:</span>
+              <span className={`${styles.conditionValue} ${styles.positive}`}>
+                🌾 Yes +50%
               </span>
             </div>
           )}

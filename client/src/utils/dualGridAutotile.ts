@@ -132,6 +132,7 @@ export const TERRAIN_PRIORITY: Readonly<Record<string, number>> = {
     'Grass': 6,
     'Forest': 7,
     'Dirt': 8,
+    'Tilled': 8, // Same priority as Dirt - tilled soil uses dirt graphics
     'Quarry': 9,
     'DirtRoad': 10,
     'Asphalt': 11,
@@ -221,9 +222,12 @@ export const TRANSITION_TILESETS: Readonly<Record<string, string>> = {
 
 /**
  * Get the terrain type from a tile, with fallback to 'Grass'
+ * Maps 'Tilled' to 'Dirt' for autotiling purposes (they share graphics)
  */
 function getTileType(tile: WorldTile | undefined): string {
-    return tile?.tileType?.tag ?? 'Grass';
+    const tileType = tile?.tileType?.tag ?? 'Grass';
+    // Tilled tiles render using Dirt graphics and transitions
+    return tileType === 'Tilled' ? 'Dirt' : tileType;
 }
 
 /**

@@ -325,5 +325,20 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .consumable(0.0, 0.0, 0.0) // No nutritional value, but consumable via right-click
             .respawn_time(300)
             .build(),
+
+        // Tiller - Farming tool for preparing soil
+        ItemBuilder::new("Stone Tiller", "A primitive farming tool with a sturdy stone head. Used to till soil, converting terrain into prepared dirt for farming. Tilled soil provides a +50% growth bonus to planted seeds. Tilled tiles revert after 48 hours.", ItemCategory::Tool)
+            .icon("stone_tiller.png")
+            .equippable(None)
+            .pvp_damage(12, 18)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 80 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 25)
+            .respawn_time(600)
+            .attack_interval(0.9)
+            .build(),
     ]
 }

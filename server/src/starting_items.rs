@@ -39,10 +39,12 @@ pub enum LoadoutType {
     Farming,
     /// Explosives testing: Babushka's Surprise and Matriarch's Wrath
     Explosives,
+    /// Farmer loadout: Tiller, seeds, and farming infrastructure
+    Farmer,
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;  
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Farmer;  
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -280,6 +282,35 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Wood", 1000, None, Some(5)),               // For building test structures
             ("Stone", 500, None, Some(6)),
             ("Metal Fragments", 500, None, Some(7)),
+        ],
+
+        // ====================================================================
+        // FARMER - Tilling and advanced farming
+        // ====================================================================
+        LoadoutType::Farmer => vec![
+            // Hotbar - Farming essentials with tiller
+            ("Stone Tiller", 1, Some(0), None),          // Primary tilling tool
+            ("Combat Ladle", 1, Some(1), None),          // Basic tool
+            ("Torch", 1, Some(2), None),
+            ("Plastic Water Jug", 1, Some(3), None),     // Large water container for crops
+            ("Fertilizer", 100, Some(4), None),          // Growth boost
+            ("Reed Water Bottle", 1, Some(5), None),     // Personal hydration
+            // Inventory - Seeds and farming supplies
+            ("Seed Potato", 30, None, Some(0)),
+            ("Corn Seeds", 30, None, Some(1)),
+            ("Carrot Seeds", 40, None, Some(2)),
+            ("Pumpkin Seeds", 25, None, Some(3)),
+            ("Sunflower Seeds", 40, None, Some(4)),
+            ("Flax Seeds", 40, None, Some(5)),
+            ("Chamomile Seeds", 30, None, Some(6)),
+            ("Lingonberry Seeds", 30, None, Some(7)),
+            // Farming infrastructure
+            ("Compost", 5, None, Some(8)),
+            ("Reed Rain Collector", 5, None, Some(9)),
+            ("Wooden Storage Box", 5, None, Some(10)),
+            ("Camp Fire", 3, None, Some(11)),
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(12)),
+            ("Bandage", 10, None, Some(13)),
         ],
     }
 }

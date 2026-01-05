@@ -4502,6 +4502,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           trees={trees}
           runeStones={runeStones}
           fertilizerPatches={fertilizerPatches}
+          worldChunkData={connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined}
         />
       )}
     </div>

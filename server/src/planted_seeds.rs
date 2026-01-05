@@ -563,6 +563,70 @@ fn validate_seaweed_frond_planting(_ctx: &ReducerContext, _player_id: spacetimed
     Ok(())
 }
 
+// --- Alpine Plant Validation ---
+
+/// Validate arctic lichen spores planting location
+/// Arctic Lichen can only be planted on alpine tiles
+fn validate_arctic_lichen_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
+        return Err("Lichen Spores can only be planted on alpine mountain tiles".to_string());
+    }
+    log::info!("Arctic Lichen planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
+/// Validate mountain moss spores planting location
+/// Mountain Moss can only be planted on alpine tiles
+fn validate_mountain_moss_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
+        return Err("Moss Spores can only be planted on alpine mountain tiles".to_string());
+    }
+    log::info!("Mountain Moss planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
+/// Validate arctic poppy seeds planting location
+/// Arctic Poppy can only be planted on alpine tiles
+fn validate_arctic_poppy_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
+        return Err("Arctic Poppy Seeds can only be planted on alpine mountain tiles".to_string());
+    }
+    log::info!("Arctic Poppy planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
+/// Validate arctic hairgrass seeds planting location
+/// Arctic Hairgrass can only be planted on alpine tiles
+fn validate_arctic_hairgrass_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
+        return Err("Arctic Hairgrass Seeds can only be planted on alpine mountain tiles".to_string());
+    }
+    log::info!("Arctic Hairgrass planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
+// --- Tundra Plant Validation ---
+
+/// Validate crowberry seeds planting location
+/// Crowberry can only be planted on tundra tiles
+fn validate_crowberry_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_tundra_tile(ctx, x, y) {
+        return Err("Crowberry Seeds can only be planted on tundra tiles".to_string());
+    }
+    log::info!("Crowberry planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
+/// Validate fireweed seeds planting location
+/// Fireweed can only be planted on tundra tiles
+fn validate_fireweed_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
+    if !crate::environment::is_position_on_tundra_tile(ctx, x, y) {
+        return Err("Fireweed Seeds can only be planted on tundra tiles".to_string());
+    }
+    log::info!("Fireweed planting validated at ({:.1}, {:.1})", x, y);
+    Ok(())
+}
+
 // --- Planting Reducer ---
 
 /// Plants a seed item on the ground to grow into a resource
@@ -693,6 +757,58 @@ pub fn plant_seed(
         }
     }
     
+    // === ALPINE PLANT VALIDATIONS ===
+    
+    // Special validation for Lichen Spores - must be planted on alpine tiles
+    if item_def.name == "Lichen Spores" {
+        if let Err(e) = validate_arctic_lichen_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Lichen Spores validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
+    // Special validation for Moss Spores - must be planted on alpine tiles
+    if item_def.name == "Moss Spores" {
+        if let Err(e) = validate_mountain_moss_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Moss Spores validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
+    // Special validation for Arctic Poppy Seeds - must be planted on alpine tiles
+    if item_def.name == "Arctic Poppy Seeds" {
+        if let Err(e) = validate_arctic_poppy_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Arctic Poppy Seeds validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
+    // Special validation for Arctic Hairgrass Seeds - must be planted on alpine tiles
+    if item_def.name == "Arctic Hairgrass Seeds" {
+        if let Err(e) = validate_arctic_hairgrass_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Arctic Hairgrass Seeds validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
+    // === TUNDRA PLANT VALIDATIONS ===
+    
+    // Special validation for Crowberry Seeds - must be planted on tundra tiles
+    if item_def.name == "Crowberry Seeds" {
+        if let Err(e) = validate_crowberry_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Crowberry Seeds validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
+    // Special validation for Fireweed Seeds - must be planted on tundra tiles
+    if item_def.name == "Fireweed Seeds" {
+        if let Err(e) = validate_fireweed_planting(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Fireweed Seeds validation failed: {}", e);
+            return Err(e);
+        }
+    }
+    
     // Validation for normal plants (non-water, non-beach) - cannot be planted on water
     // Reed Rhizome requires water, so skip this check for it
     // Seaweed Frond requires deep water, so skip this check for it
@@ -709,6 +825,26 @@ pub fn plant_seed(
         }
     }
     
+    // Convert click position to tile coordinates and snap to tile center
+    // All planted seeds snap to tile center for consistent one-per-tile behavior
+    let (tile_x, tile_y) = crate::world_pos_to_tile_coords(plant_pos_x, plant_pos_y);
+    let final_plant_x = (tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+    let final_plant_y = (tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+    
+    log::info!("PLANT_SEED: Snapping to tile center at ({:.1}, {:.1}) for tile ({}, {})", 
+              final_plant_x, final_plant_y, tile_x, tile_y);
+    
+    // Check if there's already a planted seed on this tile (one seed per tile)
+    let existing_seed_on_tile = ctx.db.planted_seed().iter().any(|seed| {
+        let (seed_tile_x, seed_tile_y) = crate::world_pos_to_tile_coords(seed.pos_x, seed.pos_y);
+        seed_tile_x == tile_x && seed_tile_y == tile_y
+    });
+    
+    if existing_seed_on_tile {
+        log::error!("PLANT_SEED: There's already a seed planted on tile ({}, {})", tile_x, tile_y);
+        return Err("There's already a seed planted on this tile".to_string());
+    }
+    
     // Calculate growth time (using centralized database values)
     let growth_time_secs = if min_growth_time_secs >= max_growth_time_secs {
         min_growth_time_secs
@@ -717,7 +853,7 @@ pub fn plant_seed(
     };
     
     let maturity_time = ctx.timestamp + TimeDuration::from(Duration::from_secs(growth_time_secs));
-    let chunk_index = calculate_chunk_index(plant_pos_x, plant_pos_y);
+    let chunk_index = calculate_chunk_index(final_plant_x, final_plant_y);
     
     log::info!("PLANT_SEED: Creating planted seed - growth time: {}s, chunk: {}", growth_time_secs, chunk_index);
     
@@ -725,8 +861,8 @@ pub fn plant_seed(
     // Note: will_mature_at will be dynamically updated based on environmental conditions
     let planted_seed = PlantedSeed {
         id: 0, // Auto-inc
-        pos_x: plant_pos_x,
-        pos_y: plant_pos_y,
+        pos_x: final_plant_x,
+        pos_y: final_plant_y,
         chunk_index,
         seed_type: item_def.name.clone(),
         plant_type: plant_type, // Store the target plant type from centralized database
@@ -761,8 +897,8 @@ pub fn plant_seed(
         log::info!("PLANT_SEED: Deleted last seed item");
     }
     
-    log::info!("PLANT_SEED: SUCCESS - Player {:?} planted {} at ({:.1}, {:.1}) - will mature in {} seconds", 
-              player_id, item_def.name, plant_pos_x, plant_pos_y, growth_time_secs);
+    log::info!("PLANT_SEED: SUCCESS - Player {:?} planted {} at ({:.1}, {:.1}) on tile ({}, {}) - will mature in {} seconds", 
+              player_id, item_def.name, final_plant_x, final_plant_y, tile_x, tile_y, growth_time_secs);
     
     // Track seeds_planted stat for farming achievements
     if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "seeds_planted", 1) {
@@ -770,7 +906,7 @@ pub fn plant_seed(
     }
     
     // Emit plant seed sound
-    crate::sound_events::emit_plant_seed_sound(ctx, plant_pos_x, plant_pos_y, player_id);
+    crate::sound_events::emit_plant_seed_sound(ctx, final_plant_x, final_plant_y, player_id);
     
     Ok(())
 }
@@ -972,6 +1108,7 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         let mut water_multiplier = 1.0f32;
         let mut fertilizer_multiplier = 1.0f32;
         let mut mushroom_bonus = 1.0f32;
+        let mut soil_multiplier = 1.0f32;
         
         let total_growth_multiplier = if is_underwater_plant {
             // Underwater plants grow at a constant rate, only affected by crowding
@@ -1026,6 +1163,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
             mushroom_bonus = get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &current_time_of_day);
             
+            // Calculate prepared soil bonus (Dirt or Tilled tiles get +50% growth)
+            soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            
             // Calculate green rune stone bonus (agrarian effect)
             let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
             
@@ -1035,7 +1175,7 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
                 green_rune_multiplier
             } else {
                 // No green rune stone - apply all normal modifiers
-                base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus
+                base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier
             }
         };
         
@@ -1084,9 +1224,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             plants_updated += 1;
             
             if growth_increment > 0.0 {
-                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, fertilizer: {:.2}x, mushroom: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
+                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, fertilizer: {:.2}x, mushroom: {:.2}x, soil: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
                            plant_id, plant_type, old_progress * 100.0, progress_pct, 
-                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, fertilizer_multiplier, mushroom_bonus, total_growth_multiplier, chunk_weather.current_weather);
+                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, fertilizer_multiplier, mushroom_bonus, soil_multiplier, total_growth_multiplier, chunk_weather.current_weather);
             }
         }
     }

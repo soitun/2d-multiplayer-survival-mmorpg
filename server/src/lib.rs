@@ -127,6 +127,7 @@ mod sound_events; // <<< ADDED sound events module
 mod rain_collector; // <<< ADDED rain collector module
 mod water_patch; // <<< ADDED water patch module for crop watering
 mod fertilizer_patch; // <<< ADDED fertilizer patch module for visual fertilizer application
+mod tilled_tiles; // <<< ADDED tilled tiles module for farming soil preparation
 pub mod wild_animal_npc; // <<< ADDED wild animal NPC system (now modular)
 mod animal_collision; // <<< ADDED animal collision system
 mod barrel; // <<< ADDED roadside barrel loot system
@@ -439,6 +440,8 @@ use crate::sound_events::sound_event_cleanup_schedule as SoundEventCleanupSchedu
 use crate::rain_collector::rain_collector as RainCollectorTableTrait; // <<< ADDED: Import RainCollector table trait
 use crate::water_patch::water_patch as WaterPatchTableTrait; // <<< ADDED: Import WaterPatch table trait
 use crate::fertilizer_patch::fertilizer_patch as FertilizerPatchTableTrait; // <<< ADDED: Import FertilizerPatch table trait
+use crate::tilled_tiles::tilled_tile_metadata as TilledTileMetadataTableTrait; // <<< ADDED: Import TilledTileMetadata table trait
+use crate::tilled_tiles::tilled_tile_reversion_schedule as TilledTileReversionScheduleTableTrait; // <<< ADDED: Import TilledTileReversionSchedule table trait
 use crate::compost::compost_process_schedule as CompostProcessScheduleTableTrait; // <<< ADDED: Import CompostProcessSchedule table trait
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait; // <<< ADDED: Import WildAnimal table trait
 use crate::wild_animal_npc::wild_animal_ai_schedule as WildAnimalAiScheduleTableTrait; // <<< ADDED: Import WildAnimalAiSchedule table trait
@@ -735,6 +738,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize fertilizer patch cleanup system
     crate::fertilizer_patch::init_fertilizer_patch_system(ctx)?;
+    
+    // ADD: Initialize tilled tile reversion system
+    crate::tilled_tiles::init_tilled_tile_system(ctx)?;
     
     // ADD: Initialize compost processing system
     crate::compost::init_compost_system(ctx)?;
@@ -1860,6 +1866,7 @@ pub enum TileType {
     Tundra,      // Arctic tundra (northern regions - mossy, low vegetation)
     Alpine,      // High-altitude rocky terrain (far north - sparse, rocky)
     TundraGrass, // Grassy patches within tundra biome (lighter green tundra grass)
+    Tilled,      // Temporarily tilled soil for farming (+50% growth bonus, reverts after 48h)
 }
 
 impl TileType {
@@ -2176,6 +2183,7 @@ impl TileType {
             TileType::Tundra => 10,
             TileType::Alpine => 11,
             TileType::TundraGrass => 12,
+            TileType::Tilled => 13,
         }
     }
     
@@ -2195,6 +2203,7 @@ impl TileType {
             10 => Some(TileType::Tundra),
             11 => Some(TileType::Alpine),
             12 => Some(TileType::TundraGrass),
+            13 => Some(TileType::Tilled),
             _ => None,
         }
     }
@@ -2217,6 +2226,27 @@ impl TileType {
     /// Returns true if this tile can support trees (not water, alpine, or paved)
     pub fn can_have_trees(&self) -> bool {
         !matches!(self, TileType::Sea | TileType::HotSpringWater | TileType::Asphalt | TileType::Alpine | TileType::Beach | TileType::Sand)
+    }
+    
+    /// Returns true if this tile is prepared soil (Dirt or Tilled) for farming growth bonus
+    pub fn is_prepared_soil(&self) -> bool {
+        matches!(self, TileType::Dirt | TileType::Tilled)
+    }
+    
+    /// Returns true if this tile can be tilled (converted to tilled soil)
+    /// Water, roads, paved areas, and already-tilled tiles cannot be tilled
+    pub fn can_be_tilled(&self) -> bool {
+        !matches!(self, 
+            TileType::Sea | 
+            TileType::HotSpringWater | 
+            TileType::Asphalt | 
+            TileType::DirtRoad | 
+            TileType::Quarry |
+            TileType::Dirt |      // Natural dirt doesn't need tilling
+            TileType::Tilled |    // Already tilled
+            TileType::Beach |     // Beach/sand shouldn't be tillable
+            TileType::Sand
+        )
     }
 }
 

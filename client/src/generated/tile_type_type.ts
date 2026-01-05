@@ -42,7 +42,8 @@ export type TileType = TileTypeVariants.Grass |
   TileTypeVariants.Forest |
   TileTypeVariants.Tundra |
   TileTypeVariants.Alpine |
-  TileTypeVariants.TundraGrass;
+  TileTypeVariants.TundraGrass |
+  TileTypeVariants.Tilled;
 
 let _cached_TileType_type_value: __AlgebraicTypeType | null = null;
 
@@ -67,6 +68,7 @@ export const TileType = {
   Tundra: { tag: "Tundra" } as const,
   Alpine: { tag: "Alpine" } as const,
   TundraGrass: { tag: "TundraGrass" } as const,
+  Tilled: { tag: "Tilled" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TileType_type_value) return _cached_TileType_type_value;
@@ -85,6 +87,7 @@ export const TileType = {
       { name: "Tundra", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Alpine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TundraGrass", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Tilled", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TileType_type_value;
   },

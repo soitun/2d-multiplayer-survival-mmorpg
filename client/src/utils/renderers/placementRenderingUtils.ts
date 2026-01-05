@@ -13,7 +13,7 @@ import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRen
 import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, and Cooking Station dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
@@ -243,6 +243,33 @@ function isPositionOnBeach(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
+ * Check if a position is on alpine tiles (for alpine-restricted plants)
+ */
+function isPositionOnAlpine(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) {
+        return false;
+    }
+
+    const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+    const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+    return tileType === 'Alpine';
+}
+
+/**
+ * Check if a position is on tundra tiles (for tundra-restricted plants)
+ * Includes both Tundra and TundraGrass tile types
+ */
+function isPositionOnTundra(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) {
+        return false;
+    }
+
+    const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+    const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+    return tileType === 'Tundra' || tileType === 'TundraGrass';
+}
+
+/**
  * Calculates the distance to the nearest shore (non-water tile) from a water position.
  * Returns distance in pixels, or -1 if position is not on water.
  */
@@ -342,6 +369,36 @@ function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, world
 }
 
 /**
+ * Checks if an alpine plant placement is blocked (not on alpine tiles)
+ * Used for: Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds
+ */
+function isAlpinePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) return false;
+    
+    // Alpine plants must be on alpine tiles
+    if (!isPositionOnAlpine(connection, worldX, worldY)) {
+        return true; // Block if not on alpine
+    }
+    
+    return false; // Valid placement
+}
+
+/**
+ * Checks if a tundra plant placement is blocked (not on tundra tiles)
+ * Used for: Crowberry Seeds, Fireweed Seeds
+ */
+function isTundraPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) return false;
+    
+    // Tundra plants must be on tundra or tundra grass tiles
+    if (!isPositionOnTundra(connection, worldX, worldY)) {
+        return true; // Block if not on tundra
+    }
+    
+    return false; // Valid placement
+}
+
+/**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
@@ -373,6 +430,16 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
         return isBeachLymeGrassPlacementBlocked(connection, worldX, worldY);
     }
 
+    // Special case: Seeds that require alpine placement (Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds)
+    if (requiresAlpinePlacement(placementInfo.itemName)) {
+        return isAlpinePlacementBlocked(connection, worldX, worldY);
+    }
+
+    // Special case: Seeds that require tundra placement (Crowberry Seeds, Fireweed Seeds)
+    if (requiresTundraPlacement(placementInfo.itemName)) {
+        return isTundraPlacementBlocked(connection, worldX, worldY);
+    }
+
     // List of items that cannot be placed on water
     const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
     
@@ -389,13 +456,30 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
 }
 
 /**
- * Checks if a seed placement is too close to existing planted seeds.
- * Returns true if the placement should be blocked.
+ * Checks if a seed placement is blocked because there's already a seed on this tile.
+ * Returns true if the placement should be blocked (one seed per tile rule).
  */
-function isSeedPlacementTooClose(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
-    // Client-side validation removed - let players experiment freely!
-    // The server-side crowding penalty system will handle optimization naturally
-    return false;
+function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
+    if (!connection || !placementInfo) return false;
+    
+    // Only check for seed items
+    if (!isSeedItemValid(placementInfo.itemName)) return false;
+    
+    const TILE_SIZE = 48; // pixels per tile
+    const targetTileX = Math.floor(worldX / TILE_SIZE);
+    const targetTileY = Math.floor(worldY / TILE_SIZE);
+    
+    // Check if any planted seed exists on this tile
+    for (const seed of connection.db.plantedSeed.iter()) {
+        const seedTileX = Math.floor(seed.posX / TILE_SIZE);
+        const seedTileY = Math.floor(seed.posY / TILE_SIZE);
+        
+        if (seedTileX === targetTileX && seedTileY === targetTileY) {
+            return true; // Tile is occupied
+        }
+    }
+    
+    return false; // Tile is free
 }
 
 /**
@@ -1577,8 +1661,8 @@ export function renderPlacementPreview({
     // Check for water placement restriction
     const isOnWater = isWaterPlacementBlocked(connection, placementInfo, snappedX, snappedY);
     
-    // Check for seed proximity restriction
-    const isTooCloseToSeeds = isSeedPlacementTooClose(connection, placementInfo, worldMouseX, worldMouseY);
+    // Check for one-seed-per-tile restriction
+    const isTileOccupiedBySeed = isSeedPlacementOnOccupiedTile(connection, placementInfo, snappedX, snappedY);
     
     // Check if shelter is being placed on a foundation (not allowed)
     // Shelter is 384x384px, which covers 4x4 foundation cells (96px each)
@@ -1680,7 +1764,7 @@ export function renderPlacementPreview({
     } else if (isDoorPlacement) {
         isInvalidPlacement = isDoorInvalid || isInMonumentZone; // Check both foundation edge validity and monument zone
     } else {
-        isInvalidPlacement = isPlacementTooFar || isOnWater || isTooCloseToSeeds || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || !!placementError;
+        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || !!placementError;
     }
     
     if (isInvalidPlacement) {

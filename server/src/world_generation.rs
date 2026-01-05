@@ -2511,6 +2511,7 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
                 TileType::Tundra => 140,   // Pale greenish-gray (arctic grassland)
                 TileType::Alpine => 180,   // Light gray (rocky terrain)
                 TileType::TundraGrass => 120, // Slightly greener than Tundra (grassy patches)
+                TileType::Tilled => 200,   // Slightly darker than Dirt (freshly tilled soil)
             };
             
             // Write directly to buffer (overwriting if multiple tiles map to same pixel is fine/expected)

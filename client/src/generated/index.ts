@@ -419,6 +419,8 @@ import { ProcessPlayerStats } from "./process_player_stats_reducer.ts";
 export { ProcessPlayerStats };
 import { ProcessSleepingBagDeterioration } from "./process_sleeping_bag_deterioration_reducer.ts";
 export { ProcessSleepingBagDeterioration };
+import { ProcessTilledTileReversions } from "./process_tilled_tile_reversions_reducer.ts";
+export { ProcessTilledTileReversions };
 import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
 export { ProcessTorchDurability };
 import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
@@ -653,6 +655,8 @@ import { ThrowItem } from "./throw_item_reducer.ts";
 export { ThrowItem };
 import { TickWorldState } from "./tick_world_state_reducer.ts";
 export { TickWorldState };
+import { TillGround } from "./till_ground_reducer.ts";
+export { TillGround };
 import { ToggleBarbecueBurning } from "./toggle_barbecue_burning_reducer.ts";
 export { ToggleBarbecueBurning };
 import { ToggleCampfireBurning } from "./toggle_campfire_burning_reducer.ts";
@@ -975,6 +979,10 @@ import { ThunderEventTableHandle } from "./thunder_event_table.ts";
 export { ThunderEventTableHandle };
 import { ThunderEventCleanupScheduleTableHandle } from "./thunder_event_cleanup_schedule_table.ts";
 export { ThunderEventCleanupScheduleTableHandle };
+import { TilledTileMetadataTableHandle } from "./tilled_tile_metadata_table.ts";
+export { TilledTileMetadataTableHandle };
+import { TilledTileReversionScheduleTableHandle } from "./tilled_tile_reversion_schedule_table.ts";
+export { TilledTileReversionScheduleTableHandle };
 import { TorchDurabilityScheduleTableHandle } from "./torch_durability_schedule_table.ts";
 export { TorchDurabilityScheduleTableHandle };
 import { TreeTableHandle } from "./tree_table.ts";
@@ -1357,6 +1365,10 @@ import { ThunderEventCleanupSchedule } from "./thunder_event_cleanup_schedule_ty
 export { ThunderEventCleanupSchedule };
 import { TileType } from "./tile_type_type.ts";
 export { TileType };
+import { TilledTileMetadata } from "./tilled_tile_metadata_type.ts";
+export { TilledTileMetadata };
+import { TilledTileReversionSchedule } from "./tilled_tile_reversion_schedule_type.ts";
+export { TilledTileReversionSchedule };
 import { TimeOfDay } from "./time_of_day_type.ts";
 export { TimeOfDay };
 import { TorchDurabilitySchedule } from "./torch_durability_schedule_type.ts";
@@ -2580,6 +2592,24 @@ const REMOTE_MODULE = {
         colType: (ThunderEventCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    tilled_tile_metadata: {
+      tableName: "tilled_tile_metadata" as const,
+      rowType: TilledTileMetadata.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TilledTileMetadata.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    tilled_tile_reversion_schedule: {
+      tableName: "tilled_tile_reversion_schedule" as const,
+      rowType: TilledTileReversionSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TilledTileReversionSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     torch_durability_schedule: {
       tableName: "torch_durability_schedule" as const,
       rowType: TorchDurabilitySchedule.getTypeScriptAlgebraicType(),
@@ -3466,6 +3496,10 @@ const REMOTE_MODULE = {
       reducerName: "process_sleeping_bag_deterioration",
       argsType: ProcessSleepingBagDeterioration.getTypeScriptAlgebraicType(),
     },
+    process_tilled_tile_reversions: {
+      reducerName: "process_tilled_tile_reversions",
+      argsType: ProcessTilledTileReversions.getTypeScriptAlgebraicType(),
+    },
     process_torch_durability: {
       reducerName: "process_torch_durability",
       argsType: ProcessTorchDurability.getTypeScriptAlgebraicType(),
@@ -3934,6 +3968,10 @@ const REMOTE_MODULE = {
       reducerName: "tick_world_state",
       argsType: TickWorldState.getTypeScriptAlgebraicType(),
     },
+    till_ground: {
+      reducerName: "till_ground",
+      argsType: TillGround.getTypeScriptAlgebraicType(),
+    },
     toggle_barbecue_burning: {
       reducerName: "toggle_barbecue_burning",
       argsType: ToggleBarbecueBurning.getTypeScriptAlgebraicType(),
@@ -4270,6 +4308,7 @@ export type Reducer = never
 | { name: "ProcessMatronagePayout", args: ProcessMatronagePayout }
 | { name: "ProcessPlayerStats", args: ProcessPlayerStats }
 | { name: "ProcessSleepingBagDeterioration", args: ProcessSleepingBagDeterioration }
+| { name: "ProcessTilledTileReversions", args: ProcessTilledTileReversions }
 | { name: "ProcessTorchDurability", args: ProcessTorchDurability }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
@@ -4387,6 +4426,7 @@ export type Reducer = never
 | { name: "StopNormalRainSoundReducer", args: StopNormalRainSoundReducer }
 | { name: "ThrowItem", args: ThrowItem }
 | { name: "TickWorldState", args: TickWorldState }
+| { name: "TillGround", args: TillGround }
 | { name: "ToggleBarbecueBurning", args: ToggleBarbecueBurning }
 | { name: "ToggleCampfireBurning", args: ToggleCampfireBurning }
 | { name: "ToggleCrouch", args: ToggleCrouch }
@@ -7432,6 +7472,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_sleeping_bag_deterioration", callback);
   }
 
+  processTilledTileReversions(schedule: TilledTileReversionSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessTilledTileReversions.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_tilled_tile_reversions", __argsBuffer, this.setCallReducerFlags.processTilledTileReversionsFlags);
+  }
+
+  onProcessTilledTileReversions(callback: (ctx: ReducerEventContext, schedule: TilledTileReversionSchedule) => void) {
+    this.connection.onReducer("process_tilled_tile_reversions", callback);
+  }
+
+  removeOnProcessTilledTileReversions(callback: (ctx: ReducerEventContext, schedule: TilledTileReversionSchedule) => void) {
+    this.connection.offReducer("process_tilled_tile_reversions", callback);
+  }
+
   processTorchDurability(args: TorchDurabilitySchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -9252,6 +9308,22 @@ export class RemoteReducers {
     this.connection.offReducer("tick_world_state", callback);
   }
 
+  tillGround(worldX: number, worldY: number) {
+    const __args = { worldX, worldY };
+    let __writer = new __BinaryWriter(1024);
+    TillGround.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("till_ground", __argsBuffer, this.setCallReducerFlags.tillGroundFlags);
+  }
+
+  onTillGround(callback: (ctx: ReducerEventContext, worldX: number, worldY: number) => void) {
+    this.connection.onReducer("till_ground", callback);
+  }
+
+  removeOnTillGround(callback: (ctx: ReducerEventContext, worldX: number, worldY: number) => void) {
+    this.connection.offReducer("till_ground", callback);
+  }
+
   toggleBarbecueBurning(barbecueId: number) {
     const __args = { barbecueId };
     let __writer = new __BinaryWriter(1024);
@@ -10635,6 +10707,11 @@ export class SetReducerFlags {
     this.processSleepingBagDeteriorationFlags = flags;
   }
 
+  processTilledTileReversionsFlags: __CallReducerFlags = 'FullUpdate';
+  processTilledTileReversions(flags: __CallReducerFlags) {
+    this.processTilledTileReversionsFlags = flags;
+  }
+
   processTorchDurabilityFlags: __CallReducerFlags = 'FullUpdate';
   processTorchDurability(flags: __CallReducerFlags) {
     this.processTorchDurabilityFlags = flags;
@@ -11218,6 +11295,11 @@ export class SetReducerFlags {
   tickWorldStateFlags: __CallReducerFlags = 'FullUpdate';
   tickWorldState(flags: __CallReducerFlags) {
     this.tickWorldStateFlags = flags;
+  }
+
+  tillGroundFlags: __CallReducerFlags = 'FullUpdate';
+  tillGround(flags: __CallReducerFlags) {
+    this.tillGroundFlags = flags;
   }
 
   toggleBarbecueBurningFlags: __CallReducerFlags = 'FullUpdate';
@@ -12023,6 +12105,16 @@ export class RemoteTables {
   get thunderEventCleanupSchedule(): ThunderEventCleanupScheduleTableHandle<'thunder_event_cleanup_schedule'> {
     // clientCache is a private property
     return new ThunderEventCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ThunderEventCleanupSchedule>(REMOTE_MODULE.tables.thunder_event_cleanup_schedule));
+  }
+
+  get tilledTileMetadata(): TilledTileMetadataTableHandle<'tilled_tile_metadata'> {
+    // clientCache is a private property
+    return new TilledTileMetadataTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TilledTileMetadata>(REMOTE_MODULE.tables.tilled_tile_metadata));
+  }
+
+  get tilledTileReversionSchedule(): TilledTileReversionScheduleTableHandle<'tilled_tile_reversion_schedule'> {
+    // clientCache is a private property
+    return new TilledTileReversionScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TilledTileReversionSchedule>(REMOTE_MODULE.tables.tilled_tile_reversion_schedule));
   }
 
   get torchDurabilitySchedule(): TorchDurabilityScheduleTableHandle<'torch_durability_schedule'> {

@@ -41,4 +41,5 @@ export type Forest = { tag: "Forest" };
 export type Tundra = { tag: "Tundra" };
 export type Alpine = { tag: "Alpine" };
 export type TundraGrass = { tag: "TundraGrass" };
+export type Tilled = { tag: "Tilled" };
 

@@ -92,6 +92,7 @@ const SOUND_DEFINITIONS = {
     error_tier_upgrade: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Tier upgrade error sound (client-side immediate for instant feedback when trying to upgrade to same or lower tier)
     error_planting: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Planting error sound (client-side immediate for instant feedback when planting in invalid location)
     error_planting_monument: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Planting in monument zone error (client-side immediate for instant feedback when trying to plant seeds in protected monument areas)
+    error_seed_occupied: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Seed occupied error - tile already has a seed (one seed per tile rule)
     error_chest_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Chest placement error sound (client-side immediate for instant feedback when Matron's Chest placement fails)
     error_foundation_monument: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Foundation monument error sound (client-side immediate for instant feedback when trying to place foundation in rune stone light area)
     error_jar_placement: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Jar placement error sound (client-side immediate for instant feedback when trying to place soup back into broth pot output slot)

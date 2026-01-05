@@ -103,6 +103,40 @@ export function requiresBeachPlacement(itemName: string, itemDef?: ItemDefinitio
 }
 
 /**
+ * Determines if a seed requires alpine/mountain placement
+ * Arctic Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds
+ */
+export function requiresAlpinePlacement(itemName: string, itemDef?: ItemDefinition): boolean {
+  const name = itemName.toLowerCase();
+  const description = itemDef?.description.toLowerCase() || '';
+  
+  return (
+    name.includes('lichen spores') ||
+    name.includes('moss spores') ||
+    name.includes('arctic poppy') ||
+    name.includes('arctic hairgrass') ||
+    description.includes('alpine') ||
+    description.includes('alpine mountain')
+  );
+}
+
+/**
+ * Determines if a seed requires tundra placement
+ * Crowberry Seeds, Fireweed Seeds
+ */
+export function requiresTundraPlacement(itemName: string, itemDef?: ItemDefinition): boolean {
+  const name = itemName.toLowerCase();
+  const description = itemDef?.description.toLowerCase() || '';
+  
+  return (
+    name.includes('crowberry') ||
+    name.includes('fireweed') ||
+    description.includes('tundra tiles') ||
+    description.includes('tundra only')
+  );
+}
+
+/**
  * Determines if a seed can be planted on land (most seeds)
  * Uses name/description patterns to infer land suitability
  */

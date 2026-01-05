@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection, ItemDefinition } from '../generated'; // Import connection type and ItemDefinition
 import { TILE_SIZE } from '../config/gameConfig';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement } from '../utils/plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement } from '../utils/plantsUtils';
 import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
 import { playImmediateSound } from './useSoundSystem';
 
@@ -152,6 +152,33 @@ function isPositionOnBeach(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
+ * Check if a position is on alpine tiles (for alpine-restricted plants)
+ */
+function isPositionOnAlpine(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    return false;
+  }
+
+  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+  const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+  return tileType === 'Alpine';
+}
+
+/**
+ * Check if a position is on tundra tiles (for tundra-restricted plants)
+ * Includes both Tundra and TundraGrass tile types
+ */
+function isPositionOnTundra(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    return false;
+  }
+
+  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+  const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+  return tileType === 'Tundra' || tileType === 'TundraGrass';
+}
+
+/**
  * Calculates the distance to the nearest shore (non-water tile) from a water position.
  * Returns distance in pixels, or -1 if position is not on water.
  */
@@ -280,6 +307,38 @@ function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, world
 }
 
 /**
+ * Checks if alpine plant placement is valid (alpine tiles only).
+ * Used for: Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds
+ * Returns true if placement should be blocked.
+ */
+function isAlpinePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Alpine plants must be on alpine tiles
+  if (!isPositionOnAlpine(connection, worldX, worldY)) {
+    return true; // Block if not on alpine
+  }
+  
+  return false; // Valid placement
+}
+
+/**
+ * Checks if tundra plant placement is valid (tundra tiles only).
+ * Used for: Crowberry Seeds, Fireweed Seeds
+ * Returns true if placement should be blocked.
+ */
+function isTundraPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Tundra plants must be on tundra or tundra grass tiles
+  if (!isPositionOnTundra(connection, worldX, worldY)) {
+    return true; // Block if not on tundra
+  }
+  
+  return false; // Valid placement
+}
+
+/**
  * Checks if placement should be blocked due to water tiles.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
@@ -315,6 +374,16 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     return isBeachLymeGrassPlacementBlocked(connection, worldX, worldY);
   }
 
+  // Special case: Seeds that require alpine placement (Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds)
+  if (requiresAlpinePlacement(placementInfo.itemName)) {
+    return isAlpinePlacementBlocked(connection, worldX, worldY);
+  }
+
+  // Special case: Seeds that require tundra placement (Crowberry Seeds, Fireweed Seeds)
+  if (requiresTundraPlacement(placementInfo.itemName)) {
+    return isTundraPlacementBlocked(connection, worldX, worldY);
+  }
+
   // List of items that cannot be placed on water
   const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
   
@@ -331,13 +400,30 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
 }
 
 /**
- * Checks if a seed placement is too close to existing planted seeds.
- * Returns true if the placement should be blocked.
+ * Checks if a seed placement is blocked because there's already a seed on this tile.
+ * Returns true if the placement should be blocked (one seed per tile rule).
  */
-function isSeedPlacementTooClose(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
-  // Client-side validation removed - let players experiment freely!
-  // The server-side crowding penalty system will handle optimization naturally
-  return false;
+function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
+  if (!connection || !placementInfo) return false;
+  
+  // Only check for seed items
+  if (!isSeedItemValid(placementInfo.itemName)) return false;
+  
+  const TILE_SIZE_LOCAL = 48; // pixels per tile
+  const targetTileX = Math.floor(worldX / TILE_SIZE_LOCAL);
+  const targetTileY = Math.floor(worldY / TILE_SIZE_LOCAL);
+  
+  // Check if any planted seed exists on this tile
+  for (const seed of connection.db.plantedSeed.iter()) {
+    const seedTileX = Math.floor(seed.posX / TILE_SIZE_LOCAL);
+    const seedTileY = Math.floor(seed.posY / TILE_SIZE_LOCAL);
+    
+    if (seedTileX === targetTileX && seedTileY === targetTileY) {
+      return true; // Tile is occupied
+    }
+  }
+  
+  return false; // Tile is free
 }
 
 /**
@@ -710,9 +796,10 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       return; // Don't proceed with placement
     }
 
-    // Check for seed proximity restriction
-    if (isSeedPlacementTooClose(connection, placementInfo, worldX, worldY)) {
-      // setPlacementError("Too close to other seeds");
+    // Check for one-seed-per-tile restriction
+    if (isSeedPlacementOnOccupiedTile(connection, placementInfo, worldX, worldY)) {
+      console.log('[PlacementManager] Client-side validation: Tile already has a seed, playing error sound');
+      playImmediateSound('error_seed_occupied', 1.0);
       return; // Don't proceed with placement
     }
 
