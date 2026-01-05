@@ -807,6 +807,17 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
         Ok(_) => log::info!("[PlaceCampfire] Scheduled initial processing for campfire {}", new_campfire_id),
         Err(e) => log::error!("[PlaceCampfire] Failed to schedule initial processing for campfire {}: {}", new_campfire_id, e),
     }
+    
+    // Track quest progress for campfire placement
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        sender_id,
+        crate::quests::QuestObjectiveType::PlaceCampfire,
+        None,
+        1,
+    ) {
+        log::error!("Failed to track quest progress for campfire placement: {}", e);
+    }
 
     Ok(())
 }

@@ -944,6 +944,17 @@ pub fn plant_seed(
         log::warn!("Failed to track seed planting stat: {}", e);
     }
     
+    // Track quest progress for planting
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        player_id,
+        crate::quests::QuestObjectiveType::PlantSeed,
+        None,
+        1,
+    ) {
+        log::warn!("Failed to track quest progress for seed planting: {}", e);
+    }
+    
     // Emit plant seed sound
     crate::sound_events::emit_plant_seed_sound(ctx, final_plant_x, final_plant_y, player_id);
     

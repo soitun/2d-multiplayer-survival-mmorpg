@@ -217,10 +217,54 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     if let Err(e) = crate::player_progression::award_xp(ctx, player_id, xp_amount) {
         log::warn!("Failed to award XP for harvesting: {}", e);
     }
-    // Track plants harvested for achievements
-    let harvest_count = primary_yield_amount as u64;
-    if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "plants_harvested", harvest_count) {
-        log::warn!("Failed to check harvest achievements: {}", e);
+    // Check if this is an actual plant (not debris/piles)
+    // Debris and piles should NOT count toward plant harvesting quests
+    let is_actual_plant = !matches!(
+        resource.plant_type,
+        PlantType::MemoryShard |
+        PlantType::WoodPile |
+        PlantType::BeachWoodPile |
+        PlantType::StonePile |
+        PlantType::LeavesPile |
+        PlantType::MetalOrePile |
+        PlantType::SulfurPile |
+        PlantType::CharcoalPile
+    );
+    
+    // Track plants harvested for achievements (count items received)
+    // Only track for actual plants, not debris/piles
+    if is_actual_plant {
+        let harvest_count = primary_yield_amount as u64;
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "plants_harvested", harvest_count) {
+            log::warn!("Failed to check harvest achievements: {}", e);
+        }
+        
+        // Track quest progress for plant harvesting
+        // NOTE: Track 1 per harvest action, NOT the number of items received
+        // This prevents "harvest 5 plants" from completing after picking 2 plants that yield 3 items each
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            player_id,
+            crate::quests::QuestObjectiveType::HarvestPlant,
+            None,
+            1, // Count harvest actions, not items
+        ) {
+            log::warn!("Failed to track quest progress for harvesting: {}", e);
+        }
+        
+        // Track HarvestCrop quest if this is a player-planted crop (for farming quests)
+        // NOTE: Track 1 per harvest action, NOT the number of items received
+        if resource.is_player_planted {
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                player_id,
+                crate::quests::QuestObjectiveType::HarvestCrop,
+                None,
+                1, // Count harvest actions, not items
+            ) {
+                log::warn!("Failed to track quest progress for crop harvest: {}", e);
+            }
+        }
     }
 
     // === SEAWEED-SPECIFIC BONUS DROPS ===

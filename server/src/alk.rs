@@ -2353,6 +2353,17 @@ pub fn deliver_alk_contract(
         if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "contracts_completed", 1) {
             log::error!("Failed to track contract completion stat: {}", e);
         }
+        
+        // Track quest progress for ALK contract delivery
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            player_id,
+            crate::quests::QuestObjectiveType::DeliverAlkContract,
+            None,
+            1,
+        ) {
+            log::error!("Failed to track quest progress for contract delivery: {}", e);
+        }
     }
     
     Ok(())

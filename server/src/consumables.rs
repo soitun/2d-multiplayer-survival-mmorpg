@@ -177,6 +177,34 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         log::info!("[ConsumeItem] Item '{}' has timed effect (duration: {:?}), consumption handled by timed effect system", 
                    item_def.name, item_def.consumable_duration_secs);
     }
+    
+    // Track quest progress for food/drink consumption
+    // Determine if this is primarily food (hunger) or drink (thirst)
+    let is_primarily_drink = item_def.consumable_thirst_quenched
+        .map(|t| t > item_def.consumable_hunger_satiated.unwrap_or(0.0))
+        .unwrap_or(false);
+    
+    if is_primarily_drink {
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            sender_id,
+            crate::quests::QuestObjectiveType::DrinkWater,
+            None,
+            1,
+        ) {
+            log::warn!("Failed to track quest progress for drinking: {}", e);
+        }
+    } else if item_def.consumable_hunger_satiated.is_some() {
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            sender_id,
+            crate::quests::QuestObjectiveType::EatFood,
+            None,
+            1,
+        ) {
+            log::warn!("Failed to track quest progress for eating: {}", e);
+        }
+    }
 
     Ok(())
 }

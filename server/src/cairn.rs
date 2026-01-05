@@ -258,6 +258,17 @@ pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), St
             log::error!("Failed to track cairn discovery stat: {}", e);
         }
         
+        // Track quest progress for cairn discovery
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            player_id,
+            crate::quests::QuestObjectiveType::DiscoverCairn,
+            None,
+            1,
+        ) {
+            log::error!("Failed to track quest progress for cairn discovery: {}", e);
+        }
+        
         // Note: cairn_unlock sound is played client-side for instant feedback
     } else {
         log::info!(

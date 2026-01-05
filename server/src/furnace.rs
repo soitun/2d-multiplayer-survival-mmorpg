@@ -686,6 +686,17 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         "Furnace {} placed successfully by player {:?} at ({:.1}, {:.1})",
         created_furnace.id, sender_id, world_x, world_y
     );
+    
+    // Track quest progress for furnace placement
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        sender_id,
+        crate::quests::QuestObjectiveType::PlaceFurnace,
+        None,
+        1,
+    ) {
+        log::error!("Failed to track quest progress for furnace placement: {}", e);
+    }
 
     Ok(())
 }

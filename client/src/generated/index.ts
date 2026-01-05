@@ -193,6 +193,10 @@ import { IdentityDisconnected } from "./identity_disconnected_reducer.ts";
 export { IdentityDisconnected };
 import { InitProjectileSystem } from "./init_projectile_system_reducer.ts";
 export { InitProjectileSystem };
+import { InitQuestSystem } from "./init_quest_system_reducer.ts";
+export { InitQuestSystem };
+import { InitializeMyQuests } from "./initialize_my_quests_reducer.ts";
+export { InitializeMyQuests };
 import { InitializePlayerMemoryGrid } from "./initialize_player_memory_grid_reducer.ts";
 export { InitializePlayerMemoryGrid };
 import { InteractDoor } from "./interact_door_reducer.ts";
@@ -485,6 +489,8 @@ import { QuickMoveToRepairBench } from "./quick_move_to_repair_bench_reducer.ts"
 export { QuickMoveToRepairBench };
 import { QuickMoveToStash } from "./quick_move_to_stash_reducer.ts";
 export { QuickMoveToStash };
+import { RefreshMyDailyQuests } from "./refresh_my_daily_quests_reducer.ts";
+export { RefreshMyDailyQuests };
 import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reducer.ts";
 export { RegenerateCompressedChunks };
 import { RegisterPlayer } from "./register_player_reducer.ts";
@@ -497,6 +503,8 @@ import { RenameMatronage } from "./rename_matronage_reducer.ts";
 export { RenameMatronage };
 import { RepairItem } from "./repair_item_reducer.ts";
 export { RepairItem };
+import { RequestTutorialHint } from "./request_tutorial_hint_reducer.ts";
+export { RequestTutorialHint };
 import { ResetFaction } from "./reset_faction_reducer.ts";
 export { ResetFaction };
 import { RespawnAtSleepingBag } from "./respawn_at_sleeping_bag_reducer.ts";
@@ -793,6 +801,8 @@ import { DailyLoginNotificationTableHandle } from "./daily_login_notification_ta
 export { DailyLoginNotificationTableHandle };
 import { DailyLoginRewardTableHandle } from "./daily_login_reward_table.ts";
 export { DailyLoginRewardTableHandle };
+import { DailyQuestDefinitionTableHandle } from "./daily_quest_definition_table.ts";
+export { DailyQuestDefinitionTableHandle };
 import { DeathMarkerTableHandle } from "./death_marker_table.ts";
 export { DeathMarkerTableHandle };
 import { DodgeRollCleanupScheduleTableHandle } from "./dodge_roll_cleanup_schedule_table.ts";
@@ -905,6 +915,8 @@ import { PlayerCorpseTableHandle } from "./player_corpse_table.ts";
 export { PlayerCorpseTableHandle };
 import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_schedule_table.ts";
 export { PlayerCorpseDespawnScheduleTableHandle };
+import { PlayerDailyQuestTableHandle } from "./player_daily_quest_table.ts";
+export { PlayerDailyQuestTableHandle };
 import { PlayerDiscoveredCairnTableHandle } from "./player_discovered_cairn_table.ts";
 export { PlayerDiscoveredCairnTableHandle };
 import { PlayerDiscoveredPlantTableHandle } from "./player_discovered_plant_table.ts";
@@ -925,6 +937,8 @@ import { PlayerStatScheduleTableHandle } from "./player_stat_schedule_table.ts";
 export { PlayerStatScheduleTableHandle };
 import { PlayerStatsTableHandle } from "./player_stats_table.ts";
 export { PlayerStatsTableHandle };
+import { PlayerTutorialProgressTableHandle } from "./player_tutorial_progress_table.ts";
+export { PlayerTutorialProgressTableHandle };
 import { PlayerWalkingSoundStateTableHandle } from "./player_walking_sound_state_table.ts";
 export { PlayerWalkingSoundStateTableHandle };
 import { PrivateMessageTableHandle } from "./private_message_table.ts";
@@ -937,6 +951,10 @@ import { ProjectileTableHandle } from "./projectile_table.ts";
 export { ProjectileTableHandle };
 import { ProjectileUpdateScheduleTableHandle } from "./projectile_update_schedule_table.ts";
 export { ProjectileUpdateScheduleTableHandle };
+import { QuestCompletionNotificationTableHandle } from "./quest_completion_notification_table.ts";
+export { QuestCompletionNotificationTableHandle };
+import { QuestProgressNotificationTableHandle } from "./quest_progress_notification_table.ts";
+export { QuestProgressNotificationTableHandle };
 import { RainCollectorTableHandle } from "./rain_collector_table.ts";
 export { RainCollectorTableHandle };
 import { RangedWeaponStatsTableHandle } from "./ranged_weapon_stats_table.ts";
@@ -967,6 +985,8 @@ import { SoundEventTableHandle } from "./sound_event_table.ts";
 export { SoundEventTableHandle };
 import { SoundEventCleanupScheduleTableHandle } from "./sound_event_cleanup_schedule_table.ts";
 export { SoundEventCleanupScheduleTableHandle };
+import { SovaQuestMessageTableHandle } from "./sova_quest_message_table.ts";
+export { SovaQuestMessageTableHandle };
 import { StashTableHandle } from "./stash_table.ts";
 export { StashTableHandle };
 import { StatThresholdsConfigTableHandle } from "./stat_thresholds_config_table.ts";
@@ -987,6 +1007,8 @@ import { TorchDurabilityScheduleTableHandle } from "./torch_durability_schedule_
 export { TorchDurabilityScheduleTableHandle };
 import { TreeTableHandle } from "./tree_table.ts";
 export { TreeTableHandle };
+import { TutorialQuestDefinitionTableHandle } from "./tutorial_quest_definition_table.ts";
+export { TutorialQuestDefinitionTableHandle };
 import { WallCellTableHandle } from "./wall_cell_table.ts";
 export { WallCellTableHandle };
 import { WaterContainerFillScheduleTableHandle } from "./water_container_fill_schedule_table.ts";
@@ -1121,6 +1143,8 @@ import { DailyLoginNotification } from "./daily_login_notification_type.ts";
 export { DailyLoginNotification };
 import { DailyLoginReward } from "./daily_login_reward_type.ts";
 export { DailyLoginReward };
+import { DailyQuestDefinition } from "./daily_quest_definition_type.ts";
+export { DailyQuestDefinition };
 import { DamageType } from "./damage_type_type.ts";
 export { DamageType };
 import { DeathMarker } from "./death_marker_type.ts";
@@ -1273,6 +1297,8 @@ import { PlayerCorpse } from "./player_corpse_type.ts";
 export { PlayerCorpse };
 import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_type.ts";
 export { PlayerCorpseDespawnSchedule };
+import { PlayerDailyQuest } from "./player_daily_quest_type.ts";
+export { PlayerDailyQuest };
 import { PlayerDiscoveredCairn } from "./player_discovered_cairn_type.ts";
 export { PlayerDiscoveredCairn };
 import { PlayerDiscoveredPlant } from "./player_discovered_plant_type.ts";
@@ -1293,6 +1319,8 @@ import { PlayerStatSchedule } from "./player_stat_schedule_type.ts";
 export { PlayerStatSchedule };
 import { PlayerStats } from "./player_stats_type.ts";
 export { PlayerStats };
+import { PlayerTutorialProgress } from "./player_tutorial_progress_type.ts";
+export { PlayerTutorialProgress };
 import { PlayerWalkingSoundState } from "./player_walking_sound_state_type.ts";
 export { PlayerWalkingSoundState };
 import { PrivateMessage } from "./private_message_type.ts";
@@ -1309,6 +1337,16 @@ import { Projectile } from "./projectile_type.ts";
 export { Projectile };
 import { ProjectileUpdateSchedule } from "./projectile_update_schedule_type.ts";
 export { ProjectileUpdateSchedule };
+import { QuestCompletionNotification } from "./quest_completion_notification_type.ts";
+export { QuestCompletionNotification };
+import { QuestDifficulty } from "./quest_difficulty_type.ts";
+export { QuestDifficulty };
+import { QuestObjectiveType } from "./quest_objective_type_type.ts";
+export { QuestObjectiveType };
+import { QuestProgressNotification } from "./quest_progress_notification_type.ts";
+export { QuestProgressNotification };
+import { QuestStatus } from "./quest_status_type.ts";
+export { QuestStatus };
 import { RainCollector } from "./rain_collector_type.ts";
 export { RainCollector };
 import { RangedWeaponStats } from "./ranged_weapon_stats_type.ts";
@@ -1349,6 +1387,8 @@ import { SoundEventCleanupSchedule } from "./sound_event_cleanup_schedule_type.t
 export { SoundEventCleanupSchedule };
 import { SoundType } from "./sound_type_type.ts";
 export { SoundType };
+import { SovaQuestMessage } from "./sova_quest_message_type.ts";
+export { SovaQuestMessage };
 import { Stash } from "./stash_type.ts";
 export { Stash };
 import { StatThresholdsConfig } from "./stat_thresholds_config_type.ts";
@@ -1377,6 +1417,8 @@ import { Tree } from "./tree_type.ts";
 export { Tree };
 import { TreeType } from "./tree_type_type.ts";
 export { TreeType };
+import { TutorialQuestDefinition } from "./tutorial_quest_definition_type.ts";
+export { TutorialQuestDefinition };
 import { WallCell } from "./wall_cell_type.ts";
 export { WallCell };
 import { WaterContainerFillSchedule } from "./water_container_fill_schedule_type.ts";
@@ -1753,6 +1795,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "day",
         colType: (DailyLoginReward.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    daily_quest_definition: {
+      tableName: "daily_quest_definition" as const,
+      rowType: DailyQuestDefinition.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (DailyQuestDefinition.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     death_marker: {
@@ -2259,6 +2310,15 @@ const REMOTE_MODULE = {
         colType: (PlayerCorpseDespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    player_daily_quest: {
+      tableName: "player_daily_quest" as const,
+      rowType: PlayerDailyQuest.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (PlayerDailyQuest.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     player_discovered_cairn: {
       tableName: "player_discovered_cairn" as const,
       rowType: PlayerDiscoveredCairn.getTypeScriptAlgebraicType(),
@@ -2349,6 +2409,15 @@ const REMOTE_MODULE = {
         colType: (PlayerStats.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    player_tutorial_progress: {
+      tableName: "player_tutorial_progress" as const,
+      rowType: PlayerTutorialProgress.getTypeScriptAlgebraicType(),
+      primaryKey: "playerId",
+      primaryKeyInfo: {
+        colName: "playerId",
+        colType: (PlayerTutorialProgress.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     player_walking_sound_state: {
       tableName: "player_walking_sound_state" as const,
       rowType: PlayerWalkingSoundState.getTypeScriptAlgebraicType(),
@@ -2401,6 +2470,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (ProjectileUpdateSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    quest_completion_notification: {
+      tableName: "quest_completion_notification" as const,
+      rowType: QuestCompletionNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (QuestCompletionNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    quest_progress_notification: {
+      tableName: "quest_progress_notification" as const,
+      rowType: QuestProgressNotification.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (QuestProgressNotification.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     rain_collector: {
@@ -2538,6 +2625,15 @@ const REMOTE_MODULE = {
         colType: (SoundEventCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    sova_quest_message: {
+      tableName: "sova_quest_message" as const,
+      rowType: SovaQuestMessage.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (SovaQuestMessage.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     stash: {
       tableName: "stash" as const,
       rowType: Stash.getTypeScriptAlgebraicType(),
@@ -2626,6 +2722,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Tree.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    tutorial_quest_definition: {
+      tableName: "tutorial_quest_definition" as const,
+      rowType: TutorialQuestDefinition.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TutorialQuestDefinition.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     wall_cell: {
@@ -3043,6 +3148,14 @@ const REMOTE_MODULE = {
     init_projectile_system: {
       reducerName: "init_projectile_system",
       argsType: InitProjectileSystem.getTypeScriptAlgebraicType(),
+    },
+    init_quest_system: {
+      reducerName: "init_quest_system",
+      argsType: InitQuestSystem.getTypeScriptAlgebraicType(),
+    },
+    initialize_my_quests: {
+      reducerName: "initialize_my_quests",
+      argsType: InitializeMyQuests.getTypeScriptAlgebraicType(),
     },
     initialize_player_memory_grid: {
       reducerName: "initialize_player_memory_grid",
@@ -3628,6 +3741,10 @@ const REMOTE_MODULE = {
       reducerName: "quick_move_to_stash",
       argsType: QuickMoveToStash.getTypeScriptAlgebraicType(),
     },
+    refresh_my_daily_quests: {
+      reducerName: "refresh_my_daily_quests",
+      argsType: RefreshMyDailyQuests.getTypeScriptAlgebraicType(),
+    },
     regenerate_compressed_chunks: {
       reducerName: "regenerate_compressed_chunks",
       argsType: RegenerateCompressedChunks.getTypeScriptAlgebraicType(),
@@ -3651,6 +3768,10 @@ const REMOTE_MODULE = {
     repair_item: {
       reducerName: "repair_item",
       argsType: RepairItem.getTypeScriptAlgebraicType(),
+    },
+    request_tutorial_hint: {
+      reducerName: "request_tutorial_hint",
+      argsType: RequestTutorialHint.getTypeScriptAlgebraicType(),
     },
     reset_faction: {
       reducerName: "reset_faction",
@@ -4195,6 +4316,8 @@ export type Reducer = never
 | { name: "IdentityConnected", args: IdentityConnected }
 | { name: "IdentityDisconnected", args: IdentityDisconnected }
 | { name: "InitProjectileSystem", args: InitProjectileSystem }
+| { name: "InitQuestSystem", args: InitQuestSystem }
+| { name: "InitializeMyQuests", args: InitializeMyQuests }
 | { name: "InitializePlayerMemoryGrid", args: InitializePlayerMemoryGrid }
 | { name: "InteractDoor", args: InteractDoor }
 | { name: "InteractWithBarbecue", args: InteractWithBarbecue }
@@ -4341,12 +4464,14 @@ export type Reducer = never
 | { name: "QuickMoveToRefrigerator", args: QuickMoveToRefrigerator }
 | { name: "QuickMoveToRepairBench", args: QuickMoveToRepairBench }
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
+| { name: "RefreshMyDailyQuests", args: RefreshMyDailyQuests }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
 | { name: "RelightDudExplosive", args: RelightDudExplosive }
 | { name: "RemoveFromMatronage", args: RemoveFromMatronage }
 | { name: "RenameMatronage", args: RenameMatronage }
 | { name: "RepairItem", args: RepairItem }
+| { name: "RequestTutorialHint", args: RequestTutorialHint }
 | { name: "ResetFaction", args: ResetFaction }
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
@@ -5682,6 +5807,30 @@ export class RemoteReducers {
 
   removeOnInitProjectileSystem(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("init_projectile_system", callback);
+  }
+
+  initQuestSystem() {
+    this.connection.callReducer("init_quest_system", new Uint8Array(0), this.setCallReducerFlags.initQuestSystemFlags);
+  }
+
+  onInitQuestSystem(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("init_quest_system", callback);
+  }
+
+  removeOnInitQuestSystem(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("init_quest_system", callback);
+  }
+
+  initializeMyQuests() {
+    this.connection.callReducer("initialize_my_quests", new Uint8Array(0), this.setCallReducerFlags.initializeMyQuestsFlags);
+  }
+
+  onInitializeMyQuests(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("initialize_my_quests", callback);
+  }
+
+  removeOnInitializeMyQuests(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("initialize_my_quests", callback);
   }
 
   initializePlayerMemoryGrid() {
@@ -8000,6 +8149,18 @@ export class RemoteReducers {
     this.connection.offReducer("quick_move_to_stash", callback);
   }
 
+  refreshMyDailyQuests() {
+    this.connection.callReducer("refresh_my_daily_quests", new Uint8Array(0), this.setCallReducerFlags.refreshMyDailyQuestsFlags);
+  }
+
+  onRefreshMyDailyQuests(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("refresh_my_daily_quests", callback);
+  }
+
+  removeOnRefreshMyDailyQuests(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("refresh_my_daily_quests", callback);
+  }
+
   regenerateCompressedChunks() {
     this.connection.callReducer("regenerate_compressed_chunks", new Uint8Array(0), this.setCallReducerFlags.regenerateCompressedChunksFlags);
   }
@@ -8090,6 +8251,18 @@ export class RemoteReducers {
 
   removeOnRepairItem(callback: (ctx: ReducerEventContext, boxId: number) => void) {
     this.connection.offReducer("repair_item", callback);
+  }
+
+  requestTutorialHint() {
+    this.connection.callReducer("request_tutorial_hint", new Uint8Array(0), this.setCallReducerFlags.requestTutorialHintFlags);
+  }
+
+  onRequestTutorialHint(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("request_tutorial_hint", callback);
+  }
+
+  removeOnRequestTutorialHint(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("request_tutorial_hint", callback);
   }
 
   resetFaction() {
@@ -10142,6 +10315,16 @@ export class SetReducerFlags {
     this.initProjectileSystemFlags = flags;
   }
 
+  initQuestSystemFlags: __CallReducerFlags = 'FullUpdate';
+  initQuestSystem(flags: __CallReducerFlags) {
+    this.initQuestSystemFlags = flags;
+  }
+
+  initializeMyQuestsFlags: __CallReducerFlags = 'FullUpdate';
+  initializeMyQuests(flags: __CallReducerFlags) {
+    this.initializeMyQuestsFlags = flags;
+  }
+
   initializePlayerMemoryGridFlags: __CallReducerFlags = 'FullUpdate';
   initializePlayerMemoryGrid(flags: __CallReducerFlags) {
     this.initializePlayerMemoryGridFlags = flags;
@@ -10872,6 +11055,11 @@ export class SetReducerFlags {
     this.quickMoveToStashFlags = flags;
   }
 
+  refreshMyDailyQuestsFlags: __CallReducerFlags = 'FullUpdate';
+  refreshMyDailyQuests(flags: __CallReducerFlags) {
+    this.refreshMyDailyQuestsFlags = flags;
+  }
+
   regenerateCompressedChunksFlags: __CallReducerFlags = 'FullUpdate';
   regenerateCompressedChunks(flags: __CallReducerFlags) {
     this.regenerateCompressedChunksFlags = flags;
@@ -10900,6 +11088,11 @@ export class SetReducerFlags {
   repairItemFlags: __CallReducerFlags = 'FullUpdate';
   repairItem(flags: __CallReducerFlags) {
     this.repairItemFlags = flags;
+  }
+
+  requestTutorialHintFlags: __CallReducerFlags = 'FullUpdate';
+  requestTutorialHint(flags: __CallReducerFlags) {
+    this.requestTutorialHintFlags = flags;
   }
 
   resetFactionFlags: __CallReducerFlags = 'FullUpdate';
@@ -11642,6 +11835,11 @@ export class RemoteTables {
     return new DailyLoginRewardTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DailyLoginReward>(REMOTE_MODULE.tables.daily_login_reward));
   }
 
+  get dailyQuestDefinition(): DailyQuestDefinitionTableHandle<'daily_quest_definition'> {
+    // clientCache is a private property
+    return new DailyQuestDefinitionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DailyQuestDefinition>(REMOTE_MODULE.tables.daily_quest_definition));
+  }
+
   get deathMarker(): DeathMarkerTableHandle<'death_marker'> {
     // clientCache is a private property
     return new DeathMarkerTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DeathMarker>(REMOTE_MODULE.tables.death_marker));
@@ -11922,6 +12120,11 @@ export class RemoteTables {
     return new PlayerCorpseDespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCorpseDespawnSchedule>(REMOTE_MODULE.tables.player_corpse_despawn_schedule));
   }
 
+  get playerDailyQuest(): PlayerDailyQuestTableHandle<'player_daily_quest'> {
+    // clientCache is a private property
+    return new PlayerDailyQuestTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerDailyQuest>(REMOTE_MODULE.tables.player_daily_quest));
+  }
+
   get playerDiscoveredCairn(): PlayerDiscoveredCairnTableHandle<'player_discovered_cairn'> {
     // clientCache is a private property
     return new PlayerDiscoveredCairnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerDiscoveredCairn>(REMOTE_MODULE.tables.player_discovered_cairn));
@@ -11972,6 +12175,11 @@ export class RemoteTables {
     return new PlayerStatsTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerStats>(REMOTE_MODULE.tables.player_stats));
   }
 
+  get playerTutorialProgress(): PlayerTutorialProgressTableHandle<'player_tutorial_progress'> {
+    // clientCache is a private property
+    return new PlayerTutorialProgressTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerTutorialProgress>(REMOTE_MODULE.tables.player_tutorial_progress));
+  }
+
   get playerWalkingSoundState(): PlayerWalkingSoundStateTableHandle<'player_walking_sound_state'> {
     // clientCache is a private property
     return new PlayerWalkingSoundStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerWalkingSoundState>(REMOTE_MODULE.tables.player_walking_sound_state));
@@ -12000,6 +12208,16 @@ export class RemoteTables {
   get projectileUpdateSchedule(): ProjectileUpdateScheduleTableHandle<'projectile_update_schedule'> {
     // clientCache is a private property
     return new ProjectileUpdateScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ProjectileUpdateSchedule>(REMOTE_MODULE.tables.projectile_update_schedule));
+  }
+
+  get questCompletionNotification(): QuestCompletionNotificationTableHandle<'quest_completion_notification'> {
+    // clientCache is a private property
+    return new QuestCompletionNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<QuestCompletionNotification>(REMOTE_MODULE.tables.quest_completion_notification));
+  }
+
+  get questProgressNotification(): QuestProgressNotificationTableHandle<'quest_progress_notification'> {
+    // clientCache is a private property
+    return new QuestProgressNotificationTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<QuestProgressNotification>(REMOTE_MODULE.tables.quest_progress_notification));
   }
 
   get rainCollector(): RainCollectorTableHandle<'rain_collector'> {
@@ -12077,6 +12295,11 @@ export class RemoteTables {
     return new SoundEventCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<SoundEventCleanupSchedule>(REMOTE_MODULE.tables.sound_event_cleanup_schedule));
   }
 
+  get sovaQuestMessage(): SovaQuestMessageTableHandle<'sova_quest_message'> {
+    // clientCache is a private property
+    return new SovaQuestMessageTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<SovaQuestMessage>(REMOTE_MODULE.tables.sova_quest_message));
+  }
+
   get stash(): StashTableHandle<'stash'> {
     // clientCache is a private property
     return new StashTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Stash>(REMOTE_MODULE.tables.stash));
@@ -12125,6 +12348,11 @@ export class RemoteTables {
   get tree(): TreeTableHandle<'tree'> {
     // clientCache is a private property
     return new TreeTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Tree>(REMOTE_MODULE.tables.tree));
+  }
+
+  get tutorialQuestDefinition(): TutorialQuestDefinitionTableHandle<'tutorial_quest_definition'> {
+    // clientCache is a private property
+    return new TutorialQuestDefinitionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TutorialQuestDefinition>(REMOTE_MODULE.tables.tutorial_quest_definition));
   }
 
   get wallCell(): WallCellTableHandle<'wall_cell'> {

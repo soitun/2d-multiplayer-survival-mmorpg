@@ -777,6 +777,17 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
             log::error!("Failed to track fishing stat: {}", e);
         }
         
+        // Track quest progress for fishing
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            player_id,
+            crate::quests::QuestObjectiveType::CatchAnyFish,
+            None,
+            1,
+        ) {
+            log::error!("Failed to track quest progress for fishing: {}", e);
+        }
+        
         // Track unique fish types caught (update bitmask)
         for item_name in generated_loot.iter() {
             if let Some(bit_index) = get_fish_bit_index(item_name) {

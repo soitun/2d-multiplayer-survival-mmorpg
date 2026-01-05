@@ -107,6 +107,7 @@ where
                     if let Some(mut player) = ctx.db.player().identity().find(player_id) {
                         if !player.has_seen_memory_shard_tutorial {
                             // First time harvesting a memory shard - trigger SOVA tutorial!
+                            // Note: Client will skip audio if intro is still playing
                             crate::sound_events::emit_sova_memory_shard_tutorial_sound(
                                 ctx, 
                                 player.position_x, 

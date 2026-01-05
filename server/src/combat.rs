@@ -1376,6 +1376,17 @@ pub fn damage_tree(
             log::error!("Failed to check achievements after tree chop: {}", e);
         }
         
+        // Track quest progress for wood gathering
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            attacker_id,
+            crate::quests::QuestObjectiveType::GatherWood,
+            None,
+            1,
+        ) {
+            log::error!("Failed to track quest progress for tree chop: {}", e);
+        }
+        
         // Calculate random respawn time for trees
         let respawn_duration_secs = if tree::MIN_TREE_RESPAWN_TIME_SECS >= tree::MAX_TREE_RESPAWN_TIME_SECS {
             tree::MIN_TREE_RESPAWN_TIME_SECS
@@ -1579,6 +1590,17 @@ pub fn damage_stone(
             log::error!("Failed to check achievements after stone mining: {}", e);
         }
         
+        // Track quest progress for stone gathering
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            attacker_id,
+            crate::quests::QuestObjectiveType::GatherStone,
+            None,
+            1,
+        ) {
+            log::error!("Failed to track quest progress for stone mining: {}", e);
+        }
+        
         // Calculate random respawn time for stones
         let respawn_duration_secs = if stone::MIN_STONE_RESPAWN_TIME_SECS >= stone::MAX_STONE_RESPAWN_TIME_SECS {
             stone::MIN_STONE_RESPAWN_TIME_SECS
@@ -1708,6 +1730,17 @@ pub fn damage_living_coral(
     // Track coral mined for achievements
     if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "corals_mined", 1) {
         log::warn!("Failed to check coral mining achievements: {}", e);
+    }
+    
+    // Track quest progress for coral mining
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        attacker_id,
+        crate::quests::QuestObjectiveType::MineCoral,
+        None,
+        1,
+    ) {
+        log::warn!("Failed to track quest progress for coral mining: {}", e);
     }
     
     if coral_destroyed {

@@ -31,6 +31,9 @@ import type { MenuType } from './GameMenu';
 import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
 import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
 import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
+import SovaDirectivesIndicator from './SovaDirectivesIndicator'; // ADDED: Quest indicator
+import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
+import { QuestCompletionNotification, QuestProgressToast, QuestCompletionData, QuestProgressData } from './QuestNotifications'; // ADDED: Quest notifications
 
 // Import types used by props
 import {
@@ -312,6 +315,15 @@ interface GameScreenProps {
     // Plants discovered by current player (for encyclopedia filtering)
     discoveredPlants?: Map<string, any>;
 
+    // Quest system
+    tutorialQuestDefinitions?: Map<string, any>;
+    dailyQuestDefinitions?: Map<string, any>;
+    playerTutorialProgress?: Map<string, any>;
+    playerDailyQuests?: Map<string, any>;
+    questCompletionNotifications?: Map<string, any>;
+    questProgressNotifications?: Map<string, any>;
+    sovaQuestMessages?: Map<string, any>;
+
     // Matronage system
     matronages?: Map<string, any>;
     matronageMembers?: Map<string, any>;
@@ -356,12 +368,33 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setCairnNotification(null);
     }, []);
 
+    // Quest panel state
+    const [isQuestsPanelOpen, setIsQuestsPanelOpen] = useState(false);
+    const [hasNewQuestNotification, setHasNewQuestNotification] = useState(false);
+    const openQuestsPanel = useCallback(() => setIsQuestsPanelOpen(true), []);
+    const closeQuestsPanel = useCallback(() => setIsQuestsPanelOpen(false), []);
+
     // 🎣 FISHING INPUT FIX: Track fishing state to disable input
     const [isFishing, setIsFishing] = useState(false);
 
     // Mobile interact state
     const [mobileInteractInfo, setMobileInteractInfo] = useState<{ hasTarget: boolean; label?: string } | null>(null);
     const [mobileInteractTrigger, setMobileInteractTrigger] = useState(0);
+
+    // Quest notification state
+    const [questCompletionNotification, setQuestCompletionNotification] = useState<QuestCompletionData | null>(null);
+    const [questProgressNotification, setQuestProgressNotification] = useState<QuestProgressData | null>(null);
+    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => new Set());
+    const [seenQuestProgressIds, setSeenQuestProgressIds] = useState<Set<string>>(() => new Set());
+    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => new Set());
+
+    const dismissQuestCompletionNotification = useCallback(() => {
+        setQuestCompletionNotification(null);
+    }, []);
+
+    const dismissQuestProgressNotification = useCallback(() => {
+        setQuestProgressNotification(null);
+    }, []);
 
     // Debug logging for SOVA message adder
     useEffect(() => {
@@ -542,6 +575,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             
             // Mark as played FIRST to prevent any race conditions
             localStorage.setItem(SOVA_INTRO_CRASH_STORAGE_KEY, 'true');
+            // Store timestamp when intro started playing (for other sounds to check)
+            localStorage.setItem('broth_sova_intro_started_at', Date.now().toString());
             
             try {
                 const audio = new Audio('/sounds/sova_intro_crash.mp3');
@@ -688,6 +723,73 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             clearTimeout(timer);
         };
     }, [localPlayerId]);
+    
+    // === Part 3: SOVA Directives Intro (90 seconds after spawn) ===
+    // Plays between crash intro (10s) and tutorial hint (3.5min) to introduce the quest system
+    useEffect(() => {
+        const SOVA_DIRECTIVES_DELAY_MS = 90 * 1000; // 90 seconds (between 45s crash intro end and 3.5min tutorial hint)
+        const SOVA_DIRECTIVES_STORAGE_KEY = 'broth_sova_directives_intro_played';
+        const SOVA_DIRECTIVES_MESSAGE = `Calibrating to the island... SOVA directives coming online. Press J to view your mission objectives. I'll also provide daily training exercises to keep you sharp out here.`;
+        
+        const hasPlayed = localStorage.getItem(SOVA_DIRECTIVES_STORAGE_KEY);
+        
+        if (hasPlayed || !localPlayerId) {
+            return;
+        }
+
+        console.log('[GameScreen] 📡 Scheduling SOVA directives intro in 90 seconds...');
+        
+        const timer = setTimeout(() => {
+            if (localStorage.getItem(SOVA_DIRECTIVES_STORAGE_KEY)) {
+                return; // Already played (race condition check)
+            }
+            
+            localStorage.setItem(SOVA_DIRECTIVES_STORAGE_KEY, 'true');
+            console.log('[GameScreen] 📡 Playing SOVA directives intro NOW');
+            
+            try {
+                // Try to play audio if file exists
+                const audio = new Audio('/sounds/sova_directives_intro.mp3');
+                audio.volume = 0.8;
+                audio.play().then(() => {
+                    if (showSovaSoundBoxRef.current) {
+                        showSovaSoundBoxRef.current(audio, 'SOVA: Directives Online');
+                    }
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-directives-intro-${Date.now()}`,
+                            text: SOVA_DIRECTIVES_MESSAGE,
+                            isUser: false,
+                            timestamp: new Date(),
+                            flashTab: true,
+                        });
+                    }
+                    // Trigger notification on quest indicator
+                    setHasNewQuestNotification(true);
+                    setTimeout(() => setHasNewQuestNotification(false), 5000);
+                }).catch(err => {
+                    // Audio file doesn't exist yet - just send chat message
+                    console.warn('[GameScreen] 📡 SOVA directives audio not found, sending text only:', err);
+                    if (sovaMessageAdderRef.current) {
+                        sovaMessageAdderRef.current({
+                            id: `sova-directives-intro-${Date.now()}`,
+                            text: SOVA_DIRECTIVES_MESSAGE,
+                            isUser: false,
+                            timestamp: new Date(),
+                            flashTab: true,
+                        });
+                    }
+                    setHasNewQuestNotification(true);
+                    setTimeout(() => setHasNewQuestNotification(false), 5000);
+                });
+            } catch (err) {
+                console.warn('[GameScreen] 📡 Error with SOVA directives intro:', err);
+                localStorage.setItem(SOVA_DIRECTIVES_STORAGE_KEY, 'true');
+            }
+        }, SOVA_DIRECTIVES_DELAY_MS);
+
+        return () => clearTimeout(timer);
+    }, [localPlayerId]);
 
     // === SOVA First Resource Interaction Tutorial Event Listener ===
     // Listen for the custom event from useSoundSystem when player first interacts with a resource
@@ -695,6 +797,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     useEffect(() => {
         const handleFirstResourceTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
             console.log('[GameScreen] 🌿 Received first resource tutorial event from sound system');
+            
+            // Check if intro audio is still playing (within 45 seconds of starting)
+            // If so, skip audio but still send the text message
+            const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate for intro length
+            const introStartedAt = localStorage.getItem('broth_sova_intro_started_at');
+            const isIntroStillPlaying = introStartedAt && 
+                (Date.now() - parseInt(introStartedAt, 10)) < INTRO_AUDIO_DURATION_MS;
+            
+            if (isIntroStillPlaying) {
+                console.log('[GameScreen] 🌿 Intro audio still playing - skipping first resource audio, sending text only');
+                // Just send the text message without audio
+                if (sovaMessageAdderRef.current) {
+                    sovaMessageAdderRef.current({
+                        id: `sova-first-resource-tutorial-${Date.now()}`,
+                        text: event.detail.message,
+                        isUser: false,
+                        timestamp: event.detail.timestamp,
+                        flashTab: true, // Flash the SOVA tab to draw attention
+                    });
+                }
+                return;
+            }
             
             // Play audio and show SOVA sound box with waveform visualization
             try {
@@ -759,6 +883,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         const handleMemoryShardTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
             console.log('[GameScreen] 🔮 Received memory shard tutorial event from sound system');
             
+            // Check if intro audio is still playing (within 45 seconds of starting)
+            // If so, skip audio but still send the text message
+            const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate for intro length
+            const introStartedAt = localStorage.getItem('broth_sova_intro_started_at');
+            const isIntroStillPlaying = introStartedAt && 
+                (Date.now() - parseInt(introStartedAt, 10)) < INTRO_AUDIO_DURATION_MS;
+            
+            if (isIntroStillPlaying) {
+                console.log('[GameScreen] 🔮 Intro audio still playing - skipping memory shard audio, sending text only');
+                // Just send the text message without audio
+                if (sovaMessageAdderRef.current) {
+                    sovaMessageAdderRef.current({
+                        id: `sova-memory-shard-tutorial-${Date.now()}`,
+                        text: event.detail.message,
+                        isUser: false,
+                        timestamp: event.detail.timestamp,
+                        flashTab: true, // Flash the SOVA tab to draw attention
+                    });
+                }
+                return;
+            }
+            
             // Play audio and show SOVA sound box with waveform visualization
             // (same pattern as intro tutorial)
             try {
@@ -815,6 +961,132 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             window.removeEventListener('sova-memory-shard-tutorial', handleMemoryShardTutorial as EventListener);
         };
     }, []);
+
+    // === QUEST NOTIFICATION HANDLERS ===
+    
+    // Handle SOVA Quest Messages - route to SOVA chat tab
+    useEffect(() => {
+        if (!props.sovaQuestMessages || props.sovaQuestMessages.size === 0) return;
+        if (!sovaMessageAdderRef.current) return;
+        
+        // Find new messages we haven't seen yet
+        props.sovaQuestMessages.forEach((message, id) => {
+            if (seenSovaQuestMessageIds.has(id)) return;
+            
+            // Mark as seen
+            setSeenSovaQuestMessageIds(prev => new Set(prev).add(id));
+            
+            console.log('[GameScreen] 📡 New SOVA quest message:', message.message);
+            
+            // Play audio if provided
+            if (message.audioFile) {
+                try {
+                    const audio = new Audio(`/sounds/${message.audioFile}`);
+                    audio.volume = 0.8;
+                    audio.play().then(() => {
+                        if (showSovaSoundBoxRef.current) {
+                            // Determine label based on message type
+                            let label = 'SOVA: Quest Update';
+                            if (message.messageType === 'quest_start') label = 'SOVA: New Mission';
+                            else if (message.messageType === 'quest_complete') label = 'SOVA: Mission Complete';
+                            else if (message.messageType === 'quest_hint') label = 'SOVA: Hint';
+                            else if (message.messageType === 'daily_quests_assigned') label = 'SOVA: Daily Training';
+                            
+                            showSovaSoundBoxRef.current(audio, label);
+                        }
+                    }).catch(err => {
+                        console.warn('[GameScreen] Failed to play SOVA quest audio:', err);
+                    });
+                } catch (err) {
+                    console.warn('[GameScreen] Error creating SOVA quest audio:', err);
+                }
+            }
+            
+            // Send message to SOVA chat
+            if (sovaMessageAdderRef.current) {
+                sovaMessageAdderRef.current({
+                    id: `sova-quest-${id}-${Date.now()}`,
+                    text: message.message,
+                    isUser: false,
+                    timestamp: new Date(Number(message.sentAt?.microsSinceUnixEpoch || 0) / 1000),
+                    flashTab: true,
+                });
+            }
+            
+            // Trigger notification indicator
+            setHasNewQuestNotification(true);
+            setTimeout(() => setHasNewQuestNotification(false), 5000);
+        });
+    }, [props.sovaQuestMessages, seenSovaQuestMessageIds]);
+
+    // Handle Quest Completion Notifications - show celebration UI
+    useEffect(() => {
+        if (!props.questCompletionNotifications || props.questCompletionNotifications.size === 0) return;
+        
+        // Find new notifications we haven't seen yet
+        props.questCompletionNotifications.forEach((notification, id) => {
+            if (seenQuestCompletionIds.has(id)) return;
+            
+            // Only show if it's for the local player
+            if (props.playerIdentity && notification.playerId?.toHexString() !== props.playerIdentity.toHexString()) return;
+            
+            // Mark as seen
+            setSeenQuestCompletionIds(prev => new Set(prev).add(id));
+            
+            console.log('[GameScreen] 🎉 Quest completion:', notification.questName);
+            
+            // Show celebration UI
+            setQuestCompletionNotification({
+                id: id,
+                questName: notification.questName,
+                questType: notification.questType === 'tutorial' ? 'tutorial' : 'daily',
+                xpAwarded: Number(notification.xpAwarded || 0),
+                shardsAwarded: Number(notification.shardsAwarded || 0),
+                unlockedRecipe: notification.unlockedRecipe || undefined,
+            });
+            
+            // Play celebration sound
+            try {
+                const audio = new Audio('/sounds/quest_complete.mp3');
+                audio.volume = 0.6;
+                audio.play().catch(() => {
+                    // Fallback: try a generic success sound
+                    const fallbackAudio = new Audio('/sounds/ui_success.mp3');
+                    fallbackAudio.volume = 0.5;
+                    fallbackAudio.play().catch(() => {});
+                });
+            } catch (err) {
+                // Ignore audio errors
+            }
+        });
+    }, [props.questCompletionNotifications, props.playerIdentity, seenQuestCompletionIds]);
+
+    // Handle Quest Progress Notifications - show milestone toast
+    useEffect(() => {
+        if (!props.questProgressNotifications || props.questProgressNotifications.size === 0) return;
+        
+        // Find new notifications we haven't seen yet
+        props.questProgressNotifications.forEach((notification, id) => {
+            if (seenQuestProgressIds.has(id)) return;
+            
+            // Only show if it's for the local player
+            if (props.playerIdentity && notification.playerId?.toHexString() !== props.playerIdentity.toHexString()) return;
+            
+            // Mark as seen
+            setSeenQuestProgressIds(prev => new Set(prev).add(id));
+            
+            console.log('[GameScreen] 📊 Quest progress milestone:', notification.questName, notification.milestonePercent + '%');
+            
+            // Show progress toast
+            setQuestProgressNotification({
+                id: id,
+                questName: notification.questName,
+                currentProgress: notification.currentProgress,
+                targetAmount: notification.targetAmount,
+                milestonePercent: notification.milestonePercent,
+            });
+        });
+    }, [props.questProgressNotifications, props.playerIdentity, seenQuestProgressIds]);
 
     // Handle matronage creation - close delivery panel and open interface to matronage page
     const handleMatronageCreated = useCallback(() => {
@@ -922,6 +1194,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             // Handle M key for music debug panel toggle
             else if (event.key === 'm' || event.key === 'M') {
                 toggleMusicDebug();
+            }
+            // Handle J key for quest panel toggle
+            else if ((event.key === 'j' || event.key === 'J') && !isChatting) {
+                setIsQuestsPanelOpen(prev => !prev);
             }
             // Handle Arrow keys for time debug cycler (only when menu is closed and not typing)
             else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentMenu === null && !isChatting) {
@@ -1423,6 +1699,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 localPlayer={localPlayer}
                 isMobile={props.isMobile}
             />
+            {/* SOVA Directives Indicator (Quest System) */}
+            <SovaDirectivesIndicator
+                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
+                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
+                playerTutorialProgress={props.playerTutorialProgress || new Map()}
+                playerDailyQuests={props.playerDailyQuests || new Map()}
+                localPlayerId={props.playerIdentity || undefined}
+                onOpenQuestsPanel={openQuestsPanel}
+                hasNewNotification={hasNewQuestNotification}
+                isMobile={props.isMobile}
+            />
+            {/* Quest Panel Overlay */}
+            <QuestsPanel
+                isOpen={isQuestsPanelOpen}
+                onClose={closeQuestsPanel}
+                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
+                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
+                playerTutorialProgress={props.playerTutorialProgress || new Map()}
+                playerDailyQuests={props.playerDailyQuests || new Map()}
+                localPlayerId={props.playerIdentity || undefined}
+                isMobile={props.isMobile}
+            />
             {/* MusicControlPanel - Hidden on mobile */}
             {!props.isMobile && (
                 <MusicControlPanel
@@ -1655,6 +1953,18 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             <CairnUnlockNotification
                 notification={cairnNotification}
                 onDismiss={dismissCairnNotification}
+            />
+
+            {/* Quest Completion Notification - Celebration popup */}
+            <QuestCompletionNotification
+                notification={questCompletionNotification}
+                onDismiss={dismissQuestCompletionNotification}
+            />
+
+            {/* Quest Progress Toast - Milestone notification */}
+            <QuestProgressToast
+                notification={questProgressNotification}
+                onDismiss={dismissQuestProgressNotification}
             />
 
         </div>

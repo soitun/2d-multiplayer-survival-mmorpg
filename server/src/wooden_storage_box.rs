@@ -696,6 +696,17 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     }
     
     log::info!("Wooden Storage Box (item instance {}) consumed from player {:?} inventory after placement.", item_instance_id, sender_id);
+    
+    // Track quest progress for storage box placement
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        sender_id,
+        crate::quests::QuestObjectiveType::PlaceStorageBox,
+        None,
+        1,
+    ) {
+        log::error!("Failed to track quest progress for storage box placement: {}", e);
+    }
 
     Ok(())
 }

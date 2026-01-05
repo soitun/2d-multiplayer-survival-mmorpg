@@ -439,6 +439,34 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
             if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, item.player_identity, "items_crafted", item.output_quantity as u64) {
                 log::error!("Failed to track crafting stat: {}", e);
             }
+            
+            // Track quest progress for crafting
+            // Look up item name from definition for specific quest tracking
+            let item_name = ctx.db.item_definition()
+                .id()
+                .find(item.output_item_def_id)
+                .map(|def| def.name.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
+            
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                item.player_identity,
+                crate::quests::QuestObjectiveType::CraftAnyItem,
+                None,
+                item.output_quantity,
+            ) {
+                log::error!("Failed to track quest progress for crafting: {}", e);
+            }
+            // Also track for specific item crafting
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                item.player_identity,
+                crate::quests::QuestObjectiveType::CraftSpecificItem,
+                Some(&item_name),
+                item.output_quantity,
+            ) {
+                log::error!("Failed to track specific item quest progress: {}", e);
+            }
         }
 
         // Delete the finished item from the queue

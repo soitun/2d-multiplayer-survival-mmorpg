@@ -337,6 +337,14 @@ function AppContent() {
       dailyLoginRewards, // ADDED: Daily login reward definitions
       plantConfigDefinitions, // ADDED: Plant encyclopedia data
       discoveredPlants, // ADDED: Plants discovered by current player
+      // Quest system
+      tutorialQuestDefinitions,
+      dailyQuestDefinitions,
+      playerTutorialProgress,
+      playerDailyQuests,
+      questCompletionNotifications,
+      questProgressNotifications,
+      sovaQuestMessages,
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1377,6 +1385,14 @@ function AppContent() {
                             leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
                             plantConfigDefinitions={plantConfigDefinitions} // ADDED: Plant encyclopedia data
                             discoveredPlants={discoveredPlants} // ADDED: Plants discovered by current player
+                            // Quest system
+                            tutorialQuestDefinitions={tutorialQuestDefinitions}
+                            dailyQuestDefinitions={dailyQuestDefinitions}
+                            playerTutorialProgress={playerTutorialProgress}
+                            playerDailyQuests={playerDailyQuests}
+                            questCompletionNotifications={questCompletionNotifications}
+                            questProgressNotifications={questProgressNotifications}
+                            sovaQuestMessages={sovaQuestMessages}
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels

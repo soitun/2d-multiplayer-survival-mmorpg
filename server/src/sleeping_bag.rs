@@ -201,6 +201,17 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
         "[PlaceSleepingBag] Successfully placed Sleeping Bag {} at ({:.1}, {:.1}) by {:?}",
         inserted_bag.id, world_x, world_y, sender_id
     );
+    
+    // Track quest progress for sleeping bag placement
+    if let Err(e) = crate::quests::track_quest_progress(
+        ctx,
+        sender_id,
+        crate::quests::QuestObjectiveType::PlaceSleepingBag,
+        None,
+        1,
+    ) {
+        log::error!("Failed to track quest progress for sleeping bag placement: {}", e);
+    }
 
     Ok(())
 }

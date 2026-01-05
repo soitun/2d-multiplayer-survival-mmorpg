@@ -2036,6 +2036,17 @@ pub fn process_broth_pot_logic_scheduled(
                 log::error!("[BrothPot] Failed to track brew completion stat: {}", e);
             }
             
+            // Track quest progress for brewing
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                broth_pot.placed_by,
+                crate::quests::QuestObjectiveType::CompleteBrew,
+                None,
+                1,
+            ) {
+                log::warn!("[BrothPot] Failed to track quest progress for brewing: {}", e);
+            }
+            
             log::info!("[BrothPot] Completed brewing {} in pot {} (consumed {}mL water)", 
                       output_name, broth_pot_id, BREWING_WATER_REQUIREMENT_ML);
         }

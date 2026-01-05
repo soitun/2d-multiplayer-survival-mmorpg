@@ -182,6 +182,14 @@ export interface SpacetimeTableStates {
     dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>; // ADDED: Daily login reward definitions
     plantConfigDefinitions: Map<string, SpacetimeDB.PlantConfigDefinition>; // ADDED: Plant encyclopedia data
     discoveredPlants: Map<string, SpacetimeDB.PlayerDiscoveredPlant>; // ADDED: Plants discovered by current player
+    // Quest system tables
+    tutorialQuestDefinitions: Map<string, SpacetimeDB.TutorialQuestDefinition>; // ADDED: Tutorial quest definitions
+    dailyQuestDefinitions: Map<string, SpacetimeDB.DailyQuestDefinition>; // ADDED: Daily quest definitions
+    playerTutorialProgress: Map<string, SpacetimeDB.PlayerTutorialProgress>; // ADDED: Player's tutorial progress
+    playerDailyQuests: Map<string, SpacetimeDB.PlayerDailyQuest>; // ADDED: Player's daily quests
+    questCompletionNotifications: Map<string, SpacetimeDB.QuestCompletionNotification>; // ADDED: Quest completion notifications
+    questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>; // ADDED: Quest progress notifications
+    sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>; // ADDED: SOVA quest messages
 }
 
 // Define the props the hook accepts
@@ -291,6 +299,15 @@ export const useSpacetimeTables = ({
     const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
     const [plantConfigDefinitions, setPlantConfigDefinitions] = useState<Map<string, SpacetimeDB.PlantConfigDefinition>>(() => new Map());
     const [discoveredPlants, setDiscoveredPlants] = useState<Map<string, SpacetimeDB.PlayerDiscoveredPlant>>(() => new Map());
+    
+    // Quest system state
+    const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useState<Map<string, SpacetimeDB.TutorialQuestDefinition>>(() => new Map());
+    const [dailyQuestDefinitions, setDailyQuestDefinitions] = useState<Map<string, SpacetimeDB.DailyQuestDefinition>>(() => new Map());
+    const [playerTutorialProgress, setPlayerTutorialProgress] = useState<Map<string, SpacetimeDB.PlayerTutorialProgress>>(() => new Map());
+    const [playerDailyQuests, setPlayerDailyQuests] = useState<Map<string, SpacetimeDB.PlayerDailyQuest>>(() => new Map());
+    const [questCompletionNotifications, setQuestCompletionNotifications] = useState<Map<string, SpacetimeDB.QuestCompletionNotification>>(() => new Map());
+    const [questProgressNotifications, setQuestProgressNotifications] = useState<Map<string, SpacetimeDB.QuestProgressNotification>>(() => new Map());
+    const [sovaQuestMessages, setSovaQuestMessages] = useState<Map<string, SpacetimeDB.SovaQuestMessage>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1183,6 +1200,80 @@ export const useSpacetimeTables = ({
                 }
             };
 
+            // --- Quest System Subscriptions ---
+            const handleTutorialQuestDefinitionInsert = (ctx: any, def: SpacetimeDB.TutorialQuestDefinition) => setTutorialQuestDefinitions(prev => new Map(prev).set(def.id, def));
+            const handleTutorialQuestDefinitionUpdate = (ctx: any, oldDef: SpacetimeDB.TutorialQuestDefinition, newDef: SpacetimeDB.TutorialQuestDefinition) => setTutorialQuestDefinitions(prev => new Map(prev).set(newDef.id, newDef));
+            const handleTutorialQuestDefinitionDelete = (ctx: any, def: SpacetimeDB.TutorialQuestDefinition) => setTutorialQuestDefinitions(prev => { const newMap = new Map(prev); newMap.delete(def.id); return newMap; });
+
+            const handleDailyQuestDefinitionInsert = (ctx: any, def: SpacetimeDB.DailyQuestDefinition) => setDailyQuestDefinitions(prev => new Map(prev).set(def.id, def));
+            const handleDailyQuestDefinitionUpdate = (ctx: any, oldDef: SpacetimeDB.DailyQuestDefinition, newDef: SpacetimeDB.DailyQuestDefinition) => setDailyQuestDefinitions(prev => new Map(prev).set(newDef.id, newDef));
+            const handleDailyQuestDefinitionDelete = (ctx: any, def: SpacetimeDB.DailyQuestDefinition) => setDailyQuestDefinitions(prev => { const newMap = new Map(prev); newMap.delete(def.id); return newMap; });
+
+            const handlePlayerTutorialProgressInsert = (ctx: any, progress: SpacetimeDB.PlayerTutorialProgress) => {
+                if (connection?.identity && progress.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerTutorialProgress(prev => new Map(prev).set(progress.playerId.toHexString(), progress));
+                }
+            };
+            const handlePlayerTutorialProgressUpdate = (ctx: any, oldProgress: SpacetimeDB.PlayerTutorialProgress, newProgress: SpacetimeDB.PlayerTutorialProgress) => {
+                if (connection?.identity && newProgress.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerTutorialProgress(prev => new Map(prev).set(newProgress.playerId.toHexString(), newProgress));
+                }
+            };
+            const handlePlayerTutorialProgressDelete = (ctx: any, progress: SpacetimeDB.PlayerTutorialProgress) => {
+                if (connection?.identity && progress.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerTutorialProgress(prev => { const newMap = new Map(prev); newMap.delete(progress.playerId.toHexString()); return newMap; });
+                }
+            };
+
+            const handlePlayerDailyQuestInsert = (ctx: any, quest: SpacetimeDB.PlayerDailyQuest) => {
+                if (connection?.identity && quest.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerDailyQuests(prev => new Map(prev).set(quest.id.toString(), quest));
+                }
+            };
+            const handlePlayerDailyQuestUpdate = (ctx: any, oldQuest: SpacetimeDB.PlayerDailyQuest, newQuest: SpacetimeDB.PlayerDailyQuest) => {
+                if (connection?.identity && newQuest.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerDailyQuests(prev => new Map(prev).set(newQuest.id.toString(), newQuest));
+                }
+            };
+            const handlePlayerDailyQuestDelete = (ctx: any, quest: SpacetimeDB.PlayerDailyQuest) => {
+                if (connection?.identity && quest.playerId.toHexString() === connection.identity.toHexString()) {
+                    setPlayerDailyQuests(prev => { const newMap = new Map(prev); newMap.delete(quest.id.toString()); return newMap; });
+                }
+            };
+
+            const handleQuestCompletionNotificationInsert = (ctx: any, notif: SpacetimeDB.QuestCompletionNotification) => {
+                if (connection?.identity && notif.playerId.toHexString() === connection.identity.toHexString()) {
+                    setQuestCompletionNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleQuestCompletionNotificationDelete = (ctx: any, notif: SpacetimeDB.QuestCompletionNotification) => {
+                if (connection?.identity && notif.playerId.toHexString() === connection.identity.toHexString()) {
+                    setQuestCompletionNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+                }
+            };
+
+            const handleQuestProgressNotificationInsert = (ctx: any, notif: SpacetimeDB.QuestProgressNotification) => {
+                if (connection?.identity && notif.playerId.toHexString() === connection.identity.toHexString()) {
+                    setQuestProgressNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
+                }
+            };
+            const handleQuestProgressNotificationDelete = (ctx: any, notif: SpacetimeDB.QuestProgressNotification) => {
+                if (connection?.identity && notif.playerId.toHexString() === connection.identity.toHexString()) {
+                    setQuestProgressNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
+                }
+            };
+
+            const handleSovaQuestMessageInsert = (ctx: any, msg: SpacetimeDB.SovaQuestMessage) => {
+                if (connection?.identity && msg.playerId.toHexString() === connection.identity.toHexString()) {
+                    setSovaQuestMessages(prev => new Map(prev).set(msg.id.toString(), msg));
+                }
+            };
+            const handleSovaQuestMessageDelete = (ctx: any, msg: SpacetimeDB.SovaQuestMessage) => {
+                if (connection?.identity && msg.playerId.toHexString() === connection.identity.toHexString()) {
+                    setSovaQuestMessages(prev => { const newMap = new Map(prev); newMap.delete(msg.id.toString()); return newMap; });
+                }
+            };
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
@@ -1973,6 +2064,14 @@ export const useSpacetimeTables = ({
             // Plant config definitions for Encyclopedia (populated on server init)
             connection.db.plantConfigDefinition.onInsert(handlePlantConfigDefinitionInsert); connection.db.plantConfigDefinition.onUpdate(handlePlantConfigDefinitionUpdate); connection.db.plantConfigDefinition.onDelete(handlePlantConfigDefinitionDelete);
             connection.db.playerDiscoveredPlant.onInsert(handleDiscoveredPlantInsert); connection.db.playerDiscoveredPlant.onDelete(handleDiscoveredPlantDelete);
+            // Quest system subscriptions
+            connection.db.tutorialQuestDefinition.onInsert(handleTutorialQuestDefinitionInsert); connection.db.tutorialQuestDefinition.onUpdate(handleTutorialQuestDefinitionUpdate); connection.db.tutorialQuestDefinition.onDelete(handleTutorialQuestDefinitionDelete);
+            connection.db.dailyQuestDefinition.onInsert(handleDailyQuestDefinitionInsert); connection.db.dailyQuestDefinition.onUpdate(handleDailyQuestDefinitionUpdate); connection.db.dailyQuestDefinition.onDelete(handleDailyQuestDefinitionDelete);
+            connection.db.playerTutorialProgress.onInsert(handlePlayerTutorialProgressInsert); connection.db.playerTutorialProgress.onUpdate(handlePlayerTutorialProgressUpdate); connection.db.playerTutorialProgress.onDelete(handlePlayerTutorialProgressDelete);
+            connection.db.playerDailyQuest.onInsert(handlePlayerDailyQuestInsert); connection.db.playerDailyQuest.onUpdate(handlePlayerDailyQuestUpdate); connection.db.playerDailyQuest.onDelete(handlePlayerDailyQuestDelete);
+            connection.db.questCompletionNotification.onInsert(handleQuestCompletionNotificationInsert); connection.db.questCompletionNotification.onDelete(handleQuestCompletionNotificationDelete);
+            connection.db.questProgressNotification.onInsert(handleQuestProgressNotificationInsert); connection.db.questProgressNotification.onDelete(handleQuestProgressNotificationDelete);
+            connection.db.sovaQuestMessage.onInsert(handleSovaQuestMessageInsert); connection.db.sovaQuestMessage.onDelete(handleSovaQuestMessageDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2823,5 +2922,13 @@ export const useSpacetimeTables = ({
         dailyLoginRewards, // ADDED: Daily login reward definitions
         plantConfigDefinitions, // ADDED: Plant encyclopedia data
         discoveredPlants, // ADDED: Plants discovered by current player
+        // Quest system
+        tutorialQuestDefinitions, // ADDED: Tutorial quest definitions
+        dailyQuestDefinitions, // ADDED: Daily quest definitions
+        playerTutorialProgress, // ADDED: Player's tutorial progress
+        playerDailyQuests, // ADDED: Player's daily quests
+        questCompletionNotifications, // ADDED: Quest completion notifications
+        questProgressNotifications, // ADDED: Quest progress notifications
+        sovaQuestMessages, // ADDED: SOVA quest messages
     };
 }; 
