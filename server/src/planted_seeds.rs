@@ -1169,10 +1169,11 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             // Calculate green rune stone bonus (agrarian effect)
             let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
             
-            // PvP-oriented: If green rune stone is active, guarantee 2x growth regardless of other conditions
+            // PvP-oriented: If green rune stone is active, apply it with soil bonus but ignore other penalties
+            // This guarantees good growth for farmers near green rune stones
             if green_rune_multiplier > 1.0 {
-                // Green rune stone active - guarantee 2x growth (ignore other penalties/bonuses)
-                green_rune_multiplier
+                // Green rune stone active - apply rune + soil bonuses only (ignore weather/cloud penalties)
+                green_rune_multiplier * soil_multiplier
             } else {
                 // No green rune stone - apply all normal modifiers
                 base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier

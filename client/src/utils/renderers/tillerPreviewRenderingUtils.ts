@@ -6,8 +6,8 @@
  */
 
 import { DbConnection } from '../../generated';
+import { gameConfig, TILE_SIZE } from '../../config/gameConfig';
 
-const TILE_SIZE = 48;
 const HALF_TILE = TILE_SIZE / 2; // 24px - dual-grid offset
 
 // Tile types that cannot be tilled (matching server can_be_tilled logic)
@@ -43,7 +43,7 @@ function tileTypeU8ToTag(tileTypeU8: number): string {
  * Get tile type at a specific tile coordinate from chunk data
  */
 function getTileTypeAtTile(connection: DbConnection, tileX: number, tileY: number): string | null {
-  const chunkSize = 8; // Default chunk size
+  const chunkSize = gameConfig.chunkSizeTiles;
   const chunkX = Math.floor(tileX / chunkSize);
   const chunkY = Math.floor(tileY / chunkSize);
   
