@@ -48,13 +48,17 @@ pub const DAILY_QUEST_SHARD_BASE: u64 = 15;
 /// Quest objective types - what action completes the quest
 #[derive(SpacetimeType, Clone, Debug, PartialEq, Eq)]
 pub enum QuestObjectiveType {
-    // Resource gathering
-    GatherWood,           // Chop trees
-    GatherStone,          // Mine stone
+    // Resource gathering - AMOUNT collected
+    GatherWood,           // Track actual wood amount gathered (e.g., "gather 400 wood")
+    GatherStone,          // Track actual stone amount gathered (e.g., "mine 200 stone")
     GatherFiber,          // Pick fiber from ground
     HarvestPlant,         // Pick any harvestable plant
     HarvestSpecificPlant, // Pick a specific plant type (uses target_id)
     MineCoral,            // Mine coral underwater
+    
+    // Resource node destruction - NODE count
+    ChopTree,             // Track trees destroyed (e.g., "chop down 10 trees")
+    MineStoneNode,        // Track stone nodes destroyed (e.g., "deplete 5 stone nodes")
     
     // Crafting
     CraftAnyItem,         // Craft any item
@@ -936,6 +940,7 @@ pub fn initialize_my_quests(ctx: &ReducerContext) -> Result<(), String> {
     
     // Send welcome message for new quest system users
     if progress.current_quest_index == 0 && !progress.tutorial_completed {
+        // First, send system message
         send_sova_quest_message(
             ctx,
             player_id,
@@ -943,6 +948,19 @@ pub fn initialize_my_quests(ctx: &ReducerContext) -> Result<(), String> {
             "system",
             Some("sova_directives_intro.mp3"),
         );
+        
+        // Then, send the FIRST quest's start message so player knows what to do
+        if let Some(first_quest) = ctx.db.tutorial_quest_definition().iter()
+            .find(|q| q.order_index == 0) 
+        {
+            send_sova_quest_message(
+                ctx,
+                player_id,
+                &first_quest.sova_start_message,
+                "quest_start",
+                Some("sova_tutorial_01_start.mp3"),
+            );
+        }
     }
     
     Ok(())
@@ -1013,7 +1031,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             order_index: 2,
             name: "Timber!".to_string(),
             description: "Chop down 1 tree for wood using your combat ladle.".to_string(),
-            objective_type: QuestObjectiveType::GatherWood,
+            objective_type: QuestObjectiveType::ChopTree,  // Track trees destroyed, not wood amount
             target_id: None,
             target_amount: 1,
             secondary_objective_type: None,
@@ -1022,9 +1040,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "You need wood for your shelter. Use your combat ladle to chop a tree - left-click to attack it.".to_string(),
+            sova_start_message: "You need wood for your shelter. Equip your combat ladle (press 1 or select it in your hotbar), then left-click to chop a tree.".to_string(),
             sova_complete_message: "Wood acquired. Now you have everything for your first shelter.".to_string(),
-            sova_hint_message: "Equip your combat ladle and left-click on a tree to chop it down.".to_string(),
+            sova_hint_message: "Equip your combat ladle (press 1 or select it in your hotbar) and left-click on a tree to chop it down.".to_string(),
         },
         
         // Quest 4: Build Shelter (THE GOAL - get shelter ASAP)
@@ -1309,11 +1327,12 @@ fn seed_daily_quests(ctx: &ReducerContext) -> Result<(), String> {
     
     let quests = vec![
         // ===== GATHERING QUESTS =====
+        // Tree destruction quests (count trees chopped)
         DailyQuestDefinition {
-            id: "daily_chop_wood_easy".to_string(),
+            id: "daily_chop_trees_easy".to_string(),
             name: "Lumber Run".to_string(),
             description: "Chop down 10 trees.".to_string(),
-            objective_type: QuestObjectiveType::GatherWood,
+            objective_type: QuestObjectiveType::ChopTree,  // Count trees destroyed
             target_id: None,
             target_amount: 10,
             difficulty: QuestDifficulty::Easy,
@@ -1321,34 +1340,59 @@ fn seed_daily_quests(ctx: &ReducerContext) -> Result<(), String> {
             base_shard_reward: 15,
         },
         DailyQuestDefinition {
-            id: "daily_chop_wood_medium".to_string(),
+            id: "daily_chop_trees_medium".to_string(),
             name: "Deforestation".to_string(),
             description: "Chop down 30 trees.".to_string(),
-            objective_type: QuestObjectiveType::GatherWood,
+            objective_type: QuestObjectiveType::ChopTree,  // Count trees destroyed
             target_id: None,
             target_amount: 30,
             difficulty: QuestDifficulty::Medium,
             base_xp_reward: 40,
             base_shard_reward: 25,
         },
+        // Wood amount quest (count actual wood gathered)
         DailyQuestDefinition {
-            id: "daily_mine_stone_easy".to_string(),
-            name: "Stone Collector".to_string(),
-            description: "Mine 50 stone.".to_string(),
-            objective_type: QuestObjectiveType::GatherStone,
+            id: "daily_gather_wood".to_string(),
+            name: "Wood Stockpile".to_string(),
+            description: "Gather 500 wood from trees.".to_string(),
+            objective_type: QuestObjectiveType::GatherWood,  // Count actual wood amount
             target_id: None,
-            target_amount: 50,
+            target_amount: 500,
+            difficulty: QuestDifficulty::Medium,
+            base_xp_reward: 35,
+            base_shard_reward: 20,
+        },
+        // Stone node destruction quest
+        DailyQuestDefinition {
+            id: "daily_mine_nodes_easy".to_string(),
+            name: "Rock Breaker".to_string(),
+            description: "Deplete 3 stone formations.".to_string(),
+            objective_type: QuestObjectiveType::MineStoneNode,  // Count stone nodes destroyed
+            target_id: None,
+            target_amount: 3,
             difficulty: QuestDifficulty::Easy,
             base_xp_reward: 30,
             base_shard_reward: 15,
         },
+        // Stone amount quests (count actual stone gathered)
         DailyQuestDefinition {
-            id: "daily_mine_stone_hard".to_string(),
-            name: "Quarry Master".to_string(),
-            description: "Mine 200 stone.".to_string(),
-            objective_type: QuestObjectiveType::GatherStone,
+            id: "daily_gather_stone".to_string(),
+            name: "Stone Collector".to_string(),
+            description: "Gather 300 stone from rock formations.".to_string(),
+            objective_type: QuestObjectiveType::GatherStone,  // Count actual stone amount
             target_id: None,
-            target_amount: 200,
+            target_amount: 300,
+            difficulty: QuestDifficulty::Medium,
+            base_xp_reward: 35,
+            base_shard_reward: 20,
+        },
+        DailyQuestDefinition {
+            id: "daily_gather_stone_hard".to_string(),
+            name: "Quarry Master".to_string(),
+            description: "Gather 800 stone from rock formations.".to_string(),
+            objective_type: QuestObjectiveType::GatherStone,  // Count actual stone amount
+            target_id: None,
+            target_amount: 800,
             difficulty: QuestDifficulty::Hard,
             base_xp_reward: 50,
             base_shard_reward: 40,

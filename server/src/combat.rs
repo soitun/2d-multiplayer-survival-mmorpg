@@ -1346,6 +1346,17 @@ pub fn damage_tree(
         if let Err(e) = resource_result {
             log::error!("Failed to grant {} to player {:?}: {}", resource_name_to_grant, attacker_id, e);
         }
+        
+        // Track quest progress for wood gathering - track ACTUAL wood collected per hit
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            attacker_id,
+            crate::quests::QuestObjectiveType::GatherWood,
+            None,
+            actual_yield,
+        ) {
+            log::error!("Failed to track quest progress for wood gathering: {}", e);
+        }
     }
     
     if tree_destroyed {
@@ -1364,6 +1375,17 @@ pub fn damage_tree(
                 log::info!("Player {:?} received final chop bonus: {} {} ({}% of tree health)", 
                          attacker_id, final_chop_bonus, resource_name_to_grant, (bonus_percentage * 100.0) as u32);
                 // Bonus notification is now handled by the item acquisition system via grant_resource()
+                
+                // Track final bonus wood for quest progress
+                if let Err(e) = crate::quests::track_quest_progress(
+                    ctx,
+                    attacker_id,
+                    crate::quests::QuestObjectiveType::GatherWood,
+                    None,
+                    final_chop_bonus,
+                ) {
+                    log::error!("Failed to track quest progress for final wood bonus: {}", e);
+                }
             }
         }
         
@@ -1379,15 +1401,15 @@ pub fn damage_tree(
             log::error!("Failed to check achievements after tree chop: {}", e);
         }
         
-        // Track quest progress for wood gathering
+        // Track quest progress for tree destruction (e.g., "chop down 10 trees")
         if let Err(e) = crate::quests::track_quest_progress(
             ctx,
             attacker_id,
-            crate::quests::QuestObjectiveType::GatherWood,
+            crate::quests::QuestObjectiveType::ChopTree,
             None,
             1,
         ) {
-            log::error!("Failed to track quest progress for tree chop: {}", e);
+            log::error!("Failed to track quest progress for tree destruction: {}", e);
         }
         
         // Calculate random respawn time for trees
@@ -1537,6 +1559,17 @@ pub fn damage_stone(
             log::debug!("[damage_stone] Successfully granted {} {} to player {:?}", actual_yield, resource_name, attacker_id);
         }
         
+        // Track quest progress for stone gathering - track ACTUAL stone collected per hit
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            attacker_id,
+            crate::quests::QuestObjectiveType::GatherStone,
+            None,
+            actual_yield,
+        ) {
+            log::error!("Failed to track quest progress for stone gathering: {}", e);
+        }
+        
         // <<< INSANITY SYSTEM: Increase insanity when mining memory shard nodes >>>
         if stone.ore_type == crate::stone::OreType::Memory {
             let players = ctx.db.player();
@@ -1578,6 +1611,17 @@ pub fn damage_stone(
                 log::info!("Player {:?} received final hit bonus: {} {} ({}% of stone health)", 
                          attacker_id, final_hit_bonus, resource_name, (bonus_percentage * 100.0) as u32);
                 // Bonus notification is now handled by the item acquisition system via grant_resource()
+                
+                // Track final bonus stone for quest progress
+                if let Err(e) = crate::quests::track_quest_progress(
+                    ctx,
+                    attacker_id,
+                    crate::quests::QuestObjectiveType::GatherStone,
+                    None,
+                    final_hit_bonus,
+                ) {
+                    log::error!("Failed to track quest progress for final stone bonus: {}", e);
+                }
             }
         }
         
@@ -1593,15 +1637,15 @@ pub fn damage_stone(
             log::error!("Failed to check achievements after stone mining: {}", e);
         }
         
-        // Track quest progress for stone gathering
+        // Track quest progress for stone node destruction (e.g., "deplete 5 stone nodes")
         if let Err(e) = crate::quests::track_quest_progress(
             ctx,
             attacker_id,
-            crate::quests::QuestObjectiveType::GatherStone,
+            crate::quests::QuestObjectiveType::MineStoneNode,
             None,
             1,
         ) {
-            log::error!("Failed to track quest progress for stone mining: {}", e);
+            log::error!("Failed to track quest progress for stone node destruction: {}", e);
         }
         
         // Calculate random respawn time for stones
