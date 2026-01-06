@@ -146,6 +146,7 @@ interface GameScreenProps {
     // worldTiles removed – world background now derived client-side from compressed chunk data
     minimapCache: SpacetimeDBMinimapCache | null;
     wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
+    hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particles
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
     barrels: Map<string, SpacetimeDBBarrel>; // ADDED barrels
     seaStacks: Map<string, any>; // ADDED sea stacks
@@ -418,6 +419,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
         minimapCache,
         wildAnimals,
+        hostileDeathEvents,
         animalCorpses,
         inventoryItems, itemDefinitions, worldState, activeEquipments, recipes, craftingQueueItems,
         messages,
@@ -1034,6 +1036,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 stashes={stashes}
                 plantedSeeds={plantedSeeds}
                 wildAnimals={wildAnimals}
+                hostileDeathEvents={hostileDeathEvents}
                 animalCorpses={animalCorpses}
                 barrels={props.barrels}
                 seaStacks={props.seaStacks}

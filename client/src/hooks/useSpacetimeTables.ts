@@ -145,6 +145,7 @@ export interface SpacetimeTableStates {
     playerDrinkingCooldowns: Map<string, SpacetimeDB.PlayerDrinkingCooldown>;
     wildAnimals: Map<string, SpacetimeDB.WildAnimal>;
     // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal with is_hostile_npc = true
+    hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particle effects
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
     barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
     seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
@@ -263,6 +264,8 @@ export const useSpacetimeTables = ({
     const [playerDrinkingCooldowns, setPlayerDrinkingCooldowns] = useState<Map<string, SpacetimeDB.PlayerDrinkingCooldown>>(() => new Map());
     const [wildAnimals, setWildAnimals] = useState<Map<string, SpacetimeDB.WildAnimal>>(() => new Map());
     // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table with is_hostile_npc = true
+    // Track hostile death events for client-side particle effects (no server subscription needed)
+    const [hostileDeathEvents, setHostileDeathEvents] = useState<Array<{id: string, x: number, y: number, species: string, timestamp: number}>>([]);
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
     const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
@@ -1677,6 +1680,23 @@ export const useSpacetimeTables = ({
                 setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
+                // Check if this was a hostile NPC death - trigger client-side particle effects
+                if (animal.isHostileNpc) {
+                    const deathEvent = {
+                        id: `death-${animal.id}-${Date.now()}`,
+                        x: animal.posX,
+                        y: animal.posY,
+                        species: String(animal.species), // Convert AnimalSpecies enum to string
+                        timestamp: Date.now(),
+                    };
+                    setHostileDeathEvents(prev => [...prev, deathEvent]);
+                    
+                    // Auto-cleanup after 3 seconds (particle system will have consumed this)
+                    setTimeout(() => {
+                        setHostileDeathEvents(prev => prev.filter(e => e.id !== deathEvent.id));
+                    }, 3000);
+                }
+                
                 setWildAnimals(prev => {
                     const newMap = new Map(prev);
                     newMap.delete(animal.id.toString());
@@ -2909,6 +2929,7 @@ export const useSpacetimeTables = ({
         localPlayerIdentity, // Add this to the return
         playerDrinkingCooldowns,
         wildAnimals, // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
+        hostileDeathEvents, // Client-side death events for particle effects (no server subscription)
         animalCorpses,
         barrels, // ADDED barrels
         seaStacks, // ADDED sea stacks

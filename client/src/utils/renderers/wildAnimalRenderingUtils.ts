@@ -106,15 +106,18 @@ interface AnimalMovementState {
     lastUpdateTime: number;
     interpolatedX: number;
     interpolatedY: number;
+    velocityX: number; // Estimated velocity for prediction
+    velocityY: number;
 }
 
 const animalMovementStates = new Map<string, AnimalMovementState>();
 
-// Interpolation settings - UPDATED for 500ms server tick interval
-// Animals can move ~375px in 500ms at 750px/s, so we need higher thresholds
-// Slower lerp speed compensates for larger gaps between server updates
-const ANIMAL_INTERPOLATION_SPEED = 0.20; // Slower interpolation for smoother movement with 500ms ticks
-const MAX_INTERPOLATION_DISTANCE = 500; // Higher threshold for 500ms tick interval (was 200 for 125ms)
+// Interpolation settings - TUNED for 500ms server tick interval with velocity-based smoothing
+// With 500ms ticks, animals can move ~520px at 1040px/s sprint speed
+// We use velocity estimation to predict movement between updates for smoother visuals
+const SERVER_TICK_MS = 500; // Server updates every 500ms
+const MAX_INTERPOLATION_DISTANCE = 600; // Higher threshold for 500ms tick interval (accounts for sprint speed)
+const VELOCITY_SMOOTHING = 0.3; // How much to smooth velocity changes (0=instant, 1=never change)
 
 // --- Reusable Offscreen Canvas for Tinting ---
 const offscreenCanvas = document.createElement('canvas');
@@ -234,7 +237,7 @@ export function renderWildAnimal({
 
     const animalId = animal.id.toString();
     
-    // --- Movement interpolation with collision prediction ---
+    // --- Movement interpolation with velocity-based prediction for smoother movement ---
     let renderPosX = animal.posX;
     let renderPosY = animal.posY;
     
@@ -249,50 +252,95 @@ export function renderWildAnimal({
             lastUpdateTime: nowMs,
             interpolatedX: animal.posX,
             interpolatedY: animal.posY,
+            velocityX: 0,
+            velocityY: 0,
         };
         animalMovementStates.set(animalId, movementState);
     } else {
-        // Check if server position changed significantly
+        // Check if server position changed
         const dx = animal.posX - movementState.lastServerX;
         const dy = animal.posY - movementState.lastServerY;
         const distanceMoved = Math.sqrt(dx * dx + dy * dy);
         
-        if (distanceMoved > 2.0) { // Only update if animal moved more than 2 pixels (reduced sensitivity for high-speed animals)
+        if (distanceMoved > 1.0) { // Server position update detected
+            const timeSinceLastUpdate = nowMs - movementState.lastUpdateTime;
+            
             // Check for teleportation (too far to interpolate)
             if (distanceMoved > MAX_INTERPOLATION_DISTANCE) {
-                // Teleportation detected - snap to new position
+                // Teleportation detected - snap to new position and reset velocity
                 movementState.interpolatedX = animal.posX;
                 movementState.interpolatedY = animal.posY;
-            } else {
-                // Normal movement - update target
-                movementState.targetX = animal.posX;
-                movementState.targetY = animal.posY;
+                movementState.velocityX = 0;
+                movementState.velocityY = 0;
+            } else if (timeSinceLastUpdate > 50) { // Avoid division by tiny time values
+                // Calculate velocity based on actual movement (pixels per millisecond)
+                const newVelocityX = dx / timeSinceLastUpdate;
+                const newVelocityY = dy / timeSinceLastUpdate;
+                
+                // Smooth velocity changes to avoid jitter
+                movementState.velocityX = movementState.velocityX * VELOCITY_SMOOTHING + newVelocityX * (1 - VELOCITY_SMOOTHING);
+                movementState.velocityY = movementState.velocityY * VELOCITY_SMOOTHING + newVelocityY * (1 - VELOCITY_SMOOTHING);
             }
+            
+            // Update target and tracking
+            movementState.targetX = animal.posX;
+            movementState.targetY = animal.posY;
             movementState.lastServerX = animal.posX;
             movementState.lastServerY = animal.posY;
             movementState.lastUpdateTime = nowMs;
         }
         
-        // Dynamic interpolation speed based on movement distance (auto-scales to any speed)
-        const distanceToTarget = Math.sqrt(
-            (movementState.targetX - movementState.interpolatedX) ** 2 + 
-            (movementState.targetY - movementState.interpolatedY) ** 2
-        );
+        // Calculate time since last server update
+        const timeSinceUpdate = nowMs - movementState.lastUpdateTime;
         
-        // Auto-adaptive speed based on how far behind we are (works for any animal speed)
-        let adaptiveSpeed = ANIMAL_INTERPOLATION_SPEED;
-        if (distanceToTarget > 40) { // Large gap = much faster catchup
-            adaptiveSpeed = 0.6;
-        } else if (distanceToTarget > 15) { // Medium gap = faster catchup  
-            adaptiveSpeed = 0.45;
+        // Use velocity prediction for the first portion of the tick, then blend to target
+        // This creates smooth movement that arrives at the target position naturally
+        const tickProgress = Math.min(timeSinceUpdate / SERVER_TICK_MS, 1.5); // Cap at 1.5x tick time
+        
+        // Distance remaining to target
+        const distToTargetX = movementState.targetX - movementState.interpolatedX;
+        const distToTargetY = movementState.targetY - movementState.interpolatedY;
+        const distToTarget = Math.sqrt(distToTargetX * distToTargetX + distToTargetY * distToTargetY);
+        
+        if (distToTarget > 0.5) {
+            // Blend between velocity prediction and direct interpolation based on tick progress
+            // Early in tick: use velocity prediction
+            // Late in tick: blend toward target to ensure we arrive
+            
+            if (tickProgress < 0.8) {
+                // Early/mid tick: Use velocity prediction with correction toward target
+                // This makes movement feel continuous rather than jerky
+                const predictionWeight = 0.7 * (1 - tickProgress); // Fade out prediction over time
+                const correctionWeight = 1 - predictionWeight;
+                
+                // Velocity-based prediction (where we'd be if velocity continued)
+                const predictedX = movementState.interpolatedX + movementState.velocityX * 16; // 16ms = ~60fps frame
+                const predictedY = movementState.interpolatedY + movementState.velocityY * 16;
+                
+                // Target-seeking interpolation (move toward target at appropriate speed)
+                const seekSpeed = Math.min(0.15 + tickProgress * 0.2, 0.35); // Speed up as we approach tick end
+                const seekX = movementState.interpolatedX + distToTargetX * seekSpeed;
+                const seekY = movementState.interpolatedY + distToTargetY * seekSpeed;
+                
+                // Blend prediction and seeking
+                movementState.interpolatedX = predictedX * predictionWeight + seekX * correctionWeight;
+                movementState.interpolatedY = predictedY * predictionWeight + seekY * correctionWeight;
+            } else {
+                // Late tick: Prioritize reaching target smoothly
+                // Use exponential approach to avoid overshooting
+                const catchupSpeed = Math.min(0.25 + (tickProgress - 0.8) * 0.5, 0.6);
+                movementState.interpolatedX += distToTargetX * catchupSpeed;
+                movementState.interpolatedY += distToTargetY * catchupSpeed;
+            }
+            
+            // Ensure we don't overshoot target
+            if (Math.abs(movementState.interpolatedX - movementState.targetX) < 1) {
+                movementState.interpolatedX = movementState.targetX;
+            }
+            if (Math.abs(movementState.interpolatedY - movementState.targetY) < 1) {
+                movementState.interpolatedY = movementState.targetY;
+            }
         }
-        
-        // Use adaptive interpolation for smooth movement
-        const lerpX = movementState.interpolatedX + (movementState.targetX - movementState.interpolatedX) * adaptiveSpeed;
-        const lerpY = movementState.interpolatedY + (movementState.targetY - movementState.interpolatedY) * adaptiveSpeed;
-        
-        movementState.interpolatedX = lerpX;
-        movementState.interpolatedY = lerpY;
         
         // Use interpolated position for rendering
         renderPosX = movementState.interpolatedX;

@@ -73,6 +73,8 @@ import { CleanupExpiredFirePatches } from "./cleanup_expired_fire_patches_reduce
 export { CleanupExpiredFirePatches };
 import { CleanupExpiredWaterPatches } from "./cleanup_expired_water_patches_reducer.ts";
 export { CleanupExpiredWaterPatches };
+import { CleanupHostileDeathEffect } from "./cleanup_hostile_death_effect_reducer.ts";
+export { CleanupHostileDeathEffect };
 import { CleanupOldSoundEvents } from "./cleanup_old_sound_events_reducer.ts";
 export { CleanupOldSoundEvents };
 import { CleanupOldThunderEvents } from "./cleanup_old_thunder_events_reducer.ts";
@@ -863,6 +865,10 @@ import { HomesteadHearthTableHandle } from "./homestead_hearth_table.ts";
 export { HomesteadHearthTableHandle };
 import { HostileDawnCleanupScheduleTableHandle } from "./hostile_dawn_cleanup_schedule_table.ts";
 export { HostileDawnCleanupScheduleTableHandle };
+import { HostileDeathEffectTableHandle } from "./hostile_death_effect_table.ts";
+export { HostileDeathEffectTableHandle };
+import { HostileDeathEffectCleanupScheduleTableHandle } from "./hostile_death_effect_cleanup_schedule_table.ts";
+export { HostileDeathEffectCleanupScheduleTableHandle };
 import { HostileSpawnScheduleTableHandle } from "./hostile_spawn_schedule_table.ts";
 export { HostileSpawnScheduleTableHandle };
 import { InventoryItemTableHandle } from "./inventory_item_table.ts";
@@ -1227,6 +1233,10 @@ import { HomesteadHearth } from "./homestead_hearth_type.ts";
 export { HomesteadHearth };
 import { HostileDawnCleanupSchedule } from "./hostile_dawn_cleanup_schedule_type.ts";
 export { HostileDawnCleanupSchedule };
+import { HostileDeathEffect } from "./hostile_death_effect_type.ts";
+export { HostileDeathEffect };
+import { HostileDeathEffectCleanupSchedule } from "./hostile_death_effect_cleanup_schedule_type.ts";
+export { HostileDeathEffectCleanupSchedule };
 import { HostileSpawnSchedule } from "./hostile_spawn_schedule_type.ts";
 export { HostileSpawnSchedule };
 import { HotbarLocationData } from "./hotbar_location_data_type.ts";
@@ -2074,6 +2084,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "scheduledId",
         colType: (HostileDawnCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    hostile_death_effect: {
+      tableName: "hostile_death_effect" as const,
+      rowType: HostileDeathEffect.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (HostileDeathEffect.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    hostile_death_effect_cleanup_schedule: {
+      tableName: "hostile_death_effect_cleanup_schedule" as const,
+      rowType: HostileDeathEffectCleanupSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (HostileDeathEffectCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     hostile_spawn_schedule: {
@@ -2953,6 +2981,10 @@ const REMOTE_MODULE = {
     cleanup_expired_water_patches: {
       reducerName: "cleanup_expired_water_patches",
       argsType: CleanupExpiredWaterPatches.getTypeScriptAlgebraicType(),
+    },
+    cleanup_hostile_death_effect: {
+      reducerName: "cleanup_hostile_death_effect",
+      argsType: CleanupHostileDeathEffect.getTypeScriptAlgebraicType(),
     },
     cleanup_old_sound_events: {
       reducerName: "cleanup_old_sound_events",
@@ -4309,6 +4341,7 @@ export type Reducer = never
 | { name: "CleanupExpiredFertilizerPatches", args: CleanupExpiredFertilizerPatches }
 | { name: "CleanupExpiredFirePatches", args: CleanupExpiredFirePatches }
 | { name: "CleanupExpiredWaterPatches", args: CleanupExpiredWaterPatches }
+| { name: "CleanupHostileDeathEffect", args: CleanupHostileDeathEffect }
 | { name: "CleanupOldSoundEvents", args: CleanupOldSoundEvents }
 | { name: "CleanupOldThunderEvents", args: CleanupOldThunderEvents }
 | { name: "ClearActiveItemReducer", args: ClearActiveItemReducer }
@@ -4954,6 +4987,22 @@ export class RemoteReducers {
 
   removeOnCleanupExpiredWaterPatches(callback: (ctx: ReducerEventContext, args: WaterPatchCleanupSchedule) => void) {
     this.connection.offReducer("cleanup_expired_water_patches", callback);
+  }
+
+  cleanupHostileDeathEffect(args: HostileDeathEffectCleanupSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    CleanupHostileDeathEffect.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("cleanup_hostile_death_effect", __argsBuffer, this.setCallReducerFlags.cleanupHostileDeathEffectFlags);
+  }
+
+  onCleanupHostileDeathEffect(callback: (ctx: ReducerEventContext, args: HostileDeathEffectCleanupSchedule) => void) {
+    this.connection.onReducer("cleanup_hostile_death_effect", callback);
+  }
+
+  removeOnCleanupHostileDeathEffect(callback: (ctx: ReducerEventContext, args: HostileDeathEffectCleanupSchedule) => void) {
+    this.connection.offReducer("cleanup_hostile_death_effect", callback);
   }
 
   cleanupOldSoundEvents(args: SoundEventCleanupSchedule) {
@@ -10112,6 +10161,11 @@ export class SetReducerFlags {
     this.cleanupExpiredWaterPatchesFlags = flags;
   }
 
+  cleanupHostileDeathEffectFlags: __CallReducerFlags = 'FullUpdate';
+  cleanupHostileDeathEffect(flags: __CallReducerFlags) {
+    this.cleanupHostileDeathEffectFlags = flags;
+  }
+
   cleanupOldSoundEventsFlags: __CallReducerFlags = 'FullUpdate';
   cleanupOldSoundEvents(flags: __CallReducerFlags) {
     this.cleanupOldSoundEventsFlags = flags;
@@ -12075,6 +12129,16 @@ export class RemoteTables {
   get hostileDawnCleanupSchedule(): HostileDawnCleanupScheduleTableHandle<'hostile_dawn_cleanup_schedule'> {
     // clientCache is a private property
     return new HostileDawnCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HostileDawnCleanupSchedule>(REMOTE_MODULE.tables.hostile_dawn_cleanup_schedule));
+  }
+
+  get hostileDeathEffect(): HostileDeathEffectTableHandle<'hostile_death_effect'> {
+    // clientCache is a private property
+    return new HostileDeathEffectTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HostileDeathEffect>(REMOTE_MODULE.tables.hostile_death_effect));
+  }
+
+  get hostileDeathEffectCleanupSchedule(): HostileDeathEffectCleanupScheduleTableHandle<'hostile_death_effect_cleanup_schedule'> {
+    // clientCache is a private property
+    return new HostileDeathEffectCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HostileDeathEffectCleanupSchedule>(REMOTE_MODULE.tables.hostile_death_effect_cleanup_schedule));
   }
 
   get hostileSpawnSchedule(): HostileSpawnScheduleTableHandle<'hostile_spawn_schedule'> {

@@ -297,6 +297,7 @@ function AppContent() {
       localPlayerIdentity, // <<< ADD localPlayerIdentity HERE
       playerDrinkingCooldowns, // <<< ADD playerDrinkingCooldowns HERE
       wildAnimals, // <<< ADD wildAnimals HERE (includes hostile NPCs with is_hostile_npc = true)
+      hostileDeathEvents, // <<< ADD hostileDeathEvents HERE (client-side death events for particle effects)
       animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
       barrels, // <<< ADD barrels HERE
       fumaroles, // <<< ADD fumaroles HERE
@@ -1289,6 +1290,7 @@ function AppContent() {
                             plantedSeeds={plantedSeeds}
                             minimapCache={minimapCache}
                             wildAnimals={wildAnimals}
+                            hostileDeathEvents={hostileDeathEvents}
                             animalCorpses={animalCorpses}
                             barrels={barrels}
                             fumaroles={fumaroles}

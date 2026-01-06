@@ -30,12 +30,13 @@ use crate::wild_animal_npc::{WildAnimal, wild_animal as WildAnimalTableTrait};
 use crate::fishing::is_water_tile;
 use crate::TILE_SIZE_PX;
 
-// Animal collision constants - TUNED for fast hostile NPCs
-pub const ANIMAL_COLLISION_RADIUS: f32 = 40.0; // Animals maintain 40px distance from each other (increased)
-pub const ANIMAL_PLAYER_COLLISION_RADIUS: f32 = 55.0; // Animals maintain 55px distance from players (increased)
-pub const ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS: f32 = 45.0; // Closer distance when attacking to allow hits
-pub const COLLISION_PUSHBACK_FORCE: f32 = 60.0; // How far to push back when colliding (tripled for fast NPCs)
-pub const ANIMAL_SEPARATION_DISTANCE: f32 = 12.0; // Minimum separation after collision resolution (increased)
+// Animal collision constants - TUNED for fast hostile NPCs (500ms AI tick @ up to 1040px/s sprint)
+// With 500ms ticks, a sprinting hostile can move ~520px per tick, so collision must be robust
+pub const ANIMAL_COLLISION_RADIUS: f32 = 45.0; // Animals maintain 45px distance from each other
+pub const ANIMAL_PLAYER_COLLISION_RADIUS: f32 = 65.0; // Animals maintain 65px distance from players (prevents overlap)
+pub const ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS: f32 = 50.0; // Closer distance when attacking to allow hits
+pub const COLLISION_PUSHBACK_FORCE: f32 = 80.0; // Strong pushback to prevent fast NPCs from overlapping
+pub const ANIMAL_SEPARATION_DISTANCE: f32 = 15.0; // Minimum separation after collision resolution
 
 /// Represents the result of a collision check
 #[derive(Debug, Clone)]
@@ -253,14 +254,25 @@ pub fn check_player_collision(
         if distance_sq < min_distance_sq && distance_sq > 0.1 {
             // Collision detected - calculate pushback direction
             let distance = distance_sq.sqrt();
-            // Strong pushback to prevent fast NPCs from overlapping player
+            
+            // Calculate how much the animal needs to be pushed to reach minimum distance
+            let overlap = collision_radius - distance;
+            
+            // Use stronger pushback that scales with how much overlap there is
+            // This prevents fast-moving animals from stepping inside the player
             let pushback_distance = if is_attacking {
-                50.0 // Strong pushback for attacking animals to maintain attack distance
+                // When attacking, push back to attack collision radius + small buffer
+                overlap + ANIMAL_SEPARATION_DISTANCE
             } else {
-                COLLISION_PUSHBACK_FORCE // Normal pushback for non-combat
+                // Non-combat: push back to safe distance + buffer
+                overlap + ANIMAL_SEPARATION_DISTANCE * 2.0
             };
-            let pushback_x = (dx / distance) * pushback_distance;
-            let pushback_y = (dy / distance) * pushback_distance;
+            
+            // Ensure minimum pushback to actually separate
+            let actual_pushback = pushback_distance.max(COLLISION_PUSHBACK_FORCE * 0.5);
+            
+            let pushback_x = (dx / distance) * actual_pushback;
+            let pushback_y = (dy / distance) * actual_pushback;
             return Some((pushback_x, pushback_y));
         }
     }

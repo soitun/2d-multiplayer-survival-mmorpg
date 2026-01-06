@@ -169,6 +169,30 @@ pub struct HostileDawnCleanupSchedule {
     pub cleanup_start_time: Timestamp,
 }
 
+/// Emit hostile death sound at the given position
+/// Visual effects are handled client-side when the WildAnimal is deleted
+pub fn emit_hostile_death_sound(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+    triggered_by: spacetimedb::Identity,
+) {
+    // Play death sound (audible to nearby players)
+    if let Err(e) = crate::sound_events::emit_sound_at_position_with_distance(
+        ctx,
+        crate::sound_events::SoundType::HostileDeath,
+        pos_x,
+        pos_y,
+        0.9, // High volume
+        600.0, // Audible from moderate distance
+        triggered_by,
+    ) {
+        log::error!("Failed to emit hostile death sound: {}", e);
+    }
+    
+    log::debug!("💀 Hostile death sound emitted at ({:.0}, {:.0})", pos_x, pos_y);
+}
+
 // --- Initialization ---
 
 /// Initialize hostile NPC spawning system

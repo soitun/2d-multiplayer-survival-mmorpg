@@ -92,6 +92,7 @@ pub enum SoundType {
     TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
     ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
     ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
+    HostileDeath,            // death_hostile.mp3 (2 variations - when hostile NPCs are killed)
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -184,6 +185,7 @@ impl SoundType {
             SoundType::TillDirt => "till_dirt",
             SoundType::ErrorTillingFailed => "error_tilling_failed",
             SoundType::ErrorTillingDirt => "error_tilling_dirt",
+            SoundType::HostileDeath => "death_hostile",
         }
     }
 
@@ -274,6 +276,7 @@ impl SoundType {
             SoundType::TillDirt => 1, // till_dirt.mp3 (tilling soil with Stone Tiller)
             SoundType::ErrorTillingFailed => 1, // error_tilling_failed.mp3 (SOVA error for non-tillable ground)
             SoundType::ErrorTillingDirt => 1, // error_tilling_dirt.mp3 (SOVA error for already-tilled ground)
+            SoundType::HostileDeath => 2, // death_hostile.mp3, death_hostile1.mp3 (2 variations for hostile NPC death)
         }
     }
 

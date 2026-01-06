@@ -73,6 +73,7 @@ import { useSpacetimeTables } from '../hooks/useSpacetimeTables';
 import { useCampfireParticles, Particle } from '../hooks/useCampfireParticles';
 import { useTorchParticles } from '../hooks/useTorchParticles';
 import { useResourceSparkleParticles } from '../hooks/useResourceSparkleParticles';
+import { useHostileDeathEffects } from '../hooks/useHostileDeathEffects';
 import { useCloudInterpolation, InterpolatedCloudData } from '../hooks/useCloudInterpolation';
 import { useGrassInterpolation, InterpolatedGrassData } from '../hooks/useGrassInterpolation';
 import { useArrowBreakEffects } from '../hooks/useArrowBreakEffects';
@@ -241,6 +242,7 @@ interface GameCanvasProps {
   plantedSeeds: Map<string, SpacetimeDBPlantedSeed>;
   playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>; // Add player drinking cooldowns
   wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
+  hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particles
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
@@ -387,6 +389,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   plantedSeeds,
   playerDrinkingCooldowns,
   wildAnimals,
+  hostileDeathEvents,
   animalCorpses,
   barrels,
   fumaroles, // ADDED: Fumaroles destructuring
@@ -1958,6 +1961,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const resourceSparkleParticles = useResourceSparkleParticles({
     harvestableResources: visibleHarvestableResourcesMap,
     cycleProgress: worldState?.cycleProgress ?? 0.5, // Pass current time of day (defaults to noon if not available)
+  });
+
+  // Hostile death particle effects - shows blue/purple sparks when hostile NPCs die
+  const hostileDeathParticles = useHostileDeathEffects({
+    hostileDeathEvents,
   });
 
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
@@ -3559,6 +3567,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderParticlesToCanvas(ctx, resourceSparkleParticles);
     ctx.restore();
     // --- End Resource Sparkle Particles ---
+
+    // --- Render Hostile Death Particles (Above Day/Night Overlay for visibility) ---
+    // Hostile death particles (blue/purple sparks) render AFTER day/night overlay so they glow dramatically at night
+    if (hostileDeathParticles.length > 0) {
+      ctx.save();
+      ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
+      renderParticlesToCanvas(ctx, hostileDeathParticles);
+      ctx.restore();
+    }
+    // --- End Hostile Death Particles ---
 
     // --- UNDERWATER VIGNETTE (snorkeling mode) ---
     // Renders a depth vignette around screen edges for underwater immersion

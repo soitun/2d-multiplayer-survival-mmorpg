@@ -1058,7 +1058,9 @@ fn execute_animal_movement(
     current_time: Timestamp,
     rng: &mut impl Rng,
 ) -> Result<(), String> {
-    let dt = 0.125; // Matches AI tick interval (8fps)
+    // CRITICAL: dt must match AI_TICK_INTERVAL_MS (500ms = 0.5 seconds)
+    // This was incorrectly set to 0.125 (125ms) causing animals to move at 25% speed
+    let dt = AI_TICK_INTERVAL_MS as f32 / 1000.0; // 500ms = 0.5 seconds
     
     let mut is_sprinting = false;
     
@@ -1092,16 +1094,18 @@ fn execute_animal_movement(
                     
                     // COLLISION ENFORCEMENT: Even when "stopped" at attack range, maintain minimum distance
                     // This prevents fast NPCs from standing on top of players
-                    const MIN_ATTACK_DISTANCE: f32 = 35.0; // Minimum distance to maintain from player
+                    // Must match ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS in animal_collision.rs
+                    const MIN_ATTACK_DISTANCE: f32 = 50.0; // Minimum distance to maintain from player
                     if distance < MIN_ATTACK_DISTANCE {
-                        // Push animal back to minimum distance
+                        // Push animal back to minimum distance plus buffer
                         let dx = animal.pos_x - target_player.position_x;
                         let dy = animal.pos_y - target_player.position_y;
-                        let push_distance = MIN_ATTACK_DISTANCE - distance + 5.0; // Extra 5px buffer
+                        let push_distance = MIN_ATTACK_DISTANCE - distance + 10.0; // Extra 10px buffer for safety
                         if distance > 0.1 {
                             let push_x = (dx / distance) * push_distance;
                             let push_y = (dy / distance) * push_distance;
                             update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
+                            log::debug!("[AnimalCollision] Pushed animal {} back from player, distance was {:.1}px", animal.id, distance);
                         }
                     }
                     
@@ -1875,6 +1879,14 @@ pub fn damage_wild_animal_with_weapon(
                         }
                     }
                 }
+                
+                // Emit death sound (visual particles handled client-side when WildAnimal is deleted)
+                super::hostile_spawning::emit_hostile_death_sound(
+                    ctx,
+                    animal.pos_x,
+                    animal.pos_y,
+                    attacker_id,
+                );
                 
                 ctx.db.wild_animal().id().delete(&animal_id);
                 log::info!("👹 Hostile NPC {:?} {} removed after death", animal.species, animal_id);

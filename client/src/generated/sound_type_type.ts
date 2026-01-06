@@ -113,7 +113,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.SovaMemoryShardTutorial |
   SoundTypeVariants.TillDirt |
   SoundTypeVariants.ErrorTillingFailed |
-  SoundTypeVariants.ErrorTillingDirt;
+  SoundTypeVariants.ErrorTillingDirt |
+  SoundTypeVariants.HostileDeath;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -209,6 +210,7 @@ export const SoundType = {
   TillDirt: { tag: "TillDirt" } as const,
   ErrorTillingFailed: { tag: "ErrorTillingFailed" } as const,
   ErrorTillingDirt: { tag: "ErrorTillingDirt" } as const,
+  HostileDeath: { tag: "HostileDeath" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -298,6 +300,7 @@ export const SoundType = {
       { name: "TillDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorTillingFailed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorTillingDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HostileDeath", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },
