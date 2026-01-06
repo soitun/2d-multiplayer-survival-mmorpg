@@ -266,6 +266,7 @@ pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed
     // Update survival tracking in player stats
     let mut stats = crate::player_progression::get_or_init_player_stats(ctx, sender_id);
     stats.current_survival_start = Some(ctx.timestamp);
+    stats.survival_quest_minutes_tracked = 0; // Reset survival quest progress on respawn
     stats.updated_at = ctx.timestamp;
     ctx.db.player_stats().player_id().update(stats);
     current_player.is_torch_lit = false; // Ensure torch is unlit on respawn

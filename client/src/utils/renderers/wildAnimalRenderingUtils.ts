@@ -208,11 +208,11 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             return { width: 104, height: 104, shadowRadius: 30 };
         // Night hostile NPCs
         case 'Shorebound':
-            // Stalker - fast, lean predator (wolf-sized)
-            return { width: 128, height: 128, shadowRadius: 40 };
+            // Stalker - fast, lean predator (player-sized, ~96px)
+            return { width: 96, height: 96, shadowRadius: 32 };
         case 'Shardkin':
-            // Swarmer - small, aggressive (smaller than crab)
-            return { width: 72, height: 72, shadowRadius: 24 };
+            // Swarmer - half player size but bigger than crab (80px vs crab's 64px)
+            return { width: 80, height: 80, shadowRadius: 26 };
         case 'DrownedWatch':
             // Brute - large, heavy (bigger than walrus)
             return { width: 160, height: 160, shadowRadius: 52 };

@@ -45,11 +45,13 @@ use crate::active_connection as ActiveConnectionTableTrait;
 const TILE_SIZE: f32 = TILE_SIZE_PX as f32;
 
 // Spawn distance bands (in tiles, converted to pixels)
-const RING_A_MAX_TILES: f32 = 18.0;  // No-spawn zone: 0-18 tiles
-const RING_B_MIN_TILES: f32 = 19.0;  // Primary spawn: 19-34 tiles
-const RING_B_MAX_TILES: f32 = 34.0;
-const RING_C_MIN_TILES: f32 = 35.0;  // Distant pressure: 35-50 tiles
-const RING_C_MAX_TILES: f32 = 50.0;
+// TUNED: Reduced distances so enemies actually reach the player during night
+// A laptop viewport is ~1920x1080 = 40x22 tiles, half = 20x11 tiles from center
+const RING_A_MAX_TILES: f32 = 12.0;  // No-spawn zone: 0-12 tiles (keeps immediate area clear)
+const RING_B_MIN_TILES: f32 = 13.0;  // Primary spawn: 13-22 tiles (just outside viewport)
+const RING_B_MAX_TILES: f32 = 22.0;
+const RING_C_MIN_TILES: f32 = 23.0;  // Distant pressure: 23-35 tiles
+const RING_C_MAX_TILES: f32 = 35.0;
 
 const RING_A_MAX_PX: f32 = RING_A_MAX_TILES * TILE_SIZE;
 const RING_B_MIN_PX: f32 = RING_B_MIN_TILES * TILE_SIZE;
@@ -58,17 +60,17 @@ const RING_C_MIN_PX: f32 = RING_C_MIN_TILES * TILE_SIZE;
 const RING_C_MAX_PX: f32 = RING_C_MAX_TILES * TILE_SIZE;
 
 // Population caps (per player area)
-const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 6;
+const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 8;   // Increased from 6 for more pressure
 const MAX_SHOREBOUND_NEAR_PLAYER: usize = 3;
-const MAX_SHARDKIN_NEAR_PLAYER: usize = 4;
+const MAX_SHARDKIN_NEAR_PLAYER: usize = 5;         // Increased from 4 (they're small swarmers)
 const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 1;
 
-// Spawn timing
-const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 25_000; // Try spawning every 25 seconds
+// Spawn timing - TUNED: More frequent for engaging nights
+const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 12_000; // Every 12 seconds (was 25)
 
 // Shardkin group spawn sizes
 const SHARDKIN_GROUP_MIN: u32 = 2;
-const SHARDKIN_GROUP_MAX: u32 = 4;
+const SHARDKIN_GROUP_MAX: u32 = 5;  // Increased from 4
 
 // Dawn cleanup
 const DAWN_CLEANUP_CHECK_INTERVAL_MS: u64 = 2000; // Check every 2 seconds during dawn cleanup
@@ -81,6 +83,57 @@ const RUNESTONE_DETERRENCE_RADIUS_SQ: f32 = RUNE_STONE_EFFECT_RADIUS * RUNE_STON
 const CAMPING_STATIONARY_TIME_MS: i64 = 60_000; // 60 seconds stationary = camping
 const CAMPING_MOVEMENT_THRESHOLD_PX: f32 = 500.0; // Must move 500px (~10 tiles) to reset camping timer
                                                    // This allows movement within a medium-sized base (4-5 foundations)
+
+// ============================================================================
+// NIGHT PHASE SYSTEM - Creates tension arc through the night
+// ============================================================================
+// With 30-min cycle (20 day + 10 night), night phases create dramatic tension:
+// - Early Night (Dusk/TwilightEvening 0.72-0.82): ~3.3 min - Tension builds, scouts appear
+// - Peak Night (Night 0.82-0.92): ~3.3 min - Maximum pressure, swarms and stalkers
+// - Desperate Hour (Midnight/TwilightMorning 0.92-1.0): ~2.6 min - Final push, brutes emerge
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NightPhase {
+    EarlyNight,    // 0.72-0.82: Tension building, scouts probe defenses
+    PeakNight,     // 0.82-0.92: Maximum pressure, swarms attack
+    DesperateHour, // 0.92-1.0: Final push before dawn, brutes emerge
+    NotNight,      // Daytime - no spawning
+}
+
+impl NightPhase {
+    pub fn from_progress(progress: f32) -> Self {
+        match progress {
+            p if p >= 0.72 && p < 0.82 => NightPhase::EarlyNight,
+            p if p >= 0.82 && p < 0.92 => NightPhase::PeakNight,
+            p if p >= 0.92 || p < 0.05 => NightPhase::DesperateHour, // Wraps around midnight
+            _ => NightPhase::NotNight,
+        }
+    }
+    
+    /// Get spawn rate multipliers for this phase
+    /// Returns (shorebound_mult, shardkin_mult, drowned_watch_mult)
+    pub fn get_spawn_multipliers(&self) -> (f32, f32, f32) {
+        match self {
+            // Early Night: Scouts probe, low pressure
+            NightPhase::EarlyNight => (0.6, 0.3, 0.0),      // Mostly Shorebound scouts
+            // Peak Night: Maximum pressure, swarms emerge
+            NightPhase::PeakNight => (1.0, 1.0, 0.5),       // Full Shorebound + Shardkin swarms
+            // Desperate Hour: Final push, brutes appear
+            NightPhase::DesperateHour => (0.8, 1.2, 1.5),   // Fewer stalkers, more swarms, brutes likely
+            NightPhase::NotNight => (0.0, 0.0, 0.0),
+        }
+    }
+    
+    pub fn name(&self) -> &'static str {
+        match self {
+            NightPhase::EarlyNight => "Early Night",
+            NightPhase::PeakNight => "Peak Night", 
+            NightPhase::DesperateHour => "Desperate Hour",
+            NightPhase::NotNight => "Daytime",
+        }
+    }
+}
 
 // --- Player Camping Tracker Table ---
 // Tracks player positions and when they started being stationary
@@ -143,15 +196,21 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         None => return Ok(()), // No world state yet
     };
     
-    // Only spawn during night (Dusk or Night phases)
-    let is_night = matches!(world_state.time_of_day, TimeOfDay::Dusk | TimeOfDay::Night);
-    if !is_night {
+    // Determine night phase from cycle progress
+    let cycle_progress = world_state.cycle_progress;
+    let night_phase = NightPhase::from_progress(cycle_progress);
+    
+    // Only spawn during actual night phases
+    if night_phase == NightPhase::NotNight {
         // Check if we need to start dawn cleanup
         if matches!(world_state.time_of_day, TimeOfDay::Dawn) {
             start_dawn_cleanup_if_needed(ctx, current_time);
         }
         return Ok(());
     }
+    
+    // Log phase transitions for debugging
+    log::debug!("🌙 [HostileNPC] Night phase: {} (progress: {:.3})", night_phase.name(), cycle_progress);
     
     // Get all online players (check active_connection table for connectivity)
     let players: Vec<_> = ctx.db.player().iter()
@@ -173,7 +232,7 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         // Check if player is camping (for Drowned Watch eligibility)
         let is_camping = check_player_is_camping(ctx, player, current_time);
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, &mut rng);
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, &mut rng);
     }
     
     Ok(())
@@ -229,6 +288,7 @@ fn try_spawn_hostiles_for_player(
     player: &Player,
     current_time: Timestamp,
     is_camping: bool,
+    night_phase: NightPhase,
     rng: &mut impl Rng,
 ) {
     let player_x = player.position_x;
@@ -243,50 +303,95 @@ fn try_spawn_hostiles_for_player(
         return;
     }
     
-    // Try spawning in priority order: Shorebound > Shardkin > Drowned Watch
+    // Get phase-based spawn multipliers for dynamic night tension
+    let (shorebound_mult, shardkin_mult, drowned_mult) = night_phase.get_spawn_multipliers();
     
-    // 1. Try Shorebound (stalker)
+    // =========================================================================
+    // PHASED SPAWN RATES - Creates dramatic night arc
+    // =========================================================================
+    // Base chances are modified by:
+    // 1. Night phase multipliers (early/peak/desperate)
+    // 2. Camping status (being stationary increases pressure)
+    // =========================================================================
+    
+    // 1. Try Shorebound (stalker) - Primary threat, scouts early, pressures throughout
+    // Base: 55% chance, modified by phase (Early: 33%, Peak: 55%, Desperate: 44%)
     if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
-        if rng.gen::<f32>() < 0.6 { // 60% chance to attempt Shorebound
+        let base_chance = 0.55;
+        let camping_bonus = if is_camping { 0.15 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * shorebound_mult;
+        
+        if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_B_MAX_PX, rng) {
                 spawn_hostile_npc(ctx, AnimalSpecies::Shorebound, x, y, current_time);
+                log::info!("👹 [HostileNPC] Shorebound spawned [{} phase] at ({:.0}, {:.0})", night_phase.name(), x, y);
             }
         }
     }
     
-    // 2. Try Shardkin (swarmer) - spawns in groups
+    // 2. Try Shardkin (swarmer) - Swarms emerge mid-night, peak during desperate hour
+    // Base: 40% chance, modified by phase (Early: 12%, Peak: 40%, Desperate: 48%)
     if shardkin_count < MAX_SHARDKIN_NEAR_PLAYER && total_hostiles + 1 < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
-        if rng.gen::<f32>() < 0.4 { // 40% chance to attempt Shardkin group
-            let group_size = rng.gen_range(SHARDKIN_GROUP_MIN..=SHARDKIN_GROUP_MAX) as usize;
+        let base_chance = 0.40;
+        let camping_bonus = if is_camping { 0.20 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * shardkin_mult;
+        
+        if rng.gen::<f32>() < final_chance {
+            // Group size scales with phase - bigger swarms later in night
+            let min_group = match night_phase {
+                NightPhase::EarlyNight => 1,
+                NightPhase::PeakNight => 2,
+                NightPhase::DesperateHour => 3,
+                NightPhase::NotNight => 1,
+            };
+            let max_group = match night_phase {
+                NightPhase::EarlyNight => 2,
+                NightPhase::PeakNight => 4,
+                NightPhase::DesperateHour => 5,
+                NightPhase::NotNight => 2,
+            };
+            
+            let group_size = rng.gen_range(min_group..=max_group) as usize;
             let available_slots = (MAX_SHARDKIN_NEAR_PLAYER - shardkin_count)
                 .min(MAX_TOTAL_HOSTILES_NEAR_PLAYER - total_hostiles);
             let actual_spawn = group_size.min(available_slots);
             
             // Find base spawn position
             if let Some((base_x, base_y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_C_MAX_PX, rng) {
+                let mut spawned_count = 0;
                 for _ in 0..actual_spawn {
                     // Scatter group members around base position
                     let offset_angle = rng.gen::<f32>() * 2.0 * PI;
-                    let offset_dist = rng.gen::<f32>() * 80.0; // Up to 80px scatter
+                    let offset_dist = rng.gen::<f32>() * 100.0;
                     let spawn_x = base_x + offset_angle.cos() * offset_dist;
                     let spawn_y = base_y + offset_angle.sin() * offset_dist;
                     
                     if is_valid_spawn_position(ctx, spawn_x, spawn_y, player_x, player_y, RING_B_MIN_PX, RING_C_MAX_PX) {
                         spawn_hostile_npc(ctx, AnimalSpecies::Shardkin, spawn_x, spawn_y, current_time);
+                        spawned_count += 1;
                     }
+                }
+                if spawned_count > 0 {
+                    log::info!("👹 [HostileNPC] Shardkin swarm of {} spawned [{} phase] near ({:.0}, {:.0})", 
+                              spawned_count, night_phase.name(), base_x, base_y);
                 }
             }
         }
     }
     
-    // 3. Try Drowned Watch (brute) - rare, only Ring C
-    // ONLY spawns if player is camping (stationary 60+ sec OR inside building)
+    // 3. Try Drowned Watch (brute) - Only emerges late night, terrifying finale
+    // Base: 15% chance, modified by phase (Early: 0%, Peak: 7.5%, Desperate: 22.5%)
+    // Camping bonus: +20% (37.5% in desperate hour while camping!)
     if drowned_watch_count < MAX_DROWNED_WATCH_NEAR_PLAYER && total_hostiles + 1 <= MAX_TOTAL_HOSTILES_NEAR_PLAYER {
-        // Drowned Watch requires camping condition
-        if is_camping && rng.gen::<f32>() < 0.15 { // 15% chance if camping
+        let base_chance = 0.15;
+        let camping_bonus = if is_camping { 0.20 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * drowned_mult;
+        
+        if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_C_MIN_PX, RING_C_MAX_PX, rng) {
                 spawn_hostile_npc(ctx, AnimalSpecies::DrownedWatch, x, y, current_time);
-                log::info!("👹 [HostileNPC] Drowned Watch spawned - player is camping");
+                log::info!("👹 [HostileNPC] ⚠️ DROWNED WATCH spawned [{} phase] at ({:.0}, {:.0}) - camping: {}", 
+                          night_phase.name(), x, y, is_camping);
             }
         }
     }

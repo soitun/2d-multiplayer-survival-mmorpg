@@ -313,7 +313,7 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
             // Clear all natural resources within the shelter's footprint
             clear_resources_in_shelter_footprint(ctx, world_x, adjusted_world_y);
             
-            // Track quest progress for structure placement
+            // Track quest progress for structure placement (generic)
             if let Err(e) = crate::quests::track_quest_progress(
                 ctx,
                 sender_id,
@@ -332,6 +332,16 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
                 1,
             ) {
                 log::warn!("Failed to track specific quest progress for shelter: {}", e);
+            }
+            // Track PlaceShelter objective (used by tutorial quest)
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                sender_id,
+                crate::quests::QuestObjectiveType::PlaceShelter,
+                None,
+                1,
+            ) {
+                log::warn!("Failed to track PlaceShelter quest progress: {}", e);
             }
             
             // Future: Schedule any initial processing for the shelter if needed.

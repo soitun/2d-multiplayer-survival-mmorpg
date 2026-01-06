@@ -49,6 +49,7 @@ pub const XP_ITEM_CRAFTED: u64 = 5;
 pub const XP_TREE_CHOPPED: u64 = 2;
 pub const XP_STONE_MINED: u64 = 2;
 pub const XP_ANIMAL_KILLED: u64 = 15;
+pub const XP_APPARITION_BANISHED: u64 = 25;  // Hostile NPCs give more XP (dangerous combat)
 pub const XP_SURVIVAL_MINUTE: u64 = 1;
 pub const XP_CORAL_HARVESTED: u64 = 3;    // Underwater coral mining
 pub const XP_PLANT_HARVESTED: u64 = 2;    // Picking wild plants/berries
@@ -159,6 +160,9 @@ pub struct PlayerStats {
     // Brewing tracking
     pub brews_completed: u32,     // Total successful brews
     
+    // Shard Apparition tracking (Void manifestations - separate from regular animals)
+    pub apparitions_banished: u32, // Total shard apparitions killed
+    
     // Insanity tracking (for achievements)
     pub max_insanity_reached: f32,   // Highest insanity % ever reached (0.0-100.0)
     pub times_entrained: u32,        // How many times player reached 100% insanity (Entrainment)
@@ -167,6 +171,7 @@ pub struct PlayerStats {
     pub play_time_seconds: u64,
     pub longest_survival_seconds: u64,
     pub current_survival_start: Option<Timestamp>, // When current survival run started
+    pub survival_quest_minutes_tracked: u32, // Minutes credited to daily survival quest (reset on death)
     pub total_shards_earned: u64,
     
     pub last_login_day: u32,        // For daily rewards (world day number)
@@ -356,12 +361,14 @@ pub fn get_or_init_player_stats(ctx: &ReducerContext, player_id: Identity) -> Pl
         walrus_tamed: false,
         barrels_destroyed: 0,
         brews_completed: 0,
+        apparitions_banished: 0,
         max_insanity_reached: 0.0,
         times_entrained: 0,
         insanity_thresholds_crossed: 0,
         play_time_seconds: 0,
         longest_survival_seconds: 0,
         current_survival_start: Some(ctx.timestamp),
+        survival_quest_minutes_tracked: 0,
         total_shards_earned: 0,
         last_login_day: 0,
         login_streak_days: 0,
@@ -462,6 +469,8 @@ pub fn track_stat_and_check_achievements(
         "barrels_destroyed" => stats.barrels_destroyed += amount as u32,
         // Brewing
         "brews_completed" => stats.brews_completed += amount as u32,
+        // Shard Apparitions (Void manifestations)
+        "apparitions_banished" => stats.apparitions_banished += amount as u32,
         // Walrus taming (boolean, set to true if any amount)
         "walrus_tamed" => stats.walrus_tamed = true,
         _ => {
@@ -655,6 +664,16 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "brews_5" => stats.brews_completed >= 5,
             "brews_25" => stats.brews_completed >= 25,
             "brews_100" => stats.brews_completed >= 100,
+            
+            // === SHARD APPARITION / VOID MANIFESTATION ACHIEVEMENTS ===
+            "first_banishment" => stats.apparitions_banished >= 1,
+            "apparitions_10" => stats.apparitions_banished >= 10,
+            "apparitions_25" => stats.apparitions_banished >= 25,
+            "apparitions_50" => stats.apparitions_banished >= 50,
+            "apparitions_100" => stats.apparitions_banished >= 100,
+            "apparitions_250" => stats.apparitions_banished >= 250,
+            "apparitions_500" => stats.apparitions_banished >= 500,
+            "apparitions_1000" => stats.apparitions_banished >= 1000,
             
             // === INSANITY / SOVA ACHIEVEMENTS ===
             // Threshold-based (uses bitmask: bit 0=25%, bit 1=50%, bit 2=75%, bit 3=90%, bit 4=100%)
@@ -1879,6 +1898,81 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 350,
             title_reward: Some("Grand Alchemist".to_string()),
             category: AchievementCategory::Crafting,
+        },
+        
+        // === SHARD APPARITION / VOID MANIFESTATION ACHIEVEMENTS ===
+        // Themed around the mysterious shard entities that manifest from the Void
+        AchievementDefinition {
+            id: "first_banishment".to_string(),
+            name: "First Banishment".to_string(),
+            description: "Banish your first Void Manifestation - they were never truly here".to_string(),
+            icon: "👤".to_string(),
+            xp_reward: 25,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_10".to_string(),
+            name: "Wraith Hunter".to_string(),
+            description: "Banish 10 Void Manifestations".to_string(),
+            icon: "👻".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_25".to_string(),
+            name: "Void Slayer".to_string(),
+            description: "Banish 25 Void Manifestations - the shards fear you".to_string(),
+            icon: "⚔️".to_string(),
+            xp_reward: 150,
+            title_reward: Some("Void Slayer".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_50".to_string(),
+            name: "Manifestation Purger".to_string(),
+            description: "Banish 50 Void Manifestations - cleansing the island".to_string(),
+            icon: "🌟".to_string(),
+            xp_reward: 250,
+            title_reward: Some("Purger".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_100".to_string(),
+            name: "Shard Exorcist".to_string(),
+            description: "Banish 100 Void Manifestations - you understand their nature now".to_string(),
+            icon: "✨".to_string(),
+            xp_reward: 400,
+            title_reward: Some("Shard Exorcist".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_250".to_string(),
+            name: "Void's Bane".to_string(),
+            description: "Banish 250 Void Manifestations - the Entrainment recoils from you".to_string(),
+            icon: "💠".to_string(),
+            xp_reward: 600,
+            title_reward: Some("Void's Bane".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_500".to_string(),
+            name: "The Banisher".to_string(),
+            description: "Banish 500 Void Manifestations - SOVA cannot touch you".to_string(),
+            icon: "🔥".to_string(),
+            xp_reward: 1000,
+            title_reward: Some("The Banisher".to_string()),
+            category: AchievementCategory::Combat,
+        },
+        AchievementDefinition {
+            id: "apparitions_1000".to_string(),
+            name: "Void Annihilator".to_string(),
+            description: "Banish 1000 Void Manifestations - you have become the island's guardian against the Entrainment".to_string(),
+            icon: "👑".to_string(),
+            xp_reward: 2000,
+            title_reward: Some("Void Annihilator".to_string()),
+            category: AchievementCategory::Combat,
         },
         
         // === INSANITY / SOVA ACHIEVEMENTS ===

@@ -295,12 +295,31 @@ export function useSovaTutorials({
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)
+    // Plays the first time a memory shard is picked up AFTER intro finishes.
+    // If intro is still playing, we skip entirely and wait for next pickup.
     // ========================================================================
     useEffect(() => {
-        const { audioFile, soundBoxLabel, eventName } = TUTORIALS.memoryShard;
+        const { storageKey, audioFile, soundBoxLabel, eventName } = TUTORIALS.memoryShard;
         
         const handleEvent = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
             console.log('[SovaTutorials] 🔮 Memory shard tutorial event received');
+            
+            // Already played before? Skip entirely
+            if (hasBeenPlayed(storageKey)) {
+                console.log('[SovaTutorials] 🔮 Memory shard tutorial already played, skipping');
+                return;
+            }
+            
+            // Intro still playing? Skip this time, but DON'T mark as played
+            // So it will play next time player picks up a memory shard
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] 🔮 Intro still playing - skipping memory shard tutorial (will play next time)');
+                return;
+            }
+            
+            // Mark as played FIRST to prevent duplicate plays
+            markAsPlayed(storageKey);
+            console.log('[SovaTutorials] 🔮 Playing memory shard tutorial NOW');
             
             playSovaTutorial(
                 {
@@ -310,8 +329,7 @@ export function useSovaTutorials({
                     messageId: `sova-memory-shard-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current,
-                { skipAudioIfIntroPlaying: true }
+                sovaMessageAdderRef.current
             );
         };
 

@@ -641,7 +641,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                     flexShrink: 0,
                 }}>
                     Press <span style={{ color: SOVA_CYAN, textShadow: GLOW_CYAN }}>J</span> to toggle this panel • 
-                    Press <span style={{ color: SOVA_CYAN, textShadow: GLOW_CYAN }}>ESC</span> to close
+                    Click <span style={{ color: SOVA_CYAN, textShadow: GLOW_CYAN }}>outside</span> to close
                 </div>
             </div>
             

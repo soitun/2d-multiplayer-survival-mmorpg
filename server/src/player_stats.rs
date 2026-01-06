@@ -995,8 +995,50 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             // --- End Comparative Stats ---
         }
 
+        // --- Track Survival Time for Daily Quest ---
+        // OPTIMIZATION: Only check near minute boundaries to reduce DB lookups from 60/min to ~2/min
+        // We check in the first 2 seconds of each minute to ensure we don't miss any minute crossings
+        let seconds_into_minute = (current_time.to_micros_since_unix_epoch() / 1_000_000) % 60;
+        if seconds_into_minute < 2 {
+            let stats_table = ctx.db.player_stats();
+            let mut player_stats = crate::player_progression::get_or_init_player_stats(ctx, player_id);
+            
+            // Calculate total minutes survived since current_survival_start
+            if let Some(start_time) = player_stats.current_survival_start {
+                let elapsed_micros = current_time.to_micros_since_unix_epoch()
+                    .saturating_sub(start_time.to_micros_since_unix_epoch());
+                let total_seconds_survived = elapsed_micros / 1_000_000;
+                let total_minutes_survived = (total_seconds_survived / 60) as u32;
+                
+                // If we've survived new minutes, track them for the quest
+                if total_minutes_survived > player_stats.survival_quest_minutes_tracked {
+                    let new_minutes = total_minutes_survived - player_stats.survival_quest_minutes_tracked;
+                    
+                    // Track quest progress for SurviveMinutes
+                    if let Err(e) = crate::quests::track_quest_progress(
+                        ctx,
+                        player_id,
+                        crate::quests::QuestObjectiveType::SurviveMinutes,
+                        None,
+                        new_minutes,
+                    ) {
+                        log::warn!("Failed to track SurviveMinutes quest progress for player {:?}: {}", player_id, e);
+                    } else {
+                        log::trace!("Tracked {} new survival minutes for player {:?} (total: {})", 
+                            new_minutes, player_id, total_minutes_survived);
+                    }
+                    
+                    // Update the tracked minutes
+                    player_stats.survival_quest_minutes_tracked = total_minutes_survived;
+                    player_stats.updated_at = current_time;
+                    stats_table.player_id().update(player_stats);
+                }
+            }
+        }
+        // --- End Survival Time Tracking ---
+        
         // --- Update Player Table ---
-        // Only update if something actually changed
+
         let stats_changed = (player.health - final_health).abs() > 0.01 ||
                             (player.hunger - new_hunger).abs() > 0.01 ||
                             (player.thirst - new_thirst).abs() > 0.01 ||

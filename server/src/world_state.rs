@@ -24,12 +24,13 @@ use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT
 const FUEL_ITEM_CONSUME_PER_SECOND: f32 = 0.2; // e.g., 1 wood every 5 seconds
 
 // --- Constants ---
-// Fast-paced cycle for combat + survival game (Blazing Beaks + Rust style)
-// 25-minute total cycle: 20 min day + 5 min night
-// Players get 2-3 cycles per hour-long session, keeping action fast-paced
+// Balanced cycle for survival game with meaningful night threat
+// 30-minute total cycle: 20 min day + 10 min night
+// Night has 3 phases: Early tension (Dusk), Peak pressure (Night), Desperate hour (Midnight)
+// Players get 2 full cycles per hour-long session
 const DAY_DURATION_SECONDS: f32 = 1200.0; // 20 minutes  
-const NIGHT_DURATION_SECONDS: f32 = 300.0;  // 5 minutes
-const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 25 minutes total
+const NIGHT_DURATION_SECONDS: f32 = 600.0;  // 10 minutes (doubled for meaningful night arc)
+const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 30 minutes total
 
 // Season duration constants for plant respawn calculations
 pub const SEASON_DURATION_HOURS: f32 = 90.0 * 24.0; // 90 days per season * 24 hours per day = 2160 hours

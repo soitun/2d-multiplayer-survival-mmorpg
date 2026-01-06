@@ -69,7 +69,8 @@ const TORCH_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.7; // Added for torch f
 const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 2.0;
 const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 1.2; // More flicker for fire-like effect
 
-// Define RGB colors for overlay tints - UPDATED FOR 25-MINUTE CYCLE (20min day + 5min night)
+// Define RGB colors for overlay tints - 30-MINUTE CYCLE (20min day + 10min night)
+// Night has 3 phases: Early tension (Dusk), Peak pressure (Night), Desperate hour (Midnight)
 interface ColorAlphaKeyframe {
   progress: number;
   rgb: [number, number, number];
@@ -319,7 +320,7 @@ function calculateOverlayRgbaString(
     const isCurrentlyFullMoon = worldState?.isFullMoon ?? false;
     const currentCycleCount = worldState?.cycleCount ?? 0;
 
-    const GRACE_PERIOD_END_PROGRESS = 0.05; // Dawn period ends at 0.05 in 25-minute cycle
+    const GRACE_PERIOD_END_PROGRESS = 0.05; // Dawn period ends at 0.05 in 30-minute cycle
     const REGULAR_DAWN_PEAK_PROGRESS = REGULAR_CYCLE_KEYFRAMES.find(kf => kf.progress === 0.125)?.progress ?? 0.125; // Updated to match new sunrise peak
 
     // --- Special Transition 1: Full Moon cycle STARTS, but PREVIOUS was Regular (or first cycle) ---

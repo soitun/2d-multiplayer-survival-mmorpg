@@ -101,7 +101,7 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
         position: 'fixed',
         top: isMobile ? '120px' : '165px', // Position below DayNightCycleTracker with clear spacing
         right: isMobile ? '10px' : '15px',
-        zIndex: 1000,
+        zIndex: 50, // Match DayNightCycleTracker - below InventoryUI
         background: UI_BG_COLOR,
         border: `2px solid ${hasNewNotification || pulseAnimation ? SOVA_PURPLE : UI_BORDER_COLOR}`,
         borderRadius: '10px',

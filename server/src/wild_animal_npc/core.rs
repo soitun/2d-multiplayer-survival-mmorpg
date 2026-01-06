@@ -1833,24 +1833,40 @@ pub fn damage_wild_animal_with_weapon(
                     _ => rng.gen_range(10..=20), // Fallback
                 } as u32;
                 
+                // Drop memory shards at the hostile NPC's death location for player to pick up
+                // This adds to the dopamine loop of seeing loot drop and collecting it
                 if let Some(shard_def) = ctx.db.item_definition().iter()
                     .find(|def| def.name == "Memory Shard") 
                 {
-                    match crate::dropped_item::give_item_to_player_or_drop(
-                        ctx, attacker_id, shard_def.id, shard_count
+                    match crate::dropped_item::create_dropped_item_entity(
+                        ctx, 
+                        shard_def.id, 
+                        shard_count,
+                        animal.pos_x,
+                        animal.pos_y,
                     ) {
                         Ok(_) => {
-                            log::info!("👹 Granted {} memory shards to player {} for killing {:?}", 
-                                      shard_count, attacker_id, animal.species);
+                            log::info!("👹 Dropped {} memory shards at ({:.1}, {:.1}) from {:?} kill", 
+                                      shard_count, animal.pos_x, animal.pos_y, animal.species);
                         }
                         Err(e) => {
-                            log::error!("👹 Failed to grant memory shards: {}", e);
+                            log::error!("👹 Failed to drop memory shards: {}", e);
                         }
                     }
                 }
                 
                 ctx.db.wild_animal().id().delete(&animal_id);
                 log::info!("👹 Hostile NPC {:?} {} removed after death", animal.species, animal_id);
+                
+                // Award XP for hostile NPC kill (more XP than regular animals)
+                if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_APPARITION_BANISHED) {
+                    log::error!("Failed to award XP for apparition banishment: {}", e);
+                }
+                
+                // Track apparitions_banished stat (separate from regular animals) and check achievements
+                if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "apparitions_banished", 1) {
+                    log::error!("Failed to track apparition banishment stat: {}", e);
+                }
             } else {
                 // Regular animals: Create corpse as usual
                 log::info!("🦴 [ANIMAL DEATH] Animal {} (species: {:?}) died at ({:.1}, {:.1}) - attempting to create corpse", 
@@ -1873,16 +1889,16 @@ pub fn damage_wild_animal_with_weapon(
                 
                 ctx.db.wild_animal().id().delete(&animal_id);
                 log::info!("Wild animal {} killed by player {} - corpse created", animal_id, attacker_id);
-            }
-            
-            // Award XP and update stats for animal kill
-            if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_ANIMAL_KILLED) {
-                log::error!("Failed to award XP for animal kill: {}", e);
-            }
-            
-            // Track animals_killed stat and check achievements
-            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "animals_killed", 1) {
-                log::error!("Failed to track animal kill stat: {}", e);
+                
+                // Award XP for regular animal kill
+                if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_ANIMAL_KILLED) {
+                    log::error!("Failed to award XP for animal kill: {}", e);
+                }
+                
+                // Track animals_killed stat (only for regular animals) and check achievements
+                if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "animals_killed", 1) {
+                    log::error!("Failed to track animal kill stat: {}", e);
+                }
             }
             
             // Track quest progress for animal kills
