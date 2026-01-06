@@ -131,6 +131,13 @@ pub enum QuestStatus {
     Expired,      // Daily quest expired without completion
 }
 
+/// How multiple objectives combine for quest completion
+#[derive(SpacetimeType, Clone, Debug, PartialEq, Eq)]
+pub enum ObjectiveLogic {
+    And,  // Both primary and secondary must complete (default)
+    Or,   // Either primary or secondary completes the quest
+}
+
 // ============================================================================
 // TABLES - DEFINITIONS (Seeded at init)
 // ============================================================================
@@ -150,10 +157,11 @@ pub struct TutorialQuestDefinition {
     pub target_id: Option<String>, // For specific item/animal/etc.
     pub target_amount: u32,       // How many to complete
     
-    // Secondary objective (optional - quest completes when BOTH are done)
+    // Secondary objective (optional)
     pub secondary_objective_type: Option<QuestObjectiveType>,
     pub secondary_target_id: Option<String>,
     pub secondary_target_amount: Option<u32>,
+    pub objective_logic: ObjectiveLogic,  // And = both required, Or = either completes quest
     
     pub xp_reward: u64,
     pub shard_reward: u64,
@@ -519,14 +527,19 @@ fn track_tutorial_progress(
     
     progress.updated_at = ctx.timestamp;
     
-    // Check for completion - need BOTH objectives to be complete
+    // Check for completion based on objective_logic
     let primary_complete = progress.current_quest_progress >= quest.target_amount;
     let secondary_complete = match quest.secondary_target_amount {
         Some(target) => progress.secondary_quest_progress >= target,
         None => true, // No secondary objective = automatically complete
     };
     
-    if primary_complete && secondary_complete {
+    let quest_complete = match quest.objective_logic {
+        ObjectiveLogic::And => primary_complete && secondary_complete,  // Both required
+        ObjectiveLogic::Or => primary_complete || secondary_complete,   // Either completes it
+    };
+    
+    if quest_complete {
         complete_tutorial_quest(ctx, player_id, &mut progress, quest)?;
     } else {
         progress_table.player_id().update(progress);
@@ -997,6 +1010,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 15,
             shard_reward: 5,
             unlock_recipe: None,
@@ -1017,6 +1031,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
@@ -1037,6 +1052,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
@@ -1057,6 +1073,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,
@@ -1081,6 +1098,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: Some(QuestObjectiveType::GatherWood),
             secondary_target_id: None,
             secondary_target_amount: Some(400),
+            objective_logic: ObjectiveLogic::And,  // Must complete BOTH stone and wood gathering
             xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1101,6 +1119,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
@@ -1121,6 +1140,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
@@ -1145,6 +1165,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1165,6 +1186,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
@@ -1185,6 +1207,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 30,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1209,6 +1232,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
@@ -1229,6 +1253,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 45,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1253,6 +1278,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 60,
             shard_reward: 25,
             unlock_recipe: None,
@@ -1267,17 +1293,18 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             order_index: 13,
             name: "Forged in Fire".to_string(),
             description: "Craft a Metal Hatchet or Metal Pickaxe.".to_string(),
-            objective_type: QuestObjectiveType::CraftAnyItem,
-            target_id: None,  // We track any crafting, quest completes when they have metal tools
+            objective_type: QuestObjectiveType::CraftSpecificItem,
+            target_id: Some("Metal Hatchet".to_string()),  // Option 1: Metal Hatchet
             target_amount: 1,
-            secondary_objective_type: None,
-            secondary_target_id: None,
-            secondary_target_amount: None,
+            secondary_objective_type: Some(QuestObjectiveType::CraftSpecificItem),
+            secondary_target_id: Some("Metal Pickaxe".to_string()),  // Option 2: Metal Pickaxe
+            secondary_target_amount: Some(1),
+            objective_logic: ObjectiveLogic::Or,  // EITHER Metal Hatchet OR Metal Pickaxe completes this quest
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,
-            sova_start_message: "Mine metal ore from rock formations - look for darker rocks with orange veins. Put the ore in your furnace with wood and light it. Then craft a metal tool.".to_string(),
-            sova_complete_message: "Metal tool acquired. Now you can gather resources faster. The island is yours to conquer.".to_string(),
+            sova_start_message: "Mine metal ore from rock formations - look for darker rocks with orange veins. Put the ore in your furnace with wood and light it. Then craft a Metal Hatchet or Metal Pickaxe.".to_string(),
+            sova_complete_message: "Metal tool acquired. Now you can gather resources much faster. The island is yours to conquer.".to_string(),
             sova_hint_message: "Find metal ore nodes (darker rocks). Mine them, smelt them in the furnace, then craft a Metal Hatchet or Metal Pickaxe.".to_string(),
         },
         
@@ -1297,6 +1324,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 100,
             shard_reward: 50,
             unlock_recipe: None,

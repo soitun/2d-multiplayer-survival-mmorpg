@@ -896,11 +896,16 @@ fn update_animal_ai_state(
         }
     }
 
-    // CENTRALIZED FEAR LOGIC - Foundation fear applies to ALL animals regardless of group size
+    // CENTRALIZED FEAR LOGIC - Foundation fear applies to most animals regardless of group size
     // Fire/torch fear can be ignored by groups (group courage), but foundations should always be feared
+    // EXCEPTION: Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) fear NOTHING
     
-    // Check foundation fear first (applies to ALL animals, including walruses)
-    let should_fear_foundations = is_foundation_nearby(ctx, animal.pos_x, animal.pos_y);
+    // Check if this is a hostile NPC that doesn't fear anything
+    let is_fearless_hostile = matches!(animal.species, 
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+    
+    // Check foundation fear first (applies to ALL animals EXCEPT hostile NPCs)
+    let should_fear_foundations = !is_fearless_hostile && is_foundation_nearby(ctx, animal.pos_x, animal.pos_y);
     
     if should_fear_foundations {
         // ALL animals flee from foundations (player structures) - no group courage exception
@@ -931,9 +936,10 @@ fn update_animal_ai_state(
         }
     }
     
-    // FIRE FEAR LOGIC - Only applies to non-walruses and non-crows, and can be ignored by groups
+    // FIRE FEAR LOGIC - Only applies to non-walruses, non-crows, and non-hostile NPCs, and can be ignored by groups
     // Walruses are curious about fire, crows are bold thieves that don't fear flames
-    if animal.species != AnimalSpecies::ArcticWalrus && animal.species != AnimalSpecies::Crow && should_fear_fire(ctx, animal) {
+    // Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) are fearless and charge through fire
+    if !is_fearless_hostile && animal.species != AnimalSpecies::ArcticWalrus && animal.species != AnimalSpecies::Crow && should_fear_fire(ctx, animal) {
         // Check for fire from players with torches
         for player in nearby_players {
             let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);
@@ -1083,6 +1089,21 @@ fn execute_animal_movement(
                         target_player.position_x, target_player.position_y
                     );
                     let distance = distance_sq.sqrt();
+                    
+                    // COLLISION ENFORCEMENT: Even when "stopped" at attack range, maintain minimum distance
+                    // This prevents fast NPCs from standing on top of players
+                    const MIN_ATTACK_DISTANCE: f32 = 35.0; // Minimum distance to maintain from player
+                    if distance < MIN_ATTACK_DISTANCE {
+                        // Push animal back to minimum distance
+                        let dx = animal.pos_x - target_player.position_x;
+                        let dy = animal.pos_y - target_player.position_y;
+                        let push_distance = MIN_ATTACK_DISTANCE - distance + 5.0; // Extra 5px buffer
+                        if distance > 0.1 {
+                            let push_x = (dx / distance) * push_distance;
+                            let push_y = (dy / distance) * push_distance;
+                            update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
+                        }
+                    }
                     
                     // Normal chase behavior - fire fear logic handled above
                     // 🐺 NOTE: Once an animal is chasing (e.g., you attacked it), wolf fur won't stop it!

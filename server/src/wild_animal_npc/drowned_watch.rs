@@ -48,15 +48,15 @@ impl AnimalBehavior for DrownedWatchBehavior {
     fn get_stats(&self) -> AnimalStats {
         AnimalStats {
             max_health: 400.0, // Very high health - takes a lot to kill
-            attack_damage: 45.0, // Heavy damage against players
-            attack_range: 80.0, // Good melee reach
-            attack_speed_ms: 1500, // Slow, heavy attacks
-            movement_speed: 120.0, // Very slow patrol (but faster than walrus)
-            sprint_speed: 180.0, // Slow even when "sprinting"
-            perception_range: 400.0, // Moderate detection
-            perception_angle_degrees: 180.0, // Front awareness
-            patrol_radius: 200.0, // Doesn't wander far
-            chase_trigger_range: 350.0, // Short chase range
+            attack_damage: 50.0, // Heavy damage against players
+            attack_range: 90.0, // Extended melee reach
+            attack_speed_ms: 1200, // Faster attacks
+            movement_speed: 240.0, // DOUBLED: Faster patrol
+            sprint_speed: 360.0, // DOUBLED: Faster chase
+            perception_range: 500.0, // Extended detection
+            perception_angle_degrees: 220.0, // Wider awareness
+            patrol_radius: 300.0, // Patrols larger area
+            chase_trigger_range: 450.0, // Extended chase range
             flee_trigger_health_percent: 0.0, // Never flees
             hide_duration_ms: 0, // Doesn't hide
         }

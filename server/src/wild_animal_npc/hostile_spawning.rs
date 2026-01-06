@@ -59,18 +59,18 @@ const RING_B_MAX_PX: f32 = RING_B_MAX_TILES * TILE_SIZE;
 const RING_C_MIN_PX: f32 = RING_C_MIN_TILES * TILE_SIZE;
 const RING_C_MAX_PX: f32 = RING_C_MAX_TILES * TILE_SIZE;
 
-// Population caps (per player area)
-const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 8;   // Increased from 6 for more pressure
-const MAX_SHOREBOUND_NEAR_PLAYER: usize = 3;
-const MAX_SHARDKIN_NEAR_PLAYER: usize = 5;         // Increased from 4 (they're small swarmers)
-const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 1;
+// Population caps (per player area) - AGGRESSIVE: More enemies!
+const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 15;   // Doubled for intense nights
+const MAX_SHOREBOUND_NEAR_PLAYER: usize = 5;        // More stalkers
+const MAX_SHARDKIN_NEAR_PLAYER: usize = 10;         // Bigger swarms
+const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 2;     // More brutes
 
-// Spawn timing - TUNED: More frequent for engaging nights
-const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 12_000; // Every 12 seconds (was 25)
+// Spawn timing - TUNED: Aggressive spawning for intense nights
+const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 6_000; // Every 6 seconds (doubled spawn rate)
 
-// Shardkin group spawn sizes
-const SHARDKIN_GROUP_MIN: u32 = 2;
-const SHARDKIN_GROUP_MAX: u32 = 5;  // Increased from 4
+// Shardkin group spawn sizes - AGGRESSIVE: Larger swarms!
+const SHARDKIN_GROUP_MIN: u32 = 3;
+const SHARDKIN_GROUP_MAX: u32 = 7;  // Bigger swarms
 
 // Dawn cleanup
 const DAWN_CLEANUP_CHECK_INTERVAL_MS: u64 = 2000; // Check every 2 seconds during dawn cleanup
@@ -111,16 +111,16 @@ impl NightPhase {
         }
     }
     
-    /// Get spawn rate multipliers for this phase
+    /// Get spawn rate multipliers for this phase - AGGRESSIVE spawning
     /// Returns (shorebound_mult, shardkin_mult, drowned_watch_mult)
     pub fn get_spawn_multipliers(&self) -> (f32, f32, f32) {
         match self {
-            // Early Night: Scouts probe, low pressure
-            NightPhase::EarlyNight => (0.6, 0.3, 0.0),      // Mostly Shorebound scouts
-            // Peak Night: Maximum pressure, swarms emerge
-            NightPhase::PeakNight => (1.0, 1.0, 0.5),       // Full Shorebound + Shardkin swarms
-            // Desperate Hour: Final push, brutes appear
-            NightPhase::DesperateHour => (0.8, 1.2, 1.5),   // Fewer stalkers, more swarms, brutes likely
+            // Early Night: Immediate pressure - no slow buildup
+            NightPhase::EarlyNight => (1.0, 0.8, 0.3),      // Fast start with stalkers and swarms
+            // Peak Night: Maximum pressure, overwhelming swarms
+            NightPhase::PeakNight => (1.5, 1.8, 1.0),       // Full assault mode
+            // Desperate Hour: Final push - everything at once
+            NightPhase::DesperateHour => (1.2, 2.0, 2.0),   // Maximum pressure on all fronts
             NightPhase::NotNight => (0.0, 0.0, 0.0),
         }
     }

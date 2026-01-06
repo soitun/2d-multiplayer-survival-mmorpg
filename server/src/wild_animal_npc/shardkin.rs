@@ -45,14 +45,14 @@ impl AnimalBehavior for ShardkinBehavior {
         AnimalStats {
             max_health: 45.0, // Very low health - dies quickly
             attack_damage: 12.0, // Low damage per hit
-            attack_range: 50.0, // Short melee range
-            attack_speed_ms: 400, // Very fast attacks
-            movement_speed: 320.0, // Very fast patrol
-            sprint_speed: 550.0, // Extremely fast sprint
-            perception_range: 500.0, // Moderate detection
+            attack_range: 55.0, // Short melee range
+            attack_speed_ms: 300, // Extremely fast attacks (swarm bites!)
+            movement_speed: 640.0, // DOUBLED: Lightning fast patrol
+            sprint_speed: 1100.0, // DOUBLED: Blazing fast sprint
+            perception_range: 600.0, // Extended detection
             perception_angle_degrees: 360.0, // Full awareness (swarm behavior)
             patrol_radius: 300.0, // Stays closer together
-            chase_trigger_range: 600.0, // Aggressive chase range
+            chase_trigger_range: 700.0, // Very aggressive chase range
             flee_trigger_health_percent: 0.0, // Never flees
             hide_duration_ms: 0, // Doesn't hide
         }

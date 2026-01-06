@@ -206,16 +206,16 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'Crow':
             // Crows are medium-sized inland birds (slightly larger)
             return { width: 104, height: 104, shadowRadius: 30 };
-        // Night hostile NPCs
+        // Night hostile NPCs (2x size for visibility and impact)
         case 'Shorebound':
-            // Stalker - fast, lean predator (player-sized, ~96px)
-            return { width: 96, height: 96, shadowRadius: 32 };
+            // Stalker - fast, lean predator (1.5x player-sized)
+            return { width: 192, height: 192, shadowRadius: 64 };
         case 'Shardkin':
-            // Swarmer - half player size but bigger than crab (80px vs crab's 64px)
-            return { width: 80, height: 80, shadowRadius: 26 };
+            // Swarmer - doubled size for better visibility
+            return { width: 120, height: 120, shadowRadius: 52 };
         case 'DrownedWatch':
-            // Brute - large, heavy (bigger than walrus)
-            return { width: 160, height: 160, shadowRadius: 52 };
+            // Brute - massive, heavy (2x original)
+            return { width: 220, height: 220, shadowRadius: 104 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }

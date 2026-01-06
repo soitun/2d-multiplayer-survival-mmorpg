@@ -37,29 +37,29 @@ use super::core::{
 
 pub struct ShoreboundBehavior;
 
-// Shorebound-specific constants
-const STALK_MIN_DISTANCE: f32 = 150.0; // Minimum circling distance
-const STALK_MAX_DISTANCE: f32 = 300.0; // Maximum circling distance
-const STALK_ORBIT_SPEED: f32 = 0.8; // Radians per second for circling
-const STALK_APPROACH_RATE: f32 = 15.0; // How fast to approach while stalking
+// Shorebound-specific constants - AGGRESSIVE: They attack quickly!
+const STALK_MIN_DISTANCE: f32 = 80.0; // Minimum circling distance (closer!)
+const STALK_MAX_DISTANCE: f32 = 150.0; // Maximum circling distance (closer!)
+const STALK_ORBIT_SPEED: f32 = 1.5; // Radians per second for circling (faster orbiting)
+const STALK_APPROACH_RATE: f32 = 40.0; // How fast to approach while stalking (much faster)
 const STALK_RETREAT_RATE: f32 = 25.0; // How fast to back off
-const STALK_DURATION_MIN_MS: i64 = 5000; // Minimum stalking time before charge (5s)
-const STALK_DURATION_MAX_MS: i64 = 15000; // Maximum stalking time before charge (15s)
-const CHARGE_DECISION_CHANCE: f32 = 0.15; // 15% chance per AI tick to decide to charge
+const STALK_DURATION_MIN_MS: i64 = 1000; // Minimum stalking time before charge (1s - quick!)
+const STALK_DURATION_MAX_MS: i64 = 4000; // Maximum stalking time before charge (4s max)
+const CHARGE_DECISION_CHANCE: f32 = 0.50; // 50% chance per AI tick to decide to charge (very aggressive!)
 
 impl AnimalBehavior for ShoreboundBehavior {
     fn get_stats(&self) -> AnimalStats {
         AnimalStats {
             max_health: 80.0, // Low health - can be killed quickly
             attack_damage: 18.0, // Moderate damage
-            attack_range: 60.0, // Short melee range
-            attack_speed_ms: 600, // Fast attacks
-            movement_speed: 280.0, // Fast patrol speed
-            sprint_speed: 520.0, // Very fast sprint - faster than player
-            perception_range: 600.0, // Good detection range
-            perception_angle_degrees: 270.0, // Wide awareness
+            attack_range: 70.0, // Slightly longer melee range
+            attack_speed_ms: 500, // Very fast attacks
+            movement_speed: 560.0, // DOUBLED: Very fast patrol speed
+            sprint_speed: 1040.0, // DOUBLED: Extremely fast sprint
+            perception_range: 700.0, // Extended detection range
+            perception_angle_degrees: 300.0, // Very wide awareness
             patrol_radius: 400.0, // Large patrol area
-            chase_trigger_range: 500.0, // Long chase range
+            chase_trigger_range: 600.0, // Extended chase range
             flee_trigger_health_percent: 0.0, // Never flees - fights to death
             hide_duration_ms: 0, // Doesn't hide
         }
@@ -129,11 +129,19 @@ impl AnimalBehavior for ShoreboundBehavior {
                             return Ok(());
                         }
                         
+                        // AGGRESSIVE: If already in attack range during stalking, immediately charge!
+                        if distance <= stats.attack_range * 1.2 {
+                            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_id), "in range - immediate charge!");
+                            emit_species_sound(ctx, animal, target_id, "alert_to_chase");
+                            log::debug!("Shorebound {} in attack range - charging!", animal.id);
+                            return Ok(());
+                        }
+                        
                         // Calculate time spent stalking
                         let stalk_duration_ms = (current_time.to_micros_since_unix_epoch() -
                             animal.state_change_time.to_micros_since_unix_epoch()) / 1000;
                         
-                        // Decide whether to charge
+                        // Decide whether to charge - AGGRESSIVE: Lower threshold, higher chance
                         let should_charge = stalk_duration_ms > STALK_DURATION_MIN_MS && 
                             (stalk_duration_ms > STALK_DURATION_MAX_MS || rng.gen::<f32>() < CHARGE_DECISION_CHANCE);
                         
