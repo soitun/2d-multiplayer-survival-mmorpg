@@ -219,8 +219,8 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
             .collect();
         
         if !daytime_hostiles.is_empty() {
-            log::warn!("⚠️ [HostileNPC] Found {} hostiles during daytime ({}), force removing!", 
-                      daytime_hostiles.len(), world_state.time_of_day.clone() as i32);
+            log::warn!("⚠️ [HostileNPC] Found {} hostiles during daytime ({:?}), force removing!", 
+                      daytime_hostiles.len(), world_state.time_of_day);
             for id in &daytime_hostiles {
                 ctx.db.wild_animal().id().delete(id);
             }
