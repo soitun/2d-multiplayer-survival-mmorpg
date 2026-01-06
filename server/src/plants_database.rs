@@ -230,7 +230,7 @@ lazy_static! {
         
         configs.insert(PlantType::BeachLymeGrass, PlantConfig {
             entity_name: "Beach Lyme Grass".to_string(),
-            density_percent: 0.00125, // INCREASED 10x: was 0.000125 (~31 plants) → now ~313 plants (RELIABLE BEACH FIBER)
+            density_percent: 0.00375, // TRIPLED for tutorial: was 0.00125 (~313 plants) → now ~939 plants (essential for tutorial quest fiber)
             min_distance_sq: 30.0 * 30.0,
             min_tree_distance_sq: 20.0 * 20.0,
             min_stone_distance_sq: 25.0 * 25.0,

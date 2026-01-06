@@ -239,7 +239,7 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
             log::warn!("Failed to check harvest achievements: {}", e);
         }
         
-        // Track quest progress for plant harvesting
+        // Track quest progress for plant harvesting (generic - any plant)
         // NOTE: Track 1 per harvest action, NOT the number of items received
         // This prevents "harvest 5 plants" from completing after picking 2 plants that yield 3 items each
         if let Err(e) = crate::quests::track_quest_progress(
@@ -250,6 +250,19 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
             1, // Count harvest actions, not items
         ) {
             log::warn!("Failed to track quest progress for harvesting: {}", e);
+        }
+        
+        // Track quest progress for specific plant harvesting (e.g., "Harvest 3 Beach Lyme Grass")
+        // Uses the plant's entity name as the target_id for matching specific plant quests
+        let plant_name = crate::plants_database::plant_type_to_entity_name(&resource.plant_type);
+        if let Err(e) = crate::quests::track_quest_progress(
+            ctx,
+            player_id,
+            crate::quests::QuestObjectiveType::HarvestSpecificPlant,
+            Some(plant_name),
+            1, // Count harvest actions, not items
+        ) {
+            log::warn!("Failed to track quest progress for specific plant harvesting: {}", e);
         }
         
         // Track HarvestCrop quest if this is a player-planted crop (for farming quests)

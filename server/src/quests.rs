@@ -967,14 +967,14 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 1: GETTING TO SHELTER FAST
         // ===========================================
         
-        // Quest 1: Harvest Plants (introduces foraging - no tools required)
+        // Quest 1: Harvest Beach Lyme Grass (introduces foraging - no tools required, ensures adequate cloth for rope)
         TutorialQuestDefinition {
             id: "tutorial_01_harvest_plants".to_string(),
             order_index: 0,
-            name: "Foraging Basics".to_string(),
-            description: "Harvest 3 wild plants by pressing E near bushes and fiber plants.".to_string(),
-            objective_type: QuestObjectiveType::HarvestPlant,
-            target_id: None,
+            name: "Coastal Foraging".to_string(),
+            description: "Harvest 3 Beach Lyme Grass by pressing E near the coastal grass.".to_string(),
+            objective_type: QuestObjectiveType::HarvestSpecificPlant,
+            target_id: Some("Beach Lyme Grass".to_string()),
             target_amount: 3,
             secondary_objective_type: None,
             secondary_target_id: None,
@@ -982,9 +982,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 15,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Agent, welcome to the island. First, gather some plant fiber. Look for plants on the ground - press E to harvest them.".to_string(),
-            sova_complete_message: "Good instincts. Plant fiber is essential for rope. You'll need rope to build your shelter.".to_string(),
-            sova_hint_message: "Walk around and look for plants. Press E when you see the interaction prompt.".to_string(),
+            sova_start_message: "Agent, welcome to the island. First, gather some Beach Lyme Grass from the shore. Look for the tall grass near the water - press E to harvest it. You'll need the fiber for rope.".to_string(),
+            sova_complete_message: "Good instincts. Beach Lyme Grass is an excellent fiber source. You'll have enough for rope and more.".to_string(),
+            sova_hint_message: "Look along the beach for tall grass. Press E when you see the interaction prompt.".to_string(),
         },
         
         // Quest 2: Craft Rope (needed for shelter)

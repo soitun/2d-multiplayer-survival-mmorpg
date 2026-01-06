@@ -3802,7 +3802,11 @@ pub fn damage_animal_corpse(
         }
     }
 
-    if animal_corpse.health > 0 && rng.gen_bool(actual_bone_chance) {
+    // Note: Crabs don't drop Animal Bone - they have exoskeletons, not internal bones
+    if animal_corpse.health > 0 
+        && animal_corpse.animal_species != crate::wild_animal_npc::AnimalSpecies::BeachCrab
+        && rng.gen_bool(actual_bone_chance) 
+    {
         match grant_resource(ctx, attacker_id, "Animal Bone", quantity_per_hit) {
             Ok(_) => resources_granted.push(("Animal Bone".to_string(), quantity_per_hit)),
             Err(e) => log::error!("Failed to grant Animal Bone: {}", e),

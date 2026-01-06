@@ -128,7 +128,7 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
             className={`quest-complete-container ${isAnimatingOut ? 'fade-out' : 'fade-in'}`}
             style={{
                 position: 'fixed',
-                top: '200px',
+                top: '350px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 190,
