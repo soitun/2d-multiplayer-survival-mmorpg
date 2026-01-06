@@ -446,8 +446,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks
-                    `SELECT * FROM hostile_npc WHERE chunk_index = ${chunkIndex}`, // Night-only hostile enemies (spatial)
+                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks (includes hostile NPCs with is_hostile_npc = true)
                     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
                     `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral underwater (uses combat system)
                 ];
@@ -2658,8 +2657,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`, // ADDED: Fire patch initial spatial subscription
                                     `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`, // ADDED: Placed explosive initial spatial subscription
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance (was causing 800+ updates/sec globally)
-                                    `SELECT * FROM hostile_npc WHERE chunk_index = ${chunkIndex}`, // Night-only hostile enemies (spatial)
+                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
