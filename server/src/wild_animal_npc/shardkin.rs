@@ -47,8 +47,8 @@ impl AnimalBehavior for ShardkinBehavior {
             attack_damage: 12.0, // Low damage per hit
             attack_range: 55.0, // Short melee range
             attack_speed_ms: 300, // Extremely fast attacks (swarm bites!)
-            movement_speed: 640.0, // DOUBLED: Lightning fast patrol
-            sprint_speed: 1100.0, // DOUBLED: Blazing fast sprint
+            movement_speed: 250.0, // Fast patrol - faster than player walk (200)
+            sprint_speed: 420.0, // Slightly faster than player sprint (400) - can catch walkers, sprinters barely escape
             perception_range: 600.0, // Extended detection
             perception_angle_degrees: 360.0, // Full awareness (swarm behavior)
             patrol_radius: 300.0, // Stays closer together

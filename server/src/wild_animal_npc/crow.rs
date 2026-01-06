@@ -87,7 +87,7 @@ impl AnimalBehavior for CrowBehavior {
             attack_range: 45.0, // Short beak range
             attack_speed_ms: 1000, // Moderate attack speed
             movement_speed: 140.0, // Ground speed (rarely used)
-            sprint_speed: 320.0, // Base flying speed (multiplied by FLYING_SPEED_MULTIPLIER)
+            sprint_speed: 280.0, // Base flying speed (x1.8 = 504 effective) - same as tern
             perception_range: 350.0, // Good vision for spotting players
             perception_angle_degrees: 270.0, // Wide field of view
             patrol_radius: 500.0, // Large patrol area (flying)

@@ -54,8 +54,8 @@ impl AnimalBehavior for ShoreboundBehavior {
             attack_damage: 18.0, // Moderate damage
             attack_range: 70.0, // Slightly longer melee range
             attack_speed_ms: 500, // Very fast attacks
-            movement_speed: 560.0, // DOUBLED: Very fast patrol speed
-            sprint_speed: 1040.0, // DOUBLED: Extremely fast sprint
+            movement_speed: 220.0, // Fast patrol - slightly faster than player walk (200)
+            sprint_speed: 400.0, // Matches player sprint (400) - creates tense chases
             perception_range: 700.0, // Extended detection range
             perception_angle_degrees: 300.0, // Very wide awareness
             patrol_radius: 400.0, // Large patrol area
