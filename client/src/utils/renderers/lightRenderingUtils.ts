@@ -1096,3 +1096,153 @@ export const renderFishingVillageCampfireLight = ({
     ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
     ctx.fill();
 };
+
+// ===== SOVA AURA - LOCAL PLAYER NIGHT VISION AID =====
+// A subtle, always-on night visibility aid for the local player only.
+// Purely visual - no gameplay effects. Only visible during nighttime.
+
+// --- SOVA Aura Constants ---
+// Radius similar to torch but with weaker intensity
+export const SOVA_AURA_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 3.0; // Same size as torch
+// No flicker - steady bioelectric glow
+export const SOVA_AURA_FLICKER_AMOUNT = 0; // No flicker for consistent visibility
+// Deep blue color (bioelectric vibe) - more blue, less cyan
+// Much lower intensity than torch for subtle "night vision bubble" feel
+export const SOVA_AURA_INNER_COLOR_RGB = { r: 30, g: 60, b: 220 }; // Deep electric blue
+export const SOVA_AURA_OUTER_COLOR_RGB = { r: 15, g: 40, b: 180 }; // Rich blue fade
+
+// Night time detection thresholds based on cycle progress (0.0 to 1.0)
+// Day is approximately 0.15 to 0.68 (when overlay alpha is 0)
+// Night/dusk starts around 0.72, dawn ends around 0.12
+const SOVA_AURA_DUSK_START = 0.70; // Start fading in during golden hour
+const SOVA_AURA_NIGHT_FULL = 0.76; // Full intensity during night
+const SOVA_AURA_DAWN_END = 0.12; // Fade out as morning arrives
+const SOVA_AURA_DAY_START = 0.15; // Completely off during day
+
+/**
+ * Calculate SOVA aura intensity based on time of day.
+ * Returns 0.0 during day, 1.0 during full night, with smooth transitions.
+ * @param cycleProgress - Day/night cycle progress (0.0 to 1.0)
+ */
+export function getSovaAuraIntensity(cycleProgress: number): number {
+    // Full day (0.15 to 0.70) - no aura
+    if (cycleProgress >= SOVA_AURA_DAY_START && cycleProgress < SOVA_AURA_DUSK_START) {
+        return 0.0;
+    }
+    
+    // Dusk transition (0.70 to 0.76) - fade in
+    if (cycleProgress >= SOVA_AURA_DUSK_START && cycleProgress < SOVA_AURA_NIGHT_FULL) {
+        const t = (cycleProgress - SOVA_AURA_DUSK_START) / (SOVA_AURA_NIGHT_FULL - SOVA_AURA_DUSK_START);
+        return t; // Linear fade in
+    }
+    
+    // Full night (0.76 to 1.0 and 0.0 to 0.12) - full intensity
+    if (cycleProgress >= SOVA_AURA_NIGHT_FULL || cycleProgress < SOVA_AURA_DAWN_END) {
+        return 1.0;
+    }
+    
+    // Dawn transition (0.12 to 0.15) - fade out
+    if (cycleProgress >= SOVA_AURA_DAWN_END && cycleProgress < SOVA_AURA_DAY_START) {
+        const t = (cycleProgress - SOVA_AURA_DAWN_END) / (SOVA_AURA_DAY_START - SOVA_AURA_DAWN_END);
+        return 1.0 - t; // Linear fade out
+    }
+    
+    return 0.0;
+}
+
+interface RenderSovaAuraProps {
+    ctx: CanvasRenderingContext2D;
+    playerWorldX: number;
+    playerWorldY: number;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    cycleProgress: number;
+}
+
+/**
+ * Renders the SOVA Aura - a subtle night vision aid for the local player only.
+ * 
+ * IMPORTANT: This should ONLY be called for the local player.
+ * Remote players should NOT see this effect on other players.
+ * 
+ * Features:
+ * - Dark blue/cyan radial gradient (bioelectric vibe)
+ * - Weaker than torch (dim night vision bubble)
+ * - Very soft feathered edges
+ * - Smooth fade in/out during dusk/dawn transitions
+ * - Does not affect gameplay (no enemy behavior, spawning, etc.)
+ */
+export const renderSovaAura = ({
+    ctx,
+    playerWorldX,
+    playerWorldY,
+    cameraOffsetX,
+    cameraOffsetY,
+    cycleProgress,
+}: RenderSovaAuraProps) => {
+    // Calculate intensity based on time of day
+    const intensity = getSovaAuraIntensity(cycleProgress);
+    
+    // Skip rendering if intensity is too low (day time)
+    if (intensity < 0.01) {
+        return;
+    }
+    
+    const lightScreenX = playerWorldX + cameraOffsetX;
+    const lightScreenY = playerWorldY + cameraOffsetY;
+    
+    // Scale base intensity - much dimmer than torch for subtle effect
+    const baseAlpha = 0.12 * intensity; // Max alpha 0.12 (very subtle)
+    
+    const { r, g, b } = SOVA_AURA_INNER_COLOR_RGB;
+    const { r: outerR, g: outerG, b: outerB } = SOVA_AURA_OUTER_COLOR_RGB;
+    
+    // Layer 1: Large ambient glow (very soft, barely visible outer edge)
+    const ambientRadius = SOVA_AURA_RADIUS_BASE * 2.5;
+    const ambientGradient = ctx.createRadialGradient(
+        lightScreenX, lightScreenY, 0,
+        lightScreenX, lightScreenY, ambientRadius
+    );
+    ambientGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.4})`);
+    ambientGradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.25})`);
+    ambientGradient.addColorStop(0.6, `rgba(${outerR}, ${outerG}, ${outerB}, ${baseAlpha * 0.12})`);
+    ambientGradient.addColorStop(0.85, `rgba(${outerR}, ${outerG}, ${outerB}, ${baseAlpha * 0.04})`);
+    ambientGradient.addColorStop(1, `rgba(${outerR}, ${outerG}, ${outerB}, 0)`);
+    
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Layer 2: Main illumination (subtle cyan-blue visibility bubble)
+    const mainRadius = SOVA_AURA_RADIUS_BASE * 1.6;
+    const mainGradient = ctx.createRadialGradient(
+        lightScreenX, lightScreenY, 0,
+        lightScreenX, lightScreenY, mainRadius
+    );
+    mainGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.6})`);
+    mainGradient.addColorStop(0.25, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.45})`);
+    mainGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.28})`);
+    mainGradient.addColorStop(0.75, `rgba(${outerR}, ${outerG}, ${outerB}, ${baseAlpha * 0.12})`);
+    mainGradient.addColorStop(1, `rgba(${outerR}, ${outerG}, ${outerB}, 0)`);
+    
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Layer 3: Core visibility area (centered around player, softest glow)
+    const coreRadius = SOVA_AURA_RADIUS_BASE * 0.6;
+    const coreGradient = ctx.createRadialGradient(
+        lightScreenX, lightScreenY, 0,
+        lightScreenX, lightScreenY, coreRadius
+    );
+    coreGradient.addColorStop(0, `rgba(${r + 20}, ${g + 30}, ${b + 30}, ${baseAlpha * 0.8})`); // Slightly brighter center
+    coreGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${baseAlpha * 0.5})`);
+    coreGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+};

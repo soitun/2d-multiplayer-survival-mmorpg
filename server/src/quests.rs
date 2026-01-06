@@ -140,9 +140,17 @@ pub struct TutorialQuestDefinition {
     pub order_index: u32,         // Sequential order (0, 1, 2, ...)
     pub name: String,             // Display name
     pub description: String,      // What to do
+    
+    // Primary objective
     pub objective_type: QuestObjectiveType,
     pub target_id: Option<String>, // For specific item/animal/etc.
     pub target_amount: u32,       // How many to complete
+    
+    // Secondary objective (optional - quest completes when BOTH are done)
+    pub secondary_objective_type: Option<QuestObjectiveType>,
+    pub secondary_target_id: Option<String>,
+    pub secondary_target_amount: Option<u32>,
+    
     pub xp_reward: u64,
     pub shard_reward: u64,
     pub unlock_recipe: Option<String>, // Recipe ID to unlock on completion
@@ -184,7 +192,8 @@ pub struct PlayerTutorialProgress {
     #[primary_key]
     pub player_id: Identity,
     pub current_quest_index: u32,      // Which tutorial quest they're on
-    pub current_quest_progress: u32,   // Progress toward current quest
+    pub current_quest_progress: u32,   // Progress toward primary objective
+    pub secondary_quest_progress: u32, // Progress toward secondary objective (if any)
     pub completed_quest_ids: String,   // Comma-separated list of completed quest IDs
     pub tutorial_completed: bool,      // All tutorial quests done
     pub last_hint_shown: Option<Timestamp>, // Rate limit hints
@@ -292,6 +301,7 @@ pub fn get_or_init_tutorial_progress(ctx: &ReducerContext, player_id: Identity) 
         player_id,
         current_quest_index: 0,
         current_quest_progress: 0,
+        secondary_quest_progress: 0,
         completed_quest_ids: String::new(),
         tutorial_completed: false,
         last_hint_shown: None,
@@ -422,51 +432,127 @@ fn track_tutorial_progress(
         }
     };
     
-    // Check if this action matches the current quest objective
-    if &quest.objective_type != objective_type {
+    // Check if this action matches the PRIMARY objective
+    let matches_primary = matches_objective(
+        objective_type,
+        target_id,
+        &quest.objective_type,
+        quest.target_id.as_deref(),
+    );
+    
+    // Check if this action matches the SECONDARY objective (if any)
+    let matches_secondary = if let Some(ref secondary_obj) = quest.secondary_objective_type {
+        matches_objective(
+            objective_type,
+            target_id,
+            secondary_obj,
+            quest.secondary_target_id.as_deref(),
+        )
+    } else {
+        false
+    };
+    
+    // If action doesn't match either objective, skip
+    if !matches_primary && !matches_secondary {
         return Ok(());
     }
     
-    // Check target_id if required
-    if let Some(quest_target) = &quest.target_id {
-        if let Some(action_target) = target_id {
-            if quest_target != action_target {
-                return Ok(());
-            }
-        } else {
-            return Ok(()); // Quest requires specific target but action has none
+    let mut updated = false;
+    
+    // Update primary progress if applicable
+    if matches_primary && progress.current_quest_progress < quest.target_amount {
+        progress.current_quest_progress += amount;
+        updated = true;
+        
+        // Check for milestone notifications (50%) on primary
+        let prev_percent = ((progress.current_quest_progress.saturating_sub(amount)) as f32 / quest.target_amount as f32 * 100.0) as u32;
+        let curr_percent = (progress.current_quest_progress as f32 / quest.target_amount as f32 * 100.0) as u32;
+        
+        if prev_percent < 50 && curr_percent >= 50 && curr_percent < 100 {
+            let notif = QuestProgressNotification {
+                id: 0,
+                player_id,
+                quest_name: format!("{} (Primary)", quest.name),
+                current_progress: progress.current_quest_progress,
+                target_amount: quest.target_amount,
+                milestone_percent: 50,
+                notified_at: ctx.timestamp,
+            };
+            ctx.db.quest_progress_notification().insert(notif);
         }
     }
     
-    // Update progress
-    progress.current_quest_progress += amount;
-    progress.updated_at = ctx.timestamp;
-    
-    // Check for milestone notifications (50%)
-    let prev_percent = ((progress.current_quest_progress - amount) as f32 / quest.target_amount as f32 * 100.0) as u32;
-    let curr_percent = (progress.current_quest_progress as f32 / quest.target_amount as f32 * 100.0) as u32;
-    
-    if prev_percent < 50 && curr_percent >= 50 && curr_percent < 100 {
-        let notif = QuestProgressNotification {
-            id: 0,
-            player_id,
-            quest_name: quest.name.clone(),
-            current_progress: progress.current_quest_progress,
-            target_amount: quest.target_amount,
-            milestone_percent: 50,
-            notified_at: ctx.timestamp,
-        };
-        ctx.db.quest_progress_notification().insert(notif);
+    // Update secondary progress if applicable
+    if matches_secondary {
+        if let Some(secondary_target) = quest.secondary_target_amount {
+            if progress.secondary_quest_progress < secondary_target {
+                progress.secondary_quest_progress += amount;
+                updated = true;
+                
+                // Check for milestone notifications (50%) on secondary
+                let prev_percent = ((progress.secondary_quest_progress.saturating_sub(amount)) as f32 / secondary_target as f32 * 100.0) as u32;
+                let curr_percent = (progress.secondary_quest_progress as f32 / secondary_target as f32 * 100.0) as u32;
+                
+                if prev_percent < 50 && curr_percent >= 50 && curr_percent < 100 {
+                    let notif = QuestProgressNotification {
+                        id: 0,
+                        player_id,
+                        quest_name: format!("{} (Secondary)", quest.name),
+                        current_progress: progress.secondary_quest_progress,
+                        target_amount: secondary_target,
+                        milestone_percent: 50,
+                        notified_at: ctx.timestamp,
+                    };
+                    ctx.db.quest_progress_notification().insert(notif);
+                }
+            }
+        }
     }
     
-    // Check for completion
-    if progress.current_quest_progress >= quest.target_amount {
+    if !updated {
+        return Ok(());
+    }
+    
+    progress.updated_at = ctx.timestamp;
+    
+    // Check for completion - need BOTH objectives to be complete
+    let primary_complete = progress.current_quest_progress >= quest.target_amount;
+    let secondary_complete = match quest.secondary_target_amount {
+        Some(target) => progress.secondary_quest_progress >= target,
+        None => true, // No secondary objective = automatically complete
+    };
+    
+    if primary_complete && secondary_complete {
         complete_tutorial_quest(ctx, player_id, &mut progress, quest)?;
     } else {
         progress_table.player_id().update(progress);
     }
     
     Ok(())
+}
+
+/// Helper function to check if an action matches an objective
+fn matches_objective(
+    action_type: &QuestObjectiveType,
+    action_target: Option<&str>,
+    objective_type: &QuestObjectiveType,
+    objective_target: Option<&str>,
+) -> bool {
+    // Must match objective type
+    if action_type != objective_type {
+        return false;
+    }
+    
+    // If objective requires a specific target, check it
+    if let Some(quest_target) = objective_target {
+        match action_target {
+            Some(target) if target == quest_target => true,
+            _ => false,
+        }
+    } else {
+        // No specific target required
+        true
+    }
 }
 
 /// Complete a tutorial quest and move to next
@@ -513,6 +599,7 @@ fn complete_tutorial_quest(
     // Move to next quest
     progress.current_quest_index += 1;
     progress.current_quest_progress = 0;
+    progress.secondary_quest_progress = 0; // Reset secondary progress for next quest
     progress.updated_at = ctx.timestamp;
     
     // Check if there's a next quest and announce it
@@ -659,14 +746,19 @@ pub fn assign_daily_quests(ctx: &ReducerContext, player_id: Identity) -> Result<
         return Ok(()); // Already has today's quests
     }
     
-    // Expire old quests
+    // Delete ALL old quests from previous days (clean slate for new day)
+    // This prevents quest accumulation across multiple days
     let old_quests: Vec<PlayerDailyQuest> = daily_table.iter()
-        .filter(|q| q.player_id == player_id && q.assigned_day < world_day && q.status == QuestStatus::InProgress)
+        .filter(|q| q.player_id == player_id && q.assigned_day < world_day)
         .collect();
     
-    for mut old_quest in old_quests {
-        old_quest.status = QuestStatus::Expired;
-        daily_table.id().update(old_quest);
+    let old_quest_count = old_quests.len();
+    for old_quest in old_quests {
+        daily_table.id().delete(old_quest.id);
+    }
+    
+    if old_quest_count > 0 {
+        log::info!("[Quests] Deleted {} old daily quests for player {:?}", old_quest_count, player_id);
     }
     
     // Get all available daily quest definitions
@@ -784,26 +876,25 @@ pub fn request_tutorial_hint(ctx: &ReducerContext) -> Result<(), String> {
 }
 
 /// Manually refresh daily quests (admin/debug)
+/// This will delete ALL daily quests for the player and assign fresh ones
 #[spacetimedb::reducer]
 pub fn refresh_my_daily_quests(ctx: &ReducerContext) -> Result<(), String> {
     let player_id = ctx.sender;
     let daily_table = ctx.db.player_daily_quest();
     
-    // Get current world day (cycle_count = number of full day cycles)
-    let world_day = ctx.db.world_state().iter().next()
-        .map(|ws| ws.cycle_count)
-        .unwrap_or(0);
-    
-    // Delete today's quests to force reassignment
-    let todays_quests: Vec<PlayerDailyQuest> = daily_table.iter()
-        .filter(|q| q.player_id == player_id && q.assigned_day == world_day)
+    // Delete ALL daily quests for this player (clears any accumulated quests)
+    let all_quests: Vec<PlayerDailyQuest> = daily_table.iter()
+        .filter(|q| q.player_id == player_id)
         .collect();
     
-    for quest in todays_quests {
+    let deleted_count = all_quests.len();
+    for quest in all_quests {
         daily_table.id().delete(quest.id);
     }
     
-    // Reassign
+    log::info!("[Quests] Player {:?} refreshed daily quests - deleted {} old quests", player_id, deleted_count);
+    
+    // Reassign fresh quests for today
     assign_daily_quests(ctx, player_id)?;
     
     Ok(())
@@ -885,6 +976,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::HarvestPlant,
             target_id: None,
             target_amount: 3,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 15,
             shard_reward: 5,
             unlock_recipe: None,
@@ -902,12 +996,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::CraftSpecificItem,
             target_id: Some("Rope".to_string()),
             target_amount: 2,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Press C to open crafting. First make Cloth from Plant Fiber, then craft Rope from the Cloth. You'll need 2 rope for your shelter.".to_string(),
+            sova_start_message: "Press B to open crafting. First make Cloth from Plant Fiber, then craft Rope from the Cloth. You'll need 2 rope for your shelter.".to_string(),
             sova_complete_message: "Rope secured. Essential for building structures.".to_string(),
-            sova_hint_message: "Press C to craft. Find Cloth first (needs Plant Fiber), then craft Rope from Cloth.".to_string(),
+            sova_hint_message: "Press B to craft. Find Cloth first (needs Plant Fiber), then craft Rope from Cloth.".to_string(),
         },
         
         // Quest 3: Chop 1 Tree (get wood for shelter - use combat ladle)
@@ -919,6 +1016,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::GatherWood,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
@@ -936,33 +1036,39 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::PlaceShelter,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,
             sova_start_message: "Shelter is survival. Press C to craft a Shelter - it needs 100 wood and 2 rope. Place it somewhere safe with right-click.".to_string(),
             sova_complete_message: "Your base is established. Well done, agent. Now let's expand your capabilities.".to_string(),
-            sova_hint_message: "Press C to open crafting. Find Shelter - needs 100 wood and 2 rope. Right-click to place it.".to_string(),
+            sova_hint_message: "Press B to open crafting. Find Shelter - needs 100 wood and 2 rope. Right-click to place it.".to_string(),
         },
         
         // ===========================================
         // PHASE 2: RESOURCE GATHERING & TOOLS
         // ===========================================
         
-        // Quest 5: Mine Stone (introduces mining with ladle first)
+        // Quest 5: Mine Stone + Chop Wood (dual objective)
         TutorialQuestDefinition {
             id: "tutorial_05_mine_stone".to_string(),
             order_index: 4,
             name: "Breaking Ground".to_string(),
-            description: "Mine 200 stone from rock formations.".to_string(),
+            description: "Mine 200 stone from rock formations and chop 400 wood.".to_string(),
             objective_type: QuestObjectiveType::GatherStone,
             target_id: None,
             target_amount: 200,
+            secondary_objective_type: Some(QuestObjectiveType::GatherWood),
+            secondary_target_id: None,
+            secondary_target_amount: Some(400),
             xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
-            sova_start_message: "Stone is essential for better tools. Find gray rock formations and attack them with your ladle to gather stone.".to_string(),
-            sova_complete_message: "Stone secured. Now you can craft proper tools.".to_string(),
-            sova_hint_message: "Look for large gray rocks. Attack them to gather stone.".to_string(),
+            sova_start_message: "Stone and wood are essential for better tools. Mine 200 stone from gray rock formations and chop 400 wood from trees.".to_string(),
+            sova_complete_message: "Resources secured. Now you can craft proper tools.".to_string(),
+            sova_hint_message: "Look for large gray rocks to mine stone. Chop trees for wood. Both objectives must be completed.".to_string(),
         },
         
         // Quest 6: Craft Stone Hatchet (better wood gathering)
@@ -974,12 +1080,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::CraftSpecificItem,
             target_id: Some("Stone Hatchet".to_string()),
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
             sova_start_message: "A proper hatchet will make gathering wood much faster. Press C and craft a Stone Hatchet.".to_string(),
             sova_complete_message: "Excellent. The hatchet is your best friend for gathering wood. Equip it to your hotbar.".to_string(),
-            sova_hint_message: "Press C to open crafting. Stone Hatchet needs wood and stone.".to_string(),
+            sova_hint_message: "Press B to open crafting. Stone Hatchet needs wood and stone.".to_string(),
         },
         
         // Quest 7: Craft Stone Pickaxe (enables efficient stone/ore gathering)
@@ -991,12 +1100,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::CraftSpecificItem,
             target_id: Some("Stone Pickaxe".to_string()),
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
             sova_start_message: "A pickaxe will let you mine stone and ore much faster. Craft one now.".to_string(),
             sova_complete_message: "Now you can mine efficiently. Stone formations and ore veins are yours for the taking.".to_string(),
-            sova_hint_message: "Press C to open crafting. Stone Pickaxe needs wood and stone.".to_string(),
+            sova_hint_message: "Press B to open crafting. Stone Pickaxe needs wood and stone.".to_string(),
         },
         
         // ===========================================
@@ -1012,6 +1124,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::PlaceCampfire,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1029,6 +1144,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::PlaceStorageBox,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 25,
             shard_reward: 10,
             unlock_recipe: None,
@@ -1046,6 +1164,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::PlaceSleepingBag,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 30,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1067,6 +1188,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::EatFood,
             target_id: None,
             target_amount: 3,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
@@ -1084,6 +1208,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::KillAnyAnimal,
             target_id: None,
             target_amount: 3,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 45,
             shard_reward: 15,
             unlock_recipe: None,
@@ -1092,36 +1219,22 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Equip a weapon or your hatchet. Approach animals and attack. Don't forget to harvest the corpse with E!".to_string(),
         },
         
-        // Quest 13: Hunt more animals (need animal fat for furnace)
-        TutorialQuestDefinition {
-            id: "tutorial_13_hunt_more".to_string(),
-            order_index: 12,
-            name: "Fat of the Land".to_string(),
-            description: "Kill 5 more animals to gather Animal Fat for a Furnace.".to_string(),
-            objective_type: QuestObjectiveType::KillAnyAnimal,
-            target_id: None,
-            target_amount: 5,
-            xp_reward: 40,
-            shard_reward: 20,
-            unlock_recipe: None,
-            sova_start_message: "Animal Fat is crucial for building a Furnace. Keep hunting and harvesting corpses. You'll need at least 50 fat - larger animals drop more.".to_string(),
-            sova_complete_message: "Good hunting. Check your inventory for Animal Fat - you'll need it for the furnace.".to_string(),
-            sova_hint_message: "Kill animals and press E on their corpses to harvest. Deer, wolves, and boars drop more fat than rabbits.".to_string(),
-        },
-        
         // ===========================================
         // PHASE 5: METAL PROGRESSION
         // ===========================================
         
-        // Quest 14: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
+        // Quest 13: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
         TutorialQuestDefinition {
-            id: "tutorial_14_build_furnace".to_string(),
-            order_index: 13,
+            id: "tutorial_13_build_furnace".to_string(),
+            order_index: 12,
             name: "Industrial Revolution".to_string(),
             description: "Craft and place a Furnace for smelting metal.".to_string(),
             objective_type: QuestObjectiveType::PlaceFurnace,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 60,
             shard_reward: 25,
             unlock_recipe: None,
@@ -1130,15 +1243,18 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Make sure you have 50 Animal Fat. Craft the Furnace and place it. It needs fuel (wood) to smelt ore.".to_string(),
         },
         
-        // Quest 15: Craft Metal Tool (introduces metal progression)
+        // Quest 14: Craft Metal Tool (introduces metal progression)
         TutorialQuestDefinition {
-            id: "tutorial_15_craft_metal_tool".to_string(),
-            order_index: 14,
+            id: "tutorial_14_craft_metal_tool".to_string(),
+            order_index: 13,
             name: "Forged in Fire".to_string(),
             description: "Craft a Metal Hatchet or Metal Pickaxe.".to_string(),
             objective_type: QuestObjectiveType::CraftAnyItem,
             target_id: None,  // We track any crafting, quest completes when they have metal tools
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,
@@ -1151,72 +1267,24 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 6: ECONOMY & MEMORY SYSTEM
         // ===========================================
         
-        // Quest 16: Catch Fish (introduces fishing)
+        // Quest 15: Deliver ALK Contract (introduces the economy)
         TutorialQuestDefinition {
-            id: "tutorial_16_catch_fish".to_string(),
-            order_index: 15,
-            name: "Gone Fishing".to_string(),
-            description: "Catch 3 fish from the water.".to_string(),
-            objective_type: QuestObjectiveType::CatchAnyFish,
-            target_id: None,
-            target_amount: 3,
-            xp_reward: 35,
-            shard_reward: 15,
-            unlock_recipe: None,
-            sova_start_message: "Fish are an excellent food source. Craft a fishing rod and catch 3 fish from any body of water.".to_string(),
-            sova_complete_message: "Nice catch. Fishing is a reliable way to keep yourself fed.".to_string(),
-            sova_hint_message: "Craft a Basic Fishing Rod. Stand near water, equip it, and cast with left click. Watch for the bobber to dip.".to_string(),
-        },
-        
-        // Quest 17: Discover first Cairn (introduces exploration & memory shards)
-        TutorialQuestDefinition {
-            id: "tutorial_17_discover_cairn".to_string(),
-            order_index: 16,
-            name: "Ancient Memories".to_string(),
-            description: "Discover and interact with a stone cairn.".to_string(),
-            objective_type: QuestObjectiveType::DiscoverCairn,
-            target_id: None,
-            target_amount: 1,
-            xp_reward: 50,
-            shard_reward: 30,
-            unlock_recipe: None,
-            sova_start_message: "Stone cairns are scattered across the island. Each contains a fragment of this world's history - and a reward of Memory Shards. Find one.".to_string(),
-            sova_complete_message: "You've touched the past. These memories... they're not from this time. Keep exploring.".to_string(),
-            sova_hint_message: "Cairns are small stone stacks. Press E to interact when nearby. They reward Memory Shards and tell stories of the island.".to_string(),
-        },
-        
-        // Quest 18: Discover more cairns (main source of shards)
-        TutorialQuestDefinition {
-            id: "tutorial_18_discover_more_cairns".to_string(),
-            order_index: 17,
-            name: "Fragments of Memory".to_string(),
-            description: "Discover 3 more stone cairns across the island.".to_string(),
-            objective_type: QuestObjectiveType::DiscoverCairn,
-            target_id: None,
-            target_amount: 3,
-            xp_reward: 60,
-            shard_reward: 0, // Cairns give shards directly
-            unlock_recipe: None,
-            sova_start_message: "Memory Shards are the currency of this world. Cairns are your best early source - each one rewards 25-200 shards depending on its secrets. Find 3 more.".to_string(),
-            sova_complete_message: "Shards acquired. You may notice... changes. The whispers are normal. Mostly.".to_string(),
-            sova_hint_message: "Explore the island. Stone cairns are scattered everywhere - small piles of stacked rocks. Press E to interact and claim your reward.".to_string(),
-        },
-        
-        // Quest 19: Deliver ALK Contract (introduces the economy)
-        TutorialQuestDefinition {
-            id: "tutorial_19_alk_contract".to_string(),
-            order_index: 18,
+            id: "tutorial_15_alk_contract".to_string(),
+            order_index: 14,
             name: "Enter the Economy".to_string(),
-            description: "Accept and complete 1 ALK contract delivery.".to_string(),
+            description: "Accept an ALK contract and deliver resources for Memory Shards.".to_string(),
             objective_type: QuestObjectiveType::DeliverAlkContract,
             target_id: None,
             target_amount: 1,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
             xp_reward: 100,
             shard_reward: 50,
             unlock_recipe: None,
-            sova_start_message: "The ALK stations trade resources for Memory Shards. Press G to open the map, find an ALK station, travel there, and complete a contract.".to_string(),
-            sova_complete_message: "Contract complete. The ALK system is your main source of shards - and progression. Well done, agent. You're ready for the real challenges.".to_string(),
-            sova_hint_message: "Press G for the map. ALK stations are marked. Interact, accept a contract for items you can gather, collect them, and return to deliver.".to_string(),
+            sova_start_message: "Time to enter the economy. Press G to open your map, then select the ALK BOARD tab. Go to Materials and pick a contract - Wood or Stone are good choices since you've stockpiled some. Deliver to any ALK station - there are 5 across the island.".to_string(),
+            sova_complete_message: "Contract delivered. Memory Shards earned. You can trade almost anything for shards - use them on the Memory Grid to upgrade skills and unlock blueprints. This is how you progress, agent.".to_string(),
+            sova_hint_message: "Press G for map, click ALK BOARD tab, select Materials, choose a contract you can fulfill. Travel to an ALK station (1 central, 4 on periphery) to deliver.".to_string(),
         },
     ];
     
@@ -1224,7 +1292,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         table.insert(quest);
     }
     
-    let quest_count = 19; // Updated count (added rope crafting quest)
+    let quest_count = 15; // 15 tutorial quests (order_index 0-14)
     log::info!("[Quests] Seeded {} tutorial quests", quest_count);
     Ok(())
 }

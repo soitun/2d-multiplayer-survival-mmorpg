@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
 
 interface LevelUpNotificationProps {
@@ -8,77 +8,97 @@ interface LevelUpNotificationProps {
 const MAX_NOTIFICATIONS = 1; // Only show most recent level up
 const NOTIFICATION_TIMEOUT_MS = 4500; // Level up stays for 4.5 seconds
 const FADE_OUT_DURATION_MS = 600; // Fade out animation duration
+const SEEN_LEVELUPS_STORAGE_KEY = 'broth_seen_levelup_notifications';
+
+// Load seen level up IDs from localStorage
+function loadSeenLevelUpIds(): Set<string> {
+  try {
+    const stored = localStorage.getItem(SEEN_LEVELUPS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch (e) {
+    console.warn('[LevelUpNotification] Failed to load seen level ups from localStorage:', e);
+  }
+  return new Set();
+}
+
+// Save seen level up IDs to localStorage
+function saveSeenLevelUpIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(SEEN_LEVELUPS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch (e) {
+    console.warn('[LevelUpNotification] Failed to save seen level ups to localStorage:', e);
+  }
+}
 
 const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({ 
   notifications 
 }) => {
   const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.LevelUpNotification[]>([]);
-  const [fadingOutIds, setFadingOutIds] = useState<Set<bigint>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<bigint>>(new Set());
-  const timeoutRefs = useRef<Map<bigint, NodeJS.Timeout>>(new Map());
+  const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
+  // Initialize dismissedIds from localStorage to persist across page reloads
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenLevelUpIds());
+  const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Dismiss a notification by id with fade animation
+  const dismissNotification = useCallback((id: string) => {
+    // Clear the timeout if it exists
+    const timeout = timeoutRefs.current.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeoutRefs.current.delete(id);
+    }
+    
+    // Start fade out
+    setFadingOutIds(prev => new Set(prev).add(id));
+    
+    // Remove after fade animation completes
+    setTimeout(() => {
+      setDismissedIds(prev => {
+        const newSet = new Set(prev).add(id);
+        // Persist to localStorage so it won't show again on next login
+        saveSeenLevelUpIds(newSet);
+        return newSet;
+      });
+      setFadingOutIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, FADE_OUT_DURATION_MS);
+  }, []);
 
   useEffect(() => {
-    // Display latest MAX_NOTIFICATIONS, excluding dismissed ones
-    const latestNotifications = notifications
-      .filter(notif => !dismissedIds.has(notif.id))
+    // Get the latest notifications excluding dismissed ones
+    const newVisible = notifications
+      .filter(n => !dismissedIds.has(n.id.toString()))
       .slice(-MAX_NOTIFICATIONS);
-    setVisibleNotifications(latestNotifications);
+    
+    setVisibleNotifications(newVisible);
 
-    // Clear existing timeouts
-    timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
-    timeoutRefs.current.clear();
-
-    // Set up auto-dismiss timeouts for new notifications
-    latestNotifications.forEach(notif => {
-      const timeoutId = setTimeout(() => {
-        // Start fade out
-        setFadingOutIds(prev => new Set(prev).add(notif.id));
-        
-        // Remove after fade animation completes
-        setTimeout(() => {
-          setVisibleNotifications(prev => prev.filter(n => n.id !== notif.id));
-          setFadingOutIds(prev => {
-            const next = new Set(prev);
-            next.delete(notif.id);
-            return next;
-          });
-        }, FADE_OUT_DURATION_MS);
-      }, NOTIFICATION_TIMEOUT_MS);
-      
-      timeoutRefs.current.set(notif.id, timeoutId);
+    // Set up auto-dismiss timers for new notifications
+    newVisible.forEach(notif => {
+      const id = notif.id.toString();
+      if (!timeoutRefs.current.has(id) && !fadingOutIds.has(id)) {
+        const timeout = setTimeout(() => {
+          dismissNotification(id);
+        }, NOTIFICATION_TIMEOUT_MS);
+        timeoutRefs.current.set(id, timeout);
+      }
     });
+  }, [notifications, dismissedIds, fadingOutIds, dismissNotification]);
 
-    // Cleanup on unmount
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
       timeoutRefs.current.clear();
     };
-  }, [notifications, dismissedIds]);
-
-  const handleDismiss = (notifId: bigint) => {
-    // Clear timeout if exists
-    const timeout = timeoutRefs.current.get(notifId);
-    if (timeout) {
-      clearTimeout(timeout);
-      timeoutRefs.current.delete(notifId);
-    }
-
-    // Add to dismissed set so it won't reappear from props
-    setDismissedIds(prev => new Set(prev).add(notifId));
-
-    // Start fade out
-    setFadingOutIds(prev => new Set(prev).add(notifId));
-    
-    // Remove after fade animation completes
-    setTimeout(() => {
-      setVisibleNotifications(prev => prev.filter(n => n.id !== notifId));
-      setFadingOutIds(prev => {
-        const next = new Set(prev);
-        next.delete(notifId);
-        return next;
-      });
-    }, FADE_OUT_DURATION_MS);
-  };
+  }, []);
 
   if (visibleNotifications.length === 0) {
     return null;
@@ -94,11 +114,12 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
       pointerEvents: 'none',
     }}>
       {visibleNotifications.map((notif) => {
-        const isFadingOut = fadingOutIds.has(notif.id);
+        const notifId = notif.id.toString();
+        const isFadingOut = fadingOutIds.has(notifId);
         return (
           <div
-            key={notif.id.toString()}
-            onClick={() => handleDismiss(notif.id)}
+            key={notifId}
+            onClick={() => dismissNotification(notifId)}
             className={`level-up-container ${isFadingOut ? 'fade-out' : 'fade-in'}`}
             style={{
               position: 'relative',

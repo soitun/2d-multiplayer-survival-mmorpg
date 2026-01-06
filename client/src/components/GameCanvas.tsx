@@ -113,7 +113,7 @@ import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight } from '../utils/renderers/lightRenderingUtils';
+import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
@@ -3868,6 +3868,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       currentWorldMouseY,
     });
     // --- End Player Lights ---
+
+    // --- SOVA Aura (Local Player Night Vision Aid) ---
+    // Renders a subtle blue-cyan night vision bubble around the local player ONLY.
+    // This is purely visual - no gameplay effects, not visible to remote players.
+    // Automatically activates during nighttime (dusk to dawn).
+    if (localPlayerId && currentPredictedPosition) {
+      renderSovaAura({
+        ctx,
+        playerWorldX: currentPredictedPosition.x,
+        playerWorldY: currentPredictedPosition.y,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        cycleProgress: currentCycleProgress,
+      });
+    }
+    // --- End SOVA Aura ---
 
     ctx.restore(); // Restore from 'lighter' blend mode for lights
 

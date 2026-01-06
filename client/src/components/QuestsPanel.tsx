@@ -56,11 +56,19 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
         return sortedTutorialQuests[tutorialProgress.currentQuestIndex] || null;
     }, [tutorialProgress, sortedTutorialQuests]);
 
-    // Get player's daily quests
+    // Get player's daily quests - only show quests from the current (most recent) day
     const playerDailyQuestsList = useMemo(() => {
         if (!localPlayerId) return [];
-        return Array.from(playerDailyQuests.values())
+        
+        const allPlayerQuests = Array.from(playerDailyQuests.values())
             .filter(q => q.playerId.toHexString() === localPlayerId.toHexString());
+        
+        // Find the most recent assigned day (current day)
+        const mostRecentDay = allPlayerQuests.reduce((maxDay, quest) => 
+            Math.max(maxDay, quest.assignedDay), 0);
+        
+        // Only return quests from the current day
+        return allPlayerQuests.filter(q => q.assignedDay === mostRecentDay);
     }, [localPlayerId, playerDailyQuests]);
 
     // Get daily quest definitions for player's assigned quests
@@ -300,30 +308,78 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                     {currentTutorialQuest.description}
                                 </div>
                                 
-                                {/* Progress Bar */}
-                                <div style={{
-                                    width: '100%',
-                                    height: '14px',
-                                    backgroundColor: 'rgba(55, 65, 81, 0.6)',
-                                    borderRadius: '7px',
-                                    overflow: 'hidden',
-                                    marginBottom: '12px',
-                                    border: '1px solid rgba(0, 170, 255, 0.3)',
-                                }}>
+                                {/* Primary Objective Progress Bar */}
+                                <div style={{ marginBottom: '12px' }}>
                                     <div style={{
-                                        width: `${Math.min((tutorialProgress?.currentQuestProgress || 0) / currentTutorialQuest.targetAmount * 100, 100)}%`,
-                                        height: '100%',
-                                        background: `linear-gradient(90deg, ${SOVA_CYAN}, ${SOVA_PURPLE})`,
+                                        color: '#9ca3af',
+                                        fontSize: isMobile ? '9px' : '11px',
+                                        marginBottom: '4px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                    }}>
+                                        {/* Show "Primary Objective" label only if there's a secondary */}
+                                        {(currentTutorialQuest as any).secondaryObjectiveType ? 'Primary Objective' : 'Objective'}
+                                    </div>
+                                    <div style={{
+                                        width: '100%',
+                                        height: '14px',
+                                        backgroundColor: 'rgba(55, 65, 81, 0.6)',
                                         borderRadius: '7px',
-                                        transition: 'width 0.3s ease',
-                                        boxShadow: '0 0 15px rgba(0, 255, 255, 0.5)',
-                                    }} />
+                                        overflow: 'hidden',
+                                        marginBottom: '6px',
+                                        border: '1px solid rgba(0, 170, 255, 0.3)',
+                                    }}>
+                                        <div style={{
+                                            width: `${Math.min((tutorialProgress?.currentQuestProgress || 0) / currentTutorialQuest.targetAmount * 100, 100)}%`,
+                                            height: '100%',
+                                            background: `linear-gradient(90deg, ${SOVA_CYAN}, ${SOVA_PURPLE})`,
+                                            borderRadius: '7px',
+                                            transition: 'width 0.3s ease',
+                                            boxShadow: '0 0 15px rgba(0, 255, 255, 0.5)',
+                                        }} />
+                                    </div>
+                                    <div style={{ color: SOVA_CYAN, fontSize: isMobile ? '11px' : '13px', textShadow: GLOW_CYAN }}>
+                                        {tutorialProgress?.currentQuestProgress || 0} / {currentTutorialQuest.targetAmount}
+                                    </div>
                                 </div>
+
+                                {/* Secondary Objective Progress Bar (if exists) */}
+                                {(currentTutorialQuest as any).secondaryObjectiveType && (currentTutorialQuest as any).secondaryTargetAmount > 0 && (
+                                    <div style={{ marginBottom: '12px' }}>
+                                        <div style={{
+                                            color: '#9ca3af',
+                                            fontSize: isMobile ? '9px' : '11px',
+                                            marginBottom: '4px',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                        }}>
+                                            Secondary Objective
+                                        </div>
+                                        <div style={{
+                                            width: '100%',
+                                            height: '14px',
+                                            backgroundColor: 'rgba(55, 65, 81, 0.6)',
+                                            borderRadius: '7px',
+                                            overflow: 'hidden',
+                                            marginBottom: '6px',
+                                            border: '1px solid rgba(192, 132, 252, 0.3)',
+                                        }}>
+                                            <div style={{
+                                                width: `${Math.min(((tutorialProgress as any)?.secondaryQuestProgress || 0) / (currentTutorialQuest as any).secondaryTargetAmount * 100, 100)}%`,
+                                                height: '100%',
+                                                background: `linear-gradient(90deg, ${SOVA_PURPLE}, #f472b6)`,
+                                                borderRadius: '7px',
+                                                transition: 'width 0.3s ease',
+                                                boxShadow: '0 0 15px rgba(192, 132, 252, 0.5)',
+                                            }} />
+                                        </div>
+                                        <div style={{ color: SOVA_PURPLE, fontSize: isMobile ? '11px' : '13px', textShadow: '0 0 10px rgba(192, 132, 252, 0.5)' }}>
+                                            {(tutorialProgress as any)?.secondaryQuestProgress || 0} / {(currentTutorialQuest as any).secondaryTargetAmount}
+                                        </div>
+                                    </div>
+                                )}
                                 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                                    <span style={{ color: SOVA_CYAN, fontSize: isMobile ? '12px' : '14px', textShadow: GLOW_CYAN }}>
-                                        Progress: {tutorialProgress?.currentQuestProgress || 0} / {currentTutorialQuest.targetAmount}
-                                    </span>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                     <div style={{ display: 'flex', gap: '20px', fontSize: isMobile ? '11px' : '13px' }}>
                                         <span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <span>⚡</span>

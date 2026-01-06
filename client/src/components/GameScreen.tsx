@@ -33,7 +33,7 @@ import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
 import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
 import SovaDirectivesIndicator from './SovaDirectivesIndicator'; // ADDED: Quest indicator
 import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
-import { QuestCompletionNotification, QuestProgressToast, QuestCompletionData, QuestProgressData } from './QuestNotifications'; // ADDED: Quest notifications
+import { QuestCompletionNotification, QuestCompletionData } from './QuestNotifications'; // ADDED: Quest notifications
 
 // Import types used by props
 import {
@@ -113,6 +113,8 @@ import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSovaTutorials } from '../hooks/useSovaTutorials';
+import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
 
 // Import debug context
@@ -370,7 +372,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Quest panel state
     const [isQuestsPanelOpen, setIsQuestsPanelOpen] = useState(false);
-    const [hasNewQuestNotification, setHasNewQuestNotification] = useState(false);
     const openQuestsPanel = useCallback(() => setIsQuestsPanelOpen(true), []);
     const closeQuestsPanel = useCallback(() => setIsQuestsPanelOpen(false), []);
 
@@ -388,20 +389,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const [mobileInteractInfo, setMobileInteractInfo] = useState<{ hasTarget: boolean; label?: string } | null>(null);
     const [mobileInteractTrigger, setMobileInteractTrigger] = useState(0);
 
-    // Quest notification state
-    const [questCompletionNotification, setQuestCompletionNotification] = useState<QuestCompletionData | null>(null);
-    const [questProgressNotification, setQuestProgressNotification] = useState<QuestProgressData | null>(null);
-    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => new Set());
-    const [seenQuestProgressIds, setSeenQuestProgressIds] = useState<Set<string>>(() => new Set());
-    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => new Set());
-
-    const dismissQuestCompletionNotification = useCallback(() => {
-        setQuestCompletionNotification(null);
-    }, []);
-
-    const dismissQuestProgressNotification = useCallback(() => {
-        setQuestProgressNotification(null);
-    }, []);
 
     // Debug logging for SOVA message adder
     useEffect(() => {
@@ -542,558 +529,28 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         sovaMessageAdderRef.current = sovaMessageAdder;
     }, [sovaMessageAdder]);
     
-    // === Part 1: SOVA Crash Intro (10 seconds after spawn) ===
-    useEffect(() => {
-        // Timing and storage constants
-        const SOVA_INTRO_CRASH_DELAY_MS = 10 * 1000; // 10 seconds - starts right when player begins playing
-        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-        const SOVA_INTRO_CRASH_MESSAGE = `Neural link established. This is SOVA — Sentient Ocular Virtual Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're on an uncharted island in contested waters, and your survival is now my primary directive. The wreckage scattered supplies across the shoreline. Find food, water, shelter. Everything else can wait. For now, just stay alive.`;
-        
-        // Check if crash intro has already been played
-        const hasPlayed = localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
-        
-        console.log('[GameScreen] 🚢 SOVA crash intro check:', { 
-            hasPlayed: !!hasPlayed, 
-            localPlayerId: localPlayerId ? 'present' : 'missing',
-            willSchedule: !hasPlayed && !!localPlayerId 
-        });
-        
-        if (hasPlayed) {
-            console.log('[GameScreen] 🚢 SOVA crash intro already played, skipping');
-            return; // Already played, don't schedule again
-        }
+    // === SOVA Tutorial Sounds (abstracted to useSovaTutorials hook) ===
+    // Handles: crash intro (5s), tutorial hint (3.5min), first resource, memory shard tutorials
+    useSovaTutorials({
+        localPlayerId,
+        showSovaSoundBoxRef,
+        sovaMessageAdderRef,
+    });
 
-        // Only start timer when local player exists (they're actually in-game)
-        if (!localPlayerId) {
-            console.log('[GameScreen] 🚢 No localPlayerId yet, waiting...');
-            return;
-        }
-
-        console.log('[GameScreen] 🚢 Scheduling SOVA crash intro in 10 seconds...');
-        
-        const timer = setTimeout(() => {
-            // Double-check it hasn't been played (in case of race condition)
-            if (localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
-                console.log('[GameScreen] 🚢 Race condition: crash intro already marked as played');
-                return;
-            }
-
-            console.log('[GameScreen] 🚢 Playing SOVA crash intro sound NOW');
-            
-            // Mark as played FIRST to prevent any race conditions
-            localStorage.setItem(SOVA_INTRO_CRASH_STORAGE_KEY, 'true');
-            // Store timestamp when intro started playing (for other sounds to check)
-            localStorage.setItem('broth_sova_intro_started_at', Date.now().toString());
-            
-            try {
-                const audio = new Audio('/sounds/sova_intro_crash.mp3');
-                audio.volume = 0.8;
-                audio.play().then(() => {
-                    console.log('[GameScreen] 🚢 SOVA crash intro audio playing successfully');
-                    // Show the sound box if callback is available
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, 'SOVA: Neural Link Established');
-                    } else {
-                        console.warn('[GameScreen] 🚢 showSovaSoundBox not available');
-                    }
-                    
-                    // Send the tutorial message to SOVA chat with tab flash
-                    if (sovaMessageAdderRef.current) {
-                        console.log('[GameScreen] 🚢 Sending SOVA crash intro to chat');
-                        sovaMessageAdderRef.current({
-                            id: `sova-intro-crash-${Date.now()}`,
-                            text: SOVA_INTRO_CRASH_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true, // Flash the SOVA tab to draw attention
-                        });
-                    } else {
-                        console.warn('[GameScreen] 🚢 sovaMessageAdder not available');
-                    }
-                }).catch(err => {
-                    console.warn('[GameScreen] Failed to play SOVA crash intro:', err);
-                    // Still send the message even if audio fails
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-intro-crash-${Date.now()}`,
-                            text: SOVA_INTRO_CRASH_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true,
-                        });
-                    }
-                });
-                
-                console.log('[GameScreen] 🚢 SOVA crash intro marked as played');
-            } catch (err) {
-                console.warn('[GameScreen] Error creating SOVA crash intro audio:', err);
-            }
-        }, SOVA_INTRO_CRASH_DELAY_MS);
-
-        return () => {
-            console.log('[GameScreen] 🚢 Clearing SOVA crash intro timer (component cleanup)');
-            clearTimeout(timer);
-        };
-    }, [localPlayerId]);
-    
-    // === Part 2: SOVA Tutorial Hint (3.5 minutes after spawn) ===
-    useEffect(() => {
-        // Timing and storage constants
-        const SOVA_TUTORIAL_HINT_DELAY_MS = 3.5 * 60 * 1000; // 3.5 minutes
-        const SOVA_TUTORIAL_HINT_STORAGE_KEY = 'broth_sova_tutorial_hint_played';
-        const SOVA_TUTORIAL_HINT_MESSAGE = `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`;
-        
-        // Check if tutorial hint has already been played
-        const hasPlayed = localStorage.getItem(SOVA_TUTORIAL_HINT_STORAGE_KEY);
-        
-        console.log('[GameScreen] 🎓 SOVA tutorial hint check:', { 
-            hasPlayed: !!hasPlayed, 
-            localPlayerId: localPlayerId ? 'present' : 'missing',
-            willSchedule: !hasPlayed && !!localPlayerId 
-        });
-        
-        if (hasPlayed) {
-            console.log('[GameScreen] 🎓 SOVA tutorial hint already played, skipping');
-            return; // Already played, don't schedule again
-        }
-
-        // Only start timer when local player exists (they're actually in-game)
-        if (!localPlayerId) {
-            console.log('[GameScreen] 🎓 No localPlayerId yet, waiting...');
-            return;
-        }
-
-        console.log('[GameScreen] 🎓 Scheduling SOVA tutorial hint in 3.5 minutes...');
-        
-        const timer = setTimeout(() => {
-            // Double-check it hasn't been played (in case of race condition)
-            if (localStorage.getItem(SOVA_TUTORIAL_HINT_STORAGE_KEY)) {
-                console.log('[GameScreen] 🎓 Race condition: tutorial hint already marked as played');
-                return;
-            }
-
-            console.log('[GameScreen] 🎓 Playing SOVA tutorial hint sound NOW');
-            
-            // Mark as played FIRST to prevent any race conditions
-            localStorage.setItem(SOVA_TUTORIAL_HINT_STORAGE_KEY, 'true');
-            
-            try {
-                const audio = new Audio('/sounds/sova_tutorial_hint.mp3');
-                audio.volume = 0.8;
-                audio.play().then(() => {
-                    console.log('[GameScreen] 🎓 SOVA tutorial hint audio playing successfully');
-                    // Show the sound box if callback is available
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, 'SOVA: Press V to Talk');
-                    } else {
-                        console.warn('[GameScreen] 🎓 showSovaSoundBox not available');
-                    }
-                    
-                    // Send the tutorial message to SOVA chat with tab flash
-                    if (sovaMessageAdderRef.current) {
-                        console.log('[GameScreen] 🎓 Sending SOVA tutorial hint to chat');
-                        sovaMessageAdderRef.current({
-                            id: `sova-tutorial-hint-${Date.now()}`,
-                            text: SOVA_TUTORIAL_HINT_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true, // Flash the SOVA tab to draw attention
-                        });
-                    } else {
-                        console.warn('[GameScreen] 🎓 sovaMessageAdder not available');
-                    }
-                }).catch(err => {
-                    console.warn('[GameScreen] Failed to play SOVA tutorial hint:', err);
-                    // Still send the message even if audio fails
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-tutorial-hint-${Date.now()}`,
-                            text: SOVA_TUTORIAL_HINT_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true,
-                        });
-                    }
-                });
-                
-                // Mark as played regardless of audio success
-                localStorage.setItem(SOVA_TUTORIAL_HINT_STORAGE_KEY, 'true');
-                console.log('[GameScreen] 🎓 SOVA tutorial hint marked as played');
-            } catch (err) {
-                console.warn('[GameScreen] Error creating SOVA tutorial hint audio:', err);
-                // Still mark as played to prevent repeated attempts
-                localStorage.setItem(SOVA_TUTORIAL_HINT_STORAGE_KEY, 'true');
-            }
-        }, SOVA_TUTORIAL_HINT_DELAY_MS);
-
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [localPlayerId]);
-    
-    // === Part 3: SOVA Directives Intro (90 seconds after spawn) ===
-    // Plays between crash intro (10s) and tutorial hint (3.5min) to introduce the quest system
-    useEffect(() => {
-        const SOVA_DIRECTIVES_DELAY_MS = 90 * 1000; // 90 seconds (between 45s crash intro end and 3.5min tutorial hint)
-        const SOVA_DIRECTIVES_STORAGE_KEY = 'broth_sova_directives_intro_played';
-        const SOVA_DIRECTIVES_MESSAGE = `Calibrating to the island... SOVA directives coming online. Press J to view your mission objectives. I'll also provide daily training exercises to keep you sharp out here.`;
-        
-        const hasPlayed = localStorage.getItem(SOVA_DIRECTIVES_STORAGE_KEY);
-        
-        if (hasPlayed || !localPlayerId) {
-            return;
-        }
-
-        console.log('[GameScreen] 📡 Scheduling SOVA directives intro in 90 seconds...');
-        
-        const timer = setTimeout(() => {
-            if (localStorage.getItem(SOVA_DIRECTIVES_STORAGE_KEY)) {
-                return; // Already played (race condition check)
-            }
-            
-            localStorage.setItem(SOVA_DIRECTIVES_STORAGE_KEY, 'true');
-            console.log('[GameScreen] 📡 Playing SOVA directives intro NOW');
-            
-            try {
-                // Try to play audio if file exists
-                const audio = new Audio('/sounds/sova_directives_intro.mp3');
-                audio.volume = 0.8;
-                audio.play().then(() => {
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, 'SOVA: Directives Online');
-                    }
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-directives-intro-${Date.now()}`,
-                            text: SOVA_DIRECTIVES_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true,
-                        });
-                    }
-                    // Trigger notification on quest indicator
-                    setHasNewQuestNotification(true);
-                    setTimeout(() => setHasNewQuestNotification(false), 5000);
-                }).catch(err => {
-                    // Audio file doesn't exist yet - just send chat message
-                    console.warn('[GameScreen] 📡 SOVA directives audio not found, sending text only:', err);
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-directives-intro-${Date.now()}`,
-                            text: SOVA_DIRECTIVES_MESSAGE,
-                            isUser: false,
-                            timestamp: new Date(),
-                            flashTab: true,
-                        });
-                    }
-                    setHasNewQuestNotification(true);
-                    setTimeout(() => setHasNewQuestNotification(false), 5000);
-                });
-            } catch (err) {
-                console.warn('[GameScreen] 📡 Error with SOVA directives intro:', err);
-                localStorage.setItem(SOVA_DIRECTIVES_STORAGE_KEY, 'true');
-            }
-        }, SOVA_DIRECTIVES_DELAY_MS);
-
-        return () => clearTimeout(timer);
-    }, [localPlayerId]);
-
-    // === SOVA First Resource Interaction Tutorial Event Listener ===
-    // Listen for the custom event from useSoundSystem when player first interacts with a resource
-    // (chopping tree, mining stone, harvesting plant, picking up item, hitting barrel)
-    useEffect(() => {
-        const handleFirstResourceTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
-            console.log('[GameScreen] 🌿 Received first resource tutorial event from sound system');
-            
-            // Check if intro audio is still playing (within 45 seconds of starting)
-            // If so, skip audio but still send the text message
-            const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate for intro length
-            const introStartedAt = localStorage.getItem('broth_sova_intro_started_at');
-            const isIntroStillPlaying = introStartedAt && 
-                (Date.now() - parseInt(introStartedAt, 10)) < INTRO_AUDIO_DURATION_MS;
-            
-            if (isIntroStillPlaying) {
-                console.log('[GameScreen] 🌿 Intro audio still playing - skipping first resource audio, sending text only');
-                // Just send the text message without audio
-                if (sovaMessageAdderRef.current) {
-                    sovaMessageAdderRef.current({
-                        id: `sova-first-resource-tutorial-${Date.now()}`,
-                        text: event.detail.message,
-                        isUser: false,
-                        timestamp: event.detail.timestamp,
-                        flashTab: true, // Flash the SOVA tab to draw attention
-                    });
-                }
-                return;
-            }
-            
-            // Play audio and show SOVA sound box with waveform visualization
-            try {
-                const audio = new Audio('/sounds/sova_first_resource_tutorial.mp3');
-                audio.volume = 0.8;
-                audio.play().then(() => {
-                    // Show the sound box with waveform if callback is available
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, 'SOVA: Survival Tip');
-                    }
-                    
-                    // Add SOVA message to chat with tab flash
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-first-resource-tutorial-${Date.now()}`,
-                            text: event.detail.message,
-                            isUser: false,
-                            timestamp: event.detail.timestamp,
-                            flashTab: true, // Flash the SOVA tab to draw attention
-                        });
-                        console.log('[GameScreen] 🌿 First resource tutorial message added to SOVA chat');
-                    }
-                }).catch(err => {
-                    console.warn('[GameScreen] 🌿 Failed to play first resource tutorial audio:', err);
-                    // Still add chat message even if audio fails
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-first-resource-tutorial-${Date.now()}`,
-                            text: event.detail.message,
-                            isUser: false,
-                            timestamp: event.detail.timestamp,
-                            flashTab: true,
-                        });
-                    }
-                });
-            } catch (err) {
-                console.warn('[GameScreen] 🌿 Error creating first resource tutorial audio:', err);
-                // Still add chat message even on error
-                if (sovaMessageAdderRef.current) {
-                    sovaMessageAdderRef.current({
-                        id: `sova-first-resource-tutorial-${Date.now()}`,
-                        text: event.detail.message,
-                        isUser: false,
-                        timestamp: event.detail.timestamp,
-                        flashTab: true,
-                    });
-                }
-            }
-        };
-
-        window.addEventListener('sova-first-resource-tutorial', handleFirstResourceTutorial as EventListener);
-        
-        return () => {
-            window.removeEventListener('sova-first-resource-tutorial', handleFirstResourceTutorial as EventListener);
-        };
-    }, []);
-    
-    // === SOVA Memory Shard Tutorial Event Listener ===
-    // Listen for the custom event from useSoundSystem when player picks up their first memory shard
-    // Uses the same SovaSoundBox waveform component as intro tutorial and insanity sounds
-    useEffect(() => {
-        const handleMemoryShardTutorial = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
-            console.log('[GameScreen] 🔮 Received memory shard tutorial event from sound system');
-            
-            // Check if intro audio is still playing (within 45 seconds of starting)
-            // If so, skip audio but still send the text message
-            const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate for intro length
-            const introStartedAt = localStorage.getItem('broth_sova_intro_started_at');
-            const isIntroStillPlaying = introStartedAt && 
-                (Date.now() - parseInt(introStartedAt, 10)) < INTRO_AUDIO_DURATION_MS;
-            
-            if (isIntroStillPlaying) {
-                console.log('[GameScreen] 🔮 Intro audio still playing - skipping memory shard audio, sending text only');
-                // Just send the text message without audio
-                if (sovaMessageAdderRef.current) {
-                    sovaMessageAdderRef.current({
-                        id: `sova-memory-shard-tutorial-${Date.now()}`,
-                        text: event.detail.message,
-                        isUser: false,
-                        timestamp: event.detail.timestamp,
-                        flashTab: true, // Flash the SOVA tab to draw attention
-                    });
-                }
-                return;
-            }
-            
-            // Play audio and show SOVA sound box with waveform visualization
-            // (same pattern as intro tutorial)
-            try {
-                const audio = new Audio('/sounds/sova_memory_shard_tutorial.mp3');
-                audio.volume = 0.8;
-                audio.play().then(() => {
-                    // Show the sound box with waveform if callback is available
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, 'SOVA: Memory Shard Warning');
-                    }
-                    
-                    // Add SOVA message to chat with tab flash
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-memory-shard-tutorial-${Date.now()}`,
-                            text: event.detail.message,
-                            isUser: false,
-                            timestamp: event.detail.timestamp,
-                            flashTab: true, // Flash the SOVA tab to draw attention
-                        });
-                        console.log('[GameScreen] 🔮 Memory shard tutorial message added to SOVA chat');
-                    }
-                }).catch(err => {
-                    console.warn('[GameScreen] 🔮 Failed to play memory shard tutorial audio:', err);
-                    // Still add chat message even if audio fails
-                    if (sovaMessageAdderRef.current) {
-                        sovaMessageAdderRef.current({
-                            id: `sova-memory-shard-tutorial-${Date.now()}`,
-                            text: event.detail.message,
-                            isUser: false,
-                            timestamp: event.detail.timestamp,
-                            flashTab: true,
-                        });
-                    }
-                });
-            } catch (err) {
-                console.warn('[GameScreen] 🔮 Error creating memory shard tutorial audio:', err);
-                // Still add chat message even on error
-                if (sovaMessageAdderRef.current) {
-                    sovaMessageAdderRef.current({
-                        id: `sova-memory-shard-tutorial-${Date.now()}`,
-                        text: event.detail.message,
-                        isUser: false,
-                        timestamp: event.detail.timestamp,
-                        flashTab: true,
-                    });
-                }
-            }
-        };
-
-        window.addEventListener('sova-memory-shard-tutorial', handleMemoryShardTutorial as EventListener);
-        
-        return () => {
-            window.removeEventListener('sova-memory-shard-tutorial', handleMemoryShardTutorial as EventListener);
-        };
-    }, []);
-
-    // === QUEST NOTIFICATION HANDLERS ===
-    
-    // Handle SOVA Quest Messages - route to SOVA chat tab
-    useEffect(() => {
-        if (!props.sovaQuestMessages || props.sovaQuestMessages.size === 0) return;
-        if (!sovaMessageAdderRef.current) return;
-        
-        // Find new messages we haven't seen yet
-        props.sovaQuestMessages.forEach((message, id) => {
-            if (seenSovaQuestMessageIds.has(id)) return;
-            
-            // Mark as seen
-            setSeenSovaQuestMessageIds(prev => new Set(prev).add(id));
-            
-            console.log('[GameScreen] 📡 New SOVA quest message:', message.message);
-            
-            // Play audio if provided
-            if (message.audioFile) {
-                try {
-                    const audio = new Audio(`/sounds/${message.audioFile}`);
-                    audio.volume = 0.8;
-                    audio.play().then(() => {
-                        if (showSovaSoundBoxRef.current) {
-                            // Determine label based on message type
-                            let label = 'SOVA: Quest Update';
-                            if (message.messageType === 'quest_start') label = 'SOVA: New Mission';
-                            else if (message.messageType === 'quest_complete') label = 'SOVA: Mission Complete';
-                            else if (message.messageType === 'quest_hint') label = 'SOVA: Hint';
-                            else if (message.messageType === 'daily_quests_assigned') label = 'SOVA: Daily Training';
-                            
-                            showSovaSoundBoxRef.current(audio, label);
-                        }
-                    }).catch(err => {
-                        console.warn('[GameScreen] Failed to play SOVA quest audio:', err);
-                    });
-                } catch (err) {
-                    console.warn('[GameScreen] Error creating SOVA quest audio:', err);
-                }
-            }
-            
-            // Send message to SOVA chat
-            if (sovaMessageAdderRef.current) {
-                sovaMessageAdderRef.current({
-                    id: `sova-quest-${id}-${Date.now()}`,
-                    text: message.message,
-                    isUser: false,
-                    timestamp: new Date(Number(message.sentAt?.microsSinceUnixEpoch || 0) / 1000),
-                    flashTab: true,
-                });
-            }
-            
-            // Trigger notification indicator
-            setHasNewQuestNotification(true);
-            setTimeout(() => setHasNewQuestNotification(false), 5000);
-        });
-    }, [props.sovaQuestMessages, seenSovaQuestMessageIds]);
-
-    // Handle Quest Completion Notifications - show celebration UI
-    useEffect(() => {
-        if (!props.questCompletionNotifications || props.questCompletionNotifications.size === 0) return;
-        
-        // Find new notifications we haven't seen yet
-        props.questCompletionNotifications.forEach((notification, id) => {
-            if (seenQuestCompletionIds.has(id)) return;
-            
-            // Only show if it's for the local player
-            if (props.playerIdentity && notification.playerId?.toHexString() !== props.playerIdentity.toHexString()) return;
-            
-            // Mark as seen
-            setSeenQuestCompletionIds(prev => new Set(prev).add(id));
-            
-            console.log('[GameScreen] 🎉 Quest completion:', notification.questName);
-            
-            // Show celebration UI
-            setQuestCompletionNotification({
-                id: id,
-                questName: notification.questName,
-                questType: notification.questType === 'tutorial' ? 'tutorial' : 'daily',
-                xpAwarded: Number(notification.xpAwarded || 0),
-                shardsAwarded: Number(notification.shardsAwarded || 0),
-                unlockedRecipe: notification.unlockedRecipe || undefined,
-            });
-            
-            // Play celebration sound
-            try {
-                const audio = new Audio('/sounds/quest_complete.mp3');
-                audio.volume = 0.6;
-                audio.play().catch(() => {
-                    // Fallback: try a generic success sound
-                    const fallbackAudio = new Audio('/sounds/ui_success.mp3');
-                    fallbackAudio.volume = 0.5;
-                    fallbackAudio.play().catch(() => {});
-                });
-            } catch (err) {
-                // Ignore audio errors
-            }
-        });
-    }, [props.questCompletionNotifications, props.playerIdentity, seenQuestCompletionIds]);
-
-    // Handle Quest Progress Notifications - show milestone toast
-    useEffect(() => {
-        if (!props.questProgressNotifications || props.questProgressNotifications.size === 0) return;
-        
-        // Find new notifications we haven't seen yet
-        props.questProgressNotifications.forEach((notification, id) => {
-            if (seenQuestProgressIds.has(id)) return;
-            
-            // Only show if it's for the local player
-            if (props.playerIdentity && notification.playerId?.toHexString() !== props.playerIdentity.toHexString()) return;
-            
-            // Mark as seen
-            setSeenQuestProgressIds(prev => new Set(prev).add(id));
-            
-            console.log('[GameScreen] 📊 Quest progress milestone:', notification.questName, notification.milestonePercent + '%');
-            
-            // Show progress toast
-            setQuestProgressNotification({
-                id: id,
-                questName: notification.questName,
-                currentProgress: notification.currentProgress,
-                targetAmount: notification.targetAmount,
-                milestonePercent: notification.milestonePercent,
-            });
-        });
-    }, [props.questProgressNotifications, props.playerIdentity, seenQuestProgressIds]);
+    // === QUEST NOTIFICATION HANDLERS (abstracted to useQuestNotifications hook) ===
+    // Handles: SOVA quest messages, quest completion celebrations, progress milestones
+    const {
+        questCompletionNotification,
+        dismissQuestCompletionNotification,
+        hasNewQuestNotification,
+    } = useQuestNotifications({
+        sovaQuestMessages: props.sovaQuestMessages,
+        questCompletionNotifications: props.questCompletionNotifications,
+        questProgressNotifications: props.questProgressNotifications,
+        playerIdentity: props.playerIdentity,
+        showSovaSoundBoxRef,
+        sovaMessageAdderRef,
+    });
 
     // Handle matronage creation - close delivery panel and open interface to matronage page
     const handleMatronageCreated = useCallback(() => {
@@ -2003,12 +1460,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             <QuestCompletionNotification
                 notification={questCompletionNotification}
                 onDismiss={dismissQuestCompletionNotification}
-            />
-
-            {/* Quest Progress Toast - Milestone notification */}
-            <QuestProgressToast
-                notification={questProgressNotification}
-                onDismiss={dismissQuestProgressNotification}
+                onOpenQuestsPanel={openQuestsPanel}
             />
 
         </div>

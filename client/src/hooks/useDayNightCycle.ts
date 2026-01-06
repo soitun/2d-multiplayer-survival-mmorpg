@@ -12,7 +12,7 @@ import {
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue
 } from '../generated';
-import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT } from '../utils/renderers/lightRenderingUtils';
+import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
@@ -1083,6 +1083,46 @@ export function useDayNightCycle({
                 maskCtx.restore();
             }
         });
+
+        // ============================================================================
+        // SOVA AURA - Local player night-vision aid (client-side only)
+        // ============================================================================
+        // Renders a subtle cutout around the LOCAL player ONLY during nighttime.
+        // This helps the player see in the dark without competing with actual light sources.
+        // It is purely visual - no gameplay effects, not visible to remote players, not on minimap.
+        // ============================================================================
+        if (typeof currentCycleProgress === 'number' && localPlayerId && predictedPosition) {
+            // Aura is only visible during nighttime: after dusk (0.72) and before dawn (0.05, wrapping around 1.0)
+            const isNightTimeForAura = currentCycleProgress >= 0.72 || currentCycleProgress <= 0.05;
+            
+            if (isNightTimeForAura) {
+                const lightScreenX = predictedPosition.x + cameraOffsetX;
+                const lightScreenY = predictedPosition.y + cameraOffsetY;
+                
+                // SOVA Aura cutout - subtle visibility bubble, weaker than torch
+                // Uses very soft alpha values to avoid competing with actual light sources
+                const auraRadius = SOVA_AURA_RADIUS_BASE;
+                
+                const maskGradient = maskCtx.createRadialGradient(
+                    lightScreenX, lightScreenY, auraRadius * 0.05, // Inner radius (5% of total)
+                    lightScreenX, lightScreenY, auraRadius // Outer radius
+                );
+                
+                // Very soft cutout - much weaker than torch (which uses 1.0, 0.8, 0.4, 0)
+                // This creates a subtle visibility improvement without overpowering the night
+                maskGradient.addColorStop(0, 'rgba(0,0,0,0.35)'); // Subtle visibility at center (torch is 1.0)
+                maskGradient.addColorStop(0.3, 'rgba(0,0,0,0.25)'); // Soft transition
+                maskGradient.addColorStop(0.6, 'rgba(0,0,0,0.12)'); // Gentle fade
+                maskGradient.addColorStop(0.85, 'rgba(0,0,0,0.04)'); // Very soft edge
+                maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+                
+                maskCtx.fillStyle = maskGradient;
+                maskCtx.beginPath();
+                maskCtx.arc(lightScreenX, lightScreenY, auraRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+            }
+        }
+        // === END SOVA AURA ===
 
         // Render compound building light cutouts (guardpost street lamps)
         // These are static lights that are always on at night
