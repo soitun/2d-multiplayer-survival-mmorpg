@@ -1289,6 +1289,8 @@ import { MinimapCache } from "./minimap_cache_type.ts";
 export { MinimapCache };
 import { MovementPattern } from "./movement_pattern_type.ts";
 export { MovementPattern };
+import { ObjectiveLogic } from "./objective_logic_type.ts";
+export { ObjectiveLogic };
 import { OreType } from "./ore_type_type.ts";
 export { OreType };
 import { PlacedExplosive } from "./placed_explosive_type.ts";

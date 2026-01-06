@@ -103,10 +103,14 @@ pub enum NightPhase {
 
 impl NightPhase {
     pub fn from_progress(progress: f32) -> Self {
+        // Night cycle: Dusk (0.72) -> TwilightEvening (0.76) -> Night (0.80) -> Midnight (0.92) -> TwilightMorning (0.97) -> Dawn (0.0)
+        // Dawn (0.0-0.05) is MORNING - no spawning!
+        // TwilightMorning (0.97-1.0) is the final night phase before dawn
         match progress {
-            p if p >= 0.72 && p < 0.82 => NightPhase::EarlyNight,
-            p if p >= 0.82 && p < 0.92 => NightPhase::PeakNight,
-            p if p >= 0.92 || p < 0.05 => NightPhase::DesperateHour, // Wraps around midnight
+            p if p >= 0.72 && p < 0.82 => NightPhase::EarlyNight,   // Dusk + TwilightEvening + early Night
+            p if p >= 0.82 && p < 0.92 => NightPhase::PeakNight,    // Night
+            p if p >= 0.92 => NightPhase::DesperateHour,            // Midnight + TwilightMorning (0.92-1.0)
+            // IMPORTANT: p < 0.72 (including 0.0-0.05 Dawn) is NotNight - NO spawning!
             _ => NightPhase::NotNight,
         }
     }
@@ -202,10 +206,26 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
     
     // Only spawn during actual night phases
     if night_phase == NightPhase::NotNight {
-        // Check if we need to start dawn cleanup
-        if matches!(world_state.time_of_day, TimeOfDay::Dawn) {
+        // Check if we need to start dawn cleanup - trigger at Dawn OR Morning (failsafe)
+        if matches!(world_state.time_of_day, TimeOfDay::Dawn | TimeOfDay::Morning | TimeOfDay::TwilightMorning) {
             start_dawn_cleanup_if_needed(ctx, current_time);
         }
+        
+        // AGGRESSIVE CLEANUP: Force-remove any hostiles that exist during daytime
+        // This is a failsafe in case the scheduled cleanup didn't work
+        let daytime_hostiles: Vec<u64> = ctx.db.wild_animal().iter()
+            .filter(|a| a.is_hostile_npc && a.health > 0.0)
+            .map(|a| a.id)
+            .collect();
+        
+        if !daytime_hostiles.is_empty() {
+            log::warn!("⚠️ [HostileNPC] Found {} hostiles during daytime ({}), force removing!", 
+                      daytime_hostiles.len(), world_state.time_of_day.clone() as i32);
+            for id in &daytime_hostiles {
+                ctx.db.wild_animal().id().delete(id);
+            }
+        }
+        
         return Ok(());
     }
     

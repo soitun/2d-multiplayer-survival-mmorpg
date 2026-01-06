@@ -30,6 +30,9 @@ import {
 import { QuestObjectiveType } from "./quest_objective_type_type";
 // Mark import as potentially unused
 declare type __keep_QuestObjectiveType = QuestObjectiveType;
+import { ObjectiveLogic } from "./objective_logic_type";
+// Mark import as potentially unused
+declare type __keep_ObjectiveLogic = ObjectiveLogic;
 
 
 export type TutorialQuestDefinition = {
@@ -43,6 +46,7 @@ export type TutorialQuestDefinition = {
   secondaryObjectiveType: QuestObjectiveType | undefined,
   secondaryTargetId: string | undefined,
   secondaryTargetAmount: number | undefined,
+  objectiveLogic: ObjectiveLogic,
   xpReward: bigint,
   shardReward: bigint,
   unlockRecipe: string | undefined,
@@ -74,6 +78,7 @@ export const TutorialQuestDefinition = {
       { name: "secondaryObjectiveType", algebraicType: __AlgebraicTypeValue.createOptionType(QuestObjectiveType.getTypeScriptAlgebraicType()) },
       { name: "secondaryTargetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
       { name: "secondaryTargetAmount", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "objectiveLogic", algebraicType: ObjectiveLogic.getTypeScriptAlgebraicType() },
       { name: "xpReward", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "shardReward", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "unlockRecipe", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },

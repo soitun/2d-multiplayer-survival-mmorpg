@@ -36,6 +36,8 @@ export type QuestObjectiveType = QuestObjectiveTypeVariants.GatherWood |
   QuestObjectiveTypeVariants.HarvestPlant |
   QuestObjectiveTypeVariants.HarvestSpecificPlant |
   QuestObjectiveTypeVariants.MineCoral |
+  QuestObjectiveTypeVariants.ChopTree |
+  QuestObjectiveTypeVariants.MineStoneNode |
   QuestObjectiveTypeVariants.CraftAnyItem |
   QuestObjectiveTypeVariants.CraftSpecificItem |
   QuestObjectiveTypeVariants.PlaceStructure |
@@ -81,6 +83,8 @@ export const QuestObjectiveType = {
   HarvestPlant: { tag: "HarvestPlant" } as const,
   HarvestSpecificPlant: { tag: "HarvestSpecificPlant" } as const,
   MineCoral: { tag: "MineCoral" } as const,
+  ChopTree: { tag: "ChopTree" } as const,
+  MineStoneNode: { tag: "MineStoneNode" } as const,
   CraftAnyItem: { tag: "CraftAnyItem" } as const,
   CraftSpecificItem: { tag: "CraftSpecificItem" } as const,
   PlaceStructure: { tag: "PlaceStructure" } as const,
@@ -120,6 +124,8 @@ export const QuestObjectiveType = {
       { name: "HarvestPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HarvestSpecificPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "MineCoral", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ChopTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MineStoneNode", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CraftAnyItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CraftSpecificItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PlaceStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

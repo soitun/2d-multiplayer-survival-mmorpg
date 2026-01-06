@@ -31,6 +31,9 @@ import { TutorialQuestDefinition } from "./tutorial_quest_definition_type";
 import { QuestObjectiveType } from "./quest_objective_type_type";
 // Mark import as potentially unused
 declare type __keep_QuestObjectiveType = QuestObjectiveType;
+import { ObjectiveLogic } from "./objective_logic_type";
+// Mark import as potentially unused
+declare type __keep_ObjectiveLogic = ObjectiveLogic;
 
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
