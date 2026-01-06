@@ -128,7 +128,7 @@ mod rain_collector; // <<< ADDED rain collector module
 mod water_patch; // <<< ADDED water patch module for crop watering
 mod fertilizer_patch; // <<< ADDED fertilizer patch module for visual fertilizer application
 mod tilled_tiles; // <<< ADDED tilled tiles module for farming soil preparation
-pub mod wild_animal_npc; // <<< ADDED wild animal NPC system (now modular)
+pub mod wild_animal_npc; // <<< ADDED wild animal NPC system (now modular, includes hostile NPCs)
 mod animal_collision; // <<< ADDED animal collision system
 mod barrel; // <<< ADDED roadside barrel loot system
 mod metadata_providers; // <<< ADDED: Provides plant/seed metadata to client
@@ -763,6 +763,8 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     // ADD: Initialize wild animal AI system
     crate::wild_animal_npc::init_wild_animal_ai_schedule(ctx)?;
     
+    // ADD: Initialize hostile NPC spawning system (night-only enemies)
+    crate::wild_animal_npc::init_hostile_spawning_system(ctx)?;
     
     // ADD: Initialize building privilege distance check system
     crate::homestead_hearth::init_building_privilege_check_schedule(ctx)?;

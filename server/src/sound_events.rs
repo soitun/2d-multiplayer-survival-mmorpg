@@ -54,6 +54,10 @@ pub enum SoundType {
     GrowlCrab,      // growl_crab.mp3 (1 variation - when crabs detect and attack)
     GrowlCrow,      // growl_crow.mp3 (1 variation - when crows caw at players)
     GrowlTern,      // growl_tern.mp3 (1 variation - when terns screech at players)
+    // Night hostile NPC sounds
+    GrowlShorebound,   // growl_shorebound.mp3 (7 variations - stalker growls)
+    GrowlShardkin,     // growl_shardkin.mp3 (4 variations - swarmer chittering)
+    GrowlDrownedWatch, // growl_drowned_watch.mp3 (5 variations - brute roars)
     Walking,        // walking.mp3 (4 variations - footstep sounds when player moves)
     Swimming,       // swimming.mp3 (4 variations - swimming sounds when player moves in water)
     FoundationWoodConstructed, // foundation_wood_constructed.mp3 (1 variation - when foundation is placed)
@@ -143,6 +147,9 @@ impl SoundType {
             SoundType::GrowlCrab => "growl_crab",
             SoundType::GrowlCrow => "growl_crow",
             SoundType::GrowlTern => "growl_tern",
+            SoundType::GrowlShorebound => "growl_shorebound",
+            SoundType::GrowlShardkin => "growl_shardkin",
+            SoundType::GrowlDrownedWatch => "growl_drowned_watch",
             SoundType::Walking => "walking",
             SoundType::Swimming => "swimming",
             SoundType::FoundationWoodConstructed => "foundation_wood_constructed",
@@ -227,6 +234,9 @@ impl SoundType {
             SoundType::GrowlCrab => 1, // growl_crab.mp3 (single variation)
             SoundType::GrowlCrow => 4, // growl_crow.mp3, growl_crow1.mp3, growl_crow2.mp3, growl_crow3.mp3
             SoundType::GrowlTern => 4, // growl_tern.mp3, growl_tern1.mp3, growl_tern2.mp3, growl_tern3.mp3
+            SoundType::GrowlShorebound => 7, // growl_shorebound.mp3, growl_shorebound1-6.mp3
+            SoundType::GrowlShardkin => 4, // growl_shardkin.mp3, growl_shardkin1-3.mp3
+            SoundType::GrowlDrownedWatch => 5, // growl_drowned_watch.mp3, growl_drowned_watch1-4.mp3
             SoundType::Walking => 4,
             SoundType::Swimming => 4,
             SoundType::FoundationWoodConstructed => 1,
@@ -724,6 +734,21 @@ pub fn emit_tern_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, playe
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlTern, pos_x, pos_y, 1.0, 500.0, player_id);
 }
 
+/// Emit a shorebound growl sound (night stalker hostile NPC)
+pub fn emit_shorebound_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlShorebound, pos_x, pos_y, 1.3, 900.0, player_id);
+}
+
+/// Emit a shardkin chittering sound (night swarmer hostile NPC)
+pub fn emit_shardkin_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlShardkin, pos_x, pos_y, 1.1, 700.0, player_id);
+}
+
+/// Emit a drowned watch roar sound (night brute hostile NPC)
+pub fn emit_drowned_watch_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlDrownedWatch, pos_x, pos_y, 1.5, 1200.0, player_id);
+}
+
 /// Emit walking/footstep sound (when player moves)
 pub fn emit_walking_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::Walking, pos_x, pos_y, 0.7, 400.0, player_id);
@@ -747,6 +772,10 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::BeachCrab => 1.2,     // Higher pitch - small, scuttling footsteps
         AnimalSpecies::Tern => 1.3,          // High pitch - light bird
         AnimalSpecies::Crow => 1.2,          // Slightly high pitch - medium bird
+        // Night hostile NPCs (use wolf sounds as placeholder)
+        AnimalSpecies::Shorebound => 0.95,   // Fast stalker - slightly deeper
+        AnimalSpecies::Shardkin => 1.15,     // Small swarmer - higher pitch
+        AnimalSpecies::DrownedWatch => 0.6,  // Heavy brute - very deep
     };
     
     let mut rng = ctx.rng();

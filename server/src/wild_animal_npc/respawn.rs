@@ -294,6 +294,14 @@ fn spawn_animal(
         flying_target_x: None,
         flying_target_y: None,
         is_flying: matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow), // Birds start flying
+        
+        // Night hostile NPC fields (not used in normal animal respawn)
+        is_hostile_npc: false,
+        target_structure_id: None,
+        target_structure_type: None,
+        stalk_angle: 0.0,
+        stalk_distance: 0.0,
+        despawn_at: None,
     };
     
     // Attempt to spawn the animal

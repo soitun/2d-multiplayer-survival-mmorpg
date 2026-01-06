@@ -12,6 +12,12 @@ pub mod crow;
 pub mod respawn;
 pub mod animal_corpse;
 
+// Night hostile NPC behaviors
+pub mod shorebound;
+pub mod shardkin;
+pub mod drowned_watch;
+pub mod hostile_spawning;
+
 // Re-export core types and functionality
 pub use core::*;
 
@@ -24,3 +30,6 @@ pub use crow::CrowBehavior;
 
 // Re-export animal corpse functionality
 pub use animal_corpse::*;
+
+// Re-export hostile spawning initialization
+pub use hostile_spawning::init_hostile_spawning_system;

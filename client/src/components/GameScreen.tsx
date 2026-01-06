@@ -80,7 +80,7 @@ import {
     FishingSession,
     PlantedSeed as SpacetimeDBPlantedSeed,
     PlayerDrinkingCooldown as SpacetimeDBPlayerDrinkingCooldown,
-    WildAnimal as SpacetimeDBWildAnimal,
+    WildAnimal as SpacetimeDBWildAnimal, // Includes hostile NPCs with is_hostile_npc = true
     AnimalCorpse as SpacetimeDBAnimalCorpse,
     Barrel as SpacetimeDBBarrel, // ADDED Barrel import
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED HomesteadHearth import
@@ -145,7 +145,7 @@ interface GameScreenProps {
     plantedSeeds: Map<string, SpacetimeDBPlantedSeed>;
     // worldTiles removed – world background now derived client-side from compressed chunk data
     minimapCache: SpacetimeDBMinimapCache | null;
-    wildAnimals: Map<string, SpacetimeDBWildAnimal>;
+    wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
     barrels: Map<string, SpacetimeDBBarrel>; // ADDED barrels
     seaStacks: Map<string, any>; // ADDED sea stacks

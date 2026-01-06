@@ -144,6 +144,7 @@ export interface SpacetimeTableStates {
     localPlayerIdentity: Identity | null;
     playerDrinkingCooldowns: Map<string, SpacetimeDB.PlayerDrinkingCooldown>;
     wildAnimals: Map<string, SpacetimeDB.WildAnimal>;
+    // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal with is_hostile_npc = true
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
     barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
     seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
@@ -261,6 +262,7 @@ export const useSpacetimeTables = ({
     const [continuousSounds, setContinuousSounds] = useState<Map<string, SpacetimeDB.ContinuousSound>>(() => new Map());
     const [playerDrinkingCooldowns, setPlayerDrinkingCooldowns] = useState<Map<string, SpacetimeDB.PlayerDrinkingCooldown>>(() => new Map());
     const [wildAnimals, setWildAnimals] = useState<Map<string, SpacetimeDB.WildAnimal>>(() => new Map());
+    // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table with is_hostile_npc = true
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
     const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
@@ -445,6 +447,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks
+                    `SELECT * FROM hostile_npc WHERE chunk_index = ${chunkIndex}`, // Night-only hostile enemies (spatial)
                     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
                     `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral underwater (uses combat system)
                 ];
@@ -496,7 +499,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // MOVED: Now spatial
+                newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
                 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
                 newHandlesForChunk.push(timedSubscribe('LivingCoral', `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`)); // Living coral
 
@@ -1682,6 +1685,10 @@ export const useSpacetimeTables = ({
                 });
             };
 
+            // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table
+            // They are handled by the handleWildAnimalInsert/Update/Delete handlers above
+            // with is_hostile_npc = true to distinguish them from regular wild animals
+
             const handleAnimalCorpseInsert = (ctx: any, corpse: SpacetimeDB.AnimalCorpse) => {
                 setAnimalCorpses(prev => new Map(prev).set(corpse.id.toString(), corpse));
             };
@@ -2205,7 +2212,7 @@ export const useSpacetimeTables = ({
                 console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placedExplosive is undefined!');
             }
 
-            // Register WildAnimal callbacks - ADDED
+            // Register WildAnimal callbacks - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
             connection.db.wildAnimal.onInsert(handleWildAnimalInsert);
             connection.db.wildAnimal.onUpdate(handleWildAnimalUpdate);
             connection.db.wildAnimal.onDelete(handleWildAnimalDelete);
@@ -2652,6 +2659,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`, // ADDED: Fire patch initial spatial subscription
                                     `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`, // ADDED: Placed explosive initial spatial subscription
                                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance (was causing 800+ updates/sec globally)
+                                    `SELECT * FROM hostile_npc WHERE chunk_index = ${chunkIndex}`, // Night-only hostile enemies (spatial)
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
@@ -2902,7 +2910,7 @@ export const useSpacetimeTables = ({
         continuousSounds,
         localPlayerIdentity, // Add this to the return
         playerDrinkingCooldowns,
-        wildAnimals,
+        wildAnimals, // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
         animalCorpses,
         barrels, // ADDED barrels
         seaStacks, // ADDED sea stacks

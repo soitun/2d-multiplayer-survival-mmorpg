@@ -77,6 +77,12 @@ export type WildAnimal = {
   flyingTargetX: number | undefined,
   flyingTargetY: number | undefined,
   isFlying: boolean,
+  isHostileNpc: boolean,
+  targetStructureId: bigint | undefined,
+  targetStructureType: string | undefined,
+  stalkAngle: number,
+  stalkDistance: number,
+  despawnAt: __Timestamp | undefined,
 };
 let _cached_WildAnimal_type_value: __AlgebraicTypeType | null = null;
 
@@ -130,6 +136,12 @@ export const WildAnimal = {
       { name: "flyingTargetX", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "flyingTargetY", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "isFlying", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "isHostileNpc", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "targetStructureId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "targetStructureType", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "stalkAngle", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "stalkDistance", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "despawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_WildAnimal_type_value;
   },

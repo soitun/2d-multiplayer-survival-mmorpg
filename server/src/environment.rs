@@ -935,6 +935,14 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             
             true // Inland area suitable for crow
         }
+        
+        // Night hostile NPCs - they use a different spawn system (player-relative)
+        // These species should never go through normal animal spawning
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
+            // Night hostiles don't use the normal spawn system
+            // They spawn relative to player position at night only
+            false
+        }
     }
 }
 
@@ -3018,6 +3026,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 flying_target_x: None,
                 flying_target_y: None,
                 is_flying: matches!(chosen_species, AnimalSpecies::Tern | AnimalSpecies::Crow), // Birds start flying
+                
+                // Night hostile NPC fields (not used for normal animals)
+                is_hostile_npc: false,
+                target_structure_id: None,
+                target_structure_type: None,
+                stalk_angle: 0.0,
+                stalk_distance: 0.0,
+                despawn_at: None,
             };
 
             match ctx.db.wild_animal().try_insert(new_animal) {

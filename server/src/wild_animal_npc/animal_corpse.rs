@@ -132,6 +132,8 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::BeachCrab => (0.0, 0.0, 0.30, 1.0), // No fat/cloth, some bone (shell fragments), guaranteed meat
         AnimalSpecies::Tern => (0.15, 0.60, 0.20, 0.50), // Low fat, good feathers, some bone, decent meat
         AnimalSpecies::Crow => (0.10, 0.50, 0.15, 0.45), // Low fat, feathers, low bone, some meat
+        // Hostile NPCs don't drop regular loot - they despawn and grant memory shards
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
     }
 }
 
@@ -145,6 +147,8 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::BeachCrab => "Raw Crab Meat", // Sweet, delicate meat
         AnimalSpecies::Tern => "Raw Tern Meat", // Lean bird meat
         AnimalSpecies::Crow => "Raw Crow Meat", // Gamey bird meat
+        // Hostile NPCs don't drop meat - they dissolve/despawn
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => "Rotten Meat",
     }
 }
 
@@ -262,6 +266,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
             AnimalSpecies::Tern => Some("Tern Feathers"), // Birds drop feathers
             AnimalSpecies::Crow => Some("Crow Feathers"), // Birds drop feathers
+            // Hostile NPCs don't drop cloth resources
+            AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -292,6 +298,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::BeachCrab => 0.0, // Crabs don't drop crab items (carapace/claw)
             AnimalSpecies::Tern => 0.0, // No rare trophy for terns
             AnimalSpecies::Crow => 0.0, // No rare trophy for crows
+            // Hostile NPCs don't drop rare trophies
+            AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
         
         if rare_trophy_chance > 0.0 && rng.gen_bool(rare_trophy_chance) {
@@ -303,6 +311,8 @@ pub fn get_harvest_loot(
                 AnimalSpecies::BeachCrab => unreachable!(), // Already checked above
                 AnimalSpecies::Tern => unreachable!(), // Already checked above
                 AnimalSpecies::Crow => unreachable!(), // Already checked above
+                // Hostile NPCs never reach here (chance is 0)
+                AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
             };
             loot.push((rare_trophy.to_string(), 1)); // Rare trophies always drop just 1
         }

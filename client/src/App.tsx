@@ -296,7 +296,7 @@ function AppContent() {
       continuousSounds, // <<< ADD continuousSounds HERE
       localPlayerIdentity, // <<< ADD localPlayerIdentity HERE
       playerDrinkingCooldowns, // <<< ADD playerDrinkingCooldowns HERE
-      wildAnimals, // <<< ADD wildAnimals HERE
+      wildAnimals, // <<< ADD wildAnimals HERE (includes hostile NPCs with is_hostile_npc = true)
       animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
       barrels, // <<< ADD barrels HERE
       fumaroles, // <<< ADD fumaroles HERE

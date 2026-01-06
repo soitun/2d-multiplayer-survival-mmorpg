@@ -39,7 +39,7 @@ import {
   PlantedSeed as SpacetimeDBPlantedSeed,
   PlantType as SpacetimeDBPlantType,
   PlayerDrinkingCooldown as SpacetimeDBPlayerDrinkingCooldown,
-  WildAnimal as SpacetimeDBWildAnimal,
+  WildAnimal as SpacetimeDBWildAnimal, // Includes hostile NPCs with is_hostile_npc = true
   AnimalCorpse as SpacetimeDBAnimalCorpse,
   Barrel as SpacetimeDBBarrel,
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole type
@@ -240,7 +240,7 @@ interface GameCanvasProps {
   isFishing: boolean;
   plantedSeeds: Map<string, SpacetimeDBPlantedSeed>;
   playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>; // Add player drinking cooldowns
-  wildAnimals: Map<string, SpacetimeDBWildAnimal>;
+  wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles

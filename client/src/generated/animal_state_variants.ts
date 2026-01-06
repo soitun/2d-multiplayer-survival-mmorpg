@@ -44,4 +44,7 @@ export type FlyingChase = { tag: "FlyingChase" };
 export type Grounded = { tag: "Grounded" };
 export type Scavenging = { tag: "Scavenging" };
 export type Stealing = { tag: "Stealing" };
+export type Stalking = { tag: "Stalking" };
+export type AttackingStructure = { tag: "AttackingStructure" };
+export type Despawning = { tag: "Despawning" };
 

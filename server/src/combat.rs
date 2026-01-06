@@ -811,6 +811,9 @@ pub fn find_targets_in_cone(
         }
     }
     
+    // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of the WildAnimal table
+    // and are targeted through the wild animal iteration above (with is_hostile_npc = true)
+    
     // Check animal corpses
     for animal_corpse in ctx.db.animal_corpse().iter() {
         // Skip corpses that are already depleted
@@ -3768,6 +3771,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
             crate::wild_animal_npc::AnimalSpecies::Tern => Some("Feathers"), // Terns drop feathers
             crate::wild_animal_npc::AnimalSpecies::Crow => Some("Feathers"), // Crows drop feathers
+            // Night hostile NPCs don't drop items - they grant memory shards instead
+            crate::wild_animal_npc::AnimalSpecies::Shorebound | 
+            crate::wild_animal_npc::AnimalSpecies::Shardkin | 
+            crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -3803,18 +3810,24 @@ pub fn damage_animal_corpse(
     }
 
     if animal_corpse.health > 0 && rng.gen_bool(actual_meat_chance) {
-        let meat_type = match animal_corpse.animal_species {
-            crate::wild_animal_npc::AnimalSpecies::CinderFox => "Raw Fox Meat",
-            crate::wild_animal_npc::AnimalSpecies::TundraWolf => "Raw Wolf Meat",
-            crate::wild_animal_npc::AnimalSpecies::CableViper => "Raw Viper Meat",
-            crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => "Raw Walrus Meat",
-            crate::wild_animal_npc::AnimalSpecies::BeachCrab => "Raw Crab Meat",
-            crate::wild_animal_npc::AnimalSpecies::Tern => "Raw Tern Meat",
-            crate::wild_animal_npc::AnimalSpecies::Crow => "Raw Crow Meat",
+        let meat_type: Option<&str> = match animal_corpse.animal_species {
+            crate::wild_animal_npc::AnimalSpecies::CinderFox => Some("Raw Fox Meat"),
+            crate::wild_animal_npc::AnimalSpecies::TundraWolf => Some("Raw Wolf Meat"),
+            crate::wild_animal_npc::AnimalSpecies::CableViper => Some("Raw Viper Meat"),
+            crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => Some("Raw Walrus Meat"),
+            crate::wild_animal_npc::AnimalSpecies::BeachCrab => Some("Raw Crab Meat"),
+            crate::wild_animal_npc::AnimalSpecies::Tern => Some("Raw Tern Meat"),
+            crate::wild_animal_npc::AnimalSpecies::Crow => Some("Raw Crow Meat"),
+            // Night hostile NPCs don't drop items
+            crate::wild_animal_npc::AnimalSpecies::Shorebound | 
+            crate::wild_animal_npc::AnimalSpecies::Shardkin | 
+            crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
         };
-        match grant_resource(ctx, attacker_id, meat_type, quantity_per_hit) {
-            Ok(_) => resources_granted.push((meat_type.to_string(), quantity_per_hit)),
-            Err(e) => log::error!("Failed to grant {}: {}", meat_type, e),
+        if let Some(meat_name) = meat_type {
+            match grant_resource(ctx, attacker_id, meat_name, quantity_per_hit) {
+                Ok(_) => resources_granted.push((meat_name.to_string(), quantity_per_hit)),
+                Err(e) => log::error!("Failed to grant {}: {}", meat_name, e),
+            }
         }
     }
 
@@ -3832,6 +3845,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't have skulls - they have exoskeletons
             crate::wild_animal_npc::AnimalSpecies::Tern => None, // Birds don't drop skulls
             crate::wild_animal_npc::AnimalSpecies::Crow => None, // Birds don't drop skulls
+            // Night hostile NPCs don't drop items
+            crate::wild_animal_npc::AnimalSpecies::Shorebound | 
+            crate::wild_animal_npc::AnimalSpecies::Shardkin | 
+            crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
         };
         
         if let Some(skull_name) = skull_type {

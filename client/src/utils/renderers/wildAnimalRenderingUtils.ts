@@ -18,6 +18,10 @@ import crowWalkingSheet from '../../assets/crow_walking.png';
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
 import crowFlyingSheet from '../../assets/crow_flying.png';
+// Night hostile NPC sprite sheets
+import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
+import shardkinWalkingSheet from '../../assets/shardkin_walking.png';
+import drownedWatchWalkingSheet from '../../assets/drowned_watch_walking.png';
 
 
 // --- Sprite Sheet Configuration ---
@@ -67,6 +71,10 @@ const speciesSpriteSheets: Record<string, string> = {
     'BeachCrab': crabWalkingSheet,
     'Tern': ternWalkingSheet,
     'Crow': crowWalkingSheet,
+    // Night hostile NPCs have custom sprites
+    'Shorebound': shoreboundWalkingSheet,
+    'Shardkin': shardkinWalkingSheet,
+    'DrownedWatch': drownedWatchWalkingSheet,
 };
 
 // Map species to their flying sprite sheets (for birds when in flight)
@@ -198,6 +206,16 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'Crow':
             // Crows are medium-sized inland birds (slightly larger)
             return { width: 104, height: 104, shadowRadius: 30 };
+        // Night hostile NPCs
+        case 'Shorebound':
+            // Stalker - fast, lean predator (wolf-sized)
+            return { width: 128, height: 128, shadowRadius: 40 };
+        case 'Shardkin':
+            // Swarmer - small, aggressive (smaller than crab)
+            return { width: 72, height: 72, shadowRadius: 24 };
+        case 'DrownedWatch':
+            // Brute - large, heavy (bigger than walrus)
+            return { width: 160, height: 160, shadowRadius: 52 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }
@@ -360,6 +378,10 @@ export function renderWildAnimal({
             case 'BeachCrab': return '#E85D04'; // Orange-red
             case 'Tern': return '#E0E0E0'; // Light gray/white
             case 'Crow': return '#1A1A1A'; // Black
+            // Night hostile NPCs
+            case 'Shorebound': return '#2C5F2D'; // Dark forest green
+            case 'Shardkin': return '#4A0E4E'; // Dark purple
+            case 'DrownedWatch': return '#1B3A4B'; // Deep ocean blue
             default: return '#9013FE'; // Purple
         }
     };
@@ -595,6 +617,10 @@ export function preloadWildAnimalImages(): void {
         cableViperWalkingSheet,
         ternWalkingSheet,
         crowWalkingSheet,
+        // Night hostile NPCs
+        shoreboundWalkingSheet,
+        shardkinWalkingSheet,
+        drownedWatchWalkingSheet,
     ];
     
     // Flying sprite sheets for birds

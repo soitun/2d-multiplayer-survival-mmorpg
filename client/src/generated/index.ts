@@ -399,6 +399,8 @@ import { ProcessCompostConversion } from "./process_compost_conversion_reducer.t
 export { ProcessCompostConversion };
 import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
+import { ProcessDawnCleanup } from "./process_dawn_cleanup_reducer.ts";
+export { ProcessDawnCleanup };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
 import { ProcessFoodSpoilage } from "./process_food_spoilage_reducer.ts";
@@ -413,6 +415,8 @@ import { ProcessGrassRespawn } from "./process_grass_respawn_reducer.ts";
 export { ProcessGrassRespawn };
 import { ProcessHearthUpkeep } from "./process_hearth_upkeep_reducer.ts";
 export { ProcessHearthUpkeep };
+import { ProcessHostileSpawns } from "./process_hostile_spawns_reducer.ts";
+export { ProcessHostileSpawns };
 import { ProcessKnockedOutRecovery } from "./process_knocked_out_recovery_reducer.ts";
 export { ProcessKnockedOutRecovery };
 import { ProcessLanternLogicScheduled } from "./process_lantern_logic_scheduled_reducer.ts";
@@ -857,6 +861,10 @@ import { HearthUpkeepScheduleTableHandle } from "./hearth_upkeep_schedule_table.
 export { HearthUpkeepScheduleTableHandle };
 import { HomesteadHearthTableHandle } from "./homestead_hearth_table.ts";
 export { HomesteadHearthTableHandle };
+import { HostileDawnCleanupScheduleTableHandle } from "./hostile_dawn_cleanup_schedule_table.ts";
+export { HostileDawnCleanupScheduleTableHandle };
+import { HostileSpawnScheduleTableHandle } from "./hostile_spawn_schedule_table.ts";
+export { HostileSpawnScheduleTableHandle };
 import { InventoryItemTableHandle } from "./inventory_item_table.ts";
 export { InventoryItemTableHandle };
 import { ItemAlkTagTableHandle } from "./item_alk_tag_table.ts";
@@ -911,6 +919,8 @@ import { PlayerTableHandle } from "./player_table.ts";
 export { PlayerTableHandle };
 import { PlayerAchievementTableHandle } from "./player_achievement_table.ts";
 export { PlayerAchievementTableHandle };
+import { PlayerCampingStateTableHandle } from "./player_camping_state_table.ts";
+export { PlayerCampingStateTableHandle };
 import { PlayerCorpseTableHandle } from "./player_corpse_table.ts";
 export { PlayerCorpseTableHandle };
 import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_schedule_table.ts";
@@ -1215,6 +1225,10 @@ import { HearthUpkeepSchedule } from "./hearth_upkeep_schedule_type.ts";
 export { HearthUpkeepSchedule };
 import { HomesteadHearth } from "./homestead_hearth_type.ts";
 export { HomesteadHearth };
+import { HostileDawnCleanupSchedule } from "./hostile_dawn_cleanup_schedule_type.ts";
+export { HostileDawnCleanupSchedule };
+import { HostileSpawnSchedule } from "./hostile_spawn_schedule_type.ts";
+export { HostileSpawnSchedule };
 import { HotbarLocationData } from "./hotbar_location_data_type.ts";
 export { HotbarLocationData };
 import { InventoryItem } from "./inventory_item_type.ts";
@@ -1293,6 +1307,8 @@ import { Player } from "./player_type.ts";
 export { Player };
 import { PlayerAchievement } from "./player_achievement_type.ts";
 export { PlayerAchievement };
+import { PlayerCampingState } from "./player_camping_state_type.ts";
+export { PlayerCampingState };
 import { PlayerCorpse } from "./player_corpse_type.ts";
 export { PlayerCorpse };
 import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_type.ts";
@@ -2049,6 +2065,24 @@ const REMOTE_MODULE = {
         colType: (HomesteadHearth.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    hostile_dawn_cleanup_schedule: {
+      tableName: "hostile_dawn_cleanup_schedule" as const,
+      rowType: HostileDawnCleanupSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduledId",
+      primaryKeyInfo: {
+        colName: "scheduledId",
+        colType: (HostileDawnCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    hostile_spawn_schedule: {
+      tableName: "hostile_spawn_schedule" as const,
+      rowType: HostileSpawnSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduledId",
+      primaryKeyInfo: {
+        colName: "scheduledId",
+        colType: (HostileSpawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     inventory_item: {
       tableName: "inventory_item" as const,
       rowType: InventoryItem.getTypeScriptAlgebraicType(),
@@ -2290,6 +2324,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (PlayerAchievement.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    player_camping_state: {
+      tableName: "player_camping_state" as const,
+      rowType: PlayerCampingState.getTypeScriptAlgebraicType(),
+      primaryKey: "playerIdentity",
+      primaryKeyInfo: {
+        colName: "playerIdentity",
+        colType: (PlayerCampingState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     player_corpse: {
@@ -3561,6 +3604,10 @@ const REMOTE_MODULE = {
       reducerName: "process_corpse_despawn",
       argsType: ProcessCorpseDespawn.getTypeScriptAlgebraicType(),
     },
+    process_dawn_cleanup: {
+      reducerName: "process_dawn_cleanup",
+      argsType: ProcessDawnCleanup.getTypeScriptAlgebraicType(),
+    },
     process_fire_patch_damage: {
       reducerName: "process_fire_patch_damage",
       argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
@@ -3588,6 +3635,10 @@ const REMOTE_MODULE = {
     process_hearth_upkeep: {
       reducerName: "process_hearth_upkeep",
       argsType: ProcessHearthUpkeep.getTypeScriptAlgebraicType(),
+    },
+    process_hostile_spawns: {
+      reducerName: "process_hostile_spawns",
+      argsType: ProcessHostileSpawns.getTypeScriptAlgebraicType(),
     },
     process_knocked_out_recovery: {
       reducerName: "process_knocked_out_recovery",
@@ -4419,6 +4470,7 @@ export type Reducer = never
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
 | { name: "ProcessCompostConversion", args: ProcessCompostConversion }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
+| { name: "ProcessDawnCleanup", args: ProcessDawnCleanup }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
 | { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
@@ -4426,6 +4478,7 @@ export type Reducer = never
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
 | { name: "ProcessGrassRespawn", args: ProcessGrassRespawn }
 | { name: "ProcessHearthUpkeep", args: ProcessHearthUpkeep }
+| { name: "ProcessHostileSpawns", args: ProcessHostileSpawns }
 | { name: "ProcessKnockedOutRecovery", args: ProcessKnockedOutRecovery }
 | { name: "ProcessLanternLogicScheduled", args: ProcessLanternLogicScheduled }
 | { name: "ProcessMatronagePayout", args: ProcessMatronagePayout }
@@ -7429,6 +7482,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_corpse_despawn", callback);
   }
 
+  processDawnCleanup(args: HostileDawnCleanupSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessDawnCleanup.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_dawn_cleanup", __argsBuffer, this.setCallReducerFlags.processDawnCleanupFlags);
+  }
+
+  onProcessDawnCleanup(callback: (ctx: ReducerEventContext, args: HostileDawnCleanupSchedule) => void) {
+    this.connection.onReducer("process_dawn_cleanup", callback);
+  }
+
+  removeOnProcessDawnCleanup(callback: (ctx: ReducerEventContext, args: HostileDawnCleanupSchedule) => void) {
+    this.connection.offReducer("process_dawn_cleanup", callback);
+  }
+
   processFirePatchDamage(args: FirePatchDamageSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -7539,6 +7608,22 @@ export class RemoteReducers {
 
   removeOnProcessHearthUpkeep(callback: (ctx: ReducerEventContext, schedule: HearthUpkeepSchedule) => void) {
     this.connection.offReducer("process_hearth_upkeep", callback);
+  }
+
+  processHostileSpawns(args: HostileSpawnSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessHostileSpawns.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_hostile_spawns", __argsBuffer, this.setCallReducerFlags.processHostileSpawnsFlags);
+  }
+
+  onProcessHostileSpawns(callback: (ctx: ReducerEventContext, args: HostileSpawnSchedule) => void) {
+    this.connection.onReducer("process_hostile_spawns", callback);
+  }
+
+  removeOnProcessHostileSpawns(callback: (ctx: ReducerEventContext, args: HostileSpawnSchedule) => void) {
+    this.connection.offReducer("process_hostile_spawns", callback);
   }
 
   processKnockedOutRecovery(args: KnockedOutRecoverySchedule) {
@@ -10830,6 +10915,11 @@ export class SetReducerFlags {
     this.processCorpseDespawnFlags = flags;
   }
 
+  processDawnCleanupFlags: __CallReducerFlags = 'FullUpdate';
+  processDawnCleanup(flags: __CallReducerFlags) {
+    this.processDawnCleanupFlags = flags;
+  }
+
   processFirePatchDamageFlags: __CallReducerFlags = 'FullUpdate';
   processFirePatchDamage(flags: __CallReducerFlags) {
     this.processFirePatchDamageFlags = flags;
@@ -10863,6 +10953,11 @@ export class SetReducerFlags {
   processHearthUpkeepFlags: __CallReducerFlags = 'FullUpdate';
   processHearthUpkeep(flags: __CallReducerFlags) {
     this.processHearthUpkeepFlags = flags;
+  }
+
+  processHostileSpawnsFlags: __CallReducerFlags = 'FullUpdate';
+  processHostileSpawns(flags: __CallReducerFlags) {
+    this.processHostileSpawnsFlags = flags;
   }
 
   processKnockedOutRecoveryFlags: __CallReducerFlags = 'FullUpdate';
@@ -11975,6 +12070,16 @@ export class RemoteTables {
     return new HomesteadHearthTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HomesteadHearth>(REMOTE_MODULE.tables.homestead_hearth));
   }
 
+  get hostileDawnCleanupSchedule(): HostileDawnCleanupScheduleTableHandle<'hostile_dawn_cleanup_schedule'> {
+    // clientCache is a private property
+    return new HostileDawnCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HostileDawnCleanupSchedule>(REMOTE_MODULE.tables.hostile_dawn_cleanup_schedule));
+  }
+
+  get hostileSpawnSchedule(): HostileSpawnScheduleTableHandle<'hostile_spawn_schedule'> {
+    // clientCache is a private property
+    return new HostileSpawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<HostileSpawnSchedule>(REMOTE_MODULE.tables.hostile_spawn_schedule));
+  }
+
   get inventoryItem(): InventoryItemTableHandle<'inventory_item'> {
     // clientCache is a private property
     return new InventoryItemTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<InventoryItem>(REMOTE_MODULE.tables.inventory_item));
@@ -12108,6 +12213,11 @@ export class RemoteTables {
   get playerAchievement(): PlayerAchievementTableHandle<'player_achievement'> {
     // clientCache is a private property
     return new PlayerAchievementTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerAchievement>(REMOTE_MODULE.tables.player_achievement));
+  }
+
+  get playerCampingState(): PlayerCampingStateTableHandle<'player_camping_state'> {
+    // clientCache is a private property
+    return new PlayerCampingStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCampingState>(REMOTE_MODULE.tables.player_camping_state));
   }
 
   get playerCorpse(): PlayerCorpseTableHandle<'player_corpse'> {

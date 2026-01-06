@@ -45,6 +45,8 @@ use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For 
 use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
+// Runestone imports for hostile NPC deterrence
+use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_EFFECT_RADIUS};
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -153,6 +155,10 @@ pub enum AnimalSpecies {
     BeachCrab,
     Tern,       // Scavenger bird that picks up dropped items and alerts other animals
     Crow,       // Thief bird that steals items from player inventory
+    // Night-only hostile NPCs (spawn at dusk, despawn at dawn)
+    Shorebound,    // Stalker: Fast, low health, circles and pressures players
+    Shardkin,      // Swarmer: Small, fast, aggressive swarms that attack on contact
+    DrownedWatch,  // Brute: Slow, high durability, primary structure attacker
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -173,6 +179,10 @@ pub enum AnimalState {
     Grounded,      // Birds on the ground - either still or walking in tiny circles
     Scavenging,    // Terns picking up dropped items
     Stealing,      // Crows stealing from player inventory
+    // Night hostile NPC states
+    Stalking,          // Shorebound: Circling and pressuring player before attacking
+    AttackingStructure, // DrownedWatch/Shardkin: Attacking walls or doors
+    Despawning,        // Being removed at dawn
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -252,6 +262,14 @@ pub struct WildAnimal {
     pub flying_target_x: Option<f32>, // Flying destination X for vast patrol distances
     pub flying_target_y: Option<f32>, // Flying destination Y for vast patrol distances
     pub is_flying: bool, // Whether the bird is currently in flight
+    
+    // Night hostile NPC fields (Shorebound, Shardkin, DrownedWatch)
+    pub is_hostile_npc: bool, // True if this is a night-only hostile enemy
+    pub target_structure_id: Option<u64>, // ID of structure being attacked (door or wall)
+    pub target_structure_type: Option<String>, // "door" or "wall"
+    pub stalk_angle: f32, // For Shorebound circling behavior (radians)
+    pub stalk_distance: f32, // Current circling distance from player
+    pub despawn_at: Option<Timestamp>, // When to remove this hostile (dawn cleanup)
 }
 
 // --- AI Processing Schedule Table ---
@@ -356,6 +374,10 @@ pub enum AnimalBehaviorEnum {
     BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
     Tern(crate::wild_animal_npc::tern::TernBehavior),
     Crow(crate::wild_animal_npc::crow::CrowBehavior),
+    // Night hostile NPCs
+    Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
+    Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
+    DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
 }
 
 impl AnimalBehavior for AnimalBehaviorEnum {
@@ -368,6 +390,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_stats(),
         }
     }
 
@@ -380,6 +405,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_movement_pattern(),
         }
     }
 
@@ -400,6 +428,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
         }
     }
 
@@ -420,6 +451,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
         }
     }
 
@@ -440,6 +474,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
         }
     }
 
@@ -459,6 +496,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
         }
     }
 
@@ -471,6 +511,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Tern(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Crow(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
         }
     }
 
@@ -491,6 +534,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
         }
     }
 
@@ -503,6 +549,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.can_be_tamed(),
         }
     }
 
@@ -515,6 +564,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_taming_foods(),
         }
     }
 
@@ -527,6 +579,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_chase_abandonment_multiplier(),
         }
     }
 }
@@ -541,7 +596,15 @@ impl AnimalSpecies {
             AnimalSpecies::BeachCrab => AnimalBehaviorEnum::BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
             AnimalSpecies::Tern => AnimalBehaviorEnum::Tern(crate::wild_animal_npc::tern::TernBehavior),
             AnimalSpecies::Crow => AnimalBehaviorEnum::Crow(crate::wild_animal_npc::crow::CrowBehavior),
+            AnimalSpecies::Shorebound => AnimalBehaviorEnum::Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
+            AnimalSpecies::Shardkin => AnimalBehaviorEnum::Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
+            AnimalSpecies::DrownedWatch => AnimalBehaviorEnum::DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
         }
+    }
+    
+    /// Check if this species is a night-only hostile NPC
+    pub fn is_hostile_npc(&self) -> bool {
+        matches!(self, AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch)
     }
 
     // Backward compatibility methods - delegate to behavior trait
@@ -677,6 +740,97 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 // Execute the attack
                                 execute_attack(ctx, &mut animal, &target_player, &behavior, &stats, current_time, &mut rng)?;
                             }
+                            
+                            // HOSTILE NPC STRUCTURE ATTACK: If player is inside building, consider attacking structures
+                            if animal.is_hostile_npc && target_player.is_inside_building {
+                                let can_attack_structures = matches!(animal.species, 
+                                    AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+                                
+                                if can_attack_structures && can_attack(&animal, current_time, &stats) {
+                                    // Look for nearby structures to attack (doors prioritized)
+                                    const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
+                                    if let Some((struct_id, struct_type, _dist_sq)) = 
+                                        crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                            ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                        ) 
+                                    {
+                                        // Switch to attacking structure
+                                        animal.target_structure_id = Some(struct_id);
+                                        animal.target_structure_type = Some(struct_type);
+                                        transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), "attacking structure");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Process structure attacks for hostile NPCs
+            if animal.state == AnimalState::AttackingStructure && animal.is_hostile_npc {
+                if let (Some(struct_id), Some(ref struct_type)) = (animal.target_structure_id, animal.target_structure_type.clone()) {
+                    // Check if player exited building - switch back to chasing
+                    let should_stop_attacking = if let Some(target_id) = animal.target_player_id {
+                        if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                            !target_player.is_inside_building || 
+                            get_distance_squared(animal.pos_x, animal.pos_y, target_player.position_x, target_player.position_y) < 150.0 * 150.0
+                        } else {
+                            true // Player gone
+                        }
+                    } else {
+                        true // No target player
+                    };
+                    
+                    if should_stop_attacking {
+                        animal.target_structure_id = None;
+                        animal.target_structure_type = None;
+                        if let Some(target_id) = animal.target_player_id {
+                            transition_to_state(&mut animal, AnimalState::Chasing, current_time, Some(target_id), "player exited - chase");
+                        } else {
+                            transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "no target");
+                        }
+                    } else if can_attack(&animal, current_time, &stats) {
+                        // Attack the structure!
+                        let structure_damage = match animal.species {
+                            AnimalSpecies::Shardkin => 5.0,     // Low damage, creates urgency
+                            AnimalSpecies::DrownedWatch => 35.0, // Heavy damage
+                            _ => 10.0,
+                        };
+                        
+                        match crate::wild_animal_npc::hostile_spawning::hostile_attack_structure(
+                            ctx, struct_id, &struct_type, structure_damage, current_time
+                        ) {
+                            Ok(destroyed) => {
+                                animal.last_attack_time = Some(current_time);
+                                if destroyed {
+                                    // Structure destroyed - look for another or chase player
+                                    animal.target_structure_id = None;
+                                    animal.target_structure_type = None;
+                                    
+                                    // Try to find another structure
+                                    const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
+                                    if let Some((new_id, new_type, _)) = 
+                                        crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                            ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                        ) 
+                                    {
+                                        animal.target_structure_id = Some(new_id);
+                                        animal.target_structure_type = Some(new_type);
+                                    } else {
+                                        // No more structures - chase player
+                                        if let Some(target_id) = animal.target_player_id {
+                                            transition_to_state(&mut animal, AnimalState::Chasing, current_time, Some(target_id), "structure destroyed - chase");
+                                        } else {
+                                            transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "no targets");
+                                        }
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                log::error!("👹 [HostileNPC] Structure attack failed: {}", e);
+                                animal.target_structure_id = None;
+                                animal.target_structure_type = None;
+                            }
                         }
                     }
                 }
@@ -762,6 +916,8 @@ fn update_animal_ai_state(
                 AnimalSpecies::BeachCrab => 200.0, // Crabs are small and scuttle away from buildings
                 AnimalSpecies::Tern => 500.0, // Birds fly away from foundations
                 AnimalSpecies::Crow => 450.0, // Crows fly away from foundations
+                // Night hostile NPCs don't flee from foundations
+                AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };
             
             set_flee_destination_away_from_threat(animal, foundation_x, foundation_y, flee_distance, rng);
@@ -799,6 +955,8 @@ fn update_animal_ai_state(
                         AnimalSpecies::BeachCrab => 300.0,    // Crabs scuttle away from fire
                         AnimalSpecies::Tern => 600.0,         // Birds fly away from fire
                         AnimalSpecies::Crow => 550.0,         // Crows fly away from fire
+                        // Night hostile NPCs don't flee from fire
+                        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                     };
                     
                     set_flee_destination_away_from_threat(animal, player.position_x, player.position_y, flee_distance, rng);
@@ -845,6 +1003,8 @@ fn update_animal_ai_state(
                     AnimalSpecies::BeachCrab => 300.0, // Crabs scuttle away from campfires
                     AnimalSpecies::Tern => 600.0, // Birds fly away from campfires
                     AnimalSpecies::Crow => 550.0, // Crows fly away from campfires
+                    // Night hostile NPCs don't flee from campfires
+                    AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                 };
                 
                 set_flee_destination_away_from_threat(animal, fire_x, fire_y, flee_distance, rng);
@@ -1338,8 +1498,28 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
             move_distance / distance
         };
         
-        let proposed_x = animal.pos_x + dx * normalize_factor;
-        let proposed_y = animal.pos_y + dy * normalize_factor;
+        let mut proposed_x = animal.pos_x + dx * normalize_factor;
+        let mut proposed_y = animal.pos_y + dy * normalize_factor;
+        
+        // HOSTILE NPC RUNESTONE DETERRENCE: Block entry into runestone radius
+        if animal.is_hostile_npc {
+            let runestone_radius_sq = RUNE_STONE_EFFECT_RADIUS * RUNE_STONE_EFFECT_RADIUS;
+            for rune_stone in ctx.db.rune_stone().iter() {
+                let rdx = proposed_x - rune_stone.pos_x;
+                let rdy = proposed_y - rune_stone.pos_y;
+                let dist_sq = rdx * rdx + rdy * rdy;
+                
+                if dist_sq < runestone_radius_sq {
+                    // Would enter runestone radius - push back to the boundary
+                    let dist = dist_sq.sqrt();
+                    if dist > 0.0 {
+                        let push_factor = RUNE_STONE_EFFECT_RADIUS / dist;
+                        proposed_x = rune_stone.pos_x + rdx * push_factor;
+                        proposed_y = rune_stone.pos_y + rdy * push_factor;
+                    }
+                }
+            }
+        }
         
         // Store starting position to calculate actual movement
         let start_x = animal.pos_x;
@@ -1413,6 +1593,10 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::BeachCrab => 16.0, // Small knockback - crab pinch
             AnimalSpecies::Tern => 8.0, // Very small knockback - bird peck
             AnimalSpecies::Crow => 12.0, // Small knockback - crow peck
+            // Hostile NPCs
+            AnimalSpecies::Shorebound => 36.0, // Fast stalker - moderate knockback
+            AnimalSpecies::Shardkin => 20.0, // Small swarmer - light knockback
+            AnimalSpecies::DrownedWatch => 72.0, // Heavy brute - strong knockback
         };
         
         let knockback_dx = (dx_target_from_animal / distance) * knockback_distance;
@@ -1464,6 +1648,10 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::BeachCrab => "Beach Crab",
         AnimalSpecies::Tern => "Tern",
         AnimalSpecies::Crow => "Crow",
+        // Hostile NPCs
+        AnimalSpecies::Shorebound => "The Shorebound",
+        AnimalSpecies::Shardkin => "The Shardkin",
+        AnimalSpecies::DrownedWatch => "The Drowned Watch",
     };
     
     let new_death_marker = crate::death_marker::DeathMarker {
@@ -1564,6 +1752,14 @@ pub fn spawn_wild_animal(
         flying_target_x: None,
         flying_target_y: None,
         is_flying: false, // Birds start grounded (not flying)
+        
+        // Night hostile NPC fields
+        is_hostile_npc: species.is_hostile_npc(),
+        target_structure_id: None,
+        target_structure_type: None,
+        stalk_angle: 0.0,
+        stalk_distance: 0.0,
+        despawn_at: None,
     };
     
     ctx.db.wild_animal().insert(animal);
@@ -1615,26 +1811,69 @@ pub fn damage_wild_animal_with_weapon(
         }
         
         if animal.health <= 0.0 {
-            log::info!("🦴 [ANIMAL DEATH] Animal {} (species: {:?}) died at ({:.1}, {:.1}) - attempting to create corpse", 
-                      animal.id, animal.species, animal.pos_x, animal.pos_y);
-            
-            // Create animal corpse before deleting the animal
-            if let Err(e) = super::animal_corpse::create_animal_corpse(
-                ctx,
-                animal.species,
-                animal.id,
-                animal.pos_x,
-                animal.pos_y,
-                ctx.timestamp,
-                animal.created_at, // Pass spawn time to calculate time alive at harvest
-            ) {
-                log::error!("🦴 [ERROR] Failed to create animal corpse for {} (species: {:?}): {}", animal.id, animal.species, e);
+            // HOSTILE NPCs: Drop memory shards directly, no corpse
+            // Reward scales with difficulty - MUST be worth the risk vs safe barrel farming!
+            // Barrels: 1-2 shards at 92% chance (~1.38 avg), no danger, infinite respawn
+            // Night combat: Risk of death and inventory loss, limited to nighttime
+            //
+            // Tiered rewards:
+            //   Shardkin (45 HP, swarm): 8-15 shards each - dangerous in groups
+            //   Shorebound (80 HP, stalker): 15-25 shards - worth the chase
+            //   DrownedWatch (400 HP, brute): 50-80 shards - boss-tier jackpot
+            if animal.is_hostile_npc {
+                log::info!("👹 [HOSTILE DEATH] {:?} {} killed at ({:.1}, {:.1}) - dropping memory shards", 
+                          animal.species, animal.id, animal.pos_x, animal.pos_y);
+                
+                // Tiered shard rewards based on enemy difficulty
+                // Night combat should be MUCH more rewarding than safe barrel farming
+                let shard_count = match animal.species {
+                    AnimalSpecies::Shardkin => rng.gen_range(8..=15),      // Swarmers - dangerous in groups
+                    AnimalSpecies::Shorebound => rng.gen_range(15..=25),   // Stalkers - worth the risk
+                    AnimalSpecies::DrownedWatch => rng.gen_range(50..=80), // Brutes - boss-tier reward
+                    _ => rng.gen_range(10..=20), // Fallback
+                } as u32;
+                
+                if let Some(shard_def) = ctx.db.item_definition().iter()
+                    .find(|def| def.name == "Memory Shard") 
+                {
+                    match crate::dropped_item::give_item_to_player_or_drop(
+                        ctx, attacker_id, shard_def.id, shard_count
+                    ) {
+                        Ok(_) => {
+                            log::info!("👹 Granted {} memory shards to player {} for killing {:?}", 
+                                      shard_count, attacker_id, animal.species);
+                        }
+                        Err(e) => {
+                            log::error!("👹 Failed to grant memory shards: {}", e);
+                        }
+                    }
+                }
+                
+                ctx.db.wild_animal().id().delete(&animal_id);
+                log::info!("👹 Hostile NPC {:?} {} removed after death", animal.species, animal_id);
             } else {
-                log::info!("🦴 [SUCCESS] Animal corpse creation call completed successfully for animal {}", animal.id);
+                // Regular animals: Create corpse as usual
+                log::info!("🦴 [ANIMAL DEATH] Animal {} (species: {:?}) died at ({:.1}, {:.1}) - attempting to create corpse", 
+                          animal.id, animal.species, animal.pos_x, animal.pos_y);
+                
+                // Create animal corpse before deleting the animal
+                if let Err(e) = super::animal_corpse::create_animal_corpse(
+                    ctx,
+                    animal.species,
+                    animal.id,
+                    animal.pos_x,
+                    animal.pos_y,
+                    ctx.timestamp,
+                    animal.created_at, // Pass spawn time to calculate time alive at harvest
+                ) {
+                    log::error!("🦴 [ERROR] Failed to create animal corpse for {} (species: {:?}): {}", animal.id, animal.species, e);
+                } else {
+                    log::info!("🦴 [SUCCESS] Animal corpse creation call completed successfully for animal {}", animal.id);
+                }
+                
+                ctx.db.wild_animal().id().delete(&animal_id);
+                log::info!("Wild animal {} killed by player {} - corpse created", animal_id, attacker_id);
             }
-            
-            ctx.db.wild_animal().id().delete(&animal_id);
-            log::info!("Wild animal {} killed by player {} - corpse created", animal_id, attacker_id);
             
             // Award XP and update stats for animal kill
             if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_ANIMAL_KILLED) {
@@ -2620,6 +2859,10 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::BeachCrab => 250.0,             // Crabs scuttle away from fire
         AnimalSpecies::Tern => 500.0,                  // Birds fly away from fire
         AnimalSpecies::Crow => 450.0,                  // Crows fly away from fire
+        // Hostile NPCs don't flee from fire - they're aggressive night creatures
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
+            return false; // Hostile NPCs ignore fire
+        }
     };
     
     // Special handling for cornered foxes (don't flee if too close)
@@ -2690,6 +2933,16 @@ pub fn emit_species_sound(
         },
         AnimalSpecies::Crow => {
             crate::sound_events::emit_crow_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        // Night hostile NPCs have their own custom sounds
+        AnimalSpecies::Shorebound => {
+            crate::sound_events::emit_shorebound_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::Shardkin => {
+            crate::sound_events::emit_shardkin_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::DrownedWatch => {
+            crate::sound_events::emit_drowned_watch_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
     }
     
@@ -2851,6 +3104,10 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::BeachCrab => 0.10,     // Crabs scuttle but are fairly predictable
         AnimalSpecies::Tern => 0.05,          // Terns fly in more consistent directions
         AnimalSpecies::Crow => 0.08,          // Crows are fairly focused
+        // Hostile NPCs - different patrol patterns
+        AnimalSpecies::Shorebound => 0.15,    // Stalker - moderate direction changes while circling
+        AnimalSpecies::Shardkin => 0.20,      // Swarmer - erratic movements
+        AnimalSpecies::DrownedWatch => 0.04,  // Brute - very deliberate, rarely changes direction
     };
     
     // Adjust for pack wolves (alphas change direction less frequently)
@@ -2924,6 +3181,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::BeachCrab => 200.0 + (rng.gen::<f32>() * 100.0), // 4-6m for crabs - short scuttle
             AnimalSpecies::Tern => 800.0 + (rng.gen::<f32>() * 500.0), // 16-26m for terns - fly away
             AnimalSpecies::Crow => 600.0 + (rng.gen::<f32>() * 400.0), // 12-20m for crows - fly away
+            // Night hostile NPCs don't flee
+            AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
         
         animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());
@@ -2957,6 +3216,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::BeachCrab => 2_000_000,  // 2 seconds - quick scuttle escape
             AnimalSpecies::Tern => 5_000_000,       // 5 seconds - fly away far
             AnimalSpecies::Crow => 4_000_000,       // 4 seconds - fly away
+            // Hostile NPCs don't flee - but if they somehow enter flee state, recover quickly
+            AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 500_000, // 0.5 seconds
         };
         
         if distance_to_target <= 50.0 || time_fleeing > max_flee_time {
@@ -3337,6 +3598,23 @@ pub fn handle_attack_aftermath(
             animal.is_flying = true;
             log::info!("Crow {} attacked and flew away", animal.id);
         },
+        
+        // Hostile NPCs - continue attacking aggressively
+        AnimalSpecies::Shorebound => {
+            // Shorebound stalkers continue pressuring after attack
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "shorebound pursuit");
+            log::info!("Shorebound {} continues stalking after attack", animal.id);
+        },
+        AnimalSpecies::Shardkin => {
+            // Shardkin swarmers are relentless - continue attack immediately
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "shardkin swarm");
+            log::info!("Shardkin {} continues swarming after attack", animal.id);
+        },
+        AnimalSpecies::DrownedWatch => {
+            // Drowned Watch brutes are slow but relentless
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "brute assault");
+            log::info!("Drowned Watch {} delivered heavy blow - continuing assault", animal.id);
+        },
     }
 }
 
@@ -3436,6 +3714,23 @@ pub fn handle_standard_damage_response(
                 transition_to_state(animal, AnimalState::Flying, current_time, None, "crow flee damage");
                 animal.is_flying = true;
                 log::info!("Crow {} flying away after damage", animal.id);
+            },
+            
+            // Hostile NPCs don't flee when damaged - they become more aggressive
+            AnimalSpecies::Shorebound => {
+                // Shorebound stalkers retaliate when hit
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "shorebound retaliation");
+                log::info!("Shorebound {} retaliating against attacker", animal.id);
+            },
+            AnimalSpecies::Shardkin => {
+                // Shardkin swarmers are relentless
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "shardkin retaliation");
+                log::info!("Shardkin {} swarming attacker", animal.id);
+            },
+            AnimalSpecies::DrownedWatch => {
+                // Drowned Watch brutes are unfazed by damage
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "brute retaliation");
+                log::info!("Drowned Watch {} unfazed by damage - continuing assault", animal.id);
             },
         }
     }
@@ -4070,6 +4365,8 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::BeachCrab => 250.0,    // Crabs scuttle away quickly
                 AnimalSpecies::Tern => 800.0,         // Birds fly far away
                 AnimalSpecies::Crow => 700.0,         // Crows fly away
+                // Night hostile NPCs don't flee from fire traps
+                AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };
             
             animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());
