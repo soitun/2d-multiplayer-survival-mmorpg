@@ -77,6 +77,9 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrowlCrab |
   SoundTypeVariants.GrowlCrow |
   SoundTypeVariants.GrowlTern |
+  SoundTypeVariants.GrowlShorebound |
+  SoundTypeVariants.GrowlShardkin |
+  SoundTypeVariants.GrowlDrownedWatch |
   SoundTypeVariants.Walking |
   SoundTypeVariants.Swimming |
   SoundTypeVariants.FoundationWoodConstructed |
@@ -169,6 +172,9 @@ export const SoundType = {
   GrowlCrab: { tag: "GrowlCrab" } as const,
   GrowlCrow: { tag: "GrowlCrow" } as const,
   GrowlTern: { tag: "GrowlTern" } as const,
+  GrowlShorebound: { tag: "GrowlShorebound" } as const,
+  GrowlShardkin: { tag: "GrowlShardkin" } as const,
+  GrowlDrownedWatch: { tag: "GrowlDrownedWatch" } as const,
   Walking: { tag: "Walking" } as const,
   Swimming: { tag: "Swimming" } as const,
   FoundationWoodConstructed: { tag: "FoundationWoodConstructed" } as const,
@@ -255,6 +261,9 @@ export const SoundType = {
       { name: "GrowlCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlCrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlShorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlShardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlDrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Walking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "FoundationWoodConstructed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
