@@ -1092,27 +1092,22 @@ fn execute_animal_movement(
                     );
                     let distance = distance_sq.sqrt();
                     
-                    // COLLISION ENFORCEMENT: Even when "stopped" at attack range, maintain minimum distance
-                    // This prevents fast NPCs from standing on top of players
-                    // Must match ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS in animal_collision.rs
-                    const MIN_ATTACK_DISTANCE: f32 = 50.0; // Minimum distance to maintain from player
-                    if distance < MIN_ATTACK_DISTANCE {
-                        // Push animal back to minimum distance plus buffer
-                        let dx = animal.pos_x - target_player.position_x;
-                        let dy = animal.pos_y - target_player.position_y;
-                        let push_distance = MIN_ATTACK_DISTANCE - distance + 10.0; // Extra 10px buffer for safety
-                        if distance > 0.1 {
-                            let push_x = (dx / distance) * push_distance;
-                            let push_y = (dy / distance) * push_distance;
-                            update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
-                            log::debug!("[AnimalCollision] Pushed animal {} back from player, distance was {:.1}px", animal.id, distance);
-                        }
-                    }
+                    // COLLISION ENFORCEMENT: Prevent animals from standing inside players
+                    // Use attack range as minimum since that's where they should stop
+                    // This is critical for fast hostile NPCs that can overshoot in a single tick
+                    enforce_minimum_player_distance(animal, &target_player, stats);
+                    
+                    // Recalculate distance after potential pushback
+                    let new_distance_sq = get_distance_squared(
+                        animal.pos_x, animal.pos_y,
+                        target_player.position_x, target_player.position_y
+                    );
+                    let new_distance = new_distance_sq.sqrt();
                     
                     // Normal chase behavior - fire fear logic handled above
                     // 🐺 NOTE: Once an animal is chasing (e.g., you attacked it), wolf fur won't stop it!
                     // Intimidation only prevents initial detection/aggro
-                    if distance > stats.attack_range * 0.9 { // Start moving when slightly outside attack range
+                    if new_distance > stats.attack_range * 0.9 { // Start moving when slightly outside attack range
                         // Move directly toward player - no stopping short
                         is_sprinting = true; // Chasing uses sprint speed
                         move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, stats.sprint_speed, dt);
@@ -1248,7 +1243,28 @@ fn execute_animal_movement(
             // Wake-up to Patrolling is handled in update_animal_ai_state when player gets close
         },
         
-        _ => {} // Other states (Attacking, Hiding, Burrowed) don't move continuously
+        AnimalState::Stalking => {
+            // Shorebound stalking behavior - delegate to species-specific patrol logic
+            // which handles the special circling movement for Stalking state
+            behavior.execute_patrol_logic(ctx, animal, stats, dt, rng);
+        },
+        
+        AnimalState::Attacking => {
+            // Animals don't move while attacking, but enforce minimum distance from player
+            // to prevent standing inside the player after a fast chase
+            if let Some(target_id) = animal.target_player_id {
+                if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                    enforce_minimum_player_distance(animal, &target_player, stats);
+                }
+            }
+        },
+        
+        AnimalState::AttackingStructure => {
+            // Hostile NPCs attacking structures - minimal movement, just face the structure
+            // Movement toward structure handled by structure attack system
+        },
+        
+        _ => {} // Other states (Hiding, Burrowed, Despawning) don't move continuously
     }
 
     // Keep animal within world bounds
@@ -1601,6 +1617,54 @@ fn clamp_to_world_bounds(animal: &mut WildAnimal) {
     
     // Use centralized position update function
     update_animal_position(animal, clamped_x, clamped_y);
+}
+
+/// Enforces minimum distance between animal and player to prevent overlap
+/// This is critical for fast-moving hostile NPCs that can overshoot during chase
+fn enforce_minimum_player_distance(animal: &mut WildAnimal, player: &Player, stats: &AnimalStats) {
+    let dx = animal.pos_x - player.position_x;
+    let dy = animal.pos_y - player.position_y;
+    let distance_sq = dx * dx + dy * dy;
+    let distance = distance_sq.sqrt();
+    
+    // Use attack range as the minimum distance (that's where the animal should stop)
+    // Add a small buffer to ensure visual separation
+    let min_distance = stats.attack_range * 0.85; // Slightly inside attack range for visual clarity
+    
+    // Also enforce an absolute minimum to prevent standing inside player regardless of attack range
+    const ABSOLUTE_MIN_DISTANCE: f32 = 45.0; // Matches ANIMAL_COLLISION_RADIUS
+    let effective_min_distance = min_distance.max(ABSOLUTE_MIN_DISTANCE);
+    
+    if distance < effective_min_distance {
+        // Calculate push direction
+        if distance > 1.0 {
+            // Normal case: push away from player
+            let push_distance = effective_min_distance - distance + 15.0; // Extra buffer for safety
+            let push_x = (dx / distance) * push_distance;
+            let push_y = (dy / distance) * push_distance;
+            
+            let new_x = animal.pos_x + push_x;
+            let new_y = animal.pos_y + push_y;
+            update_animal_position(animal, new_x, new_y);
+            
+            log::debug!("[CollisionEnforce] Pushed {:?} {} back from player, distance was {:.1}px -> {:.1}px", 
+                       animal.species, animal.id, distance, effective_min_distance + 15.0);
+        } else {
+            // Edge case: animal is almost exactly on top of player (distance ~= 0)
+            // Push in a random-ish direction based on animal ID to avoid stuck state
+            let angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI); // Golden angle distribution
+            let push_distance = effective_min_distance + 20.0;
+            let push_x = angle.cos() * push_distance;
+            let push_y = angle.sin() * push_distance;
+            
+            let new_x = animal.pos_x + push_x;
+            let new_y = animal.pos_y + push_y;
+            update_animal_position(animal, new_x, new_y);
+            
+            log::warn!("[CollisionEnforce] Emergency push for {:?} {} - was ON TOP of player!", 
+                      animal.species, animal.id);
+        }
+    }
 }
 
 fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_time: Timestamp) {

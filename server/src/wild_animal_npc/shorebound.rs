@@ -240,6 +240,21 @@ impl AnimalBehavior for ShoreboundBehavior {
                     
                     // Move towards that position
                     move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
+                    
+                    // COLLISION ENFORCEMENT: Ensure we don't end up inside the player
+                    // even with the circling behavior
+                    let dx = animal.pos_x - target_player.position_x;
+                    let dy = animal.pos_y - target_player.position_y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    const MIN_PLAYER_DISTANCE: f32 = 60.0; // Minimum distance during stalking
+                    
+                    if distance < MIN_PLAYER_DISTANCE && distance > 1.0 {
+                        // Push away from player
+                        let push_distance = MIN_PLAYER_DISTANCE - distance + 10.0;
+                        let push_x = (dx / distance) * push_distance;
+                        let push_y = (dy / distance) * push_distance;
+                        super::core::update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
+                    }
                     return;
                 }
             }
