@@ -59,18 +59,18 @@ const RING_B_MAX_PX: f32 = RING_B_MAX_TILES * TILE_SIZE;
 const RING_C_MIN_PX: f32 = RING_C_MIN_TILES * TILE_SIZE;
 const RING_C_MAX_PX: f32 = RING_C_MAX_TILES * TILE_SIZE;
 
-// Population caps (per player area) - AGGRESSIVE: More enemies!
-const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 15;   // Doubled for intense nights
-const MAX_SHOREBOUND_NEAR_PLAYER: usize = 5;        // More stalkers
-const MAX_SHARDKIN_NEAR_PLAYER: usize = 10;         // Bigger swarms
-const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 2;     // More brutes
+// Population caps (per player area) - Increased for better night intensity
+const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 12;   // Slightly higher cap for more action
+const MAX_SHOREBOUND_NEAR_PLAYER: usize = 4;        // Maximum 4 stalkers
+const MAX_SHARDKIN_NEAR_PLAYER: usize = 8;          // Medium swarms
+const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 2;     // Up to 2 brutes for intense fights
 
-// Spawn timing - TUNED: Aggressive spawning for intense nights
-const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 6_000; // Every 6 seconds (doubled spawn rate)
+// Spawn timing - Faster spawning for more constant pressure
+const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 6_000; // Every 6 seconds
 
-// Shardkin group spawn sizes - AGGRESSIVE: Larger swarms!
-const SHARDKIN_GROUP_MIN: u32 = 3;
-const SHARDKIN_GROUP_MAX: u32 = 7;  // Bigger swarms
+// Shardkin group spawn sizes - Slightly larger groups
+const SHARDKIN_GROUP_MIN: u32 = 2;
+const SHARDKIN_GROUP_MAX: u32 = 5;  // Medium swarms
 
 // Dawn cleanup
 const DAWN_CLEANUP_CHECK_INTERVAL_MS: u64 = 2000; // Check every 2 seconds during dawn cleanup
@@ -115,16 +115,16 @@ impl NightPhase {
         }
     }
     
-    /// Get spawn rate multipliers for this phase - AGGRESSIVE spawning
+    /// Get spawn rate multipliers for this phase - BALANCED spawning
     /// Returns (shorebound_mult, shardkin_mult, drowned_watch_mult)
     pub fn get_spawn_multipliers(&self) -> (f32, f32, f32) {
         match self {
-            // Early Night: Immediate pressure - no slow buildup
-            NightPhase::EarlyNight => (1.0, 0.8, 0.3),      // Fast start with stalkers and swarms
-            // Peak Night: Maximum pressure, overwhelming swarms
-            NightPhase::PeakNight => (1.5, 1.8, 1.0),       // Full assault mode
-            // Desperate Hour: Final push - everything at once
-            NightPhase::DesperateHour => (1.2, 2.0, 2.0),   // Maximum pressure on all fronts
+            // Early Night: Build up tension - scouts appear
+            NightPhase::EarlyNight => (0.7, 0.6, 0.0),      // Good pressure, no brutes yet
+            // Peak Night: Full pressure
+            NightPhase::PeakNight => (1.0, 1.0, 0.6),       // Full spawn rate, brutes emerge
+            // Desperate Hour: Maximum intensity before dawn
+            NightPhase::DesperateHour => (1.0, 1.0, 1.0),   // Everything at full
             NightPhase::NotNight => (0.0, 0.0, 0.0),
         }
     }
@@ -237,8 +237,21 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         
         // AGGRESSIVE CLEANUP: Force-remove any hostiles that exist during daytime
         // This is a failsafe in case the scheduled cleanup didn't work
+        // GRACE PERIOD: Don't delete hostiles that spawned within the last 30 seconds
+        // This prevents instant deletion at the day/night transition moment
+        const SPAWN_GRACE_PERIOD_US: i64 = 30_000_000; // 30 seconds in microseconds
+        let current_time_us = current_time.to_micros_since_unix_epoch();
+        
         let daytime_hostiles: Vec<u64> = ctx.db.wild_animal().iter()
-            .filter(|a| a.is_hostile_npc && a.health > 0.0)
+            .filter(|a| {
+                if !a.is_hostile_npc || a.health <= 0.0 {
+                    return false;
+                }
+                // Check if hostile is past the grace period
+                let spawn_time_us = a.created_at.to_micros_since_unix_epoch();
+                let age_us = current_time_us - spawn_time_us;
+                age_us > SPAWN_GRACE_PERIOD_US
+            })
             .map(|a| a.id)
             .collect();
         
@@ -655,6 +668,26 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
     }
     
     let current_time = ctx.timestamp;
+    
+    // CRITICAL FIX: Check if it's actually daytime before cleaning up!
+    // This prevents the cleanup from running during subsequent nights
+    let world_state = match ctx.db.world_state().iter().next() {
+        Some(ws) => ws,
+        None => {
+            log::warn!("🌅 [HostileNPC] Dawn cleanup aborted - no world state");
+            return Ok(());
+        }
+    };
+    
+    let night_phase = NightPhase::from_progress(world_state.cycle_progress);
+    
+    // If it's night again, STOP the cleanup schedule entirely
+    if night_phase != NightPhase::NotNight {
+        log::info!("🌙 [HostileNPC] Dawn cleanup stopped - night has returned (phase: {})", night_phase.name());
+        // Don't reschedule - let the schedule die
+        return Ok(());
+    }
+    
     let elapsed_ms = (current_time.to_micros_since_unix_epoch() - args.cleanup_start_time.to_micros_since_unix_epoch()) / 1000;
     
     // Check if cleanup is complete (all time elapsed)
@@ -673,8 +706,7 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
             log::info!("🌅 [HostileNPC] Dawn cleanup complete - removed {} remaining hostiles", hostile_ids.len());
         }
         
-        // Stop the cleanup schedule by not reinserting
-        // (The scheduled table row was already consumed by this reducer call)
+        // Cleanup complete - don't reschedule
         return Ok(());
     }
     
@@ -682,8 +714,21 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
     let progress = elapsed_ms as f32 / DAWN_CLEANUP_DURATION_MS as f32;
     let mut rng = rand::rngs::StdRng::seed_from_u64(current_time.to_micros_since_unix_epoch() as u64);
     
+    // GRACE PERIOD: Don't delete hostiles that spawned within the last 10 seconds
+    // This prevents instant deletion of hostiles that just spawned at dawn edge
+    const CLEANUP_GRACE_PERIOD_US: i64 = 10_000_000; // 10 seconds in microseconds
+    let current_time_us = current_time.to_micros_since_unix_epoch();
+    
     let hostiles: Vec<_> = ctx.db.wild_animal().iter()
-        .filter(|a| a.is_hostile_npc && a.despawn_at.is_none())
+        .filter(|a| {
+            if !a.is_hostile_npc || a.despawn_at.is_some() {
+                return false;
+            }
+            // Check if hostile is past the grace period
+            let spawn_time_us = a.created_at.to_micros_since_unix_epoch();
+            let age_us = current_time_us - spawn_time_us;
+            age_us > CLEANUP_GRACE_PERIOD_US
+        })
         .collect();
     
     for hostile in hostiles {
@@ -697,7 +742,14 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
         }
     }
     
-    // The schedule will auto-reschedule due to the interval
+    // Reschedule for next cleanup tick (manually control the interval)
+    let check_interval = TimeDuration::from_micros((DAWN_CLEANUP_CHECK_INTERVAL_MS * 1000) as i64);
+    ctx.db.hostile_dawn_cleanup_schedule().insert(HostileDawnCleanupSchedule {
+        scheduled_id: 0,
+        scheduled_at: check_interval.into(),
+        cleanup_start_time: args.cleanup_start_time, // Keep original start time
+    });
+    
     Ok(())
 }
 

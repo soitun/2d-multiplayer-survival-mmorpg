@@ -2,15 +2,18 @@
  *                                                                            *
  * Arctic Walrus Behavior - Defensive Beach Guardian                         *
  *                                                                            *
- * Walruses are massive, slow defensive animals that patrol beaches.         *
- * They only attack when provoked (attacked first), never flee from threats, *
- * and are extremely persistent once engaged.                                *
- * Strong but slow with equal movement and sprint speeds.                    *
+ * Walruses are massive, EXTREMELY slow defensive animals that patrol        *
+ * beaches. They only attack when provoked (attacked first), never flee      *
+ * from threats, and are extremely persistent once engaged.                  *
+ * Strong but very slow with equal movement and sprint speeds.               *
  *                                                                            *
- * UNIQUE TRAIT: Walruses are CURIOUS about light sources (campfires,        *
- * lanterns, lit torches). Instead of fearing fire like other animals, they  *
- * will investigate and slowly circle around warm glowing lights, watching   *
- * with fascination while keeping a safe distance.                           *
+ * UNIQUE TRAIT: Walruses are CURIOUS about ALL light sources:               *
+ *   - Burning campfires                                                      *
+ *   - Lit lanterns (placed in the world)                                    *
+ *   - Players carrying lit torches                                          *
+ * Instead of fearing fire like other animals, they will investigate and     *
+ * slowly circle around warm glowing lights, watching with fascination       *
+ * while keeping a safe distance.                                            *
  *                                                                            *
  ******************************************************************************/
 
@@ -37,7 +40,7 @@ use super::core::{
 };
 
 // Walrus light curiosity constants
-const LIGHT_CURIOSITY_DETECTION_RADIUS: f32 = 350.0; // How far walrus can detect light sources
+const LIGHT_CURIOSITY_DETECTION_RADIUS: f32 = 500.0; // How far walrus can detect light sources
 const LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED: f32 = LIGHT_CURIOSITY_DETECTION_RADIUS * LIGHT_CURIOSITY_DETECTION_RADIUS;
 const LIGHT_CURIOSITY_MIN_DISTANCE: f32 = 120.0; // Minimum distance to keep from light source
 const LIGHT_CURIOSITY_MAX_DISTANCE: f32 = 180.0; // Maximum distance to orbit at
@@ -62,8 +65,8 @@ impl AnimalBehavior for ArcticWalrusBehavior {
             attack_damage: 35.0, // High damage but slow attacks
             attack_range: 96.0, // Large attack range due to size
             attack_speed_ms: 2000, // Very slow attacks (2 seconds)
-            movement_speed: 120.0, // Very slow patrol speed
-            sprint_speed: 120.0, // Same as movement speed - walruses can't sprint
+            movement_speed: 60.0, // Extremely slow patrol speed (half of before)
+            sprint_speed: 60.0, // Same as movement speed - walruses can't sprint
             perception_range: 300.0, // Moderate detection range
             perception_angle_degrees: 180.0, // Standard forward-facing vision
             patrol_radius: 200.0, // Small patrol area - stay on beaches
@@ -598,12 +601,16 @@ fn find_nearby_walrus_group_center(ctx: &ReducerContext, current_walrus: &WildAn
 /******************************************************************************
  *                       LIGHT CURIOSITY BEHAVIOR                             *
  *                                                                            *
- * Walruses are curious about light sources (campfires, lanterns).            *
+ * Walruses are curious about ALL light sources:                             *
+ *   - Burning campfires                                                      *
+ *   - Lit lanterns (placed in the world)                                    *
+ *   - Players carrying lit torches                                          *
+ *                                                                            *
  * They will keep their distance but hover relatively close and circle       *
- * around player campfires - watching the warm glow with interest.           *
+ * around the warm glow - watching with fascinated interest.                 *
  ******************************************************************************/
 
-/// Find the closest active light source (burning campfire, lit lantern, or lit torch) within detection range
+/// Find the closest active light source (burning campfire, lit lantern, or player's lit torch) within detection range
 fn find_nearest_light_source(ctx: &ReducerContext, walrus_x: f32, walrus_y: f32) -> Option<(f32, f32, f32)> {
     let mut closest_light: Option<(f32, f32, f32)> = None; // (x, y, distance_sq)
     let mut closest_distance_sq = LIGHT_CURIOSITY_DETECTION_RADIUS_SQUARED;

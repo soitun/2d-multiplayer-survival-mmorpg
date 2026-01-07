@@ -74,6 +74,7 @@ import { useCampfireParticles, Particle } from '../hooks/useCampfireParticles';
 import { useTorchParticles } from '../hooks/useTorchParticles';
 import { useResourceSparkleParticles } from '../hooks/useResourceSparkleParticles';
 import { useHostileDeathEffects } from '../hooks/useHostileDeathEffects';
+import { useImpactParticles } from '../hooks/useImpactParticles';
 import { useCloudInterpolation, InterpolatedCloudData } from '../hooks/useCloudInterpolation';
 import { useGrassInterpolation, InterpolatedGrassData } from '../hooks/useGrassInterpolation';
 import { useArrowBreakEffects } from '../hooks/useArrowBreakEffects';
@@ -87,6 +88,7 @@ import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
 import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
 import { useShoreWaveParticles, renderShoreWaves } from '../hooks/useShoreWaveParticles';
 import { playImmediateSound } from '../hooks/useSoundSystem';
+import { useDamageEffects } from '../hooks/useDamageEffects';
 
 // --- Rendering Utilities ---
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
@@ -510,7 +512,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Initialize remote player interpolation
   const remotePlayerInterpolation = useRemotePlayerInterpolation();
 
-  const { canvasSize, cameraOffsetX, cameraOffsetY } = useGameViewport(localPlayer, predictedPosition);
+  const { canvasSize, cameraOffsetX: baseCameraOffsetX, cameraOffsetY: baseCameraOffsetY } = useGameViewport(localPlayer, predictedPosition);
+  
+  // === AAA Combat Effects: Screen shake, vignette, heartbeat ===
+  const { 
+    shakeOffsetX, 
+    shakeOffsetY, 
+    vignetteOpacity, 
+    isLowHealth, 
+    isCriticalHealth,
+    heartbeatPulse 
+  } = useDamageEffects(localPlayer, 100); // 100 = max health
+  
+  // Apply screen shake to camera offset
+  const cameraOffsetX = baseCameraOffsetX + shakeOffsetX;
+  const cameraOffsetY = baseCameraOffsetY + shakeOffsetY;
   // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
   
   const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
@@ -1966,6 +1982,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Hostile death particle effects - shows blue/purple sparks when hostile NPCs die
   const hostileDeathParticles = useHostileDeathEffects({
     hostileDeathEvents,
+  });
+  
+  // Impact particle effects - blood splatter for animals, ethereal wisps for apparitions
+  const impactParticles = useImpactParticles({
+    wildAnimals,
+    localPlayer,
   });
 
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
@@ -3568,6 +3590,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.restore();
     // --- End Resource Sparkle Particles ---
 
+    // --- Render Impact Particles (Blood/Ethereal hit effects) ---
+    // Impact particles render at world level so they move with entities
+    if (impactParticles.length > 0) {
+      ctx.save();
+      ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
+      renderParticlesToCanvas(ctx, impactParticles);
+      ctx.restore();
+    }
+    // --- End Impact Particles ---
+    
     // --- Render Hostile Death Particles (Above Day/Night Overlay for visibility) ---
     // Hostile death particles (blue/purple sparks) render AFTER day/night overlay so they glow dramatically at night
     if (hostileDeathParticles.length > 0) {
@@ -4317,6 +4349,41 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }}
       />
+      
+      {/* === AAA Damage Vignette Effect === */}
+      {/* Red flash overlay when player takes damage */}
+      {vignetteOpacity > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            background: `radial-gradient(ellipse at center, transparent 20%, rgba(180, 20, 20, ${vignetteOpacity * 0.7}) 70%, rgba(120, 0, 0, ${vignetteOpacity}) 100%)`,
+            zIndex: 50,
+          }}
+        />
+      )}
+      
+      {/* === Low Health Warning Effect === */}
+      {/* Pulsing red border when health is critically low */}
+      {isLowHealth && !localPlayer?.isDead && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            boxShadow: `inset 0 0 ${isCriticalHealth ? 80 : 50}px ${isCriticalHealth ? 30 : 15}px rgba(180, 20, 20, ${0.3 + heartbeatPulse * 0.4})`,
+            zIndex: 49,
+            transition: 'box-shadow 0.1s ease-out',
+          }}
+        />
+      )}
 
       {shouldShowDeathScreen && (
         <DeathScreen

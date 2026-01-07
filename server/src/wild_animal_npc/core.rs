@@ -1341,6 +1341,15 @@ fn execute_attack(
         // Check if player dies
         if target.health <= 0.0 {
             handle_player_death(ctx, &mut target, animal, current_time)?;
+            // Play player death sound
+            if let Err(e) = sound_events::emit_sound_at_position(ctx, SoundType::DeathPlayer, target_pos_x, target_pos_y, 1.0, target_id) {
+                log::error!("Failed to emit player death sound: {}", e);
+            }
+        } else if actual_damage > 0.0 {
+            // Player took damage but didn't die - play hurt sound
+            if let Err(e) = sound_events::emit_sound_at_position(ctx, SoundType::PlayerHurt, target_pos_x, target_pos_y, 0.8, target_id) {
+                log::error!("Failed to emit player hurt sound: {}", e);
+            }
         }
         
         ctx.db.player().identity().update(target);
@@ -1348,8 +1357,8 @@ fn execute_attack(
         // Update animal's last attack time
         animal.last_attack_time = Some(current_time);
         
-        // Play animal attack sound (animals use melee hit sharp sound)
-        crate::sound_events::emit_melee_hit_sharp_sound(ctx, target_pos_x, target_pos_y, ctx.identity());
+        // Play melee hit sound when animal attacks player
+        crate::sound_events::emit_melee_hit_sharp_sound(ctx, target_pos_x, target_pos_y, target_id);
         log::debug!("Animal {} hit player {} - played melee_hit_sharp sound", animal.id, target_id);
     }
     
@@ -1567,7 +1576,7 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let start_y = animal.pos_y;
         
         let is_attacking = animal.state == AnimalState::Attacking;
-        let (final_x, final_y) = resolve_animal_collision(
+        let (mut final_x, mut final_y) = resolve_animal_collision(
             ctx,
             animal.id,
             animal.pos_x,
@@ -1576,6 +1585,39 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
             proposed_y,
             is_attacking,
         );
+        
+        // CRITICAL ANTI-OVERLAP ENFORCEMENT: After all collision resolution,
+        // do a final check to ensure we're not inside any player.
+        // This is the absolute last line of defense against overlap bugs.
+        const ABSOLUTE_MIN_PLAYER_DISTANCE: f32 = 50.0; // Never closer than 50px to any player
+        
+        for player in ctx.db.player().iter() {
+            if player.is_dead {
+                continue;
+            }
+            
+            let pdx = final_x - player.position_x;
+            let pdy = final_y - player.position_y;
+            let player_dist_sq = pdx * pdx + pdy * pdy;
+            let player_dist = player_dist_sq.sqrt();
+            
+            if player_dist < ABSOLUTE_MIN_PLAYER_DISTANCE {
+                // Too close! Push away from player
+                if player_dist > 1.0 {
+                    let push_dist = ABSOLUTE_MIN_PLAYER_DISTANCE - player_dist + 15.0;
+                    final_x = player.position_x + (pdx / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
+                    final_y = player.position_y + (pdy / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
+                } else {
+                    // Almost exactly on player - push in direction we were moving
+                    let push_angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI);
+                    final_x = player.position_x + push_angle.cos() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+                    final_y = player.position_y + push_angle.sin() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+                }
+                log::debug!("[AntiOverlap] Animal {} was too close to player, pushed to ({:.1}, {:.1})", 
+                           animal.id, final_x, final_y);
+                break; // Only need to push away from one player
+            }
+        }
         
         // Use centralized position update function
         update_animal_position(animal, final_x, final_y);
@@ -1968,6 +2010,9 @@ pub fn damage_wild_animal_with_weapon(
                 // Regular animals: Create corpse as usual
                 log::info!("🦴 [ANIMAL DEATH] Animal {} (species: {:?}) died at ({:.1}, {:.1}) - attempting to create corpse", 
                           animal.id, animal.species, animal.pos_x, animal.pos_y);
+                
+                // Emit species-specific death sound for regular animals
+                emit_death_sound(ctx, &animal, attacker_id);
                 
                 // Create animal corpse before deleting the animal
                 if let Err(e) = super::animal_corpse::create_animal_corpse(
@@ -3060,6 +3105,32 @@ pub fn emit_species_sound(
     }
     
     log::debug!("{:?} {} emitting {} sound", animal.species, animal.id, sound_context);
+}
+
+/// **DEATH SOUND SYSTEM** - Emits species-specific death sounds when animals die
+pub fn emit_death_sound(
+    ctx: &ReducerContext,
+    animal: &WildAnimal,
+    killer_identity: Identity,
+) {
+    let sound_type = match animal.species {
+        AnimalSpecies::TundraWolf => SoundType::DeathWolf,
+        AnimalSpecies::CinderFox => SoundType::DeathFox,
+        AnimalSpecies::CableViper => SoundType::DeathViper,
+        AnimalSpecies::ArcticWalrus => SoundType::DeathWalrus,
+        AnimalSpecies::BeachCrab => SoundType::DeathCrab,
+        AnimalSpecies::Tern => SoundType::DeathTern,
+        AnimalSpecies::Crow => SoundType::DeathCrow,
+        // Hostile NPCs use their own death sound (already handled separately)
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
+            return; // These use HostileDeath sound via hostile_spawning.rs
+        },
+    };
+    
+    if let Err(e) = sound_events::emit_sound_at_position(ctx, sound_type, animal.pos_x, animal.pos_y, 1.0, killer_identity) {
+        log::error!("Failed to emit death sound for {:?}: {}", animal.species, e);
+    }
+    log::debug!("🦴 {:?} {} death sound emitted", animal.species, animal.id);
 }
 
 /// **COMMON STATE TRANSITION HELPER** - Standardizes state changes with logging

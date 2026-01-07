@@ -93,6 +93,19 @@ pub enum SoundType {
     ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
     ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
     HostileDeath,            // death_hostile.mp3 (2 variations - when hostile NPCs are killed)
+    // Animal/creature death sounds
+    DeathWolf,               // death_wolf.mp3 (1 variation - when wolves die)
+    DeathFox,                // death_fox.mp3 (1 variation - when foxes die)
+    DeathCrab,               // death_crab.mp3 (1 variation - when crabs die)
+    DeathWalrus,             // death_walrus.mp3 (1 variation - when walruses die)
+    DeathTern,               // death_tern.mp3 (1 variation - when terns die)
+    DeathCrow,               // death_crow.mp3 (1 variation - when crows die)
+    DeathViper,              // death_viper.mp3 (1 variation - when vipers die)
+    DeathPlayer,             // death_player.mp3 (2 variations - when players die/get knocked out)
+    // Player feedback sounds
+    PlayerHurt,              // player_hurt.mp3 (3 variations - player grunts when taking damage)
+    Heartbeat,            // heartbeat.mp3 (looping - plays when player health is critically low)
+    StopHeartbeat,           // Special signal to stop heartbeat sound
     // Thunder removed - system disabled for now
     // Add more as needed - extensible system
 }
@@ -186,6 +199,19 @@ impl SoundType {
             SoundType::ErrorTillingFailed => "error_tilling_failed",
             SoundType::ErrorTillingDirt => "error_tilling_dirt",
             SoundType::HostileDeath => "death_hostile",
+            // Animal/creature death sounds
+            SoundType::DeathWolf => "death_wolf",
+            SoundType::DeathFox => "death_fox",
+            SoundType::DeathCrab => "death_crab",
+            SoundType::DeathWalrus => "death_walrus",
+            SoundType::DeathTern => "death_tern",
+            SoundType::DeathCrow => "death_crow",
+            SoundType::DeathViper => "death_viper",
+            SoundType::DeathPlayer => "death_player",
+            // Player feedback sounds
+            SoundType::PlayerHurt => "player_hurt",
+            SoundType::Heartbeat => "heartbeat",
+            SoundType::StopHeartbeat => "stop_heartbeat",
         }
     }
 
@@ -277,6 +303,19 @@ impl SoundType {
             SoundType::ErrorTillingFailed => 1, // error_tilling_failed.mp3 (SOVA error for non-tillable ground)
             SoundType::ErrorTillingDirt => 1, // error_tilling_dirt.mp3 (SOVA error for already-tilled ground)
             SoundType::HostileDeath => 2, // death_hostile.mp3, death_hostile1.mp3 (2 variations for hostile NPC death)
+            // Animal/creature death sounds
+            SoundType::DeathWolf => 1, // death_wolf.mp3 (single variation)
+            SoundType::DeathFox => 1, // death_fox.mp3 (single variation)
+            SoundType::DeathCrab => 1, // death_crab.mp3 (single variation)
+            SoundType::DeathWalrus => 1, // death_walrus.mp3 (single variation)
+            SoundType::DeathTern => 1, // death_tern.mp3 (single variation)
+            SoundType::DeathCrow => 1, // death_crow.mp3 (single variation)
+            SoundType::DeathViper => 1, // death_viper.mp3 (single variation)
+            SoundType::DeathPlayer => 2, // death_player.mp3, death_player1.mp3 (2 variations)
+            // Player feedback sounds
+            SoundType::PlayerHurt => 3, // player_hurt.mp3, player_hurt1.mp3, player_hurt2.mp3 (grunts when hit)
+            SoundType::Heartbeat=> 1, // heartbeat.mp3 (looping sound)
+            SoundType::StopHeartbeat => 1, // Signal to stop heartbeat
         }
     }
 

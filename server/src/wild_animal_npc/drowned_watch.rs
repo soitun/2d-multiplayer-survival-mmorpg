@@ -49,10 +49,10 @@ impl AnimalBehavior for DrownedWatchBehavior {
         AnimalStats {
             max_health: 400.0, // Very high health - takes a lot to kill
             attack_damage: 50.0, // Heavy damage against players
-            attack_range: 90.0, // Extended melee reach
+            attack_range: 115.0, // Extended range to hit from collision distance
             attack_speed_ms: 1200, // Faster attacks
-            movement_speed: 140.0, // Slow shambling patrol - slower than player walk (200)
-            sprint_speed: 220.0, // Slow chase - much slower than player sprint (400), always outrunnable
+            movement_speed: 80.0, // Very slow shambling - much slower than player walk (200)
+            sprint_speed: 120.0, // Slow shambling chase - easily outrunnable (player sprint 400)
             perception_range: 500.0, // Extended detection
             perception_angle_degrees: 220.0, // Wider awareness
             patrol_radius: 300.0, // Patrols larger area
