@@ -113,4 +113,15 @@ export type TillDirt = { tag: "TillDirt" };
 export type ErrorTillingFailed = { tag: "ErrorTillingFailed" };
 export type ErrorTillingDirt = { tag: "ErrorTillingDirt" };
 export type HostileDeath = { tag: "HostileDeath" };
+export type DeathWolf = { tag: "DeathWolf" };
+export type DeathFox = { tag: "DeathFox" };
+export type DeathCrab = { tag: "DeathCrab" };
+export type DeathWalrus = { tag: "DeathWalrus" };
+export type DeathTern = { tag: "DeathTern" };
+export type DeathCrow = { tag: "DeathCrow" };
+export type DeathViper = { tag: "DeathViper" };
+export type DeathPlayer = { tag: "DeathPlayer" };
+export type PlayerHurt = { tag: "PlayerHurt" };
+export type Heartbeat = { tag: "Heartbeat" };
+export type StopHeartbeat = { tag: "StopHeartbeat" };
 

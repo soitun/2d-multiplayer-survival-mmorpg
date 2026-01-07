@@ -114,7 +114,18 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.TillDirt |
   SoundTypeVariants.ErrorTillingFailed |
   SoundTypeVariants.ErrorTillingDirt |
-  SoundTypeVariants.HostileDeath;
+  SoundTypeVariants.HostileDeath |
+  SoundTypeVariants.DeathWolf |
+  SoundTypeVariants.DeathFox |
+  SoundTypeVariants.DeathCrab |
+  SoundTypeVariants.DeathWalrus |
+  SoundTypeVariants.DeathTern |
+  SoundTypeVariants.DeathCrow |
+  SoundTypeVariants.DeathViper |
+  SoundTypeVariants.DeathPlayer |
+  SoundTypeVariants.PlayerHurt |
+  SoundTypeVariants.Heartbeat |
+  SoundTypeVariants.StopHeartbeat;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -211,6 +222,17 @@ export const SoundType = {
   ErrorTillingFailed: { tag: "ErrorTillingFailed" } as const,
   ErrorTillingDirt: { tag: "ErrorTillingDirt" } as const,
   HostileDeath: { tag: "HostileDeath" } as const,
+  DeathWolf: { tag: "DeathWolf" } as const,
+  DeathFox: { tag: "DeathFox" } as const,
+  DeathCrab: { tag: "DeathCrab" } as const,
+  DeathWalrus: { tag: "DeathWalrus" } as const,
+  DeathTern: { tag: "DeathTern" } as const,
+  DeathCrow: { tag: "DeathCrow" } as const,
+  DeathViper: { tag: "DeathViper" } as const,
+  DeathPlayer: { tag: "DeathPlayer" } as const,
+  PlayerHurt: { tag: "PlayerHurt" } as const,
+  Heartbeat: { tag: "Heartbeat" } as const,
+  StopHeartbeat: { tag: "StopHeartbeat" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -301,6 +323,17 @@ export const SoundType = {
       { name: "ErrorTillingFailed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorTillingDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HostileDeath", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathCrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathViper", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathPlayer", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlayerHurt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Heartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "StopHeartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },
