@@ -15,13 +15,16 @@ pub const WET_COLD_DAMAGE_MULTIPLIER: f32 = 2.0; // Double cold damage when wet
 pub const WET_WARMTH_DRAIN_PER_SECOND: f32 = 0.15; // Additional warmth loss per second when wet (further reduced for balance)
 pub const WET_LINGER_DURATION_SECONDS: u32 = 60; // How long wet effect lasts after leaving water/rain
 pub const WET_EFFECT_CHECK_INTERVAL_SECONDS: u32 = 2; // Check wet conditions every 2 seconds
-pub const WET_NORMAL_DECAY_RATE_SECONDS: u32 = 1; // How many seconds to remove from wet timer normally (1 second per 1-second interval)
-pub const WET_FAST_DECAY_RATE_SECONDS: u32 = 6; // How many seconds to remove from wet timer when near warmth (6 seconds per 1-second interval - very fast!)
-pub const WET_TREE_DECAY_RATE_SECONDS: u32 = 3; // How many seconds to remove from wet timer when near trees (3 seconds per 1-second interval - moderate drying)
+pub const WET_NORMAL_DECAY_RATE_PERCENT: f32 = 1.67; // Percentage points of wetness to remove per second normally (reaches 0 from 100% in ~60s)
+pub const WET_FAST_DECAY_RATE_PERCENT: f32 = 10.0; // Percentage points to remove per second when near warmth (~10s to fully dry from 100%)
+pub const WET_TREE_DECAY_RATE_PERCENT: f32 = 5.0; // Percentage points to remove per second when near trees (~20s to fully dry from 100%)
+pub const WET_INCREASE_RATE_PERCENT: f32 = 5.0; // Percentage points of wetness to add per second when exposed to water/rain
 
-/// Applies a wet effect to a player
-/// This creates a long-duration effect that will be removed by environmental conditions
-pub fn apply_wet_effect(ctx: &ReducerContext, player_id: Identity, reason: &str) -> Result<(), String> {
+/// Applies or updates a wet effect to a player with percentage-based wetness
+/// - wetness_cap: The maximum wetness percentage (0.0 to 1.0) the player can reach from this source
+/// - This increases wetness gradually up to the cap, but never decreases it (cap is just upper bound)
+/// - total_amount stores the current wetness percentage (0.0 to 1.0)
+pub fn apply_wet_effect(ctx: &ReducerContext, player_id: Identity, wetness_cap: f32, reason: &str) -> Result<(), String> {
     // <<< CHECK WETNESS IMMUNITY FROM ARMOR >>>
     if armor::has_armor_immunity(ctx, player_id, ImmunityType::Wetness) {
         log::info!("Player {:?} is immune to wetness effects (armor immunity)", player_id);
@@ -29,29 +32,45 @@ pub fn apply_wet_effect(ctx: &ReducerContext, player_id: Identity, reason: &str)
     }
     // <<< END WETNESS IMMUNITY CHECK >>>
     
-    // Check if player already has wet effect - if so, just refresh the duration
-    let existing_wet_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Wet)
-        .collect();
-
     let current_time = ctx.timestamp;
     let linger_duration = TimeDuration::from_micros((WET_LINGER_DURATION_SECONDS as i64) * 1_000_000);
     let new_end_time = current_time + linger_duration;
+    
+    // Check if player already has wet effect
+    let existing_wet_effect: Option<ActiveConsumableEffect> = ctx.db.active_consumable_effect().iter()
+        .find(|e| e.player_id == player_id && e.effect_type == EffectType::Wet)
+        .map(|e| e.clone());
 
-    if !existing_wet_effects.is_empty() {
-        // Refresh existing wet effect duration
-        for existing_effect in existing_wet_effects {
+    if let Some(existing_effect) = existing_wet_effect {
+        // Player already has wet effect - update wetness percentage
+        let current_wetness = existing_effect.total_amount.unwrap_or(0.0);
+        
+        // Increase wetness by WET_INCREASE_RATE_PERCENT per second, but cap at wetness_cap
+        // The cap is the upper bound - we never decrease wetness just because the cap dropped
+        let wetness_increase = WET_INCREASE_RATE_PERCENT / 100.0; // Convert to 0.0-1.0 scale
+        let new_wetness = (current_wetness + wetness_increase).min(wetness_cap).max(current_wetness);
+        
+        // Only update if there's a meaningful change
+        if (new_wetness - current_wetness).abs() > 0.001 || new_wetness >= wetness_cap * 0.999 {
             let mut updated_effect = existing_effect.clone();
-            updated_effect.ends_at = new_end_time; // Reset the timer
+            updated_effect.ends_at = new_end_time; // Reset linger timer
+            updated_effect.total_amount = Some(new_wetness.min(1.0)); // Clamp to max 1.0
             
             ctx.db.active_consumable_effect().effect_id().update(updated_effect);
-            log::info!("Refreshed wet effect {} for player {:?} due to {} (duration reset to {}s)", 
-                existing_effect.effect_id, player_id, reason, WET_LINGER_DURATION_SECONDS);
+            log::debug!("Updated wet effect {} for player {:?}: wetness {:.1}% -> {:.1}% (cap: {:.1}%, reason: {})", 
+                existing_effect.effect_id, player_id, current_wetness * 100.0, new_wetness * 100.0, wetness_cap * 100.0, reason);
+        } else {
+            // Just refresh the linger timer without changing wetness
+            let mut updated_effect = existing_effect.clone();
+            updated_effect.ends_at = new_end_time;
+            ctx.db.active_consumable_effect().effect_id().update(updated_effect);
         }
         return Ok(());
     }
 
-    // Create new wet effect
+    // Create new wet effect with initial wetness (start at 0 and increase)
+    let initial_wetness = (WET_INCREASE_RATE_PERCENT / 100.0).min(wetness_cap);
+    
     let wet_effect = ActiveConsumableEffect {
         effect_id: 0, // auto_inc
         player_id,
@@ -60,17 +79,17 @@ pub fn apply_wet_effect(ctx: &ReducerContext, player_id: Identity, reason: &str)
         consuming_item_instance_id: None,
         started_at: current_time,
         ends_at: new_end_time,
-        total_amount: None, // No accumulation for wet effect
+        total_amount: Some(initial_wetness), // Store wetness percentage (0.0 to 1.0)
         amount_applied_so_far: None,
         effect_type: EffectType::Wet,
-        tick_interval_micros: 1_000_000, // 1 second ticks (not really used)
+        tick_interval_micros: 1_000_000, // 1 second ticks
         next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
     };
     
     match ctx.db.active_consumable_effect().try_insert(wet_effect) {
         Ok(inserted_effect) => {
-            log::info!("Applied wet effect {} to player {:?} due to {} (duration: {}s)", 
-                inserted_effect.effect_id, player_id, reason, WET_LINGER_DURATION_SECONDS);
+            log::info!("Applied wet effect {} to player {:?}: initial wetness {:.1}% (cap: {:.1}%, reason: {})", 
+                inserted_effect.effect_id, player_id, initial_wetness * 100.0, wetness_cap * 100.0, reason);
             Ok(())
         }
         Err(e) => {
@@ -104,8 +123,9 @@ pub fn player_has_wet_effect(ctx: &ReducerContext, player_id: Identity) -> bool 
         .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Wet)
 }
 
-/// Checks if it's currently raining at a specific position (any intensity > 0)
-fn is_raining_at_position(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+/// Gets the rain intensity at a specific position (0.0 to 1.0)
+/// Returns 0.0 if not raining
+fn get_rain_intensity_at_position(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> f32 {
     use crate::world_state::chunk_weather as ChunkWeatherTableTrait;
     
     // Calculate chunk index for the player's position
@@ -113,32 +133,41 @@ fn is_raining_at_position(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool 
     
     // Check chunk-based weather first
     if let Some(chunk_weather) = ctx.db.chunk_weather().chunk_index().find(&chunk_index) {
-        return chunk_weather.rain_intensity > 0.0;
+        return chunk_weather.rain_intensity;
     }
     
     // Fallback to global weather if chunk weather not found (backward compatibility)
     use crate::world_state::world_state as WorldStateTableTrait;
     if let Some(world_state) = ctx.db.world_state().iter().next() {
-        world_state.rain_intensity > 0.0
+        world_state.rain_intensity
     } else {
-        false
+        0.0
     }
 }
 
+/// Checks if it's currently raining at a specific position (any intensity > 0)
+fn is_raining_at_position(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    get_rain_intensity_at_position(ctx, pos_x, pos_y) > 0.0
+}
+
 /// Checks if a player should get wet due to environmental conditions
-/// Returns (should_be_wet, reason)
-pub fn should_player_be_wet(ctx: &ReducerContext, player_id: Identity, player: &Player) -> (bool, String) {
-    // Check if player is standing on water
+/// Returns (should_be_wet, wetness_cap, reason)
+/// - wetness_cap: The maximum wetness percentage (0.0 to 1.0) the player can reach from this source
+///   - Water (swimming/standing) always returns 1.0 (100%)
+///   - Rain returns the rain intensity (e.g., 0.36 for 36% drizzle)
+pub fn should_player_be_wet(ctx: &ReducerContext, player_id: Identity, player: &Player) -> (bool, f32, String) {
+    // Check if player is standing on water - always 100% wetness cap
     if crate::is_player_on_water(ctx, player.position_x, player.position_y) {
-        return (true, "standing in water".to_string());
+        return (true, 1.0, "standing in water".to_string());
     }
     
     // Check if it's raining at player's position and player is not protected
-    if is_raining_at_position(ctx, player.position_x, player.position_y) && !is_player_protected_from_rain(ctx, player) {
-        return (true, "exposed to rain".to_string());
+    let rain_intensity = get_rain_intensity_at_position(ctx, player.position_x, player.position_y);
+    if rain_intensity > 0.0 && !is_player_protected_from_rain(ctx, player) {
+        return (true, rain_intensity, "exposed to rain".to_string());
     }
     
-    (false, String::new())
+    (false, 0.0, String::new())
 }
 
 
@@ -208,29 +237,24 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool 
 /// Updates player wet status based on current environmental conditions
 /// This should be called periodically for all players
 pub fn update_player_wet_status(ctx: &ReducerContext, player_id: Identity, player: &Player) -> Result<(), String> {
-    let (should_be_wet, reason) = should_player_be_wet(ctx, player_id, player);
+    let (should_be_wet, wetness_cap, reason) = should_player_be_wet(ctx, player_id, player);
     let has_wet_effect = player_has_wet_effect(ctx, player_id);
     let has_cozy_effect = crate::active_effects::player_has_cozy_effect(ctx, player_id);
     
-    log::debug!("Wet status check for player {:?}: should_be_wet={} ({}), has_wet_effect={}, has_cozy_effect={}", 
-        player_id, should_be_wet, reason, has_wet_effect, has_cozy_effect);
+    log::debug!("Wet status check for player {:?}: should_be_wet={} (cap={:.1}%, {}), has_wet_effect={}, has_cozy_effect={}", 
+        player_id, should_be_wet, wetness_cap * 100.0, reason, has_wet_effect, has_cozy_effect);
     
-    if should_be_wet && !has_wet_effect {
-        // Apply wet effect
-        log::info!("Applying wet effect to player {:?} due to {}", player_id, reason);
-        apply_wet_effect(ctx, player_id, &reason)?;
-    } else if should_be_wet && has_wet_effect {
-        // Player is still wet and should be - refresh the effect duration
-        apply_wet_effect(ctx, player_id, &reason)?;
+    if should_be_wet {
+        // Apply or update wet effect with the appropriate cap
+        apply_wet_effect(ctx, player_id, wetness_cap, &reason)?;
     }
-    // Note: Removed immediate cozy effect removal - let the decay system handle it naturally
-    // If player is not wet and doesn't have wet effect, or if they have wet effect but it should naturally expire, do nothing
+    // Note: If not wet and has wet effect, let the decay system handle it naturally
     
     Ok(())
 }
 
 /// Checks for environmental conditions that should apply wet effects or accelerate decay
-/// Normal time-based expiration is now handled by the standard effect system
+/// Uses percentage-based wetness system where total_amount stores the wetness level (0.0 to 1.0)
 pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(), String> {
     use crate::player;
     
@@ -241,16 +265,11 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
         }
         
         let player_id = player.identity;
-        let has_wet_effect = player_has_wet_effect(ctx, player_id);
-        let (should_be_wet, reason) = should_player_be_wet(ctx, player_id, &player);
+        let (should_be_wet, wetness_cap, reason) = should_player_be_wet(ctx, player_id, &player);
         
-        if should_be_wet && !has_wet_effect {
-            // Apply wet effect
-            log::info!("Applying wet effect to player {:?} due to {}", player_id, reason);
-            apply_wet_effect(ctx, player_id, &reason)?;
-        } else if should_be_wet && has_wet_effect {
-            // Player is still wet and should be - refresh the effect duration
-            apply_wet_effect(ctx, player_id, &reason)?;
+        if should_be_wet {
+            // Apply or update wet effect with the appropriate cap
+            apply_wet_effect(ctx, player_id, wetness_cap, &reason)?;
         }
         
         // NEW: Update indoor/protected state for status effect display
@@ -291,8 +310,7 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
         }
     }
     
-    // Then, check for accelerated decay when near warmth (cozy effect)
-    // Normal time-based decay is now handled by the standard effect processing system
+    // Then, handle drying (decay of wetness percentage) when not actively getting wet
     let wet_effects: Vec<ActiveConsumableEffect> = ctx.db.active_consumable_effect().iter()
         .filter(|effect| effect.effect_type == EffectType::Wet)
         .collect();
@@ -316,19 +334,19 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
             
             let has_tree_cover_effect = crate::active_effects::player_has_tree_cover_effect(ctx, player_id);
             
-            // Apply accelerated decay based on environment - effects can stack!
-            let mut accelerated_decay_amount = 0;
+            // Calculate decay rate based on environment - effects can stack!
+            let mut decay_rate_percent = WET_NORMAL_DECAY_RATE_PERCENT; // Base decay rate (per second)
             let mut decay_reasons = Vec::new();
             
             if has_cozy_effect {
                 // Cozy effect (campfire/shelter) provides fastest drying
-                accelerated_decay_amount += WET_FAST_DECAY_RATE_SECONDS - WET_NORMAL_DECAY_RATE_SECONDS;
+                decay_rate_percent += WET_FAST_DECAY_RATE_PERCENT - WET_NORMAL_DECAY_RATE_PERCENT;
                 decay_reasons.push("cozy effect (warmth)");
             }
             
             if has_tree_cover_effect {
                 // Tree cover provides moderate drying (can stack with cozy!)
-                accelerated_decay_amount += WET_TREE_DECAY_RATE_SECONDS - WET_NORMAL_DECAY_RATE_SECONDS;
+                decay_rate_percent += WET_TREE_DECAY_RATE_PERCENT - WET_NORMAL_DECAY_RATE_PERCENT;
                 decay_reasons.push("tree cover");
             }
             
@@ -336,41 +354,42 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
             let armor_drying_multiplier = armor::calculate_drying_speed_multiplier(ctx, player_id);
             if armor_drying_multiplier > 1.0 {
                 // Apply cloth armor bonus to the base decay rate
-                let armor_bonus = ((WET_NORMAL_DECAY_RATE_SECONDS as f32) * (armor_drying_multiplier - 1.0)) as u32;
-                if armor_bonus > 0 {
-                    accelerated_decay_amount += armor_bonus;
+                let armor_bonus = WET_NORMAL_DECAY_RATE_PERCENT * (armor_drying_multiplier - 1.0);
+                if armor_bonus > 0.0 {
+                    decay_rate_percent += armor_bonus;
                     decay_reasons.push("cloth armor (fast drying)");
                 }
             }
             
-            let decay_reason = if decay_reasons.len() > 1 {
+            let decay_reason = if decay_reasons.is_empty() {
+                "natural drying".to_string()
+            } else if decay_reasons.len() > 1 {
                 format!("{} (stacked effects)", decay_reasons.join(" + "))
-            } else if decay_reasons.len() == 1 {
-                decay_reasons[0].to_string()
             } else {
-                String::new()
+                decay_reasons[0].to_string()
             };
             
-            if accelerated_decay_amount > 0 {
+            // Apply decay to wetness percentage
+            let current_wetness = effect.total_amount.unwrap_or(1.0); // Default to 100% if not set
+            let wetness_decrease = decay_rate_percent / 100.0; // Convert to 0.0-1.0 scale
+            let new_wetness = (current_wetness - wetness_decrease).max(0.0);
+            
+            if new_wetness <= 0.001 {
+                // Wetness has reached 0% - remove the effect entirely
+                remove_wet_effect(ctx, player_id, &format!("fully dried from {}", decay_reason));
+                log::info!("WET EFFECT REMOVED: player={:?}, reason={}", player_id, decay_reason);
+            } else if (new_wetness - current_wetness).abs() > 0.001 {
+                // Update the effect with reduced wetness percentage
+                let mut updated_effect = effect.clone();
+                updated_effect.total_amount = Some(new_wetness);
+                // Also refresh the linger timer since we're actively drying
                 let current_time = ctx.timestamp;
-                let decay_duration = TimeDuration::from_micros((accelerated_decay_amount as i64) * 1_000_000);
-                let new_end_time = effect.ends_at - decay_duration;
+                let linger_duration = TimeDuration::from_micros((WET_LINGER_DURATION_SECONDS as i64) * 1_000_000);
+                updated_effect.ends_at = current_time + linger_duration;
                 
-                log::info!("WET ACCELERATED DECAY: player={:?}, extra_decay={}s due to {}", 
-                    player_id, accelerated_decay_amount, decay_reason);
-                
-                // If the new end time is in the past, remove the effect entirely
-                if new_end_time <= current_time {
-                    remove_wet_effect(ctx, player_id, &format!("accelerated drying from {}", decay_reason));
-                    log::info!("WET EFFECT REMOVED: player={:?}, reason={}", player_id, decay_reason);
-                } else {
-                    // Update the effect with reduced duration
-                    let mut updated_effect = effect.clone();
-                    updated_effect.ends_at = new_end_time;
-                    ctx.db.active_consumable_effect().effect_id().update(updated_effect);
-                    log::info!("WET EFFECT ACCELERATED: player={:?}, new_end_time={:?}, reason={}", 
-                        player_id, new_end_time, decay_reason);
-                }
+                ctx.db.active_consumable_effect().effect_id().update(updated_effect);
+                log::debug!("WET DECAY: player={:?}, wetness {:.1}% -> {:.1}% (rate: {:.1}%/s, reason: {})", 
+                    player_id, current_wetness * 100.0, new_wetness * 100.0, decay_rate_percent, decay_reason);
             }
         }
     }

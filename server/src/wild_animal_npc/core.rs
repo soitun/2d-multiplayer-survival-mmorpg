@@ -46,7 +46,7 @@ use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
 // Runestone imports for hostile NPC deterrence
-use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_EFFECT_RADIUS};
+use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_DETERRENCE_RADIUS};
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -1551,19 +1551,19 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let mut proposed_x = animal.pos_x + dx * normalize_factor;
         let mut proposed_y = animal.pos_y + dy * normalize_factor;
         
-        // HOSTILE NPC RUNESTONE DETERRENCE: Block entry into runestone radius
+        // HOSTILE NPC RUNESTONE DETERRENCE: Block entry into runestone light radius
         if animal.is_hostile_npc {
-            let runestone_radius_sq = RUNE_STONE_EFFECT_RADIUS * RUNE_STONE_EFFECT_RADIUS;
+            let runestone_radius_sq = RUNE_STONE_DETERRENCE_RADIUS * RUNE_STONE_DETERRENCE_RADIUS;
             for rune_stone in ctx.db.rune_stone().iter() {
                 let rdx = proposed_x - rune_stone.pos_x;
                 let rdy = proposed_y - rune_stone.pos_y;
                 let dist_sq = rdx * rdx + rdy * rdy;
                 
                 if dist_sq < runestone_radius_sq {
-                    // Would enter runestone radius - push back to the boundary
+                    // Would enter runestone light radius - push back to the boundary
                     let dist = dist_sq.sqrt();
                     if dist > 0.0 {
-                        let push_factor = RUNE_STONE_EFFECT_RADIUS / dist;
+                        let push_factor = RUNE_STONE_DETERRENCE_RADIUS / dist;
                         proposed_x = rune_stone.pos_x + rdx * push_factor;
                         proposed_y = rune_stone.pos_y + rdy * push_factor;
                     }

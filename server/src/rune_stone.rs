@@ -84,6 +84,9 @@ pub(crate) const BLUE_RUNE_SHARD_CHECK_RADIUS: f32 = 500.0; // Radius to check f
 // Night Lighting Constants
 pub(crate) const RUNE_STONE_LIGHT_RADIUS: f32 = 400.0; // Light radius for night glow
 
+// Hostile NPC Deterrence Constants - Apparitions can't enter the light radius
+pub const RUNE_STONE_DETERRENCE_RADIUS: f32 = RUNE_STONE_LIGHT_RADIUS; // Matches light radius
+
 // --- Rune Stone Types ---
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, SpacetimeType)]

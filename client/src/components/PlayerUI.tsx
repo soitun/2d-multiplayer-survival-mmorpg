@@ -922,13 +922,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                         break;
                     case 'Wet':
                         effectApplies = true;
+                        // Wetness percentage is now stored in totalAmount (0.0 to 1.0)
+                        // Convert to 0-60 range for StatusEffectsPanel display logic (60 = 100%)
+                        const wetnessPercent = effect.totalAmount ?? 1.0; // Default to 100% if not set
+                        const wetnessAsDuration = wetnessPercent * 60; // Scale to 0-60 for display
                         effectData = {
                             id: 'wet',
                             name: 'Wet',
                             emoji: '💧',
                             type: 'negative' as const,
                             description: 'Soaked from rain or water.',
-                            duration: bufferedRemainingTime
+                            duration: wetnessAsDuration
                         };
                         break;
                     case 'Exhausted':

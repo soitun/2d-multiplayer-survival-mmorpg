@@ -23,7 +23,7 @@ use crate::{Player, WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TILE_SIZE_PX};
 use crate::utils::get_distance_squared;
 use crate::environment::calculate_chunk_index;
 use crate::world_state::{TimeOfDay, world_state as WorldStateTableTrait};
-use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_EFFECT_RADIUS};
+use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_DETERRENCE_RADIUS};
 use crate::building::{
     foundation_cell as FoundationCellTableTrait,
     FOUNDATION_TILE_SIZE_PX,
@@ -76,8 +76,8 @@ const SHARDKIN_GROUP_MAX: u32 = 5;  // Medium swarms
 const DAWN_CLEANUP_CHECK_INTERVAL_MS: u64 = 2000; // Check every 2 seconds during dawn cleanup
 const DAWN_CLEANUP_DURATION_MS: u64 = 12000; // Clean up over 12 seconds
 
-// Runestone deterrence radius squared
-const RUNESTONE_DETERRENCE_RADIUS_SQ: f32 = RUNE_STONE_EFFECT_RADIUS * RUNE_STONE_EFFECT_RADIUS;
+// Runestone deterrence radius squared (matches light radius, not economic zone)
+const RUNESTONE_DETERRENCE_RADIUS_SQ: f32 = RUNE_STONE_DETERRENCE_RADIUS * RUNE_STONE_DETERRENCE_RADIUS;
 
 // Camping detection constants
 const CAMPING_STATIONARY_TIME_MS: i64 = 60_000; // 60 seconds stationary = camping

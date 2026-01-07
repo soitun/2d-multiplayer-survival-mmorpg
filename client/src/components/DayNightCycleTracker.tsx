@@ -1,685 +1,1121 @@
-import React, { useState, useMemo } from 'react';
-import { WorldState, TimeOfDay, Season, Player } from '../generated';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { 
+    WorldState, 
+    TimeOfDay, 
+    Season, 
+    Player,
+    TutorialQuestDefinition,
+    DailyQuestDefinition,
+    PlayerTutorialProgress,
+    PlayerDailyQuest,
+} from '../generated';
+import { Identity } from 'spacetimedb';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import springIcon from '../assets/ui/spring.png';
 import summerIcon from '../assets/ui/summer.png';
 import autumnIcon from '../assets/ui/autumn.png';
 import winterIcon from '../assets/ui/winter.png';
-import clockIcon from '../assets/ui/clock.png';
 
-// Style constants
-const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))';
-const UI_BORDER_COLOR = '#00aaff';
-const UI_SHADOW = '0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)';
-const UI_FONT_FAMILY = '"Press Start 2P", cursive';
+// Style constants - Cyberpunk theme (matching QuestNotifications)
+const UI_BG_COLOR = 'linear-gradient(180deg, rgba(15, 25, 20, 0.98) 0%, rgba(20, 35, 30, 0.95) 100%)';
+const UI_BORDER_GRADIENT = 'linear-gradient(135deg, #00d4ff, #4ade80, #c084fc, #00d4ff)';
+const ACCENT_CYAN = '#00d4ff';
+const ACCENT_GREEN = '#4ade80';
+const ACCENT_PURPLE = '#c084fc';
+const ACCENT_PINK = '#f472b6';
 
 // Colors for different times of day
-const COLORS = {
-  dawn: '#ff9e6d',
-  morning: '#ffde59',
-  noon: '#ffff99',
-  afternoon: '#ffde59',
-  dusk: '#ff7e45',
-  night: '#3b4a78',
-  midnight: '#1a1a40',
-  fullMoon: '#e6e6fa',
-  twilightMorning: '#c8a2c8', // Lilac/light purple for morning twilight
-  twilightEvening: '#8a2be2'  // Blue-violet for evening twilight
+const TIME_COLORS = {
+    dawn: '#ff9e6d',
+    twilightMorning: '#c8a2c8',
+    morning: '#ffde59',
+    noon: '#ffff99',
+    afternoon: '#ffde59',
+    dusk: '#ff7e45',
+    twilightEvening: '#8a2be2',
+    night: '#3b4a78',
+    midnight: '#1a1a40',
 };
 
 // Colors for different seasons
 const SEASON_COLORS = {
-  spring: '#90EE90', // Light green
-  summer: '#FFD700', // Gold
-  autumn: '#FF8C00', // Dark orange
-  winter: '#87CEEB'  // Sky blue
+    spring: '#90EE90',
+    summer: '#FFD700',
+    autumn: '#FF8C00',
+    winter: '#87CEEB',
 };
 
 interface DayNightCycleTrackerProps {
-  worldState: WorldState | null;
-  chunkWeather: Map<string, any>;
-  localPlayer: Player | undefined;
-  isMobile?: boolean;
-  onMinimizedChange?: (isMinimized: boolean) => void;
+    worldState: WorldState | null;
+    chunkWeather: Map<string, any>;
+    localPlayer: Player | undefined;
+    isMobile?: boolean;
+    onMinimizedChange?: (isMinimized: boolean) => void;
+    // Quest props (from SovaDirectivesIndicator)
+    tutorialQuestDefinitions?: Map<string, TutorialQuestDefinition>;
+    dailyQuestDefinitions?: Map<string, DailyQuestDefinition>;
+    playerTutorialProgress?: Map<string, PlayerTutorialProgress>;
+    playerDailyQuests?: Map<string, PlayerDailyQuest>;
+    localPlayerId?: Identity;
+    onOpenQuestsPanel?: () => void;
+    hasNewNotification?: boolean;
 }
 
-const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({ worldState, chunkWeather, localPlayer, isMobile = false, onMinimizedChange }) => {
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [hoveredElement, setHoveredElement] = useState<'season' | 'timeOfDay' | null>(null);
+const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
+    worldState,
+    chunkWeather,
+    localPlayer,
+    isMobile = false,
+    onMinimizedChange,
+    tutorialQuestDefinitions = new Map(),
+    dailyQuestDefinitions = new Map(),
+    playerTutorialProgress = new Map(),
+    playerDailyQuests = new Map(),
+    localPlayerId,
+    onOpenQuestsPanel,
+    hasNewNotification = false,
+}) => {
+    const [isMinimized, setIsMinimized] = useState(false);
+    const [hoveredElement, setHoveredElement] = useState<'season' | 'time' | 'weather' | 'quest' | null>(null);
+    const [pulseAnimation, setPulseAnimation] = useState(false);
+    const [progressFlash, setProgressFlash] = useState(false);
+    const [secondaryProgressFlash, setSecondaryProgressFlash] = useState(false);
+    const [tertiaryProgressFlash, setTertiaryProgressFlash] = useState(false);
+    const [prevProgress, setPrevProgress] = useState<number | null>(null);
+    const [prevSecondaryProgress, setPrevSecondaryProgress] = useState<number | null>(null);
+    const [prevTertiaryProgress, setPrevTertiaryProgress] = useState<number | null>(null);
 
-  // Notify parent when minimized state changes
-  const handleSetMinimized = (minimized: boolean) => {
-    setIsMinimized(minimized);
-    onMinimizedChange?.(minimized);
-  };
+    // Notify parent when minimized state changes
+    const handleSetMinimized = (minimized: boolean) => {
+        setIsMinimized(minimized);
+        onMinimizedChange?.(minimized);
+    };
 
-  // Calculate current chunk index and get chunk weather
-  const currentChunkWeather = useMemo(() => {
-    if (!localPlayer) return null;
-    
-    const chunkIndex = calculateChunkIndex(localPlayer.positionX, localPlayer.positionY);
-    const weather = chunkWeather.get(chunkIndex.toString());
-    
-    // If chunk weather exists, use it. Otherwise, assume Clear (chunk hasn't been initialized yet)
-    // We don't fall back to global weather because chunk-based weather is the source of truth
-    return weather || null;
-  }, [localPlayer, chunkWeather, localPlayer?.positionX, localPlayer?.positionY]);
+    // Pulse animation when there's a new notification
+    useEffect(() => {
+        if (hasNewNotification) {
+            setPulseAnimation(true);
+            const timer = setTimeout(() => setPulseAnimation(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [hasNewNotification]);
 
-  // Use chunk weather if available, otherwise assume Clear (chunk not initialized yet)
-  // Only fall back to global weather if chunk weather explicitly exists but is null/undefined
-  const displayWeather = currentChunkWeather?.currentWeather || { tag: 'Clear' };
-  const displayRainIntensity = currentChunkWeather?.rainIntensity ?? 0.0;
+    // Get current progress for flash detection
+    const currentProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.currentQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
 
-  // Helper function to get display name for time of day
-  const getTimeOfDayDisplay = (timeOfDay: TimeOfDay) => {
-    switch (timeOfDay.tag) {
-      case 'Dawn': return 'Dawn';
-      case 'TwilightMorning': return 'Twilight Morning';
-      case 'Morning': return 'Morning';
-      case 'Noon': return 'Noon';
-      case 'Afternoon': return 'Afternoon';
-      case 'Dusk': return 'Dusk';
-      case 'TwilightEvening': return 'Twilight Evening';
-      case 'Night': return 'Night';
-      case 'Midnight': return 'Midnight';
-      default: return 'Unknown';
-    }
-  };
+    const currentSecondaryProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.secondaryQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
 
-  // Helper function to get weather display
-  const getWeatherDisplay = (weather: any) => {
-    switch (weather.tag) {
-      case 'Clear': return 'Clear';
-      case 'LightRain': return 'Light Rain';
-      case 'ModerateRain': return 'Moderate Rain';
-      case 'HeavyRain': return 'Heavy Rain';
-      case 'HeavyStorm': return 'Heavy Storm';
-      default: return 'Unknown';
-    }
-  };
+    const currentTertiaryProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.tertiaryQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
 
-  // Helper function to get weather emoji
-  const getWeatherEmoji = (weather: any) => {
-    switch (weather.tag) {
-      case 'Clear': return '☀️';
-      case 'LightRain': return '🌦️';
-      case 'ModerateRain': return '🌧️';
-      case 'HeavyRain': return '🌧️';
-      case 'HeavyStorm': return '⛈️';
-      default: return '🌍';
-    }
-  };
+    // Flash effects when progress increases
+    useEffect(() => {
+        if (currentProgress !== null && prevProgress !== null && currentProgress > prevProgress) {
+            setProgressFlash(true);
+            const timer = setTimeout(() => setProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevProgress(currentProgress);
+    }, [currentProgress, prevProgress]);
 
-  // Helper function to get season display name
-  const getSeasonDisplay = (season: Season) => {
-    switch (season.tag) {
-      case 'Spring': return 'Spring';
-      case 'Summer': return 'Summer';
-      case 'Autumn': return 'Autumn';
-      case 'Winter': return 'Winter';
-      default: return 'Spring'; // Fallback
-    }
-  };
+    useEffect(() => {
+        if (currentSecondaryProgress !== null && prevSecondaryProgress !== null && currentSecondaryProgress > prevSecondaryProgress) {
+            setSecondaryProgressFlash(true);
+            const timer = setTimeout(() => setSecondaryProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevSecondaryProgress(currentSecondaryProgress);
+    }, [currentSecondaryProgress, prevSecondaryProgress]);
 
-  // Helper function to get season icon image source
-  const getSeasonIcon = (season: Season): string => {
-    switch (season.tag) {
-      case 'Spring': return springIcon;
-      case 'Summer': return summerIcon;
-      case 'Autumn': return autumnIcon;
-      case 'Winter': return winterIcon;
-      default: return springIcon; // Fallback to spring
-    }
-  };
+    useEffect(() => {
+        if (currentTertiaryProgress !== null && prevTertiaryProgress !== null && currentTertiaryProgress > prevTertiaryProgress) {
+            setTertiaryProgressFlash(true);
+            const timer = setTimeout(() => setTertiaryProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevTertiaryProgress(currentTertiaryProgress);
+    }, [currentTertiaryProgress, prevTertiaryProgress]);
 
-  // Helper function to get season color
-  const getSeasonColor = (season: Season) => {
-    switch (season.tag) {
-      case 'Spring': return SEASON_COLORS.spring;
-      case 'Summer': return SEASON_COLORS.summer;
-      case 'Autumn': return SEASON_COLORS.autumn;
-      case 'Winter': return SEASON_COLORS.winter;
-      default: return SEASON_COLORS.spring; // Fallback
-    }
-  };
+    // Calculate current chunk weather
+    const currentChunkWeather = useMemo(() => {
+        if (!localPlayer) return null;
+        const chunkIndex = calculateChunkIndex(localPlayer.positionX, localPlayer.positionY);
+        return chunkWeather.get(chunkIndex.toString()) || null;
+    }, [localPlayer, chunkWeather]);
 
+    const displayWeather = currentChunkWeather?.currentWeather || { tag: 'Clear' };
+    const displayRainIntensity = currentChunkWeather?.rainIntensity ?? 0.0;
 
-  // Helper function to get background gradient based on time of day
-  const getBackgroundGradient = () => {
-    // Create a gradient representing the day/night cycle
-    return `linear-gradient(to right, 
-      ${COLORS.midnight}, 
-      ${COLORS.dawn}, 
-      ${COLORS.twilightMorning}, 
-      ${COLORS.morning}, 
-      ${COLORS.noon}, 
-      ${COLORS.afternoon}, 
-      ${COLORS.dusk}, 
-      ${COLORS.twilightEvening}, 
-      ${COLORS.night}, 
-      ${COLORS.midnight})`;
-  };
+    // Get current tutorial quest
+    const currentTutorialQuest = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        if (!progress || progress.tutorialCompleted) return null;
+        const quests = Array.from(tutorialQuestDefinitions.values()).sort((a, b) => a.orderIndex - b.orderIndex);
+        return quests[progress.currentQuestIndex] || null;
+    }, [localPlayerId, playerTutorialProgress, tutorialQuestDefinitions]);
 
-  // Early return if no worldState
-  if (!worldState) return null;
-  
-  // On mobile, render a readable horizontal bar below status bars
-  if (isMobile) {
-    const mobileWeather = displayWeather;
-    
-    return (
-      <div style={{
-        position: 'fixed',
-        top: '42px', // Below status bars (~32px) + 10px gap
-        right: '10px',
-        background: 'linear-gradient(135deg, rgba(10, 5, 20, 0.92), rgba(20, 10, 40, 0.95))',
-        padding: '10px 14px',
-        borderRadius: '12px',
-        border: '1px solid rgba(0, 170, 255, 0.5)',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5)',
-        zIndex: 9995,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        fontFamily: 'monospace',
-        color: '#00ffff',
-      }}>
-        {/* Top Row: Season, Day, Weather */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}>
-          {/* Season with label */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <img 
-              src={getSeasonIcon(worldState.currentSeason)} 
-              alt={getSeasonDisplay(worldState.currentSeason)}
-              style={{ width: '18px', height: '18px', objectFit: 'contain' }}
-            />
-            <span style={{ 
-              fontSize: '11px',
-              color: getSeasonColor(worldState.currentSeason),
-              fontWeight: 'bold',
-            }}>
-              {getSeasonDisplay(worldState.currentSeason)}
-            </span>
-          </div>
-          
-          {/* Divider */}
-          <span style={{ color: 'rgba(0, 170, 255, 0.5)' }}>|</span>
-          
-          {/* Day */}
-          <span style={{ 
-            fontSize: '12px',
-            fontWeight: 'bold',
-            color: '#fff',
-            textShadow: '0 0 4px rgba(0, 255, 255, 0.5)',
-          }}>
-            Day {worldState.cycleCount}
-          </span>
-          
-          {/* Divider */}
-          <span style={{ color: 'rgba(0, 170, 255, 0.5)' }}>|</span>
-          
-          {/* Weather */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '16px' }}>
-              {getWeatherEmoji(mobileWeather)}
-            </span>
-            <span style={{ fontSize: '10px', color: '#aabbcc' }}>
-              {getWeatherDisplay(mobileWeather)}
-            </span>
-          </div>
-        </div>
-        
-        {/* Bottom Row: Time of Day with Progress Bar */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
-          {/* Time of Day Label */}
-          <span style={{
-            fontSize: '10px',
-            color: '#aabbcc',
-            minWidth: '60px',
-          }}>
-            {getTimeOfDayDisplay(worldState.timeOfDay)}
-          </span>
-          
-          {/* Day Cycle Progress Bar */}
-          <div style={{
-            flex: 1,
-            height: '6px',
-            background: 'rgba(0,0,0,0.5)',
-            borderRadius: '3px',
-            overflow: 'hidden',
-            minWidth: '80px',
-          }}>
+    const currentTutorialProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        return playerTutorialProgress.get(localPlayerId.toHexString()) || null;
+    }, [localPlayerId, playerTutorialProgress]);
+
+    const activeDailyQuestInfo = useMemo(() => {
+        if (!localPlayerId) return { active: 0, completed: 0, total: 5 };
+        const playerQuests = Array.from(playerDailyQuests.values())
+            .filter(q => q.playerId.toHexString() === localPlayerId.toHexString());
+        const active = playerQuests.filter(q => q.status.tag === 'InProgress' || q.status.tag === 'Available').length;
+        const completed = playerQuests.filter(q => q.status.tag === 'Completed').length;
+        return { active, completed, total: 5 };
+    }, [localPlayerId, playerDailyQuests]);
+
+    const hasActiveQuest = currentTutorialQuest !== null || activeDailyQuestInfo.active > 0;
+    const tutorialComplete = currentTutorialProgress?.tutorialCompleted ?? false;
+
+    // Helper functions
+    const getTimeOfDayDisplay = (timeOfDay: TimeOfDay) => {
+        switch (timeOfDay.tag) {
+            case 'Dawn': return 'Dawn';
+            case 'TwilightMorning': return 'Twilight';
+            case 'Morning': return 'Morning';
+            case 'Noon': return 'Noon';
+            case 'Afternoon': return 'Afternoon';
+            case 'Dusk': return 'Dusk';
+            case 'TwilightEvening': return 'Twilight';
+            case 'Night': return 'Night';
+            case 'Midnight': return 'Midnight';
+            default: return 'Unknown';
+        }
+    };
+
+    const getTimeEmoji = (timeOfDay: TimeOfDay) => {
+        switch (timeOfDay.tag) {
+            case 'Dawn': return '🌅';
+            case 'TwilightMorning': return '🌆';
+            case 'Morning': return '☀️';
+            case 'Noon': return '🌞';
+            case 'Afternoon': return '🌤️';
+            case 'Dusk': return '🌇';
+            case 'TwilightEvening': return '🌆';
+            case 'Night': return '🌙';
+            case 'Midnight': return '🌑';
+            default: return '🌍';
+        }
+    };
+
+    const getWeatherDisplay = (weather: any) => {
+        switch (weather.tag) {
+            case 'Clear': return 'Clear';
+            case 'LightRain': return 'Drizzle';
+            case 'ModerateRain': return 'Rain';
+            case 'HeavyRain': return 'Storm';
+            case 'HeavyStorm': return 'Tempest';
+            default: return 'Unknown';
+        }
+    };
+
+    const getWeatherEmoji = (weather: any) => {
+        switch (weather.tag) {
+            case 'Clear': return '☀️';
+            case 'LightRain': return '🌦️';
+            case 'ModerateRain': return '🌧️';
+            case 'HeavyRain': return '🌧️';
+            case 'HeavyStorm': return '⛈️';
+            default: return '🌍';
+        }
+    };
+
+    const getSeasonDisplay = (season: Season) => {
+        switch (season.tag) {
+            case 'Spring': return 'Spring';
+            case 'Summer': return 'Summer';
+            case 'Autumn': return 'Autumn';
+            case 'Winter': return 'Winter';
+            default: return 'Spring';
+        }
+    };
+
+    const getSeasonIcon = (season: Season): string => {
+        switch (season.tag) {
+            case 'Spring': return springIcon;
+            case 'Summer': return summerIcon;
+            case 'Autumn': return autumnIcon;
+            case 'Winter': return winterIcon;
+            default: return springIcon;
+        }
+    };
+
+    const getSeasonColor = (season: Season) => {
+        switch (season.tag) {
+            case 'Spring': return SEASON_COLORS.spring;
+            case 'Summer': return SEASON_COLORS.summer;
+            case 'Autumn': return SEASON_COLORS.autumn;
+            case 'Winter': return SEASON_COLORS.winter;
+            default: return SEASON_COLORS.spring;
+        }
+    };
+
+    const getBackgroundGradient = () => {
+        return `linear-gradient(to right, 
+            ${TIME_COLORS.midnight}, 
+            ${TIME_COLORS.dawn}, 
+            ${TIME_COLORS.twilightMorning}, 
+            ${TIME_COLORS.morning}, 
+            ${TIME_COLORS.noon}, 
+            ${TIME_COLORS.afternoon}, 
+            ${TIME_COLORS.dusk}, 
+            ${TIME_COLORS.twilightEvening}, 
+            ${TIME_COLORS.night}, 
+            ${TIME_COLORS.midnight})`;
+    };
+
+    // Progress text helpers
+    const tutorialProgressText = useMemo(() => {
+        if (!currentTutorialQuest || !currentTutorialProgress) return null;
+        const progress = currentTutorialProgress.currentQuestProgress;
+        const target = currentTutorialQuest.targetAmount;
+        return `${progress}/${target}`;
+    }, [currentTutorialQuest, currentTutorialProgress]);
+
+    const secondaryProgressText = useMemo(() => {
+        if (!currentTutorialQuest || !currentTutorialProgress) return null;
+        const secondaryTarget = currentTutorialQuest.secondaryTargetAmount;
+        if (!secondaryTarget || secondaryTarget === 0) return null;
+        const progress = currentTutorialProgress.secondaryQuestProgress;
+        return `${progress}/${secondaryTarget}`;
+    }, [currentTutorialQuest, currentTutorialProgress]);
+
+    const tertiaryProgressText = useMemo(() => {
+        if (!currentTutorialQuest || !currentTutorialProgress) return null;
+        const tertiaryTarget = currentTutorialQuest.tertiaryTargetAmount;
+        if (!tertiaryTarget || tertiaryTarget === 0) return null;
+        const progress = currentTutorialProgress.tertiaryQuestProgress;
+        return `${progress}/${tertiaryTarget}`;
+    }, [currentTutorialQuest, currentTutorialProgress]);
+
+    const hasMultipleObjectives = secondaryProgressText !== null;
+    const hasThreeObjectives = tertiaryProgressText !== null;
+
+    const handleClick = useCallback(() => {
+        onOpenQuestsPanel?.();
+    }, [onOpenQuestsPanel]);
+
+    const toggleMinimized = () => {
+        handleSetMinimized(!isMinimized);
+    };
+
+    // Early return if no worldState
+    if (!worldState) return null;
+
+    const anyProgressFlash = progressFlash || secondaryProgressFlash || tertiaryProgressFlash;
+    const dialPosition = `${worldState.cycleProgress * 100}%`;
+
+    // ==================== MOBILE VIEW ====================
+    if (isMobile) {
+        return (
             <div style={{
-              width: `${worldState.cycleProgress * 100}%`,
-              height: '100%',
-              background: getBackgroundGradient(),
-              transition: 'width 0.5s ease',
-            }} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate dial position based on cycle progress (0-1)
-  const dialPosition = `${worldState.cycleProgress * 100}%`;
-
-  // Toggle minimize/maximize
-  const toggleMinimized = () => {
-    handleSetMinimized(!isMinimized);
-  };
-
-  // Minimized view - just the emoji with hover tooltips
-  if (isMinimized) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: '15px',
-          right: '15px',
-          background: UI_BG_COLOR,
-          color: '#00ffff',
-          padding: '8px',
-          borderRadius: '50%',
-          border: `2px solid ${UI_BORDER_COLOR}`,
-          boxShadow: UI_SHADOW,
-          backdropFilter: 'blur(10px)',
-          zIndex: 50,
-          cursor: 'pointer',
-          width: '48px',
-          height: '48px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          transition: 'all 0.3s ease',
-          filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))',
-          transform: 'rotate(-15deg)' // Always diagonal
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1) rotate(-10deg)';
-          e.currentTarget.style.filter = 'drop-shadow(0 0 15px rgba(0, 255, 255, 0.9))';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1) rotate(-15deg)';
-          e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          {/* Season icon with tooltip */}
-          <div 
-            style={{ position: 'relative' }}
-            onMouseEnter={() => setHoveredElement('season')}
-            onMouseLeave={() => setHoveredElement(null)}
-          >
-            <img 
-              src={getSeasonIcon(worldState.currentSeason)} 
-              alt={getSeasonDisplay(worldState.currentSeason)}
-              onClick={(e) => { e.stopPropagation(); toggleMinimized(); }}
-              style={{ 
-                width: '16px', 
-                height: '16px', 
-                objectFit: 'contain',
-                transition: 'transform 0.2s ease',
-                transform: hoveredElement === 'season' ? 'scale(1.2)' : 'scale(1)'
-              }}
-            />
-            {hoveredElement === 'season' && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%) rotate(15deg)', // Counter-rotate to keep text level
-                marginTop: '12px',
-                padding: '6px 12px',
-                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
-                border: `2px solid ${getSeasonColor(worldState.currentSeason)}`,
-                borderRadius: '6px',
-                boxShadow: `0 0 20px ${getSeasonColor(worldState.currentSeason)}80, inset 0 0 10px ${getSeasonColor(worldState.currentSeason)}40`,
-                backdropFilter: 'blur(10px)',
-                whiteSpace: 'nowrap',
-                fontSize: '10px',
-                fontFamily: UI_FONT_FAMILY,
-                color: getSeasonColor(worldState.currentSeason),
-                textShadow: `0 0 8px ${getSeasonColor(worldState.currentSeason)}`,
-                zIndex: 100,
-                pointerEvents: 'none',
-                animation: 'tooltipSlideIn 0.2s ease-out'
-              }}>
-                {getSeasonDisplay(worldState.currentSeason)}
-              </div>
-            )}
-          </div>
-          
-          {/* Clock icon with tooltip */}
-          <div 
-            style={{ position: 'relative' }}
-            onMouseEnter={() => setHoveredElement('timeOfDay')}
-            onMouseLeave={() => setHoveredElement(null)}
-          >
-            <img 
-              src={clockIcon} 
-              alt="Time"
-              onClick={(e) => { e.stopPropagation(); toggleMinimized(); }}
-              style={{ 
-                width: '16px', 
-                height: '16px', 
-                objectFit: 'contain',
-                transition: 'transform 0.2s ease',
-                transform: hoveredElement === 'timeOfDay' ? 'scale(1.2)' : 'scale(1)'
-              }}
-            />
-            {hoveredElement === 'timeOfDay' && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%) rotate(15deg)', // Counter-rotate to keep text level
-                marginTop: '12px',
-                padding: '6px 12px',
-                background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
-                border: `2px solid ${UI_BORDER_COLOR}`,
-                borderRadius: '6px',
-                boxShadow: `0 0 20px rgba(0, 170, 255, 0.8), inset 0 0 10px rgba(0, 170, 255, 0.4)`,
-                backdropFilter: 'blur(10px)',
-                whiteSpace: 'nowrap',
-                fontSize: '10px',
-                fontFamily: UI_FONT_FAMILY,
-                color: '#00ffff',
-                textShadow: '0 0 8px rgba(0, 255, 255, 0.8)',
-                zIndex: 100,
-                pointerEvents: 'none',
-                animation: 'tooltipSlideIn 0.2s ease-out'
-              }}>
-                {getTimeOfDayDisplay(worldState.timeOfDay)}
-                {worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') && ' - Full Moon'}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <style>{`
-          @keyframes tooltipSlideIn {
-            0% { 
-              opacity: 0; 
-              transform: translateX(-50%) rotate(15deg) translateY(-5px);
-            }
-            100% { 
-              opacity: 1; 
-              transform: translateX(-50%) rotate(15deg) translateY(0);
-            }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Expanded view - full component
-  return (
-    <div style={{
-      position: 'fixed',
-      top: '15px',
-      right: '15px',
-      background: UI_BG_COLOR,
-      color: '#00ffff',
-      padding: '12px 18px',
-      borderRadius: '8px',
-      border: `2px solid ${UI_BORDER_COLOR}`,
-      fontFamily: UI_FONT_FAMILY,
-      boxShadow: UI_SHADOW,
-      backdropFilter: 'blur(10px)',
-      zIndex: 50,
-      width: '240px',
-      fontSize: '12px',
-      textShadow: '0 0 8px rgba(0, 255, 255, 0.7), 0 0 4px rgba(0, 255, 255, 0.4)',
-      overflow: 'hidden'
-    }}>
-      {/* Animated scan line effect */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '2px',
-        background: 'linear-gradient(90deg, transparent, #00ffff, transparent)',
-        animation: 'trackerScan 3s linear infinite',
-        pointerEvents: 'none',
-        zIndex: 1
-      }} />
-      
-      {/* Day/Time Information */}
-      <div style={{ marginBottom: '8px', position: 'relative', zIndex: 2 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
-          <span style={{ textShadow: '0 0 10px rgba(0, 255, 255, 0.8)' }}>Day {worldState.cycleCount}</span>
-          <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
-            <div style={{ position: 'relative' }}>
-              <img
-                src={getSeasonIcon(worldState.currentSeason)}
-                alt={getSeasonDisplay(worldState.currentSeason)}
-                style={{
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  opacity: 0.9,
-                  width: '16px',
-                  height: '16px',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))',
-                  display: 'block'
-                }}
-                onMouseEnter={(e) => { 
-                  e.currentTarget.style.opacity = '1'; 
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.9))';
-                  setHoveredElement('season');
-                }}
-                onMouseLeave={(e) => { 
-                  e.currentTarget.style.opacity = '0.9'; 
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
-                  setHoveredElement(null);
-                }}
-              />
-              {hoveredElement === 'season' && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  right: '100%',
-                  transform: 'translateY(-50%)',
-                  marginRight: '8px',
-                  padding: '6px 12px',
-                  background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
-                  border: `2px solid ${getSeasonColor(worldState.currentSeason)}`,
-                  borderRadius: '6px',
-                  boxShadow: `0 0 20px ${getSeasonColor(worldState.currentSeason)}80, inset 0 0 10px ${getSeasonColor(worldState.currentSeason)}40`,
-                  backdropFilter: 'blur(10px)',
-                  whiteSpace: 'nowrap',
-                  fontSize: '10px',
-                  fontFamily: UI_FONT_FAMILY,
-                  color: getSeasonColor(worldState.currentSeason),
-                  textShadow: `0 0 8px ${getSeasonColor(worldState.currentSeason)}`,
-                  zIndex: 100,
-                  pointerEvents: 'none',
-                  animation: 'tooltipSlideIn 0.2s ease-out'
+                position: 'fixed',
+                top: '42px',
+                right: '10px',
+                zIndex: 9995,
+            }}>
+                <div className="uplink-glow-container" style={{
+                    padding: '2px',
+                    background: UI_BORDER_GRADIENT,
+                    backgroundSize: '300% 300%',
+                    animation: 'uplinkGradientShift 4s ease infinite',
+                    borderRadius: '10px',
                 }}>
-                  {getSeasonDisplay(worldState.currentSeason)}
+                    <div style={{
+                        background: UI_BG_COLOR,
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontFamily: "'Courier New', 'Consolas', monospace",
+                        color: ACCENT_CYAN,
+                        minWidth: '200px',
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
+                            paddingBottom: '6px',
+                            borderBottom: `1px solid ${ACCENT_CYAN}40`,
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '14px' }}>📡</span>
+                                <span style={{ fontSize: '9px', fontWeight: 'bold', color: ACCENT_CYAN, letterSpacing: '1px' }}>UPLINK</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <span className="uplink-dot green" />
+                                <span className="uplink-dot cyan" />
+                                <span className="uplink-dot purple" />
+                            </div>
+                        </div>
+
+                        {/* Time Info */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <img src={getSeasonIcon(worldState.currentSeason)} alt="" style={{ width: '16px', height: '16px' }} />
+                            <span style={{ fontSize: '10px', color: getSeasonColor(worldState.currentSeason), fontWeight: 'bold' }}>
+                                {getSeasonDisplay(worldState.currentSeason)}
+                            </span>
+                            <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>Day {worldState.cycleCount}</span>
+                            <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
+                            <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather)}</span>
+                        </div>
+
+                        {/* Day Progress */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '9px', color: '#9ca3af', minWidth: '50px' }}>{getTimeOfDayDisplay(worldState.timeOfDay)}</span>
+                            <div style={{
+                                flex: 1,
+                                height: '4px',
+                                background: 'rgba(0,0,0,0.5)',
+                                borderRadius: '2px',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    width: dialPosition,
+                                    height: '100%',
+                                    background: getBackgroundGradient(),
+                                    transition: 'width 0.5s ease',
+                                }} />
+                            </div>
+                        </div>
+
+                        {/* Quest Progress */}
+                        {!tutorialComplete && currentTutorialQuest && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 8px',
+                                background: `${ACCENT_GREEN}15`,
+                                borderRadius: '4px',
+                                border: `1px solid ${ACCENT_GREEN}30`,
+                            }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: ACCENT_GREEN, boxShadow: `0 0 8px ${ACCENT_GREEN}` }} />
+                                <span style={{ fontSize: '9px', color: ACCENT_PURPLE }}>{tutorialProgressText}</span>
+                                {hasMultipleObjectives && (
+                                    <>
+                                        <span style={{ color: `${ACCENT_CYAN}50` }}>•</span>
+                                        <span style={{ fontSize: '9px', color: ACCENT_CYAN }}>{secondaryProgressText}</span>
+                                    </>
+                                )}
+                                {hasThreeObjectives && (
+                                    <>
+                                        <span style={{ color: `${ACCENT_CYAN}50` }}>•</span>
+                                        <span style={{ fontSize: '9px', color: ACCENT_PINK }}>{tertiaryProgressText}</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-              )}
+                <style>{uplinkStyles}</style>
             </div>
+        );
+    }
+
+    // ==================== MINIMIZED VIEW ====================
+    if (isMinimized) {
+        const timeTooltipText = getTimeOfDayDisplay(worldState.timeOfDay) + 
+            (worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') ? ' • Full Moon' : '');
+        
+        return (
             <div
-              onClick={toggleMinimized}
-              style={{
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                opacity: 0.9,
-                filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))',
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => { 
-                e.currentTarget.style.opacity = '1'; 
-                e.currentTarget.style.transform = 'scale(1.1)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.9))';
-                setHoveredElement('timeOfDay');
-              }}
-              onMouseLeave={(e) => { 
-                e.currentTarget.style.opacity = '0.9'; 
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.6))';
-                setHoveredElement(null);
-              }}
+                onClick={toggleMinimized}
+                style={{
+                    position: 'fixed',
+                    top: '15px',
+                    right: '15px',
+                    zIndex: 50,
+                    cursor: 'pointer',
+                }}
             >
-              <img 
-                src={clockIcon} 
-                alt="Time"
-                style={{ width: '16px', height: '16px', objectFit: 'contain' }}
-              />
-              {hoveredElement === 'timeOfDay' && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  right: '100%',
-                  transform: 'translateY(-50%)',
-                  marginRight: '8px',
-                  padding: '6px 12px',
-                  background: 'linear-gradient(135deg, rgba(30, 15, 50, 0.98), rgba(20, 10, 40, 0.98))',
-                  border: `2px solid ${UI_BORDER_COLOR}`,
-                  borderRadius: '6px',
-                  boxShadow: `0 0 20px rgba(0, 170, 255, 0.8), inset 0 0 10px rgba(0, 170, 255, 0.4)`,
-                  backdropFilter: 'blur(10px)',
-                  whiteSpace: 'nowrap',
-                  fontSize: '10px',
-                  fontFamily: UI_FONT_FAMILY,
-                  color: '#00ffff',
-                  textShadow: '0 0 8px rgba(0, 255, 255, 0.8)',
-                  zIndex: 100,
-                  pointerEvents: 'none',
-                  animation: 'tooltipSlideIn 0.2s ease-out'
+                <div className="uplink-glow-container minimized" style={{
+                    padding: '2px',
+                    background: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : UI_BORDER_GRADIENT,
+                    backgroundSize: '300% 300%',
+                    animation: anyProgressFlash ? 'progressFlashBorder 0.8s ease-out' : 'uplinkGradientShift 4s ease infinite',
+                    borderRadius: '8px',
                 }}>
-                  {getTimeOfDayDisplay(worldState.timeOfDay)}
-                  {worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') && ' - Full Moon'}
+                    <div style={{
+                        background: UI_BG_COLOR,
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        fontFamily: "'Courier New', 'Consolas', monospace",
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                    }}>
+                        {/* Season Icon with Tooltip */}
+                        <div
+                            style={{ position: 'relative' }}
+                            onMouseEnter={(e) => { e.stopPropagation(); setHoveredElement('season'); }}
+                            onMouseLeave={() => setHoveredElement(null)}
+                        >
+                            <img 
+                                src={getSeasonIcon(worldState.currentSeason)} 
+                                alt="" 
+                                style={{ 
+                                    width: '14px', 
+                                    height: '14px',
+                                    transition: 'transform 0.2s ease',
+                                    transform: hoveredElement === 'season' ? 'scale(1.2)' : 'scale(1)',
+                                }} 
+                            />
+                            {hoveredElement === 'season' && (
+                                <div className="uplink-tooltip" style={{
+                                    borderColor: getSeasonColor(worldState.currentSeason),
+                                    boxShadow: `0 0 20px ${getSeasonColor(worldState.currentSeason)}60`,
+                                }}>
+                                    <span style={{ color: getSeasonColor(worldState.currentSeason) }}>
+                                        {getSeasonDisplay(worldState.currentSeason)}
+                                    </span>
+                                    <span className="uplink-tooltip-caret" style={{ borderLeftColor: getSeasonColor(worldState.currentSeason) }} />
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Day Number */}
+                        <span style={{
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            color: '#fff',
+                            textShadow: `0 0 6px ${ACCENT_CYAN}`,
+                        }}>D{worldState.cycleCount}</span>
+                        
+                        {/* Divider */}
+                        <div style={{ width: '1px', height: '12px', background: `${ACCENT_CYAN}40` }} />
+                        
+                        {/* Time Emoji with Tooltip */}
+                        <div
+                            style={{ position: 'relative' }}
+                            onMouseEnter={(e) => { e.stopPropagation(); setHoveredElement('time'); }}
+                            onMouseLeave={() => setHoveredElement(null)}
+                        >
+                            <span style={{ 
+                                fontSize: '12px',
+                                transition: 'transform 0.2s ease',
+                                display: 'inline-block',
+                                transform: hoveredElement === 'time' ? 'scale(1.2)' : 'scale(1)',
+                            }}>
+                                {getTimeEmoji(worldState.timeOfDay)}
+                            </span>
+                            {hoveredElement === 'time' && (
+                                <div className="uplink-tooltip" style={{
+                                    borderColor: ACCENT_CYAN,
+                                    boxShadow: `0 0 20px ${ACCENT_CYAN}60`,
+                                }}>
+                                    <span style={{ color: ACCENT_CYAN }}>{timeTooltipText}</span>
+                                    <span className="uplink-tooltip-caret" style={{ borderLeftColor: ACCENT_CYAN }} />
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Weather with Tooltip */}
+                        <div
+                            style={{ position: 'relative' }}
+                            onMouseEnter={(e) => { e.stopPropagation(); setHoveredElement('weather'); }}
+                            onMouseLeave={() => setHoveredElement(null)}
+                        >
+                            <span style={{ 
+                                fontSize: '12px',
+                                transition: 'transform 0.2s ease',
+                                display: 'inline-block',
+                                transform: hoveredElement === 'weather' ? 'scale(1.2)' : 'scale(1)',
+                            }}>
+                                {getWeatherEmoji(displayWeather)}
+                            </span>
+                            {hoveredElement === 'weather' && (
+                                <div className="uplink-tooltip" style={{
+                                    borderColor: ACCENT_CYAN,
+                                    boxShadow: `0 0 20px ${ACCENT_CYAN}60`,
+                                }}>
+                                    <span style={{ color: '#9ca3af' }}>
+                                        {getWeatherDisplay(displayWeather)}
+                                        {displayRainIntensity > 0 && ` (${Math.round(displayRainIntensity * 100)}%)`}
+                                    </span>
+                                    <span className="uplink-tooltip-caret" style={{ borderLeftColor: ACCENT_CYAN }} />
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Quest Progress (if active) with Tooltip */}
+                        {!tutorialComplete && currentTutorialQuest && (
+                            <>
+                                <div style={{ width: '1px', height: '12px', background: `${ACCENT_CYAN}40` }} />
+                                <div
+                                    style={{ position: 'relative' }}
+                                    onMouseEnter={(e) => { e.stopPropagation(); setHoveredElement('quest'); }}
+                                    onMouseLeave={() => setHoveredElement(null)}
+                                >
+                                    <span style={{
+                                        fontSize: '9px',
+                                        color: anyProgressFlash ? ACCENT_GREEN : ACCENT_PURPLE,
+                                        fontWeight: 'bold',
+                                        textShadow: anyProgressFlash ? `0 0 10px ${ACCENT_GREEN}` : 'none',
+                                        transition: 'all 0.2s ease',
+                                        transform: hoveredElement === 'quest' ? 'scale(1.1)' : 'scale(1)',
+                                        display: 'inline-block',
+                                    }}>
+                                        {tutorialProgressText}
+                                    </span>
+                                    {hoveredElement === 'quest' && (
+                                        <div className="uplink-tooltip" style={{
+                                            borderColor: ACCENT_PURPLE,
+                                            boxShadow: `0 0 20px ${ACCENT_PURPLE}60`,
+                                        }}>
+                                            <span style={{ color: ACCENT_PURPLE }}>Press [J] for Directives</span>
+                                            <span className="uplink-tooltip-caret" style={{ borderLeftColor: ACCENT_PURPLE }} />
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        
+                        {/* Notification Dot */}
+                        {hasNewNotification && (
+                            <span className="notification-dot-mini" />
+                        )}
+                        
+                        {/* Expand Icon */}
+                        <span style={{ fontSize: '8px', color: `${ACCENT_CYAN}60` }}>▼</span>
+                    </div>
                 </div>
-              )}
+                <style>{uplinkStyles}</style>
             </div>
-          </div>
-        </div>
-        
-        {/* Season and Year Information */}
-        <div style={{ 
-          fontSize: '10px', 
-          opacity: 0.95, 
-          marginBottom: '4px',
-          color: getSeasonColor(worldState.currentSeason),
-          textShadow: `0 0 8px ${getSeasonColor(worldState.currentSeason)}80, 0 0 4px ${getSeasonColor(worldState.currentSeason)}40`
-        }}>
-          <span>{getSeasonDisplay(worldState.currentSeason)}</span>
-          <span style={{ margin: '0 4px' }}>•</span>
-          <span>Day {worldState.dayOfYear}/360</span>
-          <span style={{ margin: '0 4px' }}>•</span>
-          <span>Year {worldState.year}</span>
-        </div>
-        
-        <div style={{ fontSize: '11px', opacity: 0.9, textShadow: '0 0 5px rgba(0, 255, 255, 0.3)' }}>
-          <div>
-            <span>{getWeatherEmoji(displayWeather)}</span>
-            <span style={{ margin: '0 4px' }}>{getWeatherDisplay(displayWeather)}</span>
-          </div>
-          {displayRainIntensity > 0 && (
-            <div style={{ marginTop: '2px', paddingLeft: '8px', color: '#00aaff' }}>
-              <span>Intensity: {Math.round(displayRainIntensity * 100)}%</span>
-            </div>
-          )}
-        </div>
-      </div>
+        );
+    }
 
-      {/* Progress bar */}
-      <div style={{
-        position: 'relative',
-        height: '20px',
-        background: 'linear-gradient(135deg, rgba(15, 15, 35, 0.9), rgba(10, 10, 25, 0.95))',
-        borderRadius: '10px',
-        overflow: 'hidden',
-        border: '2px solid rgba(0, 170, 255, 0.5)',
-        boxShadow: '0 0 15px rgba(0, 170, 255, 0.3), inset 0 0 15px rgba(0, 170, 255, 0.2)',
-        zIndex: 2
-      }}>
-        {/* Gradient background representing the day/night cycle */}
+    // ==================== EXPANDED VIEW ====================
+    return (
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: getBackgroundGradient(),
-          opacity: '0.8',
-        }}></div>
-        
-        {/* Position indicator/dial */}
-        <div style={{
-          position: 'absolute',
-          top: '0',
-          left: dialPosition,
-          transform: 'translateX(-50%)',
-          width: '5px',
-          height: '100%',
-          background: 'linear-gradient(to bottom, #00ffff, #ffffff, #00ffff)',
-          boxShadow: '0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5)',
-          borderRadius: '3px',
-          animation: 'dialPulse 2s ease-in-out infinite'
-        }}></div>
-        
-        {/* Scan line effect */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, #00ffff, transparent)',
-          animation: 'cycleScan 4s linear infinite',
-        }} />
-      </div>
-      
-      <style>{`
-        @keyframes cycleScan {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        @keyframes trackerScan {
-          0% { transform: translateX(-100%); opacity: 0; }
-          50% { opacity: 1; }
-          100% { transform: translateX(100%); opacity: 0; }
-        }
-        @keyframes dialPulse {
-          0%, 100% { 
-            box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5);
-          }
-          50% { 
-            box-shadow: 0 0 18px rgba(255, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 1), 0 0 45px rgba(0, 255, 255, 0.7);
-          }
-        }
-        @keyframes tooltipSlideIn {
-          0% { 
-            opacity: 0; 
-            transform: translateY(-50%) translateX(10px);
-          }
-          100% { 
-            opacity: 1; 
-            transform: translateY(-50%) translateX(0);
-          }
-        }
-      `}</style>
-    </div>
-  );
+            position: 'fixed',
+            top: '15px',
+            right: '15px',
+            zIndex: 50,
+        }}>
+            {/* Gradient border container */}
+            <div className="uplink-glow-container" style={{
+                padding: '2px',
+                background: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : (pulseAnimation ? `linear-gradient(135deg, ${ACCENT_PURPLE}, ${ACCENT_CYAN}, ${ACCENT_PURPLE})` : UI_BORDER_GRADIENT),
+                backgroundSize: '300% 300%',
+                animation: anyProgressFlash ? 'progressFlashBorder 0.8s ease-out' : (pulseAnimation ? 'uplinkPulse 1s ease-in-out infinite' : 'uplinkGradientShift 4s ease infinite'),
+                borderRadius: '10px',
+            }}>
+                {/* Main box */}
+                <div className="uplink-box" style={{
+                    position: 'relative',
+                    background: UI_BG_COLOR,
+                    borderRadius: '8px',
+                    minWidth: '250px',
+                    overflow: 'hidden',
+                    fontFamily: "'Courier New', 'Consolas', monospace",
+                }}>
+                    {/* Scanlines */}
+                    <div className="uplink-scanlines" />
+                    
+                    {/* Corner accents */}
+                    <div className="uplink-corner top-left" />
+                    <div className="uplink-corner top-right" />
+                    <div className="uplink-corner bottom-left" />
+                    <div className="uplink-corner bottom-right" />
+                    
+                    {/* Header bar */}
+                    <div className="uplink-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px' }}>📡</span>
+                            <span className="uplink-header-text">// NEURAL UPLINK</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className="uplink-header-dots">
+                                <span className="uplink-dot green" />
+                                <span className="uplink-dot cyan" />
+                                <span className="uplink-dot purple" />
+                            </div>
+                            <div
+                                onClick={(e) => { e.stopPropagation(); toggleMinimized(); }}
+                                className="uplink-minimize"
+                            >
+                                ▲
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div style={{ padding: '12px 16px' }}>
+                        {/* Day/Time Section */}
+                        <div className="uplink-section">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        textShadow: `0 0 10px ${ACCENT_CYAN}`,
+                                    }}>Day {worldState.cycleCount}</span>
+                                    <span style={{ color: `${ACCENT_CYAN}40` }}>•</span>
+                                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Year {worldState.year}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <img src={getSeasonIcon(worldState.currentSeason)} alt="" style={{ width: '16px', height: '16px' }} />
+                                    <span style={{
+                                        fontSize: '10px',
+                                        color: getSeasonColor(worldState.currentSeason),
+                                        fontWeight: 'bold',
+                                        textShadow: `0 0 6px ${getSeasonColor(worldState.currentSeason)}80`,
+                                    }}>{getSeasonDisplay(worldState.currentSeason)}</span>
+                                </div>
+                            </div>
+                            
+                            {/* Time of Day with Progress */}
+                            <div style={{ marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: '9px', color: ACCENT_CYAN, letterSpacing: '1px' }}>
+                                        {getTimeOfDayDisplay(worldState.timeOfDay).toUpperCase()}
+                                        {worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') && ' • FULL MOON'}
+                                    </span>
+                                    <span style={{ fontSize: '8px', color: '#6b7280' }}>Day {worldState.dayOfYear}/360</span>
+                                </div>
+                                
+                                {/* Day Cycle Progress Bar */}
+                                <div className="uplink-progress-bar">
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        background: getBackgroundGradient(),
+                                        opacity: 0.8,
+                                    }} />
+                                    <div className="uplink-progress-indicator" style={{ left: dialPosition }} />
+                                </div>
+                            </div>
+                            
+                            {/* Weather */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather)}</span>
+                                <span style={{ fontSize: '10px', color: '#9ca3af' }}>{getWeatherDisplay(displayWeather)}</span>
+                                {displayRainIntensity > 0 && (
+                                    <span style={{ fontSize: '9px', color: ACCENT_CYAN }}>
+                                        {Math.round(displayRainIntensity * 100)}%
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* Divider */}
+                        <div style={{
+                            height: '1px',
+                            background: `linear-gradient(90deg, transparent, ${ACCENT_CYAN}40, transparent)`,
+                            margin: '10px 0',
+                        }} />
+                        
+                        {/* Directives Section */}
+                        <div
+                            className="uplink-directives"
+                            onClick={handleClick}
+                            style={{ cursor: onOpenQuestsPanel ? 'pointer' : 'default' }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '9px', color: ACCENT_CYAN, letterSpacing: '1px' }}>DIRECTIVES</span>
+                                <span style={{
+                                    fontSize: '8px',
+                                    color: ACCENT_PURPLE,
+                                    padding: '2px 6px',
+                                    background: `${ACCENT_PURPLE}15`,
+                                    borderRadius: '3px',
+                                    border: `1px solid ${ACCENT_PURPLE}30`,
+                                }}>[J]</span>
+                            </div>
+                            
+                            {/* Tutorial Progress */}
+                            {!tutorialComplete && currentTutorialQuest && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {/* Primary Objective */}
+                                    <div className="uplink-objective" style={{
+                                        borderColor: progressFlash ? ACCENT_GREEN : `${ACCENT_GREEN}30`,
+                                        boxShadow: progressFlash ? `0 0 15px ${ACCENT_GREEN}50` : 'none',
+                                    }}>
+                                        <span className="uplink-objective-dot" style={{
+                                            backgroundColor: ACCENT_GREEN,
+                                            transform: progressFlash ? 'scale(1.5)' : 'scale(1)',
+                                            boxShadow: progressFlash ? `0 0 12px ${ACCENT_GREEN}` : `0 0 6px ${ACCENT_GREEN}`,
+                                        }} />
+                                        <span style={{
+                                            fontSize: '9px',
+                                            color: progressFlash ? ACCENT_GREEN : ACCENT_PURPLE,
+                                            textShadow: progressFlash ? `0 0 10px ${ACCENT_GREEN}` : 'none',
+                                            transition: 'all 0.2s ease',
+                                        }}>
+                                            {hasMultipleObjectives ? 'OBJ_1:' : 'MISSION:'} {tutorialProgressText}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Secondary Objective */}
+                                    {hasMultipleObjectives && (
+                                        <div className="uplink-objective" style={{
+                                            borderColor: secondaryProgressFlash ? ACCENT_CYAN : `${ACCENT_CYAN}30`,
+                                            boxShadow: secondaryProgressFlash ? `0 0 15px ${ACCENT_CYAN}50` : 'none',
+                                        }}>
+                                            <span className="uplink-objective-dot" style={{
+                                                backgroundColor: ACCENT_CYAN,
+                                                transform: secondaryProgressFlash ? 'scale(1.5)' : 'scale(1)',
+                                                boxShadow: secondaryProgressFlash ? `0 0 12px ${ACCENT_CYAN}` : `0 0 6px ${ACCENT_CYAN}`,
+                                            }} />
+                                            <span style={{
+                                                fontSize: '9px',
+                                                color: secondaryProgressFlash ? ACCENT_CYAN : ACCENT_CYAN,
+                                                textShadow: secondaryProgressFlash ? `0 0 10px ${ACCENT_CYAN}` : 'none',
+                                                transition: 'all 0.2s ease',
+                                            }}>
+                                                OBJ_2: {secondaryProgressText}
+                                            </span>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Tertiary Objective */}
+                                    {hasThreeObjectives && (
+                                        <div className="uplink-objective" style={{
+                                            borderColor: tertiaryProgressFlash ? ACCENT_PINK : `${ACCENT_PINK}30`,
+                                            boxShadow: tertiaryProgressFlash ? `0 0 15px ${ACCENT_PINK}50` : 'none',
+                                        }}>
+                                            <span className="uplink-objective-dot" style={{
+                                                backgroundColor: ACCENT_PINK,
+                                                transform: tertiaryProgressFlash ? 'scale(1.5)' : 'scale(1)',
+                                                boxShadow: tertiaryProgressFlash ? `0 0 12px ${ACCENT_PINK}` : `0 0 6px ${ACCENT_PINK}`,
+                                            }} />
+                                            <span style={{
+                                                fontSize: '9px',
+                                                color: tertiaryProgressFlash ? ACCENT_PINK : ACCENT_PINK,
+                                                textShadow: tertiaryProgressFlash ? `0 0 10px ${ACCENT_PINK}` : 'none',
+                                                transition: 'all 0.2s ease',
+                                            }}>
+                                                OBJ_3: {tertiaryProgressText}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* Tutorial Complete */}
+                            {tutorialComplete && (
+                                <div className="uplink-objective" style={{ borderColor: `#6b728030` }}>
+                                    <span className="uplink-objective-dot" style={{ backgroundColor: '#6b7280', boxShadow: 'none' }} />
+                                    <span style={{ fontSize: '9px', color: '#6b7280' }}>CALIBRATION COMPLETE</span>
+                                </div>
+                            )}
+                            
+                            {/* Daily Quests */}
+                            {activeDailyQuestInfo.active > 0 && (
+                                <div className="uplink-objective" style={{ borderColor: `${ACCENT_PURPLE}30`, marginTop: '4px' }}>
+                                    <span className="uplink-objective-dot" style={{ backgroundColor: ACCENT_PURPLE, boxShadow: `0 0 6px ${ACCENT_PURPLE}` }} />
+                                    <span style={{ fontSize: '9px', color: '#9ca3af' }}>
+                                        DAILY: {activeDailyQuestInfo.completed}/{activeDailyQuestInfo.total}
+                                    </span>
+                                </div>
+                            )}
+                            
+                            {/* No Active Quests */}
+                            {!hasActiveQuest && tutorialComplete && activeDailyQuestInfo.active === 0 && (
+                                <div style={{ fontSize: '9px', color: '#6b7280', fontStyle: 'italic', padding: '4px 0' }}>
+                                    All clear, Agent
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Notification indicator */}
+                    {hasNewNotification && <div className="notification-dot" />}
+                </div>
+            </div>
+            <style>{uplinkStyles}</style>
+        </div>
+    );
 };
 
-export default DayNightCycleTracker; 
+// CSS Styles
+const uplinkStyles = `
+    @keyframes uplinkGradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes uplinkPulse {
+        0% { box-shadow: 0 0 15px rgba(192, 132, 252, 0.4); }
+        50% { box-shadow: 0 0 35px rgba(192, 132, 252, 0.8); }
+        100% { box-shadow: 0 0 15px rgba(192, 132, 252, 0.4); }
+    }
+    
+    @keyframes progressFlashBorder {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; box-shadow: 0 0 30px rgba(74, 222, 128, 0.6); }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes uplinkScanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+    }
+    
+    @keyframes uplinkDotPulse {
+        0%, 100% { transform: scale(1); opacity: 0.7; }
+        50% { transform: scale(1.3); opacity: 1; }
+    }
+    
+    @keyframes dialPulse {
+        0%, 100% { box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 15px rgba(0, 212, 255, 0.8); }
+        50% { box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 25px rgba(0, 212, 255, 1); }
+    }
+    
+    @keyframes notificationPulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .uplink-glow-container {
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 15px rgba(0, 212, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .uplink-glow-container:hover {
+        box-shadow: 0 0 30px rgba(0, 212, 255, 0.5), inset 0 0 20px rgba(0, 212, 255, 0.15);
+    }
+    
+    .uplink-glow-container.minimized:hover {
+        transform: translateY(-2px);
+    }
+    
+    .uplink-scanlines {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 212, 255, 0.02) 2px,
+            rgba(0, 212, 255, 0.02) 4px
+        );
+        pointer-events: none;
+        z-index: 10;
+    }
+    
+    .uplink-scanlines::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        background: linear-gradient(
+            180deg,
+            transparent 0%,
+            rgba(0, 212, 255, 0.06) 50%,
+            transparent 100%
+        );
+        animation: uplinkScanline 4s linear infinite;
+        pointer-events: none;
+    }
+    
+    .uplink-corner {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border: 2px solid #00d4ff;
+        z-index: 5;
+    }
+    
+    .uplink-corner.top-left { top: 4px; left: 4px; border-right: none; border-bottom: none; }
+    .uplink-corner.top-right { top: 4px; right: 4px; border-left: none; border-bottom: none; }
+    .uplink-corner.bottom-left { bottom: 4px; left: 4px; border-right: none; border-top: none; }
+    .uplink-corner.bottom-right { bottom: 4px; right: 4px; border-left: none; border-top: none; }
+    
+    .uplink-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: rgba(0, 212, 255, 0.08);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.25);
+    }
+    
+    .uplink-header-text {
+        font-size: 9px;
+        color: #00d4ff;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+    }
+    
+    .uplink-header-dots {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .uplink-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+    
+    .uplink-dot.green {
+        background: #4ade80;
+        animation: uplinkDotPulse 1s ease-in-out infinite;
+    }
+    
+    .uplink-dot.cyan {
+        background: #00d4ff;
+        animation: uplinkDotPulse 1s ease-in-out infinite 0.2s;
+    }
+    
+    .uplink-dot.purple {
+        background: #c084fc;
+        animation: uplinkDotPulse 1s ease-in-out infinite 0.4s;
+    }
+    
+    .uplink-minimize {
+        font-size: 8px;
+        color: rgba(0, 212, 255, 0.5);
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+    }
+    
+    .uplink-minimize:hover {
+        color: #00d4ff;
+        background: rgba(0, 212, 255, 0.15);
+    }
+    
+    .uplink-progress-bar {
+        position: relative;
+        height: 14px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 7px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 212, 255, 0.3);
+    }
+    
+    .uplink-progress-indicator {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, #fff, #00d4ff, #fff);
+        border-radius: 2px;
+        animation: dialPulse 2s ease-in-out infinite;
+        z-index: 5;
+    }
+    
+    .uplink-directives {
+        transition: all 0.2s ease;
+        border-radius: 6px;
+        padding: 4px;
+        margin: -4px;
+    }
+    
+    .uplink-directives:hover {
+        background: rgba(0, 212, 255, 0.05);
+    }
+    
+    .uplink-objective {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 8px;
+        background: rgba(74, 222, 128, 0.08);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .uplink-objective-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+    
+    .notification-dot {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #f43f5e;
+        box-shadow: 0 0 12px rgba(244, 63, 94, 0.7);
+        animation: notificationPulse 1.5s ease-in-out infinite;
+        border: 2px solid rgba(15, 25, 20, 0.9);
+        z-index: 20;
+    }
+    
+    .notification-dot-mini {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f43f5e;
+        box-shadow: 0 0 8px rgba(244, 63, 94, 0.7);
+        animation: notificationPulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes tooltipFadeIn {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+    
+    .uplink-tooltip {
+        position: absolute;
+        top: 50%;
+        right: calc(100% + 10px);
+        transform: translateY(-50%);
+        padding: 6px 12px;
+        background: linear-gradient(135deg, rgba(15, 25, 20, 0.98) 0%, rgba(20, 35, 30, 0.98) 100%);
+        border: 2px solid #00d4ff;
+        border-radius: 6px;
+        backdrop-filter: blur(10px);
+        white-space: nowrap;
+        font-size: 9px;
+        font-family: 'Courier New', 'Consolas', monospace;
+        letter-spacing: 0.5px;
+        z-index: 100;
+        pointer-events: none;
+        animation: tooltipFadeIn 0.15s ease-out forwards;
+    }
+    
+    .uplink-tooltip-caret {
+        position: absolute;
+        top: 50%;
+        right: -8px;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 6px 0 6px 6px;
+        border-color: transparent transparent transparent #00d4ff;
+    }
+`;
+
+export default DayNightCycleTracker;

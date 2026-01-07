@@ -31,7 +31,7 @@ import type { MenuType } from './GameMenu';
 import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
 import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
 import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
-import SovaDirectivesIndicator from './SovaDirectivesIndicator'; // ADDED: Quest indicator
+// SovaDirectivesIndicator has been merged into DayNightCycleTracker
 import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
 import { QuestCompletionNotification, QuestCompletionData } from './QuestNotifications'; // ADDED: Quest notifications
 
@@ -377,8 +377,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const closeQuestsPanel = useCallback(() => setIsQuestsPanelOpen(false), []);
 
     // Track whether DayNightCycleTracker is expanded (not minimized)
-    // Used to conditionally hide SovaDirectivesIndicator when tracker is minimized
-    const [isDayNightExpanded, setIsDayNightExpanded] = useState(true);
+    // Can be used by other components that need to know the panel state
+    const [, setIsDayNightExpanded] = useState(true);
     const handleDayNightMinimizedChange = useCallback((isMinimized: boolean) => {
         setIsDayNightExpanded(!isMinimized);
     }, []);
@@ -1193,27 +1193,21 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showCraftingScreen={showCraftingScreenState}
                 onToggleCraftingScreen={() => setShowCraftingScreenState(prev => !prev)}
             />
-            {/* DayNightCycleTracker - Mobile version is compact and positioned below status bars */}
+            {/* DayNightCycleTracker with integrated SOVA Directives */}
             <DayNightCycleTracker
                 worldState={worldState}
                 chunkWeather={chunkWeather}
                 localPlayer={localPlayer}
                 isMobile={props.isMobile}
                 onMinimizedChange={handleDayNightMinimizedChange}
+                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
+                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
+                playerTutorialProgress={props.playerTutorialProgress || new Map()}
+                playerDailyQuests={props.playerDailyQuests || new Map()}
+                localPlayerId={props.playerIdentity || undefined}
+                onOpenQuestsPanel={openQuestsPanel}
+                hasNewNotification={hasNewQuestNotification}
             />
-            {/* SOVA Directives Indicator (Quest System) - Hidden when DayNightCycleTracker is minimized */}
-            {isDayNightExpanded && (
-                <SovaDirectivesIndicator
-                    tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
-                    dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
-                    playerTutorialProgress={props.playerTutorialProgress || new Map()}
-                    playerDailyQuests={props.playerDailyQuests || new Map()}
-                    localPlayerId={props.playerIdentity || undefined}
-                    onOpenQuestsPanel={openQuestsPanel}
-                    hasNewNotification={hasNewQuestNotification}
-                    isMobile={props.isMobile}
-                />
-            )}
             {/* Quest Panel Overlay */}
             <QuestsPanel
                 isOpen={isQuestsPanelOpen}

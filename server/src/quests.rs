@@ -1110,9 +1110,9 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 20,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Press B to open crafting. First make Cloth from Plant Fiber, then craft Rope from the Cloth. You'll need 2 rope for your shelter.".to_string(),
+            sova_start_message: "Press B to open crafting. Rope is crafted directly from Plant Fiber — you'll need 20 Plant Fiber per rope, and 2 rope total for your shelter.".to_string(),
             sova_complete_message: "Rope secured. Essential for building structures.".to_string(),
-            sova_hint_message: "Press B to craft. Find Cloth first (needs Plant Fiber), then craft Rope from Cloth.".to_string(),
+            sova_hint_message: "Press B to craft. Gather Plant Fiber and craft Rope directly from it (20 Plant Fiber per Rope).".to_string(),
         },
         
         // Quest 3: Chop 1 Tree (get wood for shelter - use combat ladle)

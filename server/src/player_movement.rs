@@ -616,8 +616,8 @@ pub fn update_player_position_simple(
     if is_on_water && !current_player.is_on_water {
         // Player just entered water - extinguish any burn effects
         crate::active_effects::extinguish_burn_effects(ctx, sender_id, "entering water");
-        // Apply wet effect when entering water
-        if let Err(e) = crate::wet::apply_wet_effect(ctx, sender_id, "entering water") {
+        // Apply wet effect when entering water (water always = 100% wetness cap)
+        if let Err(e) = crate::wet::apply_wet_effect(ctx, sender_id, 1.0, "entering water") {
             log::warn!("Failed to apply wet effect when player {:?} entered water: {}", sender_id, e);
         }
     }
