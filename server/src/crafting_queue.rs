@@ -467,6 +467,17 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
             ) {
                 log::error!("Failed to track specific item quest progress: {}", e);
             }
+            
+            // Also track as item collection (so quests tracking "obtain" work for both crafted and looted items)
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                item.player_identity,
+                crate::quests::QuestObjectiveType::CollectSpecificItem,
+                Some(&item_name),
+                item.output_quantity,
+            ) {
+                log::error!("Failed to track item collection from crafting: {}", e);
+            }
         }
 
         // Delete the finished item from the queue

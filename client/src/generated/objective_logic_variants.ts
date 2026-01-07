@@ -30,4 +30,5 @@ import {
 
 export type And = { tag: "And" };
 export type Or = { tag: "Or" };
+export type PrimaryOnly = { tag: "PrimaryOnly" };
 

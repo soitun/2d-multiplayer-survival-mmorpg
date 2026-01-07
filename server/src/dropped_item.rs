@@ -139,6 +139,17 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
             if added_to_inventory {
                 log::info!("[PickupDropped] Successfully picked up item '{}' (ID {}) and added to inventory for player {:?}",
                          item_name, dropped_item_id, sender_id);
+                
+                // Track item collection for quest progress (only if actually added to inventory)
+                if let Err(e) = crate::quests::track_quest_progress(
+                    ctx,
+                    sender_id,
+                    crate::quests::QuestObjectiveType::CollectSpecificItem,
+                    Some(&item_name),
+                    dropped_item.quantity,
+                ) {
+                    log::error!("[PickupDropped] Failed to track item collection quest progress: {}", e);
+                }
             } else {
                 log::info!("[PickupDropped] Inventory full, moved item '{}' (ID {}) closer to player {:?}",
                          item_name, dropped_item_id, sender_id);

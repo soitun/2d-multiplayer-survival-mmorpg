@@ -166,13 +166,16 @@ export function useQuestNotifications({
     // Handle Quest Completion Notifications - show celebration UI
     // ========================================================================
     useEffect(() => {
+        // IMPORTANT: Don't process notifications until playerIdentity is available
+        // Otherwise notifications get marked as "seen" before we can verify they're for this player
+        if (!playerIdentity) return;
         if (!questCompletionNotifications || questCompletionNotifications.size === 0) return;
         
         questCompletionNotifications.forEach((notification, id) => {
             if (seenQuestCompletionIds.has(id)) return;
             
             // Only show if it's for the local player
-            if (playerIdentity && notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
+            if (notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
             
             // Mark as seen
             setSeenQuestCompletionIds(prev => new Set(prev).add(id));
@@ -189,16 +192,21 @@ export function useQuestNotifications({
                 unlockedRecipe: notification.unlockedRecipe || undefined,
             });
             
-            // Play celebration sound
+            // Play SOVA mission complete voice line + progress unlocked SFX
             try {
-                const audio = new Audio('/sounds/quest_complete.mp3');
-                audio.volume = 0.6;
-                audio.play().catch(() => {
-                    // Fallback: try a generic success sound
-                    const fallbackAudio = new Audio('/sounds/ui_success.mp3');
-                    fallbackAudio.volume = 0.5;
-                    fallbackAudio.play().catch(() => {});
-                });
+                const sovaAudio = new Audio('/sounds/sova_mission_complete.mp3');
+                sovaAudio.volume = 0.8;
+                sovaAudio.play().catch(() => {});
+                
+                // Play progress_unlocked.mp3 with debounce (only once if multiple notifications)
+                const now = Date.now();
+                const lastPlayed = (window as any).__progressUnlockedLastPlayed || 0;
+                if (now - lastPlayed > 500) { // 500ms debounce
+                    (window as any).__progressUnlockedLastPlayed = now;
+                    const sfxAudio = new Audio('/sounds/progress_unlocked.mp3');
+                    sfxAudio.volume = 0.5;
+                    sfxAudio.play().catch(() => {});
+                }
             } catch (err) {
                 // Ignore audio errors
             }
@@ -209,13 +217,15 @@ export function useQuestNotifications({
     // Handle Quest Progress Notifications - log milestone (toast removed)
     // ========================================================================
     useEffect(() => {
+        // IMPORTANT: Don't process notifications until playerIdentity is available
+        if (!playerIdentity) return;
         if (!questProgressNotifications || questProgressNotifications.size === 0) return;
         
         questProgressNotifications.forEach((notification, id) => {
             if (seenQuestProgressIds.has(id)) return;
             
             // Only process if it's for the local player
-            if (playerIdentity && notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
+            if (notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
             
             // Mark as seen
             setSeenQuestProgressIds(prev => new Set(prev).add(id));

@@ -31,7 +31,8 @@ import * as ObjectiveLogicVariants from './objective_logic_variants'
 
 // The tagged union or sum type for the algebraic type `ObjectiveLogic`.
 export type ObjectiveLogic = ObjectiveLogicVariants.And |
-  ObjectiveLogicVariants.Or;
+  ObjectiveLogicVariants.Or |
+  ObjectiveLogicVariants.PrimaryOnly;
 
 let _cached_ObjectiveLogic_type_value: __AlgebraicTypeType | null = null;
 
@@ -45,6 +46,7 @@ export const ObjectiveLogic = {
   // ```
   And: { tag: "And" } as const,
   Or: { tag: "Or" } as const,
+  PrimaryOnly: { tag: "PrimaryOnly" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_ObjectiveLogic_type_value) return _cached_ObjectiveLogic_type_value;
@@ -52,6 +54,7 @@ export const ObjectiveLogic = {
     _cached_ObjectiveLogic_type_value.value.variants.push(
       { name: "And", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Or", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PrimaryOnly", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_ObjectiveLogic_type_value;
   },

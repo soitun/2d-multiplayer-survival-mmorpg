@@ -38,6 +38,7 @@ export type ChopTree = { tag: "ChopTree" };
 export type MineStoneNode = { tag: "MineStoneNode" };
 export type CraftAnyItem = { tag: "CraftAnyItem" };
 export type CraftSpecificItem = { tag: "CraftSpecificItem" };
+export type CollectSpecificItem = { tag: "CollectSpecificItem" };
 export type PlaceStructure = { tag: "PlaceStructure" };
 export type PlaceSpecificStructure = { tag: "PlaceSpecificStructure" };
 export type KillAnyAnimal = { tag: "KillAnyAnimal" };

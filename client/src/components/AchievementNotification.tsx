@@ -86,6 +86,25 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
     newVisible.forEach(notif => {
       const id = notif.id.toString();
       if (!timeoutRefs.current.has(id) && !fadingOutIds.has(id)) {
+        // Play SOVA achievement unlocked voice line + progress unlocked SFX for truly new notifications
+        try {
+          const sovaAudio = new Audio('/sounds/sova_achievement_unlocked.mp3');
+          sovaAudio.volume = 0.8;
+          sovaAudio.play().catch(() => {});
+          
+          // Play progress_unlocked.mp3 with debounce (only once if multiple notifications)
+          const now = Date.now();
+          const lastPlayed = (window as any).__progressUnlockedLastPlayed || 0;
+          if (now - lastPlayed > 500) { // 500ms debounce
+            (window as any).__progressUnlockedLastPlayed = now;
+            const sfxAudio = new Audio('/sounds/progress_unlocked.mp3');
+            sfxAudio.volume = 0.5;
+            sfxAudio.play().catch(() => {});
+          }
+        } catch (err) {
+          // Ignore audio errors
+        }
+        
         const timeout = setTimeout(() => {
           dismissNotification(id);
         }, NOTIFICATION_TIMEOUT_MS);

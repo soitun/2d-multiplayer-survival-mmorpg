@@ -40,6 +40,7 @@ export type QuestObjectiveType = QuestObjectiveTypeVariants.GatherWood |
   QuestObjectiveTypeVariants.MineStoneNode |
   QuestObjectiveTypeVariants.CraftAnyItem |
   QuestObjectiveTypeVariants.CraftSpecificItem |
+  QuestObjectiveTypeVariants.CollectSpecificItem |
   QuestObjectiveTypeVariants.PlaceStructure |
   QuestObjectiveTypeVariants.PlaceSpecificStructure |
   QuestObjectiveTypeVariants.KillAnyAnimal |
@@ -87,6 +88,7 @@ export const QuestObjectiveType = {
   MineStoneNode: { tag: "MineStoneNode" } as const,
   CraftAnyItem: { tag: "CraftAnyItem" } as const,
   CraftSpecificItem: { tag: "CraftSpecificItem" } as const,
+  CollectSpecificItem: { tag: "CollectSpecificItem" } as const,
   PlaceStructure: { tag: "PlaceStructure" } as const,
   PlaceSpecificStructure: { tag: "PlaceSpecificStructure" } as const,
   KillAnyAnimal: { tag: "KillAnyAnimal" } as const,
@@ -128,6 +130,7 @@ export const QuestObjectiveType = {
       { name: "MineStoneNode", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CraftAnyItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CraftSpecificItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CollectSpecificItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PlaceStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PlaceSpecificStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "KillAnyAnimal", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

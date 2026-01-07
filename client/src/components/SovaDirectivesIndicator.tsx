@@ -45,6 +45,12 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
 }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [pulseAnimation, setPulseAnimation] = useState(false);
+    const [progressFlash, setProgressFlash] = useState(false);
+    const [secondaryProgressFlash, setSecondaryProgressFlash] = useState(false);
+    const [tertiaryProgressFlash, setTertiaryProgressFlash] = useState(false);
+    const [prevProgress, setPrevProgress] = useState<number | null>(null);
+    const [prevSecondaryProgress, setPrevSecondaryProgress] = useState<number | null>(null);
+    const [prevTertiaryProgress, setPrevTertiaryProgress] = useState<number | null>(null);
 
     // Pulse animation when there's a new notification
     useEffect(() => {
@@ -54,6 +60,57 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
             return () => clearTimeout(timer);
         }
     }, [hasNewNotification]);
+
+    // Get current progress for flash detection (primary)
+    const currentProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.currentQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
+
+    // Get current secondary progress for flash detection
+    const currentSecondaryProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.secondaryQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
+
+    // Get current tertiary progress for flash detection
+    const currentTertiaryProgress = useMemo(() => {
+        if (!localPlayerId) return null;
+        const progress = playerTutorialProgress.get(localPlayerId.toHexString());
+        return progress?.tertiaryQuestProgress ?? null;
+    }, [localPlayerId, playerTutorialProgress]);
+
+    // Flash when primary progress increases
+    useEffect(() => {
+        if (currentProgress !== null && prevProgress !== null && currentProgress > prevProgress) {
+            setProgressFlash(true);
+            const timer = setTimeout(() => setProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevProgress(currentProgress);
+    }, [currentProgress, prevProgress]);
+
+    // Flash when secondary progress increases
+    useEffect(() => {
+        if (currentSecondaryProgress !== null && prevSecondaryProgress !== null && currentSecondaryProgress > prevSecondaryProgress) {
+            setSecondaryProgressFlash(true);
+            const timer = setTimeout(() => setSecondaryProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevSecondaryProgress(currentSecondaryProgress);
+    }, [currentSecondaryProgress, prevSecondaryProgress]);
+
+    // Flash when tertiary progress increases
+    useEffect(() => {
+        if (currentTertiaryProgress !== null && prevTertiaryProgress !== null && currentTertiaryProgress > prevTertiaryProgress) {
+            setTertiaryProgressFlash(true);
+            const timer = setTimeout(() => setTertiaryProgressFlash(false), 800);
+            return () => clearTimeout(timer);
+        }
+        setPrevTertiaryProgress(currentTertiaryProgress);
+    }, [currentTertiaryProgress, prevTertiaryProgress]);
 
     // Get current tutorial quest
     const currentTutorialQuest = useMemo(() => {
@@ -97,23 +154,29 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
         onOpenQuestsPanel();
     }, [onOpenQuestsPanel]);
 
+    // Determine border color based on state (any progress flash triggers green)
+    const anyProgressFlash = progressFlash || secondaryProgressFlash || tertiaryProgressFlash;
+    const borderColor = anyProgressFlash ? '#4ade80' : (hasNewNotification || pulseAnimation ? SOVA_PURPLE : UI_BORDER_COLOR);
+    
     const containerStyle: React.CSSProperties = {
         position: 'fixed',
         top: isMobile ? '120px' : '165px', // Position below DayNightCycleTracker with clear spacing
         right: isMobile ? '10px' : '15px',
         zIndex: 50, // Match DayNightCycleTracker - below InventoryUI
         background: UI_BG_COLOR,
-        border: `2px solid ${hasNewNotification || pulseAnimation ? SOVA_PURPLE : UI_BORDER_COLOR}`,
+        border: `2px solid ${borderColor}`,
         borderRadius: '10px',
-        boxShadow: pulseAnimation 
-            ? `0 0 35px rgba(192, 132, 252, 0.6), inset 0 0 18px rgba(192, 132, 252, 0.2)` 
-            : UI_SHADOW,
+        boxShadow: anyProgressFlash 
+            ? `0 0 40px rgba(74, 222, 128, 0.7), inset 0 0 20px rgba(74, 222, 128, 0.25)` 
+            : (pulseAnimation 
+                ? `0 0 35px rgba(192, 132, 252, 0.6), inset 0 0 18px rgba(192, 132, 252, 0.2)` 
+                : UI_SHADOW),
         padding: isMobile ? '12px 16px' : '14px 20px',
         fontFamily: UI_FONT_FAMILY,
         cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        transform: isHovered ? 'scale(1.03)' : 'scale(1)',
-        animation: pulseAnimation ? 'sovaPulse 1s ease-in-out infinite' : 'none',
+        transition: 'all 0.15s ease',
+        transform: isHovered ? 'scale(1.03)' : (anyProgressFlash ? 'scale(1.05)' : 'scale(1)'),
+        animation: anyProgressFlash ? 'progressFlash 0.8s ease-out' : (pulseAnimation ? 'sovaPulse 1s ease-in-out infinite' : 'none'),
         minWidth: isMobile ? '170px' : '200px',
     };
 
@@ -158,13 +221,35 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
         border: '2px solid rgba(10, 5, 20, 0.9)',
     };
 
-    // Get progress display for current tutorial quest
+    // Get progress display for current tutorial quest (primary)
     const tutorialProgressText = useMemo(() => {
         if (!currentTutorialQuest || !currentTutorialProgress) return null;
         const progress = currentTutorialProgress.currentQuestProgress;
         const target = currentTutorialQuest.targetAmount;
         return `${progress}/${target}`;
     }, [currentTutorialQuest, currentTutorialProgress]);
+
+    // Get progress display for secondary objective (if exists)
+    const secondaryProgressText = useMemo(() => {
+        if (!currentTutorialQuest || !currentTutorialProgress) return null;
+        const secondaryTarget = currentTutorialQuest.secondaryTargetAmount;
+        if (!secondaryTarget || secondaryTarget === 0) return null;
+        const progress = currentTutorialProgress.secondaryQuestProgress;
+        return `${progress}/${secondaryTarget}`;
+    }, [currentTutorialQuest, currentTutorialProgress]);
+
+    // Get progress display for tertiary objective (if exists)
+    const tertiaryProgressText = useMemo(() => {
+        if (!currentTutorialQuest || !currentTutorialProgress) return null;
+        const tertiaryTarget = currentTutorialQuest.tertiaryTargetAmount;
+        if (!tertiaryTarget || tertiaryTarget === 0) return null;
+        const progress = currentTutorialProgress.tertiaryQuestProgress;
+        return `${progress}/${tertiaryTarget}`;
+    }, [currentTutorialQuest, currentTutorialProgress]);
+
+    // Check if there are multiple objectives
+    const hasMultipleObjectives = secondaryProgressText !== null;
+    const hasThreeObjectives = tertiaryProgressText !== null;
 
     return (
         <>
@@ -180,6 +265,25 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
                         0% { transform: scale(1); opacity: 1; }
                         50% { transform: scale(1.2); opacity: 0.8; }
                         100% { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes progressFlash {
+                        0% { 
+                            box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+                            transform: scale(1);
+                        }
+                        15% { 
+                            box-shadow: 0 0 50px rgba(74, 222, 128, 0.9);
+                            transform: scale(1.08);
+                        }
+                        100% { 
+                            box-shadow: 0 0 25px rgba(0, 170, 255, 0.4);
+                            transform: scale(1);
+                        }
+                    }
+                    @keyframes progressTextPop {
+                        0% { transform: scale(1); color: #c084fc; }
+                        20% { transform: scale(1.3); color: #4ade80; text-shadow: 0 0 15px rgba(74, 222, 128, 0.9); }
+                        100% { transform: scale(1); color: #c084fc; }
                     }
                 `}
             </style>
@@ -208,48 +312,101 @@ const SovaDirectivesIndicator: React.FC<SovaDirectivesIndicatorProps> = ({
                     </span>
                 </div>
                 
-                {/* Status line */}
-                <div style={statusStyle}>
-                    {/* Tutorial progress */}
+                {/* Status section */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {/* Tutorial progress - Primary objective */}
                     {!tutorialComplete && currentTutorialQuest && (
-                        <>
-                            <span style={dotStyle(true)} />
-                            <span style={{ color: SOVA_PURPLE }}>
-                                Mission: {tutorialProgressText}
+                        <div style={statusStyle}>
+                            <span style={{
+                                ...dotStyle(true),
+                                backgroundColor: '#4ade80',
+                                boxShadow: progressFlash ? '0 0 20px rgba(74, 222, 128, 1)' : '0 0 10px rgba(74, 222, 128, 0.7)',
+                                transform: progressFlash ? 'scale(1.5)' : 'scale(1)',
+                                transition: 'all 0.2s ease',
+                            }} />
+                            <span style={{ 
+                                color: progressFlash ? '#4ade80' : SOVA_PURPLE,
+                                animation: progressFlash ? 'progressTextPop 0.8s ease-out' : 'none',
+                                display: 'inline-block',
+                                textShadow: progressFlash ? '0 0 12px rgba(74, 222, 128, 0.8)' : 'none',
+                                transition: 'color 0.2s ease',
+                            }}>
+                                {hasMultipleObjectives ? 'Obj 1:' : 'Mission:'} {tutorialProgressText}
                             </span>
-                        </>
+                        </div>
+                    )}
+                    
+                    {/* Tutorial progress - Secondary objective (if exists) */}
+                    {!tutorialComplete && currentTutorialQuest && hasMultipleObjectives && (
+                        <div style={statusStyle}>
+                            <span style={{
+                                ...dotStyle(true),
+                                backgroundColor: '#38bdf8', // Cyan for secondary
+                                boxShadow: secondaryProgressFlash ? '0 0 20px rgba(56, 189, 248, 1)' : '0 0 10px rgba(56, 189, 248, 0.7)',
+                                transform: secondaryProgressFlash ? 'scale(1.5)' : 'scale(1)',
+                                transition: 'all 0.2s ease',
+                            }} />
+                            <span style={{ 
+                                color: secondaryProgressFlash ? '#38bdf8' : SOVA_CYAN,
+                                animation: secondaryProgressFlash ? 'progressTextPop 0.8s ease-out' : 'none',
+                                display: 'inline-block',
+                                textShadow: secondaryProgressFlash ? '0 0 12px rgba(56, 189, 248, 0.8)' : 'none',
+                                transition: 'color 0.2s ease',
+                            }}>
+                                Obj 2: {secondaryProgressText}
+                            </span>
+                        </div>
+                    )}
+                    
+                    {/* Tutorial progress - Tertiary objective (if exists) */}
+                    {!tutorialComplete && currentTutorialQuest && hasThreeObjectives && (
+                        <div style={statusStyle}>
+                            <span style={{
+                                ...dotStyle(true),
+                                backgroundColor: '#f472b6', // Pink for tertiary
+                                boxShadow: tertiaryProgressFlash ? '0 0 20px rgba(244, 114, 182, 1)' : '0 0 10px rgba(244, 114, 182, 0.7)',
+                                transform: tertiaryProgressFlash ? 'scale(1.5)' : 'scale(1)',
+                                transition: 'all 0.2s ease',
+                            }} />
+                            <span style={{ 
+                                color: tertiaryProgressFlash ? '#f472b6' : '#f472b6',
+                                animation: tertiaryProgressFlash ? 'progressTextPop 0.8s ease-out' : 'none',
+                                display: 'inline-block',
+                                textShadow: tertiaryProgressFlash ? '0 0 12px rgba(244, 114, 182, 0.8)' : 'none',
+                                transition: 'color 0.2s ease',
+                            }}>
+                                Obj 3: {tertiaryProgressText}
+                            </span>
+                        </div>
                     )}
                     
                     {/* Show completed status once tutorial is done */}
                     {tutorialComplete && (
-                        <>
+                        <div style={statusStyle}>
                             <span style={dotStyle(false)} />
                             <span style={{ color: '#6b7280' }}>
                                 Calibration Complete
                             </span>
-                        </>
+                        </div>
                     )}
                     
-                    {/* Separator */}
-                    {!tutorialComplete && currentTutorialQuest && activeDailyQuestInfo.active > 0 && (
-                        <span style={{ color: '#4b5563', margin: '0 4px' }}>•</span>
-                    )}
-                    
-                    {/* Daily quests */}
+                    {/* Daily quests - shown as separate row if tutorial active */}
                     {activeDailyQuestInfo.active > 0 && (
-                        <>
+                        <div style={statusStyle}>
                             <span style={dotStyle(true)} />
                             <span>
                                 Daily: {activeDailyQuestInfo.completed}/{activeDailyQuestInfo.total}
                             </span>
-                        </>
+                        </div>
                     )}
                     
                     {/* No active quests fallback */}
                     {!hasActiveQuest && tutorialComplete && activeDailyQuestInfo.active === 0 && (
-                        <span style={{ color: '#6b7280', fontStyle: 'italic' }}>
-                            All clear, Agent
-                        </span>
+                        <div style={statusStyle}>
+                            <span style={{ color: '#6b7280', fontStyle: 'italic' }}>
+                                All clear, Agent
+                            </span>
+                        </div>
                     )}
                 </div>
             </div>

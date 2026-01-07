@@ -64,6 +64,9 @@ pub enum QuestObjectiveType {
     CraftAnyItem,         // Craft any item
     CraftSpecificItem,    // Craft a specific item (uses target_id = item_def_name)
     
+    // Item Collection (from any source - looting, gathering, crafting output, etc.)
+    CollectSpecificItem,  // Collect a specific item (uses target_id = item_def_name)
+    
     // Building
     PlaceStructure,       // Place any structure
     PlaceSpecificStructure, // Place specific structure type (uses target_id)
@@ -134,8 +137,9 @@ pub enum QuestStatus {
 /// How multiple objectives combine for quest completion
 #[derive(SpacetimeType, Clone, Debug, PartialEq, Eq)]
 pub enum ObjectiveLogic {
-    And,  // Both primary and secondary must complete (default)
-    Or,   // Either primary or secondary completes the quest
+    And,         // All objectives must complete (primary + secondary + tertiary)
+    Or,          // Any objective completes the quest
+    PrimaryOnly, // Only primary objective required; secondary/tertiary are optional tracking
 }
 
 // ============================================================================
@@ -161,7 +165,17 @@ pub struct TutorialQuestDefinition {
     pub secondary_objective_type: Option<QuestObjectiveType>,
     pub secondary_target_id: Option<String>,
     pub secondary_target_amount: Option<u32>,
-    pub objective_logic: ObjectiveLogic,  // And = both required, Or = either completes quest
+    
+    // Tertiary objective (optional - for quests with 3 objectives)
+    pub tertiary_objective_type: Option<QuestObjectiveType>,
+    pub tertiary_target_id: Option<String>,
+    pub tertiary_target_amount: Option<u32>,
+    
+    // Optional flags - when true, that objective is NOT required for completion (just tracking/guidance)
+    pub secondary_optional: bool,  // If true, secondary objective is optional
+    pub tertiary_optional: bool,   // If true, tertiary objective is optional
+    
+    pub objective_logic: ObjectiveLogic,  // And = all required (respects optional flags), Or = any completes quest
     
     pub xp_reward: u64,
     pub shard_reward: u64,
@@ -206,6 +220,7 @@ pub struct PlayerTutorialProgress {
     pub current_quest_index: u32,      // Which tutorial quest they're on
     pub current_quest_progress: u32,   // Progress toward primary objective
     pub secondary_quest_progress: u32, // Progress toward secondary objective (if any)
+    pub tertiary_quest_progress: u32,  // Progress toward tertiary objective (if any)
     pub completed_quest_ids: String,   // Comma-separated list of completed quest IDs
     pub tutorial_completed: bool,      // All tutorial quests done
     pub last_hint_shown: Option<Timestamp>, // Rate limit hints
@@ -314,6 +329,7 @@ pub fn get_or_init_tutorial_progress(ctx: &ReducerContext, player_id: Identity) 
         current_quest_index: 0,
         current_quest_progress: 0,
         secondary_quest_progress: 0,
+        tertiary_quest_progress: 0,
         completed_quest_ids: String::new(),
         tutorial_completed: false,
         last_hint_shown: None,
@@ -464,8 +480,20 @@ fn track_tutorial_progress(
         false
     };
     
-    // If action doesn't match either objective, skip
-    if !matches_primary && !matches_secondary {
+    // Check if this action matches the TERTIARY objective (if any)
+    let matches_tertiary = if let Some(ref tertiary_obj) = quest.tertiary_objective_type {
+        matches_objective(
+            objective_type,
+            target_id,
+            tertiary_obj,
+            quest.tertiary_target_id.as_deref(),
+        )
+    } else {
+        false
+    };
+    
+    // If action doesn't match any objective, skip
+    if !matches_primary && !matches_secondary && !matches_tertiary {
         return Ok(());
     }
     
@@ -521,6 +549,33 @@ fn track_tutorial_progress(
         }
     }
     
+    // Update tertiary progress if applicable
+    if matches_tertiary {
+        if let Some(tertiary_target) = quest.tertiary_target_amount {
+            if progress.tertiary_quest_progress < tertiary_target {
+                progress.tertiary_quest_progress += amount;
+                updated = true;
+                
+                // Check for milestone notifications (50%) on tertiary
+                let prev_percent = ((progress.tertiary_quest_progress.saturating_sub(amount)) as f32 / tertiary_target as f32 * 100.0) as u32;
+                let curr_percent = (progress.tertiary_quest_progress as f32 / tertiary_target as f32 * 100.0) as u32;
+                
+                if prev_percent < 50 && curr_percent >= 50 && curr_percent < 100 {
+                    let notif = QuestProgressNotification {
+                        id: 0,
+                        player_id,
+                        quest_name: format!("{} (Tertiary)", quest.name),
+                        current_progress: progress.tertiary_quest_progress,
+                        target_amount: tertiary_target,
+                        milestone_percent: 50,
+                        notified_at: ctx.timestamp,
+                    };
+                    ctx.db.quest_progress_notification().insert(notif);
+                }
+            }
+        }
+    }
+    
     if !updated {
         return Ok(());
     }
@@ -533,10 +588,19 @@ fn track_tutorial_progress(
         Some(target) => progress.secondary_quest_progress >= target,
         None => true, // No secondary objective = automatically complete
     };
+    let tertiary_complete = match quest.tertiary_target_amount {
+        Some(target) => progress.tertiary_quest_progress >= target,
+        None => true, // No tertiary objective = automatically complete
+    };
+    
+    // For And logic, respect optional flags - optional objectives don't block completion
+    let secondary_satisfied = quest.secondary_optional || secondary_complete;
+    let tertiary_satisfied = quest.tertiary_optional || tertiary_complete;
     
     let quest_complete = match quest.objective_logic {
-        ObjectiveLogic::And => primary_complete && secondary_complete,  // Both required
-        ObjectiveLogic::Or => primary_complete || secondary_complete,   // Either completes it
+        ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,  // Required objectives must complete
+        ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,   // Any completes it
+        ObjectiveLogic::PrimaryOnly => primary_complete,  // Only primary required (legacy, prefer using optional flags)
     };
     
     if quest_complete {
@@ -616,7 +680,8 @@ fn complete_tutorial_quest(
     // Move to next quest
     progress.current_quest_index += 1;
     progress.current_quest_progress = 0;
-    progress.secondary_quest_progress = 0; // Reset secondary progress for next quest
+    progress.secondary_quest_progress = 0;  // Reset secondary progress for next quest
+    progress.tertiary_quest_progress = 0;   // Reset tertiary progress for next quest
     progress.updated_at = ctx.timestamp;
     
     // Check if there's a next quest and announce it
@@ -1010,6 +1075,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 15,
             shard_reward: 5,
@@ -1031,6 +1101,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 20,
             shard_reward: 5,
@@ -1052,6 +1127,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 20,
             shard_reward: 5,
@@ -1073,6 +1153,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 50,
             shard_reward: 20,
@@ -1098,6 +1183,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: Some(QuestObjectiveType::GatherWood),
             secondary_target_id: None,
             secondary_target_amount: Some(400),
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,  // Must complete BOTH stone and wood gathering
             xp_reward: 35,
             shard_reward: 15,
@@ -1119,6 +1209,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
@@ -1140,6 +1235,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
@@ -1165,6 +1265,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 35,
             shard_reward: 15,
@@ -1186,6 +1291,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 25,
             shard_reward: 10,
@@ -1195,10 +1305,36 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Craft the Wooden Storage Box and place it. Press E to open it and transfer items.".to_string(),
         },
         
-        // Quest 10: Build Sleeping Bag (introduces respawn)
+        // Quest 10: Craft Cloth (prepares for sleeping bag - teaches cloth crafting)
         TutorialQuestDefinition {
-            id: "tutorial_10_sleeping_bag".to_string(),
+            id: "tutorial_10_craft_cloth".to_string(),
             order_index: 9,
+            name: "Textile Production".to_string(),
+            description: "Craft 15 Cloth from Plant Fiber.".to_string(),
+            objective_type: QuestObjectiveType::CraftSpecificItem,
+            target_id: Some("Cloth".to_string()),
+            target_amount: 15,
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
+            objective_logic: ObjectiveLogic::And,
+            xp_reward: 30,
+            shard_reward: 10,
+            unlock_recipe: None,
+            sova_start_message: "Cloth is essential for many advanced items. Press B to open crafting and make Cloth from Plant Fiber. You'll need 15 pieces - this will prepare you for what's next.".to_string(),
+            sova_complete_message: "Excellent textile work. Cloth is versatile - you'll need it for sleeping bags, bandages, and more advanced equipment.".to_string(),
+            sova_hint_message: "Press B to open crafting. Find Cloth in the crafting menu - it requires Plant Fiber. Craft 15 pieces total.".to_string(),
+        },
+        
+        // Quest 11: Build Sleeping Bag (introduces respawn)
+        TutorialQuestDefinition {
+            id: "tutorial_11_sleeping_bag".to_string(),
+            order_index: 10,
             name: "Rest Point".to_string(),
             description: "Craft and place a Sleeping Bag for respawning.".to_string(),
             objective_type: QuestObjectiveType::PlaceSleepingBag,
@@ -1207,69 +1343,91 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 30,
             shard_reward: 15,
             unlock_recipe: None,
-            sova_start_message: "Death comes for all, but you choose where to return. Place a Sleeping Bag - it sets your respawn point.".to_string(),
+            sova_start_message: "Death comes for all, but you choose where to return. Place a Sleeping Bag - it sets your respawn point. You should already have the cloth from your previous work.".to_string(),
             sova_complete_message: "Respawn point set. Now death is just a minor setback.".to_string(),
-            sova_hint_message: "Craft Cloth from Plant Fiber first. Then craft the Sleeping Bag and place it inside your shelter.".to_string(),
+            sova_hint_message: "Craft the Sleeping Bag (needs Cloth) and place it inside your shelter.".to_string(),
         },
         
         // ===========================================
         // PHASE 4: SURVIVAL SKILLS
         // ===========================================
         
-        // Quest 11: Eat Food (introduces hunger)
+        // Quest 12: Craft Hunting Bow and Arrows (prepares for hunting)
         TutorialQuestDefinition {
-            id: "tutorial_11_eat_food".to_string(),
-            order_index: 10,
-            name: "Fuel for Survival".to_string(),
-            description: "Eat 3 food items to restore hunger.".to_string(),
-            objective_type: QuestObjectiveType::EatFood,
-            target_id: None,
-            target_amount: 3,
-            secondary_objective_type: None,
-            secondary_target_id: None,
-            secondary_target_amount: None,
-            objective_logic: ObjectiveLogic::And,
-            xp_reward: 20,
-            shard_reward: 5,
-            unlock_recipe: None,
-            sova_start_message: "Your body needs fuel. Eat some food - berries, cooked meat, anything edible. Watch your hunger bar.".to_string(),
-            sova_complete_message: "Good. Keep your hunger above critical levels or you'll start losing health.".to_string(),
-            sova_hint_message: "Place food on your hotbar and press the number key to consume it. Cooked food is safer and more nutritious.".to_string(),
-        },
-        
-        // Quest 12: Kill an Animal (introduces combat and animal resources)
-        TutorialQuestDefinition {
-            id: "tutorial_12_kill_animal".to_string(),
+            id: "tutorial_12_craft_bow_arrows".to_string(),
             order_index: 11,
-            name: "The Hunt".to_string(),
-            description: "Kill 3 wild animals for meat and resources.".to_string(),
-            objective_type: QuestObjectiveType::KillAnyAnimal,
-            target_id: None,
-            target_amount: 3,
-            secondary_objective_type: None,
-            secondary_target_id: None,
-            secondary_target_amount: None,
-            objective_logic: ObjectiveLogic::And,
-            xp_reward: 45,
+            name: "Archery Preparation".to_string(),
+            description: "Craft a Hunting Bow and craft Arrows 5 times.".to_string(),
+            objective_type: QuestObjectiveType::CraftSpecificItem,
+            target_id: Some("Hunting Bow".to_string()),
+            target_amount: 1,
+            secondary_objective_type: Some(QuestObjectiveType::CraftSpecificItem),
+            secondary_target_id: Some("Arrow".to_string()),
+            secondary_target_amount: Some(5),
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
+            objective_logic: ObjectiveLogic::And,  // Must complete BOTH bow and arrows
+            xp_reward: 35,
             shard_reward: 15,
             unlock_recipe: None,
-            sova_start_message: "Time for combat training. Hunt 3 wild animals. Rabbits and deer are easy prey. Watch out for wolves - they bite back.".to_string(),
-            sova_complete_message: "Clean kills. Animals provide meat, hide, bone, and animal fat. All useful resources.".to_string(),
-            sova_hint_message: "Equip a weapon or your hatchet. Approach animals and attack. Don't forget to harvest the corpse with E!".to_string(),
+            sova_start_message: "Before you hunt, you need proper weapons. Craft a Hunting Bow and make 5 batches of Arrows. The bow is essential for ranged combat - safer than getting up close with dangerous animals.".to_string(),
+            sova_complete_message: "Archery equipment ready. Now you can hunt from a distance. Equip the bow and arrows to your hotbar before engaging animals.".to_string(),
+            sova_hint_message: "Press B to open crafting. Craft the Hunting Bow first, then craft Arrows 5 times. Both objectives must be completed.".to_string(),
+        },
+        
+        // Quest 13: Obtain Tallow (prepares for furnace)
+        // PRIMARY: Obtain 25 Tallow (REQUIRED) - can craft it OR find in barrels
+        // SECONDARY: Craft 10 Cloth (OPTIONAL guidance) 
+        // TERTIARY: Collect 15 Animal Fat (OPTIONAL guidance)
+        // Tallow recipe: 3 Animal Fat + 2 Cloth = 5 Tallow (for 25: need 15 fat + 10 cloth)
+        TutorialQuestDefinition {
+            id: "tutorial_13_tallow_prep".to_string(),
+            order_index: 12,
+            name: "Fuel Production".to_string(),
+            description: "Obtain 25 Tallow for furnace fuel. Craft it from Animal Fat + Cloth, or find it in roadside barrels.".to_string(),
+            // PRIMARY: Obtain Tallow (CollectSpecificItem fires on both crafting and pickup)
+            objective_type: QuestObjectiveType::CollectSpecificItem,
+            target_id: Some("Tallow".to_string()),
+            target_amount: 25,
+            // SECONDARY: Craft Cloth (optional guidance for crafting path)
+            secondary_objective_type: Some(QuestObjectiveType::CraftSpecificItem),
+            secondary_target_id: Some("Cloth".to_string()),
+            secondary_target_amount: Some(10),
+            // TERTIARY: Collect Animal Fat (optional guidance for crafting path)
+            tertiary_objective_type: Some(QuestObjectiveType::CollectSpecificItem),
+            tertiary_target_id: Some("Animal Fat".to_string()),
+            tertiary_target_amount: Some(15),
+            secondary_optional: true,  // Cloth is just guidance - not required
+            tertiary_optional: true,   // Animal Fat is just guidance - not required
+            objective_logic: ObjectiveLogic::And,  // Only primary (Tallow) required due to optional flags
+            xp_reward: 50,
+            shard_reward: 20,
+            unlock_recipe: None,
+            sova_start_message: "The furnace requires Tallow as fuel. You need 25 Tallow. You can craft it from Animal Fat and Cloth, or search roadside barrels where travelers sometimes store it.".to_string(),
+            sova_complete_message: "Excellent. Tallow secured. This fuel is essential for the furnace and other advanced equipment. You're ready for metalworking.".to_string(),
+            sova_hint_message: "Two paths: CRAFT it (hunt animals for fat, combine 3 Animal Fat + 2 Cloth = 5 Tallow) or LOOT it from roadside barrels. Tip: Bone Club or Bone Knife harvest corpses faster than basic tools.".to_string(),
         },
         
         // ===========================================
         // PHASE 5: METAL PROGRESSION
         // ===========================================
         
-        // Quest 13: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
+        // Quest 14: Build Furnace (enables metal smelting - requires 50 Animal Fat!)
         TutorialQuestDefinition {
-            id: "tutorial_13_build_furnace".to_string(),
-            order_index: 12,
+            id: "tutorial_14_build_furnace".to_string(),
+            order_index: 13,
             name: "Industrial Revolution".to_string(),
             description: "Craft and place a Furnace for smelting metal.".to_string(),
             objective_type: QuestObjectiveType::PlaceFurnace,
@@ -1278,6 +1436,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 60,
             shard_reward: 25,
@@ -1287,10 +1450,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             sova_hint_message: "Make sure you have 50 Animal Fat. Craft the Furnace and place it. It needs fuel (wood) to smelt ore.".to_string(),
         },
         
-        // Quest 14: Craft Metal Tool (introduces metal progression)
+        // Quest 15: Craft Metal Tool (introduces metal progression)
         TutorialQuestDefinition {
-            id: "tutorial_14_craft_metal_tool".to_string(),
-            order_index: 13,
+            id: "tutorial_15_craft_metal_tool".to_string(),
+            order_index: 14,
             name: "Forged in Fire".to_string(),
             description: "Craft a Metal Hatchet or Metal Pickaxe.".to_string(),
             objective_type: QuestObjectiveType::CraftSpecificItem,
@@ -1299,6 +1462,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: Some(QuestObjectiveType::CraftSpecificItem),
             secondary_target_id: Some("Metal Pickaxe".to_string()),  // Option 2: Metal Pickaxe
             secondary_target_amount: Some(1),
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::Or,  // EITHER Metal Hatchet OR Metal Pickaxe completes this quest
             xp_reward: 50,
             shard_reward: 20,
@@ -1312,10 +1480,10 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 6: ECONOMY & MEMORY SYSTEM
         // ===========================================
         
-        // Quest 15: Deliver ALK Contract (introduces the economy)
+        // Quest 16: Deliver ALK Contract (introduces the economy)
         TutorialQuestDefinition {
-            id: "tutorial_15_alk_contract".to_string(),
-            order_index: 14,
+            id: "tutorial_16_alk_contract".to_string(),
+            order_index: 15,
             name: "Enter the Economy".to_string(),
             description: "Accept an ALK contract and deliver resources for Memory Shards.".to_string(),
             objective_type: QuestObjectiveType::DeliverAlkContract,
@@ -1324,6 +1492,11 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             secondary_objective_type: None,
             secondary_target_id: None,
             secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
             objective_logic: ObjectiveLogic::And,
             xp_reward: 100,
             shard_reward: 50,
@@ -1338,7 +1511,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         table.insert(quest);
     }
     
-    let quest_count = 15; // 15 tutorial quests (order_index 0-14)
+    let quest_count = 16; // 16 tutorial quests (order_index 0-15)
     log::info!("[Quests] Seeded {} tutorial quests", quest_count);
     Ok(())
 }

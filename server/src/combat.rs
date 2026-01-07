@@ -644,7 +644,12 @@ pub fn find_targets_in_cone(
     // Check grass only in nearby chunks (efficient chunk-based query)
     // FIX: Use the actual attack_range parameter, NOT hardcoded GRASS_INTERACTION_DISTANCE
     // This allows weapons with extended range (like Scythe) to hit grass at their full range
-    let attack_range_sq = attack_range * attack_range;
+    // GRASS BONUS: +20px range and 1.8x wider attack arc to make grass MUCH easier to chop
+    let grass_range_bonus = 20.0;
+    let grass_attack_range = attack_range + grass_range_bonus;
+    let grass_attack_range_sq = grass_attack_range * grass_attack_range;
+    let grass_half_attack_angle_rad = half_attack_angle_rad * 1.8; // 80% wider arc for grass
+    
     for chunk_idx in chunk_indices_to_check {
         for grass_entity in ctx.db.grass().chunk_index().filter(chunk_idx) {
             // Skip dead grass or brambles (indestructible)
@@ -656,8 +661,8 @@ pub fn find_targets_in_cone(
             let dy = grass_entity.pos_y - player.position_y;
             let dist_sq = dx * dx + dy * dy;
             
-            // Use the weapon's attack_range, not hardcoded grass interaction distance
-            if dist_sq < attack_range_sq && dist_sq > 0.0 {
+            // Use extended grass attack range for easier chopping
+            if dist_sq < grass_attack_range_sq && dist_sq > 0.0 {
                 let distance = dist_sq.sqrt();
                 let target_vec_x = dx / distance;
                 let target_vec_y = dy / distance;
@@ -665,7 +670,8 @@ pub fn find_targets_in_cone(
                 let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
                 let angle_rad = dot_product.acos();
                 
-                if angle_rad <= half_attack_angle_rad {
+                // Use wider attack angle for grass - much more forgiving!
+                if angle_rad <= grass_half_attack_angle_rad {
                     targets.push(Target {
                         target_type: TargetType::Tree, // Grass uses Tree target type (resource)
                         id: TargetId::Grass(grass_entity.id),
@@ -1137,6 +1143,18 @@ pub fn grant_resource(
                 log::info!("[GrantResource] Inventory full for player {}. Dropped {} {} near player.", 
                          player_id, amount, resource_name);
             }
+            
+            // Track item collection for quest progress
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                player_id,
+                crate::quests::QuestObjectiveType::CollectSpecificItem,
+                Some(resource_name),
+                amount,
+            ) {
+                log::error!("Failed to track item collection quest progress: {}", e);
+            }
+            
             Ok(())
         }
         Err(e) => Err(format!("Failed to grant {} to player: {}", resource_name, e))
