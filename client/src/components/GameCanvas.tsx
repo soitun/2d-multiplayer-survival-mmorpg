@@ -717,6 +717,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Note: ySortedEntities sync is done after useEntityFiltering hook below
   const interpolatedGrass = useGrassInterpolation({ serverGrass: grass, deltaTime: deltaTimeRef.current });
 
+  // PERFORMANCE FIX: Chunk cache refs moved here (before useEntityFiltering) to enable memoized worldChunkDataMap
+  // This avoids creating a new Map on every render, reducing GC pressure
+  const chunkCacheRef = useRef<Map<string, SpacetimeDBWorldChunkData>>(new Map());
+  const chunkSizeRef = useRef<number>(8);
+  const [chunkCacheVersion, setChunkCacheVersion] = useState(0);
+  
+  // PERFORMANCE FIX: Memoize worldChunkData Map to avoid creating new Map on every render
+  // This was previously created inline in useEntityFiltering and TillerPreview, causing GC pressure
+  // The map only recalculates when chunkCacheVersion changes (on insert/update/delete)
+  const worldChunkDataMap = useMemo(() => {
+    // Use the cached data from chunkCacheRef which is updated by the subscription callbacks
+    if (chunkCacheRef.current.size === 0) return undefined;
+    // Return a copy of the cached Map (chunkCacheRef is already keyed by "chunkX,chunkY")
+    return new Map(chunkCacheRef.current);
+  }, [chunkCacheVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Use Entity Filtering Hook ---
   const {
     visibleSleepingBags,
@@ -809,7 +825,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     doors, // ADDED: Building doors
     localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
-    connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined, // ADDED: World chunk data for grass filtering
+    worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
     alkStations, // ADDED: ALK delivery stations
     shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
     fishingVillageParts, // ADDED: Fishing village monument parts for rendering
@@ -880,12 +896,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Procedural World Tile Management ---
   const { proceduralRenderer, isInitialized: isWorldRendererInitialized, updateTileCache } = useWorldTileCache();
 
-  // Compressed chunk cache (avoids per-tile subscriptions)
-  const chunkCacheRef = useRef<Map<string, SpacetimeDBWorldChunkData>>(new Map());
-  const chunkSizeRef = useRef<number>(8);
-  const [chunkCacheVersion, setChunkCacheVersion] = useState(0);
-
   // Subscribe once to all compressed chunks (small row count, stable; avoids spatial churn)
+  // NOTE: chunkCacheRef, chunkSizeRef, chunkCacheVersion are now declared earlier (before useEntityFiltering)
   useEffect(() => {
     if (!connection) return;
 
@@ -4630,7 +4642,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           trees={trees}
           runeStones={runeStones}
           fertilizerPatches={fertilizerPatches}
-          worldChunkData={connection?.db?.worldChunkData ? new Map(Array.from(connection.db.worldChunkData.iter()).map((chunk: any) => [`${chunk.chunkX},${chunk.chunkY}`, chunk])) : undefined}
+          worldChunkData={worldChunkDataMap}
         />
       )}
     </div>
