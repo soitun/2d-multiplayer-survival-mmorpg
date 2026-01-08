@@ -1672,11 +1672,10 @@ export function useEntityFiltering(
       visibleFoundationCells.length > (ySortedCache.lastEntityCounts.foundationCells || 0);
     const bothPresentNowButNotBefore = hasPlayersNow && hasTilesNow && (!hadPlayersBefore || !hadTilesBefore);
     
-    // CRITICAL FIX: When we have both players and tiles, ALWAYS re-sort every frame
-    // This fixes the subscription timing issue where foundation/wall data loads asynchronously
-    // via chunk subscriptions after the initial sort, causing players to render below tiles
-    // The cache prevents re-sorting when data arrives, so we disable caching in this case
-    const hasBothPlayersAndTiles = hasPlayersNow && hasTilesNow;
+    // NOTE: Previously had `hasBothPlayersAndTiles` which disabled caching entirely when players + tiles existed.
+    // This caused 60 re-sorts/sec even when nothing changed. Removed as the other safeguards
+    // (foundationsJustLoaded, wallsJustLoaded, bothPresentNowButNotBefore, etc.) already handle the
+    // subscription race condition. Now we re-sort every 4 frames (~15fps) for smooth visuals.
     
     // CORPSE SHAKE FIX: Check if any corpse was recently hit (within 250ms)
     // This ensures we use fresh entity data for shake rendering instead of cached stale data
@@ -1706,8 +1705,11 @@ export function useEntityFiltering(
     }
     
     // Check if we need to resort
+    // PERFORMANCE FIX: Removed `hasBothPlayersAndTiles` which disabled caching entirely (60 re-sorts/sec)
+    // The other safeguards (foundationsJustLoaded, wallsJustLoaded, etc.) already handle subscription race conditions
+    // Reduced frame interval from 10 to 4 for smoother visuals (~15 re-sorts/sec instead of 60)
     const needsResort = ySortedCache.isDirty || 
-                       (frameCounter - ySortedCache.lastUpdateFrame) > 10 || // Force resort every 10 frames
+                       (frameCounter - ySortedCache.lastUpdateFrame) > 4 || // Force resort every 4 frames (~15fps) for smooth player/wall transitions
                        hasEntityCountChanged(currentEntityCounts) ||
                        foundationsJustLoaded || // Force resort when foundations first load
                        wallsJustLoaded || // Force resort when walls first load
@@ -1715,12 +1717,9 @@ export function useEntityFiltering(
                        foundationCountIncreased || // CRITICAL: Force resort when new foundation is placed
                        playerJustLoadedWithTilesPresent || // Force resort when player loads with tiles already present
                        bothPresentNowButNotBefore || // Force resort when both players and tiles are now present but weren't both before
-                       hasBothPlayersAndTiles || // CRITICAL: Always resort when both are present (disables cache)
                        hasRecentCorpseHit; // CORPSE SHAKE FIX: Force resort when corpse was recently hit
     
-    // CRITICAL FIX: Disable cache when we have both players and tiles
-    // This ensures correct sorting when subscription data loads asynchronously
-    // Only use cache if we DON'T have both players and tiles AND nothing else requires resorting
+    // Use cached result when no re-sort is needed - significant performance gain!
     if (!needsResort && ySortedCache.entities.length > 0) {
       // Use cached result - huge performance gain!
       // Cast to YSortedEntityType[] to hide internal _ySortKey and _priority from consumers

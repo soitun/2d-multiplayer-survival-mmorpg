@@ -5,6 +5,9 @@
  * - Quest completion celebration popup
  * - Quest progress milestone toasts
  * - Renders at a fixed position on screen
+ * 
+ * NOTE: "Seen" tracking is now handled by useQuestNotifications hook
+ * which persists to localStorage. This component just displays what it receives.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -16,33 +19,6 @@ const UI_FONT_FAMILY = '"Press Start 2P", cursive';
 const SOVA_PURPLE = '#c084fc';
 const SOVA_CYAN = '#00aaff';
 const SUCCESS_GREEN = '#4ade80';
-
-const SEEN_QUESTS_STORAGE_KEY = 'broth_seen_quest_notifications';
-
-// Load seen quest IDs from localStorage
-function loadSeenQuestIds(): Set<string> {
-  try {
-    const stored = localStorage.getItem(SEEN_QUESTS_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        return new Set(parsed);
-      }
-    }
-  } catch (e) {
-    console.warn('[QuestNotifications] Failed to load seen quests from localStorage:', e);
-  }
-  return new Set();
-}
-
-// Save seen quest IDs to localStorage
-function saveSeenQuestIds(ids: Set<string>): void {
-  try {
-    localStorage.setItem(SEEN_QUESTS_STORAGE_KEY, JSON.stringify([...ids]));
-  } catch (e) {
-    console.warn('[QuestNotifications] Failed to save seen quests to localStorage:', e);
-  }
-}
 
 // ============================================================================
 // QUEST COMPLETION NOTIFICATION (Celebration popup - Cyberpunk style)
@@ -73,22 +49,16 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [isAnimatingOut, setIsAnimatingOut] = useState(false);
-    // Initialize seenIds from localStorage to persist across page reloads
-    const [seenIds] = useState<Set<string>>(() => loadSeenQuestIds());
 
     const dismissNotification = useCallback(() => {
         if (!notification) return;
-        
-        // Persist to localStorage so it won't show again
-        const newSet = new Set(seenIds).add(notification.id);
-        saveSeenQuestIds(newSet);
         
         setIsAnimatingOut(true);
         setTimeout(() => {
             setIsVisible(false);
             onDismiss();
         }, FADE_OUT_DURATION_MS);
-    }, [notification, seenIds, onDismiss]);
+    }, [notification, onDismiss]);
 
     // Handle click - open quests panel and dismiss
     const handleClick = useCallback(() => {
@@ -100,12 +70,7 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
 
     useEffect(() => {
         if (notification) {
-            // Skip if we've already seen this notification
-            if (seenIds.has(notification.id)) {
-                onDismiss();
-                return;
-            }
-            
+            // Show the notification (seen tracking is now done by useQuestNotifications hook)
             setIsVisible(true);
             setIsAnimatingOut(false);
             
@@ -116,16 +81,17 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
             
             return () => clearTimeout(timer);
         }
-    }, [notification, seenIds, onDismiss, dismissNotification]);
+    }, [notification, onDismiss, dismissNotification]);
 
     if (!notification || !isVisible) return null;
 
     const isTutorial = notification.questType === 'tutorial';
+    const isDaily = notification.questType === 'daily';
 
     return (
         <div
             onClick={handleClick}
-            className={`quest-complete-container ${isAnimatingOut ? 'fade-out' : 'fade-in'}`}
+            className={`quest-complete-container ${isAnimatingOut ? 'fade-out' : 'fade-in'} ${isDaily ? 'daily-quest' : 'tutorial-quest'}`}
             style={{
                 position: 'fixed',
                 top: '350px',
@@ -138,51 +104,53 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
             title="Click to view quests"
         >
             {/* Gradient border container */}
-            <div className="quest-glow-container">
+            <div className={`quest-glow-container ${isDaily ? 'daily' : ''}`}>
                 {/* Main notification box */}
-                <div className="quest-box">
+                <div className={`quest-box ${isDaily ? 'daily' : ''}`}>
                     {/* Scanline overlay */}
-                    <div className="quest-scanlines" />
+                    <div className={`quest-scanlines ${isDaily ? 'daily' : ''}`} />
                     
                     {/* Corner accents */}
-                    <div className="quest-corner top-left" />
-                    <div className="quest-corner top-right" />
-                    <div className="quest-corner bottom-left" />
-                    <div className="quest-corner bottom-right" />
+                    <div className={`quest-corner top-left ${isDaily ? 'daily' : ''}`} />
+                    <div className={`quest-corner top-right ${isDaily ? 'daily' : ''}`} />
+                    <div className={`quest-corner bottom-left ${isDaily ? 'daily' : ''}`} />
+                    <div className={`quest-corner bottom-right ${isDaily ? 'daily' : ''}`} />
                     
                     {/* Close button */}
                     <div 
-                        className="quest-close"
+                        className={`quest-close ${isDaily ? 'daily' : ''}`}
                         onClick={(e) => { e.stopPropagation(); dismissNotification(); }}
                     >
                         ×
                     </div>
                     
                     {/* Header bar */}
-                    <div className="quest-header-bar">
-                        <span className="quest-header-text">// {isTutorial ? 'MISSION' : 'DAILY QUEST'}</span>
+                    <div className={`quest-header-bar ${isDaily ? 'daily' : ''}`}>
+                        <span className={`quest-header-text ${isDaily ? 'daily' : ''}`}>
+                            {isDaily ? '🔄 DAILY TRAINING' : '// MISSION'}
+                        </span>
                         <div className="quest-header-dots">
-                            <span className="quest-dot green" />
+                            <span className={`quest-dot ${isDaily ? 'purple' : 'green'}`} />
                             <span className="quest-dot cyan" />
-                            <span className="quest-dot purple" />
+                            <span className={`quest-dot ${isDaily ? 'cyan' : 'purple'}`} />
                         </div>
                     </div>
                     
                     {/* Content */}
                     <div className="quest-content">
                         {/* Checkmark icon with glow */}
-                        <div className="quest-icon">
-                            <span className="quest-check-emoji">✓</span>
-                            <div className="quest-icon-glow" />
+                        <div className={`quest-icon ${isDaily ? 'daily' : ''}`}>
+                            <span className={`quest-check-emoji ${isDaily ? 'daily' : ''}`}>✓</span>
+                            <div className={`quest-icon-glow ${isDaily ? 'daily' : ''}`} />
                         </div>
                         
                         {/* Text content */}
                         <div className="quest-text">
                             {/* Completion label with glitch effect */}
-                            <div className="quest-complete-label" data-text={isTutorial ? 'MISSION COMPLETE' : 'QUEST COMPLETE'}>
-                                <span className="quest-glitch-layer-1">{isTutorial ? 'MISSION COMPLETE' : 'QUEST COMPLETE'}</span>
-                                <span className="quest-glitch-layer-2">{isTutorial ? 'MISSION COMPLETE' : 'QUEST COMPLETE'}</span>
-                                <span className="quest-main-label">{isTutorial ? 'MISSION COMPLETE' : 'QUEST COMPLETE'}</span>
+                            <div className={`quest-complete-label ${isDaily ? 'daily' : ''}`} data-text={isTutorial ? 'MISSION COMPLETE' : 'DAILY COMPLETE'}>
+                                <span className={`quest-glitch-layer-1 ${isDaily ? 'daily' : ''}`}>{isTutorial ? 'MISSION COMPLETE' : 'DAILY COMPLETE'}</span>
+                                <span className={`quest-glitch-layer-2 ${isDaily ? 'daily' : ''}`}>{isTutorial ? 'MISSION COMPLETE' : 'DAILY COMPLETE'}</span>
+                                <span className={`quest-main-label ${isDaily ? 'daily' : ''}`}>{isTutorial ? 'MISSION COMPLETE' : 'DAILY COMPLETE'}</span>
                             </div>
                             
                             {/* Quest name */}
@@ -193,7 +161,7 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                             {/* Rewards row */}
                             <div className="quest-rewards">
                                 {notification.xpAwarded > 0 && (
-                                    <div className="quest-reward-item xp">
+                                    <div className={`quest-reward-item xp ${isDaily ? 'daily' : ''}`}>
                                         <span className="quest-reward-icon">◆</span>
                                         <span className="quest-reward-value">+{notification.xpAwarded}</span>
                                         <span className="quest-reward-label">XP</span>
@@ -219,12 +187,12 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     </div>
                     
                     {/* Progress bar */}
-                    <div className="quest-progress-bar">
-                        <div className="quest-progress-fill" style={{ animationDuration: `${NOTIFICATION_TIMEOUT_MS}ms` }} />
+                    <div className={`quest-progress-bar ${isDaily ? 'daily' : ''}`}>
+                        <div className={`quest-progress-fill ${isDaily ? 'daily' : ''}`} style={{ animationDuration: `${NOTIFICATION_TIMEOUT_MS}ms` }} />
                     </div>
                     
                     {/* Click hint */}
-                    <div className="quest-click-hint">
+                    <div className={`quest-click-hint ${isDaily ? 'daily' : ''}`}>
                         CLICK TO VIEW QUESTS
                     </div>
                 </div>
@@ -233,7 +201,7 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
             {/* Floating particles */}
             <div className="quest-particles">
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className={`quest-particle particle-${i}`} />
+                    <div key={i} className={`quest-particle particle-${i} ${isDaily ? 'daily' : ''}`} />
                 ))}
             </div>
             
@@ -279,6 +247,21 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                             0 0 25px rgba(74, 222, 128, 0.6),
                             0 0 50px rgba(74, 222, 128, 0.3),
                             inset 0 0 30px rgba(74, 222, 128, 0.15);
+                    }
+                }
+                
+                @keyframes questGlowDaily {
+                    0%, 100% { 
+                        box-shadow: 
+                            0 0 15px rgba(192, 132, 252, 0.4),
+                            0 0 30px rgba(192, 132, 252, 0.2),
+                            inset 0 0 20px rgba(192, 132, 252, 0.1);
+                    }
+                    50% { 
+                        box-shadow: 
+                            0 0 25px rgba(192, 132, 252, 0.6),
+                            0 0 50px rgba(192, 132, 252, 0.3),
+                            inset 0 0 30px rgba(192, 132, 252, 0.15);
                     }
                 }
                 
@@ -347,6 +330,10 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     border-radius: 10px;
                 }
                 
+                .quest-glow-container.daily {
+                    background: linear-gradient(135deg, #c084fc, #00d4ff, #a855f7, #c084fc);
+                }
+                
                 /* Main notification box */
                 .quest-box {
                     position: relative;
@@ -356,6 +343,11 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     max-width: 420px;
                     overflow: hidden;
                     animation: questGlow 2s ease-in-out infinite;
+                }
+                
+                .quest-box.daily {
+                    background: linear-gradient(180deg, rgba(25, 15, 35, 0.98) 0%, rgba(35, 20, 45, 0.95) 100%);
+                    animation: questGlowDaily 2s ease-in-out infinite;
                 }
                 
                 /* Scanlines overlay */
@@ -376,6 +368,16 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     z-index: 10;
                 }
                 
+                .quest-scanlines.daily {
+                    background: repeating-linear-gradient(
+                        0deg,
+                        transparent,
+                        transparent 2px,
+                        rgba(192, 132, 252, 0.02) 2px,
+                        rgba(192, 132, 252, 0.02) 4px
+                    );
+                }
+                
                 .quest-scanlines::after {
                     content: '';
                     position: absolute;
@@ -393,6 +395,15 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     pointer-events: none;
                 }
                 
+                .quest-scanlines.daily::after {
+                    background: linear-gradient(
+                        180deg,
+                        transparent 0%,
+                        rgba(192, 132, 252, 0.08) 50%,
+                        transparent 100%
+                    );
+                }
+                
                 /* Corner accents */
                 .quest-corner {
                     position: absolute;
@@ -400,6 +411,10 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     height: 14px;
                     border: 2px solid #4ade80;
                     z-index: 5;
+                }
+                
+                .quest-corner.daily {
+                    border-color: #c084fc;
                 }
                 
                 .quest-corner.top-left {
@@ -449,10 +464,20 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     z-index: 20;
                 }
                 
+                .quest-close.daily {
+                    color: rgba(192, 132, 252, 0.5);
+                }
+                
                 .quest-close:hover {
                     color: #4ade80;
                     background: rgba(74, 222, 128, 0.2);
                     text-shadow: 0 0 10px #4ade80;
+                }
+                
+                .quest-close.daily:hover {
+                    color: #c084fc;
+                    background: rgba(192, 132, 252, 0.2);
+                    text-shadow: 0 0 10px #c084fc;
                 }
                 
                 /* Header bar */
@@ -465,12 +490,21 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     border-bottom: 1px solid rgba(74, 222, 128, 0.3);
                 }
                 
+                .quest-header-bar.daily {
+                    background: rgba(192, 132, 252, 0.1);
+                    border-bottom: 1px solid rgba(192, 132, 252, 0.3);
+                }
+                
                 .quest-header-text {
                     font-family: 'Courier New', 'Consolas', monospace;
                     font-size: 9px;
                     color: #4ade80;
                     letter-spacing: 1.5px;
                     text-transform: uppercase;
+                }
+                
+                .quest-header-text.daily {
+                    color: #c084fc;
                 }
                 
                 .quest-header-dots {
@@ -521,11 +555,27 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     border-radius: 50%;
                 }
                 
+                .quest-icon.daily {
+                    background: rgba(192, 132, 252, 0.15);
+                    border: 2px solid rgba(192, 132, 252, 0.5);
+                }
+                
                 .quest-check-emoji {
                     font-size: 24px;
                     color: #4ade80;
                     animation: questCheckPulse 2s ease-in-out infinite;
                     text-shadow: 0 0 10px #4ade80;
+                }
+                
+                .quest-check-emoji.daily {
+                    color: #c084fc;
+                    animation: questCheckPulseDaily 2s ease-in-out infinite;
+                    text-shadow: 0 0 10px #c084fc;
+                }
+                
+                @keyframes questCheckPulseDaily {
+                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px #c084fc); }
+                    50% { transform: scale(1.1); filter: drop-shadow(0 0 15px #c084fc); }
                 }
                 
                 .quest-icon-glow {
@@ -537,6 +587,10 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     height: 60px;
                     background: radial-gradient(circle, rgba(74, 222, 128, 0.3) 0%, transparent 70%);
                     pointer-events: none;
+                }
+                
+                .quest-icon-glow.daily {
+                    background: radial-gradient(circle, rgba(192, 132, 252, 0.3) 0%, transparent 70%);
                 }
                 
                 /* Text content */
@@ -562,6 +616,11 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     z-index: 2;
                 }
                 
+                .quest-complete-label .quest-main-label.daily {
+                    color: #c084fc;
+                    text-shadow: 0 0 10px rgba(192, 132, 252, 0.7);
+                }
+                
                 .quest-complete-label .quest-glitch-layer-1,
                 .quest-complete-label .quest-glitch-layer-2 {
                     position: absolute;
@@ -575,9 +634,17 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     animation: questGlitch 0.5s infinite;
                 }
                 
+                .quest-complete-label .quest-glitch-layer-1.daily {
+                    color: #00d4ff;
+                }
+                
                 .quest-complete-label .quest-glitch-layer-2 {
                     color: #c084fc;
                     animation: questGlitch2 0.5s infinite;
+                }
+                
+                .quest-complete-label .quest-glitch-layer-2.daily {
+                    color: #4ade80;
                 }
                 
                 /* Quest name */
@@ -605,6 +672,11 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     background: rgba(74, 222, 128, 0.1);
                     border: 1px solid rgba(74, 222, 128, 0.3);
                     border-radius: 3px;
+                }
+                
+                .quest-reward-item.daily {
+                    background: rgba(192, 132, 252, 0.1);
+                    border: 1px solid rgba(192, 132, 252, 0.3);
                 }
                 
                 .quest-reward-item.xp .quest-reward-icon {
@@ -674,10 +746,18 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     background: rgba(74, 222, 128, 0.15);
                 }
                 
+                .quest-progress-bar.daily {
+                    background: rgba(192, 132, 252, 0.15);
+                }
+                
                 .quest-progress-fill {
                     height: 100%;
                     background: linear-gradient(90deg, #4ade80, #00d4ff);
                     animation: questProgressFill linear forwards;
+                }
+                
+                .quest-progress-fill.daily {
+                    background: linear-gradient(90deg, #c084fc, #00d4ff);
                 }
                 
                 /* Click hint */
@@ -691,9 +771,18 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     transition: color 0.2s ease;
                 }
                 
+                .quest-click-hint.daily {
+                    color: rgba(192, 132, 252, 0.5);
+                }
+                
                 .quest-complete-container:hover .quest-click-hint {
                     color: rgba(74, 222, 128, 0.9);
                     text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+                }
+                
+                .quest-complete-container.daily-quest:hover .quest-click-hint {
+                    color: rgba(192, 132, 252, 0.9);
+                    text-shadow: 0 0 8px rgba(192, 132, 252, 0.5);
                 }
                 
                 /* Floating particles */
@@ -714,6 +803,11 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     background: #4ade80;
                     border-radius: 50%;
                     box-shadow: 0 0 8px #4ade80;
+                }
+                
+                .quest-particle.daily {
+                    background: #c084fc;
+                    box-shadow: 0 0 8px #c084fc;
                 }
                 
                 .quest-particle.particle-0 { 
@@ -739,6 +833,19 @@ export const QuestCompletionNotification: React.FC<QuestCompletionNotificationPr
                     animation: questFloat 2.4s ease-in-out infinite 0.7s; 
                     background: #c084fc; 
                     box-shadow: 0 0 8px #c084fc; 
+                }
+                
+                .quest-particle.daily.particle-0 {
+                    background: #c084fc;
+                    box-shadow: 0 0 8px #c084fc;
+                }
+                .quest-particle.daily.particle-2 {
+                    background: #a855f7;
+                    box-shadow: 0 0 8px #a855f7;
+                }
+                .quest-particle.daily.particle-3 {
+                    background: #4ade80;
+                    box-shadow: 0 0 8px #4ade80;
                 }
             `}</style>
         </div>

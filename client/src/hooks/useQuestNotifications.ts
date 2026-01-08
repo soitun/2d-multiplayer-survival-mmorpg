@@ -85,6 +85,38 @@ const SOVA_LABEL_MAP: Record<string, string> = {
     'daily_quests_assigned': 'SOVA: Daily Training',
 };
 
+// LocalStorage keys for persisting seen notifications across page refreshes
+const SEEN_QUEST_COMPLETIONS_KEY = 'broth_seen_quest_completions';
+const SEEN_SOVA_MESSAGES_KEY = 'broth_seen_sova_messages';
+
+// Load seen IDs from localStorage
+function loadSeenIds(key: string): Set<string> {
+    try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+                return new Set(parsed);
+            }
+        }
+    } catch (e) {
+        console.warn(`[useQuestNotifications] Failed to load ${key} from localStorage:`, e);
+    }
+    return new Set();
+}
+
+// Save seen IDs to localStorage
+function saveSeenIds(key: string, ids: Set<string>): void {
+    try {
+        // Limit to last 200 entries to prevent localStorage bloat
+        const idsArray = [...ids];
+        const limitedArray = idsArray.slice(-200);
+        localStorage.setItem(key, JSON.stringify(limitedArray));
+    } catch (e) {
+        console.warn(`[useQuestNotifications] Failed to save ${key} to localStorage:`, e);
+    }
+}
+
 // ============================================================================
 // Main Hook
 // ============================================================================
@@ -98,9 +130,9 @@ export function useQuestNotifications({
     sovaMessageAdderRef,
 }: UseQuestNotificationsProps): UseQuestNotificationsReturn {
     
-    // State for tracking seen notifications (to avoid re-processing)
-    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => new Set());
-    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => new Set());
+    // State for tracking seen notifications - persisted to localStorage to survive page refreshes
+    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => loadSeenIds(SEEN_SOVA_MESSAGES_KEY));
+    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => loadSeenIds(SEEN_QUEST_COMPLETIONS_KEY));
     const [seenQuestProgressIds, setSeenQuestProgressIds] = useState<Set<string>>(() => new Set());
     
     // State for UI
@@ -122,8 +154,12 @@ export function useQuestNotifications({
         sovaQuestMessages.forEach((message, id) => {
             if (seenSovaQuestMessageIds.has(id)) return;
             
-            // Mark as seen
-            setSeenSovaQuestMessageIds(prev => new Set(prev).add(id));
+            // Mark as seen and persist to localStorage
+            setSeenSovaQuestMessageIds(prev => {
+                const newSet = new Set(prev).add(id);
+                saveSeenIds(SEEN_SOVA_MESSAGES_KEY, newSet);
+                return newSet;
+            });
             
             console.log('[QuestNotifications] 📡 New SOVA quest message:', message.message);
             
@@ -172,15 +208,24 @@ export function useQuestNotifications({
         if (!questCompletionNotifications || questCompletionNotifications.size === 0) return;
         
         questCompletionNotifications.forEach((notification, id) => {
-            if (seenQuestCompletionIds.has(id)) return;
+            if (seenQuestCompletionIds.has(id)) {
+                // Already seen this notification (persisted in localStorage)
+                return;
+            }
             
             // Only show if it's for the local player
             if (notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
             
-            // Mark as seen
-            setSeenQuestCompletionIds(prev => new Set(prev).add(id));
+            console.log('[QuestNotifications] 🆕 NEW quest completion to display:', id, notification.questName, notification.questType);
             
-            console.log('[QuestNotifications] 🎉 Quest completion:', notification.questName);
+            // Mark as seen and persist to localStorage
+            setSeenQuestCompletionIds(prev => {
+                const newSet = new Set(prev).add(id);
+                saveSeenIds(SEEN_QUEST_COMPLETIONS_KEY, newSet);
+                return newSet;
+            });
+            
+            console.log('[QuestNotifications] 🎉 Quest completion:', notification.questName, 'type:', notification.questType);
             
             // Show celebration UI
             setQuestCompletionNotification({

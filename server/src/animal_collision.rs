@@ -453,49 +453,51 @@ where
     None
 }
 
-/// Checks collision with walls (thin edges along tile boundaries)
+/// Checks collision with walls (thin edges along foundation cell boundaries)
+/// IMPORTANT: Wall cells use FOUNDATION_TILE_SIZE_PX (96px) coordinates, not TILE_SIZE_PX (48px)!
 pub fn check_wall_collision<DB: WallCellTableTrait>(
     db: &DB,
     proposed_x: f32,
     proposed_y: f32,
 ) -> Option<(f32, f32)> {
     const WALL_COLLISION_THICKNESS: f32 = 6.0; // Thin collision thickness (matches player collision)
-    const CHECK_RADIUS_TILES: i32 = 2; // Check walls within 2 tiles
+    const CHECK_RADIUS_CELLS: i32 = 2; // Check walls within 2 foundation cells
     
-    let animal_tile_x = (proposed_x / TILE_SIZE_PX as f32).floor() as i32;
-    let animal_tile_y = (proposed_y / TILE_SIZE_PX as f32).floor() as i32;
+    // CRITICAL FIX: Walls use foundation cell coordinates (96px), NOT tile coordinates (48px)!
+    let animal_cell_x = (proposed_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let animal_cell_y = (proposed_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
     
     let wall_cells = db.wall_cell();
     
-    for tile_offset_x in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-        for tile_offset_y in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-            let check_tile_x = animal_tile_x + tile_offset_x;
-            let check_tile_y = animal_tile_y + tile_offset_y;
+    for cell_offset_x in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+        for cell_offset_y in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+            let check_cell_x = animal_cell_x + cell_offset_x;
+            let check_cell_y = animal_cell_y + cell_offset_y;
             
-            // Find walls on this tile
-            for wall in wall_cells.idx_cell_coords().filter((check_tile_x, check_tile_y)) {
+            // Find walls on this foundation cell
+            for wall in wall_cells.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
                 if wall.is_destroyed { continue; }
                 
-                // Calculate wall edge collision bounds
-                let tile_left = check_tile_x as f32 * TILE_SIZE_PX as f32;
-                let tile_top = check_tile_y as f32 * TILE_SIZE_PX as f32;
-                let tile_right = tile_left + TILE_SIZE_PX as f32;
-                let tile_bottom = tile_top + TILE_SIZE_PX as f32;
+                // Calculate wall edge collision bounds using foundation cell size (96px)
+                let cell_left = check_cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_top = check_cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
                 
                 // Determine wall edge bounds based on edge direction
                 // Edge 0 = North (top), 1 = East (right), 2 = South (bottom), 3 = West (left)
                 let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match wall.edge {
                     0 => { // North (top edge) - horizontal line
-                        (tile_left, tile_right, tile_top - WALL_COLLISION_THICKNESS / 2.0, tile_top + WALL_COLLISION_THICKNESS / 2.0)
+                        (cell_left, cell_right, cell_top - WALL_COLLISION_THICKNESS / 2.0, cell_top + WALL_COLLISION_THICKNESS / 2.0)
                     },
                     1 => { // East (right edge) - vertical line
-                        (tile_right - WALL_COLLISION_THICKNESS / 2.0, tile_right + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        (cell_right - WALL_COLLISION_THICKNESS / 2.0, cell_right + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                     },
                     2 => { // South (bottom edge) - horizontal line
-                        (tile_left, tile_right, tile_bottom - WALL_COLLISION_THICKNESS / 2.0, tile_bottom + WALL_COLLISION_THICKNESS / 2.0)
+                        (cell_left, cell_right, cell_bottom - WALL_COLLISION_THICKNESS / 2.0, cell_bottom + WALL_COLLISION_THICKNESS / 2.0)
                     },
                     3 => { // West (left edge) - vertical line
-                        (tile_left - WALL_COLLISION_THICKNESS / 2.0, tile_left + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        (cell_left - WALL_COLLISION_THICKNESS / 2.0, cell_left + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                     },
                     _ => continue, // Skip diagonal or invalid edges
                 };
