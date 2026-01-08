@@ -424,6 +424,19 @@ pub fn check_door_projectile_collision(
     None
 }
 
+/// Check if a line segment is blocked by any closed door (for melee attacks)
+/// Returns Some(door_id) if a closed door is blocking the line, None otherwise
+pub fn check_line_hits_door(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+) -> Option<u64> {
+    check_door_projectile_collision(ctx, start_x, start_y, end_x, end_y)
+        .map(|(door_id, _, _)| door_id)
+}
+
 /// Simple line segment vs AABB intersection test
 fn line_intersects_aabb(
     x1: f32, y1: f32, x2: f32, y2: f32,

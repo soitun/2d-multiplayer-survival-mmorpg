@@ -3420,6 +3420,30 @@ pub fn process_attack(
         });
         }
     }
+    
+    // Check if melee attack is blocked by a closed door
+    // EXCEPTION: If the target itself is a door, skip this check (handle direct door damage separately)
+    let target_is_door = matches!(target.id, TargetId::Door(_));
+    if !target_is_door {
+        if crate::door::check_line_hits_door(
+            ctx,
+            attacker.position_x,
+            attacker.position_y,
+            target_x,
+            target_y,
+        ).is_some() {
+            log::info!(
+                "[ProcessAttack] Melee attack from Player {:?} blocked by closed door",
+                attacker_id
+            );
+            // Block the attack - closed doors block attacks but don't take damage from melee
+            return Ok(AttackResult {
+                hit: false, // Attack blocked by door
+                target_type: None,
+                resource_granted: None,
+            });
+        }
+    }
 
     // Check if line of sight is blocked by shelter walls
     // EXCEPTION: If the target itself is a shelter, allow the attack (direct shelter damage)
