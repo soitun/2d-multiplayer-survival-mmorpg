@@ -46,7 +46,9 @@ use crate::alk::{
 };
 use crate::alk::alk_station as AlkStationTableTrait;
 // Import wall cell table trait for collision detection
-use crate::building::wall_cell as WallCellTableTrait;
+use crate::building::{wall_cell as WallCellTableTrait, FOUNDATION_TILE_SIZE_PX};
+// Import door table trait for anti-tunneling collision detection
+use crate::door::door as DoorTableTrait;
 use crate::TILE_SIZE_PX;
 // Import compound building collision system
 // compound_buildings import removed - collision handled client-side only
@@ -85,6 +87,27 @@ pub fn calculate_slide_collision_with_grid(
     
     // 🚀 GRAVITY WELL FIX: Add minimum separation for sliding collision
     const SLIDE_SEPARATION_DISTANCE: f32 = 8.0; // Ensure separation after sliding
+    
+    // ==========================================================================
+    // CRITICAL: ANTI-TUNNELING WALL & DOOR CHECK (before all other collision)
+    // Players can move very fast during dodge rolls (600+ px/s) and tunnel through thin walls.
+    // Check for wall/door collisions along the ENTIRE movement path, not just destination.
+    // Use full PLAYER_RADIUS for anti-tunneling (conservative - catches all potential collisions)
+    // ==========================================================================
+    if let Some(blocked_pos) = check_wall_line_collision_player(&ctx.db, current_player_pos_x, current_player_pos_y, proposed_x, proposed_y, PLAYER_RADIUS) {
+        log::info!("[PlayerCollision] Player {:?} BLOCKED by wall during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   sender_id, current_player_pos_x, current_player_pos_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+        final_x = blocked_pos.0;
+        final_y = blocked_pos.1;
+        // Continue to apply sliding and other collision from this blocked position
+    }
+    
+    if let Some(blocked_pos) = check_door_line_collision_player(ctx, current_player_pos_x, current_player_pos_y, final_x, final_y, PLAYER_RADIUS) {
+        log::info!("[PlayerCollision] Player {:?} BLOCKED by door during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   sender_id, current_player_pos_x, current_player_pos_y, final_x, final_y, blocked_pos.0, blocked_pos.1);
+        final_x = blocked_pos.0;
+        final_y = blocked_pos.1;
+    }
 
     let players = ctx.db.player();
     let trees = ctx.db.tree();
@@ -842,43 +865,43 @@ pub fn calculate_slide_collision_with_grid(
         }
     }
     
-    // Check wall collisions - walls are static and positioned on tile edges
-    // Check walls in nearby tiles (within 2 tiles of player position)
+    // Check wall collisions - walls are static and positioned on foundation cell edges
+    // CRITICAL FIX: Walls use FOUNDATION_TILE_SIZE_PX (96px) coordinates, NOT TILE_SIZE_PX (48px)!
     const WALL_COLLISION_THICKNESS: f32 = 6.0; // Thin collision thickness (slightly thicker than visual 4px)
-    const CHECK_RADIUS_TILES: i32 = 2; // Check walls within 2 tiles
+    const CHECK_RADIUS_CELLS: i32 = 2; // Check walls within 2 foundation cells
     
-    let player_tile_x = (final_x / TILE_SIZE_PX as f32).floor() as i32;
-    let player_tile_y = (final_y / TILE_SIZE_PX as f32).floor() as i32;
+    let player_cell_x = (final_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let player_cell_y = (final_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
     
-    for tile_offset_x in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-        for tile_offset_y in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-            let check_tile_x = player_tile_x + tile_offset_x;
-            let check_tile_y = player_tile_y + tile_offset_y;
+    for cell_offset_x in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+        for cell_offset_y in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+            let check_cell_x = player_cell_x + cell_offset_x;
+            let check_cell_y = player_cell_y + cell_offset_y;
             
-            // Find walls on this tile
-            for wall in wall_cells.idx_cell_coords().filter((check_tile_x, check_tile_y)) {
+            // Find walls on this foundation cell
+            for wall in wall_cells.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
                 if wall.is_destroyed { continue; }
                 
-                // Calculate wall edge collision bounds
-                let tile_left = check_tile_x as f32 * TILE_SIZE_PX as f32;
-                let tile_top = check_tile_y as f32 * TILE_SIZE_PX as f32;
-                let tile_right = tile_left + TILE_SIZE_PX as f32;
-                let tile_bottom = tile_top + TILE_SIZE_PX as f32;
+                // Calculate wall edge collision bounds using foundation cell size (96px)
+                let cell_left = check_cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_top = check_cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+                let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
                 
                 // Determine wall edge bounds based on edge direction
                 // Edge 0 = North (top), 1 = East (right), 2 = South (bottom), 3 = West (left)
                 let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match wall.edge {
                     0 => { // North (top edge) - horizontal line
-                        (tile_left, tile_right, tile_top - WALL_COLLISION_THICKNESS / 2.0, tile_top + WALL_COLLISION_THICKNESS / 2.0)
+                        (cell_left, cell_right, cell_top - WALL_COLLISION_THICKNESS / 2.0, cell_top + WALL_COLLISION_THICKNESS / 2.0)
                     },
                     1 => { // East (right edge) - vertical line
-                        (tile_right - WALL_COLLISION_THICKNESS / 2.0, tile_right + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        (cell_right - WALL_COLLISION_THICKNESS / 2.0, cell_right + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                     },
                     2 => { // South (bottom edge) - horizontal line
-                        (tile_left, tile_right, tile_bottom - WALL_COLLISION_THICKNESS / 2.0, tile_bottom + WALL_COLLISION_THICKNESS / 2.0)
+                        (cell_left, cell_right, cell_bottom - WALL_COLLISION_THICKNESS / 2.0, cell_bottom + WALL_COLLISION_THICKNESS / 2.0)
                     },
                     3 => { // West (left edge) - vertical line
-                        (tile_left - WALL_COLLISION_THICKNESS / 2.0, tile_left + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                        (cell_left - WALL_COLLISION_THICKNESS / 2.0, cell_left + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                     },
                     _ => continue, // Skip diagonal or invalid edges
                 };
@@ -1549,43 +1572,44 @@ pub fn resolve_push_out_collision_with_grid(
             overlap_found_in_iter = true;
         }
         
-        // Check wall collisions for push-out - walls are NOT in spatial grid, checked via tile coordinates
+        // Check wall collisions for push-out - walls are NOT in spatial grid, checked via foundation cell coordinates
+        // CRITICAL FIX: Walls use FOUNDATION_TILE_SIZE_PX (96px), NOT TILE_SIZE_PX (48px)!
         // This fixes wall clipping by pushing players out of walls they've somehow ended up inside
         const WALL_COLLISION_THICKNESS: f32 = 6.0; // Same as slide collision
-        const CHECK_RADIUS_TILES: i32 = 2; // Check walls within 2 tiles
+        const CHECK_RADIUS_CELLS: i32 = 2; // Check walls within 2 foundation cells
         
-        let player_tile_x = (resolved_x / TILE_SIZE_PX as f32).floor() as i32;
-        let player_tile_y = (resolved_y / TILE_SIZE_PX as f32).floor() as i32;
+        let player_cell_x = (resolved_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+        let player_cell_y = (resolved_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
         
-        for tile_offset_x in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-            for tile_offset_y in -CHECK_RADIUS_TILES..=CHECK_RADIUS_TILES {
-                let check_tile_x = player_tile_x + tile_offset_x;
-                let check_tile_y = player_tile_y + tile_offset_y;
+        for cell_offset_x in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+            for cell_offset_y in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+                let check_cell_x = player_cell_x + cell_offset_x;
+                let check_cell_y = player_cell_y + cell_offset_y;
                 
-                // Find walls on this tile
-                for wall in wall_cells.idx_cell_coords().filter((check_tile_x, check_tile_y)) {
+                // Find walls on this foundation cell
+                for wall in wall_cells.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
                     if wall.is_destroyed { continue; }
                     
-                    // Calculate wall edge collision bounds
-                    let tile_left = check_tile_x as f32 * TILE_SIZE_PX as f32;
-                    let tile_top = check_tile_y as f32 * TILE_SIZE_PX as f32;
-                    let tile_right = tile_left + TILE_SIZE_PX as f32;
-                    let tile_bottom = tile_top + TILE_SIZE_PX as f32;
+                    // Calculate wall edge collision bounds using foundation cell size (96px)
+                    let cell_left = check_cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                    let cell_top = check_cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+                    let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+                    let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
                     
                     // Determine wall edge bounds based on edge direction
                     // Edge 0 = North (top), 1 = East (right), 2 = South (bottom), 3 = West (left)
                     let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match wall.edge {
                         0 => { // North (top edge) - horizontal line
-                            (tile_left, tile_right, tile_top - WALL_COLLISION_THICKNESS / 2.0, tile_top + WALL_COLLISION_THICKNESS / 2.0)
+                            (cell_left, cell_right, cell_top - WALL_COLLISION_THICKNESS / 2.0, cell_top + WALL_COLLISION_THICKNESS / 2.0)
                         },
                         1 => { // East (right edge) - vertical line
-                            (tile_right - WALL_COLLISION_THICKNESS / 2.0, tile_right + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                            (cell_right - WALL_COLLISION_THICKNESS / 2.0, cell_right + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                         },
                         2 => { // South (bottom edge) - horizontal line
-                            (tile_left, tile_right, tile_bottom - WALL_COLLISION_THICKNESS / 2.0, tile_bottom + WALL_COLLISION_THICKNESS / 2.0)
+                            (cell_left, cell_right, cell_bottom - WALL_COLLISION_THICKNESS / 2.0, cell_bottom + WALL_COLLISION_THICKNESS / 2.0)
                         },
                         3 => { // West (left edge) - vertical line
-                            (tile_left - WALL_COLLISION_THICKNESS / 2.0, tile_left + WALL_COLLISION_THICKNESS / 2.0, tile_top, tile_bottom)
+                            (cell_left - WALL_COLLISION_THICKNESS / 2.0, cell_left + WALL_COLLISION_THICKNESS / 2.0, cell_top, cell_bottom)
                         },
                         _ => continue, // Skip diagonal or invalid edges
                     };
@@ -1685,4 +1709,196 @@ pub fn calculate_optimized_collision(
             push_result
         }
     }
+}
+
+// ==========================================================================
+// ANTI-TUNNELING FUNCTIONS FOR PLAYER MOVEMENT
+// Prevents fast-moving players (especially during dodge rolls) from passing through walls
+// ==========================================================================
+
+/// ANTI-TUNNELING: Check if a player movement line crosses any walls
+/// Returns the safe position just before hitting the wall, or None if path is clear
+fn check_wall_line_collision_player<DB: WallCellTableTrait>(
+    db: &DB,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+    player_radius: f32,
+) -> Option<(f32, f32)> {
+    const WALL_THICKNESS: f32 = 12.0; // Slightly thicker for line check to catch edge cases
+    const STEP_SIZE: f32 = 15.0; // Check every 15 pixels along the path (more frequent than animals)
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which foundation cells to check (the movement might cross multiple cells)
+    let min_cell_x = ((start_x.min(end_x) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let wall_cells = db.wall_cell();
+    
+    // Collect all walls in the movement area
+    let mut walls_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for wall in wall_cells.idx_cell_coords().filter((cell_x, cell_y)) {
+                if wall.is_destroyed { continue; }
+                walls_to_check.push((cell_x, cell_y, wall.edge));
+            }
+        }
+    }
+    
+    if walls_to_check.is_empty() {
+        return None; // No walls in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all walls we collected
+        for &(cell_x, cell_y, edge) in &walls_to_check {
+            let cell_left = cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_top = cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
+            
+            let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match edge {
+                0 => (cell_left, cell_right, cell_top - WALL_THICKNESS / 2.0, cell_top + WALL_THICKNESS / 2.0),
+                1 => (cell_right - WALL_THICKNESS / 2.0, cell_right + WALL_THICKNESS / 2.0, cell_top, cell_bottom),
+                2 => (cell_left, cell_right, cell_bottom - WALL_THICKNESS / 2.0, cell_bottom + WALL_THICKNESS / 2.0),
+                3 => (cell_left - WALL_THICKNESS / 2.0, cell_left + WALL_THICKNESS / 2.0, cell_top, cell_bottom),
+                _ => continue,
+            };
+            
+            // Check if position intersects wall
+            let closest_x = check_x.max(wall_min_x).min(wall_max_x);
+            let closest_y = check_y.max(wall_min_y).min(wall_max_y);
+            let dx_to_wall = check_x - closest_x;
+            let dy_to_wall = check_y - closest_y;
+            let dist_sq = dx_to_wall * dx_to_wall + dy_to_wall * dy_to_wall;
+            
+            if dist_sq < player_radius * player_radius {
+                // Found collision! Return position one step back (safe position)
+                if step == 0 {
+                    // Already colliding at start - stay at start
+                    return Some((start_x, start_y));
+                }
+                // Go back one step and add buffer
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
+}
+
+/// ANTI-TUNNELING: Check if a player movement line crosses any closed doors
+/// Returns the safe position just before hitting the door, or None if path is clear
+fn check_door_line_collision_player(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+    player_radius: f32,
+) -> Option<(f32, f32)> {
+    const DOOR_THICKNESS: f32 = 12.0; // Slightly thicker for line check
+    const STEP_SIZE: f32 = 15.0; // Check every 15 pixels along the path
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which foundation cells to check
+    let min_cell_x = ((start_x.min(end_x) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let doors = ctx.db.door();
+    
+    // Collect all closed doors in the movement area
+    let mut doors_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for door in doors.idx_cell_coords().filter((cell_x, cell_y)) {
+                if door.is_destroyed || door.is_open { continue; }
+                doors_to_check.push((cell_x, cell_y, door.edge));
+            }
+        }
+    }
+    
+    if doors_to_check.is_empty() {
+        return None; // No closed doors in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all doors we collected
+        for &(cell_x, cell_y, edge) in &doors_to_check {
+            let cell_left = cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_top = cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
+            
+            // Doors are only on North (0) or South (2) edges
+            let (door_min_x, door_max_x, door_min_y, door_max_y) = match edge {
+                0 => (cell_left, cell_right, cell_top - DOOR_THICKNESS / 2.0, cell_top + DOOR_THICKNESS / 2.0),
+                2 => {
+                    // South doors have collision positioned higher
+                    let collision_y = cell_bottom - 24.0;
+                    (cell_left, cell_right, collision_y - DOOR_THICKNESS / 2.0, collision_y + DOOR_THICKNESS / 2.0)
+                },
+                _ => continue,
+            };
+            
+            // Check if position intersects door
+            let closest_x = check_x.max(door_min_x).min(door_max_x);
+            let closest_y = check_y.max(door_min_y).min(door_max_y);
+            let dx_to_door = check_x - closest_x;
+            let dy_to_door = check_y - closest_y;
+            let dist_sq = dx_to_door * dx_to_door + dy_to_door * dy_to_door;
+            
+            if dist_sq < player_radius * player_radius {
+                // Found collision! Return position one step back
+                if step == 0 {
+                    return Some((start_x, start_y));
+                }
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
 }

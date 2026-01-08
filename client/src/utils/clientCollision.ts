@@ -1042,6 +1042,129 @@ interface CollisionHit {
   distance: number;
 }
 
+// ===== ANTI-TUNNELING FOR WALLS AND DOORS =====
+// Prevents fast-moving players (especially during dodge rolls) from passing through thin walls/doors
+function checkWallDoorLineTunneling(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  entities: GameEntities
+): { blocked: boolean; safeX: number; safeY: number; collidedWith: string[] } {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  if (distance < 1.0) {
+    return { blocked: false, safeX: toX, safeY: toY, collidedWith: [] };
+  }
+  
+  const STEP_SIZE = 15; // Check every 15 pixels
+  const WALL_THICKNESS = 12;
+  const DOOR_THICKNESS = 12;
+  const numSteps = Math.max(1, Math.ceil(distance / STEP_SIZE));
+  
+  // Calculate which foundation cells to check
+  const FOUNDATION_SIZE = 96;
+  const minCellX = Math.floor((Math.min(fromX, toX) - PLAYER_RADIUS) / FOUNDATION_SIZE) - 1;
+  const maxCellX = Math.ceil((Math.max(fromX, toX) + PLAYER_RADIUS) / FOUNDATION_SIZE) + 1;
+  const minCellY = Math.floor((Math.min(fromY, toY) - PLAYER_RADIUS) / FOUNDATION_SIZE) - 1;
+  const maxCellY = Math.ceil((Math.max(fromY, toY) + PLAYER_RADIUS) / FOUNDATION_SIZE) + 1;
+  
+  // Collect walls and doors to check
+  const wallsToCheck: Array<{ cellX: number; cellY: number; edge: number; type: 'wall' | 'door' }> = [];
+  
+  if (entities.wallCells) {
+    for (const wall of entities.wallCells.values()) {
+      if (wall.isDestroyed) continue;
+      if (wall.cellX >= minCellX && wall.cellX <= maxCellX && 
+          wall.cellY >= minCellY && wall.cellY <= maxCellY) {
+        // Only check cardinal walls (0-3), skip diagonals for line sweep
+        if (wall.edge <= 3) {
+          wallsToCheck.push({ cellX: wall.cellX, cellY: wall.cellY, edge: wall.edge, type: 'wall' });
+        }
+      }
+    }
+  }
+  
+  if (entities.doors) {
+    for (const door of entities.doors.values()) {
+      if (door.isDestroyed || door.isOpen) continue;
+      if (door.cellX >= minCellX && door.cellX <= maxCellX && 
+          door.cellY >= minCellY && door.cellY <= maxCellY) {
+        wallsToCheck.push({ cellX: door.cellX, cellY: door.cellY, edge: door.edge, type: 'door' });
+      }
+    }
+  }
+  
+  if (wallsToCheck.length === 0) {
+    return { blocked: false, safeX: toX, safeY: toY, collidedWith: [] };
+  }
+  
+  // Check each step along the path
+  for (let step = 0; step <= numSteps; step++) {
+    const t = step / numSteps;
+    const checkX = fromX + dx * t;
+    const checkY = fromY + dy * t;
+    
+    for (const item of wallsToCheck) {
+      const cellLeft = item.cellX * FOUNDATION_SIZE;
+      const cellTop = item.cellY * FOUNDATION_SIZE;
+      const cellRight = cellLeft + FOUNDATION_SIZE;
+      const cellBottom = cellTop + FOUNDATION_SIZE;
+      
+      const thickness = item.type === 'door' ? DOOR_THICKNESS : WALL_THICKNESS;
+      let minX: number, maxX: number, minY: number, maxY: number;
+      
+      if (item.type === 'door') {
+        // Doors only on North (0) or South (2)
+        if (item.edge === 0) {
+          minX = cellLeft; maxX = cellRight;
+          minY = cellTop - thickness / 2; maxY = cellTop + thickness / 2;
+        } else if (item.edge === 2) {
+          const collisionY = cellBottom - 24;
+          minX = cellLeft; maxX = cellRight;
+          minY = collisionY - thickness / 2; maxY = collisionY + thickness / 2;
+        } else {
+          continue;
+        }
+      } else {
+        // Walls on all 4 cardinal edges
+        switch (item.edge) {
+          case 0: minX = cellLeft; maxX = cellRight; minY = cellTop - thickness / 2; maxY = cellTop + thickness / 2; break;
+          case 1: minX = cellRight - thickness / 2; maxX = cellRight + thickness / 2; minY = cellTop; maxY = cellBottom; break;
+          case 2: minX = cellLeft; maxX = cellRight; minY = cellBottom - thickness / 2; maxY = cellBottom + thickness / 2; break;
+          case 3: minX = cellLeft - thickness / 2; maxX = cellLeft + thickness / 2; minY = cellTop; maxY = cellBottom; break;
+          default: continue;
+        }
+      }
+      
+      // Check circle-AABB collision
+      const closestX = Math.max(minX, Math.min(checkX, maxX));
+      const closestY = Math.max(minY, Math.min(checkY, maxY));
+      const distX = checkX - closestX;
+      const distY = checkY - closestY;
+      const distSq = distX * distX + distY * distY;
+      
+      if (distSq < PLAYER_RADIUS * PLAYER_RADIUS) {
+        // Collision found! Return safe position (one step back)
+        if (step === 0) {
+          return { blocked: true, safeX: fromX, safeY: fromY, collidedWith: [item.type] };
+        }
+        const safeT = Math.max(0, (step - 1) / numSteps);
+        return {
+          blocked: true,
+          safeX: fromX + dx * safeT,
+          safeY: fromY + dy * safeT,
+          collidedWith: [item.type]
+        };
+      }
+    }
+  }
+  
+  return { blocked: false, safeX: toX, safeY: toY, collidedWith: [] };
+}
+
 // ===== MAIN COLLISION FUNCTION =====
 export function resolveClientCollision(
   fromX: number,
@@ -1064,6 +1187,16 @@ export function resolveClientCollision(
   if (moveDistance < 0.01) {
     return { x: clampedTo.x, y: clampedTo.y, collided: false, collidedWith: [] };
   }
+  
+  // =========================================================================
+  // CRITICAL: ANTI-TUNNELING CHECK FOR WALLS AND DOORS
+  // Players can move very fast during dodge rolls and tunnel through thin walls.
+  // Check for wall/door collisions along the ENTIRE movement path first.
+  // =========================================================================
+  const tunnelingCheck = checkWallDoorLineTunneling(fromX, fromY, clampedTo.x, clampedTo.y, entities);
+  let effectiveToX = tunnelingCheck.blocked ? tunnelingCheck.safeX : clampedTo.x;
+  let effectiveToY = tunnelingCheck.blocked ? tunnelingCheck.safeY : clampedTo.y;
+  const tunnelingCollidedWith = tunnelingCheck.collidedWith;
 
   // Step 3: Build collision shapes from entities - PERFORMANCE OPTIMIZED
   const collisionShapes = getCollisionCandidates(entities, fromX, fromY, localPlayerId);
@@ -1074,11 +1207,11 @@ export function resolveClientCollision(
   // const collisionTime = collisionEndTime - collisionStartTime;
   // logCollisionPerformance(...) - logging removed
   
-  // Create query box around movement path
-  const queryMinX = Math.min(fromX, toX) - COLLISION_QUERY_EXPANSION - PLAYER_RADIUS;
-  const queryMinY = Math.min(fromY, toY) - COLLISION_QUERY_EXPANSION - PLAYER_RADIUS;
-  const queryMaxX = Math.max(fromX, toX) + COLLISION_QUERY_EXPANSION + PLAYER_RADIUS;
-  const queryMaxY = Math.max(fromY, toY) + COLLISION_QUERY_EXPANSION + PLAYER_RADIUS;
+  // Create query box around movement path (using effective position after anti-tunneling)
+  const queryMinX = Math.min(fromX, effectiveToX) - COLLISION_QUERY_EXPANSION - PLAYER_RADIUS;
+  const queryMinY = Math.min(fromY, effectiveToY) - COLLISION_QUERY_EXPANSION - PLAYER_RADIUS;
+  const queryMaxX = Math.max(fromX, effectiveToX) + COLLISION_QUERY_EXPANSION + PLAYER_RADIUS;
+  const queryMaxY = Math.max(fromY, effectiveToY) + COLLISION_QUERY_EXPANSION + PLAYER_RADIUS;
 
   // Filter shapes to only those intersecting the query box
   const nearbyShapes = collisionShapes.filter(shape =>
@@ -1089,10 +1222,10 @@ export function resolveClientCollision(
   // const totalEntities = entities.trees.size + entities.stones.size + entities.boxes.size + entities.players.size + entities.wildAnimals.size + entities.barrels.size;
   // Logging removed - was causing performance issues in dense forests
 
-  // Step 4: Perform swept collision detection
+  // Step 4: Perform swept collision detection (using effective position after anti-tunneling)
   const result = performSweptCollision(
     { x: fromX, y: fromY },
-    clampedTo,
+    { x: effectiveToX, y: effectiveToY },
     PLAYER_RADIUS,
     nearbyShapes // Changed from collisionShapes
   );
@@ -1100,11 +1233,14 @@ export function resolveClientCollision(
   // Step 5: Final world bounds check
   const finalPos = clampToWorldBounds(result.x, result.y);
   
+  // Combine collision results (tunneling + normal collision)
+  const allCollidedWith = [...tunnelingCollidedWith, ...result.collidedWith];
+  
   return {
     x: finalPos.x,
     y: finalPos.y,
-    collided: result.collided,
-    collidedWith: result.collidedWith
+    collided: result.collided || tunnelingCheck.blocked,
+    collidedWith: allCollidedWith
   };
 }
 

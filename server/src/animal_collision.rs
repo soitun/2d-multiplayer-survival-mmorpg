@@ -26,6 +26,7 @@ use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::building::wall_cell as WallCellTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
 use crate::building::FOUNDATION_TILE_SIZE_PX;
+use crate::door::door as DoorTableTrait;
 use crate::wild_animal_npc::{WildAnimal, wild_animal as WildAnimalTableTrait};
 use crate::fishing::is_water_tile;
 use crate::TILE_SIZE_PX;
@@ -105,6 +106,24 @@ pub fn resolve_animal_collision(
         return (current_x, current_y); // Don't move if target is inside shelter
     }
     
+    // ==========================================================================
+    // CRITICAL: ANTI-TUNNELING WALL CHECK
+    // NPCs can move 100+ pixels per tick and tunnel through thin walls.
+    // Check for wall collisions along the ENTIRE movement path, not just destination.
+    // ==========================================================================
+    if let Some(blocked_pos) = check_wall_line_collision(&ctx.db, current_x, current_y, proposed_x, proposed_y) {
+        log::info!("[AnimalCollision] Animal {} BLOCKED by wall during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+        return blocked_pos; // Return position before hitting wall
+    }
+    
+    // Also check doors along the movement path (anti-tunneling)
+    if let Some(blocked_pos) = check_door_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
+        log::info!("[AnimalCollision] Animal {} BLOCKED by door during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+        return blocked_pos; // Return position before hitting door
+    }
+    
     // Check and resolve pushback collisions
     let mut collision_detected = false;
     
@@ -135,7 +154,7 @@ pub fn resolve_animal_collision(
                    animal_id, pushback_x, pushback_y);
     }
     
-    // Check wall collisions - walls are static and positioned on tile edges
+    // Check wall collisions at destination (backup check)
     if let Some((pushback_x, pushback_y)) = check_wall_collision(&ctx.db, final_x, final_y) {
         final_x = current_x + pushback_x;
         final_y = current_y + pushback_y;
@@ -144,7 +163,7 @@ pub fn resolve_animal_collision(
                    animal_id, pushback_x, pushback_y);
     }
     
-    // Check door collisions - closed doors block animal movement
+    // Check door collisions at destination (backup check)
     if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
         final_x = current_x + pushback_x;
         final_y = current_y + pushback_y;
@@ -167,6 +186,195 @@ pub fn resolve_animal_collision(
     final_y = final_y.max(ANIMAL_COLLISION_RADIUS).min(WORLD_HEIGHT_PX - ANIMAL_COLLISION_RADIUS);
     
     (final_x, final_y)
+}
+
+/// ANTI-TUNNELING: Check if a movement line crosses any walls
+/// Returns the safe position just before hitting the wall, or None if path is clear
+fn check_wall_line_collision<DB: WallCellTableTrait>(
+    db: &DB,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+) -> Option<(f32, f32)> {
+    const WALL_THICKNESS: f32 = 12.0; // Slightly thicker for line check to catch edge cases
+    const STEP_SIZE: f32 = 20.0; // Check every 20 pixels along the path
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Normalize direction
+    let dir_x = dx / distance;
+    let dir_y = dy / distance;
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which foundation cells to check (the movement might cross multiple cells)
+    let min_cell_x = ((start_x.min(end_x) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let wall_cells = db.wall_cell();
+    
+    // Collect all walls in the movement area
+    let mut walls_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for wall in wall_cells.idx_cell_coords().filter((cell_x, cell_y)) {
+                if wall.is_destroyed { continue; }
+                walls_to_check.push((cell_x, cell_y, wall.edge));
+            }
+        }
+    }
+    
+    if walls_to_check.is_empty() {
+        return None; // No walls in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all walls we collected
+        for &(cell_x, cell_y, edge) in &walls_to_check {
+            let cell_left = cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_top = cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
+            
+            let (wall_min_x, wall_max_x, wall_min_y, wall_max_y) = match edge {
+                0 => (cell_left, cell_right, cell_top - WALL_THICKNESS / 2.0, cell_top + WALL_THICKNESS / 2.0),
+                1 => (cell_right - WALL_THICKNESS / 2.0, cell_right + WALL_THICKNESS / 2.0, cell_top, cell_bottom),
+                2 => (cell_left, cell_right, cell_bottom - WALL_THICKNESS / 2.0, cell_bottom + WALL_THICKNESS / 2.0),
+                3 => (cell_left - WALL_THICKNESS / 2.0, cell_left + WALL_THICKNESS / 2.0, cell_top, cell_bottom),
+                _ => continue,
+            };
+            
+            // Check if position intersects wall
+            let closest_x = check_x.max(wall_min_x).min(wall_max_x);
+            let closest_y = check_y.max(wall_min_y).min(wall_max_y);
+            let dx_to_wall = check_x - closest_x;
+            let dy_to_wall = check_y - closest_y;
+            let dist_sq = dx_to_wall * dx_to_wall + dy_to_wall * dy_to_wall;
+            
+            if dist_sq < ANIMAL_COLLISION_RADIUS * ANIMAL_COLLISION_RADIUS {
+                // Found collision! Return position one step back (safe position)
+                if step == 0 {
+                    // Already colliding at start - stay at start
+                    return Some((start_x, start_y));
+                }
+                // Go back one step and add buffer
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
+}
+
+/// ANTI-TUNNELING: Check if a movement line crosses any closed doors
+/// Returns the safe position just before hitting the door, or None if path is clear
+fn check_door_line_collision(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+) -> Option<(f32, f32)> {
+    const DOOR_THICKNESS: f32 = 12.0; // Slightly thicker for line check
+    const STEP_SIZE: f32 = 20.0; // Check every 20 pixels along the path
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which foundation cells to check
+    let min_cell_x = ((start_x.min(end_x) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let doors = ctx.db.door();
+    
+    // Collect all closed doors in the movement area
+    let mut doors_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for door in doors.idx_cell_coords().filter((cell_x, cell_y)) {
+                if door.is_destroyed || door.is_open { continue; }
+                doors_to_check.push((cell_x, cell_y, door.edge));
+            }
+        }
+    }
+    
+    if doors_to_check.is_empty() {
+        return None; // No closed doors in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all doors we collected
+        for &(cell_x, cell_y, edge) in &doors_to_check {
+            let cell_left = cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_top = cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_right = cell_left + FOUNDATION_TILE_SIZE_PX as f32;
+            let cell_bottom = cell_top + FOUNDATION_TILE_SIZE_PX as f32;
+            
+            // Doors are only on North (0) or South (2) edges
+            let (door_min_x, door_max_x, door_min_y, door_max_y) = match edge {
+                0 => (cell_left, cell_right, cell_top - DOOR_THICKNESS / 2.0, cell_top + DOOR_THICKNESS / 2.0),
+                2 => {
+                    // South doors have collision positioned higher
+                    let collision_y = cell_bottom - 24.0;
+                    (cell_left, cell_right, collision_y - DOOR_THICKNESS / 2.0, collision_y + DOOR_THICKNESS / 2.0)
+                },
+                _ => continue,
+            };
+            
+            // Check if position intersects door
+            let closest_x = check_x.max(door_min_x).min(door_max_x);
+            let closest_y = check_y.max(door_min_y).min(door_max_y);
+            let dx_to_door = check_x - closest_x;
+            let dy_to_door = check_y - closest_y;
+            let dist_sq = dx_to_door * dx_to_door + dy_to_door * dy_to_door;
+            
+            if dist_sq < ANIMAL_COLLISION_RADIUS * ANIMAL_COLLISION_RADIUS {
+                // Found collision! Return position one step back
+                if step == 0 {
+                    return Some((start_x, start_y));
+                }
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
 }
 
 /// Checks if a position would collide with shelter walls
