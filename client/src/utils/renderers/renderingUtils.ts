@@ -1001,13 +1001,14 @@ export const renderYSortedEntities = ({
           // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
           const runeStone = entity as SpacetimeDBRuneStone;
           
-          // Check if local player has Blueprint equipped to show building restriction overlay
+          // Check if local player has Blueprint or any Placeable item equipped to show building restriction overlay
           let showBuildingRestriction = false;
           if (localPlayerId && activeEquipments && itemDefinitions) {
               const localEquipment = activeEquipments.get(localPlayerId);
               if (localEquipment?.equippedItemDefId) {
                   const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  if (equippedItemDef?.name === 'Blueprint') {
+                  // Show restriction zones for Blueprint OR any Placeable category item
+                  if (equippedItemDef?.name === 'Blueprint' || equippedItemDef?.category?.tag === 'Placeable') {
                       showBuildingRestriction = true;
                   }
               }
@@ -1483,14 +1484,15 @@ export const renderYSortedEntities = ({
           
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
           
-          // Check if local player has Blueprint equipped to show building restriction overlay
+          // Check if local player has Blueprint or any Placeable item equipped to show building restriction overlay
           // Only show for shipwrecks and fishing villages (monuments with building restrictions)
           let showBuildingRestriction = false;
           if (localPlayerId && activeEquipments && itemDefinitions) {
               const localEquipment = activeEquipments.get(localPlayerId);
               if (localEquipment?.equippedItemDefId) {
                   const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  if (equippedItemDef?.name === 'Blueprint') {
+                  // Show restriction zones for Blueprint OR any Placeable category item
+                  if (equippedItemDef?.name === 'Blueprint' || equippedItemDef?.category?.tag === 'Placeable') {
                       showBuildingRestriction = true;
                   }
               }
@@ -1503,7 +1505,7 @@ export const renderYSortedEntities = ({
               
               // Determine restriction radius based on monument type
               if (buildingId.startsWith('shipwreck_')) {
-                  restrictionRadius = 600; // Same as monument::clearance::SHIPWRECK
+                  restrictionRadius = 1500; // 2.5x the original 600 (monument::clearance::SHIPWRECK)
               } else if (buildingId.startsWith('fishing_village_')) {
                   restrictionRadius = 800; // Same as FISHING_VILLAGE_RESTRICTION_RADIUS
               }

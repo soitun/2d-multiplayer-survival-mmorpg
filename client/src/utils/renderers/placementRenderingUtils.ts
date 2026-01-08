@@ -571,7 +571,8 @@ function isPositionInMonumentZone(
     }
     
     // Check shipwreck monument (beached ship - protected area)
-    const SHIPWRECK_RESTRICTION_RADIUS = 600.0; // Same as monument::clearance::SHIPWRECK
+    // 2.5x the obstacle clearance radius to create a larger no-build zone
+    const SHIPWRECK_RESTRICTION_RADIUS = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
     const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
     
     for (const part of connection.db.shipwreckPart.iter()) {

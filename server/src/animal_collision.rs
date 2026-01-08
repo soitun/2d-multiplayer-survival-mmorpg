@@ -908,4 +908,33 @@ pub fn can_animal_move_to_position(
     
     // Allow movement with pushback for other collisions
     true
+}
+
+// ==========================================================================
+// LINE OF SIGHT CHECK FOR ATTACKS
+// Prevents attacks through walls - if there's a wall/door between attacker and target,
+// the attack should not connect.
+// ==========================================================================
+
+/// Check if there's a clear line of sight between two points (no walls or closed doors blocking)
+/// Returns true if line of sight is CLEAR (no obstacles), false if BLOCKED
+pub fn has_clear_line_of_sight(
+    ctx: &ReducerContext,
+    from_x: f32,
+    from_y: f32,
+    to_x: f32,
+    to_y: f32,
+) -> bool {
+    // If wall blocks the path, LOS is blocked
+    if check_wall_line_collision(&ctx.db, from_x, from_y, to_x, to_y).is_some() {
+        return false;
+    }
+    
+    // If closed door blocks the path, LOS is blocked
+    if check_door_line_collision(ctx, from_x, from_y, to_x, to_y).is_some() {
+        return false;
+    }
+    
+    // No obstacles - clear line of sight
+    true
 } 

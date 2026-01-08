@@ -643,8 +643,8 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     }
     
     // Check shipwreck monument (beached ship - protected area)
-    // Uses the same clearance radius as defined in monument.rs for obstacle spawning
-    const SHIPWRECK_RESTRICTION_RADIUS: f32 = 600.0; // Same as monument::clearance::SHIPWRECK
+    // 2.5x the obstacle clearance radius to create a larger no-build zone
+    const SHIPWRECK_RESTRICTION_RADIUS: f32 = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
     const SHIPWRECK_RESTRICTION_RADIUS_SQ: f32 = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
     
     let shipwreck_parts = ctx.db.shipwreck_part();
