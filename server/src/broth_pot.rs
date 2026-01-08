@@ -828,6 +828,8 @@ pub fn move_item_to_broth_pot(
 
 /// --- Quick Move to Broth Pot ---
 /// Quickly moves an item from player inventory/hotbar to the first available/mergeable slot in the broth pot.
+/// SPECIAL CASE: Fuel items (Wood, Charcoal, etc.) are redirected to the attached campfire's fuel slot
+/// instead of the broth pot's ingredient slots, since they're meant for heating, not brewing.
 #[spacetimedb::reducer]
 pub fn quick_move_to_broth_pot(
     ctx: &ReducerContext,
@@ -835,6 +837,33 @@ pub fn quick_move_to_broth_pot(
     item_instance_id: u64,
 ) -> Result<(), String> {
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
+    
+    // --- Check if item is a fuel item (Wood, Charcoal, etc.) ---
+    // Fuel items should go to the attached campfire, not the broth pot's ingredient slots
+    let items = ctx.db.inventory_item();
+    let item = items.instance_id().find(&item_instance_id)
+        .ok_or_else(|| "Item not found.".to_string())?;
+    let item_defs = ctx.db.item_definition();
+    let item_def = item_defs.id().find(&item.item_def_id)
+        .ok_or_else(|| "Item definition not found.".to_string())?;
+    
+    // If item is fuel AND broth pot is attached to a campfire, redirect to campfire
+    if item_def.fuel_burn_duration_secs.is_some() {
+        if let Some(campfire_id) = broth_pot.attached_to_campfire_id {
+            log::info!("[QuickMoveToBrothPot] Fuel item '{}' detected, redirecting to campfire {} slot 0", 
+                      item_def.name, campfire_id);
+            // Use move_item_to_campfire which handles the campfire's fuel slot 0 
+            // (the only slot available when broth pot is attached)
+            return crate::campfire::move_item_to_campfire(ctx, campfire_id, 0, item_instance_id);
+        }
+        // If attached to fumarole instead of campfire, fumaroles don't use fuel
+        // so reject fuel items for fumarole-attached broth pots
+        if broth_pot.attached_to_fumarole_id.is_some() {
+            return Err(format!("Cannot add fuel '{}' to broth pot on fumarole. Fumaroles provide unlimited heat.", item_def.name));
+        }
+    }
+    
+    // Non-fuel items go to broth pot ingredient slots as normal
     inventory_management::handle_quick_move_to_container(ctx, &mut broth_pot, item_instance_id)?;
     ctx.db.broth_pot().id().update(broth_pot.clone());
     schedule_next_broth_pot_processing(ctx, broth_pot_id);
