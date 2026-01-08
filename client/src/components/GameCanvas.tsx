@@ -75,6 +75,7 @@ import { useTorchParticles } from '../hooks/useTorchParticles';
 import { useResourceSparkleParticles } from '../hooks/useResourceSparkleParticles';
 import { useHostileDeathEffects } from '../hooks/useHostileDeathEffects';
 import { useImpactParticles } from '../hooks/useImpactParticles';
+import { useStructureImpactParticles } from '../hooks/useStructureImpactParticles';
 import { useCloudInterpolation, InterpolatedCloudData } from '../hooks/useCloudInterpolation';
 import { useGrassInterpolation, InterpolatedGrassData } from '../hooks/useGrassInterpolation';
 import { useArrowBreakEffects } from '../hooks/useArrowBreakEffects';
@@ -2002,6 +2003,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer,
   });
 
+  // Structure impact particles - sparks when walls/doors/shelters are hit (by players or hostile NPCs)
+  const structureImpactParticles = useStructureImpactParticles({
+    walls: wallCells,
+    doors,
+    shelters,
+  });
+
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
   // Wind sounds use regional weather (checks nearby chunks for stability)
   // When underwater (snorkeling), applies lowpass filter to muffle surface sounds
@@ -3611,6 +3619,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.restore();
     }
     // --- End Impact Particles ---
+
+    // --- Render Structure Impact Particles (Sparks when walls/doors are hit) ---
+    // Orange/yellow sparks when hostiles or players attack structures
+    if (structureImpactParticles.length > 0) {
+      ctx.save();
+      ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
+      renderParticlesToCanvas(ctx, structureImpactParticles);
+      ctx.restore();
+    }
+    // --- End Structure Impact Particles ---
     
     // --- Render Hostile Death Particles (Above Day/Night Overlay for visibility) ---
     // Hostile death particles (blue/purple sparks) render AFTER day/night overlay so they glow dramatically at night

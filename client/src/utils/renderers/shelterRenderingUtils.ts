@@ -1,6 +1,6 @@
 import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../../generated';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
-import { renderEntityHealthBar } from './healthBarUtils';
+import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
 
 // Import terrain-specific shelter images
 import shelterDefaultImage from '../../assets/doodads/shelter.png';
@@ -230,7 +230,25 @@ export const renderShelter = ({
   ctx.restore(); // Restore original context (alpha, strokeStyle, etc.)
 
   // --- Health Bar Rendering (using unified system) ---
-  if (localPlayerPosition) {
-    renderEntityHealthBar(ctx, shelter, SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT, nowMs, localPlayerPosition.x, localPlayerPosition.y);
+  // Use AABB center position and dimensions for health bar positioning (matches attack detection)
+  // This ensures the health bar appears on the opposite side from where the player is attacking
+  if (localPlayerPosition && !shelter.isDestroyed) {
+    const aabbCenterX = shelter.posX;
+    const aabbCenterY = shelter.posY - DEBUG_SHELTER_AABB_CENTER_Y_FROM_BASE;
+    
+    renderHealthBar({
+      ctx,
+      entityX: aabbCenterX, // Use AABB center X
+      entityY: aabbCenterY, // Use AABB center Y (where attacks actually hit)
+      entityWidth: DEBUG_SHELTER_COLLISION_WIDTH, // Use AABB width (300px)
+      entityHeight: DEBUG_SHELTER_COLLISION_HEIGHT, // Use AABB height (125px)
+      health: shelter.health,
+      maxHealth: shelter.maxHealth,
+      lastHitTimeMs: getLastHitTimeMs(shelter.lastHitTime),
+      nowMs,
+      playerX: localPlayerPosition.x,
+      playerY: localPlayerPosition.y,
+      entityDrawYOffset: 0, // AABB center is already the reference point
+    });
   }
 };

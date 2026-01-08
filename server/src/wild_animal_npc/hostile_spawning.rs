@@ -759,10 +759,11 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
 
 use crate::door::{door as DoorTableTrait, Door};
 use crate::building::{wall_cell as WallCellTableTrait, WallCell};
+use crate::shelter::shelter as ShelterTableTrait;
 
-/// Find the nearest door or wall that a hostile can attack
+/// Find the nearest door, wall, or shelter that a hostile can attack
 /// Returns (structure_id, structure_type, distance_sq)
-/// Doors are prioritized over walls
+/// Priority: doors > shelters > walls
 pub fn find_nearest_attackable_structure(
     ctx: &ReducerContext,
     hostile_x: f32,
@@ -771,7 +772,7 @@ pub fn find_nearest_attackable_structure(
 ) -> Option<(u64, String, f32)> {
     let max_range_sq = max_range * max_range;
     
-    // First, look for doors (preferred target)
+    // First, look for doors (preferred target - entry points)
     let mut nearest_door: Option<(u64, f32)> = None;
     for door in ctx.db.door().iter() {
         if door.is_destroyed {
@@ -798,7 +799,30 @@ pub fn find_nearest_attackable_structure(
         return Some((door_id, "door".to_string(), dist_sq));
     }
     
-    // Otherwise, look for walls
+    // Second, look for shelters (tent-like structures that protect players)
+    let mut nearest_shelter: Option<(u64, f32)> = None;
+    for shelter in ctx.db.shelter().iter() {
+        if shelter.is_destroyed {
+            continue;
+        }
+        
+        let dx = shelter.pos_x - hostile_x;
+        let dy = shelter.pos_y - hostile_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < max_range_sq {
+            if nearest_shelter.is_none() || dist_sq < nearest_shelter.unwrap().1 {
+                nearest_shelter = Some((shelter.id as u64, dist_sq));
+            }
+        }
+    }
+    
+    // If found a shelter within range, use it
+    if let Some((shelter_id, dist_sq)) = nearest_shelter {
+        return Some((shelter_id, "shelter".to_string(), dist_sq));
+    }
+    
+    // Last, look for walls
     let mut nearest_wall: Option<(u64, f32)> = None;
     for wall in ctx.db.wall_cell().iter() {
         if wall.is_destroyed {
@@ -887,6 +911,32 @@ pub fn hostile_attack_structure(
                 }
                 
                 ctx.db.wall_cell().id().update(wall);
+                return Ok(destroyed);
+            }
+        },
+        "shelter" => {
+            let shelters = ctx.db.shelter();
+            if let Some(mut shelter) = shelters.id().find(structure_id as u32) {
+                if shelter.is_destroyed {
+                    return Ok(false);
+                }
+                
+                // HOSTILE ATTACKS BYPASS MELEE REDUCTION - full damage!
+                let old_health = shelter.health;
+                shelter.health = (shelter.health - damage).max(0.0);
+                shelter.last_hit_time = Some(current_time);
+                
+                let destroyed = shelter.health <= 0.0;
+                if destroyed {
+                    shelter.is_destroyed = true;
+                    shelter.destroyed_at = Some(current_time);
+                    log::info!("👹 [HostileNPC] Shelter {} destroyed by hostile attack!", structure_id);
+                } else {
+                    log::info!("👹 [HostileNPC] Shelter {} took {:.1} damage from hostile. Health: {:.1} -> {:.1}", 
+                              structure_id, damage, old_health, shelter.health);
+                }
+                
+                ctx.db.shelter().id().update(shelter);
                 return Ok(destroyed);
             }
         },

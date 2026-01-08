@@ -43,6 +43,8 @@ use crate::campfire::Campfire; // ADDED: Concrete type for pre-fetching
 use crate::dropped_item::dropped_item as DroppedItemTableTrait; // Add dropped item table trait
 use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For foundation fear
 use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
+use crate::building::wall_cell as WallCellTableTrait; // ADDED: For structure attacks
+use crate::door::door as DoorTableTrait; // ADDED: For structure attacks
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
 // Runestone imports for hostile NPC deterrence
@@ -742,23 +744,43 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             }
                             
                             // HOSTILE NPC STRUCTURE ATTACK: If player is inside building, consider attacking structures
+                            // This check runs REGARDLESS of whether the hostile can reach the player directly
+                            
+                            // DEBUG: Log all hostile NPCs in Chasing state to see why structure attacks aren't triggering
+                            if animal.is_hostile_npc {
+                                log::info!("👹 [HostileNPC DEBUG] {:?} {} in Chasing state - is_inside_building={}, species_can_attack_structures={}", 
+                                    animal.species, animal.id, 
+                                    target_player.is_inside_building,
+                                    matches!(animal.species, AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch));
+                            }
+                            
                             if animal.is_hostile_npc && target_player.is_inside_building {
                                 let can_attack_structures = matches!(animal.species, 
                                     AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
                                 
-                                if can_attack_structures && can_attack(&animal, current_time, &stats) {
+                                // Check if hostile should switch to structure attack mode
+                                // Don't require can_attack() here - we're just switching states
+                                if can_attack_structures {
                                     // Look for nearby structures to attack (doors prioritized)
                                     const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
-                                    if let Some((struct_id, struct_type, _dist_sq)) = 
-                                        crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
-                                            ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
-                                        ) 
-                                    {
+                                    let structure_result = crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                        ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                    );
+                                    
+                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} searching for structures within {}px - found: {:?}", 
+                                        animal.species, animal.id, STRUCTURE_SEARCH_RANGE, structure_result.is_some());
+                                    
+                                    if let Some((struct_id, struct_type, dist_sq)) = structure_result {
+                                        log::info!("👹 [HostileNPC] {:?} {} found structure to attack: {} #{} at dist {:.1}px (player {} is inside building)", 
+                                            animal.species, animal.id, struct_type, struct_id, dist_sq.sqrt(), target_id);
                                         // Switch to attacking structure
                                         animal.target_structure_id = Some(struct_id);
-                                        animal.target_structure_type = Some(struct_type);
-                                        transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), "attacking structure");
+                                        animal.target_structure_type = Some(struct_type.clone());
+                                        transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), &format!("attacking {} #{}", struct_type, struct_id));
                                     }
+                                } else {
+                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} CANNOT attack structures (only Shardkin/DrownedWatch can)", 
+                                        animal.species, animal.id);
                                 }
                             }
                         }
@@ -770,10 +792,11 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             if animal.state == AnimalState::AttackingStructure && animal.is_hostile_npc {
                 if let (Some(struct_id), Some(ref struct_type)) = (animal.target_structure_id, animal.target_structure_type.clone()) {
                     // Check if player exited building - switch back to chasing
+                    // REMOVED distance check - hostiles should keep attacking structures even if player is nearby (behind wall)
                     let should_stop_attacking = if let Some(target_id) = animal.target_player_id {
                         if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
-                            !target_player.is_inside_building || 
-                            get_distance_squared(animal.pos_x, animal.pos_y, target_player.position_x, target_player.position_y) < 150.0 * 150.0
+                            // Only stop if player EXITED the building entirely
+                            !target_player.is_inside_building
                         } else {
                             true // Player gone
                         }
@@ -782,6 +805,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                     };
                     
                     if should_stop_attacking {
+                        log::info!("👹 [HostileNPC] {:?} {} stopping structure attack - player exited building", animal.species, animal.id);
                         animal.target_structure_id = None;
                         animal.target_structure_type = None;
                         if let Some(target_id) = animal.target_player_id {
@@ -789,47 +813,74 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                         } else {
                             transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "no target");
                         }
-                    } else if can_attack(&animal, current_time, &stats) {
-                        // Attack the structure!
-                        let structure_damage = match animal.species {
-                            AnimalSpecies::Shardkin => 5.0,     // Low damage, creates urgency
-                            AnimalSpecies::DrownedWatch => 35.0, // Heavy damage
-                            _ => 10.0,
+                    } else {
+                        // Check if we're close enough to the structure to attack
+                        // For shelters, use AABB collision center (matches player attack detection)
+                        let struct_pos = match struct_type.as_str() {
+                            "door" => ctx.db.door().id().find(struct_id).map(|d| (d.pos_x, d.pos_y)),
+                            "shelter" => ctx.db.shelter().id().find(struct_id as u32).map(|s| {
+                                // Use AABB center for attack range check (matches player attack detection)
+                                (s.pos_x, s.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y)
+                            }),
+                            "wall" | _ => ctx.db.wall_cell().id().find(struct_id).map(|w| {
+                                let wx = (w.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                                let wy = (w.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                                (wx, wy)
+                            }),
                         };
                         
-                        match crate::wild_animal_npc::hostile_spawning::hostile_attack_structure(
-                            ctx, struct_id, &struct_type, structure_damage, current_time
-                        ) {
-                            Ok(destroyed) => {
-                                animal.last_attack_time = Some(current_time);
-                                if destroyed {
-                                    // Structure destroyed - look for another or chase player
-                                    animal.target_structure_id = None;
-                                    animal.target_structure_type = None;
-                                    
-                                    // Try to find another structure
-                                    const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
-                                    if let Some((new_id, new_type, _)) = 
-                                        crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
-                                            ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
-                                        ) 
-                                    {
-                                        animal.target_structure_id = Some(new_id);
-                                        animal.target_structure_type = Some(new_type);
-                                    } else {
-                                        // No more structures - chase player
-                                        if let Some(target_id) = animal.target_player_id {
-                                            transition_to_state(&mut animal, AnimalState::Chasing, current_time, Some(target_id), "structure destroyed - chase");
+                        let in_attack_range = if let Some((sx, sy)) = struct_pos {
+                            let dx = sx - animal.pos_x;
+                            let dy = sy - animal.pos_y;
+                            let dist_sq = dx * dx + dy * dy;
+                            const STRUCTURE_ATTACK_RANGE: f32 = 80.0;
+                            dist_sq <= STRUCTURE_ATTACK_RANGE * STRUCTURE_ATTACK_RANGE
+                        } else {
+                            false // Structure not found
+                        };
+                        
+                        if in_attack_range && can_attack(&animal, current_time, &stats) {
+                            // Attack the structure!
+                            let structure_damage = match animal.species {
+                                AnimalSpecies::Shardkin => 5.0,     // Low damage, creates urgency
+                                AnimalSpecies::DrownedWatch => 35.0, // Heavy damage
+                                _ => 10.0,
+                            };
+                            
+                            match crate::wild_animal_npc::hostile_spawning::hostile_attack_structure(
+                                ctx, struct_id, &struct_type, structure_damage, current_time
+                            ) {
+                                Ok(destroyed) => {
+                                    animal.last_attack_time = Some(current_time);
+                                    if destroyed {
+                                        // Structure destroyed - look for another or chase player
+                                        animal.target_structure_id = None;
+                                        animal.target_structure_type = None;
+                                        
+                                        // Try to find another structure
+                                        const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
+                                        if let Some((new_id, new_type, _)) = 
+                                            crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                                ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                            ) 
+                                        {
+                                            animal.target_structure_id = Some(new_id);
+                                            animal.target_structure_type = Some(new_type);
                                         } else {
-                                            transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "no targets");
+                                            // No more structures - chase player
+                                            if let Some(target_id) = animal.target_player_id {
+                                                transition_to_state(&mut animal, AnimalState::Chasing, current_time, Some(target_id), "structure destroyed - chase");
+                                            } else {
+                                                transition_to_state(&mut animal, AnimalState::Patrolling, current_time, None, "no targets");
+                                            }
                                         }
                                     }
+                                },
+                                Err(e) => {
+                                    log::error!("👹 [HostileNPC] Structure attack failed: {}", e);
+                                    animal.target_structure_id = None;
+                                    animal.target_structure_type = None;
                                 }
-                            },
-                            Err(e) => {
-                                log::error!("👹 [HostileNPC] Structure attack failed: {}", e);
-                                animal.target_structure_id = None;
-                                animal.target_structure_type = None;
                             }
                         }
                     }
@@ -1260,8 +1311,52 @@ fn execute_animal_movement(
         },
         
         AnimalState::AttackingStructure => {
-            // Hostile NPCs attacking structures - minimal movement, just face the structure
-            // Movement toward structure handled by structure attack system
+            // Hostile NPCs attacking structures - MOVE TOWARD the structure!
+            if let (Some(struct_id), Some(ref struct_type)) = (animal.target_structure_id, animal.target_structure_type.clone()) {
+                // Get structure position based on type
+                // For shelters, use AABB collision center (matches attack detection position)
+                let struct_pos = match struct_type.as_str() {
+                    "door" => ctx.db.door().id().find(struct_id).map(|d| (d.pos_x, d.pos_y)),
+                    "shelter" => ctx.db.shelter().id().find(struct_id as u32).map(|s| {
+                        // Use AABB center for movement/attack targeting (matches player attack detection)
+                        (s.pos_x, s.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y)
+                    }),
+                    "wall" | _ => ctx.db.wall_cell().id().find(struct_id).map(|w| {
+                        let wx = (w.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                        let wy = (w.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                        (wx, wy)
+                    }),
+                };
+                
+                if let Some((target_x, target_y)) = struct_pos {
+                    let dx = target_x - animal.pos_x;
+                    let dy = target_y - animal.pos_y;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    
+                    // Move toward structure if not in melee range (80px)
+                    const STRUCTURE_ATTACK_RANGE: f32 = 80.0;
+                    if dist > STRUCTURE_ATTACK_RANGE {
+                        // Normalize direction and move
+                        let move_speed = stats.sprint_speed; // Use sprint speed when attacking
+                        let norm_x = dx / dist;
+                        let norm_y = dy / dist;
+                        
+                        // Calculate proposed position
+                        let dt = AI_TICK_INTERVAL_MS as f32 / 1000.0;
+                        let proposed_x = animal.pos_x + norm_x * move_speed * dt;
+                        let proposed_y = animal.pos_y + norm_y * move_speed * dt;
+                        
+                        // Apply collision (this will respect walls, preventing clipping)
+                        // is_attacking=false since we're just moving toward the structure, not attacking yet
+                        let (final_x, final_y) = crate::animal_collision::resolve_animal_collision(
+                            ctx, animal.id, animal.pos_x, animal.pos_y, proposed_x, proposed_y, false
+                        );
+                        
+                        animal.pos_x = final_x;
+                        animal.pos_y = final_y;
+                    }
+                }
+            }
         },
         
         _ => {} // Other states (Hiding, Burrowed, Despawning) don't move continuously

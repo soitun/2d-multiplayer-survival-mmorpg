@@ -6,12 +6,22 @@ export interface TooltipStats {
   value: string | number;
   color?: string; // Optional color for specific stats
 }
+
+export interface CraftingCost {
+  iconPath: string;
+  name: string;
+  required: number;
+  available: number;
+  hasEnough: boolean;
+}
+
 export interface TooltipContent {
   name: string;
   description?: string;
   stats?: TooltipStats[];
   category?: string;
   rarity?: string; // Example: Common, Uncommon, Rare, Epic
+  craftingCosts?: CraftingCost[]; // Resource costs for crafting recipes
 }
 
 interface TooltipProps {
@@ -57,6 +67,27 @@ const Tooltip: React.FC<TooltipProps> = ({ content, visible, position }) => {
               <span className={styles.statLabel}>{stat.label}:</span>
               <span className={styles.statValue} style={{ color: stat.color }}>
                 {stat.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {content.craftingCosts && content.craftingCosts.length > 0 && (
+        <div className={styles.tooltipCraftingCosts}>
+          <div className={styles.craftingCostsHeader}>Resources Required:</div>
+          {content.craftingCosts.map((cost, index) => (
+            <div key={index} className={styles.craftingCostRow}>
+              <img 
+                src={cost.iconPath} 
+                alt={cost.name}
+                className={styles.craftingCostIcon}
+              />
+              <span className={styles.craftingCostName}>{cost.name}</span>
+              <span 
+                className={styles.craftingCostValue}
+                style={{ color: cost.hasEnough ? '#00ff88' : '#ff3366' }}
+              >
+                {cost.available}/{cost.required}
               </span>
             </div>
           ))}

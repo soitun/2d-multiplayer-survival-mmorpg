@@ -40,6 +40,7 @@ use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for d
 // Table trait imports for database access
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
+use crate::door::door as DoorTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::items::inventory_item as InventoryItemTableTrait;
@@ -119,6 +120,7 @@ pub enum TargetId {
     HomesteadHearth(u32), // ADDED: Homestead Hearth target
     Wall(u64), // ADDED: Wall target
     LivingCoral(u64), // ADDED: Living coral target (underwater resource)
+    Door(u64), // ADDED: Door target (attackable doors)
 }
 
 /// Represents a potential target within attack range
@@ -1023,6 +1025,59 @@ pub fn find_targets_in_cone(
         }
     }
     
+    // Check doors (can be directly targeted, similar to walls)
+    const DOOR_ATTACK_RANGE: f32 = 80.0; // Doors can only be hit when very close (80px)
+    const DOOR_ATTACK_RANGE_SQ: f32 = DOOR_ATTACK_RANGE * DOOR_ATTACK_RANGE;
+    
+    for door in ctx.db.door().iter() {
+        if door.is_destroyed {
+            continue;
+        }
+        
+        // Calculate door center position (foundation cell center)
+        let door_world_x = (door.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        let door_world_y = (door.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+        
+        let dx = door_world_x - player.position_x;
+        let dy = door_world_y - player.position_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        // Use shorter range for doors - must be very close to hit
+        if dist_sq < DOOR_ATTACK_RANGE_SQ && dist_sq > 0.0 {
+            let distance = dist_sq.sqrt();
+            let target_vec_x = dx / distance;
+            let target_vec_y = dy / distance;
+            
+            let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
+            let angle_rad = dot_product.acos();
+            
+            if angle_rad <= half_attack_angle_rad {
+                // Check if line of sight is blocked by shelter walls
+                if is_line_blocked_by_shelter(
+                    ctx,
+                    player.identity,
+                    None,
+                    player.position_x,
+                    player.position_y,
+                    door_world_x,
+                    door_world_y,
+                ) {
+                    log::debug!(
+                        "Player {:?} cannot attack Door {}: line of sight blocked by shelter",
+                        player.identity, door.id
+                    );
+                    continue;
+                }
+                
+                targets.push(Target {
+                    target_type: TargetType::Door,
+                    id: TargetId::Door(door.id),
+                    distance_sq: dist_sq,
+                });
+            }
+        }
+    }
+    
     // Check Shelters - delegate to shelter module
     crate::shelter::add_shelter_targets_to_cone(ctx, player, attack_range, half_attack_angle_rad, forward_x, forward_y, &mut targets);
     
@@ -1106,6 +1161,7 @@ fn is_destructible_deployable(target_type: TargetType) -> bool {
         TargetType::Barrel | // Includes barrels and other destructible deployables
         TargetType::HomesteadHearth | // ADDED: Homestead Hearth is destructible
         TargetType::Wall | // ADDED: Walls are destructible structures
+        TargetType::Door | // ADDED: Doors are destructible structures
         TargetType::Foundation // ADDED: Foundations are destructible structures
     )
 }
@@ -3337,6 +3393,17 @@ pub fn process_attack(
                 return Err("Target wall not found".to_string());
             }
         },
+        TargetId::Door(door_id) => {
+            use crate::building::FOUNDATION_TILE_SIZE_PX;
+            if let Some(door) = ctx.db.door().id().find(door_id) {
+                // Calculate door center position (foundation cell center)
+                let door_world_x = (door.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                let door_world_y = (door.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                (door_world_x, door_world_y, None)
+            } else {
+                return Err("Target door not found".to_string());
+            }
+        },
         TargetId::LivingCoral(coral_id) => {
             if let Some(coral) = ctx.db.living_coral().id().find(coral_id) {
                 (coral.pos_x, coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET, None)
@@ -3422,24 +3489,27 @@ pub fn process_attack(
     }
     
     // Check if melee attack is blocked by a closed door
-    // Doors are not attackable targets, so always check for door blocking
-    if crate::door::check_line_hits_door(
-        ctx,
-        attacker.position_x,
-        attacker.position_y,
-        target_x,
-        target_y,
-    ).is_some() {
-        log::info!(
-            "[ProcessAttack] Melee attack from Player {:?} blocked by closed door",
-            attacker_id
-        );
-        // Block the attack - closed doors block attacks
-        return Ok(AttackResult {
-            hit: false, // Attack blocked by door
-            target_type: None,
-            resource_granted: None,
-        });
+    // EXCEPTION: If the target itself is a door, skip this check (direct door damage)
+    let target_is_door = matches!(target.id, TargetId::Door(_));
+    if !target_is_door {
+        if crate::door::check_line_hits_door(
+            ctx,
+            attacker.position_x,
+            attacker.position_y,
+            target_x,
+            target_y,
+        ).is_some() {
+            log::info!(
+                "[ProcessAttack] Melee attack from Player {:?} blocked by closed door",
+                attacker_id
+            );
+            // Block the attack - closed doors block attacks
+            return Ok(AttackResult {
+                hit: false, // Attack blocked by door
+                target_type: None,
+                resource_granted: None,
+            });
+        }
     }
 
     // Check if line of sight is blocked by shelter walls
@@ -3585,6 +3655,15 @@ pub fn process_attack(
                 .map(|_| AttackResult {
                     hit: true,
                     target_type: Some(TargetType::Wall),
+                    resource_granted: None,
+                })
+        },
+        TargetId::Door(door_id) => {
+            // Direct door attack - damage the targeted door
+            crate::door::damage_door(ctx, attacker_id, *door_id, damage, timestamp)
+                .map(|_| AttackResult {
+                    hit: true,
+                    target_type: Some(TargetType::Door),
                     resource_granted: None,
                 })
         },

@@ -114,35 +114,6 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         onItemMouseMove(event);
     }, [onItemMouseMove]);
 
-    // Tooltip handler for output item icon
-    const handleOutputItemIconMouseEnter = useCallback((itemDef: ItemDefinition, event: React.MouseEvent<HTMLDivElement>) => {
-        // Prevent browser tooltip
-        event.currentTarget.removeAttribute('title');
-        
-        // Create PopulatedItem object with the output item definition
-        const outputItem: PopulatedItem = {
-            instance: {
-                instanceId: BigInt(0),
-                itemDefId: itemDef.id,
-                quantity: 0,
-                location: { tag: 'Inventory', value: null as any },
-                durability: null,
-                waterContent: null
-            } as any,
-            definition: itemDef
-        };
-        
-        onItemMouseEnter(outputItem, event);
-    }, [onItemMouseEnter]);
-
-    const handleOutputItemIconMouseLeave = useCallback(() => {
-        onItemMouseLeave();
-    }, [onItemMouseLeave]);
-
-    const handleOutputItemIconMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        onItemMouseMove(event);
-    }, [onItemMouseMove]);
-
     // Memoize player inventory calculation
     const playerInventoryResources = useMemo(() => {
         const resources: Map<string, number> = new Map();
@@ -428,388 +399,95 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
             />
             {/* Added scrollable class and data-attribute */}
             <div data-scrollable-region="crafting-items" className={`${styles.craftableItemsSection} ${styles.scrollableSection}`}> 
-                {/* Recipe list container */}
-                <div className={styles.craftableItemsList}> 
+                {/* Grid layout: 6 items per row, fixed size */}
+                <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(6, 48px)',
+                    gap: '16px',
+                    padding: '4px',
+                    justifyContent: 'center'
+                }}> 
                     {filteredRecipes.map((recipeData) => {
                         const recipe = recipeData.recipe;
                         const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
                         if (!outputDef) return null;
-
-                        const currentQuantity = craftQuantities.get(recipe.recipeId.toString()) || 1;
-                        const maxCraftableForThisRecipe = calculateMaxCraftable(recipe);
                         
                         // Check if recipe is locked by Memory Grid
                         const isMemoryGridUnlocked = isRecipeUnlockedByMemoryGrid(recipe);
-                        const requiredNodeName = !isMemoryGridUnlocked ? getRequiredNodeName(recipe) : null;
                         
                         // Check if recipe requires a crafting station (Cooking Station)
                         const requiredStation = getRequiredStation(recipe);
                         const hasStationAccess = isStationRequirementMet(recipe);
                         
-                        // Recipe is only craftable if unlocked, station available, AND has resources
-                        const isCraftable = isMemoryGridUnlocked && hasStationAccess && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftableForThisRecipe && currentQuantity > 0;
+                        // Recipe is only craftable if unlocked, station available, AND has resources (quantity 1 for quick craft)
+                        const isCraftable = isMemoryGridUnlocked && hasStationAccess && canCraft(recipe, 1);
 
-                        const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                            let newQuantity = parseInt(e.target.value, 10);
-                            if (isNaN(newQuantity) || newQuantity < 1) {
-                                newQuantity = 1; // Default to 1 if invalid or less than 1
-                            }
-                            const clampedQuantity = Math.min(newQuantity, maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1);
-                            setCraftQuantities(prev => new Map(prev).set(recipe.recipeId.toString(), clampedQuantity));
-                        };
-
-                        const handleMaxClick = () => {
-                            const maxVal = calculateMaxCraftable(recipe);
-                            setCraftQuantities(prev => new Map(prev).set(recipe.recipeId.toString(), maxVal > 0 ? maxVal : 1));
-                        };
-                        
                         return (
-                            // Two-column layout: Icon | Content (Name, Resources, Buttons)
-                            <div key={recipe.recipeId.toString()} className={styles.craftingRecipeRow} style={{ 
-                                padding: '12px', 
-                                marginBottom: '8px', 
-                                background: !isMemoryGridUnlocked 
-                                    ? 'linear-gradient(135deg, rgba(40, 30, 50, 0.6), rgba(30, 25, 40, 0.7))' // Darker purple for locked
-                                    : 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))', 
-                                borderRadius: '6px',
-                                border: !isMemoryGridUnlocked 
-                                    ? '2px solid rgba(139, 92, 246, 0.4)' // Purple border for locked
-                                    : isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(0, 170, 255, 0.3)',
-                                boxShadow: !isMemoryGridUnlocked 
-                                    ? 'inset 0 0 10px rgba(139, 92, 246, 0.1)' // Purple glow for locked
-                                    : isCraftable ? '0 0 15px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'inset 0 0 10px rgba(0, 170, 255, 0.1)',
-                                display: 'flex',
-                                gap: '12px',
-                                transition: 'all 0.3s ease',
-                                opacity: !isMemoryGridUnlocked ? 0.7 : 1 // Slightly dimmed for locked
-                            }}>
-                                {/* Left Column: Recipe Icon */}
-                                <div 
+                            <div 
+                                key={recipe.recipeId.toString()}
+                                onClick={() => {
+                                    if (isCraftable) {
+                                        handleCraftItem(recipe.recipeId, 1);
+                                    }
+                                }}
+                                style={{ 
+                                    width: '48px',
+                                    height: '48px',
+                                    padding: '4px',
+                                    background: !isMemoryGridUnlocked 
+                                        ? 'linear-gradient(135deg, rgba(40, 30, 50, 0.6), rgba(30, 25, 40, 0.7))'
+                                        : isCraftable 
+                                            ? 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))'
+                                            : 'linear-gradient(135deg, rgba(30, 20, 40, 0.6), rgba(25, 15, 35, 0.7))',
+                                    borderRadius: '4px',
+                                    border: !isMemoryGridUnlocked 
+                                        ? '1px solid rgba(139, 92, 246, 0.4)'
+                                        : isCraftable 
+                                            ? '1px solid rgba(0, 255, 136, 0.5)' 
+                                            : '1px solid rgba(255, 51, 102, 0.4)',
+                                    boxShadow: !isMemoryGridUnlocked 
+                                        ? 'inset 0 0 6px rgba(139, 92, 246, 0.1)'
+                                        : isCraftable 
+                                            ? '0 0 8px rgba(0, 255, 136, 0.2), inset 0 0 6px rgba(0, 255, 136, 0.1)' 
+                                            : 'inset 0 0 6px rgba(255, 51, 102, 0.1)',
+                                    cursor: isCraftable ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.15s ease',
+                                    opacity: !isMemoryGridUnlocked ? 0.7 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    position: 'relative'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (isCraftable) e.currentTarget.style.transform = 'scale(1.08)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                }}
+                            >
+                                <img
+                                    src={getItemIcon(outputDef.iconAssetName)}
+                                    alt={outputDef.name}
                                     style={{ 
-                                        width: '48px', 
-                                        height: '48px', 
-                                        flexShrink: 0,
-                                        cursor: 'pointer',
-                                        transition: 'transform 0.1s ease-out',
-                                        transform: 'scale(1)',
-                                        position: 'relative'
+                                        width: '32px', 
+                                        height: '32px', 
+                                        objectFit: 'contain', 
+                                        imageRendering: 'pixelated',
+                                        filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : !isCraftable ? 'grayscale(40%) brightness(0.8)' : 'none'
                                     }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                        handleOutputItemIconMouseEnter(outputDef, e);
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'scale(1)';
-                                        handleOutputItemIconMouseLeave();
-                                    }}
-                                    onMouseMove={handleOutputItemIconMouseMove}
-                                >
-                                    <img
-                                        src={getItemIcon(outputDef.iconAssetName)}
-                                        alt={outputDef.name}
-                                        style={{ 
-                                            width: '100%', 
-                                            height: '100%', 
-                                            objectFit: 'contain', 
-                                            imageRendering: 'pixelated',
-                                            filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : 'none'
-                                        }}
-                                    />
-                                    {/* Lock overlay for locked recipes */}
-                                    {!isMemoryGridUnlocked && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            bottom: 0,
-                                            background: 'rgba(139, 92, 246, 0.2)',
-                                            borderRadius: '4px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            <span style={{ fontSize: '20px', filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }}>🔒</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Right Column: Content (3 rows) */}
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    
-                                    {/* Row 1: Recipe Name + Lock Indicator */}
-                                    <div style={{ 
-                                        fontSize: '16px', 
-                                        fontWeight: 'bold', 
-                                        color: !isMemoryGridUnlocked ? '#8b5cf6' : '#00ffff', // Purple for locked
-                                        wordBreak: 'break-word',
-                                        lineHeight: '1.2',
-                                        textAlign: 'left',
-                                        textShadow: !isMemoryGridUnlocked ? '0 0 8px rgba(139, 92, 246, 0.6)' : '0 0 8px rgba(0, 255, 255, 0.6)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px'
+                                />
+                                {/* Lock overlay for locked recipes */}
+                                {!isMemoryGridUnlocked && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '2px',
+                                        right: '2px',
+                                        fontSize: '12px',
+                                        filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.8))'
                                     }}>
-                                        {!isMemoryGridUnlocked && (
-                                            <span style={{ fontSize: '14px' }}>🔒</span>
-                                        )}
-                                        {outputDef.name}
+                                        🔒
                                     </div>
-                                    
-                                    {/* Memory Grid Lock Message */}
-                                    {!isMemoryGridUnlocked && requiredNodeName && (
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: '#8b5cf6',
-                                            background: 'rgba(139, 92, 246, 0.15)',
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            width: 'fit-content'
-                                        }}>
-                                            <span>⚡</span>
-                                            <span>Unlock "<strong>{requiredNodeName}</strong>" in Memory Grid</span>
-                                        </div>
-                                    )}
-
-                                    {/* Crafting Station Requirement Message */}
-                                    {requiredStation && (
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: hasStationAccess ? '#00ff88' : '#ff9933',
-                                            background: hasStationAccess ? 'rgba(0, 255, 136, 0.15)' : 'rgba(255, 153, 51, 0.15)',
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            border: hasStationAccess ? '1px solid rgba(0, 255, 136, 0.3)' : '1px solid rgba(255, 153, 51, 0.3)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            width: 'fit-content'
-                                        }}>
-                                            <span>{hasStationAccess ? '👨‍🍳' : '🔧'}</span>
-                                            <span>{hasStationAccess ? `Near ${requiredStation}` : `Requires ${requiredStation}`}</span>
-                                        </div>
-                                    )}
-
-                                    {/* Row 2: Resources */}
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        flexWrap: 'wrap',
-                                        gap: '6px'
-                                    }}>
-                                        {recipe.ingredients.map((ing, index) => {
-                                            const ingDef = itemDefinitions.get(ing.itemDefId.toString());
-                                            const available = playerInventoryResources.get(ing.itemDefId.toString()) || 0;
-                                            const neededTotal = ing.quantity * currentQuantity;
-                                            const hasEnough = available >= neededTotal;
-                                            return (
-                                                                                                <div key={index} style={{ 
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    background: hasEnough ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 200, 100, 0.2))' : 'linear-gradient(135deg, rgba(255, 51, 102, 0.15), rgba(200, 40, 80, 0.2))',
-                                                    padding: '4px 6px',
-                                                    borderRadius: '3px',
-                                                    border: hasEnough ? '2px solid rgba(0, 255, 136, 0.4)' : '2px solid rgba(255, 51, 102, 0.4)',
-                                                    boxShadow: hasEnough ? '0 0 8px rgba(0, 255, 136, 0.2)' : '0 0 8px rgba(255, 51, 102, 0.2)',
-                                                    color: hasEnough ? '#00ff88' : '#ff3366',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s ease',
-                                                    transform: 'scale(1)',
-                                                    textShadow: hasEnough ? '0 0 5px rgba(0, 255, 136, 0.4)' : '0 0 5px rgba(255, 51, 102, 0.4)'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                                    handleResourceIconMouseEnter(ingDef?.name || 'Unknown Resource', e);
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.transform = 'scale(1)';
-                                                    handleResourceIconMouseLeave();
-                                                }}
-                                                onMouseMove={handleResourceIconMouseMove}
-                                                >
-                                                    <div 
-                                                        style={{ 
-                                                            width: '16px', 
-                                                            height: '16px', 
-                                                            flexShrink: 0
-                                                        }}
-                                                    >
-                                                        <img
-                                                            src={getItemIcon(ingDef?.iconAssetName || '')}
-                                                            alt={ingDef?.name || 'Unknown'}
-                                                            style={{ 
-                                                                width: '100%', 
-                                                                height: '100%', 
-                                                                objectFit: 'contain', 
-                                                                imageRendering: 'pixelated'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>
-                                                        {ing.quantity}
-                                                    </span>
-                                                    <span style={{ fontSize: '11px', color: '#ccc' }}>
-                                                        ({available})
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Row 3: Actions (Quantity + Craft Button) */}
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        justifyContent: 'space-between',
-                                        gap: '8px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            {/* Decrease Button */}
-                                            <button 
-                                                onClick={() => {
-                                                    const newQuantity = Math.max(1, currentQuantity - 1);
-                                                    setCraftQuantities(prev => new Map(prev).set(recipe.recipeId.toString(), newQuantity));
-                                                }}
-                                                disabled={currentQuantity <= 1}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    padding: '0',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    background: currentQuantity > 1 ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
-                                                    color: currentQuantity > 1 ? '#00aaff' : '#666',
-                                                    border: currentQuantity > 1 ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '3px 0 0 3px',
-                                                    cursor: currentQuantity > 1 ? 'pointer' : 'not-allowed',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    boxShadow: currentQuantity > 1 ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                −
-                                            </button>
-                                            
-                                            {/* Quantity Input */}
-                                            <input 
-                                                type="number" 
-                                                value={currentQuantity}
-                                                onChange={handleQuantityChange}
-                                                className="craft-quantity-input"
-                                                style={{
-                                                    width: '40px',
-                                                    height: '24px',
-                                                    padding: '0',
-                                                    fontSize: '13px',
-                                                    textAlign: 'center',
-                                                    background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
-                                                    border: '2px solid rgba(0, 170, 255, 0.4)',
-                                                    borderLeft: 'none',
-                                                    borderRight: 'none',
-                                                    color: '#00ffff',
-                                                    outline: 'none',
-                                                    textShadow: '0 0 5px rgba(0, 255, 255, 0.4)',
-                                                    // Hide default number input spinners
-                                                    MozAppearance: 'textfield'
-                                                }}
-                                                min="1"
-                                                max={maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1}
-                                                onKeyDown={(e) => {
-                                                    // Block + and - keys since we have custom buttons
-                                                    if (e.key === '+' || e.key === '-') {
-                                                        e.preventDefault();
-                                                    }
-                                                }}
-                                            />
-                                            
-                                            {/* Increase Button */}
-                                            <button 
-                                                onClick={() => {
-                                                    const newQuantity = Math.min(maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1, currentQuantity + 1);
-                                                    setCraftQuantities(prev => new Map(prev).set(recipe.recipeId.toString(), newQuantity));
-                                                }}
-                                                disabled={currentQuantity >= (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1)}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    padding: '0',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    background: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
-                                                    color: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '#00aaff' : '#666',
-                                                    border: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '0 3px 3px 0',
-                                                    cursor: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? 'pointer' : 'not-allowed',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    boxShadow: currentQuantity < (maxCraftableForThisRecipe > 0 ? maxCraftableForThisRecipe : 1) ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                +
-                                            </button>
-                                            
-                                            {/* MAX Button */}
-                                            <button 
-                                                onClick={handleMaxClick}
-                                                disabled={maxCraftableForThisRecipe <= 0}
-                                                style={{
-                                                    padding: '4px 6px',
-                                                    fontSize: '10px',
-                                                    background: maxCraftableForThisRecipe > 0 ? 'linear-gradient(135deg, rgba(0, 170, 255, 0.3), rgba(0, 150, 220, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
-                                                    color: maxCraftableForThisRecipe > 0 ? '#00aaff' : '#666',
-                                                    border: maxCraftableForThisRecipe > 0 ? '2px solid rgba(0, 170, 255, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '3px',
-                                                    cursor: maxCraftableForThisRecipe > 0 ? 'pointer' : 'not-allowed',
-                                                    marginLeft: '4px',
-                                                    boxShadow: maxCraftableForThisRecipe > 0 ? '0 0 8px rgba(0, 170, 255, 0.2)' : 'none',
-                                                    textShadow: maxCraftableForThisRecipe > 0 ? '0 0 5px rgba(0, 170, 255, 0.4)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                MAX
-                                            </button>
-                                        </div>
-                                        
-                                        <button
-                                            onClick={() => handleCraftItem(recipe.recipeId, currentQuantity)}
-                                            disabled={!isCraftable}
-                                            style={{
-                                                padding: '8px 16px',
-                                                fontSize: '13px',
-                                                fontWeight: 'bold',
-                                                background: !isMemoryGridUnlocked 
-                                                    ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(100, 70, 180, 0.4))' // Purple for locked
-                                                    : isCraftable ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
-                                                color: !isMemoryGridUnlocked ? '#8b5cf6' : isCraftable ? '#00ff88' : '#666',
-                                                border: !isMemoryGridUnlocked 
-                                                    ? '2px solid rgba(139, 92, 246, 0.5)'
-                                                    : isCraftable ? '2px solid rgba(0, 255, 136, 0.5)' : '2px solid rgba(100, 100, 120, 0.3)',
-                                                borderRadius: '4px',
-                                                cursor: isCraftable ? 'pointer' : 'not-allowed',
-                                                minWidth: '70px',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.5px',
-                                                boxShadow: !isMemoryGridUnlocked 
-                                                    ? '0 0 15px rgba(139, 92, 246, 0.2), inset 0 0 10px rgba(139, 92, 246, 0.1)'
-                                                    : isCraftable ? '0 0 15px rgba(0, 255, 136, 0.3), inset 0 0 10px rgba(0, 255, 136, 0.1)' : 'none',
-                                                textShadow: !isMemoryGridUnlocked 
-                                                    ? '0 0 8px rgba(139, 92, 246, 0.6)'
-                                                    : isCraftable ? '0 0 8px rgba(0, 255, 136, 0.6)' : 'none',
-                                                transition: 'all 0.3s ease'
-                                            }}
-                                        >
-                                            {!isMemoryGridUnlocked ? 'LOCKED' : 'CRAFT'}
-                                        </button>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         );
                     })}
@@ -920,4 +598,4 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     );
 };
 
-export default CraftingUI; 
+export default CraftingUI;

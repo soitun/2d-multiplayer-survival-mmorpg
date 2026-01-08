@@ -2301,6 +2301,36 @@ export function useEntityFiltering(
         return -1; // Pot renders after (above) tree/stone
       }
       
+      // SHELTER VS PLACEABLES: Shelters are tall structures that should render ABOVE ground placeables
+      // when the placeable is within or near the shelter's visual footprint.
+      // Without this, placeables with posY near shelter's visual base (shelter.posY - 100) would incorrectly render above.
+      const shelterPlaceableTypes: Array<YSortedEntityType['type']> = [
+        'broth_pot', 'campfire', 'furnace', 'barbecue', 'lantern', 'wooden_storage_box', 
+        'stash', 'barrel', 'rain_collector', 'sleeping_bag'
+      ];
+      
+      if (a.type === 'shelter' && shelterPlaceableTypes.includes(b.type)) {
+        const shelter = a.entity as SpacetimeDBShelter;
+        const placeable = b.entity as { posX: number; posY: number };
+        // Check if placeable is within shelter's visual footprint (roughly 200px radius)
+        const SHELTER_VISUAL_RADIUS = 100;
+        const dx = placeable.posX - shelter.posX;
+        const dy = placeable.posY - shelter.posY;
+        if (dx * dx + dy * dy < SHELTER_VISUAL_RADIUS * SHELTER_VISUAL_RADIUS) {
+          return 1; // Shelter renders after (above) placeable within its footprint
+        }
+      }
+      if (b.type === 'shelter' && shelterPlaceableTypes.includes(a.type)) {
+        const shelter = b.entity as SpacetimeDBShelter;
+        const placeable = a.entity as { posX: number; posY: number };
+        const SHELTER_VISUAL_RADIUS = 100;
+        const dx = placeable.posX - shelter.posX;
+        const dy = placeable.posY - shelter.posY;
+        if (dx * dx + dy * dy < SHELTER_VISUAL_RADIUS * SHELTER_VISUAL_RADIUS) {
+          return -1; // Shelter renders after (above) placeable within its footprint
+        }
+      }
+      
       // CRITICAL: Flying birds MUST render above trees, stones, and all ground objects regardless of Y position
       // This check runs right before Y-sorting to ensure it's not overridden
       // Reuse variables already declared at the top of the sort function
