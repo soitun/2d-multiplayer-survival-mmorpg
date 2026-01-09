@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './InventoryUI.module.css'; // Reuse styles for consistency
 import {
     Recipe,
@@ -59,6 +60,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         return localStorage.getItem('craftingSearchTerm') || '';
     });
     const [craftedRecipeIdsThisSession, setCraftedRecipeIdsThisSession] = useState<Set<string>>(new Set()); // New state
+    const [hoveredRecipe, setHoveredRecipe] = useState<{ id: string; name: string; x: number; y: number } | null>(null); // For local name-only tooltip
 
     // Timer to update queue times
     useEffect(() => {
@@ -460,9 +462,17 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                 }}
                                 onMouseEnter={(e) => {
                                     if (isCraftable) e.currentTarget.style.transform = 'scale(1.08)';
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setHoveredRecipe({
+                                        id: recipe.recipeId.toString(),
+                                        name: outputDef.name,
+                                        x: rect.left,
+                                        y: rect.top + rect.height / 2
+                                    });
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.transform = 'scale(1)';
+                                    setHoveredRecipe(null);
                                 }}
                             >
                                 <img
@@ -594,6 +604,31 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                 )}
             </div>
 
+            {/* Portal-based name tooltip for quick craft grid - renders to body to avoid overflow clipping */}
+            {hoveredRecipe && createPortal(
+                <div style={{
+                    position: 'fixed',
+                    left: hoveredRecipe.x - 8,
+                    top: hoveredRecipe.y,
+                    transform: 'translateX(-100%) translateY(-50%)',
+                    padding: '6px 10px',
+                    background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.95), rgba(15, 25, 50, 0.98))',
+                    border: '1px solid rgba(0, 170, 255, 0.5)',
+                    borderRadius: '4px',
+                    color: '#00ffff',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    fontFamily: '"Courier New", monospace',
+                    whiteSpace: 'nowrap',
+                    zIndex: 10000,
+                    pointerEvents: 'none',
+                    boxShadow: '0 0 10px rgba(0, 170, 255, 0.3)',
+                    textShadow: '0 0 5px rgba(0, 255, 255, 0.5)'
+                }}>
+                    {hoveredRecipe.name}
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
