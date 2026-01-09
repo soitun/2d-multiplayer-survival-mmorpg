@@ -11,5 +11,6 @@ pub struct RangedWeaponStats {
     pub accuracy: f32,              // Value between 0.0 (wildly inaccurate) and 1.0 (perfectly accurate)
     pub reload_time_secs: f32,      // Time between shots (per shot fire rate)
     pub magazine_capacity: u8,      // How many rounds can be loaded at once (0 = single-shot like bow)
+    pub is_automatic: bool,         // If true, weapon fires continuously when holding mouse button (e.g., SMGs)
     // pub ammo_item_def_id: Option<u64>, // Future: if different ammo types are used
 } 

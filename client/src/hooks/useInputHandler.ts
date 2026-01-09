@@ -63,6 +63,7 @@ interface InputHandlerProps {
     activeEquipments: Map<string, ActiveEquipment>;
     itemDefinitions: Map<string, ItemDefinition>;
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
+    rangedWeaponStats?: Map<string, SpacetimeDB.RangedWeaponStats>; // ADDED: For auto-fire detection
     placementInfo: PlacementItemInfo | null;
     placementActions: PlacementActions;
     buildingState?: { isBuilding: boolean; mode: string }; // ADDED: Building state
@@ -184,6 +185,7 @@ export const useInputHandler = ({
     isAutoWalking, // Auto-walk state for dodge roll detection
     targetedFoundation, // ADDED: Targeted foundation
     targetedWall, // ADDED: Targeted wall
+    rangedWeaponStats, // ADDED: For auto-fire detection
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
     // Get player actions from the context instead of props
@@ -204,6 +206,7 @@ export const useInputHandler = ({
     const isMouseDownRef = useRef<boolean>(false);
     const lastClientSwingAttemptRef = useRef<number>(0);
     const lastServerSwingTimestampRef = useRef<number>(0); // To store server-confirmed swing time
+    const lastRangedFireTimeRef = useRef<number>(0); // ADDED: Track last ranged weapon fire time for auto-fire
     const eKeyDownTimestampRef = useRef<number>(0);
     const eKeyHoldTimerRef = useRef<NodeJS.Timeout | number | null>(null); // Use number for browser timeout ID
     const tapActionTriggeredOnKeyDownRef = useRef<boolean>(false); // Track if tap action was already triggered on keyDown
@@ -231,7 +234,8 @@ export const useInputHandler = ({
     const playersRef = useLatest(players);
     const targetedFoundationRef = useLatest(targetedFoundation);
     const targetedWallRef = useLatest(targetedWall);
-    const itemDefinitionsRef = useLatest(itemDefinitions)
+    const itemDefinitionsRef = useLatest(itemDefinitions);
+    const rangedWeaponStatsRef = useLatest(rangedWeaponStats); // ADDED: Ref for ranged weapon stats
 
     // Add after existing refs in the hook
     const isRightMouseDownRef = useRef<boolean>(false);
@@ -2219,7 +2223,51 @@ export const useInputHandler = ({
         if (isMouseDownRef.current && !placementInfo && !isChatting && !isSearchingCraftRecipes) {
             // 🎣 FISHING INPUT FIX: Disable continuous swing while fishing
             if (!isFishing) {
-                attemptSwing(); // Call internal attemptSwing function
+                // Check if this is an automatic ranged weapon being held down
+                const localPlayerActiveEquipment = localPlayerId ? activeEquipmentsRef.current?.get(localPlayerId) : undefined;
+                if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
+                    const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
+                    
+                    if (equippedItemDef?.category?.tag === "RangedWeapon") {
+                        // Check if this is an automatic weapon
+                        const weaponStats = rangedWeaponStatsRef.current?.get(equippedItemDef.name || '');
+                        
+                        if (weaponStats?.isAutomatic && localPlayerActiveEquipment.isReadyToFire) {
+                            // AUTOMATIC WEAPON AUTO-FIRE: Fire continuously while holding mouse button
+                            const now = performance.now();
+                            const fireIntervalMs = (weaponStats.reloadTimeSecs || 0.1) * 1000; // Convert to ms
+                            
+                            if (now - lastRangedFireTimeRef.current >= fireIntervalMs) {
+                                // Fire the weapon
+                                const currentPlayer = localPlayerRef.current;
+                                const exactPos = getCurrentPositionNowRef.current?.();
+                                const fallbackPos = predictedPositionRef.current;
+                                
+                                if (connectionRef.current?.reducers && 
+                                    worldMousePosRefInternal.current.x !== null && 
+                                    worldMousePosRefInternal.current.y !== null && 
+                                    currentPlayer) {
+                                    const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
+                                    const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
+                                    connectionRef.current.reducers.fireProjectile(
+                                        worldMousePosRefInternal.current.x,
+                                        worldMousePosRefInternal.current.y,
+                                        fireX,
+                                        fireY
+                                    );
+                                    lastRangedFireTimeRef.current = now;
+                                }
+                            }
+                        }
+                        // Don't call attemptSwing for ranged weapons (they don't swing)
+                    } else {
+                        // Non-ranged weapon: use normal swing
+                        attemptSwing();
+                    }
+                } else {
+                    // No equipped item or item defs not loaded: use normal swing (unarmed)
+                    attemptSwing();
+                }
             }
         }
 

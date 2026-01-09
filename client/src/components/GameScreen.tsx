@@ -1127,6 +1127,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 discoveredPlants={props.discoveredPlants}
                 alwaysShowPlayerNames={alwaysShowPlayerNames}
                 playerStats={props.playerStats} // ADDED: For title display on player name labels
+                rangedWeaponStats={rangedWeaponStats} // ADDED: For auto-fire detection
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}

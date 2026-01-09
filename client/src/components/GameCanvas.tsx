@@ -312,6 +312,9 @@ interface GameCanvasProps {
   
   // Player stats for title display on name labels
   playerStats?: Map<string, any>;
+  
+  // Ranged weapon stats for auto-fire detection
+  rangedWeaponStats?: Map<string, any>;
 
   // Mobile controls
   isMobile?: boolean;
@@ -438,6 +441,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   discoveredPlants, // Plants discovered by current player
   alwaysShowPlayerNames = true, // Always show player names above heads
   playerStats, // Player stats for title display on name labels
+  rangedWeaponStats, // Ranged weapon stats for auto-fire detection
   showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
   isMobile = false,
@@ -1184,6 +1188,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     isAutoWalking, // Pass auto-walk state for dodge roll detection
     targetedFoundation, // ADDED: Pass targeted foundation to input handler
     targetedWall, // ADDED: Pass targeted wall to input handler
+    rangedWeaponStats, // ADDED: Pass ranged weapon stats for auto-fire detection
     // Individual entity IDs for consistency and backward compatibility
   });
 

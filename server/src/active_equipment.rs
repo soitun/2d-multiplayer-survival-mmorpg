@@ -36,7 +36,7 @@ use crate::stone::{STONE_COLLISION_Y_OFFSET, PLAYER_STONE_COLLISION_DISTANCE_SQU
 // Core game types
 use crate::Player;
 use crate::PLAYER_RADIUS;
-use crate::items::{InventoryItem, ItemDefinition, ItemCategory, add_item_to_player_inventory};
+use crate::items::{InventoryItem, ItemDefinition, ItemCategory};
 
 // Table trait imports for database access
 // use crate::tree::tree as TreeTableTrait; // Assuming not used, or handle similarly if error appears
@@ -58,6 +58,58 @@ use crate::models::{ItemLocation, EquipmentSlotType};
 
 // Player inventory imports
 use crate::player_inventory::find_first_empty_player_slot;
+
+// --- Weapon Ammo Persistence ---
+// Struct to serialize/deserialize loaded ammo state to/from item_data JSON
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct WeaponAmmoData {
+    loaded_ammo_def_id: u64,
+    loaded_ammo_count: u8,
+}
+
+/// Saves the current weapon's loaded ammo state to its item_data field
+fn save_weapon_ammo_to_item(ctx: &ReducerContext, item_instance_id: u64, ammo_def_id: Option<u64>, ammo_count: u8) {
+    if ammo_count == 0 || ammo_def_id.is_none() {
+        // No ammo to save - clear any existing ammo data
+        if let Some(mut item) = ctx.db.inventory_item().instance_id().find(item_instance_id) {
+            // Only clear if there was weapon ammo data before
+            if item.item_data.as_ref().map_or(false, |d| d.contains("loaded_ammo")) {
+                item.item_data = None;
+                ctx.db.inventory_item().instance_id().update(item);
+                log::info!("[WeaponAmmo] Cleared ammo data from weapon instance {}", item_instance_id);
+            }
+        }
+        return;
+    }
+    
+    let ammo_data = WeaponAmmoData {
+        loaded_ammo_def_id: ammo_def_id.unwrap(),
+        loaded_ammo_count: ammo_count,
+    };
+    
+    if let Some(mut item) = ctx.db.inventory_item().instance_id().find(item_instance_id) {
+        match serde_json::to_string(&ammo_data) {
+            Ok(json) => {
+                item.item_data = Some(json);
+                ctx.db.inventory_item().instance_id().update(item);
+                log::info!("[WeaponAmmo] Saved {} rounds (ammo_def_id: {}) to weapon instance {}", 
+                    ammo_count, ammo_def_id.unwrap(), item_instance_id);
+            }
+            Err(e) => {
+                log::error!("[WeaponAmmo] Failed to serialize ammo data: {}", e);
+            }
+        }
+    }
+}
+
+/// Loads weapon ammo state from an item's item_data field
+fn load_weapon_ammo_from_item(item: &InventoryItem) -> Option<WeaponAmmoData> {
+    item.item_data.as_ref().and_then(|data| {
+        serde_json::from_str::<WeaponAmmoData>(data).ok()
+    })
+}
 
 // Sound events imports
 use crate::sound_events;
@@ -228,9 +280,11 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
         return Ok(());
     }
     
+    // --- SAVE OLD WEAPON'S AMMO STATE ---
+    // Before switching, save the current weapon's loaded ammo to its item_data
     if let Some(old_active_id) = equipment.equipped_item_instance_id {
-        if old_active_id != item_instance_id {
-             // log::info!("Player {:?} changing active item from {} to {}.", sender_id, old_active_id, item_instance_id);
+        if old_active_id != item_instance_id && equipment.loaded_ammo_count > 0 {
+            save_weapon_ammo_to_item(ctx, old_active_id, equipment.loaded_ammo_def_id, equipment.loaded_ammo_count);
         }
     }
 
@@ -238,10 +292,22 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
     equipment.equipped_item_instance_id = Some(item_instance_id);
     equipment.swing_start_time_ms = 0;
     equipment.icon_asset_name = Some(item_def.icon_asset_name.clone());
-    // Reset ALL ammunition state when switching items (must reload after switching)
-    equipment.loaded_ammo_def_id = None;
-    equipment.loaded_ammo_count = 0;
-    equipment.is_ready_to_fire = false;
+    
+    // --- LOAD NEW WEAPON'S AMMO STATE ---
+    // Check if this weapon was previously loaded (has ammo data stored)
+    if let Some(ammo_data) = load_weapon_ammo_from_item(&item_to_make_active) {
+        // Restore the loaded ammo state from the weapon's item_data
+        equipment.loaded_ammo_def_id = Some(ammo_data.loaded_ammo_def_id);
+        equipment.loaded_ammo_count = ammo_data.loaded_ammo_count;
+        equipment.is_ready_to_fire = ammo_data.loaded_ammo_count > 0;
+        log::info!("[SetActiveItem] Restored {} rounds (ammo_def_id: {}) from weapon instance {}", 
+            ammo_data.loaded_ammo_count, ammo_data.loaded_ammo_def_id, item_instance_id);
+    } else {
+        // New or never-loaded weapon - start unloaded
+        equipment.loaded_ammo_def_id = None;
+        equipment.loaded_ammo_count = 0;
+        equipment.is_ready_to_fire = false;
+    }
 
     // --- Handle Torch Specific State on Equip ---
     if item_def.name == "Torch" {
@@ -309,7 +375,6 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
 #[spacetimedb::reducer]
 pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity) -> Result<(), String> {
     let active_equipments = ctx.db.active_equipment();
-    let item_defs = ctx.db.item_definition(); // For checking item name
     let mut players_table = ctx.db.player(); // For updating player state
 
     // Cancel any ongoing BandageBurst effect when clearing the active item.
@@ -319,16 +384,23 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
         // Store old item def ID before clearing for torch check
         let old_item_def_id_opt = equipment.equipped_item_def_id;
 
-        if equipment.equipped_item_instance_id.is_some() {
+        if let Some(item_instance_id) = equipment.equipped_item_instance_id {
             // log::info!("Player {:?} cleared active item (was instance ID: {:?}, def ID: {:?}).", 
             //          player_identity, equipment.equipped_item_instance_id, equipment.equipped_item_def_id);
+            
+            // --- SAVE LOADED AMMO TO WEAPON'S ITEM_DATA ---
+            // If weapon has loaded ammo, persist it to the weapon so it stays loaded
+            if equipment.loaded_ammo_count > 0 {
+                save_weapon_ammo_to_item(ctx, item_instance_id, equipment.loaded_ammo_def_id, equipment.loaded_ammo_count);
+            }
+            // --- END SAVE LOADED AMMO ---
             
             equipment.equipped_item_def_id = None;
             equipment.equipped_item_instance_id = None;
             equipment.swing_start_time_ms = 0;
             equipment.icon_asset_name = None; // <<< CLEAR icon name
             equipment.loaded_ammo_def_id = None;
-            equipment.loaded_ammo_count = 0; // Clear magazine when unequipping
+            equipment.loaded_ammo_count = 0; // Clear from ActiveEquipment (ammo is now on the weapon itself)
             equipment.is_ready_to_fire = false;
             active_equipments.player_identity().update(equipment);
 

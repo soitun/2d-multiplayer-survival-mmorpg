@@ -36,6 +36,9 @@ function saveSeenAchievementIds(ids: Set<string>): void {
   }
 }
 
+// Time in ms before clicks can dismiss a notification (prevents accidental dismiss while attacking)
+const CLICK_GUARD_MS = 1000;
+
 const AchievementNotification: React.FC<AchievementNotificationProps> = ({ 
   notifications,
   onOpenAchievements,
@@ -45,9 +48,21 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   // Initialize dismissedIds from localStorage to persist across page reloads
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenAchievementIds());
   const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Track when each notification was shown to prevent accidental clicks
+  const shownAtRefs = useRef<Map<string, number>>(new Map());
 
   // Dismiss a notification by id with fade animation
-  const dismissNotification = useCallback((id: string) => {
+  // If fromClick is true, respects the click guard timing
+  const dismissNotification = useCallback((id: string, fromClick: boolean = false) => {
+    // If this is from a click, check if enough time has passed since showing
+    if (fromClick) {
+      const shownAt = shownAtRefs.current.get(id);
+      if (shownAt && Date.now() - shownAt < CLICK_GUARD_MS) {
+        // Ignore click - notification just appeared
+        return;
+      }
+    }
+    
     // Clear the timeout if it exists
     const timeout = timeoutRefs.current.get(id);
     if (timeout) {
@@ -71,6 +86,8 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
         next.delete(id);
         return next;
       });
+      // Clean up shownAt ref
+      shownAtRefs.current.delete(id);
     }, FADE_OUT_DURATION_MS);
   }, []);
 
@@ -86,6 +103,11 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
     newVisible.forEach(notif => {
       const id = notif.id.toString();
       if (!timeoutRefs.current.has(id) && !fadingOutIds.has(id)) {
+        // Track when this notification was first shown (for click guard)
+        if (!shownAtRefs.current.has(id)) {
+          shownAtRefs.current.set(id, Date.now());
+        }
+        
         // Play SOVA achievement unlocked voice line + progress unlocked SFX for truly new notifications
         try {
           const sovaAudio = new Audio('/sounds/sova_achievement_unlocked.mp3');
@@ -106,7 +128,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
         }
         
         const timeout = setTimeout(() => {
-          dismissNotification(id);
+          dismissNotification(id, false); // Auto-dismiss, not from click
         }, NOTIFICATION_TIMEOUT_MS);
         timeoutRefs.current.set(id, timeout);
       }
@@ -118,6 +140,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
     return () => {
       timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
       timeoutRefs.current.clear();
+      shownAtRefs.current.clear();
     };
   }, []);
 
@@ -147,11 +170,16 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
           <div
             key={notifId}
             onClick={() => {
+              // Check click guard before processing
+              const shownAt = shownAtRefs.current.get(notifId);
+              if (shownAt && Date.now() - shownAt < CLICK_GUARD_MS) {
+                return; // Ignore click - notification just appeared
+              }
               // Open achievements panel when clicking the notification
               if (onOpenAchievements) {
                 onOpenAchievements();
               }
-              dismissNotification(notifId);
+              dismissNotification(notifId, true);
             }}
             className={`achievement-container ${isFadingOut ? 'fade-out' : 'fade-in'}`}
             style={{
@@ -178,7 +206,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
                 {/* Close button */}
                 <div 
                   className="achievement-close"
-                  onClick={(e) => { e.stopPropagation(); dismissNotification(notifId); }}
+                  onClick={(e) => { e.stopPropagation(); dismissNotification(notifId, true); }}
                 >
                   ×
                 </div>

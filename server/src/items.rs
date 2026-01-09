@@ -213,6 +213,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             accuracy: 0.86,            // 86% accuracy - rewards getting in range
             reload_time_secs: 0.85,    // Fast follow-up shots - aggressive playstyle
             magazine_capacity: 0,      // Single-shot (arrows loaded one at a time)
+            is_automatic: false,       // Semi-auto - must click for each shot
         },
         
         // TIER 2: Crossbow (Mid Game)
@@ -228,6 +229,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             accuracy: 0.95,            // 95% accuracy - mechanical precision
             reload_time_secs: 2.3,     // Slow reload - make your shot count
             magazine_capacity: 0,      // Single-shot (bolts loaded one at a time)
+            is_automatic: false,       // Semi-auto - must click for each shot
         },
         
         // TIER 3: Makarov PM (Late Game)
@@ -243,6 +245,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             accuracy: 0.84,            // 84% accuracy - recoil affects rapid fire
             reload_time_secs: 0.38,    // Rapid semi-auto fire
             magazine_capacity: 8,      // 8-round magazine
+            is_automatic: false,       // Semi-auto pistol - must click for each shot
         },
         
         // TIER 4: PP-91 KEDR (Endgame)
@@ -251,6 +254,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Low per-shot damage compensated by volume
         // - Lower accuracy than pistol due to rapid fire
         // - Burns through 9x18mm ammo extremely fast
+        // - FULLY AUTOMATIC - hold mouse button to spray
         RangedWeaponStats {
             item_name: "PP-91 KEDR".to_string(),
             weapon_range: 720.0,       // Shorter than pistol - SMG loses accuracy at range
@@ -258,6 +262,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             accuracy: 0.72,            // 72% accuracy - full auto recoil
             reload_time_secs: 0.10,    // Extreme fire rate - 10 rounds per second
             magazine_capacity: 30,     // 30-round magazine
+            is_automatic: true,        // FULL AUTO - hold mouse button to fire continuously
         },
         
         // UNDERWATER: Reed Harpoon Gun
@@ -273,6 +278,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             accuracy: 0.90,            // 90% accuracy - pneumatic precision
             reload_time_secs: 1.8,     // Time between shots (slower than bow, faster than crossbow)
             magazine_capacity: 2,      // 2-dart magazine - limited capacity
+            is_automatic: false,       // Semi-auto - must click for each shot
         },
     ];
 
@@ -287,10 +293,11 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
                 || existing.projectile_speed != stats.projectile_speed
                 || existing.accuracy != stats.accuracy
                 || existing.reload_time_secs != stats.reload_time_secs
-                || existing.magazine_capacity != stats.magazine_capacity 
+                || existing.magazine_capacity != stats.magazine_capacity
+                || existing.is_automatic != stats.is_automatic
             {
-                log::info!("Updating ranged stats for '{}': range {:.0}->{:.0}", 
-                    stats.item_name, existing.weapon_range, stats.weapon_range);
+                log::info!("Updating ranged stats for '{}': range {:.0}->{:.0}, is_automatic={}", 
+                    stats.item_name, existing.weapon_range, stats.weapon_range, stats.is_automatic);
                 ranged_stats.item_name().update(stats);
                 updated_count += 1;
             }

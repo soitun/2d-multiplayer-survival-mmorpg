@@ -800,14 +800,20 @@ pub fn find_nearest_attackable_structure(
     }
     
     // Second, look for shelters (tent-like structures that protect players)
+    // IMPORTANT: Use AABB center position (pos_y - 200.0) for distance check
+    // This matches the attack range check in core.rs
     let mut nearest_shelter: Option<(u64, f32)> = None;
     for shelter in ctx.db.shelter().iter() {
         if shelter.is_destroyed {
             continue;
         }
         
-        let dx = shelter.pos_x - hostile_x;
-        let dy = shelter.pos_y - hostile_y;
+        // Use AABB collision center for shelter distance (matches attack detection)
+        let shelter_aabb_center_x = shelter.pos_x;
+        let shelter_aabb_center_y = shelter.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y;
+        
+        let dx = shelter_aabb_center_x - hostile_x;
+        let dy = shelter_aabb_center_y - hostile_y;
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq < max_range_sq {

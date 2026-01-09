@@ -751,12 +751,13 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 log::info!("👹 [HostileNPC DEBUG] {:?} {} in Chasing state - is_inside_building={}, species_can_attack_structures={}", 
                                     animal.species, animal.id, 
                                     target_player.is_inside_building,
-                                    matches!(animal.species, AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch));
+                                    matches!(animal.species, AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch));
                             }
                             
                             if animal.is_hostile_npc && target_player.is_inside_building {
+                                // ALL hostile NPCs can attack structures to get to players hiding inside
                                 let can_attack_structures = matches!(animal.species, 
-                                    AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+                                    AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
                                 
                                 // Check if hostile should switch to structure attack mode
                                 // Don't require can_attack() here - we're just switching states
@@ -779,7 +780,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                         transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), &format!("attacking {} #{}", struct_type, struct_id));
                                     }
                                 } else {
-                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} CANNOT attack structures (only Shardkin/DrownedWatch can)", 
+                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} CANNOT attack structures (not a structure-attacking species)", 
                                         animal.species, animal.id);
                                 }
                             }
@@ -842,6 +843,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                         if in_attack_range && can_attack(&animal, current_time, &stats) {
                             // Attack the structure!
                             let structure_damage = match animal.species {
+                                AnimalSpecies::Shorebound => 15.0,  // Fast stalker - moderate damage
                                 AnimalSpecies::Shardkin => 5.0,     // Low damage, creates urgency
                                 AnimalSpecies::DrownedWatch => 35.0, // Heavy damage
                                 _ => 10.0,

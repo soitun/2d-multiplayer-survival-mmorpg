@@ -35,6 +35,9 @@ function saveSeenLevelUpIds(ids: Set<string>): void {
   }
 }
 
+// Time in ms before clicks can dismiss a notification (prevents accidental dismiss while attacking)
+const CLICK_GUARD_MS = 1000;
+
 const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({ 
   notifications 
 }) => {
@@ -43,9 +46,21 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
   // Initialize dismissedIds from localStorage to persist across page reloads
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenLevelUpIds());
   const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Track when each notification was shown to prevent accidental clicks
+  const shownAtRefs = useRef<Map<string, number>>(new Map());
 
   // Dismiss a notification by id with fade animation
-  const dismissNotification = useCallback((id: string) => {
+  // If fromClick is true, respects the click guard timing
+  const dismissNotification = useCallback((id: string, fromClick: boolean = false) => {
+    // If this is from a click, check if enough time has passed since showing
+    if (fromClick) {
+      const shownAt = shownAtRefs.current.get(id);
+      if (shownAt && Date.now() - shownAt < CLICK_GUARD_MS) {
+        // Ignore click - notification just appeared
+        return;
+      }
+    }
+    
     // Clear the timeout if it exists
     const timeout = timeoutRefs.current.get(id);
     if (timeout) {
@@ -69,6 +84,8 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
         next.delete(id);
         return next;
       });
+      // Clean up shownAt ref
+      shownAtRefs.current.delete(id);
     }, FADE_OUT_DURATION_MS);
   }, []);
 
@@ -84,6 +101,11 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
     newVisible.forEach(notif => {
       const id = notif.id.toString();
       if (!timeoutRefs.current.has(id) && !fadingOutIds.has(id)) {
+        // Track when this notification was first shown (for click guard)
+        if (!shownAtRefs.current.has(id)) {
+          shownAtRefs.current.set(id, Date.now());
+        }
+        
         // Play SOVA level up voice line + progress unlocked SFX for truly new notifications
         try {
           const sovaAudio = new Audio('/sounds/sova_level_up.mp3');
@@ -104,7 +126,7 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
         }
         
         const timeout = setTimeout(() => {
-          dismissNotification(id);
+          dismissNotification(id, false); // Auto-dismiss, not from click
         }, NOTIFICATION_TIMEOUT_MS);
         timeoutRefs.current.set(id, timeout);
       }
@@ -116,6 +138,7 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
     return () => {
       timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
       timeoutRefs.current.clear();
+      shownAtRefs.current.clear();
     };
   }, []);
 
@@ -138,7 +161,7 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
         return (
           <div
             key={notifId}
-            onClick={() => dismissNotification(notifId)}
+            onClick={() => dismissNotification(notifId, true)}
             className={`level-up-container ${isFadingOut ? 'fade-out' : 'fade-in'}`}
             style={{
               position: 'relative',
