@@ -112,6 +112,7 @@ import navalCutlassIcon from '../assets/items/naval_cutlass.png';
 import engineersMaulIcon from '../assets/items/engineers_maul.png';
 import militaryCrowbarIcon from '../assets/items/military_crowbar.png';
 import makarovPmIcon from '../assets/items/makarov_pm.png';
+import pp91KedrIcon from '../assets/items/pp91_kedr.png';
 
 // Skull weapons
 import skullIcon from '../assets/items/skull.png';
@@ -572,6 +573,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'engineers_maul.png': engineersMaulIcon,
   'military_crowbar.png': militaryCrowbarIcon,
   'makarov_pm.png': makarovPmIcon,
+  'pp91_kedr.png': pp91KedrIcon,
   
   // Skull weapons
   'skull.png': skullIcon,

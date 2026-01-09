@@ -3,7 +3,7 @@ import { Projectile as SpacetimeDBProjectile } from '../../generated';
 // Full 64x64px rendering for all projectiles
 const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)
 const CROSSBOW_ARROW_SCALE = 0.7; // Full size crossbow bolts
-const BULLET_SCALE = 0.7; // Full size bullets from pistols
+const BULLET_SCALE = 0.35; // Half size bullets from pistols (was 0.7)
 const DEFAULT_THROWN_SCALE = 0.7; // Full size thrown items
 const WEAPON_THROWN_SCALE = 1.0; // Full size thrown weapons (melee weapons like combat ladle)
 const ARROW_SPRITE_OFFSET_X = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
@@ -93,8 +93,8 @@ export const renderProjectile = ({
     if (weaponDef) {
       if (weaponDef.name === "Crossbow") {
         gravityMultiplier = 0.0; // Crossbow projectiles have NO gravity effect (straight line)
-      } else if (weaponDef.name === "Makarov PM") {
-        gravityMultiplier = 0.15; // Pistol projectiles have minimal gravity effect (fast arc)
+      } else if (weaponDef.name === "Makarov PM" || weaponDef.name === "PP-91 KEDR") {
+        gravityMultiplier = 0.15; // Firearm projectiles have minimal gravity effect (fast arc)
         isBullet = true;
       }
     }

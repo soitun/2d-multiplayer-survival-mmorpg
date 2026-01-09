@@ -1071,6 +1071,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isChatting={isChatting}
                 messages={messages}
                 isSearchingCraftRecipes={isCraftingSearchFocused}
+                onSearchFocusChange={setIsCraftingSearchFocused}
                 activeConsumableEffects={activeConsumableEffects}
                 showInventory={showInventoryState || showCraftingScreenState}
                 grass={grass}
@@ -1281,6 +1282,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     cameraOffsetY={cameraOffsetY}
                     isInventoryOpen={showInventoryState || showCraftingScreenState}
                     isGameMenuOpen={currentMenu !== null}
+                    isMinimapOpen={isMinimapOpen}
                 />
             )}
 

@@ -2243,8 +2243,9 @@ fn categorize_weapon_for_achievement(weapon_name: &str) -> &'static str {
         return "harpoon_gun_kills";
     }
     
-    // Ranged - Firearms (Makarov, etc.)
-    if name_lower.contains("makarov") || name_lower.contains("pistol") || name_lower.contains("gun") 
+    // Ranged - Firearms (Makarov, PP-91 KEDR, etc.)
+    if name_lower.contains("makarov") || name_lower.contains("kedr") || name_lower.contains("smg")
+       || name_lower.contains("pistol") || name_lower.contains("gun") 
        || name_lower.contains("rifle") || name_lower.contains("firearm") {
         return "gun_kills";
     }
@@ -4612,7 +4613,7 @@ pub fn player_has_ranged_weapon(ctx: &ReducerContext, player_id: Identity) -> bo
     if let Some(equipment) = ctx.db.active_equipment().player_identity().find(&player_id) {
         if let Some(item_def_id) = equipment.equipped_item_def_id {
             if let Some(item_def) = ctx.db.item_definition().id().find(item_def_id) {
-                let has_ranged = item_def.name == "Hunting Bow" || item_def.name == "Crossbow" || item_def.name == "Makarov PM";
+                let has_ranged = item_def.name == "Hunting Bow" || item_def.name == "Crossbow" || item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR";
                 if has_ranged {
                     log::debug!("Player {:?} has ranged weapon: {}", player_id, item_def.name);
                 }

@@ -13,6 +13,7 @@ interface TargetingReticleProps {
   cameraOffsetY: number;
   isInventoryOpen: boolean;
   isGameMenuOpen: boolean;
+  isMinimapOpen: boolean; // Hide crosshair when InterfaceContainer is open
 }
 
 const TargetingReticle: React.FC<TargetingReticleProps> = ({
@@ -26,6 +27,7 @@ const TargetingReticle: React.FC<TargetingReticleProps> = ({
   cameraOffsetY,
   isInventoryOpen,
   isGameMenuOpen,
+  isMinimapOpen,
 }) => {
   // console.log('[TargetingReticle] Component rendering/re-rendering.', { activeItemDefName: activeItemDef?.name, localPlayerExists: !!localPlayer });
 
@@ -36,7 +38,7 @@ const TargetingReticle: React.FC<TargetingReticleProps> = ({
 
   // Check if we should show the reticle
   const shouldShowReticle = (
-    localPlayer && !localPlayer.isDead && !isInventoryOpen && !isGameMenuOpen && (
+    localPlayer && !localPlayer.isDead && !isInventoryOpen && !isGameMenuOpen && !isMinimapOpen && (
       // Show for ranged weapons
       (activeItemDef && (activeItemDef.category?.tag === 'RangedWeapon' || activeItemDef.name === 'Hunting Bow'))
     )

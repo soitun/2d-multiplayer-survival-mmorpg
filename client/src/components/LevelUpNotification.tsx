@@ -200,6 +200,15 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
                       <span className="xp-label">XP ACQUIRED</span>
                     </div>
                   )}
+                  
+                  {/* Memory Shards awarded */}
+                  {notif.shardsAwarded > 0 && (
+                    <div className="shards-display">
+                      <span className="shards-icon">💠</span>
+                      <span className="shards-value">+{notif.shardsAwarded.toLocaleString()}</span>
+                      <span className="shards-label">MEMORY SHARDS</span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Footer bar */}
@@ -612,6 +621,40 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
         }
         
         .xp-label {
+          font-family: 'Courier New', 'Consolas', monospace;
+          font-size: 10px;
+          color: #64748b;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }
+        
+        /* Shards display */
+        .shards-display {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 20px;
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(255, 0, 110, 0.1));
+          border: 1px solid rgba(124, 58, 237, 0.4);
+          border-radius: 4px;
+          margin-top: 8px;
+        }
+        
+        .shards-icon {
+          font-size: 16px;
+          filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.8));
+        }
+        
+        .shards-value {
+          font-family: 'Courier New', 'Consolas', monospace;
+          font-size: 18px;
+          font-weight: bold;
+          color: #a855f7;
+          text-shadow: 0 0 10px rgba(168, 85, 247, 0.8);
+        }
+        
+        .shards-label {
           font-family: 'Courier New', 'Consolas', monospace;
           font-size: 10px;
           color: #64748b;

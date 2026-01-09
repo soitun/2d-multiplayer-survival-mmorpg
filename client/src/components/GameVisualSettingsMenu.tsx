@@ -578,7 +578,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                             value={title.id}
                                             style={{ background: '#1a1a2e', color: '#ffd700' }}
                                         >
-                                            «{title.title}» - {title.description}
+                                            «{title.title}»
                                         </option>
                                     ))}
                                 </select>

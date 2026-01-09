@@ -70,6 +70,8 @@ interface InterfaceContainerProps {
   plantConfigs?: Map<string, PlantConfigDefinition>;
   // Plants discovered by current player (for encyclopedia filtering)
   discoveredPlants?: Map<string, any>;
+  // Callback for when search inputs gain/lose focus (blocks player movement)
+  onSearchFocusChange?: (isFocused: boolean) => void;
 }
 
 const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
@@ -110,6 +112,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   plantConfigs,
   // Plants discovered by current player (for encyclopedia filtering)
   discoveredPlants,
+  // Callback for when search inputs gain/lose focus (blocks player movement)
+  onSearchFocusChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentView, setCurrentView] = useState<InterfaceView>(initialView || 'minimap');
@@ -965,6 +969,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               achievementDefinitions={achievementDefinitions || new Map()}
               playerAchievements={playerAchievements || new Map()}
               onClose={onClose}
+              onSearchFocusChange={onSearchFocusChange}
             />
           </div>
         );

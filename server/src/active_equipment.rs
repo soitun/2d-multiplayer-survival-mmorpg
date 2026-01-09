@@ -421,9 +421,9 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
 
     // Determine the compatible ammo type based on weapon
     // Bows and Crossbows use Arrow ammunition
-    // Firearms (Makarov PM, etc.) use Bullet ammunition
+    // Firearms (Makarov PM, PP-91 KEDR, etc.) use Bullet ammunition
     // Harpoon Guns use HarpoonDart ammunition
-    let is_firearm = item_def.name == "Makarov PM"; // Add more firearms here as they're added
+    let is_firearm = item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR"; // Firearms use 9x18mm bullets
     let is_harpoon_gun = item_def.name == "Reed Harpoon Gun"; // Underwater harpoon weapons
     
     let required_ammo_type = if is_harpoon_gun {

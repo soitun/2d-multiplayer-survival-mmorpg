@@ -758,6 +758,24 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Makarov PM']
   },
+  
+  // ============================================
+  // TIER 7 - Endgame (4000+ shards)
+  // Ultimate weapons
+  // Radius: 720
+  // ============================================
+  { 
+    id: 'pp91-kedr', 
+    name: 'PP-91 KEDR', 
+    description: 'Unlocks crafting the PP-91 KEDR - a devastating Soviet submachine gun with 30-round magazine and extreme fire rate.', 
+    cost: 4000, 
+    tier: 7, 
+    prerequisites: ['makarov-pm'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_1, 720),
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['PP-91 KEDR']
+  },
 
   // ============================================
   // FACTION UNLOCK NODES (1600 shards each)
@@ -1115,6 +1133,9 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   
   // Tier 6 items
   'Makarov PM': 'makarov-pm',
+  
+  // Tier 7 items
+  'PP-91 KEDR': 'pp91-kedr',
 };
 
 // ALWAYS CRAFTABLE (not in ITEM_TO_NODE_MAP):

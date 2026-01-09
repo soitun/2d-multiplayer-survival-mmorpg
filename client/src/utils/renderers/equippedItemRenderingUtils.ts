@@ -351,8 +351,8 @@ export const renderEquippedItem = (
 
   } else if (itemDef.name === "Makarov PM") {
 
-    // Full 64x64px rendering for pistols
-    const pistolScale = 1.0;
+    // 33% larger than half-size rendering for pistol (~42x42px effective)
+    const pistolScale = 0.5 * 1.33; // 0.665
     displayItemWidth = itemImgFromCaller.width * pistolScale;
     displayItemHeight = itemImgFromCaller.height * pistolScale;
 
@@ -373,9 +373,42 @@ export const renderEquippedItem = (
         rotation = Math.PI / 2; // Rotate counterclockwise 90°
         break;
       case 'right':
-        itemOffsetX = gameConfig.spriteWidth * -0.25;
-        itemOffsetY = 2.0;
+        itemOffsetX = gameConfig.spriteWidth * +0.05; // Shifted right slightly
+        itemOffsetY = 5.0;
         rotation = 0; // Point pistol right
+        break;
+    }
+    
+    pivotX = player.positionX + shakeX + itemOffsetX;
+    pivotY = player.positionY - jumpOffset + shakeY + itemOffsetY;
+
+  } else if (itemDef.name === "PP-91 KEDR") {
+
+    // Full 64x64px rendering for SMG
+    const smgScale = 1.0;
+    displayItemWidth = itemImgFromCaller.width * smgScale;
+    displayItemHeight = itemImgFromCaller.height * smgScale;
+
+    switch (player.direction) {
+      case 'up':
+        itemOffsetX = gameConfig.spriteWidth * 0.25;
+        itemOffsetY = -gameConfig.spriteHeight * 0.05;
+        rotation = -Math.PI / 2; // Point SMG upward
+        break;
+      case 'down':
+        itemOffsetX = gameConfig.spriteWidth * -0.25;
+        itemOffsetY = gameConfig.spriteHeight * 0.25;
+        rotation = Math.PI / 2; // Point SMG downward
+        break;
+      case 'left':
+        itemOffsetX = -gameConfig.spriteWidth * 0.25;
+        itemOffsetY = 0;
+        rotation = Math.PI / 2; // Rotate counterclockwise 90°
+        break;
+      case 'right':
+        itemOffsetX = gameConfig.spriteWidth * +0.10; // Shifted right slightly
+        itemOffsetY = 6.0;
+        rotation = 0; // Point SMG right
         break;
     }
     

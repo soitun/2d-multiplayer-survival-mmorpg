@@ -455,22 +455,22 @@ pub fn fire_projectile(
         final_vy = delta_y / time_to_target; // Simple straight-line trajectory
         
         log::info!("Crossbow fired: straight-line trajectory. Distance: {:.1}, Time: {:.3}s", distance, time_to_target);
-    } else if item_def.name == "Makarov PM" {
-        // Pistols use fast arc physics - very fast projectile with reduced gravity (0.15 multiplier)
-        let pistol_gravity = g * 0.15; // 15% of normal gravity for fast arc
+    } else if item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR" {
+        // Firearms use fast arc physics - very fast projectile with reduced gravity (0.15 multiplier)
+        let firearm_gravity = g * 0.15; // 15% of normal gravity for fast arc
         let distance = distance_sq.sqrt();
         
-        // For pistols, use simplified arc calculation with reduced gravity
+        // For firearms, use simplified arc calculation with reduced gravity
         // This creates a very fast, nearly-straight trajectory with slight drop
         let time_to_target = distance / v0;
         
         // Calculate velocity with pre-compensation for reduced gravity drop
         final_vx = delta_x / time_to_target;
         // Compensate for the small amount of gravity that will be applied during flight
-        final_vy = (delta_y / time_to_target) - 0.5 * pistol_gravity * time_to_target;
+        final_vy = (delta_y / time_to_target) - 0.5 * firearm_gravity * time_to_target;
         
-        log::info!("Makarov PM fired: fast-arc trajectory. Distance: {:.1}, Time: {:.3}s, Gravity: {:.1}", 
-            distance, time_to_target, pistol_gravity);
+        log::info!("{} fired: fast-arc trajectory. Distance: {:.1}, Time: {:.3}s, Gravity: {:.1}", 
+            item_def.name, distance, time_to_target, firearm_gravity);
     } else {
         // Existing bow physics with full gravity arc
         if delta_x.abs() < 1e-6 { // Target is (almost) vertically aligned
@@ -577,7 +577,7 @@ pub fn fire_projectile(
         sound_events::emit_shoot_crossbow_sound(ctx, spawn_x, spawn_y, player_id);
     } else if item_def.name == "Hunting Bow" {
         sound_events::emit_shoot_bow_sound(ctx, spawn_x, spawn_y, player_id);
-    } else if item_def.name == "Makarov PM" {
+    } else if item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR" {
         sound_events::emit_shoot_pistol_sound(ctx, spawn_x, spawn_y, player_id);
     } else if item_def.name == "Reed Harpoon Gun" {
         // Use crossbow sound as placeholder for harpoon gun (mechanical projectile)
@@ -886,8 +886,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let gravity_multiplier = if let Some(weapon_def) = weapon_item_def {
             if weapon_def.name == "Crossbow" {
                 0.0 // Crossbow projectiles have NO gravity effect (straight line)
-            } else if weapon_def.name == "Makarov PM" {
-                0.15 // Pistol projectiles have minimal gravity effect (fast arc)
+            } else if weapon_def.name == "Makarov PM" || weapon_def.name == "PP-91 KEDR" {
+                0.15 // Firearm projectiles have minimal gravity effect (fast arc)
             } else {
                 1.0 // Bow projectiles have full gravity effect
             }

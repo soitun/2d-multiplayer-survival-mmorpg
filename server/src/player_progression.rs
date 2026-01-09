@@ -41,6 +41,26 @@ pub fn xp_for_level(level: u32) -> u64 {
     (100.0 * (level as f64).powf(1.5)) as u64
 }
 
+/// Memory Shard reward formula for leveling up
+/// Uses quadratic scaling: 5 + (level² / 10)
+/// 
+/// This provides:
+/// - Level 1-10: 5-15 shards (small "top up" feeling)
+/// - Level 25: ~67 shards
+/// - Level 50: ~255 shards  
+/// - Level 100: ~1,005 shards
+/// - Total to level 100: ~34,300 shards (enough for full core memory grid)
+///
+/// The formula is designed to:
+/// 1. Feel like a bonus, not a flood
+/// 2. Scale meaningfully with progression
+/// 3. Allow maxing core grid OR one faction path by level 100
+pub fn shard_reward_for_level(level: u32) -> u64 {
+    // Base 5 shards + quadratic scaling
+    // This gives a nice curve that rewards higher levels substantially
+    5 + ((level as u64 * level as u64) / 10)
+}
+
 // XP Sources (tuned for engagement)
 pub const XP_FISH_CAUGHT: u64 = 10;
 pub const XP_CAIRN_DISCOVERED: u64 = 50;
@@ -146,7 +166,7 @@ pub struct PlayerStats {
     // Weapon-specific kill tracking
     pub bow_kills: u32,           // Kills with Hunting Bow
     pub crossbow_kills: u32,      // Kills with Crossbow
-    pub gun_kills: u32,           // Kills with Makarov PM (firearms)
+    pub gun_kills: u32,           // Kills with firearms (Makarov PM, PP-91 KEDR, etc.)
     pub harpoon_gun_kills: u32,   // Kills with Reed Harpoon Gun
     pub melee_kills: u32,         // All melee weapon kills
     pub spear_kills: u32,         // Kills with spears specifically
@@ -245,6 +265,7 @@ pub struct LevelUpNotification {
     pub player_id: Identity,
     pub new_level: u32,
     pub xp_awarded: u64,
+    pub shards_awarded: u64,  // Memory Shards granted for this level up
     pub unlocked_at: Timestamp,
 }
 
@@ -409,24 +430,63 @@ pub fn award_xp(ctx: &ReducerContext, player_id: Identity, xp_amount: u64) -> Re
         xp_for_level(1)
     };
     
-    // Update stats
-    stats_table.player_id().update(stats.clone());
-    
     // Send level up notification if leveled up
     if new_level > old_level {
+        // Calculate total shards for all levels gained (handles multi-level jumps)
+        let mut total_shards_earned = 0u64;
+        for level in (old_level + 1)..=new_level {
+            total_shards_earned += shard_reward_for_level(level);
+        }
+        
+        // Update total shards earned in stats
+        stats.total_shards_earned += total_shards_earned;
+        
+        // Award Memory Shards to player
+        if total_shards_earned > 0 {
+            // Find Memory Shard item definition
+            let memory_shard_def_id = ctx.db.item_definition().iter()
+                .find(|def| def.name == "Memory Shard")
+                .map(|def| def.id);
+            
+            if let Some(shard_def_id) = memory_shard_def_id {
+                // Give shards - will drop at feet if inventory full
+                match give_item_to_player_or_drop(ctx, player_id, shard_def_id, total_shards_earned as u32) {
+                    Ok(added_to_inv) => {
+                        if added_to_inv {
+                            log::info!("🎉 Player {} leveled up to {}! Awarded {} Memory Shards to inventory", 
+                                player_id, new_level, total_shards_earned);
+                        } else {
+                            log::info!("🎉 Player {} leveled up to {}! Dropped {} Memory Shards at feet (inventory full)", 
+                                player_id, new_level, total_shards_earned);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to award level-up Memory Shards to player {}: {}", player_id, e);
+                    }
+                }
+            } else {
+                log::error!("Memory Shard item definition not found! Cannot award level-up shards.");
+            }
+        }
+        
+        // Create notification with shards info
         let level_up_notif = LevelUpNotification {
             id: 0,
             player_id,
             new_level,
             xp_awarded: xp_amount,
+            shards_awarded: total_shards_earned,
             unlocked_at: ctx.timestamp,
         };
         ctx.db.level_up_notification().insert(level_up_notif);
-        log::info!("Player {} leveled up to level {}!", player_id, new_level);
+        log::info!("Player {} leveled up to level {}! (+{} shards)", player_id, new_level, total_shards_earned);
         
         // Check for level-based achievements
         check_level_achievements(ctx, player_id, new_level)?;
     }
+    
+    // Update stats (moved after shard calculation to include updated total_shards_earned)
+    stats_table.player_id().update(stats.clone());
     
     // Check progress notifications
     check_progress_notifications(ctx, player_id, &stats)?;
@@ -1749,7 +1809,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
         AchievementDefinition {
             id: "gun_kills_100".to_string(),
             name: "Soviet Sharpshooter".to_string(),
-            description: "Kill 100 animals with a firearm - the Makarov speaks".to_string(),
+            description: "Kill 100 animals with Soviet firearms - the motherland is proud".to_string(),
             icon: "☭".to_string(),
             xp_reward: 400,
             title_reward: Some("Soviet Sharpshooter".to_string()),

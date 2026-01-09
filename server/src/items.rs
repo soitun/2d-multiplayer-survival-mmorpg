@@ -245,6 +245,21 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             magazine_capacity: 8,      // 8-round magazine
         },
         
+        // TIER 4: PP-91 KEDR (Endgame)
+        // THE "BULLET HOSE" - Maximum sustained DPS, ammo hungry
+        // - Extreme fire rate with 30-round magazine
+        // - Low per-shot damage compensated by volume
+        // - Lower accuracy than pistol due to rapid fire
+        // - Burns through 9x18mm ammo extremely fast
+        RangedWeaponStats {
+            item_name: "PP-91 KEDR".to_string(),
+            weapon_range: 720.0,       // Shorter than pistol - SMG loses accuracy at range
+            projectile_speed: 1250.0,  // Fast bullets, slightly slower than pistol
+            accuracy: 0.72,            // 72% accuracy - full auto recoil
+            reload_time_secs: 0.10,    // Extreme fire rate - 10 rounds per second
+            magazine_capacity: 30,     // 30-round magazine
+        },
+        
         // UNDERWATER: Reed Harpoon Gun
         // THE "AMPHIBIOUS WEAPON" - Works both underwater and on land
         // - Only ranged weapon usable while swimming/snorkeling

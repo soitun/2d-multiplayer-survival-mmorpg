@@ -44,7 +44,7 @@ pub enum LoadoutType {
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Firearms;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -132,13 +132,13 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
         LoadoutType::Firearms => vec![
             // Hotbar
             ("Makarov PM", 1, Some(0), None),
-            ("Crossbow", 1, Some(1), None),       // Backup ranged
-            ("Metal Dagger", 1, Some(2), None),   // Backup melee
-            ("Torch", 1, Some(3), None),
-            ("Bandage", 10, Some(4), None),
-            ("Reed Water Bottle", 1, Some(5), None),
+            ("PP-91 KEDR", 1, Some(1), None),     // SMG for testing
+            ("Crossbow", 1, Some(2), None),       // Backup ranged
+            ("Metal Dagger", 1, Some(3), None),   // Backup melee
+            ("Torch", 1, Some(4), None),
+            ("Bandage", 10, Some(5), None),
             // Inventory - Lots of ammo
-            ("9x18mm Round", 500, None, Some(0)),
+            ("9x18mm Round", 1000, None, Some(0)), // More ammo for SMG testing
             ("Bone Arrow", 100, None, Some(1)),
             ("Gunpowder", 200, None, Some(2)),
             ("Metal Fragments", 500, None, Some(3)),
@@ -176,14 +176,14 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
         // ====================================================================
         LoadoutType::Developer => vec![
             // Hotbar - Best tools
-            ("Makarov PM", 1, Some(0), None),
-            ("Crossbow", 1, Some(1), None),
-            ("Battle Axe", 1, Some(2), None),
-            ("Metal Hatchet", 1, Some(3), None),
-            ("Metal Pickaxe", 1, Some(4), None),
+            ("PP-91 KEDR", 1, Some(0), None),     // SMG - ultimate firearm
+            ("Makarov PM", 1, Some(1), None),
+            ("Crossbow", 1, Some(2), None),
+            ("Battle Axe", 1, Some(3), None),
+            ("Metal Hatchet", 1, Some(4), None),
             ("Blueprint", 1, Some(5), None),
             // Inventory - Everything for testing
-            ("9x18mm Round", 500, None, Some(0)),
+            ("9x18mm Round", 1000, None, Some(0)), // Extra ammo for SMG
             ("Bone Arrow", 200, None, Some(1)),
             ("Wood", 10000, None, Some(2)),
             ("Stone", 5000, None, Some(3)),

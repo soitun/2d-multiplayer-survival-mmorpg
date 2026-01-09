@@ -159,7 +159,8 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Military Crowbar", 1, 1, 0.02),      // Highest damage weapon in game - reduced from 5%
         ("Scrap Batteries", 1, 1, 0.015),      // Ultra-rare electronics material - reduced from 3%
         ("Makarov PM", 1, 1, 0.01),            // Ultra-rare Soviet pistol - 1% drop rate
-        ("9x18mm Round", 3, 8, 0.015),         // Ultra-rare pistol ammunition - 1.5% drop rate (only useful with pistol)
+        ("PP-91 KEDR", 1, 1, 0.005),           // Extremely rare Soviet SMG - 0.5% drop rate (jackpot)
+        ("9x18mm Round", 3, 8, 0.015),         // Ultra-rare pistol/SMG ammunition - 1.5% drop rate
     ];
     
     // Process each loot definition

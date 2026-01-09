@@ -224,6 +224,7 @@ interface GameCanvasProps {
   isChatting: boolean;
   messages: any;
   isSearchingCraftRecipes?: boolean;
+  onSearchFocusChange?: (isFocused: boolean) => void; // Callback to block player movement when search inputs are focused
   showInventory: boolean;
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
@@ -373,6 +374,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   isChatting,
   messages,
   isSearchingCraftRecipes,
+  onSearchFocusChange,
   showInventory,
   grass,
   gameCanvasRef,
@@ -4519,6 +4521,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             playerAchievements={playerAchievements}
             plantConfigs={plantConfigs}
             discoveredPlants={discoveredPlants}
+            onSearchFocusChange={onSearchFocusChange}
           >
             <canvas
               ref={minimapCanvasRef}

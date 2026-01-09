@@ -303,6 +303,11 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         "makarov-pm" => Some((3200, vec!["9x18mm-round"])),
         
+        // TIER 7 - Endgame (4000 shards)
+        // Day 45+ - Ultimate weapons
+        // ============================================
+        "pp91-kedr" => Some((4000, vec!["makarov-pm"])), // Requires Makarov PM unlock first
+        
         // ============================================
         // FACTION UNLOCK NODES (1600 shards each)
         // Major milestone - requires spending 8000 total shards on core grid
@@ -553,6 +558,9 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 6
         "makarov-pm" => "Makarov PM".to_string(),
         
+        // Tier 7
+        "pp91-kedr" => "PP-91 KEDR".to_string(),
+        
         // Faction unlocks
         "unlock-black-wolves" => "Unlock Black Wolves".to_string(),
         "unlock-hive" => "Unlock Hive".to_string(),
@@ -684,6 +692,9 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 6 items
         "Makarov PM" => Some("makarov-pm"),
+        
+        // Tier 7 items
+        "PP-91 KEDR" => Some("pp91-kedr"),
         
         // ALWAYS CRAFTABLE - No Memory Grid requirement
         // Basic structures

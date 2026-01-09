@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Identity } from 'spacetimedb';
 import { AchievementDefinition, PlayerAchievement, AchievementCategory } from '../generated';
 
@@ -7,6 +7,7 @@ interface AchievementsPanelProps {
   achievementDefinitions: Map<string, AchievementDefinition>;
   playerAchievements: Map<string, PlayerAchievement>;
   onClose?: () => void;
+  onSearchFocusChange?: (isFocused: boolean) => void; // Blocks player movement when search is focused
 }
 
 // Category display names
@@ -31,14 +32,20 @@ const CATEGORY_ICONS: Record<string, string> = {
   Special: '⭐',
 };
 
+// Sort options
+type SortOption = 'alphabetical' | 'recent';
+
 const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   playerIdentity,
   achievementDefinitions,
   playerAchievements,
   onClose,
+  onSearchFocusChange,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showUnlockedOnly, setShowUnlockedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get the player's unlocked achievement IDs
   const unlockedAchievementIds = useMemo(() => {
@@ -65,10 +72,32 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
     return Array.from(cats).sort();
   }, [achievementDefinitions]);
 
-  // Filter achievements by category and unlock status
+  // Get unlock timestamp for an achievement (returns bigint for sorting)
+  const getUnlockTimestamp = useCallback((achievementId: string): bigint | null => {
+    for (const pa of playerAchievements.values()) {
+      if (pa.achievementId === achievementId && 
+          playerIdentity && 
+          pa.playerId.toHexString() === playerIdentity.toHexString()) {
+        return pa.unlockedAt.microsSinceUnixEpoch;
+      }
+    }
+    return null;
+  }, [playerAchievements, playerIdentity]);
+
+  // Get unlock Date for display
+  const getUnlockTime = useCallback((achievementId: string): Date | null => {
+    const timestamp = getUnlockTimestamp(achievementId);
+    if (timestamp !== null) {
+      return new Date(Number(timestamp / 1000n));
+    }
+    return null;
+  }, [getUnlockTimestamp]);
+
+  // Filter achievements by category, unlock status, and search query
   const filteredAchievements = useMemo(() => {
     let achievements = Array.from(achievementDefinitions.values());
     
+    // Filter by category
     if (selectedCategory) {
       achievements = achievements.filter((def) => {
         const categoryTag = typeof def.category === 'object' && def.category?.tag
@@ -78,20 +107,57 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
       });
     }
     
+    // Filter by unlock status
     if (showUnlockedOnly) {
       achievements = achievements.filter((def) => unlockedAchievementIds.has(def.id));
     }
     
-    // Sort: unlocked first, then by name
-    achievements.sort((a, b) => {
-      const aUnlocked = unlockedAchievementIds.has(a.id);
-      const bUnlocked = unlockedAchievementIds.has(b.id);
-      if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+    // Filter by search query (searches name, description, and title reward)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      achievements = achievements.filter((def) => {
+        const nameMatch = def.name.toLowerCase().includes(query);
+        const descMatch = def.description.toLowerCase().includes(query);
+        const titleMatch = def.titleReward ? def.titleReward.toLowerCase().includes(query) : false;
+        return nameMatch || descMatch || titleMatch;
+      });
+    }
+    
+    // Sort based on selected option
+    if (sortBy === 'recent') {
+      // Sort by most recently achieved (unlocked first by date, then locked alphabetically)
+      achievements.sort((a, b) => {
+        const aUnlocked = unlockedAchievementIds.has(a.id);
+        const bUnlocked = unlockedAchievementIds.has(b.id);
+        
+        // Both unlocked: sort by unlock time (most recent first)
+        if (aUnlocked && bUnlocked) {
+          const aTime = getUnlockTimestamp(a.id);
+          const bTime = getUnlockTimestamp(b.id);
+          if (aTime !== null && bTime !== null) {
+            return bTime > aTime ? 1 : bTime < aTime ? -1 : 0;
+          }
+          return 0;
+        }
+        
+        // One unlocked, one not: unlocked first
+        if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
+        
+        // Both locked: alphabetical
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      // Alphabetical: unlocked first, then by name
+      achievements.sort((a, b) => {
+        const aUnlocked = unlockedAchievementIds.has(a.id);
+        const bUnlocked = unlockedAchievementIds.has(b.id);
+        if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
     
     return achievements;
-  }, [achievementDefinitions, selectedCategory, showUnlockedOnly, unlockedAchievementIds]);
+  }, [achievementDefinitions, selectedCategory, showUnlockedOnly, unlockedAchievementIds, searchQuery, sortBy, getUnlockTimestamp]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -100,19 +166,6 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
     const percentage = total > 0 ? Math.round((unlocked / total) * 100) : 0;
     return { total, unlocked, percentage };
   }, [achievementDefinitions, unlockedAchievementIds]);
-
-  // Get unlock timestamp for an achievement
-  const getUnlockTime = (achievementId: string): Date | null => {
-    for (const pa of playerAchievements.values()) {
-      if (pa.achievementId === achievementId && 
-          playerIdentity && 
-          pa.playerId.toHexString() === playerIdentity.toHexString()) {
-        // Convert microseconds to milliseconds for Date constructor
-        return new Date(Number(pa.unlockedAt.microsSinceUnixEpoch / 1000n));
-      }
-    }
-    return null;
-  };
 
   return (
     <div style={{
@@ -175,12 +228,77 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div style={{
+        marginBottom: '12px',
+      }}>
+        <div style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          <span style={{
+            position: 'absolute',
+            left: '12px',
+            color: 'rgba(255, 215, 0, 0.6)',
+            fontSize: '14px',
+            pointerEvents: 'none',
+          }}>
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="Search achievements, descriptions, titles..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 38px',
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(255, 215, 0, 0.3)',
+              borderRadius: '6px',
+              color: '#ffffff',
+              fontSize: '13px',
+              outline: 'none',
+              transition: 'all 0.2s ease',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#ffd700';
+              e.target.style.boxShadow = '0 0 8px rgba(255, 215, 0, 0.3)';
+              onSearchFocusChange?.(true); // Block player movement
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'rgba(255, 215, 0, 0.3)';
+              e.target.style.boxShadow = 'none';
+              onSearchFocusChange?.(false); // Unblock player movement
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.6)',
+                cursor: 'pointer',
+                fontSize: '14px',
+                padding: '4px',
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Filters */}
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: '8px',
-        marginBottom: '15px',
+        marginBottom: '12px',
         alignItems: 'center',
       }}>
         {/* All category button */}
@@ -226,7 +344,61 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
             {CATEGORY_ICONS[category] || '📜'} {CATEGORY_DISPLAY_NAMES[category] || category}
           </button>
         ))}
-        
+      </div>
+
+      {/* Sort and Filter Options */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '12px',
+        marginBottom: '15px',
+        alignItems: 'center',
+      }}>
+        {/* Sort options */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)' }}>Sort:</span>
+          <button
+            onClick={() => setSortBy('alphabetical')}
+            style={{
+              background: sortBy === 'alphabetical'
+                ? 'linear-gradient(135deg, #4a9eff 0%, #2a7edf 100%)'
+                : 'rgba(74, 158, 255, 0.1)',
+              border: `1px solid ${sortBy === 'alphabetical' ? '#4a9eff' : 'rgba(74, 158, 255, 0.3)'}`,
+              borderRadius: '4px',
+              color: sortBy === 'alphabetical' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+              padding: '5px 10px',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            A-Z
+          </button>
+          <button
+            onClick={() => setSortBy('recent')}
+            style={{
+              background: sortBy === 'recent'
+                ? 'linear-gradient(135deg, #ff6b9d 0%, #df4b7d 100%)'
+                : 'rgba(255, 107, 157, 0.1)',
+              border: `1px solid ${sortBy === 'recent' ? '#ff6b9d' : 'rgba(255, 107, 157, 0.3)'}`,
+              borderRadius: '4px',
+              color: sortBy === 'recent' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+              padding: '5px 10px',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            🕒 Recent
+          </button>
+        </div>
+
         {/* Show unlocked only toggle */}
         <label style={{
           display: 'flex',
@@ -265,7 +437,12 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
           }}>
             <div style={{ fontSize: '24px', marginBottom: '10px' }}>🏆</div>
             <div>No achievements found.</div>
-            {showUnlockedOnly && (
+            {searchQuery && (
+              <div style={{ marginTop: '8px', fontSize: '12px' }}>
+                No results for "{searchQuery}". Try a different search term.
+              </div>
+            )}
+            {showUnlockedOnly && !searchQuery && (
               <div style={{ marginTop: '8px', fontSize: '12px' }}>
                 Try showing all achievements.
               </div>

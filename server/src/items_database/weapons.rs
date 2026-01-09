@@ -341,5 +341,25 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .crafting_output(1, 120) // 2 minutes to craft
             .respawn_time(1800) // 30 min respawn in world (rare find)
             .build(),
+
+        // === TIER 4: PP-91 KEDR - Endgame Submachine Gun ===
+        // Soviet compact SMG, extremely expensive to craft
+        // Very high fire rate with 30-round magazine, uses 9x18mm ammunition
+        // BALANCED: Lowest per-shot damage but devastating sustained fire, burns ammo fast
+        ItemBuilder::new("PP-91 KEDR", "A compact Soviet submachine gun designed for rapid-fire engagements. The 30-round magazine and blistering fire rate make it devastating up close, but accuracy suffers at range. Uses 9x18mm rounds.", ItemCategory::RangedWeapon)
+            .icon("pp91_kedr.png")
+            .stackable(1)
+            .weapon(22, 28, 0.0) // Very low per-shot (22-28) - compensated by extreme fire rate
+            .damage_type(DamageType::Projectile)
+            .equippable(None)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 600 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 25 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 40 }, // For grip/internals
+            ])
+            .crafting_output(1, 180) // 3 minutes to craft
+            .respawn_time(2400) // 40 min respawn in world (ultra rare find)
+            .build(),
     ]
 }

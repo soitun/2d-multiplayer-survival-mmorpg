@@ -33,6 +33,7 @@ export type LevelUpNotification = {
   playerId: __Identity,
   newLevel: number,
   xpAwarded: bigint,
+  shardsAwarded: bigint,
   unlockedAt: __Timestamp,
 };
 let _cached_LevelUpNotification_type_value: __AlgebraicTypeType | null = null;
@@ -53,6 +54,7 @@ export const LevelUpNotification = {
       { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
       { name: "newLevel", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "xpAwarded", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "shardsAwarded", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "unlockedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );
     return _cached_LevelUpNotification_type_value;
