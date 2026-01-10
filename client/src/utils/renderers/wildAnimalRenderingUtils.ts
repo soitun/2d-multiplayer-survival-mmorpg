@@ -15,6 +15,8 @@ import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 import ternWalkingSheet from '../../assets/tern_walking.png';
 import crowWalkingSheet from '../../assets/crow_walking.png';
+import voleWalkingSheet from '../../assets/vole_walking.png';
+import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
 import crowFlyingSheet from '../../assets/crow_flying.png';
@@ -71,6 +73,8 @@ const speciesSpriteSheets: Record<string, string> = {
     'BeachCrab': crabWalkingSheet,
     'Tern': ternWalkingSheet,
     'Crow': crowWalkingSheet,
+    'Vole': voleWalkingSheet,
+    'Wolverine': wolverineWalkingSheet,
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingSheet,
     'Shardkin': shardkinWalkingSheet,
@@ -209,6 +213,12 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'Crow':
             // Crows are medium-sized inland birds (slightly larger)
             return { width: 104, height: 104, shadowRadius: 30 };
+        case 'Vole':
+            // Voles are tiny rodents - very small sprite
+            return { width: 48, height: 48, shadowRadius: 14 };
+        case 'Wolverine':
+            // Wolverines are medium-sized but stocky and muscular
+            return { width: 112, height: 112, shadowRadius: 36 };
         // Night hostile NPCs (2x size for visibility and impact)
         case 'Shorebound':
             // Stalker - fast, lean predator (1.5x player-sized)

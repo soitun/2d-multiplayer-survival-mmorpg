@@ -120,6 +120,8 @@ import foxSkullIcon from '../assets/items/fox_skull.png';
 import wolfSkullIcon from '../assets/items/wolf_skull.png';
 import viperSkullIcon from '../assets/items/viper_skull.png';
 import walrusSkullIcon from '../assets/items/walrus_skull.png';
+import voleSkullIcon from '../assets/items/vole_skull.png';
+import wolverineSkullIcon from '../assets/items/wolverine_skull.png';
 
 // Utility melee weapons
 import kayakPaddleIcon from '../assets/items/kayak_paddle.png';
@@ -319,6 +321,12 @@ import burntCrowMeatIcon from '../assets/items/burnt_crow_meat.png';
 import rawTernMeatIcon from '../assets/items/raw_tern_meat.png';
 import cookedTernMeatIcon from '../assets/items/cooked_tern_meat.png';
 import burntTernMeatIcon from '../assets/items/burnt_tern_meat.png';
+import rawVoleMeatIcon from '../assets/items/vole_meat.png';
+import cookedVoleMeatIcon from '../assets/items/cooked_vole_meat.png';
+import burntVoleMeatIcon from '../assets/items/burnt_vole_meat.png';
+import rawWolverineMeatIcon from '../assets/items/wolverine_meat.png';
+import cookedWolverineMeatIcon from '../assets/items/cooked_wolverine_meat.png';
+import burntWolverineMeatIcon from '../assets/items/burnt_wolverine_meat.png';
 
 // Fish - Raw fish icons
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
@@ -581,6 +589,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'wolf_skull.png': wolfSkullIcon,
   'viper_skull.png': viperSkullIcon,
   'walrus_skull.png': walrusSkullIcon,
+  'vole_skull.png': voleSkullIcon,
+  'wolverine_skull.png': wolverineSkullIcon,
   
   // Utility melee weapons
   'kayak_paddle.png': kayakPaddleIcon,
@@ -777,6 +787,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'raw_tern_meat.png': rawTernMeatIcon,
   'cooked_tern_meat.png': cookedTernMeatIcon,
   'burnt_tern_meat.png': burntTernMeatIcon,
+  'vole_meat.png': rawVoleMeatIcon,
+  'cooked_vole_meat.png': cookedVoleMeatIcon,
+  'burnt_vole_meat.png': burntVoleMeatIcon,
+  'wolverine_meat.png': rawWolverineMeatIcon,
+  'cooked_wolverine_meat.png': cookedWolverineMeatIcon,
+  'burnt_wolverine_meat.png': burntWolverineMeatIcon,
   
   // Fish - Raw fish
   'raw_twigfish.png': rawTwigfishIcon,

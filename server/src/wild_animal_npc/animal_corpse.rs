@@ -132,6 +132,10 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::BeachCrab => (0.0, 0.0, 0.30, 1.0), // No fat/cloth, some bone (shell fragments), guaranteed meat
         AnimalSpecies::Tern => (0.15, 0.60, 0.20, 0.50), // Low fat, good feathers, some bone, decent meat
         AnimalSpecies::Crow => (0.10, 0.50, 0.15, 0.45), // Low fat, feathers, low bone, some meat
+        // Vole - tiny rodent, minimal drops
+        AnimalSpecies::Vole => (0.20, 0.0, 0.25, 0.85), // Little fat (small animal), no cloth (too small), some bone fragments, high meat chance (easy prey)
+        // Wolverine - aggressive medium predator, excellent drops
+        AnimalSpecies::Wolverine => (0.80, 0.0, 0.70, 0.90), // High fat (winter stores), no special cloth (drops generic leather instead), good bone, excellent meat
         // Hostile NPCs don't drop regular loot - they despawn and grant memory shards
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
     }
@@ -147,6 +151,8 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::BeachCrab => "Raw Crab Meat", // Sweet, delicate meat
         AnimalSpecies::Tern => "Raw Tern Meat", // Lean bird meat
         AnimalSpecies::Crow => "Raw Crow Meat", // Gamey bird meat
+        AnimalSpecies::Vole => "Raw Vole Meat", // Tiny, lean rodent meat
+        AnimalSpecies::Wolverine => "Raw Wolverine Meat", // Dense, gamey predator meat
         // Hostile NPCs don't drop meat - they dissolve/despawn
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => "Rotten Meat",
     }
@@ -266,6 +272,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
             AnimalSpecies::Tern => Some("Tern Feathers"), // Birds drop feathers
             AnimalSpecies::Crow => Some("Crow Feathers"), // Birds drop feathers
+            AnimalSpecies::Vole => None, // Voles are too small for usable fur
+            AnimalSpecies::Wolverine => None, // Wolverines don't drop special fur (use generic Animal Leather instead)
             // Hostile NPCs don't drop cloth resources
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
         };
@@ -276,9 +284,11 @@ pub fn get_harvest_loot(
     }
     
     // NEW: Universal Animal Leather drop for most animals (like Animal Fat/Bone)
-    // This gives animals a chance to drop the universal leather resource (except crabs and birds)
-    if !matches!(animal_species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern | AnimalSpecies::Crow) {
-        let mut animal_leather_chance = (0.40 * effectiveness_multiplier).clamp(0.0, 0.40); // 40% base chance
+    // This gives animals a chance to drop the universal leather resource (except crabs, birds, and voles which are too small)
+    if !matches!(animal_species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern | AnimalSpecies::Crow | AnimalSpecies::Vole) {
+        // Wolverines have higher leather chance since they don't drop special fur
+        let base_leather_chance = if animal_species == AnimalSpecies::Wolverine { 0.70 } else { 0.40 };
+        let mut animal_leather_chance = (base_leather_chance * effectiveness_multiplier).clamp(0.0, 0.70);
         // Apply minimum floor for animal leather when using non-primary tools
         if is_non_primary_tool {
             animal_leather_chance = animal_leather_chance.max(MIN_BASIC_RESOURCE_CHANCE);
@@ -298,6 +308,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::BeachCrab => 0.0, // Crabs don't drop crab items (carapace/claw)
             AnimalSpecies::Tern => 0.0, // No rare trophy for terns
             AnimalSpecies::Crow => 0.0, // No rare trophy for crows
+            AnimalSpecies::Vole => 0.0, // Voles are too small for trophies
+            AnimalSpecies::Wolverine => 0.0, // Wolverines don't have special fur armor set, so no rare trophy
             // Hostile NPCs don't drop rare trophies
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
@@ -311,6 +323,8 @@ pub fn get_harvest_loot(
                 AnimalSpecies::BeachCrab => unreachable!(), // Already checked above
                 AnimalSpecies::Tern => unreachable!(), // Already checked above
                 AnimalSpecies::Crow => unreachable!(), // Already checked above
+                AnimalSpecies::Vole => unreachable!(), // Already checked above
+                AnimalSpecies::Wolverine => unreachable!(), // Already checked above
                 // Hostile NPCs never reach here (chance is 0)
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
             };

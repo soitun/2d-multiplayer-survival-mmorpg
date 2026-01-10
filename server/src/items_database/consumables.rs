@@ -1075,6 +1075,52 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Charcoal")
             .build(),
 
+        // === VOLE MEAT ===
+        ItemBuilder::new("Raw Vole Meat", "Tiny morsel of lean rodent meat. Not much to eat, but easy to catch and cook.", ItemCategory::Consumable)
+            .icon("vole_meat.png")
+            .stackable(30)
+            .consumable(2.0, 4.0, -2.0) // Very small nutritional value
+            .cookable(15.0, "Cooked Vole Meat") // Quick to cook
+            .build(),
+
+        ItemBuilder::new("Cooked Vole Meat", "A bite-sized morsel of cooked vole. Light and lean, best consumed in multiples.", ItemCategory::Consumable)
+            .icon("cooked_vole_meat.png")
+            .stackable(30)
+            .consumable(8.0, 12.0, 4.0) // Small but decent for its size
+            .cookable(15.0, "Burnt Vole Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Vole Meat", "Charred vole scraps. Barely recognizable and not worth eating.", ItemCategory::Consumable)
+            .icon("burnt_vole_meat.png")
+            .stackable(30)
+            .consumable(-1.0, 2.0, -4.0)
+            .crafting_output(3, 0)
+            .cookable(20.0, "Charcoal")
+            .build(),
+
+        // === WOLVERINE MEAT ===
+        ItemBuilder::new("Raw Wolverine Meat", "Dense, dark meat from a wolverine. Tough and extremely gamey, this predator's flesh requires thorough cooking.", ItemCategory::Consumable)
+            .icon("wolverine_meat.png")
+            .stackable(10)
+            .consumable(12.0, 20.0, -8.0) // Good raw nutrition but very tough
+            .cookable(50.0, "Cooked Wolverine Meat") // Takes longer to cook properly
+            .build(),
+
+        ItemBuilder::new("Cooked Wolverine Meat", "Well-cooked wolverine meat. Dense and protein-rich with an intense, wild flavor. A hunter's reward.", ItemCategory::Consumable)
+            .icon("cooked_wolverine_meat.png")
+            .stackable(10)
+            .consumable(45.0, 65.0, 15.0) // Excellent nutrition - better than wolf due to difficulty
+            .cookable(35.0, "Burnt Wolverine Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Wolverine Meat", "Overcooked wolverine meat. The tough flesh has become even more leathery and unpleasant.", ItemCategory::Consumable)
+            .icon("burnt_wolverine_meat.png")
+            .stackable(10)
+            .consumable(-8.0, 15.0, -20.0) // Harsh penalty for burning such valuable meat
+            .crafting_output(18, 0)
+            .cookable(50.0, "Charcoal")
+            .build(),
+
         // === SPECIALTY FOODS & MISC ===
         ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")

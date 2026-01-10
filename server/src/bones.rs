@@ -11,7 +11,9 @@ const MIN_FRAGMENTS_PER_BONE: u32 = 8; // New min value
 const MAX_FRAGMENTS_PER_BONE: u32 = 12; // New max value
 
 // Skull-specific fragment amounts (larger skulls yield more material)
-const FOX_SKULL_FRAGMENTS: u32 = 15;     // Smallest skull
+const VOLE_SKULL_FRAGMENTS: u32 = 5;     // Tiny skull - smallest
+const FOX_SKULL_FRAGMENTS: u32 = 15;     // Small skull
+const WOLVERINE_SKULL_FRAGMENTS: u32 = 18; // Medium-sized fierce predator
 const WOLF_SKULL_FRAGMENTS: u32 = 20;    // Baseline 
 const VIPER_SKULL_FRAGMENTS: u32 = 22;   // Moderate
 const HUMAN_SKULL_FRAGMENTS: u32 = 25;   // Strong
@@ -35,7 +37,7 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
 
     // 2. Validate item ownership and type
     match item_def.name.as_str() {
-        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Whale Bone Fragment" => {
+        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Vole Skull" | "Wolverine Skull" | "Whale Bone Fragment" => {
             // Validate ownership through location
             match &item_to_crush.location {
                 crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
@@ -53,7 +55,9 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
             // Use gen_range for a more idiomatic way to generate random numbers
             ctx.rng().gen_range(MIN_FRAGMENTS_PER_BONE..=MAX_FRAGMENTS_PER_BONE)
         },
+        "Vole Skull" => VOLE_SKULL_FRAGMENTS,       // Tiny skull
         "Fox Skull" => FOX_SKULL_FRAGMENTS,
+        "Wolverine Skull" => WOLVERINE_SKULL_FRAGMENTS, // Medium fierce predator
         "Wolf Skull" => WOLF_SKULL_FRAGMENTS, 
         "Viper Skull" => VIPER_SKULL_FRAGMENTS,
         "Human Skull" => HUMAN_SKULL_FRAGMENTS,

@@ -37,6 +37,8 @@ export type AnimalSpecies = AnimalSpeciesVariants.CinderFox |
   AnimalSpeciesVariants.BeachCrab |
   AnimalSpeciesVariants.Tern |
   AnimalSpeciesVariants.Crow |
+  AnimalSpeciesVariants.Vole |
+  AnimalSpeciesVariants.Wolverine |
   AnimalSpeciesVariants.Shorebound |
   AnimalSpeciesVariants.Shardkin |
   AnimalSpeciesVariants.DrownedWatch;
@@ -58,6 +60,8 @@ export const AnimalSpecies = {
   BeachCrab: { tag: "BeachCrab" } as const,
   Tern: { tag: "Tern" } as const,
   Crow: { tag: "Crow" } as const,
+  Vole: { tag: "Vole" } as const,
+  Wolverine: { tag: "Wolverine" } as const,
   Shorebound: { tag: "Shorebound" } as const,
   Shardkin: { tag: "Shardkin" } as const,
   DrownedWatch: { tag: "DrownedWatch" } as const,
@@ -73,6 +77,8 @@ export const AnimalSpecies = {
       { name: "BeachCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Tern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Crow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Vole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Wolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Shorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Shardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

@@ -54,6 +54,8 @@ pub enum SoundType {
     GrowlCrab,      // growl_crab.mp3 (1 variation - when crabs detect and attack)
     GrowlCrow,      // growl_crow.mp3 (1 variation - when crows caw at players)
     GrowlTern,      // growl_tern.mp3 (1 variation - when terns screech at players)
+    GrowlVole,      // growl_vole.mp3 (1 variation - tiny squeak when voles flee)
+    GrowlWolverine, // growl_wolverine.mp3 (1 variation - fierce snarl when wolverines attack)
     // Night hostile NPC sounds
     GrowlShorebound,   // growl_shorebound.mp3 (7 variations - stalker growls)
     GrowlShardkin,     // growl_shardkin.mp3 (4 variations - swarmer chittering)
@@ -101,6 +103,8 @@ pub enum SoundType {
     DeathTern,               // death_tern.mp3 (1 variation - when terns die)
     DeathCrow,               // death_crow.mp3 (1 variation - when crows die)
     DeathViper,              // death_viper.mp3 (1 variation - when vipers die)
+    DeathVole,               // death_vole.mp3 (1 variation - when voles die)
+    DeathWolverine,          // death_wolverine.mp3 (1 variation - when wolverines die)
     DeathPlayer,             // death_player.mp3 (2 variations - when players die/get knocked out)
     // Player feedback sounds
     PlayerHurt,              // player_hurt.mp3 (3 variations - player grunts when taking damage)
@@ -161,6 +165,8 @@ impl SoundType {
             SoundType::GrowlCrab => "growl_crab",
             SoundType::GrowlCrow => "growl_crow",
             SoundType::GrowlTern => "growl_tern",
+            SoundType::GrowlVole => "growl_vole",
+            SoundType::GrowlWolverine => "growl_wolverine",
             SoundType::GrowlShorebound => "growl_shorebound",
             SoundType::GrowlShardkin => "growl_shardkin",
             SoundType::GrowlDrownedWatch => "growl_drowned_watch",
@@ -207,6 +213,8 @@ impl SoundType {
             SoundType::DeathTern => "death_tern",
             SoundType::DeathCrow => "death_crow",
             SoundType::DeathViper => "death_viper",
+            SoundType::DeathVole => "death_vole",
+            SoundType::DeathWolverine => "death_wolverine",
             SoundType::DeathPlayer => "death_player",
             // Player feedback sounds
             SoundType::PlayerHurt => "player_hurt",
@@ -262,6 +270,8 @@ impl SoundType {
             SoundType::GrowlCrab => 1, // growl_crab.mp3 (single variation)
             SoundType::GrowlCrow => 4, // growl_crow.mp3, growl_crow1.mp3, growl_crow2.mp3, growl_crow3.mp3
             SoundType::GrowlTern => 4, // growl_tern.mp3, growl_tern1.mp3, growl_tern2.mp3, growl_tern3.mp3
+            SoundType::GrowlVole => 1, // growl_vole.mp3 (tiny squeak)
+            SoundType::GrowlWolverine => 1, // growl_wolverine.mp3 (fierce snarl)
             SoundType::GrowlShorebound => 7, // growl_shorebound.mp3, growl_shorebound1-6.mp3
             SoundType::GrowlShardkin => 4, // growl_shardkin.mp3, growl_shardkin1-3.mp3
             SoundType::GrowlDrownedWatch => 5, // growl_drowned_watch.mp3, growl_drowned_watch1-4.mp3
@@ -311,6 +321,8 @@ impl SoundType {
             SoundType::DeathTern => 1, // death_tern.mp3 (single variation)
             SoundType::DeathCrow => 1, // death_crow.mp3 (single variation)
             SoundType::DeathViper => 1, // death_viper.mp3 (single variation)
+            SoundType::DeathVole => 1, // death_vole.mp3 (tiny squeak)
+            SoundType::DeathWolverine => 1, // death_wolverine.mp3 (fierce snarl)
             SoundType::DeathPlayer => 2, // death_player.mp3, death_player1.mp3 (2 variations)
             // Player feedback sounds
             SoundType::PlayerHurt => 3, // player_hurt.mp3, player_hurt1.mp3, player_hurt2.mp3 (grunts when hit)
@@ -776,6 +788,16 @@ pub fn emit_tern_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, playe
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlTern, pos_x, pos_y, 1.0, 500.0, player_id);
 }
 
+/// Emit a vole squeak sound (tiny, high-pitched squeak when fleeing)
+pub fn emit_vole_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlVole, pos_x, pos_y, 0.6, 200.0, player_id);
+}
+
+/// Emit a wolverine snarl sound (fierce, aggressive growl when attacking)
+pub fn emit_wolverine_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlWolverine, pos_x, pos_y, 1.2, 600.0, player_id);
+}
+
 /// Emit a shorebound growl sound (night stalker hostile NPC)
 pub fn emit_shorebound_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlShorebound, pos_x, pos_y, 1.3, 900.0, player_id);
@@ -814,6 +836,8 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::BeachCrab => 1.2,     // Higher pitch - small, scuttling footsteps
         AnimalSpecies::Tern => 1.3,          // High pitch - light bird
         AnimalSpecies::Crow => 1.2,          // Slightly high pitch - medium bird
+        AnimalSpecies::Vole => 1.5,          // Very high pitch - tiny scurrying
+        AnimalSpecies::Wolverine => 0.85,    // Medium-low pitch - aggressive predator
         // Night hostile NPCs (use wolf sounds as placeholder)
         AnimalSpecies::Shorebound => 0.95,   // Fast stalker - slightly deeper
         AnimalSpecies::Shardkin => 1.15,     // Small swarmer - higher pitch

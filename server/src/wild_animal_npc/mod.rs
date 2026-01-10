@@ -9,6 +9,8 @@ pub mod walrus;
 pub mod crab;
 pub mod tern;
 pub mod crow;
+pub mod vole;
+pub mod wolverine;
 pub mod respawn;
 pub mod animal_corpse;
 
@@ -27,6 +29,8 @@ pub use viper::ViperBehavior;
 pub use walrus::WalrusBehavior;
 pub use tern::TernBehavior;
 pub use crow::CrowBehavior;
+pub use vole::VoleBehavior;
+pub use wolverine::WolverineBehavior;
 
 // Re-export animal corpse functionality
 pub use animal_corpse::*;

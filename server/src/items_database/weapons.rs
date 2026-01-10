@@ -82,6 +82,22 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .damage_type(DamageType::Pierce) // Pierce weapon (tusks)
             .build(),
 
+        // Vole Skull - Tiny novelty trophy
+        ItemBuilder::new("Vole Skull", "A tiny vole skull. More of a curiosity than a weapon, but proof you can kill even the smallest prey. Surprisingly fast to swing.", ItemCategory::Weapon)
+            .icon("vole_skull.png")
+            .stackable(20)
+            .weapon(8, 10, 2.5) // Very weak but very fast - novelty weapon
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .build(),
+
+        // Wolverine Skull - Fierce predator trophy with powerful jaws
+        ItemBuilder::new("Wolverine Skull", "A wolverine skull with its powerful jaws intact. A trophy from one of nature's most fearless predators. The thick bone and sharp teeth make it a formidable weapon.", ItemCategory::Weapon)
+            .icon("wolverine_skull.png")
+            .stackable(10)
+            .weapon(32, 35, 2.0) // Good damage, moderate speed - fierce predator
+            .damage_type(DamageType::Pierce) // Pierce weapon (teeth)
+            .build(),
+
         // === CRAFTABLE CLUBS & MACES ===
         // Heavy blunt weapons - slow but powerful
 

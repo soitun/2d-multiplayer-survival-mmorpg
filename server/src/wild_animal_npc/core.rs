@@ -157,6 +157,8 @@ pub enum AnimalSpecies {
     BeachCrab,
     Tern,       // Scavenger bird that picks up dropped items and alerts other animals
     Crow,       // Thief bird that steals items from player inventory
+    Vole,       // Tiny skittish rodent that burrows and flees
+    Wolverine,  // Fearless aggressive predator that attacks on sight
     // Night-only hostile NPCs (spawn at dusk, despawn at dawn)
     Shorebound,    // Stalker: Fast, low health, circles and pressures players
     Shardkin,      // Swarmer: Small, fast, aggressive swarms that attack on contact
@@ -376,6 +378,8 @@ pub enum AnimalBehaviorEnum {
     BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
     Tern(crate::wild_animal_npc::tern::TernBehavior),
     Crow(crate::wild_animal_npc::crow::CrowBehavior),
+    Vole(crate::wild_animal_npc::vole::VoleBehavior),
+    Wolverine(crate::wild_animal_npc::wolverine::WolverineBehavior),
     // Night hostile NPCs
     Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
     Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
@@ -392,6 +396,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_stats(),
@@ -407,6 +413,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_movement_pattern(),
@@ -430,6 +438,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
@@ -453,6 +463,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
@@ -476,6 +488,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
@@ -498,6 +512,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
@@ -513,6 +529,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Tern(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Crow(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
@@ -536,6 +554,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Tern(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Crow(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
@@ -551,6 +571,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.can_be_tamed(),
@@ -566,6 +588,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_taming_foods(),
@@ -581,6 +605,8 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::BeachCrab(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Tern(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Crow(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Vole(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_chase_abandonment_multiplier(),
@@ -598,6 +624,8 @@ impl AnimalSpecies {
             AnimalSpecies::BeachCrab => AnimalBehaviorEnum::BeachCrab(crate::wild_animal_npc::crab::BeachCrabBehavior),
             AnimalSpecies::Tern => AnimalBehaviorEnum::Tern(crate::wild_animal_npc::tern::TernBehavior),
             AnimalSpecies::Crow => AnimalBehaviorEnum::Crow(crate::wild_animal_npc::crow::CrowBehavior),
+            AnimalSpecies::Vole => AnimalBehaviorEnum::Vole(crate::wild_animal_npc::vole::VoleBehavior),
+            AnimalSpecies::Wolverine => AnimalBehaviorEnum::Wolverine(crate::wild_animal_npc::wolverine::WolverineBehavior),
             AnimalSpecies::Shorebound => AnimalBehaviorEnum::Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
             AnimalSpecies::Shardkin => AnimalBehaviorEnum::Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
             AnimalSpecies::DrownedWatch => AnimalBehaviorEnum::DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
@@ -1002,6 +1030,8 @@ fn update_animal_ai_state(
                 AnimalSpecies::BeachCrab => 200.0, // Crabs are small and scuttle away from buildings
                 AnimalSpecies::Tern => 500.0, // Birds fly away from foundations
                 AnimalSpecies::Crow => 450.0, // Crows fly away from foundations
+                AnimalSpecies::Vole => 350.0, // Voles flee quickly from buildings
+                AnimalSpecies::Wolverine => 0.0, // Wolverines are fearless - don't flee from foundations
                 // Night hostile NPCs don't flee from foundations
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };
@@ -1042,6 +1072,8 @@ fn update_animal_ai_state(
                         AnimalSpecies::BeachCrab => 300.0,    // Crabs scuttle away from fire
                         AnimalSpecies::Tern => 600.0,         // Birds fly away from fire
                         AnimalSpecies::Crow => 550.0,         // Crows fly away from fire
+                        AnimalSpecies::Vole => 450.0,         // Voles flee quickly from fire
+                        AnimalSpecies::Wolverine => 0.0,      // Wolverines are fearless - don't flee from fire
                         // Night hostile NPCs don't flee from fire
                         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                     };
@@ -1090,6 +1122,8 @@ fn update_animal_ai_state(
                     AnimalSpecies::BeachCrab => 300.0, // Crabs scuttle away from campfires
                     AnimalSpecies::Tern => 600.0, // Birds fly away from campfires
                     AnimalSpecies::Crow => 550.0, // Crows fly away from campfires
+                    AnimalSpecies::Vole => 450.0, // Voles flee quickly from campfires
+                    AnimalSpecies::Wolverine => 0.0, // Wolverines are fearless - don't flee from campfires
                     // Night hostile NPCs don't flee from campfires
                     AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                 };
@@ -1858,6 +1892,8 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::BeachCrab => 16.0, // Small knockback - crab pinch
             AnimalSpecies::Tern => 8.0, // Very small knockback - bird peck
             AnimalSpecies::Crow => 12.0, // Small knockback - crow peck
+            AnimalSpecies::Vole => 4.0, // Tiny knockback - tiny rodent bite
+            AnimalSpecies::Wolverine => 56.0, // Strong knockback - aggressive predator
             // Hostile NPCs
             AnimalSpecies::Shorebound => 36.0, // Fast stalker - moderate knockback
             AnimalSpecies::Shardkin => 20.0, // Small swarmer - light knockback
@@ -1913,6 +1949,8 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::BeachCrab => "Beach Crab",
         AnimalSpecies::Tern => "Tern",
         AnimalSpecies::Crow => "Crow",
+        AnimalSpecies::Vole => "Vole",
+        AnimalSpecies::Wolverine => "Wolverine",
         // Hostile NPCs
         AnimalSpecies::Shorebound => "The Shorebound",
         AnimalSpecies::Shardkin => "The Shardkin",
@@ -3152,6 +3190,10 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::BeachCrab => 250.0,             // Crabs scuttle away from fire
         AnimalSpecies::Tern => 500.0,                  // Birds fly away from fire
         AnimalSpecies::Crow => 450.0,                  // Crows fly away from fire
+        AnimalSpecies::Vole => 400.0,                  // Voles flee quickly from fire
+        AnimalSpecies::Wolverine => {
+            return false; // Wolverines are fearless - don't flee from fire
+        }
         // Hostile NPCs don't flee from fire - they're aggressive night creatures
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return false; // Hostile NPCs ignore fire
@@ -3227,6 +3269,12 @@ pub fn emit_species_sound(
         AnimalSpecies::Crow => {
             crate::sound_events::emit_crow_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
+        AnimalSpecies::Vole => {
+            crate::sound_events::emit_vole_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::Wolverine => {
+            crate::sound_events::emit_wolverine_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
         // Night hostile NPCs have their own custom sounds
         AnimalSpecies::Shorebound => {
             crate::sound_events::emit_shorebound_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
@@ -3256,6 +3304,8 @@ pub fn emit_death_sound(
         AnimalSpecies::BeachCrab => SoundType::DeathCrab,
         AnimalSpecies::Tern => SoundType::DeathTern,
         AnimalSpecies::Crow => SoundType::DeathCrow,
+        AnimalSpecies::Vole => SoundType::DeathVole,
+        AnimalSpecies::Wolverine => SoundType::DeathWolverine,
         // Hostile NPCs use their own death sound (already handled separately)
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return; // These use HostileDeath sound via hostile_spawning.rs
@@ -3423,6 +3473,8 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::BeachCrab => 0.10,     // Crabs scuttle but are fairly predictable
         AnimalSpecies::Tern => 0.05,          // Terns fly in more consistent directions
         AnimalSpecies::Crow => 0.08,          // Crows are fairly focused
+        AnimalSpecies::Vole => 0.25,          // Voles are very erratic and skittish
+        AnimalSpecies::Wolverine => 0.10,     // Wolverines are deliberate predators
         // Hostile NPCs - different patrol patterns
         AnimalSpecies::Shorebound => 0.15,    // Stalker - moderate direction changes while circling
         AnimalSpecies::Shardkin => 0.20,      // Swarmer - erratic movements
@@ -3500,6 +3552,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::BeachCrab => 200.0 + (rng.gen::<f32>() * 100.0), // 4-6m for crabs - short scuttle
             AnimalSpecies::Tern => 800.0 + (rng.gen::<f32>() * 500.0), // 16-26m for terns - fly away
             AnimalSpecies::Crow => 600.0 + (rng.gen::<f32>() * 400.0), // 12-20m for crows - fly away
+            AnimalSpecies::Vole => 500.0 + (rng.gen::<f32>() * 300.0), // 10-16m for voles - fast scurry
+            AnimalSpecies::Wolverine => 0.0, // Wolverines NEVER flee
             // Night hostile NPCs don't flee
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
@@ -3535,6 +3589,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::BeachCrab => 2_000_000,  // 2 seconds - quick scuttle escape
             AnimalSpecies::Tern => 5_000_000,       // 5 seconds - fly away far
             AnimalSpecies::Crow => 4_000_000,       // 4 seconds - fly away
+            AnimalSpecies::Vole => 2_500_000,       // 2.5 seconds - quick burrow/hide
+            AnimalSpecies::Wolverine => 500_000,    // 0.5 seconds - wolverines don't flee, recover fast
             // Hostile NPCs don't flee - but if they somehow enter flee state, recover quickly
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 500_000, // 0.5 seconds
         };
@@ -3918,6 +3974,19 @@ pub fn handle_attack_aftermath(
             log::info!("Crow {} attacked and flew away", animal.id);
         },
         
+        AnimalSpecies::Vole => {
+            // Voles immediately flee after any attack - they're tiny and skittish
+            set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 300.0, rng);
+            transition_to_state(animal, AnimalState::Fleeing, current_time, None, "vole flee after attack");
+            log::info!("Vole {} squeaked and fled after attack", animal.id);
+        },
+        
+        AnimalSpecies::Wolverine => {
+            // Wolverines are FEARLESS - continue attacking relentlessly
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "wolverine fury");
+            log::info!("Wolverine {} continues ferocious assault", animal.id);
+        },
+        
         // Hostile NPCs - continue attacking aggressively
         AnimalSpecies::Shorebound => {
             // Shorebound stalkers continue pressuring after attack
@@ -4033,6 +4102,19 @@ pub fn handle_standard_damage_response(
                 transition_to_state(animal, AnimalState::Flying, current_time, None, "crow flee damage");
                 animal.is_flying = true;
                 log::info!("Crow {} flying away after damage", animal.id);
+            },
+            
+            AnimalSpecies::Vole => {
+                // Voles always flee when damaged - tiny and skittish
+                set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 400.0, rng);
+                transition_to_state(animal, AnimalState::Fleeing, current_time, None, "vole flee damage");
+                log::info!("Vole {} fleeing in panic after damage", animal.id);
+            },
+            
+            AnimalSpecies::Wolverine => {
+                // Wolverines NEVER flee - they become MORE aggressive when damaged
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "wolverine rage");
+                log::info!("Wolverine {} enters rage mode after damage - attacking relentlessly!", animal.id);
             },
             
             // Hostile NPCs don't flee when damaged - they become more aggressive
@@ -4684,6 +4766,8 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::BeachCrab => 250.0,    // Crabs scuttle away quickly
                 AnimalSpecies::Tern => 800.0,         // Birds fly far away
                 AnimalSpecies::Crow => 700.0,         // Crows fly away
+                AnimalSpecies::Vole => 500.0,         // Voles flee quickly
+                AnimalSpecies::Wolverine => 0.0,      // Wolverines don't flee from fire
                 // Night hostile NPCs don't flee from fire traps
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };

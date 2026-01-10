@@ -936,6 +936,82 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             true // Inland area suitable for crow
         }
         
+        AnimalSpecies::Vole => {
+            // 🐹 VOLE HABITAT: Tundra and grassland areas - burrows in soft ground
+            // Voles prefer grass and dirt tiles, away from beaches and water
+            if matches!(tile_type, TileType::Beach | TileType::Sand | TileType::Asphalt) {
+                return false; // Voles don't like beaches or hard surfaces
+            }
+            
+            // Must be on grass or dirt
+            if !matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad | TileType::Tundra) {
+                return false;
+            }
+            
+            // Avoid water (check 1 tile around)
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    if dx == 0 && dy == 0 { continue; }
+                    
+                    let check_x = tile_x + dx;
+                    let check_y = tile_y + dy;
+                    
+                    if check_x < 0 || check_y < 0 || 
+                       check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                        continue;
+                    }
+                    
+                    for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
+                        if matches!(adjacent_tile.tile_type, TileType::Sea) {
+                            return false; // Too close to water
+                        }
+                    }
+                }
+            }
+            
+            true // Suitable inland grassland/tundra for vole
+        }
+        
+        AnimalSpecies::Wolverine => {
+            // 🦡 WOLVERINE HABITAT: Tundra, alpine, and arctic regions
+            // Wolverines prefer cold, northern terrain - they avoid beaches and coastal areas
+            if matches!(tile_type, TileType::Beach | TileType::Sand) {
+                return false; // Wolverines don't like beaches
+            }
+            
+            // Prefer tundra/alpine tile types, but also accept grass/dirt in northern regions
+            if matches!(tile_type, TileType::Tundra | TileType::Alpine | TileType::TundraGrass) {
+                return true; // Perfect habitat
+            }
+            
+            // Also accept grass/dirt if NOT near the coast (wolverines roam inland)
+            if matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad) {
+                // Check if too close to water/beach (within 3 tiles)
+                for dy in -3..=3 {
+                    for dx in -3..=3 {
+                        if dx == 0 && dy == 0 { continue; }
+                        
+                        let check_x = tile_x + dx;
+                        let check_y = tile_y + dy;
+                        
+                        if check_x < 0 || check_y < 0 || 
+                           check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                            continue;
+                        }
+                        
+                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
+                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                                return false; // Too close to coast for wolverine
+                            }
+                        }
+                    }
+                }
+                return true; // Inland area suitable for wolverine
+            }
+            
+            false // Not suitable terrain
+        }
+        
         // Night hostile NPCs - they use a different spawn system (player-relative)
         // These species should never go through normal animal spawning
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
@@ -2777,13 +2853,15 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
     // Define species distribution (weighted probabilities)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 30),      // 30% - Common
-        (AnimalSpecies::ArcticWalrus, 15),   // 15% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 20),      // 20% - Common beach creature
+        (AnimalSpecies::CinderFox, 25),      // 25% - Common
+        (AnimalSpecies::ArcticWalrus, 12),   // 12% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 15),      // 15% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
-        (AnimalSpecies::Tern, 15),           // 15% - Coastal scavenger bird (beaches)
-        (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
+        (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Crow, 8),            // 8% - Inland thief bird
+        (AnimalSpecies::Vole, 12),           // 12% - Common prey animal (tundra/grassland)
+        (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

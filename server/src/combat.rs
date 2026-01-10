@@ -3933,6 +3933,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
             crate::wild_animal_npc::AnimalSpecies::Tern => Some("Feathers"), // Terns drop feathers
             crate::wild_animal_npc::AnimalSpecies::Crow => Some("Feathers"), // Crows drop feathers
+            crate::wild_animal_npc::AnimalSpecies::Vole => None, // Voles are too small for usable fur
+            crate::wild_animal_npc::AnimalSpecies::Wolverine => None, // Wolverines drop Animal Leather instead
             // Night hostile NPCs don't drop items - they grant memory shards instead
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -3984,6 +3986,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => Some("Raw Crab Meat"),
             crate::wild_animal_npc::AnimalSpecies::Tern => Some("Raw Tern Meat"),
             crate::wild_animal_npc::AnimalSpecies::Crow => Some("Raw Crow Meat"),
+            crate::wild_animal_npc::AnimalSpecies::Vole => Some("Raw Vole Meat"),
+            crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Raw Wolverine Meat"),
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4011,6 +4015,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't have skulls - they have exoskeletons
             crate::wild_animal_npc::AnimalSpecies::Tern => None, // Birds don't drop skulls
             crate::wild_animal_npc::AnimalSpecies::Crow => None, // Birds don't drop skulls
+            crate::wild_animal_npc::AnimalSpecies::Vole => Some("Vole Skull"), // Tiny novelty trophy skull
+            crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Wolverine Skull"), // Fierce predator skull
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
