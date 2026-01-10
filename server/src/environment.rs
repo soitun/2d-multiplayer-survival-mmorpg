@@ -1251,7 +1251,7 @@ pub fn validate_spawn_location(
 
 // --- Cairn Seeding ---
 
-/// Seed all 26 cairns across the map in valid biomes
+/// Seed all 14 cairns across the map in valid biomes
 fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
     use crate::cairn::cairn as CairnTableTrait;
     
@@ -1263,32 +1263,20 @@ fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
         return Ok(());
     }
     
-    // All 26 lore IDs matching CAIRN_LORE_TIDBITS
+    // All 14 lore IDs matching CAIRN_LORE_TIDBITS
     let lore_ids = vec![
         "cairn_volcanic_spine",
-        "cairn_coastline",
-        "cairn_weather_patterns",
         "cairn_shards_what_are_they",
-        "cairn_shard_consumption",
         "cairn_alk_purpose",
-        "cairn_alk_blindness",
         "cairn_ghost_network",
-        "cairn_dropoff_stations",
-        "cairn_radio_towers",
-        "cairn_geothermal_taps",
         "cairn_aleuts_original_inhabitants",
         "cairn_aleuts_under_alk",
-        "cairn_cultural_erosion",
         "cairn_directorate_origins",
         "cairn_the_freeze",
         "cairn_compound_purpose",
-        "cairn_intake_scanner",
         "cairn_survival_loop",
         "cairn_the_trap",
-        "cairn_unplanned_system",
         "cairn_my_adaptation",
-        "cairn_islands_memory",
-        "cairn_bering_sea_revenge",
         "cairn_encoded_markers",
         "cairn_shared_substrate",
     ];

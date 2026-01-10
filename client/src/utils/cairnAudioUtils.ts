@@ -120,5 +120,5 @@ export function isCairnAudioPlaying(): boolean {
  * Get the total number of cairn lore entries
  */
 export function getTotalCairnLoreCount(): number {
-  return 26; // Total number of lore entries in CAIRN_LORE_TIDBITS
+  return 14; // Total number of lore entries in CAIRN_LORE_TIDBITS
 }

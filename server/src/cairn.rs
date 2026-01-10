@@ -41,59 +41,42 @@ pub(crate) const MIN_CAIRN_ALK_STATION_DISTANCE_SQ: f32 = 600.0 * 600.0; // Keep
 pub(crate) const MIN_CAIRN_SHIPWRECK_DISTANCE_SQ: f32 = 500.0 * 500.0; // Keep away from shipwreck hulls
 pub(crate) const MIN_CAIRN_FISHING_VILLAGE_DISTANCE_SQ: f32 = 800.0 * 800.0; // Keep away from fishing village (larger zone)
 
-// --- Rarity Reward Constants ---
+// --- Signal Classification Reward Constants ---
+// Diegetic tier system based on SOVA's data classification
+// Fragment = faded/partial signal, Record = clear transmission, Archive = core system data
 
-// Rarity tiers for variable rewards (dopamine engagement)
-pub(crate) const REWARD_COMMON: u32 = 25;      // Common categories: island, infrastructure
-pub(crate) const REWARD_UNCOMMON: u32 = 50;   // Uncommon: shards, alk, survival
-pub(crate) const REWARD_RARE: u32 = 100;      // Rare: aleuts, admiralty, compound
-pub(crate) const REWARD_EPIC: u32 = 150;      // Epic: philosophy
-pub(crate) const REWARD_LEGENDARY: u32 = 200; // Legendary: meta (SOVA/system lore)
+pub(crate) const REWARD_FRAGMENT: u32 = 25;   // Fragment: Basic geographic/descriptive info
+pub(crate) const REWARD_RECORD: u32 = 75;     // Record: Historical context, mechanics, culture
+pub(crate) const REWARD_ARCHIVE: u32 = 150;   // Archive: Deep secrets, SOVA's nature, foundation
 
 /// Get the Memory Shard reward amount for a cairn based on its lore_id
-/// Uses explicit mapping since lore_id naming isn't consistent with categories
+/// Uses SOVA's signal classification: Fragment (faded) → Record (clear) → Archive (core)
 fn get_cairn_reward_for_lore_id(lore_id: &str) -> u32 {
     match lore_id {
-        // LEGENDARY (200) - meta: SOVA/system lore (rarest tier)
-        "cairn_shared_substrate" => REWARD_LEGENDARY,
-        
-        // EPIC (150) - philosophy & SOVA meta: deep thematic content
+        // ARCHIVE (150) - Core system data: SOVA's nature, foundational secrets
         "cairn_my_adaptation" |
         "cairn_encoded_markers" |
-        "cairn_unplanned_system" => REWARD_EPIC,
+        "cairn_shared_substrate" => REWARD_ARCHIVE,
         
-        // RARE (100) - aleuts, admiralty, compound: cultural/historical/location lore
+        // RECORD (75) - Clear transmissions: History, mechanics, culture
+        "cairn_shards_what_are_they" |
+        "cairn_alk_purpose" |
         "cairn_aleuts_original_inhabitants" |
         "cairn_aleuts_under_alk" |
-        "cairn_cultural_erosion" |
         "cairn_directorate_origins" |
         "cairn_the_freeze" |
-        "cairn_compound_purpose" |
-        "cairn_intake_scanner" => REWARD_RARE,
-        
-        // UNCOMMON (50) - shards, alk, survival: important game mechanics
-        "cairn_shards_what_are_they" |
-        "cairn_shard_consumption" |
-        "cairn_alk_purpose" |
-        "cairn_alk_blindness" |
-        "cairn_ghost_network" |  // ALK category - The Ghost Network
         "cairn_survival_loop" |
-        "cairn_the_trap" => REWARD_UNCOMMON,
+        "cairn_the_trap" => REWARD_RECORD,
         
-        // COMMON (25) - island, infrastructure: geographic/technical info
+        // FRAGMENT (25) - Partial/faded signals: Basic info, quick context
         "cairn_volcanic_spine" |
-        "cairn_coastline" |
-        "cairn_weather_patterns" |
-        "cairn_islands_memory" |
-        "cairn_bering_sea_revenge" |
-        "cairn_dropoff_stations" |
-        "cairn_radio_towers" |
-        "cairn_geothermal_taps" => REWARD_COMMON,
+        "cairn_compound_purpose" |
+        "cairn_ghost_network" => REWARD_FRAGMENT,
         
         // Default fallback (shouldn't happen, but safety)
         _ => {
             log::warn!("Unknown cairn lore_id: {} - using default reward", lore_id);
-            REWARD_COMMON
+            REWARD_FRAGMENT
         }
     }
 }

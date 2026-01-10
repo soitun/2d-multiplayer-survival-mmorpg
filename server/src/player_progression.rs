@@ -578,7 +578,7 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "first_cairn" => stats.cairns_discovered >= 1,
             "cairn_5" => stats.cairns_discovered >= 5,
             "cairn_hunter" => stats.cairns_discovered >= 10,
-            "cairn_all" => stats.cairns_discovered >= 26,
+            "cairn_all" => stats.cairns_discovered >= 14,
             
             // Fishing achievements (tiered progression)
             "fish_10" => stats.fish_caught >= 10,
@@ -1167,7 +1167,7 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
         AchievementDefinition {
             id: "cairn_all".to_string(),
             name: "Truth Seeker".to_string(),
-            description: "Discover all 26 cairns and uncover the island's secrets".to_string(),
+            description: "Discover all 14 cairns and uncover the island's secrets".to_string(),
             icon: "📖".to_string(),
             xp_reward: 1000,
             title_reward: Some("Truth Seeker".to_string()),

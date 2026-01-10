@@ -1005,6 +1005,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         onViewChange={handleViewChange}
         className="interface-tabs"
         hideEncyclopedia={false}
+        hideCairns={false}
       />
       
       <div className="interface-content">

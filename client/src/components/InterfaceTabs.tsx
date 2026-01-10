@@ -6,13 +6,15 @@ interface InterfaceTabsProps {
   onViewChange: (view: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements') => void;
   className?: string;
   hideEncyclopedia?: boolean;
+  hideCairns?: boolean;
 }
 
 const InterfaceTabs: React.FC<InterfaceTabsProps> = ({ 
   currentView, 
   onViewChange, 
   className = '',
-  hideEncyclopedia = false
+  hideEncyclopedia = false,
+  hideCairns = false
 }) => {
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
@@ -69,15 +71,17 @@ const InterfaceTabs: React.FC<InterfaceTabsProps> = ({
         ALK BOARD
       </button>
       
-      {/* CAIRNS Tab */}
-      <button
-        className={`tab cairns-tab ${isCairnsActive ? 'active' : 'inactive'} ${hoveredTab === 'cairns' ? 'hovered' : ''}`}
-        onClick={() => onViewChange('cairns')}
-        onMouseEnter={() => setHoveredTab('cairns')}
-        onMouseLeave={() => setHoveredTab(null)}
-      >
-        CAIRNS
-      </button>
+      {/* CAIRNS Tab - conditionally rendered */}
+      {!hideCairns && (
+        <button
+          className={`tab cairns-tab ${isCairnsActive ? 'active' : 'inactive'} ${hoveredTab === 'cairns' ? 'hovered' : ''}`}
+          onClick={() => onViewChange('cairns')}
+          onMouseEnter={() => setHoveredTab('cairns')}
+          onMouseLeave={() => setHoveredTab(null)}
+        >
+          CAIRNS
+        </button>
+      )}
       
       {/* MATRONAGE Tab */}
       <button

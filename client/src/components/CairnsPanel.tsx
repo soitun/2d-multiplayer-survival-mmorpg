@@ -11,69 +11,70 @@ interface CairnsPanelProps {
   currentPlayerIdentity: Identity | null;
 }
 
-// Reward tiers matching server-side constants
-const REWARD_COMMON = 25;
-const REWARD_UNCOMMON = 50;
-const REWARD_RARE = 100;
-const REWARD_EPIC = 150;
-const REWARD_LEGENDARY = 200;
+// Signal Classification Reward Constants (diegetic SOVA data classification)
+// Fragment = faded/partial signal, Record = clear transmission, Archive = core system data
+const REWARD_FRAGMENT = 25;   // Basic geographic/descriptive info
+const REWARD_RECORD = 75;     // Historical context, mechanics, culture
+const REWARD_ARCHIVE = 150;   // Deep secrets, SOVA's nature, foundation
 
 // Category colors - each category has its own distinct color
 const CATEGORY_COLORS: Record<CairnLoreCategory, string> = {
-  // Common tier (25 shards)
+  // Fragment tier (25 shards) - faded signals
   'island': '#7BAE7F',        // Sage green - geography/nature
-  'infrastructure': '#C49A6C', // Sandy brown - buildings/tech
-  // Uncommon tier (50 shards)
+  'infrastructure': '#C49A6C', // Sandy brown - buildings/tech (unused in reduced set)
+  'compound': '#90A4AE',      // Blue gray - Compound
+  'alk': '#00E5CC',           // Cyan - ALK system (ghost_network is Fragment)
+  // Record tier (75 shards) - clear transmissions
   'shards': '#B388FF',        // Light purple - memory shards
-  'alk': '#00E5CC',           // Cyan - ALK system
   'survival': '#F0A050',      // Amber - survival mechanics
-  // Rare tier (100 shards)
   'aleuts': '#FF7043',        // Deep orange - Aleut culture
   'admiralty': '#5C8BE0',     // Royal blue - Admiralty
-  'compound': '#90A4AE',      // Blue gray - Compound
-  // Epic tier (150 shards)
+  // Archive tier (150 shards) - core data
   'philosophy': '#CE93D8',    // Pink purple - philosophy
-  // Legendary tier (200 shards)
   'meta': '#FFD54F',          // Gold - SOVA/meta lore
 };
 
-// Helper function to get reward for category (matches server-side mapping)
-function getRewardForCategory(category: CairnLoreCategory): number {
-  switch(category) {
-    case 'island':
-    case 'infrastructure':
-      return REWARD_COMMON;
-    case 'shards':
-    case 'alk':
-    case 'survival':
-      return REWARD_UNCOMMON;
-    case 'aleuts':
-    case 'admiralty':
-    case 'compound':
-      return REWARD_RARE;
-    case 'philosophy':
-      return REWARD_EPIC;
-    case 'meta':
-      return REWARD_LEGENDARY;
+// Helper function to get reward for lore entry (matches server-side mapping by lore_id)
+function getRewardForLoreEntry(entry: CairnLoreEntry): number {
+  switch(entry.id) {
+    // ARCHIVE (150) - Core system data: SOVA's nature, foundational secrets
+    case 'cairn_my_adaptation':
+    case 'cairn_encoded_markers':
+    case 'cairn_shared_substrate':
+      return REWARD_ARCHIVE;
+    
+    // RECORD (75) - Clear transmissions: History, mechanics, culture
+    case 'cairn_shards_what_are_they':
+    case 'cairn_alk_purpose':
+    case 'cairn_aleuts_original_inhabitants':
+    case 'cairn_aleuts_under_alk':
+    case 'cairn_directorate_origins':
+    case 'cairn_the_freeze':
+    case 'cairn_survival_loop':
+    case 'cairn_the_trap':
+      return REWARD_RECORD;
+    
+    // FRAGMENT (25) - Partial/faded signals: Basic info, quick context
+    case 'cairn_volcanic_spine':
+    case 'cairn_compound_purpose':
+    case 'cairn_ghost_network':
+    default:
+      return REWARD_FRAGMENT;
   }
 }
 
-// Helper function to get rarity tier name
-function getRarityTierName(reward: number): string {
-  if (reward >= REWARD_LEGENDARY) return 'LEGENDARY';
-  if (reward >= REWARD_EPIC) return 'EPIC';
-  if (reward >= REWARD_RARE) return 'RARE';
-  if (reward >= REWARD_UNCOMMON) return 'UNCOMMON';
-  return 'COMMON';
+// Helper function to get signal classification tier name (diegetic)
+function getSignalTierName(reward: number): string {
+  if (reward >= REWARD_ARCHIVE) return 'ARCHIVE';
+  if (reward >= REWARD_RECORD) return 'RECORD';
+  return 'FRAGMENT';
 }
 
-// Helper function to get rarity tier color (for tier headers)
-function getRarityTierColor(reward: number): string {
-  if (reward >= REWARD_LEGENDARY) return '#FFD700'; // Gold
-  if (reward >= REWARD_EPIC) return '#9D4EDD';      // Purple
-  if (reward >= REWARD_RARE) return '#4A90E2';      // Blue
-  if (reward >= REWARD_UNCOMMON) return '#4CAF50';  // Green
-  return '#9E9E9E';                                  // Gray
+// Helper function to get signal tier color (for tier headers)
+function getSignalTierColor(reward: number): string {
+  if (reward >= REWARD_ARCHIVE) return '#FFD54F'; // Gold - core data
+  if (reward >= REWARD_RECORD) return '#5C8BE0';  // Blue - clear signal
+  return '#9E9E9E';                                // Gray - faded signal
 }
 
 // Helper function to get category display name
@@ -188,25 +189,23 @@ const CairnsPanel: React.FC<CairnsPanelProps> = ({
     discoveredLoreIds.forEach((loreId) => {
       const loreEntry = CAIRN_LORE_TIDBITS.find(entry => entry.id === loreId);
       if (loreEntry) {
-        total += getRewardForCategory(loreEntry.category);
+        total += getRewardForLoreEntry(loreEntry);
       }
     });
     return total;
   }, [discoveredLoreIds]);
 
-  // Group lore entries by reward tier (sorted Legendary to Common)
+  // Group lore entries by signal classification (Archive → Record → Fragment)
   const tierGroups = useMemo((): TierGroup[] => {
     const groups: TierGroup[] = [
-      { tier: 'LEGENDARY', reward: REWARD_LEGENDARY, color: '#FFD700', entries: [] },
-      { tier: 'EPIC', reward: REWARD_EPIC, color: '#9D4EDD', entries: [] },
-      { tier: 'RARE', reward: REWARD_RARE, color: '#4A90E2', entries: [] },
-      { tier: 'UNCOMMON', reward: REWARD_UNCOMMON, color: '#4CAF50', entries: [] },
-      { tier: 'COMMON', reward: REWARD_COMMON, color: '#9E9E9E', entries: [] },
+      { tier: 'ARCHIVE', reward: REWARD_ARCHIVE, color: '#FFD54F', entries: [] },
+      { tier: 'RECORD', reward: REWARD_RECORD, color: '#5C8BE0', entries: [] },
+      { tier: 'FRAGMENT', reward: REWARD_FRAGMENT, color: '#9E9E9E', entries: [] },
     ];
     
-    // Sort entries into their tier groups
+    // Sort entries into their tier groups based on lore_id
     CAIRN_LORE_TIDBITS.forEach((entry) => {
-      const reward = getRewardForCategory(entry.category);
+      const reward = getRewardForLoreEntry(entry);
       const group = groups.find(g => g.reward === reward);
       if (group) {
         group.entries.push(entry);
