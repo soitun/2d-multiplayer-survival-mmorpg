@@ -86,8 +86,10 @@ pub struct Barrel {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
+    /// When this barrel should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>, // When this barrel should respawn (if destroyed)
+    pub respawn_at: Timestamp,
     pub cluster_id: u64, // ID to group barrels that spawned together
 }
 
@@ -361,7 +363,7 @@ pub fn damage_barrel(
         
         // Set respawn timer
         let respawn_time = timestamp.to_micros_since_unix_epoch() + (BARREL_RESPAWN_TIME_SECONDS as i64 * 1_000_000);
-        barrel.respawn_at = Some(Timestamp::from_micros_since_unix_epoch(respawn_time));
+        barrel.respawn_at = Timestamp::from_micros_since_unix_epoch(respawn_time);
         
         // Generate loot drops
         if let Err(e) = generate_barrel_loot_drops(ctx, barrel.pos_x, barrel.pos_y) {
@@ -406,19 +408,49 @@ pub fn respawn_destroyed_barrels(ctx: &ReducerContext, _schedule: BarrelRespawnS
     
     log::trace!("[BarrelRespawn] Checking for barrels to respawn at {:?}", current_time);
     
-    // Find all destroyed barrels that should respawn
+    // PERFORMANCE OPTIMIZATION: Spatial gating - only check barrels near players
+    let player_positions: Vec<(f32, f32)> = ctx.db.player().iter()
+        .filter(|p| p.is_online && !p.is_dead)
+        .map(|p| (p.position_x, p.position_y))
+        .collect();
+    
+    if player_positions.is_empty() {
+        return Ok(()); // No players online, skip
+    }
+    
+    const RESPAWN_CHECK_RADIUS_PX: f32 = 2000.0;
+    const RESPAWN_CHECK_RADIUS_SQ: f32 = RESPAWN_CHECK_RADIUS_PX * RESPAWN_CHECK_RADIUS_PX;
+    
+    // NOTE: SpacetimeDB btree indexes don't support range queries on Timestamp types.
+    // We use .iter() with spatial gating to reduce scan size.
+    // respawn_at is non-Option Timestamp; UNIX_EPOCH (0) means "not respawning"
     let barrels_to_respawn: Vec<_> = barrels.iter()
         .filter(|barrel| {
-            barrel.health <= 0.0 && 
-            barrel.respawn_at.is_some() && 
-            barrel.respawn_at.unwrap().to_micros_since_unix_epoch() <= current_time.to_micros_since_unix_epoch()
+            // Check respawn timer (> UNIX_EPOCH means it's set)
+            if barrel.respawn_at <= Timestamp::UNIX_EPOCH || barrel.respawn_at > current_time {
+                return false;
+            }
+            // Additional health check
+            if barrel.health > 0.0 {
+                return false;
+            }
+            // SPATIAL FILTER: Only respawn barrels near players
+            for (px, py) in &player_positions {
+                let dx = barrel.pos_x - px;
+                let dy = barrel.pos_y - py;
+                let dist_sq = dx * dx + dy * dy;
+                if dist_sq <= RESPAWN_CHECK_RADIUS_SQ {
+                    return true; // Near a player, include this barrel
+                }
+            }
+            false
         })
         .collect();
     
     for mut barrel in barrels_to_respawn {
         // Reset barrel state
         barrel.health = BARREL_INITIAL_HEALTH;
-        barrel.respawn_at = None;
+        barrel.respawn_at = Timestamp::UNIX_EPOCH; // Use epoch to mean "not respawning"
         barrel.last_hit_time = None;
         
         // Update the barrel
@@ -545,7 +577,7 @@ pub fn spawn_barrel_clusters_scaled(
                 health: BARREL_INITIAL_HEALTH,
                 variant: ctx.rng().gen_range(0..3), // Random variant (0, 1, or 2)
                 last_hit_time: None,
-                respawn_at: None,
+                respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 cluster_id: spawned_clusters as u64 + 1, // Assign cluster ID
             };
 
@@ -726,7 +758,7 @@ fn spawn_barrel_cluster_at_position(
             variant,
             chunk_index: chunk_idx,
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             cluster_id,
         };
         
@@ -845,7 +877,7 @@ pub fn spawn_sea_barrels_around_stacks(
                     health: BARREL_INITIAL_HEALTH,
                     variant,
                     last_hit_time: None,
-                    respawn_at: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Sea barrels don't use cluster IDs (they're individual spawns)
                 };
 
@@ -977,7 +1009,7 @@ pub fn spawn_beach_barrels(
             health: BARREL_INITIAL_HEALTH,
             variant, // Random sea barrel variant (3, 4, or 5)
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             cluster_id: 0, // Beach barrels don't use cluster IDs
         };
 

@@ -271,7 +271,7 @@ impl SpatialGrid {
         
         // Add harvestable resources (unified system including mushrooms)
         for resource in db.harvestable_resource().iter() {
-            if resource.respawn_at.is_none() { // Only add if not respawning
+            if resource.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH { // Only add if not respawning
                 self.add_entity(EntityType::HarvestableResource(resource.id), resource.pos_x, resource.pos_y);
             }
         }
@@ -452,7 +452,7 @@ impl SpatialGrid {
         
         // Add harvestable resources - only non-respawning ones
         for resource in db.harvestable_resource().iter() {
-            if resource.respawn_at.is_none() {
+            if resource.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH {
                 entities_to_add.push((EntityType::HarvestableResource(resource.id), resource.pos_x, resource.pos_y));
             }
         }

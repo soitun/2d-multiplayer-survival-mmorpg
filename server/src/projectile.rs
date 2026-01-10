@@ -1158,8 +1158,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         
         // Check tree collisions
         for tree in ctx.db.tree().iter() {
-            // Skip dead/respawning trees (respawn_at is set when tree is destroyed)
-            if tree.respawn_at.is_some() {
+            // Skip dead/respawning trees (respawn_at > UNIX_EPOCH when tree is destroyed)
+            if tree.respawn_at > Timestamp::UNIX_EPOCH {
                 continue;
             }
             
@@ -1195,8 +1195,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         
         // Check stone collisions
         for stone in ctx.db.stone().iter() {
-            // Skip dead/respawning stones (respawn_at is set when stone is destroyed)
-            if stone.respawn_at.is_some() {
+            // Skip dead/respawning stones (respawn_at > UNIX_EPOCH when stone is destroyed)
+            if stone.respawn_at > Timestamp::UNIX_EPOCH {
                 continue;
             }
             

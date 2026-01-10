@@ -31,8 +31,10 @@ pub struct HarvestableResource {
     pub pos_y: f32,
     #[index(btree)]
     pub chunk_index: u32,
+    /// When this resource should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>,
+    pub respawn_at: Timestamp,
     pub is_player_planted: bool, // NEW: Track if this is a farmed crop vs wild plant
 }
 
@@ -50,11 +52,11 @@ impl RespawnableResource for HarvestableResource {
         self.pos_y
     }
     
-    fn respawn_at(&self) -> Option<Timestamp> {
+    fn respawn_at(&self) -> Timestamp {
         self.respawn_at
     }
     
-    fn set_respawn_at(&mut self, time: Option<Timestamp>) {
+    fn set_respawn_at(&mut self, time: Timestamp) {
         self.respawn_at = time;
     }
 }
@@ -132,8 +134,8 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     let resource = ctx.db.harvestable_resource().id().find(resource_id)
         .ok_or_else(|| format!("Harvestable resource {} not found", resource_id))?;
 
-    // Check if already harvested and waiting for respawn
-    if resource.respawn_at.is_some() {
+    // Check if already harvested and waiting for respawn (respawn_at > UNIX_EPOCH)
+    if resource.respawn_at > Timestamp::UNIX_EPOCH {
         return Err("This resource has already been harvested and is respawning.".to_string());
     }
     
@@ -183,7 +185,7 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         // update_resource_fn (closure)
         |respawn_time| -> Result<(), String> {
             if let Some(mut resource_to_update) = ctx.db.harvestable_resource().id().find(resource.id) {
-                resource_to_update.respawn_at = Some(respawn_time);
+                resource_to_update.respawn_at = respawn_time;
                 ctx.db.harvestable_resource().id().update(resource_to_update);
                 Ok(())
             } else {
@@ -347,7 +349,7 @@ pub fn create_harvestable_resource(
         pos_x,
         pos_y,
         chunk_index,
-        respawn_at: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
         is_player_planted, // Track whether this is a farmed crop or wild plant
     }
 }

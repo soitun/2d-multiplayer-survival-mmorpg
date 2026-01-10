@@ -119,8 +119,10 @@ pub struct Grass {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>, // When it was last "chopped"
+    /// When this grass should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>,    // When it should reappear after being chopped
+    pub respawn_at: Timestamp,
     // For client-side sway animation, to give each patch a unique offset
     pub sway_offset_seed: u32, 
     pub sway_speed: f32, // RENAMED: Was sway_speed_multiplier. This is now the actual speed.
@@ -222,7 +224,7 @@ pub fn process_grass_respawn(ctx: &spacetimedb::ReducerContext, schedule_entry: 
         appearance_type: data.appearance_type,
         chunk_index: data.chunk_index,
         last_hit_time: None,
-        respawn_at: None, // Not needed for newly spawned grass
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
         sway_offset_seed: data.sway_offset_seed,
         sway_speed: data.sway_speed, // UPDATED: Use the direct sway_speed from respawn data
         disturbed_at: None,

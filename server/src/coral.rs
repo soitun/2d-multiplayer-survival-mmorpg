@@ -45,8 +45,10 @@ pub struct LivingCoral {
     pub resource_remaining: u32,
     #[index(btree)]
     pub chunk_index: u32,
+    /// When this coral should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>,
+    pub respawn_at: Timestamp,
     pub last_hit_time: Option<Timestamp>,
 }
 
@@ -66,7 +68,7 @@ pub fn create_living_coral(
         health: LIVING_CORAL_INITIAL_HEALTH,
         resource_remaining: rng.gen_range(LIVING_CORAL_MIN_RESOURCES..=LIVING_CORAL_MAX_RESOURCES),
         chunk_index,
-        respawn_at: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
         last_hit_time: None,
     }
 }
@@ -122,7 +124,7 @@ pub fn spawn_living_corals_in_chunk(
         let min_distance_sq = 150.0 * 150.0;
         
         for existing_coral in ctx.db.living_coral().iter() {
-            if existing_coral.respawn_at.is_none() {
+            if existing_coral.respawn_at == Timestamp::UNIX_EPOCH { // Not respawning (active)
                 let dx = pos_x - existing_coral.pos_x;
                 let dy = pos_y - existing_coral.pos_y;
                 let dist_sq = dx * dx + dy * dy;
@@ -223,7 +225,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     let existing_driftwood = ctx.db.harvestable_resource()
         .chunk_index()
         .filter(chunk_index)
-        .any(|r| r.plant_type == PlantType::BeachWoodPile && r.respawn_at.is_none());
+        .any(|r| r.plant_type == PlantType::BeachWoodPile && r.respawn_at == Timestamp::UNIX_EPOCH);
     
     // Check for dropped storm debris items (seaweed, coral fragments, shells)
     let existing_dropped_debris = ctx.db.dropped_item()

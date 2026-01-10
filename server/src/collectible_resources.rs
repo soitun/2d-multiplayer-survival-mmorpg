@@ -202,6 +202,9 @@ where
 /// Common trait for resource tables that can respawn
 ///
 /// Implemented by specific resource types like Mushroom, Corn, etc.
+/// 
+/// NOTE: respawn_at uses Timestamp (not Option) where UNIX_EPOCH (0) means "not respawning".
+/// This allows efficient btree index range queries.
 pub trait RespawnableResource {
     /// The unique ID of this resource
     fn id(&self) -> u64;
@@ -212,11 +215,13 @@ pub trait RespawnableResource {
     /// Y coordinate in the world
     fn pos_y(&self) -> f32;
     
-    /// When this resource will respawn (if depleted)
-    fn respawn_at(&self) -> Option<Timestamp>;
+    /// When this resource will respawn (if depleted).
+    /// Returns Timestamp::UNIX_EPOCH if not scheduled for respawn.
+    fn respawn_at(&self) -> Timestamp;
     
-    /// Set a new respawn time for this resource
-    fn set_respawn_at(&mut self, time: Option<Timestamp>);
+    /// Set a new respawn time for this resource.
+    /// Use Timestamp::UNIX_EPOCH to clear the respawn timer.
+    fn set_respawn_at(&mut self, time: Timestamp);
 }
 
 

@@ -1818,7 +1818,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     tree_type, // Assign the chosen type
                     chunk_index: chunk_idx, // Set the chunk index
                     last_hit_time: None,
-                    respawn_at: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 }
             },
             (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args
@@ -1922,7 +1922,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     ore_type, // Set the ore type based on location
                     chunk_index: chunk_idx, // Set the chunk index
                     last_hit_time: None,
-                    respawn_at: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 }
             },
             0u32, // Dummy value - resource amount is now determined inside the closure
@@ -2116,7 +2116,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     
     // Collect living coral positions for fumarole spawning
     let living_coral_positions: Vec<(f32, f32)> = living_corals.iter()
-        .filter(|c| c.respawn_at.is_none()) // Only active coral
+        .filter(|c| c.respawn_at == Timestamp::UNIX_EPOCH) // Only active coral (not respawning)
         .map(|c| (c.pos_x, c.pos_y))
         .collect();
     
@@ -2678,7 +2678,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     ore_type, // Set the ore type based on location
                     chunk_index: chunk_idx,
                     last_hit_time: None,
-                    respawn_at: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 };
                 if let Ok(_) = ctx.db.stone().try_insert(stone) {
                     total_spawned_quarry_stone_count += 1;
@@ -3240,7 +3240,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             appearance_type,
             chunk_index: chunk_idx,
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             sway_offset_seed,
             sway_speed,
             disturbed_at: None,
@@ -3372,7 +3372,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             appearance_type,
             chunk_index: chunk_idx,
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             sway_offset_seed,
             sway_speed,
             disturbed_at: None,
@@ -3504,7 +3504,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             appearance_type,
             chunk_index: chunk_idx,
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             sway_offset_seed,
             sway_speed,
             disturbed_at: None,
@@ -3623,7 +3623,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             appearance_type,
             chunk_index: chunk_idx,
             last_hit_time: None,
-            respawn_at: None,
+            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             sway_offset_seed,
             sway_speed,
             disturbed_at: None,
@@ -4252,7 +4252,7 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
                     position_rng.gen_range(crate::stone::MEMORY_SHARD_MIN_RESOURCES..=crate::stone::MEMORY_SHARD_MAX_RESOURCES)
                 },
             };
-            s.respawn_at = None;
+            s.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
             s.last_hit_time = None;
         }
     );
@@ -4268,7 +4268,7 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
             t.health = crate::tree::TREE_INITIAL_HEALTH;
             // Generate new random resource amount for respawned tree
             t.resource_remaining = ctx.rng().gen_range(crate::tree::TREE_MIN_RESOURCES..=crate::tree::TREE_MAX_RESOURCES);
-            t.respawn_at = None;
+            t.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
             t.last_hit_time = None;
             // Position doesn't change during respawn, so chunk_index stays the same
         }
@@ -4291,7 +4291,7 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
             plants_database::can_grow_in_season(&h.plant_type, &current_season)
         },
         |h: &mut crate::harvestable_resource::HarvestableResource| {
-            h.respawn_at = None;
+            h.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
         }
     );
 
@@ -4324,7 +4324,7 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         |c: &mut crate::coral::LivingCoral| {
             // Reset resource_remaining for next respawn
             c.resource_remaining = ctx.rng().gen_range(crate::coral::LIVING_CORAL_MIN_RESOURCES..=crate::coral::LIVING_CORAL_MAX_RESOURCES);
-            c.respawn_at = None;
+            c.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
         }
     );
 

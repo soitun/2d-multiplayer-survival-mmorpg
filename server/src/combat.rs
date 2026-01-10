@@ -199,8 +199,8 @@ pub fn find_targets_in_cone(
     
     // Check trees
     for tree in ctx.db.tree().iter() {
-        // Skip dead/respawning trees (respawn_at is set when tree is destroyed)
-        if tree.respawn_at.is_some() {
+        // Skip dead/respawning trees (respawn_at > UNIX_EPOCH when tree is destroyed)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
@@ -230,8 +230,8 @@ pub fn find_targets_in_cone(
     
     // Check stones
     for stone in ctx.db.stone().iter() {
-        // Skip dead/respawning stones (respawn_at is set when stone is destroyed)
-        if stone.respawn_at.is_some() {
+        // Skip dead/respawning stones (respawn_at > UNIX_EPOCH when stone is destroyed)
+        if stone.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
@@ -261,8 +261,8 @@ pub fn find_targets_in_cone(
     // Check living corals (underwater resource, requires player to be on water)
     if player.is_on_water {
         for coral in ctx.db.living_coral().iter() {
-            // Skip dead/respawning corals
-            if coral.respawn_at.is_some() {
+            // Skip dead/respawning corals (respawn_at > UNIX_EPOCH when destroyed)
+            if coral.respawn_at > Timestamp::UNIX_EPOCH {
                 continue;
             }
             
@@ -1493,7 +1493,7 @@ pub fn damage_tree(
             rng.gen_range(tree::MIN_TREE_RESPAWN_TIME_SECS..=tree::MAX_TREE_RESPAWN_TIME_SECS)
         };
         let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
-        tree.respawn_at = Some(respawn_time);
+        tree.respawn_at = respawn_time;
         
         // Store tree position before updating database
         const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius (matches campfire.rs)
@@ -1729,7 +1729,7 @@ pub fn damage_stone(
             rng.gen_range(stone::MIN_STONE_RESPAWN_TIME_SECS..=stone::MAX_STONE_RESPAWN_TIME_SECS)
         };
         let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
-        stone.respawn_at = Some(respawn_time);
+        stone.respawn_at = respawn_time;
     }
     
     ctx.db.stone().id().update(stone);
@@ -1887,7 +1887,7 @@ pub fn damage_living_coral(
             rng.gen_range(MIN_LIVING_CORAL_RESPAWN_TIME_SECS..=MAX_LIVING_CORAL_RESPAWN_TIME_SECS)
         };
         let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
-        coral.respawn_at = Some(respawn_time);
+        coral.respawn_at = respawn_time;
         
         // Reset health and resources for next respawn
         coral.health = LIVING_CORAL_INITIAL_HEALTH;
@@ -3704,8 +3704,8 @@ fn resolve_knockback_collision(
 
     // Check against trees (solid collision)
     for tree in ctx.db.tree().iter() {
-        // Skip dead/respawning trees (respawn_at is set when tree is destroyed)
-        if tree.health == 0 || tree.respawn_at.is_some() { 
+        // Skip dead/respawning trees (respawn_at > UNIX_EPOCH when tree is destroyed)
+        if tree.health == 0 || tree.respawn_at > Timestamp::UNIX_EPOCH { 
             continue; 
         } 
         let tree_collision_center_y = tree.pos_y - TREE_COLLISION_Y_OFFSET;
@@ -3720,8 +3720,8 @@ fn resolve_knockback_collision(
     
     // Check against stones (solid collision)
     for stone in ctx.db.stone().iter() {
-        // Skip dead/respawning stones (respawn_at is set when stone is destroyed)
-        if stone.health == 0 || stone.respawn_at.is_some() { 
+        // Skip dead/respawning stones (respawn_at > UNIX_EPOCH when stone is destroyed)
+        if stone.health == 0 || stone.respawn_at > Timestamp::UNIX_EPOCH { 
             continue; 
         }
         let stone_collision_center_y = stone.pos_y - STONE_COLLISION_Y_OFFSET;

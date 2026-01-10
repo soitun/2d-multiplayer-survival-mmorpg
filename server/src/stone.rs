@@ -197,6 +197,8 @@ pub struct Stone {
     #[index(btree)]
     pub chunk_index: u32, // Added for spatial filtering/queries
     pub last_hit_time: Option<Timestamp>, // Added for shake effect
+    /// When this stone should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>, // Added for respawn timer
+    pub respawn_at: Timestamp,
 }

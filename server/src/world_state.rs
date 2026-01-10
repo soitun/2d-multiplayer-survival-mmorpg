@@ -1789,8 +1789,8 @@ fn is_campfire_near_tree(ctx: &ReducerContext, campfire: &Campfire) -> bool {
     const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius
     
     for tree in ctx.db.tree().iter() {
-        // Skip destroyed trees (respawn_at is set when tree is harvested)
-        if tree.respawn_at.is_some() {
+        // Skip destroyed trees (respawn_at > UNIX_EPOCH when tree is harvested)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
@@ -1885,11 +1885,11 @@ fn remove_non_seasonal_plant_respawns(ctx: &ReducerContext, new_season: &Season)
     
     // Get all harvestable resources with respawn timers
     for mut resource in ctx.db.harvestable_resource().iter() {
-        if resource.respawn_at.is_some() {
+        if resource.respawn_at > Timestamp::UNIX_EPOCH {
             // Check if this plant can grow in the new season
             if !crate::plants_database::can_grow_in_season(&resource.plant_type, new_season) {
                 // Remove the respawn timer - this plant won't come back until its season
-                resource.respawn_at = None;
+                resource.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
                 ctx.db.harvestable_resource().id().update(resource);
                 removed_count += 1;
             }

@@ -733,7 +733,8 @@ fn find_nearest_farm_target(ctx: &ReducerContext, crow_x: f32, crow_y: f32) -> O
         }
         
         // Skip resources that are already harvested (waiting for respawn)
-        if resource.respawn_at.is_some() {
+        // respawn_at > UNIX_EPOCH means a respawn time is set
+        if resource.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
@@ -777,8 +778,8 @@ fn try_destroy_harvestable_crop(ctx: &ReducerContext, crop_id: u64) -> bool {
     use spacetimedb::TimeDuration;
     
     if let Some(mut crop) = ctx.db.harvestable_resource().id().find(crop_id) {
-        // Only destroy if not already harvested
-        if crop.respawn_at.is_some() {
+        // Only destroy if not already harvested (respawn_at > UNIX_EPOCH means waiting to respawn)
+        if crop.respawn_at > Timestamp::UNIX_EPOCH {
             return false;
         }
         
@@ -786,7 +787,7 @@ fn try_destroy_harvestable_crop(ctx: &ReducerContext, crop_id: u64) -> bool {
         // The crop will eventually respawn but the player loses this harvest
         let respawn_delay_secs = 300; // 5 minutes respawn after crow destruction
         let respawn_time = ctx.timestamp + TimeDuration::from(Duration::from_secs(respawn_delay_secs));
-        crop.respawn_at = Some(respawn_time);
+        crop.respawn_at = respawn_time;
         ctx.db.harvestable_resource().id().update(crop.clone());
         
         log::info!("🐦🌾 Crow destroyed harvestable crop {:?} (ID: {}) at ({:.1}, {:.1})", 

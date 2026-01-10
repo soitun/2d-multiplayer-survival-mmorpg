@@ -1168,8 +1168,8 @@ pub fn should_player_have_tree_cover(ctx: &ReducerContext, player_x: f32, player
     const TREE_COVER_DISTANCE_SQ: f32 = 150.0 * 150.0; // 150px protection radius
     
     for tree in ctx.db.tree().iter() {
-        // Skip destroyed trees (respawn_at is set when tree is harvested)
-        if tree.respawn_at.is_some() {
+        // Skip destroyed trees (respawn_at > UNIX_EPOCH when tree is harvested)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
@@ -1485,8 +1485,8 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &crate::Player) -
     const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius
     
     for tree in ctx.db.tree().iter() {
-        // Skip destroyed trees (respawn_at is set when tree is harvested)
-        if tree.respawn_at.is_some() {
+        // Skip destroyed trees (respawn_at > UNIX_EPOCH when tree is harvested)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         

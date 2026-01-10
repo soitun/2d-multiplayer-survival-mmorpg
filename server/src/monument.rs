@@ -13,7 +13,7 @@
  *   - Allow easy extension for new monument types
  */
 
-use spacetimedb::{ReducerContext, Table};
+use spacetimedb::{ReducerContext, Table, Timestamp};
 use crate::shipwreck_part as ShipwreckPartTableTrait;
 use crate::fishing_village_part as FishingVillagePartTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
@@ -873,7 +873,7 @@ pub fn spawn_shipwreck_barrels(
                     health: BARREL_INITIAL_HEALTH,
                     variant,
                     last_hit_time: None,
-                    respawn_at: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Individual spawns, not clusters
                 };
                 

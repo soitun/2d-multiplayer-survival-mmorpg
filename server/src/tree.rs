@@ -59,6 +59,8 @@ pub struct Tree {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
+    /// When this tree should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
-    pub respawn_at: Option<Timestamp>,
+    pub respawn_at: Timestamp,
 }

@@ -490,8 +490,8 @@ fn is_sleeping_bag_protected(ctx: &ReducerContext, sleeping_bag: &SleepingBag) -
     
     // Check if within 100px of any tree (protected by tree cover)
     for tree in ctx.db.tree().iter() {
-        // Skip destroyed trees (respawn_at is set when tree is harvested)
-        if tree.respawn_at.is_some() {
+        // Skip destroyed trees (respawn_at > UNIX_EPOCH when tree is harvested)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         

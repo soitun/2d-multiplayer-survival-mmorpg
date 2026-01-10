@@ -1723,8 +1723,8 @@ pub fn is_campfire_protected_from_rain(ctx: &ReducerContext, campfire: &Campfire
     const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius
     
     for tree in ctx.db.tree().iter() {
-        // Skip destroyed trees (respawn_at is set when tree is harvested)
-        if tree.respawn_at.is_some() {
+        // Skip destroyed trees (respawn_at > UNIX_EPOCH when tree is harvested)
+        if tree.respawn_at > Timestamp::UNIX_EPOCH {
             continue;
         }
         
