@@ -343,7 +343,8 @@ function getCollisionCandidates(
   );
   
   for (const barrel of nearbyBarrels) {
-    if (barrel.respawnAt) continue; // Skip destroyed barrels
+    // Skip destroyed barrels (respawning)
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) continue;
     
     // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
     const variantIndex = Number(barrel.variant ?? 0);
@@ -461,7 +462,7 @@ function getCollisionCandidates(
     
     for (const coral of nearbyCorals) {
       // Skip corals that are respawning (fully harvested)
-      if (coral.respawnAt !== undefined) continue;
+      if (coral.respawnAt && coral.respawnAt.microsSinceUnixEpoch !== 0n) continue;
       
       shapes.push({
         id: coral.id.toString(),

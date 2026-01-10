@@ -21,7 +21,8 @@ export function isHarvestableResource(entity: any): entity is HarvestableResourc
          entity.plantType &&
          typeof entity.plantType.tag === 'string' &&
          // The plantType.tag should be a valid PlantType tag (automatically validated by TypeScript)
-         (entity.respawnAt === null || entity.respawnAt instanceof Date || typeof entity.respawnAt === 'undefined');
+         // respawnAt is now always a Timestamp object (with microsSinceUnixEpoch)
+         (entity.respawnAt === null || entity.respawnAt === undefined || typeof entity.respawnAt?.microsSinceUnixEpoch === 'bigint');
 }
 
 // Helper to get resource type from entity

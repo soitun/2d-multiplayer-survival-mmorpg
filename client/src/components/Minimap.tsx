@@ -931,7 +931,7 @@ export function drawMinimapOntoCanvas({
   // Critical for predicting enemy movement and ambush points
   trees.forEach(tree => {
     // Only show trees that aren't destroyed or respawning
-    if (tree.health <= 0 || tree.respawnAt !== undefined) return;
+    if (tree.health <= 0 || (tree.respawnAt && tree.respawnAt.microsSinceUnixEpoch !== 0n)) return;
     
     const screenCoords = worldToMinimap(tree.posX, tree.posY);
     if (screenCoords) {
@@ -970,7 +970,7 @@ export function drawMinimapOntoCanvas({
   // "Enemy behind the rock cluster at C7" - critical callout points
   stones.forEach(stone => { // Use stones prop (type SpacetimeDBStone)
     // Only show stones that aren't destroyed or respawning
-    if (stone.health <= 0 || stone.respawnAt !== undefined) return;
+    if (stone.health <= 0 || (stone.respawnAt && stone.respawnAt.microsSinceUnixEpoch !== 0n)) return;
     
     const screenCoords = worldToMinimap(stone.posX, stone.posY);
     if (screenCoords) {
@@ -1004,7 +1004,7 @@ export function drawMinimapOntoCanvas({
   if (livingCorals) {
     livingCorals.forEach(coral => {
       // Only show corals that have health and aren't respawning
-      if (coral.health <= 0 || coral.respawnAt !== undefined) return;
+      if (coral.health <= 0 || (coral.respawnAt && coral.respawnAt.microsSinceUnixEpoch !== 0n)) return;
       
       const screenCoords = worldToMinimap(coral.posX, coral.posY);
       if (screenCoords) {

@@ -7,8 +7,8 @@ export function isEntityInView(entity: any, bounds: ViewportBounds, currentTime:
     return false;
   }
 
-  // Skip respawning entities
-  if (entity.respawnAt !== null && entity.respawnAt !== undefined) {
+  // Skip respawning entities (respawnAt > 0 means entity is destroyed/harvested)
+  if (entity.respawnAt && entity.respawnAt.microsSinceUnixEpoch !== 0n) {
     return false;
   }
 

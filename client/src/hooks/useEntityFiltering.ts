@@ -1,5 +1,17 @@
 import { useMemo, useCallback } from 'react';
+import { Timestamp } from 'spacetimedb';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
+
+/**
+ * Helper to check if a respawnAt timestamp indicates the entity is NOT respawning.
+ * After the schema change, respawnAt is always a Timestamp.
+ * UNIX_EPOCH (microsSinceUnixEpoch === 0n) means "not respawning" (alive/available).
+ * Any positive value means "respawning" (destroyed/harvested, waiting to respawn).
+ */
+export const isNotRespawning = (respawnAt: Timestamp | null | undefined): boolean => {
+  if (respawnAt === null || respawnAt === undefined) return true;
+  return respawnAt.microsSinceUnixEpoch === 0n;
+};
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -866,7 +878,8 @@ export function useEntityFiltering(
         // Include tree if it has health OR if it's currently falling
         // Destroyed trees (health === 0) are only shown during their falling animation
         const isFalling = isTreeFalling ? isTreeFalling(tree.id.toString()) : false;
-        const isDestroyed = tree.respawnAt !== null && tree.respawnAt !== undefined;
+        // respawnAt > 0 (not UNIX_EPOCH) means tree is destroyed and respawning
+        const isDestroyed = !isNotRespawning(tree.respawnAt);
         
         // Show tree if: it has health, OR (it's falling AND destroyed)
         // Explicitly exclude destroyed trees that are not falling (similar to resources)
@@ -903,7 +916,7 @@ export function useEntityFiltering(
       PERFORMANCE_MODE.RESOURCE_CULL_DISTANCE_SQ,
       PERFORMANCE_MODE.MAX_RESOURCES_PER_FRAME,
       playerPos,
-      (resource) => (resource.respawnAt === null || resource.respawnAt === undefined) && 
+      (resource) => isNotRespawning(resource.respawnAt) && 
                     isEntityInView(resource, viewBounds, stableTimestamp)
     );
   }, [harvestableResources, playerPos, viewBounds, stableTimestamp, frameCounter]);
@@ -1152,7 +1165,7 @@ export function useEntityFiltering(
 
   const visibleBarrels = useMemo(() => 
     barrels ? Array.from(barrels.values()).filter(e => 
-      !e.respawnAt && isEntityInView(e, viewBounds, stableTimestamp) // Don't show if respawning (destroyed)
+      isNotRespawning(e.respawnAt) && isEntityInView(e, viewBounds, stableTimestamp) // Don't show if respawning (destroyed)
     ) : [],
     [barrels, isEntityInView, viewBounds, stableTimestamp]
   );
@@ -1256,7 +1269,7 @@ export function useEntityFiltering(
   // Living corals filtering - underwater coral reefs (uses combat system)
   const visibleLivingCorals = useMemo(() =>
     livingCorals ? Array.from(livingCorals.values()).filter(e => 
-      !e.respawnAt && isEntityInView(e, viewBounds, stableTimestamp) // Skip if respawning (fully harvested)
+      isNotRespawning(e.respawnAt) && isEntityInView(e, viewBounds, stableTimestamp) // Skip if respawning (fully harvested)
     ) : [],
     [livingCorals, isEntityInView, viewBounds, stableTimestamp]
   );

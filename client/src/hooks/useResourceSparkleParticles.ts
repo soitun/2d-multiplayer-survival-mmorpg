@@ -96,7 +96,8 @@ export function useResourceSparkleParticles({
             if (harvestableResources) {
                 harvestableResources.forEach((resource, resourceId) => {
                     // Only generate sparkles for harvestable resources (not respawning)
-                    if (resource.respawnAt !== null && resource.respawnAt !== undefined) {
+                    // respawnAt > 0 means the resource is destroyed/harvested
+                    if (resource.respawnAt && resource.respawnAt.microsSinceUnixEpoch !== 0n) {
                         // Reset accumulator for respawning resources
                         emissionAccumulatorRef.current.set(`harvestable_${resourceId}`, 0);
                         return;

@@ -22,8 +22,8 @@ export interface InteractableTarget {
         isDead?: boolean;
         // For campfires
         isBurning?: boolean;
-        // For resources
-        respawnAt?: number | null;
+        // For resources - respawnAt is a Timestamp object with microsSinceUnixEpoch
+        respawnAt?: { microsSinceUnixEpoch: bigint } | null;
         // Generic additional properties
         [key: string]: any;
     };
@@ -384,7 +384,8 @@ export function isTargetValid(target: InteractableTarget): boolean {
         case 'knocked_out_player':
             return target.data?.isKnockedOut === true && target.data?.isDead !== true;
         case 'harvestable_resource':
-            return target.data?.respawnAt === null || target.data?.respawnAt === undefined;
+            // respawnAt === 0n (UNIX_EPOCH) means NOT respawning (available)
+            return !target.data?.respawnAt || target.data?.respawnAt?.microsSinceUnixEpoch === 0n;
         default:
             return true;
     }

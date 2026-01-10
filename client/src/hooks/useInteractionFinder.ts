@@ -361,7 +361,8 @@ export function useInteractionFinder({
             // Find closest harvestable resource (generic unified system)
             if (harvestableResources) {
                 harvestableResources.forEach((resource) => {
-                    if (resource.respawnAt !== null && resource.respawnAt !== undefined) return;
+                    // Check if resource is respawning (not available)
+                    if (resource.respawnAt && resource.respawnAt.microsSinceUnixEpoch !== 0n) return;
                     
                     // Get resource type and configuration
                     const plantType = resource.plantType?.tag as ResourceType;

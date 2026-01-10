@@ -148,8 +148,8 @@ export function createResourceGroundConfig(resourceType: ResourceType): GroundEn
   
   return {
     getImageSource: (entity) => {
-      // Don't render if respawning
-      if (entity.respawnAt) return null;
+      // Don't render if respawning (respawnAt > 0 means entity is destroyed/harvested)
+      if (entity.respawnAt && entity.respawnAt.microsSinceUnixEpoch !== 0n) return null;
       return config.imageSource;
     },
     

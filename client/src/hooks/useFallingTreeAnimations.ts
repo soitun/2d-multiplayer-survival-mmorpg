@@ -57,9 +57,10 @@ export function useFallingTreeAnimations(trees: Map<string, Tree>) {
           // Detect when a tree is newly destroyed (respawnAt just got set and health is 0)
           // IMPORTANT: Only animate if we SAW the tree healthy before (prevState exists and health > 0)
           // Don't animate trees that are already destroyed when we first load them
+          // respawnAt > 0 (not UNIX_EPOCH) means the tree is destroyed/respawning
           const isNewlyDestroyed = tree.health === 0 && 
-                                   tree.respawnAt !== undefined && 
-                                   tree.respawnAt !== null &&
+                                   tree.respawnAt && 
+                                   tree.respawnAt.microsSinceUnixEpoch !== 0n &&
                                    prevState !== undefined && // We must have seen this tree before
                                    prevState.health > 0; // And it was healthy last time we saw it
 

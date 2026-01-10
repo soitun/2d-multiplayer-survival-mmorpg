@@ -448,7 +448,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         if (trees) {
             for (const tree of Array.from(trees.values())) {
-                if (tree.respawnAt !== null && tree.respawnAt !== undefined) continue;
+                // Skip trees that are respawning (destroyed)
+                if (tree.respawnAt && tree.respawnAt.microsSinceUnixEpoch !== 0n) continue;
                 
                 const dx = currentCampfire.posX - tree.posX;
                 const dy = currentCampfire.posY - tree.posY;

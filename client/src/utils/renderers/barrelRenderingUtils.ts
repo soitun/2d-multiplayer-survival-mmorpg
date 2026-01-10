@@ -46,8 +46,9 @@ const lastKnownServerBarrelShakeTimes = new Map<string, number>();
 // --- Define Configuration --- 
 const barrelConfig: GroundEntityConfig<Barrel> = {
     getImageSource: (entity) => {
-        if (entity.respawnAt) {
-            return null; // Don't render if respawning (destroyed)
+        // Don't render if respawning (respawnAt > 0 means barrel is destroyed)
+        if (entity.respawnAt && entity.respawnAt.microsSinceUnixEpoch !== 0n) {
+            return null;
         }
         
         // Select barrel variant based on entity.variant field
@@ -89,7 +90,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
 
     drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
         // Draw DYNAMIC ground shadow if not destroyed/respawning
-        if (!entity.respawnAt) {
+        if (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n) {
             // Calculate shake offsets for shadow synchronization using helper function
             const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
                 entity,
@@ -132,7 +133,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
         let shakeOffsetX = 0;
         let shakeOffsetY = 0;
 
-        if (entity.lastHitTime && !entity.respawnAt) {
+        if (entity.lastHitTime && (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n)) {
             const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
             const elapsedSinceHit = nowMs - lastHitTimeMs;
 
@@ -193,7 +194,8 @@ export function renderBarrelHealthBar(
     playerX?: number,
     playerY?: number
 ): void {
-    if (barrel.respawnAt) return;
+    // Don't render health bar if barrel is respawning (destroyed)
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
     
     const dims = getBarrelDimensions(Number(barrel.variant ?? 0));
     const pX = playerX ?? currentPlayerX;
@@ -277,7 +279,8 @@ function renderSeaBarrelWithWaterEffects(
     nowMs: number,
     cycleProgress: number
 ): void {
-    if (barrel.respawnAt) return; // Don't render if destroyed
+    // Don't render if barrel is respawning (destroyed)
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
     
     const variantIndex = Number(barrel.variant ?? 0);
     const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
@@ -463,7 +466,7 @@ export function renderBarrel(
     const isSeaVariant = isSeaBarrelVariant(variantIndex);
     const actuallyOnSea = isOnSeaTile ? isOnSeaTile(barrel.posX, barrel.posY) : isSeaVariant;
     
-    if (isSeaVariant && actuallyOnSea && !barrel.respawnAt) {
+    if (isSeaVariant && actuallyOnSea && (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n)) {
         // Sea barrel rendering includes health bar
         renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress);
         return;
@@ -481,7 +484,7 @@ export function renderBarrel(
     });
     
     // Render health bar for land barrels (sea barrels render their own in renderSeaBarrelWithWaterEffects)
-    if (!barrel.respawnAt) {
+    if (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n) {
         renderBarrelHealthBar(ctx, barrel, nowMs, playerX, playerY);
     }
 }

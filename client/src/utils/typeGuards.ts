@@ -51,7 +51,7 @@ export function isTree(entity: any): entity is Tree {
          typeof entity.posY === 'number' &&
          typeof entity.id !== 'undefined' &&
          typeof entity.chunkIndex === 'number' &&
-         (entity.respawnAt === null || entity.respawnAt instanceof Date || typeof entity.respawnAt === 'undefined');
+         (entity.respawnAt === null || entity.respawnAt === undefined || typeof entity.respawnAt?.microsSinceUnixEpoch === 'bigint');
 }
 
 // Type guard for Stone
@@ -61,7 +61,7 @@ export function isStone(entity: any): entity is Stone {
          typeof entity.posY === 'number' &&
          typeof entity.id !== 'undefined' &&
          typeof entity.chunkIndex === 'number' &&
-         (entity.respawnAt === null || entity.respawnAt instanceof Date || typeof entity.respawnAt === 'undefined');
+         (entity.respawnAt === null || entity.respawnAt === undefined || typeof entity.respawnAt?.microsSinceUnixEpoch === 'bigint');
 }
 
 // Type guard for Campfire
@@ -151,7 +151,7 @@ export function isGrass(entity: any): entity is Grass {
          typeof entity.posY === 'number' &&
          typeof entity.id !== 'undefined' &&
          typeof entity.chunkIndex === 'number' &&
-         (entity.respawnAt === null || entity.respawnAt instanceof Date || typeof entity.respawnAt === 'undefined');
+         (entity.respawnAt === null || entity.respawnAt === undefined || typeof entity.respawnAt?.microsSinceUnixEpoch === 'bigint');
 }
 
 export function isShelter(entity: any): entity is Shelter {

@@ -312,7 +312,7 @@ export function renderAttackRangeDebug(
   // Draw attack lines to trees
   if (trees) {
     trees.forEach((tree) => {
-      if (tree.respawnAt) return;
+      if (tree.respawnAt && tree.respawnAt.microsSinceUnixEpoch !== 0n) return;
       drawAttackLine(ctx, playerX, playerY, tree.posX, tree.posY, equippedRange, facingAngle, equippedHalfArc);
     });
   }
@@ -320,7 +320,7 @@ export function renderAttackRangeDebug(
   // Draw attack lines to stones
   if (stones) {
     stones.forEach((stone) => {
-      if (stone.respawnAt) return;
+      if (stone.respawnAt && stone.respawnAt.microsSinceUnixEpoch !== 0n) return;
       drawAttackLine(ctx, playerX, playerY, stone.posX, stone.posY, equippedRange, facingAngle, equippedHalfArc);
     });
   }
@@ -345,7 +345,7 @@ export function renderAttackRangeDebug(
   // Draw attack lines to barrels
   if (barrels) {
     barrels.forEach((barrel) => {
-      if (barrel.respawnAt) return; // Skip destroyed/respawning barrels
+      if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return; // Skip destroyed/respawning barrels
       drawAttackLine(ctx, playerX, playerY, barrel.posX, barrel.posY, equippedRange, facingAngle, equippedHalfArc);
     });
   }
@@ -353,7 +353,7 @@ export function renderAttackRangeDebug(
   // Draw attack lines to grass
   if (grass) {
     grass.forEach((grassEntity) => {
-      if (grassEntity.respawnAt) return; // Skip respawning grass
+      if (grassEntity.respawnAt && grassEntity.respawnAt.microsSinceUnixEpoch !== 0n) return; // Skip respawning grass
       // Raw grass entities from SpacetimeDB use posX/posY (not serverPosX/serverPosY)
       // serverPosX/serverPosY are only added by the interpolation hook for rendering
       const grassX = grassEntity.posX;

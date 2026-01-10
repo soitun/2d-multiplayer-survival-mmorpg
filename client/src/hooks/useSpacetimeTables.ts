@@ -866,7 +866,7 @@ export const useSpacetimeTables = ({
                     Math.abs(oldTree.posY - newTree.posY) > 0.1 ||  // Position changed significantly  
                     Math.abs(oldTree.health - newTree.health) > 0.1 || // Health changed significantly
                     oldTree.treeType !== newTree.treeType ||         // Tree type changed
-                    (oldTree.respawnAt === null) !== (newTree.respawnAt === null); // Respawn state changed
+                    (oldTree.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newTree.respawnAt?.microsSinceUnixEpoch ?? 0n); // Respawn state changed
 
                 if (visuallySignificant) {
                     setTrees(prev => new Map(prev).set(newTree.id.toString(), newTree));
@@ -883,7 +883,7 @@ export const useSpacetimeTables = ({
                     Math.abs(oldStone.posX - newStone.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldStone.posY - newStone.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldStone.health - newStone.health) > 0.1 || // Health changed significantly
-                    (oldStone.respawnAt === null) !== (newStone.respawnAt === null); // Respawn state changed
+                    (oldStone.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newStone.respawnAt?.microsSinceUnixEpoch ?? 0n); // Respawn state changed
 
                 if (visuallySignificant) {
                     setStones(prev => new Map(prev).set(newStone.id.toString(), newStone));
@@ -1050,7 +1050,7 @@ export const useSpacetimeTables = ({
             const handleHarvestableResourceUpdate = (ctx: any, oldResource: SpacetimeDB.HarvestableResource, newResource: SpacetimeDB.HarvestableResource) => {
                 const changed = oldResource.posX !== newResource.posX ||
                     oldResource.posY !== newResource.posY ||
-                    oldResource.respawnAt !== newResource.respawnAt;
+                    (oldResource.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newResource.respawnAt?.microsSinceUnixEpoch ?? 0n);
                 if (changed) {
                     setHarvestableResources(prev => new Map(prev).set(newResource.id.toString(), newResource));
                 }
@@ -1738,7 +1738,7 @@ export const useSpacetimeTables = ({
                     Math.abs(oldBarrel.posY - newBarrel.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldBarrel.health - newBarrel.health) > 0.1 || // Health changed significantly
                     oldBarrel.variant !== newBarrel.variant ||           // Barrel variant changed
-                    (oldBarrel.respawnAt === null) !== (newBarrel.respawnAt === null); // Respawn state changed
+                    (oldBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n); // Respawn state changed
 
                 if (visuallySignificant) {
                     setBarrels(prev => new Map(prev).set(newBarrel.id.toString(), newBarrel));
@@ -1889,7 +1889,7 @@ export const useSpacetimeTables = ({
                     Math.abs(oldCoral.posX - newCoral.posX) > 0.1 ||
                     Math.abs(oldCoral.posY - newCoral.posY) > 0.1 ||
                     oldCoral.resourceRemaining !== newCoral.resourceRemaining || // Resource amount changed
-                    (oldCoral.respawnAt === undefined) !== (newCoral.respawnAt === undefined); // Respawn state changed
+                    (oldCoral.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newCoral.respawnAt?.microsSinceUnixEpoch ?? 0n); // Respawn state changed
                 if (visuallySignificant) {
                     setLivingCorals(prev => new Map(prev).set(newCoral.id.toString(), newCoral));
                 }

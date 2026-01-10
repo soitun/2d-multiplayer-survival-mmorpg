@@ -199,7 +199,7 @@ export function renderLivingCoral(
     cycleProgress: number
 ): void {
     // Don't render if coral is respawning (depleted)
-    if (coral.respawnAt !== undefined && coral.respawnAt !== null) {
+    if (coral.respawnAt && coral.respawnAt.microsSinceUnixEpoch !== 0n) {
         return;
     }
     
