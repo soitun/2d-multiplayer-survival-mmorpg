@@ -748,10 +748,31 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             
                             // DEBUG: Log all hostile NPCs in Chasing state to see why structure attacks aren't triggering
                             if animal.is_hostile_npc {
-                                log::info!("👹 [HostileNPC DEBUG] {:?} {} in Chasing state - is_inside_building={}, species_can_attack_structures={}", 
-                                    animal.species, animal.id, 
+                                // Also check if player is ACTUALLY inside any shelter (direct check)
+                                let mut actual_shelter_check = false;
+                                for shelter in ctx.db.shelter().iter() {
+                                    if !shelter.is_destroyed && crate::shelter::is_player_inside_shelter(
+                                        target_player.position_x, target_player.position_y, &shelter
+                                    ) {
+                                        actual_shelter_check = true;
+                                        log::info!("👹 [SHELTER DEBUG] Player {} IS inside Shelter {} (pos {:.1},{:.1}) - AABB center at ({:.1},{:.1})", 
+                                            target_id, shelter.id, 
+                                            target_player.position_x, target_player.position_y,
+                                            shelter.pos_x, shelter.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y);
+                                        break;
+                                    }
+                                }
+                                
+                                log::info!("👹 [HostileNPC DEBUG] {:?} {} at ({:.1},{:.1}) in Chasing state - player.is_inside_building={}, actual_shelter_check={}, species_can_attack={}", 
+                                    animal.species, animal.id, animal.pos_x, animal.pos_y,
                                     target_player.is_inside_building,
+                                    actual_shelter_check,
                                     matches!(animal.species, AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch));
+                                
+                                // If there's a mismatch, log it as a critical issue
+                                if actual_shelter_check && !target_player.is_inside_building {
+                                    log::error!("🚨 [BUG] Player {} is INSIDE shelter but is_inside_building is FALSE! Wet.rs update may not be running!", target_id);
+                                }
                             }
                             
                             if animal.is_hostile_npc && target_player.is_inside_building {
@@ -763,7 +784,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 // Don't require can_attack() here - we're just switching states
                                 if can_attack_structures {
                                     // Look for nearby structures to attack (doors prioritized)
-                                    const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
+                                    // IMPORTANT: Search range must be larger than shelter collision box
+                                    // Shelter AABB is ~300x125px, so hostile blocked at edge is ~150-200px from center
+                                    // Use 400px to ensure hostiles can always find the shelter they're blocked by
+                                    const STRUCTURE_SEARCH_RANGE: f32 = 400.0;
                                     let structure_result = crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
                                         ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
                                     );
@@ -834,7 +858,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             let dx = sx - animal.pos_x;
                             let dy = sy - animal.pos_y;
                             let dist_sq = dx * dx + dy * dy;
-                            const STRUCTURE_ATTACK_RANGE: f32 = 80.0;
+                            // IMPORTANT: Attack range must be larger than shelter collision box
+                            // Shelter AABB is ~300x125px centered ~150px from edges
+                            // Hostile blocked at edge needs ~200px range to hit AABB center
+                            const STRUCTURE_ATTACK_RANGE: f32 = 200.0;
                             dist_sq <= STRUCTURE_ATTACK_RANGE * STRUCTURE_ATTACK_RANGE
                         } else {
                             false // Structure not found
@@ -1335,8 +1362,9 @@ fn execute_animal_movement(
                     let dy = target_y - animal.pos_y;
                     let dist = (dx * dx + dy * dy).sqrt();
                     
-                    // Move toward structure if not in melee range (80px)
-                    const STRUCTURE_ATTACK_RANGE: f32 = 80.0;
+                    // Move toward structure if not in attack range
+                    // Range is 200px to allow attacking from outside shelter collision box
+                    const STRUCTURE_ATTACK_RANGE: f32 = 200.0;
                     if dist > STRUCTURE_ATTACK_RANGE {
                         // Normalize direction and move
                         let move_speed = stats.sprint_speed; // Use sprint speed when attacking

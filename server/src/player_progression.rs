@@ -183,6 +183,9 @@ pub struct PlayerStats {
     // Shard Apparition tracking (Void manifestations - separate from regular animals)
     pub apparitions_banished: u32, // Total shard apparitions killed
     
+    // Venom tracking (Cable Viper bites)
+    pub venom_bites: u32,           // Total times bitten by Cable Vipers (venom effect applied)
+    
     // Insanity tracking (for achievements)
     pub max_insanity_reached: f32,   // Highest insanity % ever reached (0.0-100.0)
     pub times_entrained: u32,        // How many times player reached 100% insanity (Entrainment)
@@ -383,6 +386,7 @@ pub fn get_or_init_player_stats(ctx: &ReducerContext, player_id: Identity) -> Pl
         barrels_destroyed: 0,
         brews_completed: 0,
         apparitions_banished: 0,
+        venom_bites: 0,
         max_insanity_reached: 0.0,
         times_entrained: 0,
         insanity_thresholds_crossed: 0,
@@ -531,6 +535,8 @@ pub fn track_stat_and_check_achievements(
         "brews_completed" => stats.brews_completed += amount as u32,
         // Shard Apparitions (Void manifestations)
         "apparitions_banished" => stats.apparitions_banished += amount as u32,
+        // Venom bites (Cable Viper attacks)
+        "venom_bites" => stats.venom_bites += amount as u32,
         // Walrus taming (boolean, set to true if any amount)
         "walrus_tamed" => stats.walrus_tamed = true,
         _ => {
@@ -734,6 +740,13 @@ pub fn check_achievements(ctx: &ReducerContext, player_id: Identity) -> Result<(
             "apparitions_250" => stats.apparitions_banished >= 250,
             "apparitions_500" => stats.apparitions_banished >= 500,
             "apparitions_1000" => stats.apparitions_banished >= 1000,
+            
+            // === VENOM BITE ACHIEVEMENTS (Cable Viper attacks) ===
+            "first_venom_bite" => stats.venom_bites >= 1,
+            "venom_bites_5" => stats.venom_bites >= 5,
+            "venom_bites_10" => stats.venom_bites >= 10,
+            "venom_bites_25" => stats.venom_bites >= 25,
+            "venom_bites_50" => stats.venom_bites >= 50,
             
             // === INSANITY / SOVA ACHIEVEMENTS ===
             // Threshold-based (uses bitmask: bit 0=25%, bit 1=50%, bit 2=75%, bit 3=90%, bit 4=100%)
@@ -2033,6 +2046,54 @@ pub fn seed_achievements(ctx: &ReducerContext) -> Result<(), String> {
             xp_reward: 2000,
             title_reward: Some("Void Annihilator".to_string()),
             category: AchievementCategory::Combat,
+        },
+        
+        // === VENOM SURVIVAL ACHIEVEMENTS (Cable Viper attacks cured with Anti-Venom) ===
+        // Themed around surviving the deadly Cable Viper venom by using Anti-Venom
+        AchievementDefinition {
+            id: "first_venom_bite".to_string(),
+            name: "First Sting".to_string(),
+            description: "Cure your first Cable Viper bite with Anti-Venom - you live to fight another day".to_string(),
+            icon: "🐍".to_string(),
+            xp_reward: 25,
+            title_reward: None,
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "venom_bites_5".to_string(),
+            name: "Venom Survivor".to_string(),
+            description: "Cure 5 Cable Viper bites - always keep Anti-Venom handy".to_string(),
+            icon: "💉".to_string(),
+            xp_reward: 75,
+            title_reward: None,
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "venom_bites_10".to_string(),
+            name: "Snake Charmer".to_string(),
+            description: "Cure 10 Cable Viper bites - the vipers can't keep you down".to_string(),
+            icon: "🐍".to_string(),
+            xp_reward: 150,
+            title_reward: Some("Snake Charmer".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "venom_bites_25".to_string(),
+            name: "Venom Resistant".to_string(),
+            description: "Cure 25 Cable Viper bites - you know the antidote by heart".to_string(),
+            icon: "🛡️".to_string(),
+            xp_reward: 300,
+            title_reward: Some("Venom Resistant".to_string()),
+            category: AchievementCategory::Survival,
+        },
+        AchievementDefinition {
+            id: "venom_bites_50".to_string(),
+            name: "Viper's Bane".to_string(),
+            description: "Cure 50 Cable Viper bites - you've mastered survival against the deadliest snakes".to_string(),
+            icon: "⚔️".to_string(),
+            xp_reward: 500,
+            title_reward: Some("Viper's Bane".to_string()),
+            category: AchievementCategory::Survival,
         },
         
         // === INSANITY / SOVA ACHIEVEMENTS ===

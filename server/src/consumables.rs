@@ -280,8 +280,21 @@ pub fn apply_item_effects_and_consume(
     if item_def.name == "Anti-Venom" {
         log::info!("[EffectsHelper] Player {:?} using Anti-Venom. Curing all venom effects.", player_id);
         
+        // Count how many venom effects are being cured (for achievement tracking)
+        let venom_effects_cured = ctx.db.active_consumable_effect().iter()
+            .filter(|e| e.player_id == player_id && e.effect_type == crate::active_effects::EffectType::Venom)
+            .count() as u64;
+        
         // Cancel all active venom effects
         crate::active_effects::cancel_venom_effects(ctx, player_id);
+        
+        // Track venom survival for achievements (only if there were venom effects to cure)
+        if venom_effects_cured > 0 {
+            if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "venom_bites", venom_effects_cured) {
+                log::warn!("Failed to track venom survival stat: {}", e);
+            }
+            log::info!("[EffectsHelper] Player {:?} survived {} venom effects! Achievement tracking updated.", player_id, venom_effects_cured);
+        }
         
         // Apply instant effects (health boost and stamina boost)
         apply_instant_effects_for_helper(ctx, item_def, player_id, player_to_update, &mut stat_changed_instantly);

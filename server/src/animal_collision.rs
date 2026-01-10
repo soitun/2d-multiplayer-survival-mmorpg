@@ -916,7 +916,7 @@ pub fn can_animal_move_to_position(
 // the attack should not connect.
 // ==========================================================================
 
-/// Check if there's a clear line of sight between two points (no walls or closed doors blocking)
+/// Check if there's a clear line of sight between two points (no walls, closed doors, or shelters blocking)
 /// Returns true if line of sight is CLEAR (no obstacles), false if BLOCKED
 pub fn has_clear_line_of_sight(
     ctx: &ReducerContext,
@@ -935,6 +935,123 @@ pub fn has_clear_line_of_sight(
         return false;
     }
     
+    // If shelter blocks the path, LOS is blocked
+    // This prevents hostile NPCs from attacking players inside shelters
+    if check_shelter_line_collision(ctx, from_x, from_y, to_x, to_y) {
+        return false;
+    }
+    
     // No obstacles - clear line of sight
     true
+}
+
+/// Check if a line segment passes through any shelter collision box
+/// Returns true if the line is BLOCKED by a shelter, false if clear
+fn check_shelter_line_collision(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+) -> bool {
+    for shelter in ctx.db.shelter().iter() {
+        if shelter.is_destroyed {
+            continue;
+        }
+        
+        // Calculate shelter AABB bounds
+        let shelter_aabb_center_x = shelter.pos_x;
+        let shelter_aabb_center_y = shelter.pos_y - SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y;
+        let aabb_left = shelter_aabb_center_x - SHELTER_AABB_HALF_WIDTH;
+        let aabb_right = shelter_aabb_center_x + SHELTER_AABB_HALF_WIDTH;
+        let aabb_top = shelter_aabb_center_y - SHELTER_AABB_HALF_HEIGHT;
+        let aabb_bottom = shelter_aabb_center_y + SHELTER_AABB_HALF_HEIGHT;
+        
+        // Check if start point is inside shelter (attacker inside)
+        let start_inside = start_x >= aabb_left && start_x <= aabb_right && 
+                          start_y >= aabb_top && start_y <= aabb_bottom;
+        
+        // Check if end point is inside shelter (target inside)
+        let end_inside = end_x >= aabb_left && end_x <= aabb_right && 
+                        end_y >= aabb_top && end_y <= aabb_bottom;
+        
+        // If BOTH points are inside the same shelter, LOS is clear (same shelter)
+        if start_inside && end_inside {
+            continue;
+        }
+        
+        // If one is inside and one is outside, the shelter wall blocks LOS
+        if start_inside != end_inside {
+            log::debug!("[LOS] Shelter {} blocks attack - attacker_inside={}, target_inside={}", 
+                shelter.id, start_inside, end_inside);
+            return true; // Blocked
+        }
+        
+        // If both are outside, check if line passes through the shelter
+        if line_intersects_aabb(start_x, start_y, end_x, end_y, aabb_left, aabb_right, aabb_top, aabb_bottom) {
+            log::debug!("[LOS] Shelter {} blocks attack - line passes through", shelter.id);
+            return true; // Blocked
+        }
+    }
+    
+    false // No shelter blocks the line
+}
+
+/// Check if a line segment intersects with an AABB
+fn line_intersects_aabb(
+    x1: f32, y1: f32, x2: f32, y2: f32,
+    left: f32, right: f32, top: f32, bottom: f32
+) -> bool {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    
+    // If line is a point, check if it's inside the AABB
+    if dx.abs() < 0.001 && dy.abs() < 0.001 {
+        return x1 >= left && x1 <= right && y1 >= top && y1 <= bottom;
+    }
+    
+    let mut t_min: f32 = 0.0;
+    let mut t_max: f32 = 1.0;
+    
+    // Check X bounds
+    if dx.abs() > 0.001 {
+        let t1 = (left - x1) / dx;
+        let t2 = (right - x1) / dx;
+        let t_near = t1.min(t2);
+        let t_far = t1.max(t2);
+        
+        t_min = t_min.max(t_near);
+        t_max = t_max.min(t_far);
+        
+        if t_min > t_max {
+            return false;
+        }
+    } else {
+        // Line is vertical, check if it's within X bounds
+        if x1 < left || x1 > right {
+            return false;
+        }
+    }
+    
+    // Check Y bounds
+    if dy.abs() > 0.001 {
+        let t1 = (top - y1) / dy;
+        let t2 = (bottom - y1) / dy;
+        let t_near = t1.min(t2);
+        let t_far = t1.max(t2);
+        
+        t_min = t_min.max(t_near);
+        t_max = t_max.min(t_far);
+        
+        if t_min > t_max {
+            return false;
+        }
+    } else {
+        // Line is horizontal, check if it's within Y bounds
+        if y1 < top || y1 > bottom {
+            return false;
+        }
+    }
+    
+    true // Line intersects AABB
 } 
