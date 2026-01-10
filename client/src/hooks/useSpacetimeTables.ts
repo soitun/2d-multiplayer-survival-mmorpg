@@ -1674,6 +1674,16 @@ export const useSpacetimeTables = ({
             // instead of all ~100 animals on the entire map
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 setWildAnimals(prev => new Map(prev).set(animal.id.toString(), animal));
+                
+                // SOVA Tutorial: First Hostile Encounter
+                // Trigger when the player first sees a hostile NPC at night
+                if (animal.isHostileNpc) {
+                    const storageKey = 'broth_first_hostile_encounter_played';
+                    if (localStorage.getItem(storageKey) !== 'true') {
+                        console.log('[useSpacetimeTables] 👹 First hostile NPC detected! Dispatching tutorial event');
+                        window.dispatchEvent(new CustomEvent('sova-first-hostile-encounter'));
+                    }
+                }
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
                 trackSubUpdate('wildAnimal_update');

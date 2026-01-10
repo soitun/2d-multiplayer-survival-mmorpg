@@ -9,6 +9,7 @@
  * - Tutorial hint (3.5 minutes after spawn)
  * - First resource interaction tutorial (event-driven)
  * - Memory shard tutorial (event-driven)
+ * - First hostile encounter tutorial (event-driven) - warns about night apparitions
  * 
  * All tutorials:
  * - Are played only once per player (persisted to localStorage)
@@ -70,6 +71,13 @@ const TUTORIALS = {
         audioFile: '/sounds/sova_memory_shard_tutorial.mp3',
         soundBoxLabel: 'SOVA: Memory Shard Warning',
         eventName: 'sova-memory-shard-tutorial',
+    },
+    firstHostileEncounter: {
+        storageKey: 'broth_first_hostile_encounter_played',
+        audioFile: '/sounds/sova_first_hostile_encounter.mp3',
+        soundBoxLabel: 'SOVA: Neural Resonance Detected',
+        eventName: 'sova-first-hostile-encounter',
+        message: `Wait... I'm picking up something strange. Neural resonance patterns—fragmented, hostile. They're not quite... real. More like echoes. Apparitions formed from collective fear and fractured memories. They sense vulnerable minds—yours is lit up like a beacon right now. Shelter can block their attacks, but don't get comfortable. Stay too long in one place and the larger ones will start tearing through your walls. Your best options? Keep moving until dawn, or stand your ground and fight. They can be killed. They're not invincible—just relentless.`,
     },
 } as const;
 
@@ -327,6 +335,50 @@ export function useSovaTutorials({
                     soundBoxLabel,
                     message: event.detail.message,
                     messageId: `sova-memory-shard-tutorial-${Date.now()}`,
+                },
+                showSovaSoundBoxRef.current,
+                sovaMessageAdderRef.current
+            );
+        };
+
+        window.addEventListener(eventName, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName, handleEvent as EventListener);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+
+    // ========================================================================
+    // Part 4: First Hostile Encounter Tutorial (Event-driven)
+    // Plays the first time the player encounters hostile NPCs at night.
+    // Warns about the neural resonance apparitions and suggests shelter/fighting.
+    // ========================================================================
+    useEffect(() => {
+        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.firstHostileEncounter;
+        
+        const handleEvent = () => {
+            console.log('[SovaTutorials] 👹 First hostile encounter event received');
+            
+            // Already played before? Skip entirely
+            if (hasBeenPlayed(storageKey)) {
+                console.log('[SovaTutorials] 👹 First hostile encounter tutorial already played, skipping');
+                return;
+            }
+            
+            // Intro still playing? Skip this time, but DON'T mark as played
+            // So it will play next time player encounters hostiles
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] 👹 Intro still playing - skipping hostile encounter tutorial (will play next time)');
+                return;
+            }
+            
+            // Mark as played FIRST to prevent duplicate plays
+            markAsPlayed(storageKey);
+            console.log('[SovaTutorials] 👹 Playing first hostile encounter tutorial NOW');
+            
+            playSovaTutorial(
+                {
+                    audioFile,
+                    soundBoxLabel,
+                    message,
+                    messageId: `sova-first-hostile-encounter-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current

@@ -776,9 +776,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             }
                             
                             if animal.is_hostile_npc && target_player.is_inside_building {
-                                // ALL hostile NPCs can attack structures to get to players hiding inside
-                                let can_attack_structures = matches!(animal.species, 
-                                    AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+                                // Only Drowned Watch (brutes) can attack structures - Shorebound and Shardkin cannot
+                                // This creates gameplay differentiation: small/medium hostiles circle outside,
+                                // but the big brutes will eventually tear through your walls
+                                let can_attack_structures = matches!(animal.species, AnimalSpecies::DrownedWatch);
                                 
                                 // Check if hostile should switch to structure attack mode
                                 // Don't require can_attack() here - we're just switching states
