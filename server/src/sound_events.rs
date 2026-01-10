@@ -404,9 +404,14 @@ pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSc
         return Err("Sound event cleanup can only be run by scheduler".to_string());
     }
 
-    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(5_000_000); // 5 seconds ago
-    
     let sound_events_table = ctx.db.sound_event();
+    
+    // PERFORMANCE: Early exit if no sound events exist
+    if sound_events_table.iter().next().is_none() {
+        return Ok(());
+    }
+
+    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(5_000_000); // 5 seconds ago
     let old_events: Vec<u64> = sound_events_table.iter()
         .filter(|event| event.timestamp < cutoff_time)
         .map(|event| event.id)

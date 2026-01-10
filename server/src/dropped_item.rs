@@ -176,8 +176,13 @@ pub fn despawn_expired_items(ctx: &ReducerContext, _schedule: DroppedItemDespawn
         return Err("despawn_expired_items may only be called by the scheduler.".to_string());
     }
 
-    let current_time = ctx.timestamp;
+    // PERFORMANCE: Early exit if no dropped items exist
     let dropped_items_table = ctx.db.dropped_item();
+    if dropped_items_table.iter().next().is_none() {
+        return Ok(());
+    }
+
+    let current_time = ctx.timestamp;
     let item_defs_table = ctx.db.item_definition(); // <<< ADDED: Need ItemDefinition table
     let mut items_to_despawn: Vec<u64> = Vec::new();
     let mut despawn_count = 0;

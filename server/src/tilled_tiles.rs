@@ -298,6 +298,11 @@ pub fn process_tilled_tile_reversions(
         return Err("Tilled tile reversion can only be run by scheduler".to_string());
     }
     
+    // PERFORMANCE: Skip if no tilled tiles exist
+    if ctx.db.tilled_tile_metadata().iter().next().is_none() {
+        return Ok(());
+    }
+    
     let now = ctx.timestamp;
     let mut reverted_count = 0;
     

@@ -295,6 +295,13 @@ pub fn process_compost_conversion(ctx: &ReducerContext, _args: CompostProcessSch
         return Err("Compost processing can only be run by scheduler".to_string());
     }
     
+    // PERFORMANCE: Early exit if no compost bins exist
+    // Compost bins are wooden_storage_boxes with BOX_TYPE_COMPOST
+    let has_compost_bins = ctx.db.wooden_storage_box().iter().any(|b| b.box_type == BOX_TYPE_COMPOST);
+    if !has_compost_bins {
+        return Ok(());
+    }
+    
     let current_time = ctx.timestamp;
     
     // Find fertilizer definition

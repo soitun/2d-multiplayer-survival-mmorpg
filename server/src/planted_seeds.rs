@@ -1076,6 +1076,11 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         return Err("This reducer can only be called by the scheduler".to_string());
     }
     
+    // PERFORMANCE: Skip if no planted seeds exist
+    if ctx.db.planted_seed().iter().next().is_none() {
+        return Ok(());
+    }
+    
     let current_time = ctx.timestamp;
     let (base_time_multiplier, current_season, current_time_of_day) = calculate_growth_rate_multiplier(ctx);
     let mut plants_updated = 0;

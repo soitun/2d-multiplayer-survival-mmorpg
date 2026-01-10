@@ -304,8 +304,13 @@ pub fn place_explosive(ctx: &ReducerContext, item_instance_id: u64, world_x: f32
 // --- Scheduled Detonation Check Reducer ---
 #[reducer]
 pub fn check_explosive_detonations(ctx: &ReducerContext, _schedule: ExplosiveDetonationSchedule) {
-    let current_time = ctx.timestamp;
+    // PERFORMANCE: Early exit if no placed explosives exist
     let explosives = ctx.db.placed_explosive();
+    if explosives.iter().next().is_none() {
+        return;
+    }
+    
+    let current_time = ctx.timestamp;
     
     // Collect explosives that should detonate
     let mut explosives_to_detonate: Vec<u64> = Vec::new();

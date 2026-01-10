@@ -135,6 +135,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         return Err("process_active_consumable_effects_tick can only be called by the scheduler.".to_string());
     }
 
+    // PERFORMANCE: Quick exit if no active effects exist (most common case when idle)
+    if ctx.db.active_consumable_effect().iter().next().is_none() {
+        return Ok(());
+    }
+
     let current_time = ctx.timestamp;
     let mut effects_to_remove = Vec::new();
     let mut player_updates = std::collections::HashMap::<Identity, Player>::new();

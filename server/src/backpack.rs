@@ -68,8 +68,16 @@ pub fn check_and_consolidate_all_clusters(
     ctx: &ReducerContext,
     _args: BackpackConsolidationSchedule
 ) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     if ctx.sender != ctx.identity() {
         return Err("Backpack consolidation can only be run by scheduler".to_string());
+    }
+    
+    // PERFORMANCE: Skip if no players online (no one dropping items)
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
     }
     
     let clusters = find_dropped_item_clusters(ctx);

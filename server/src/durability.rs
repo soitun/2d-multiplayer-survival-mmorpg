@@ -575,6 +575,13 @@ pub fn process_torch_durability(ctx: &ReducerContext, _args: TorchDurabilitySche
     }
     
     let players_table = ctx.db.player();
+    
+    // PERFORMANCE: Skip if no players online
+    let has_online_players = players_table.iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
+    }
+    
     let active_equipments = ctx.db.active_equipment();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
@@ -1210,9 +1217,17 @@ pub fn perform_item_repair(item: &mut InventoryItem) {
 /// Items stored in refrigerators are protected from spoilage
 #[spacetimedb::reducer]
 pub fn process_food_spoilage(ctx: &ReducerContext, _args: FoodSpoilageSchedule) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     // Security check - only allow scheduler to run this
     if ctx.sender != ctx.identity() {
         return Err("Food spoilage processing can only be run by scheduler".to_string());
+    }
+    
+    // PERFORMANCE: Skip if no players online (food doesn't spoil when nobody's playing)
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
     }
     
     let inventory_items = ctx.db.inventory_item();

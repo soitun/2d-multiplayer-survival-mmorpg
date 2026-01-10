@@ -59,5 +59,6 @@ pub struct Tree {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>,
 }

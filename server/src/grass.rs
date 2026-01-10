@@ -119,6 +119,7 @@ pub struct Grass {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>, // When it was last "chopped"
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>,    // When it should reappear after being chopped
     // For client-side sway animation, to give each patch a unique offset
     pub sway_offset_seed: u32, 

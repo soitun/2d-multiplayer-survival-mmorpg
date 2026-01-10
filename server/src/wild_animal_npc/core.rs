@@ -86,7 +86,7 @@ pub const TAMING_PROTECT_RADIUS_SQUARED: f32 = TAMING_PROTECT_RADIUS * TAMING_PR
 // --- Constants ---
 // PERFORMANCE OPTIMIZATION: Reduced from 125ms (8x/sec) to 500ms (2x/sec)
 // This saves ~75% of reducer calls while client interpolation keeps movement smooth
-pub const AI_TICK_INTERVAL_MS: u64 = 500; // AI processes 2 times per second (was 8x)
+pub const AI_TICK_INTERVAL_MS: u64 = 750; // AI processes 1.33 times per second (was 2x, reduced for performance)
 pub const MAX_ANIMALS_PER_CHUNK: u32 = 3;
 pub const ANIMAL_SPAWN_COOLDOWN_SECS: u64 = 120; // 2 minutes between spawns
 

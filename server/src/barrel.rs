@@ -86,6 +86,7 @@ pub struct Barrel {
     #[index(btree)]
     pub chunk_index: u32,
     pub last_hit_time: Option<Timestamp>,
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>, // When this barrel should respawn (if destroyed)
     pub cluster_id: u64, // ID to group barrels that spawned together
 }

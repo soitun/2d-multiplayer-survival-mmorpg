@@ -45,6 +45,7 @@ pub struct LivingCoral {
     pub resource_remaining: u32,
     #[index(btree)]
     pub chunk_index: u32,
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
 }

@@ -1374,6 +1374,13 @@ pub fn fill_equipped_water_containers(ctx: &ReducerContext, _args: WaterContaine
     }
 
     let players_table = ctx.db.player();
+    
+    // PERFORMANCE: Skip if no players online
+    let has_online_players = players_table.iter().any(|p| p.is_online && !p.is_dead);
+    if !has_online_players {
+        return Ok(());
+    }
+    
     let active_equipments = ctx.db.active_equipment();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();

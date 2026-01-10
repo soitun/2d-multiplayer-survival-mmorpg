@@ -197,5 +197,6 @@ pub struct Stone {
     #[index(btree)]
     pub chunk_index: u32, // Added for spatial filtering/queries
     pub last_hit_time: Option<Timestamp>, // Added for shake effect
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>, // Added for respawn timer
 }

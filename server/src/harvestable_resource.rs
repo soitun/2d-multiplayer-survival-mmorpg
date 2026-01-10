@@ -31,6 +31,7 @@ pub struct HarvestableResource {
     pub pos_y: f32,
     #[index(btree)]
     pub chunk_index: u32,
+    #[index(btree)]
     pub respawn_at: Option<Timestamp>,
     pub is_player_planted: bool, // NEW: Track if this is a farmed crop vs wild plant
 }

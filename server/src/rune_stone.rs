@@ -365,9 +365,17 @@ pub fn spawn_memory_shards_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneShardSpawnSchedule,
 ) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("spawn_memory_shards_at_night may only be called by the scheduler.".to_string());
+    }
+
+    // PERFORMANCE: Skip if no players online
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
     }
 
     use spacetimedb::TimeDuration;
@@ -562,9 +570,17 @@ pub fn spawn_items_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneItemSpawnSchedule,
 ) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("spawn_items_at_night may only be called by the scheduler.".to_string());
+    }
+
+    // PERFORMANCE: Skip if no players online
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
     }
 
     use spacetimedb::TimeDuration;
@@ -754,9 +770,17 @@ pub fn spawn_seeds_at_night(
     ctx: &spacetimedb::ReducerContext,
     _schedule: RuneStoneSeedSpawnSchedule,
 ) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("spawn_seeds_at_night may only be called by the scheduler.".to_string());
+    }
+
+    // PERFORMANCE: Skip if no players online
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
     }
 
     use spacetimedb::TimeDuration;

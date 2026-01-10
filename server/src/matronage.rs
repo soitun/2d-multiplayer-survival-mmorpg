@@ -837,6 +837,11 @@ pub fn process_matronage_payout(ctx: &ReducerContext, _args: MatronagePayoutSche
         return Err("Matronage payout can only be run by scheduler".to_string());
     }
     
+    // PERFORMANCE: Early exit if no matronages exist
+    if ctx.db.matronage().iter().next().is_none() {
+        return Ok(());
+    }
+    
     // Get all matronages with non-zero pools
     let matronages_to_process: Vec<Matronage> = ctx.db.matronage()
         .iter()

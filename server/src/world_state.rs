@@ -308,9 +308,14 @@ pub fn cleanup_old_thunder_events(ctx: &ReducerContext, _args: ThunderEventClean
         return Err("Thunder event cleanup can only be run by scheduler".to_string());
     }
 
-    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(3_000_000); // 3 seconds ago
-    
     let thunder_events_table = ctx.db.thunder_event();
+    
+    // PERFORMANCE: Early exit if no thunder events exist
+    if thunder_events_table.iter().next().is_none() {
+        return Ok(());
+    }
+
+    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(3_000_000); // 3 seconds ago
     let old_events: Vec<u64> = thunder_events_table.iter()
         .filter(|event| event.timestamp < cutoff_time)
         .map(|event| event.id)

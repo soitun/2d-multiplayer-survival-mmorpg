@@ -864,6 +864,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         return Err("Only the scheduler can update projectiles".to_string());
     }
 
+    // PERFORMANCE: Early exit if no projectiles exist
+    if ctx.db.projectile().iter().next().is_none() {
+        return Ok(());
+    }
+
     let current_time = ctx.timestamp;
     let item_defs_table = ctx.db.item_definition(); // Get item definitions table
     let mut rng = rand::rngs::StdRng::from_seed(ctx.rng().gen::<[u8; 32]>()); // Explicitly generate a [u8; 32] seed
