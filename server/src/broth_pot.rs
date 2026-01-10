@@ -63,6 +63,10 @@ pub const DESALINATION_RATE_ML_PER_SEC: f32 = 25.0; // 25ml/sec = 1500ml/min = 9
 // Brewing water requirement - each brew uses 250mL of water (produces one jar/vial of brew)
 pub const BREWING_WATER_REQUIREMENT_ML: u32 = 250;
 
+// Brew time limits - fast-paced PvP game, keep brewing quick
+pub const MIN_BREW_TIME_SECS: f32 = 15.0;
+pub const MAX_BREW_TIME_SECS: f32 = 30.0;
+
 /// --- Broth Pot Data Structure ---
 /// Represents a broth pot placed on a campfire for cooking broth, desalinating water, etc.
 #[spacetimedb::table(name = broth_pot, public)]
@@ -1919,7 +1923,8 @@ pub fn process_broth_pot_logic_scheduled(
                     // Start brewing with the AI-cached recipe
                     broth_pot.is_cooking = true;
                     broth_pot.current_recipe_name = Some(ai_match.output_name.clone());
-                    broth_pot.required_cooking_time_secs = ai_match.brew_time_secs as f32;
+                    // Clamp brew time to 15-30 seconds (fast-paced PvP game)
+                    broth_pot.required_cooking_time_secs = (ai_match.brew_time_secs as f32).clamp(MIN_BREW_TIME_SECS, MAX_BREW_TIME_SECS);
                     broth_pot.cooking_progress_secs = 0.0;
                     sound_events::start_soup_boiling_sound(ctx, broth_pot_id, broth_pot.pos_x, broth_pot.pos_y);
                 }
@@ -2117,12 +2122,13 @@ pub fn process_broth_pot_logic_scheduled(
             ) {
                 broth_pot.is_cooking = true;
                 broth_pot.current_recipe_name = Some(ai_match.output_name.clone());
-                broth_pot.required_cooking_time_secs = ai_match.brew_time_secs as f32;
+                // Clamp brew time to 15-30 seconds (fast-paced PvP game)
+                broth_pot.required_cooking_time_secs = (ai_match.brew_time_secs as f32).clamp(MIN_BREW_TIME_SECS, MAX_BREW_TIME_SECS);
                 broth_pot.cooking_progress_secs = 0.0;
                 sound_events::start_soup_boiling_sound(ctx, broth_pot_id, broth_pot.pos_x, broth_pot.pos_y);
                 
-                log::info!("[BrothPot] Started AI brewing '{}' in pot {} (brew_time={}s)",
-                          ai_match.output_name, broth_pot_id, ai_match.brew_time_secs);
+                log::info!("[BrothPot] Started AI brewing '{}' in pot {} (brew_time={}s, clamped to {}s)",
+                          ai_match.output_name, broth_pot_id, ai_match.brew_time_secs, broth_pot.required_cooking_time_secs);
             } else {
                 // No cached recipe - client needs to generate one via Gemini API
                 log::debug!("[BrothPot] No AI-cached recipe for pot {} ingredients - waiting for client to generate", broth_pot_id);

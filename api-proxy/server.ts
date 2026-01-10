@@ -421,10 +421,10 @@ DESCRIPTION TONE:
 - Example: "A hearty stew made from foraged roots and wild herbs. Warms the body and fills the belly."
 
 RARITY TIERS affect stats:
-- Common (0.0-0.3): Basic stats, 60-120 sec brew time
-- Uncommon (0.3-0.6): Good stats, 120-180 sec brew time
-- Rare (0.6-0.8): Strong stats, 180-240 sec brew time
-- Very Rare (0.8-1.0): Extreme stats, 240-300 sec brew time
+- Common (0.0-0.3): Basic stats, 15-18 sec brew time
+- Uncommon (0.3-0.6): Good stats, 18-22 sec brew time
+- Rare (0.6-0.8): Strong stats, 22-26 sec brew time
+- Very Rare (0.8-1.0): Extreme stats, 26-30 sec brew time
 
 IMPORTANT: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
@@ -462,7 +462,7 @@ Return a JSON object with these exact fields:
   "health": number - health restoration/damage (negative for poisons),
   "hunger": number - hunger satisfaction,
   "thirst": number - thirst satisfaction,
-  "brew_time_secs": number - brewing time in seconds (60-300 based on rarity),
+  "brew_time_secs": number - brewing time in seconds (15-30 based on rarity, this is a fast-paced PvP game),
   "category": "string - one of the valid categories",
   "effect_type": "string or null - one of the valid effect types, or null for stats-only",
   "icon_subject": "string - short description of the brew's appearance for icon generation (e.g., 'steaming bowl of mushroom soup', 'glowing green poison vial')"
