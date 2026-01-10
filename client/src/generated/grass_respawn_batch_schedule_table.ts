@@ -27,30 +27,26 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { GrassRespawnSchedule } from "./grass_respawn_schedule_type";
-import { GrassRespawnData } from "./grass_respawn_data_type";
-// Mark import as potentially unused
-declare type __keep_GrassRespawnData = GrassRespawnData;
-
+import { GrassRespawnBatchSchedule } from "./grass_respawn_batch_schedule_type";
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
- * Table handle for the table `grass_respawn_schedule`.
+ * Table handle for the table `grass_respawn_batch_schedule`.
  *
- * Obtain a handle from the [`grassRespawnSchedule`] property on [`RemoteTables`],
- * like `ctx.db.grassRespawnSchedule`.
+ * Obtain a handle from the [`grassRespawnBatchSchedule`] property on [`RemoteTables`],
+ * like `ctx.db.grassRespawnBatchSchedule`.
  *
  * Users are encouraged not to explicitly reference this type,
  * but to directly chain method calls,
- * like `ctx.db.grassRespawnSchedule.on_insert(...)`.
+ * like `ctx.db.grassRespawnBatchSchedule.on_insert(...)`.
  */
-export class GrassRespawnScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
+export class GrassRespawnBatchScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
   // phantom type to track the table name
   readonly tableName!: TableName;
-  tableCache: __TableCache<GrassRespawnSchedule>;
+  tableCache: __TableCache<GrassRespawnBatchSchedule>;
 
-  constructor(tableCache: __TableCache<GrassRespawnSchedule>) {
+  constructor(tableCache: __TableCache<GrassRespawnBatchSchedule>) {
     this.tableCache = tableCache;
   }
 
@@ -58,24 +54,24 @@ export class GrassRespawnScheduleTableHandle<TableName extends string> implement
     return this.tableCache.count();
   }
 
-  iter(): Iterable<GrassRespawnSchedule> {
+  iter(): Iterable<GrassRespawnBatchSchedule> {
     return this.tableCache.iter();
   }
   /**
-   * Access to the `scheduleId` unique index on the table `grass_respawn_schedule`,
+   * Access to the `scheduleId` unique index on the table `grass_respawn_batch_schedule`,
    * which allows point queries on the field of the same name
-   * via the [`GrassRespawnScheduleScheduleIdUnique.find`] method.
+   * via the [`GrassRespawnBatchScheduleScheduleIdUnique.find`] method.
    *
    * Users are encouraged not to explicitly reference this type,
    * but to directly chain method calls,
-   * like `ctx.db.grassRespawnSchedule.scheduleId().find(...)`.
+   * like `ctx.db.grassRespawnBatchSchedule.scheduleId().find(...)`.
    *
-   * Get a handle on the `scheduleId` unique index on the table `grass_respawn_schedule`.
+   * Get a handle on the `scheduleId` unique index on the table `grass_respawn_batch_schedule`.
    */
   scheduleId = {
     // Find the subscribed row whose `scheduleId` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: bigint): GrassRespawnSchedule | undefined => {
+    find: (col_val: bigint): GrassRespawnBatchSchedule | undefined => {
       for (let row of this.tableCache.iter()) {
         if (__deepEqual(row.scheduleId, col_val)) {
           return row;
@@ -84,27 +80,27 @@ export class GrassRespawnScheduleTableHandle<TableName extends string> implement
     },
   };
 
-  onInsert = (cb: (ctx: EventContext, row: GrassRespawnSchedule) => void) => {
+  onInsert = (cb: (ctx: EventContext, row: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.onInsert(cb);
   }
 
-  removeOnInsert = (cb: (ctx: EventContext, row: GrassRespawnSchedule) => void) => {
+  removeOnInsert = (cb: (ctx: EventContext, row: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.removeOnInsert(cb);
   }
 
-  onDelete = (cb: (ctx: EventContext, row: GrassRespawnSchedule) => void) => {
+  onDelete = (cb: (ctx: EventContext, row: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.onDelete(cb);
   }
 
-  removeOnDelete = (cb: (ctx: EventContext, row: GrassRespawnSchedule) => void) => {
+  removeOnDelete = (cb: (ctx: EventContext, row: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.removeOnDelete(cb);
   }
 
   // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: GrassRespawnSchedule, newRow: GrassRespawnSchedule) => void) => {
+  onUpdate = (cb: (ctx: EventContext, oldRow: GrassRespawnBatchSchedule, newRow: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.onUpdate(cb);
   }
 
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: GrassRespawnSchedule, newRow: GrassRespawnSchedule) => void) => {
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: GrassRespawnBatchSchedule, newRow: GrassRespawnBatchSchedule) => void) => {
     return this.tableCache.removeOnUpdate(cb);
   }}

@@ -28,41 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-import { GrassRespawnSchedule } from "./grass_respawn_schedule_type";
+import { GrassRespawnBatchSchedule } from "./grass_respawn_batch_schedule_type";
 // Mark import as potentially unused
-declare type __keep_GrassRespawnSchedule = GrassRespawnSchedule;
+declare type __keep_GrassRespawnBatchSchedule = GrassRespawnBatchSchedule;
 
-export type ProcessGrassRespawn = {
-  scheduleEntry: GrassRespawnSchedule,
+export type ProcessGrassRespawnBatch = {
+  schedule: GrassRespawnBatchSchedule,
 };
-let _cached_ProcessGrassRespawn_type_value: __AlgebraicTypeType | null = null;
+let _cached_ProcessGrassRespawnBatch_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const ProcessGrassRespawn = {
+export const ProcessGrassRespawnBatch = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ProcessGrassRespawn_type_value) return _cached_ProcessGrassRespawn_type_value;
-    _cached_ProcessGrassRespawn_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ProcessGrassRespawn_type_value.value.elements.push(
-      { name: "scheduleEntry", algebraicType: GrassRespawnSchedule.getTypeScriptAlgebraicType() },
+    if (_cached_ProcessGrassRespawnBatch_type_value) return _cached_ProcessGrassRespawnBatch_type_value;
+    _cached_ProcessGrassRespawnBatch_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProcessGrassRespawnBatch_type_value.value.elements.push(
+      { name: "schedule", algebraicType: GrassRespawnBatchSchedule.getTypeScriptAlgebraicType() },
     );
-    return _cached_ProcessGrassRespawn_type_value;
+    return _cached_ProcessGrassRespawnBatch_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: ProcessGrassRespawn): void {
-    __AlgebraicTypeValue.serializeValue(writer, ProcessGrassRespawn.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ProcessGrassRespawnBatch): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProcessGrassRespawnBatch.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): ProcessGrassRespawn {
-    return __AlgebraicTypeValue.deserializeValue(reader, ProcessGrassRespawn.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ProcessGrassRespawnBatch {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProcessGrassRespawnBatch.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default ProcessGrassRespawn;
+export default ProcessGrassRespawnBatch;
 

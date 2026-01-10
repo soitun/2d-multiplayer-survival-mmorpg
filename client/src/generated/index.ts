@@ -411,8 +411,8 @@ import { ProcessFurnaceLogicScheduled } from "./process_furnace_logic_scheduled_
 export { ProcessFurnaceLogicScheduled };
 import { ProcessGlobalTick } from "./process_global_tick_reducer.ts";
 export { ProcessGlobalTick };
-import { ProcessGrassRespawn } from "./process_grass_respawn_reducer.ts";
-export { ProcessGrassRespawn };
+import { ProcessGrassRespawnBatch } from "./process_grass_respawn_batch_reducer.ts";
+export { ProcessGrassRespawnBatch };
 import { ProcessHearthUpkeep } from "./process_hearth_upkeep_reducer.ts";
 export { ProcessHearthUpkeep };
 import { ProcessHostileSpawns } from "./process_hostile_spawns_reducer.ts";
@@ -851,8 +851,8 @@ import { GlobalTickScheduleTableHandle } from "./global_tick_schedule_table.ts";
 export { GlobalTickScheduleTableHandle };
 import { GrassTableHandle } from "./grass_table.ts";
 export { GrassTableHandle };
-import { GrassRespawnScheduleTableHandle } from "./grass_respawn_schedule_table.ts";
-export { GrassRespawnScheduleTableHandle };
+import { GrassRespawnBatchScheduleTableHandle } from "./grass_respawn_batch_schedule_table.ts";
+export { GrassRespawnBatchScheduleTableHandle };
 import { HarvestableResourceTableHandle } from "./harvestable_resource_table.ts";
 export { HarvestableResourceTableHandle };
 import { HearthUpkeepQueryResultTableHandle } from "./hearth_upkeep_query_result_table.ts";
@@ -1213,10 +1213,8 @@ import { Grass } from "./grass_type.ts";
 export { Grass };
 import { GrassAppearanceType } from "./grass_appearance_type_type.ts";
 export { GrassAppearanceType };
-import { GrassRespawnData } from "./grass_respawn_data_type.ts";
-export { GrassRespawnData };
-import { GrassRespawnSchedule } from "./grass_respawn_schedule_type.ts";
-export { GrassRespawnSchedule };
+import { GrassRespawnBatchSchedule } from "./grass_respawn_batch_schedule_type.ts";
+export { GrassRespawnBatchSchedule };
 import { HarvestableResource } from "./harvestable_resource_type.ts";
 export { HarvestableResource };
 import { HearthUpkeepQueryResult } from "./hearth_upkeep_query_result_type.ts";
@@ -2022,13 +2020,13 @@ const REMOTE_MODULE = {
         colType: (Grass.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
-    grass_respawn_schedule: {
-      tableName: "grass_respawn_schedule" as const,
-      rowType: GrassRespawnSchedule.getTypeScriptAlgebraicType(),
+    grass_respawn_batch_schedule: {
+      tableName: "grass_respawn_batch_schedule" as const,
+      rowType: GrassRespawnBatchSchedule.getTypeScriptAlgebraicType(),
       primaryKey: "scheduleId",
       primaryKeyInfo: {
         colName: "scheduleId",
-        colType: (GrassRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+        colType: (GrassRespawnBatchSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     harvestable_resource: {
@@ -3630,9 +3628,9 @@ const REMOTE_MODULE = {
       reducerName: "process_global_tick",
       argsType: ProcessGlobalTick.getTypeScriptAlgebraicType(),
     },
-    process_grass_respawn: {
-      reducerName: "process_grass_respawn",
-      argsType: ProcessGrassRespawn.getTypeScriptAlgebraicType(),
+    process_grass_respawn_batch: {
+      reducerName: "process_grass_respawn_batch",
+      argsType: ProcessGrassRespawnBatch.getTypeScriptAlgebraicType(),
     },
     process_hearth_upkeep: {
       reducerName: "process_hearth_upkeep",
@@ -4478,7 +4476,7 @@ export type Reducer = never
 | { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
-| { name: "ProcessGrassRespawn", args: ProcessGrassRespawn }
+| { name: "ProcessGrassRespawnBatch", args: ProcessGrassRespawnBatch }
 | { name: "ProcessHearthUpkeep", args: ProcessHearthUpkeep }
 | { name: "ProcessHostileSpawns", args: ProcessHostileSpawns }
 | { name: "ProcessKnockedOutRecovery", args: ProcessKnockedOutRecovery }
@@ -7580,20 +7578,20 @@ export class RemoteReducers {
     this.connection.offReducer("process_global_tick", callback);
   }
 
-  processGrassRespawn(scheduleEntry: GrassRespawnSchedule) {
-    const __args = { scheduleEntry };
+  processGrassRespawnBatch(schedule: GrassRespawnBatchSchedule) {
+    const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
-    ProcessGrassRespawn.serialize(__writer, __args);
+    ProcessGrassRespawnBatch.serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("process_grass_respawn", __argsBuffer, this.setCallReducerFlags.processGrassRespawnFlags);
+    this.connection.callReducer("process_grass_respawn_batch", __argsBuffer, this.setCallReducerFlags.processGrassRespawnBatchFlags);
   }
 
-  onProcessGrassRespawn(callback: (ctx: ReducerEventContext, scheduleEntry: GrassRespawnSchedule) => void) {
-    this.connection.onReducer("process_grass_respawn", callback);
+  onProcessGrassRespawnBatch(callback: (ctx: ReducerEventContext, schedule: GrassRespawnBatchSchedule) => void) {
+    this.connection.onReducer("process_grass_respawn_batch", callback);
   }
 
-  removeOnProcessGrassRespawn(callback: (ctx: ReducerEventContext, scheduleEntry: GrassRespawnSchedule) => void) {
-    this.connection.offReducer("process_grass_respawn", callback);
+  removeOnProcessGrassRespawnBatch(callback: (ctx: ReducerEventContext, schedule: GrassRespawnBatchSchedule) => void) {
+    this.connection.offReducer("process_grass_respawn_batch", callback);
   }
 
   processHearthUpkeep(schedule: HearthUpkeepSchedule) {
@@ -10947,9 +10945,9 @@ export class SetReducerFlags {
     this.processGlobalTickFlags = flags;
   }
 
-  processGrassRespawnFlags: __CallReducerFlags = 'FullUpdate';
-  processGrassRespawn(flags: __CallReducerFlags) {
-    this.processGrassRespawnFlags = flags;
+  processGrassRespawnBatchFlags: __CallReducerFlags = 'FullUpdate';
+  processGrassRespawnBatch(flags: __CallReducerFlags) {
+    this.processGrassRespawnBatchFlags = flags;
   }
 
   processHearthUpkeepFlags: __CallReducerFlags = 'FullUpdate';
@@ -12047,9 +12045,9 @@ export class RemoteTables {
     return new GrassTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Grass>(REMOTE_MODULE.tables.grass));
   }
 
-  get grassRespawnSchedule(): GrassRespawnScheduleTableHandle<'grass_respawn_schedule'> {
+  get grassRespawnBatchSchedule(): GrassRespawnBatchScheduleTableHandle<'grass_respawn_batch_schedule'> {
     // clientCache is a private property
-    return new GrassRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrassRespawnSchedule>(REMOTE_MODULE.tables.grass_respawn_schedule));
+    return new GrassRespawnBatchScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrassRespawnBatchSchedule>(REMOTE_MODULE.tables.grass_respawn_batch_schedule));
   }
 
   get harvestableResource(): HarvestableResourceTableHandle<'harvestable_resource'> {

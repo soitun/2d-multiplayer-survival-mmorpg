@@ -27,47 +27,41 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { GrassRespawnData } from "./grass_respawn_data_type";
-// Mark import as potentially unused
-declare type __keep_GrassRespawnData = GrassRespawnData;
 
-
-export type GrassRespawnSchedule = {
+export type GrassRespawnBatchSchedule = {
   scheduleId: bigint,
-  respawnData: GrassRespawnData,
   scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
 };
-let _cached_GrassRespawnSchedule_type_value: __AlgebraicTypeType | null = null;
+let _cached_GrassRespawnBatchSchedule_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const GrassRespawnSchedule = {
+export const GrassRespawnBatchSchedule = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_GrassRespawnSchedule_type_value) return _cached_GrassRespawnSchedule_type_value;
-    _cached_GrassRespawnSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_GrassRespawnSchedule_type_value.value.elements.push(
+    if (_cached_GrassRespawnBatchSchedule_type_value) return _cached_GrassRespawnBatchSchedule_type_value;
+    _cached_GrassRespawnBatchSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_GrassRespawnBatchSchedule_type_value.value.elements.push(
       { name: "scheduleId", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "respawnData", algebraicType: GrassRespawnData.getTypeScriptAlgebraicType() },
       { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
     );
-    return _cached_GrassRespawnSchedule_type_value;
+    return _cached_GrassRespawnBatchSchedule_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: GrassRespawnSchedule): void {
-    __AlgebraicTypeValue.serializeValue(writer, GrassRespawnSchedule.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: GrassRespawnBatchSchedule): void {
+    __AlgebraicTypeValue.serializeValue(writer, GrassRespawnBatchSchedule.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): GrassRespawnSchedule {
-    return __AlgebraicTypeValue.deserializeValue(reader, GrassRespawnSchedule.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): GrassRespawnBatchSchedule {
+    return __AlgebraicTypeValue.deserializeValue(reader, GrassRespawnBatchSchedule.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default GrassRespawnSchedule;
+export default GrassRespawnBatchSchedule;
 
 
