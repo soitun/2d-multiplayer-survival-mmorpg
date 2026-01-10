@@ -26,7 +26,7 @@ use crate::building::foundation_cell;
 // Additional table traits for explosion damage
 use crate::tree::tree;
 use crate::stone::stone;
-use crate::grass::{grass, grass_respawn_schedule, GrassRespawnData, GrassRespawnSchedule, MIN_GRASS_RESPAWN_TIME_SECS, MAX_GRASS_RESPAWN_TIME_SECS};
+use crate::grass::{grass, MIN_GRASS_RESPAWN_TIME_SECS, MAX_GRASS_RESPAWN_TIME_SECS};
 use crate::barrel::barrel;
 use crate::lantern::lantern;
 use crate::stash::stash;
@@ -595,7 +595,8 @@ fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32
     }
     
     // Damage grass blades (instant destroy - grass has 1 HP)
-    let grass_to_destroy: Vec<(u64, f32, f32, crate::grass::GrassAppearanceType, u32, u32, f32)> = ctx.db.grass().iter()
+    // PERFORMANCE: With the batch scheduler, grass entities stay in the table with health=0 and respawn_at set
+    let grass_to_destroy: Vec<u64> = ctx.db.grass().iter()
         .filter(|grass| {
             // Skip brambles (indestructible)
             if grass.appearance_type.is_bramble() {
@@ -606,31 +607,22 @@ fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32
             let dist_sq = dx * dx + dy * dy;
             dist_sq <= radius_sq && grass.health > 0
         })
-        .map(|grass| (grass.id, grass.pos_x, grass.pos_y, grass.appearance_type.clone(), grass.chunk_index, grass.sway_offset_seed, grass.sway_speed))
+        .map(|grass| grass.id)
         .collect();
     
-    for (grass_id, pos_x, pos_y, appearance_type, chunk_index, sway_offset_seed, sway_speed) in grass_to_destroy {
-        // Schedule respawn
-        let respawn_secs = rng.gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
-        let respawn_time = current_time + spacetimedb::TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
-        
-        let respawn_data = GrassRespawnData {
-            pos_x,
-            pos_y,
-            appearance_type,
-            chunk_index,
-            sway_offset_seed,
-            sway_speed,
-        };
-        
-        let _ = ctx.db.grass_respawn_schedule().try_insert(GrassRespawnSchedule {
-            schedule_id: 0,
-            respawn_data,
-            scheduled_at: spacetimedb::ScheduleAt::Time(respawn_time),
-        });
-        
-        // Delete the grass
-        ctx.db.grass().id().delete(grass_id);
+    for grass_id in grass_to_destroy {
+        if let Some(mut grass) = ctx.db.grass().id().find(grass_id) {
+            // Set respawn time (batch scheduler will handle respawn)
+            let respawn_secs = rng.gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
+            let respawn_time = current_time + spacetimedb::TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
+            
+            grass.health = 0;
+            grass.respawn_at = respawn_time;
+            grass.last_hit_time = Some(current_time);
+            
+            // Update instead of delete - grass stays in table for batch respawn processing
+            ctx.db.grass().id().update(grass);
+        }
     }
     
     // Damage barrels

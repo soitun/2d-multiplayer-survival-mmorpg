@@ -26,7 +26,6 @@ use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
 use crate::grass::grass as GrassTableTrait;
-use crate::grass::grass_respawn_schedule as GrassRespawnScheduleTableTrait;
 
 // --- Constants ---
 // Visual/Collision constants (can be tuned)
@@ -955,25 +954,32 @@ fn clear_resources_in_shelter_footprint(ctx: &ReducerContext, shelter_x: f32, sh
         resources_cleared += 1;
     }
     
-    // Clear Grass Respawn Schedules
-    // Note: Grass respawn schedules contain position data, so we can filter by position
-    let grass_respawn_schedules_to_remove: Vec<u64> = ctx.db.grass_respawn_schedule().iter()
-        .filter(|schedule| {
-            let grass_data = &schedule.respawn_data;
-            let inside = grass_data.pos_x >= aabb_left && grass_data.pos_x <= aabb_right && 
-                        grass_data.pos_y >= aabb_top && grass_data.pos_y <= aabb_bottom;
+    // Cancel Grass Respawns within shelter footprint
+    // Note: With the batch scheduler, grass entities stay in the table with health=0 and respawn_at set.
+    // We cancel their respawn by setting respawn_at = UNIX_EPOCH
+    let grass_to_cancel: Vec<u64> = ctx.db.grass().iter()
+        .filter(|grass| {
+            // Only check destroyed grass (health=0) with pending respawn
+            if grass.health > 0 || grass.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH {
+                return false;
+            }
+            let inside = grass.pos_x >= aabb_left && grass.pos_x <= aabb_right && 
+                        grass.pos_y >= aabb_top && grass.pos_y <= aabb_bottom;
             if inside {
-                log::debug!("[ShelterCleanup] Removing Grass respawn schedule {} for position ({:.1}, {:.1})", 
-                           schedule.schedule_id, grass_data.pos_x, grass_data.pos_y);
+                log::debug!("[ShelterCleanup] Cancelling Grass respawn for ID {} at ({:.1}, {:.1})", 
+                           grass.id, grass.pos_x, grass.pos_y);
             }
             inside
         })
-        .map(|schedule| schedule.schedule_id)
+        .map(|grass| grass.id)
         .collect();
     
-    for schedule_id in grass_respawn_schedules_to_remove {
-        ctx.db.grass_respawn_schedule().schedule_id().delete(schedule_id);
-        resources_cleared += 1;
+    for grass_id in grass_to_cancel {
+        if let Some(mut grass) = ctx.db.grass().id().find(grass_id) {
+            grass.respawn_at = spacetimedb::Timestamp::UNIX_EPOCH; // Cancel respawn
+            ctx.db.grass().id().update(grass);
+            resources_cleared += 1;
+        }
     }
     
     log::info!(

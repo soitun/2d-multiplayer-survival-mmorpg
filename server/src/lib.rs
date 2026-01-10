@@ -778,6 +778,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     // ADD: Initialize barrel respawn system
     crate::barrel::init_barrel_system(ctx)?;
     
+    // ADD: Initialize grass respawn batch scheduler (replaces per-entity schedules)
+    crate::grass::init_grass_respawn_scheduler(ctx);
+    
     // ADD: Initialize rune stone spawning systems
     crate::rune_stone::init_rune_stone_shard_spawning(ctx)?;
     crate::rune_stone::init_rune_stone_item_spawning(ctx)?;

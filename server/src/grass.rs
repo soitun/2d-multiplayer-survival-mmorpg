@@ -132,114 +132,170 @@ pub struct Grass {
     pub disturbance_direction_y: f32,    // Y component of disturbance direction (opposite to player movement)
 } 
 
-// --- NEW: Grass Respawn Scheduling --- 
+// --- GRASS RESPAWN: BATCH SCHEDULER ---
+// 
+// PERFORMANCE OPTIMIZATION: Instead of creating one schedule entry per destroyed grass
+// (which caused thousands of schedule rows), we use a single batch scheduler.
+//
+// How it works:
+// - When grass is destroyed, we set health=0 and respawn_at=future_time (grass entity stays in table)
+// - A single batch scheduler runs every few seconds and respawns all due grass
+// - This eliminates thousands of schedule rows → just ONE scheduler row
 
-/// Data needed to recreate a grass entity.
-/// We don't store the original ID because the new grass will get a new auto_inc ID.
-#[derive(Clone, Debug, SpacetimeType)]
-pub struct GrassRespawnData {
-    pub pos_x: f32,
-    pub pos_y: f32,
-    pub appearance_type: GrassAppearanceType,
-    pub chunk_index: u32,
-    pub sway_offset_seed: u32,
-    pub sway_speed: f32, // RENAMED: Was sway_speed_multiplier. This is now the actual speed.
-    // NOTE: We don't include disturbance data in respawn - grass respawns in undisturbed state
-}
+/// Batch scheduler interval for grass respawn checks
+const GRASS_RESPAWN_BATCH_INTERVAL_SECS: u64 = 5;
 
-#[spacetimedb::table(name = grass_respawn_schedule, scheduled(process_grass_respawn))]
+/// Radius around players to check for grass respawns (spatial gating)
+const GRASS_RESPAWN_CHECK_RADIUS: f32 = 1500.0;
+const GRASS_RESPAWN_CHECK_RADIUS_SQ: f32 = GRASS_RESPAWN_CHECK_RADIUS * GRASS_RESPAWN_CHECK_RADIUS;
+
+/// Single batch schedule entry for grass respawn processing
+#[spacetimedb::table(name = grass_respawn_batch_schedule, scheduled(process_grass_respawn_batch))]
 #[derive(Clone, Debug)]
-pub struct GrassRespawnSchedule {
+pub struct GrassRespawnBatchSchedule {
     #[primary_key]
     #[auto_inc]
-    pub schedule_id: u64, // Unique ID for this respawn event
-    pub respawn_data: GrassRespawnData, // The data needed to recreate the grass
-    pub scheduled_at: spacetimedb::ScheduleAt, // When this respawn should occur
+    pub schedule_id: u64,
+    pub scheduled_at: spacetimedb::ScheduleAt,
 }
 
+/// Initialize the batch grass respawn scheduler (called from init_module)
+pub fn init_grass_respawn_scheduler(ctx: &spacetimedb::ReducerContext) {
+    // Only create if not already present
+    if ctx.db.grass_respawn_batch_schedule().iter().next().is_none() {
+        if let Err(e) = ctx.db.grass_respawn_batch_schedule().try_insert(GrassRespawnBatchSchedule {
+            schedule_id: 0,
+            scheduled_at: spacetimedb::ScheduleAt::Interval(
+                TimeDuration::from_micros((GRASS_RESPAWN_BATCH_INTERVAL_SECS * 1_000_000) as i64)
+            ),
+        }) {
+            log::error!("Failed to create grass respawn batch scheduler: {}", e);
+        } else {
+            log::info!("Grass respawn batch scheduler initialized (every {}s)", GRASS_RESPAWN_BATCH_INTERVAL_SECS);
+        }
+    }
+}
+
+/// Batch reducer: Process all grass due for respawn
 #[spacetimedb::reducer]
-pub fn process_grass_respawn(ctx: &spacetimedb::ReducerContext, schedule_entry: GrassRespawnSchedule) -> Result<(), String> {
-    // Security check: Only the module itself should trigger this via scheduling
+pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule: GrassRespawnBatchSchedule) -> Result<(), String> {
+    // Security check
     if ctx.sender != ctx.identity() {
-        return Err("process_grass_respawn can only be called by the scheduler.".to_string());
+        return Err("process_grass_respawn_batch can only be called by the scheduler.".to_string());
     }
 
-    let data = schedule_entry.respawn_data;
+    // SPATIAL GATING: Only process grass near online players
+    let player_positions: Vec<(f32, f32)> = ctx.db.player()
+        .iter()
+        .filter(|p| p.is_online)
+        .map(|p| (p.position_x, p.position_y))
+        .collect();
     
-    // Check for collision with entities and foundations before respawning
-    // Check proximity to trees
+    // Early exit if no players online
+    if player_positions.is_empty() {
+        return Ok(());
+    }
+
+    let now = ctx.timestamp;
+    let grass_table = ctx.db.grass();
     let trees = ctx.db.tree();
-    for tree in trees.iter() {
-        if tree.health > 0 {
-            let dx = data.pos_x - tree.pos_x;
-            let dy = data.pos_y - tree.pos_y;
-            if dx * dx + dy * dy < MIN_GRASS_TREE_DISTANCE_SQ {
-                log::info!("Grass respawn at ({}, {}) blocked by tree, skipping", data.pos_x, data.pos_y);
-                return Ok(()); // Skip respawn - blocked by tree
-            }
-        }
-    }
-    
-    // Check proximity to stones
     let stones = ctx.db.stone();
-    for stone in stones.iter() {
-        if stone.health > 0 {
-            let dx = data.pos_x - stone.pos_x;
-            let dy = data.pos_y - stone.pos_y;
-            if dx * dx + dy * dy < MIN_GRASS_STONE_DISTANCE_SQ {
-                log::info!("Grass respawn at ({}, {}) blocked by stone, skipping", data.pos_x, data.pos_y);
-                return Ok(()); // Skip respawn - blocked by stone
-            }
-        }
-    }
-    
-    // Check proximity to foundations (48px buffer)
-    const MIN_GRASS_FOUNDATION_DISTANCE_SQ: f32 = 48.0 * 48.0;
     let foundations = ctx.db.foundation_cell();
-    let grass_tile_x = (data.pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
-    let grass_tile_y = (data.pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
     
-    // Check nearby foundation cells (2 cell radius)
-    for offset_x in -2..=2 {
-        for offset_y in -2..=2 {
-            let check_x = grass_tile_x + offset_x;
-            let check_y = grass_tile_y + offset_y;
-            
-            for foundation in foundations.idx_cell_coords().filter((check_x, check_y)) {
-                if !foundation.is_destroyed {
-                    log::info!("Grass respawn at ({}, {}) blocked by foundation, skipping", data.pos_x, data.pos_y);
-                    return Ok(()); // Skip respawn - blocked by foundation
+    let mut respawned_count = 0;
+    
+    // Find all grass entities due for respawn
+    // health == 0 means destroyed, respawn_at > UNIX_EPOCH means scheduled
+    for mut grass in grass_table.iter() {
+        // Skip grass not due for respawn
+        if grass.health > 0 || grass.respawn_at == Timestamp::UNIX_EPOCH || grass.respawn_at > now {
+            continue;
+        }
+        
+        // Spatial gating: only process grass near players
+        let near_player = player_positions.iter().any(|(px, py)| {
+            let dx = grass.pos_x - *px;
+            let dy = grass.pos_y - *py;
+            dx * dx + dy * dy <= GRASS_RESPAWN_CHECK_RADIUS_SQ
+        });
+        
+        if !near_player {
+            continue;
+        }
+        
+        // Check for blockers before respawning
+        let mut blocked = false;
+        
+        // Check trees
+        for tree in trees.iter() {
+            if tree.health > 0 {
+                let dx = grass.pos_x - tree.pos_x;
+                let dy = grass.pos_y - tree.pos_y;
+                if dx * dx + dy * dy < MIN_GRASS_TREE_DISTANCE_SQ {
+                    blocked = true;
+                    break;
                 }
             }
         }
+        
+        if !blocked {
+            // Check stones
+            for stone in stones.iter() {
+                if stone.health > 0 {
+                    let dx = grass.pos_x - stone.pos_x;
+                    let dy = grass.pos_y - stone.pos_y;
+                    if dx * dx + dy * dy < MIN_GRASS_STONE_DISTANCE_SQ {
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if !blocked {
+            // Check foundations
+            const MIN_GRASS_FOUNDATION_DISTANCE_SQ: f32 = 48.0 * 48.0;
+            let grass_tile_x = (grass.pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+            let grass_tile_y = (grass.pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+            
+            'foundation_check: for offset_x in -2..=2 {
+                for offset_y in -2..=2 {
+                    let check_x = grass_tile_x + offset_x;
+                    let check_y = grass_tile_y + offset_y;
+                    
+                    for foundation in foundations.idx_cell_coords().filter((check_x, check_y)) {
+                        if !foundation.is_destroyed {
+                            blocked = true;
+                            break 'foundation_check;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if blocked {
+            // Blocked by something - delay respawn by another respawn cycle
+            let new_respawn = now + TimeDuration::from_micros((MIN_GRASS_RESPAWN_TIME_SECS * 1_000_000) as i64);
+            grass.respawn_at = new_respawn;
+            grass_table.id().update(grass);
+            continue;
+        }
+        
+        // Respawn the grass!
+        grass.health = GRASS_INITIAL_HEALTH;
+        grass.respawn_at = Timestamp::UNIX_EPOCH;
+        grass.last_hit_time = None;
+        grass.disturbed_at = None;
+        grass.disturbance_direction_x = 0.0;
+        grass.disturbance_direction_y = 0.0;
+        grass_table.id().update(grass);
+        respawned_count += 1;
     }
     
-    // Re-insert the grass entity into the main Grass table
-    // The new grass entity will get a new `id` due to `#[auto_inc]` on Grass.id
-    match ctx.db.grass().try_insert(crate::grass::Grass {
-        id: 0, // Will be auto-incremented
-        pos_x: data.pos_x,
-        pos_y: data.pos_y,
-        health: GRASS_INITIAL_HEALTH, // Respawn with full health
-        appearance_type: data.appearance_type,
-        chunk_index: data.chunk_index,
-        last_hit_time: None,
-        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
-        sway_offset_seed: data.sway_offset_seed,
-        sway_speed: data.sway_speed, // UPDATED: Use the direct sway_speed from respawn data
-        disturbed_at: None,
-        disturbance_direction_x: 0.0,
-        disturbance_direction_y: 0.0,
-    }) {
-        Ok(new_grass) => {
-            log::info!("Respawned grass entity at ({}, {}) with new ID {}", new_grass.pos_x, new_grass.pos_y, new_grass.id);
-        }
-        Err(e) => {
-            log::error!("Failed to respawn grass at ({}, {}): {}", data.pos_x, data.pos_y, e);
-            // Optionally, reschedule if it failed due to a transient issue, 
-            // but for now, just log the error.
-        }
+    if respawned_count > 0 {
+        log::info!("Batch respawned {} grass entities", respawned_count);
     }
+    
     Ok(())
 }
 
@@ -286,38 +342,20 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     grass.health = 0;
     grass.last_hit_time = Some(ctx.timestamp);
     
-    // 6. Schedule respawn
+    // 6. Set respawn time (batch scheduler will handle actual respawn)
+    // PERFORMANCE: We no longer create individual schedule entries per grass.
+    // The grass entity stays in the table with health=0 and respawn_at set.
+    // The batch scheduler (process_grass_respawn_batch) runs every 5s and respawns due grass.
     let respawn_secs = ctx.rng().gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
     let respawn_time = ctx.timestamp + TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
+    grass.respawn_at = respawn_time;
     
-    // Store respawn data
-    let respawn_data = GrassRespawnData {
-        pos_x: grass.pos_x,
-        pos_y: grass.pos_y,
-        appearance_type: grass.appearance_type.clone(),
-        chunk_index: grass.chunk_index,
-        sway_offset_seed: grass.sway_offset_seed,
-        sway_speed: grass.sway_speed,
-    };
-    
-    // Schedule the respawn
-    match ctx.db.grass_respawn_schedule().try_insert(GrassRespawnSchedule {
-        schedule_id: 0, // Auto-inc
-        respawn_data,
-        scheduled_at: spacetimedb::ScheduleAt::Time(respawn_time),
-    }) {
-        Ok(_) => {
-            log::info!("Scheduled grass {} respawn in {} seconds", grass_id, respawn_secs);
-        }
-        Err(e) => {
-            log::error!("Failed to schedule grass respawn: {}", e);
-        }
-    }
-    
-    // 7. Delete the grass entity (it's destroyed)
+    // 7. Store grass position before update
     let grass_pos_x = grass.pos_x;
     let grass_pos_y = grass.pos_y;
-    grass_table.id().delete(grass_id);
+    
+    // Update the grass entity (keep it in table with health=0)
+    grass_table.id().update(grass);
     
     log::info!("Player {:?} destroyed grass {} at ({:.1}, {:.1})", sender_id, grass_id, grass_pos_x, grass_pos_y);
     
