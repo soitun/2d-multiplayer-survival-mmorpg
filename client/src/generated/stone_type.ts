@@ -41,7 +41,7 @@ export type Stone = {
   oreType: OreType,
   chunkIndex: number,
   lastHitTime: __Timestamp | undefined,
-  respawnAt: __Timestamp | undefined,
+  respawnAt: __Timestamp,
 };
 let _cached_Stone_type_value: __AlgebraicTypeType | null = null;
 
@@ -65,7 +65,7 @@ export const Stone = {
       { name: "oreType", algebraicType: OreType.getTypeScriptAlgebraicType() },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );
     return _cached_Stone_type_value;
   },

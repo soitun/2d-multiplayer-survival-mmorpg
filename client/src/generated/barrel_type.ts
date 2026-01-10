@@ -36,7 +36,7 @@ export type Barrel = {
   variant: number,
   chunkIndex: number,
   lastHitTime: __Timestamp | undefined,
-  respawnAt: __Timestamp | undefined,
+  respawnAt: __Timestamp,
   clusterId: bigint,
 };
 let _cached_Barrel_type_value: __AlgebraicTypeType | null = null;
@@ -60,7 +60,7 @@ export const Barrel = {
       { name: "variant", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "clusterId", algebraicType: __AlgebraicTypeValue.U64 },
     );
     return _cached_Barrel_type_value;

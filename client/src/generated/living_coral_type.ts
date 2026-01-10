@@ -35,7 +35,7 @@ export type LivingCoral = {
   health: number,
   resourceRemaining: number,
   chunkIndex: number,
-  respawnAt: __Timestamp | undefined,
+  respawnAt: __Timestamp,
   lastHitTime: __Timestamp | undefined,
 };
 let _cached_LivingCoral_type_value: __AlgebraicTypeType | null = null;
@@ -58,7 +58,7 @@ export const LivingCoral = {
       { name: "health", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "resourceRemaining", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_LivingCoral_type_value;

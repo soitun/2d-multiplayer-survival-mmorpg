@@ -38,7 +38,7 @@ export type HarvestableResource = {
   posX: number,
   posY: number,
   chunkIndex: number,
-  respawnAt: __Timestamp | undefined,
+  respawnAt: __Timestamp,
   isPlayerPlanted: boolean,
 };
 let _cached_HarvestableResource_type_value: __AlgebraicTypeType | null = null;
@@ -60,7 +60,7 @@ export const HarvestableResource = {
       { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "isPlayerPlanted", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_HarvestableResource_type_value;
