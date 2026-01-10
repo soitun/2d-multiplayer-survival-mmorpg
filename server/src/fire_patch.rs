@@ -184,6 +184,11 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
         return Err("process_fire_patch_damage can only be called by scheduler".to_string());
     }
     
+    // PERFORMANCE: Skip if no fire patches exist
+    if ctx.db.fire_patch().iter().next().is_none() {
+        return Ok(());
+    }
+    
     let current_time = ctx.timestamp;
     let radius_sq = FIRE_PATCH_COLLISION_RADIUS * FIRE_PATCH_COLLISION_RADIUS;
     
@@ -191,6 +196,11 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
     let online_players: Vec<_> = ctx.db.player().iter()
         .filter(|p| p.is_online && !p.is_dead)
         .collect();
+    
+    // PERFORMANCE: Skip if no online players
+    if online_players.is_empty() {
+        return Ok(());
+    }
     
     // Check each fire patch
     for mut fire_patch in ctx.db.fire_patch().iter() {
@@ -408,6 +418,11 @@ pub fn cleanup_expired_fire_patches(ctx: &ReducerContext, _args: FirePatchCleanu
     // Security check
     if ctx.sender != ctx.identity() {
         return Err("Only the module can run scheduled cleanup".to_string());
+    }
+    
+    // PERFORMANCE: Skip if no fire patches exist
+    if ctx.db.fire_patch().iter().next().is_none() {
+        return Ok(());
     }
     
     let current_time = ctx.timestamp;

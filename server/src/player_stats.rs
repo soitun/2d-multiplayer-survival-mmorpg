@@ -176,7 +176,8 @@ use crate::death_marker::death_marker as DeathMarkerTableTrait; // <<< ADDED Dea
 use crate::shelter; // <<< ADDED for shelter warmth bonus
 use crate::active_effects::{active_consumable_effect as ActiveConsumableEffectTableTrait, EffectType, update_player_cozy_status, player_has_cozy_effect, COZY_HEALTH_REGEN_MULTIPLIER}; // <<< ADDED for checking damaging effects and cozy
 
-pub(crate) const PLAYER_STAT_UPDATE_INTERVAL_SECS: u64 = 1; // Update stats every second
+// PERFORMANCE: Increased from 1s to 2s - stat changes are gradual, 2x slower is acceptable
+pub(crate) const PLAYER_STAT_UPDATE_INTERVAL_SECS: u64 = 2;
 
 // Helper function to check if a player has any active damaging effects
 fn player_has_damaging_effects(ctx: &ReducerContext, player_id: Identity) -> bool {
@@ -256,9 +257,17 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         return Err("process_player_stats may only be called by the scheduler.".to_string());
     }
 
+    let players = ctx.db.player();
+    
+    // PERFORMANCE: Skip entirely if no players are online
+    // This is the biggest CPU saver - this reducer runs every 2s
+    let has_online_players = players.iter().any(|p| p.is_online);
+    if !has_online_players {
+        return Ok(());
+    }
+
     log::trace!("Processing player stats via schedule...");
     let current_time = ctx.timestamp;
-    let players = ctx.db.player();
     let world_states = ctx.db.world_state();
     let campfires = ctx.db.campfire();
     let game_config_table = ctx.db.stat_thresholds_config();

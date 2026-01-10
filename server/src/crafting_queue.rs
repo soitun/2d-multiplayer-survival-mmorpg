@@ -370,8 +370,14 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
         return Err("Reducer check_finished_crafting may not be invoked by clients, only via scheduling.".to_string());
     }
 
-    let now = ctx.timestamp;
     let queue_table = ctx.db.crafting_queue_item();
+    
+    // PERFORMANCE: Quick exit if queue is empty (most common case when idle)
+    if queue_table.iter().next().is_none() {
+        return Ok(());
+    }
+
+    let now = ctx.timestamp;
     let player_table = ctx.db.player();
     let mut items_to_finish: Vec<CraftingQueueItem> = Vec::new();
 

@@ -7,10 +7,12 @@ use std::time::Duration;
 use crate::world_state;
 use crate::environment;
 
-// Import table trait
+// Import table traits
 use crate::global_tick::GlobalTickSchedule as GlobalTickScheduleTableTrait;
+use crate::player as PlayerTableTrait;
 
-pub(crate) const GLOBAL_TICK_INTERVAL_SECS: u64 = 5; // Check global state every 5 seconds (reduced from 1s for performance)
+// PERFORMANCE: Increased from 5s to 15s - respawns don't need to be instant
+pub(crate) const GLOBAL_TICK_INTERVAL_SECS: u64 = 15;
 
 // --- Global Tick Schedule Table (Reverted to scheduled pattern) ---
 #[spacetimedb::table(name = global_tick_schedule, scheduled(process_global_tick))]
@@ -53,7 +55,14 @@ pub fn process_global_tick(ctx: &ReducerContext, _schedule: GlobalTickSchedule) 
         return Err("process_global_tick may only be called by the scheduler.".to_string());
     }
 
-    // log::trace!("Processing global tick via schedule...");
+    // PERFORMANCE: Skip expensive processing if no players are online
+    // This saves massive CPU when the server is idle
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        log::trace!("No players online - skipping global tick to save resources.");
+        return Ok(());
+    }
+
     let current_time = ctx.timestamp;
 
     // --- Tick World State ---

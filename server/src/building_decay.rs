@@ -49,9 +49,11 @@ use crate::homestead_hearth::{HomesteadHearth, homestead_hearth, calculate_upkee
 use crate::building::FOUNDATION_TILE_SIZE_PX;
 
 // --- Constants ---
+use crate::player as PlayerTableTrait;
 
-// Decay processing interval (check every 5 minutes)
-pub const DECAY_PROCESS_INTERVAL_SECONDS: u64 = 300; // 5 minutes
+// PERFORMANCE: Decay processing interval (check every 15 minutes)
+// Building decay happens over days - no need for frequent checks
+pub const DECAY_PROCESS_INTERVAL_SECONDS: u64 = 900; // 15 minutes
 
 // Decay damage per interval (tier-dependent, applied every 5 minutes)
 // These values result in the following decay times for foundations:
@@ -284,6 +286,13 @@ pub fn process_building_decay(ctx: &ReducerContext, _schedule: BuildingDecaySche
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("process_building_decay may only be called by the scheduler.".to_string());
+    }
+
+    // PERFORMANCE: Skip decay processing if no players are online
+    // Building decay is a background process - no urgency when server is empty
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        return Ok(());
     }
 
     let current_time = ctx.timestamp;

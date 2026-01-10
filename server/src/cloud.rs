@@ -3,6 +3,7 @@ use rand::Rng;
 use std::time::Duration;
 use crate::environment;
 use crate::world_state::{world_state as WorldStateTableTrait, WeatherType};
+use crate::player as PlayerTableTrait;
 
 #[derive(SpacetimeType, Clone, PartialEq, Eq, Debug, Copy)]
 pub enum CloudShapeType {
@@ -71,6 +72,13 @@ pub fn update_cloud_positions(ctx: &ReducerContext, schedule_args: CloudUpdateSc
     // Security check: Ensure this reducer is only called by the scheduler
     if ctx.sender != ctx.identity() {
         return Err("Reducer `update_cloud_positions` can only be invoked by the scheduler.".into());
+    }
+
+    // PERFORMANCE: Skip cloud movement if no players are online
+    // Clouds are purely cosmetic - no need to process when nobody is watching
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        return Ok(());
     }
 
     // Double the delta time to make clouds move twice as fast
@@ -153,7 +161,8 @@ pub fn debug_update_cloud_intensity(ctx: &ReducerContext) -> Result<(), String> 
 
 // --- Constants for Dynamic Cloud Intensity ---
 
-const CLOUD_INTENSITY_UPDATE_INTERVAL_SECS: u64 = 30; // Update cloud intensity every 30 seconds
+// PERFORMANCE: Increased from 30s to 120s - cloud intensity changes are subtle cosmetic effects
+const CLOUD_INTENSITY_UPDATE_INTERVAL_SECS: u64 = 120;
 
 // --- Dynamic Cloud Intensity System ---
 
@@ -218,6 +227,13 @@ pub fn update_cloud_intensities(ctx: &ReducerContext, _schedule_args: CloudInten
     // Security check: Ensure this reducer is only called by the scheduler
     if ctx.sender != ctx.identity() {
         return Err("Reducer `update_cloud_intensities` can only be invoked by the scheduler.".into());
+    }
+
+    // PERFORMANCE: Skip cloud intensity updates if no players are online
+    // Cloud intensity is purely cosmetic - no need to process when nobody is watching
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        return Ok(());
     }
 
     // Get current world state for weather information

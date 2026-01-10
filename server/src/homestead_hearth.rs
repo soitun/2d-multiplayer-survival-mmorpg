@@ -48,7 +48,8 @@ pub const NUM_HEARTH_SLOTS: usize = 20; // Generous inventory for building mater
 
 // --- Upkeep constants ---
 pub const DEFAULT_UPKEEP_INTERVAL_SECONDS: u64 = 3600; // 1 hour default upkeep interval
-pub const UPKEEP_PROCESS_INTERVAL_SECONDS: u64 = 60; // Check every minute for upkeep processing
+// PERFORMANCE: Increased from 60s to 300s - upkeep happens every hour anyway
+pub const UPKEEP_PROCESS_INTERVAL_SECONDS: u64 = 300; // Check every 5 minutes for upkeep processing
 
 // --- Health constants ---
 pub const HEARTH_INITIAL_HEALTH: f32 = 1000.0;
@@ -634,7 +635,8 @@ fn consume_upkeep_resources(
 }
 
 // --- Building Privilege Distance Check Schedule ---
-pub(crate) const BUILDING_PRIVILEGE_CHECK_INTERVAL_SECS: u64 = 2; // Check every 2 seconds
+// PERFORMANCE: Increased from 2s to 60s - this reducer now does nothing (privilege is permanent)
+pub(crate) const BUILDING_PRIVILEGE_CHECK_INTERVAL_SECS: u64 = 60;
 
 #[spacetimedb::table(name = building_privilege_check_schedule, scheduled(check_building_privilege_distance))]
 #[derive(Clone)]
@@ -672,6 +674,7 @@ pub fn init_building_privilege_check_schedule(ctx: &ReducerContext) -> Result<()
 /// NOTE: Building privilege is now PERSISTENT - it is never removed.
 /// This reducer is kept for potential future use (e.g., visual indicators),
 /// but privilege removal has been disabled to prevent players from being locked out.
+/// PERFORMANCE: This reducer now exits immediately since privilege is permanent.
 #[spacetimedb::reducer]
 pub fn check_building_privilege_distance(ctx: &ReducerContext, _schedule: BuildingPrivilegeCheckSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
@@ -679,16 +682,10 @@ pub fn check_building_privilege_distance(ctx: &ReducerContext, _schedule: Buildi
         return Err("check_building_privilege_distance may only be called by the scheduler.".to_string());
     }
 
+    // PERFORMANCE: This reducer does nothing - exit immediately.
     // Building privilege is now persistent - once granted, it stays forever.
-    // The privilege check in building reducers verifies both:
-    // 1. Player has building privilege (persistent flag)
-    // 2. Player is within range of a hearth (for actual usage)
-    // 
-    // This ensures players never lose access to their buildings due to bugs
-    // or temporary distance issues, while still enforcing range restrictions.
-    
-    // This reducer is kept for potential future use (e.g., updating visual effects
-    // based on proximity), but no longer removes privilege.
+    // Keeping this reducer in case we want visual indicators in the future,
+    // but for now it just exits to save CPU cycles.
     
     Ok(())
 }
@@ -746,9 +743,18 @@ pub fn init_hearth_upkeep_schedule(ctx: &ReducerContext) -> Result<(), String> {
 /// Scheduled reducer to process upkeep for all hearths
 #[spacetimedb::reducer]
 pub fn process_hearth_upkeep(ctx: &ReducerContext, _schedule: HearthUpkeepSchedule) -> Result<(), String> {
+    use crate::player as PlayerTableTrait;
+    
     // Security check - only allow scheduler to call this
     if ctx.sender != ctx.identity() {
         return Err("process_hearth_upkeep may only be called by the scheduler.".to_string());
+    }
+
+    // PERFORMANCE: Skip upkeep processing if no players are online
+    // Upkeep is a background maintenance process - no urgency when server is empty
+    let online_player_count = ctx.db.player().iter().filter(|p| p.is_online).count();
+    if online_player_count == 0 {
+        return Ok(());
     }
 
     let current_time = ctx.timestamp;

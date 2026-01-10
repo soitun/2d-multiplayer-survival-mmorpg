@@ -373,6 +373,11 @@ pub fn cleanup_expired_water_patches(ctx: &ReducerContext, _args: WaterPatchClea
         return Err("This reducer can only be called by the scheduler".to_string());
     }
     
+    // PERFORMANCE: Skip if no water patches exist
+    if ctx.db.water_patch().iter().next().is_none() {
+        return Ok(());
+    }
+    
     let current_time = ctx.timestamp;
     let mut patches_updated = 0;
     let mut patches_removed = 0;

@@ -218,6 +218,13 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
     
     let current_time = ctx.timestamp;
     
+    // PERFORMANCE: Quick check if any players are online before doing anything
+    // If no players, skip all hostile spawn logic
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online && !p.is_dead);
+    if !has_online_players {
+        return Ok(());
+    }
+    
     // Check if it's night time
     let world_state = match ctx.db.world_state().iter().next() {
         Some(ws) => ws,

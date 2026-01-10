@@ -149,6 +149,11 @@ pub fn cleanup_expired_fertilizer_patches(
         return Err("Fertilizer patch cleanup can only be run by scheduler".to_string());
     }
     
+    // PERFORMANCE: Skip if no fertilizer patches exist
+    if ctx.db.fertilizer_patch().iter().next().is_none() {
+        return Ok(());
+    }
+    
     let now = ctx.timestamp;
     let mut expired_count = 0;
     let mut updated_count = 0;
