@@ -44,7 +44,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showUnlockedOnly, setShowUnlockedOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Get the player's unlocked achievement IDs
@@ -293,65 +293,12 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '8px',
-        marginBottom: '12px',
-        alignItems: 'center',
-      }}>
-        {/* All category button */}
-        <button
-          onClick={() => setSelectedCategory(null)}
-          style={{
-            background: selectedCategory === null
-              ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)'
-              : 'rgba(255, 215, 0, 0.1)',
-            border: `1px solid ${selectedCategory === null ? '#ffd700' : 'rgba(255, 215, 0, 0.3)'}`,
-            borderRadius: '4px',
-            color: selectedCategory === null ? '#000' : '#ffffff',
-            padding: '6px 12px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            transition: 'all 0.2s ease',
-            textTransform: 'uppercase',
-          }}
-        >
-          ALL
-        </button>
-        
-        {categories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            style={{
-              background: selectedCategory === category
-                ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)'
-                : 'rgba(255, 215, 0, 0.1)',
-              border: `1px solid ${selectedCategory === category ? '#ffd700' : 'rgba(255, 215, 0, 0.3)'}`,
-              borderRadius: '4px',
-              color: selectedCategory === category ? '#000' : '#ffffff',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              transition: 'all 0.2s ease',
-              textTransform: 'uppercase',
-            }}
-          >
-            {CATEGORY_ICONS[category] || '📜'} {CATEGORY_DISPLAY_NAMES[category] || category}
-          </button>
-        ))}
-      </div>
-
       {/* Sort and Filter Options */}
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: '12px',
-        marginBottom: '15px',
+        marginBottom: '12px',
         alignItems: 'center',
       }}>
         {/* Sort options */}
@@ -420,6 +367,59 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
           />
           Show Unlocked Only
         </label>
+      </div>
+
+      {/* Filters */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        marginBottom: '12px',
+        alignItems: 'center',
+      }}>
+        {/* All category button */}
+        <button
+          onClick={() => setSelectedCategory(null)}
+          style={{
+            background: selectedCategory === null
+              ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)'
+              : 'rgba(255, 215, 0, 0.1)',
+            border: `1px solid ${selectedCategory === null ? '#ffd700' : 'rgba(255, 215, 0, 0.3)'}`,
+            borderRadius: '4px',
+            color: selectedCategory === null ? '#000' : '#ffffff',
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease',
+            textTransform: 'uppercase',
+          }}
+        >
+          ALL
+        </button>
+        
+        {categories.map((category) => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            style={{
+              background: selectedCategory === category
+                ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)'
+                : 'rgba(255, 215, 0, 0.1)',
+              border: `1px solid ${selectedCategory === category ? '#ffd700' : 'rgba(255, 215, 0, 0.3)'}`,
+              borderRadius: '4px',
+              color: selectedCategory === category ? '#000' : '#ffffff',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+              textTransform: 'uppercase',
+            }}
+          >
+            {CATEGORY_ICONS[category] || '📜'} {CATEGORY_DISPLAY_NAMES[category] || category}
+          </button>
+        ))}
       </div>
 
       {/* Achievements List */}
