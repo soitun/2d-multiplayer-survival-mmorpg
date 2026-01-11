@@ -20,6 +20,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Identity } from 'spacetimedb';
 import { useGameConnection } from '../contexts/GameConnectionContext';
 import { getItemIcon } from '../utils/itemIconUtils';
+import alkIcon from '../assets/ui/alk.png';
 import './AlkPanel.css';
 
 // Types from generated bindings (will be available after spacetime generate)
@@ -823,7 +824,11 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
             {/* Header */}
             <div className="alk-header">
                 <div className="alk-title">
-                    <span className="alk-icon">📦</span>
+                    <img 
+                        src={alkIcon} 
+                        alt="ALK" 
+                        className="alk-icon"
+                    />
                     <h2>ALK PROVISIONING BOARD</h2>
                 </div>
                 <button className="close-button" onClick={onClose}>×</button>

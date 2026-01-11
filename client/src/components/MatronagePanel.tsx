@@ -18,6 +18,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Identity } from 'spacetimedb';
 import { useGameConnection } from '../contexts/GameConnectionContext';
 import { getItemIcon } from '../utils/itemIconUtils';
+import matronsMarkIcon from '../assets/ui/matrons_mark.png';
 import './MatronagePanel.css';
 
 // Memory shard icon for rewards display
@@ -839,7 +840,14 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
     // Render explore tab
     const renderExplore = () => (
         <div className="matronage-explore">
-            <h3>🔍 All Matronages ({allMatronagesWithInfo.length})</h3>
+            {/* Back button */}
+            <button 
+                className="explore-back-btn"
+                onClick={() => setActiveTab('overview')}
+            >
+                <span className="back-arrow">◀</span>
+                Back
+            </button>
             <div className="matronage-explore-list">
                 {allMatronagesWithInfo.length === 0 ? (
                     <p className="no-matronages">No matronages exist yet. Be the first to create one!</p>
@@ -872,7 +880,19 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
     return (
         <div className="matronage-panel">
             <div className="matronage-panel-header">
-                <h2>🏛️ MATRONAGE</h2>
+                <h2>
+                    <img 
+                        src={matronsMarkIcon} 
+                        alt="Matronage" 
+                        style={{ 
+                            width: '28px', 
+                            height: '28px',
+                            imageRendering: 'pixelated',
+                            marginRight: '8px',
+                        }} 
+                    />
+                    MATRONAGE
+                </h2>
             </div>
 
             {error && (
@@ -919,12 +939,6 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
                                 </button>
                             </>
                         )}
-                        <button 
-                            className={`tab ${activeTab === 'explore' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('explore')}
-                        >
-                            Explore
-                        </button>
                     </div>
 
                     <div className="matronage-content">

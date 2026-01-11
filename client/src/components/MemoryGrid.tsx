@@ -497,8 +497,8 @@ const MemoryGrid: React.FC<MemoryGridProps> = ({
         height: '100%',
         position: 'relative',
         background: 'radial-gradient(circle at center, rgba(15, 23, 35, 0.95) 0%, rgba(7, 11, 17, 0.98) 100%)',
-        border: '2px solid #7c3aed',
-        borderRadius: '4px',
+        border: 'none',
+        borderRadius: '0',
         overflow: 'hidden',
         cursor: isPanning ? 'grabbing' : 'grab'
       }}

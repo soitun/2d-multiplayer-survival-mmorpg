@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Identity } from 'spacetimedb';
 import { useGameConnection } from '../contexts/GameConnectionContext';
+import leaderboardIcon from '../assets/ui/leaderboard.png';
 // LeaderboardEntry is accessed via SpacetimeDB namespace
 
 interface LeaderboardPanelProps {
@@ -140,58 +141,83 @@ const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
       display: 'flex',
       flexDirection: 'column',
       background: 'rgba(15, 23, 35, 0.95)',
-      border: '2px solid #00d4ff',
-      borderRadius: '4px',
-      padding: '20px',
+      border: 'none',
+      borderRadius: '0',
+      padding: '0',
       boxSizing: 'border-box',
       color: '#ffffff',
       overflow: 'hidden',
+      fontFamily: "'Courier New', monospace",
     }}>
       {/* Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '20px',
-        borderBottom: '1px solid rgba(0, 212, 255, 0.3)',
-        paddingBottom: '15px',
+        padding: '12px 16px',
+        background: 'linear-gradient(90deg, rgba(0, 212, 255, 0.15) 0%, transparent 100%)',
+        borderBottom: 'none',
+        marginBottom: '0',
+        flexShrink: 0,
       }}>
-        <h2 style={{
-          color: '#00d4ff',
-          margin: 0,
-          fontSize: '24px',
-          fontWeight: 'bold',
-          textShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-        }}>
-          🏆 LEADERBOARD
-        </h2>
+         <h2 style={{
+           color: '#00d4ff',
+           margin: 0,
+           fontSize: '1.2rem',
+           fontWeight: 'bold',
+           textShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
+           letterSpacing: '2px',
+           display: 'flex',
+           alignItems: 'center',
+           gap: '8px',
+         }}>
+           <img 
+             src={leaderboardIcon} 
+             alt="Leaderboard" 
+             style={{ 
+               width: '28px', 
+               height: '28px',
+               imageRendering: 'pixelated',
+             }} 
+           />
+           LEADERBOARD
+         </h2>
         <button
           onClick={refreshLeaderboard}
           disabled={isLoading}
           style={{
             background: isLoading 
-              ? 'rgba(0, 212, 255, 0.3)' 
-              : 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%)',
-            border: '1px solid #00d4ff',
-            borderRadius: '4px',
-            color: '#ffffff',
-            padding: '8px 16px',
+              ? 'rgba(0, 212, 255, 0.2)' 
+              : 'rgba(0, 212, 255, 0.15)',
+            border: '1px solid rgba(0, 212, 255, 0.5)',
+            borderRadius: '0',
+            color: isLoading ? 'rgba(0, 212, 255, 0.6)' : '#00d4ff',
+            padding: '6px 14px',
             cursor: isLoading ? 'not-allowed' : 'pointer',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: 'bold',
+            letterSpacing: '1px',
             transition: 'all 0.2s ease',
-            opacity: isLoading ? 0.6 : 1,
+            opacity: isLoading ? 0.5 : 1,
+            textShadow: isLoading ? 'none' : '0 0 6px rgba(0, 212, 255, 0.6)',
+            boxShadow: isLoading ? 'none' : 'inset 0 0 8px rgba(0, 212, 255, 0.2)',
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 212, 255, 0.6)';
+              e.currentTarget.style.background = 'rgba(0, 212, 255, 0.25)';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.8)';
+              e.currentTarget.style.boxShadow = 'inset 0 0 12px rgba(0, 212, 255, 0.3), 0 0 8px rgba(0, 212, 255, 0.4)';
             }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = 'none';
+            if (!isLoading) {
+              e.currentTarget.style.background = 'rgba(0, 212, 255, 0.15)';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.5)';
+              e.currentTarget.style.boxShadow = 'inset 0 0 8px rgba(0, 212, 255, 0.2)';
+            }
           }}
         >
-          {isLoading ? 'REFRESHING...' : '🔄 REFRESH'}
+          {isLoading ? 'REFRESHING...' : 'REFRESH'}
         </button>
       </div>
 
@@ -200,7 +226,9 @@ const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
         display: 'flex',
         flexWrap: 'wrap',
         gap: '8px',
-        marginBottom: '20px',
+        padding: '8px 12px',
+        background: 'rgba(0, 0, 0, 0.3)',
+        borderBottom: '1px solid rgba(0, 212, 255, 0.3)',
       }}>
         {(Object.keys(CATEGORY_DISPLAY_NAMES) as LeaderboardCategory[]).map((category) => (
           <button
@@ -243,7 +271,7 @@ const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
-        paddingRight: '8px',
+        padding: '12px 16px',
       }}>
         {filteredEntries.length === 0 ? (
           <div style={{
@@ -365,12 +393,13 @@ const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({
 
       {/* Footer */}
       <div style={{
-        marginTop: '15px',
-        paddingTop: '15px',
+        padding: '10px 16px',
+        background: 'rgba(0, 0, 0, 0.3)',
         borderTop: '1px solid rgba(0, 212, 255, 0.3)',
         fontSize: '11px',
         color: 'rgba(255, 255, 255, 0.6)',
         textAlign: 'center',
+        flexShrink: 0,
       }}>
         Last updated: {lastRefresh.toLocaleTimeString()}
       </div>

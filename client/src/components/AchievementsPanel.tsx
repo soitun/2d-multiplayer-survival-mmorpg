@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Identity } from 'spacetimedb';
 import { AchievementDefinition, PlayerAchievement, AchievementCategory } from '../generated';
+import achievementsIcon from '../assets/ui/achievements.png';
 
 interface AchievementsPanelProps {
   playerIdentity: Identity | null;
@@ -174,50 +175,57 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
       display: 'flex',
       flexDirection: 'column',
       background: 'rgba(15, 23, 35, 0.95)',
-      border: '2px solid #ffd700',
-      borderRadius: '4px',
-      padding: '20px',
+      border: 'none',
+      borderRadius: '0',
+      padding: '0',
       boxSizing: 'border-box',
       color: '#ffffff',
       overflow: 'hidden',
+      fontFamily: "'Courier New', monospace",
     }}>
       {/* Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '15px',
-        borderBottom: '1px solid rgba(255, 215, 0, 0.3)',
-        paddingBottom: '15px',
+        padding: '12px 16px',
+        background: 'linear-gradient(90deg, rgba(255, 215, 0, 0.15) 0%, transparent 100%)',
+        borderBottom: 'none',
+        marginBottom: '0',
+        flexShrink: 0,
       }}>
-        <div>
-          <h2 style={{
-            color: '#ffd700',
-            margin: 0,
-            fontSize: '24px',
-            fontWeight: 'bold',
-            textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
-          }}>
-            🏆 ACHIEVEMENTS
-          </h2>
-          <div style={{
-            marginTop: '8px',
-            fontSize: '13px',
-            color: 'rgba(255, 255, 255, 0.8)',
-          }}>
-            <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{stats.unlocked}</span>
-            <span> / {stats.total} ({stats.percentage}%)</span>
-          </div>
-        </div>
+        <h2 style={{
+          color: '#ffd700',
+          margin: 0,
+          fontSize: '1.2rem',
+          fontWeight: 'bold',
+          textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+          letterSpacing: '2px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <img 
+            src={achievementsIcon} 
+            alt="Achievements" 
+            style={{ 
+              width: '28px', 
+              height: '28px',
+              imageRendering: 'pixelated',
+            }} 
+          />
+          ACHIEVEMENTS
+        </h2>
         
-        {/* Progress bar */}
+        {/* Progress bar with text inside */}
         <div style={{
-          width: '150px',
-          height: '24px',
-          background: 'rgba(0, 0, 0, 0.5)',
-          borderRadius: '12px',
+          width: '160px',
+          height: '22px',
+          background: 'rgba(0, 0, 0, 0.6)',
+          borderRadius: '0',
           overflow: 'hidden',
-          border: '1px solid rgba(255, 215, 0, 0.3)',
+          border: '1px solid rgba(255, 215, 0, 0.4)',
+          position: 'relative',
         }}>
           <div style={{
             width: `${stats.percentage}%`,
@@ -225,12 +233,28 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
             background: 'linear-gradient(90deg, #ffd700, #ffaa00)',
             transition: 'width 0.3s ease',
           }} />
+          <span style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            color: '#fff',
+            textShadow: '0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            letterSpacing: '0.5px',
+          }}>
+            {stats.unlocked} / {stats.total} ({stats.percentage}%)
+          </span>
         </div>
       </div>
 
       {/* Search Bar */}
       <div style={{
-        marginBottom: '12px',
+        padding: '8px 12px',
+        background: 'rgba(0, 0, 0, 0.3)',
+        borderBottom: '1px solid rgba(255, 215, 0, 0.3)',
       }}>
         <div style={{
           position: 'relative',
@@ -298,7 +322,9 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         display: 'flex',
         flexWrap: 'wrap',
         gap: '12px',
-        marginBottom: '12px',
+        padding: '8px 12px',
+        background: 'rgba(0, 0, 0, 0.2)',
+        borderBottom: '1px solid rgba(255, 215, 0, 0.2)',
         alignItems: 'center',
       }}>
         {/* Sort options */}
@@ -374,7 +400,9 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         display: 'flex',
         flexWrap: 'wrap',
         gap: '8px',
-        marginBottom: '12px',
+        padding: '8px 12px',
+        background: 'rgba(0, 0, 0, 0.2)',
+        borderBottom: '1px solid rgba(255, 215, 0, 0.3)',
         alignItems: 'center',
       }}>
         {/* All category button */}
@@ -427,7 +455,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
-        paddingRight: '8px',
+        padding: '12px',
       }}>
         {filteredAchievements.length === 0 ? (
           <div style={{

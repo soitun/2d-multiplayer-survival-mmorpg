@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { PlantConfigDefinition, PlantCategory } from '../generated';
 import { getItemIcon } from '../utils/itemIconUtils';
+import plantsIcon from '../assets/ui/plants.png';
 import './PlantEncyclopedia.css';
 
 // Special mappings for items where icon filename doesn't match item name exactly
@@ -368,11 +369,50 @@ const PlantEncyclopedia: React.FC<PlantEncyclopediaProps> = ({ plantConfigs, dis
     <div className="plant-encyclopedia">
       {/* Header */}
       <div className="encyclopedia-header">
-        <h2>🌿 Plant Encyclopedia</h2>
-        <div className="plant-count">
-          {hasDiscoveredAny 
-            ? `Discovered: ${discoveredCount} / ${totalPlants}` 
-            : 'No plants discovered yet'}
+        <h2>
+          <img 
+            src={plantsIcon} 
+            alt="Plants" 
+            style={{ 
+              width: '28px', 
+              height: '28px',
+              imageRendering: 'pixelated',
+              marginRight: '8px',
+            }} 
+          />
+          PLANT ENCYCLOPEDIA
+        </h2>
+        
+        {/* Progress bar with text inside */}
+        <div style={{
+          width: '160px',
+          height: '22px',
+          background: 'rgba(0, 0, 0, 0.6)',
+          borderRadius: '0',
+          overflow: 'hidden',
+          border: '1px solid rgba(20, 184, 166, 0.4)',
+          position: 'relative',
+        }}>
+          <div style={{
+            width: `${hasDiscoveredAny ? Math.round((discoveredCount / totalPlants) * 100) : 0}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg, #14b8a6, #06b6d4)',
+            transition: 'width 0.3s ease',
+          }} />
+          <span style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            color: '#fff',
+            textShadow: '0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            letterSpacing: '0.5px',
+          }}>
+            {discoveredCount} / {totalPlants} ({Math.round((discoveredCount / totalPlants) * 100)}%)
+          </span>
         </div>
       </div>
 

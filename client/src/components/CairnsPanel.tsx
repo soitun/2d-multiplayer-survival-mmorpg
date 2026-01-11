@@ -3,6 +3,7 @@ import { Identity } from 'spacetimedb';
 import { Cairn as SpacetimeDBCairn, PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn } from '../generated';
 import { CAIRN_LORE_TIDBITS, CairnLoreCategory, CairnLoreEntry } from '../data/cairnLoreData';
 import { playCairnLoreAudio, stopCairnLoreAudio, isCairnAudioPlaying } from '../utils/cairnAudioUtils';
+import cairnsIcon from '../assets/ui/cairns.png';
 import './CairnsPanel.css';
 
 interface CairnsPanelProps {
@@ -299,14 +300,50 @@ const CairnsPanel: React.FC<CairnsPanelProps> = ({
   return (
     <div className="cairns-panel">
       <div className="cairns-panel-header">
-        <h2 className="cairns-panel-title">CAIRNS</h2>
-        <div className="cairns-panel-stats">
-          <div className="cairns-discovered-count">
-            {discoveredCount}/{totalCairns} DISCOVERED
-          </div>
-          <div className="cairns-shards-earned">
-            {totalShardsEarned.toLocaleString()} SHARDS EARNED
-          </div>
+        <h2 className="cairns-panel-title">
+          <img 
+            src={cairnsIcon} 
+            alt="Cairns" 
+            style={{ 
+              width: '28px', 
+              height: '28px',
+              imageRendering: 'pixelated',
+              marginRight: '8px',
+            }} 
+          />
+          CAIRNS
+        </h2>
+        
+        {/* Progress bar with text inside */}
+        <div style={{
+          width: '160px',
+          height: '22px',
+          background: 'rgba(0, 0, 0, 0.6)',
+          borderRadius: '0',
+          overflow: 'hidden',
+          border: '1px solid rgba(192, 132, 252, 0.4)',
+          position: 'relative',
+        }}>
+          <div style={{
+            width: `${Math.round((discoveredCount / totalCairns) * 100)}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg, #c084fc, #a78bfa)',
+            transition: 'width 0.3s ease',
+          }} />
+          <span style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            color: '#fff',
+            textShadow: '0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7), 1px 1px 2px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            letterSpacing: '0.5px',
+          }}>
+            {discoveredCount} / {totalCairns} ({Math.round((discoveredCount / totalCairns) * 100)}%)
+          </span>
         </div>
       </div>
       

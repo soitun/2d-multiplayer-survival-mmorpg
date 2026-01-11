@@ -401,16 +401,21 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
 
   // Add global CSS for smooth animations - uses GPU-accelerated transforms
   useEffect(() => {
+    // Check if style already exists to prevent duplicates
+    const existingStyle = document.getElementById('cyberpunk-spinner-styles');
+    if (existingStyle) return;
+    
     const style = document.createElement('style');
+    style.id = 'cyberpunk-spinner-styles';
     style.textContent = `
       @keyframes cyberpunk-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
       
       @keyframes cyberpunk-spin-reverse {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(-360deg); }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(-360deg); }
       }
       
       @keyframes cyberpunk-pulse {
@@ -439,17 +444,24 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       }
       
       .cyberpunk-spinner-outer {
-        animation: cyberpunk-spin 1.2s linear infinite;
+        animation: cyberpunk-spin 1.5s linear infinite;
         transform-origin: center center;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
       }
       
       .cyberpunk-spinner-inner {
-        animation: cyberpunk-spin-reverse 0.8s linear infinite;
+        animation: cyberpunk-spin-reverse 1s linear infinite;
         transform-origin: center center;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
       }
       
       .cyberpunk-pulse-dot {
         animation: cyberpunk-pulse 1s ease-in-out infinite, cyberpunk-glow-pulse 1s ease-in-out infinite;
+        will-change: transform, opacity;
       }
       
       .cyberpunk-text-pulse {
@@ -458,8 +470,10 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     `;
     document.head.appendChild(style);
     
+    // Don't remove on unmount - keep styles persistent to prevent animation restart
     return () => {
-      document.head.removeChild(style);
+      // Only cleanup if this was the last InterfaceContainer instance
+      // For now, keep styles to prevent stuttering on remount
     };
   }, []);
 
@@ -558,8 +572,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     overflow: 'hidden', // Prevent content from breaking the fixed dimensions
   };
 
-  // Loading overlay spinner component with proper GPU-accelerated animations
-  const LoadingOverlay = () => (
+  // Loading overlay spinner component - memoized to prevent animation restart on re-render
+  const LoadingOverlay = useMemo(() => (
     <div style={{
       position: 'absolute',
       top: 0,
@@ -647,7 +661,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
         </div>
       </div>
     </div>
-  );
+  ), []);
 
   // Render content based on current view
   const renderContent = () => {
@@ -800,7 +814,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               </label>
             </div>
             {/* Show loading overlay on top of minimap content */}
-            {isMinimapLoading && <LoadingOverlay />}
+            {isMinimapLoading && LoadingOverlay}
           </div>
         );
       case 'encyclopedia':

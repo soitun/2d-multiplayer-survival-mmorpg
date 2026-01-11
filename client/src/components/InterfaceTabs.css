@@ -1,39 +1,81 @@
 .interface-tabs {
   display: flex;
   position: absolute;
-  top: -40px;
+  top: -42px;
   left: 0;
-  z-index: 1002; /* Higher than close button (1001) */
+  z-index: 1002;
   font-family: 'Courier New', monospace;
+  gap: 1px;
 }
 
 .tab {
-  height: 40px;
+  height: 42px;
   padding: 0 14px;
-  margin-right: 2px;
   border: none;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  /* Sharp cyberpunk edges - no border radius */
+  border-radius: 0;
   font-family: 'Courier New', monospace;
   font-weight: bold;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   white-space: nowrap;
   min-width: fit-content;
+  /* Clip path for angled cyberpunk corners */
+  clip-path: polygon(
+    0 8px,
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% 100%,
+    0 100%
+  );
 }
 
-/* Fixed tab widths to match container width (924px total including margins) */
-/* Total: 110 + 130 + 130 + 110 + 85 + 105 + 115 + 125 + (2*7 margins) = 924px */
+/* Corner accents for active/hovered tabs */
+.tab::before,
+.tab::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.tab::before {
+  top: 2px;
+  left: 2px;
+  border-top: 2px solid #00d4ff;
+  border-left: 2px solid #00d4ff;
+}
+
+.tab::after {
+  top: 2px;
+  right: 2px;
+  border-top: 2px solid #00d4ff;
+  border-right: 2px solid #00d4ff;
+}
+
+.tab.active::before,
+.tab.active::after,
+.tab.hovered::before,
+.tab.hovered::after {
+  opacity: 1;
+}
+
+/* Fixed tab widths to match container inner width (920px = 924px - 4px border) */
+/* Total: 913px tabs + 7px gaps (7 × 1px) = 920px */
 .tab:first-child {
-  width: 110px; /* GRU MAPS */
+  width: 111px; /* GRU MAPS */
 }
 
 .encyclopedia-tab {
@@ -45,11 +87,11 @@
 }
 
 .alk-tab {
-  width: 110px; /* ALK BOARD */
+  width: 111px; /* ALK BOARD */
 }
 
 .cairns-tab {
-  width: 85px; /* CAIRNS */
+  width: 86px; /* CAIRNS */
 }
 
 .matronage-tab {
@@ -64,89 +106,505 @@
   width: 125px; /* ACHIEVEMENTS */
 }
 
-/* ALK tab special styling - green accent for supply/commerce */
+/* Base inactive state - dark cyberpunk panel */
+.tab.inactive {
+  background: linear-gradient(180deg, 
+    rgba(20, 30, 40, 0.95) 0%, 
+    rgba(15, 20, 30, 0.98) 100%
+  );
+  color: #64748b;
+  border: none;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 212, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 -2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover state - glowing edges */
+.tab.inactive.hovered {
+  background: linear-gradient(180deg, 
+    rgba(0, 212, 255, 0.15) 0%, 
+    rgba(20, 30, 45, 0.95) 100%
+  );
+  color: #e2e8f0;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 212, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 212, 255, 0.2),
+    0 0 12px rgba(0, 212, 255, 0.3),
+    0 -2px 8px rgba(0, 212, 255, 0.2);
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+/* Active state - full cyberpunk glow */
+.tab.active {
+  background: linear-gradient(180deg, 
+    rgba(0, 212, 255, 0.25) 0%, 
+    rgba(124, 58, 237, 0.2) 50%,
+    rgba(15, 25, 35, 0.95) 100%
+  );
+  color: #ffffff;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 212, 255, 0.6),
+    inset 0 -1px 0 rgba(124, 58, 237, 0.3),
+    0 0 15px rgba(0, 212, 255, 0.4),
+    0 -3px 10px rgba(0, 212, 255, 0.3);
+  text-shadow: 
+    0 0 10px rgba(0, 212, 255, 0.8),
+    0 0 20px rgba(0, 212, 255, 0.4);
+  animation: tabGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes tabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 212, 255, 0.6),
+      inset 0 -1px 0 rgba(124, 58, 237, 0.3),
+      0 0 15px rgba(0, 212, 255, 0.4),
+      0 -3px 10px rgba(0, 212, 255, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 212, 255, 0.8),
+      inset 0 -1px 0 rgba(124, 58, 237, 0.5),
+      0 0 20px rgba(0, 212, 255, 0.5),
+      0 -4px 15px rgba(124, 58, 237, 0.3);
+  }
+}
+
+/* === SPECIAL TAB STYLES === */
+
+/* ALK tab - green accent for supply/commerce */
 .alk-tab.active {
-  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
-  color: #0f172a;
-  border: 2px solid #00ff88;
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+  background: linear-gradient(180deg, 
+    rgba(0, 255, 136, 0.25) 0%, 
+    rgba(0, 180, 100, 0.15) 50%,
+    rgba(15, 25, 20, 0.95) 100%
+  );
+  color: #4ade80;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 255, 136, 0.6),
+    inset 0 -1px 0 rgba(0, 255, 136, 0.2),
+    0 0 15px rgba(0, 255, 136, 0.4),
+    0 -3px 10px rgba(0, 255, 136, 0.3);
+  text-shadow: 
+    0 0 10px rgba(0, 255, 136, 0.8),
+    0 0 20px rgba(0, 255, 136, 0.4);
+  animation: alkTabGlow 2s ease-in-out infinite alternate;
+}
+
+.alk-tab.active::before,
+.alk-tab.active::after {
+  border-color: #00ff88;
 }
 
 .alk-tab.inactive.hovered {
-  background: rgba(0, 255, 136, 0.15);
-  color: #ffffff;
-  border: 2px solid #00ff88;
-  box-shadow: 0 0 4px rgba(0, 255, 136, 0.3);
+  background: linear-gradient(180deg, 
+    rgba(0, 255, 136, 0.15) 0%, 
+    rgba(20, 35, 30, 0.95) 100%
+  );
+  color: #a7f3d0;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 255, 136, 0.4),
+    0 0 10px rgba(0, 255, 136, 0.3);
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
 }
 
-/* Achievements tab - gold accent for achievements */
+.alk-tab.inactive.hovered::before,
+.alk-tab.inactive.hovered::after {
+  border-color: #00ff88;
+}
+
+@keyframes alkTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 255, 136, 0.6),
+      inset 0 -1px 0 rgba(0, 255, 136, 0.2),
+      0 0 15px rgba(0, 255, 136, 0.4),
+      0 -3px 10px rgba(0, 255, 136, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 255, 136, 0.8),
+      inset 0 -1px 0 rgba(0, 255, 136, 0.4),
+      0 0 20px rgba(0, 255, 136, 0.5),
+      0 -4px 15px rgba(0, 255, 136, 0.4);
+  }
+}
+
+/* Achievements tab - gold accent */
 .achievements-tab.active {
-  background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
-  color: #0f172a;
-  border: 2px solid #ffd700;
-  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+  background: linear-gradient(180deg, 
+    rgba(255, 215, 0, 0.25) 0%, 
+    rgba(255, 170, 0, 0.15) 50%,
+    rgba(25, 20, 15, 0.95) 100%
+  );
+  color: #fcd34d;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 215, 0, 0.6),
+    inset 0 -1px 0 rgba(255, 170, 0, 0.2),
+    0 0 15px rgba(255, 215, 0, 0.4),
+    0 -3px 10px rgba(255, 215, 0, 0.3);
+  text-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.8),
+    0 0 20px rgba(255, 215, 0, 0.4);
+  animation: goldTabGlow 2s ease-in-out infinite alternate;
+}
+
+.achievements-tab.active::before,
+.achievements-tab.active::after {
+  border-color: #ffd700;
 }
 
 .achievements-tab.inactive.hovered {
-  background: rgba(255, 215, 0, 0.15);
-  color: #ffffff;
-  border: 2px solid #ffd700;
-  box-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+  background: linear-gradient(180deg, 
+    rgba(255, 215, 0, 0.15) 0%, 
+    rgba(35, 30, 20, 0.95) 100%
+  );
+  color: #fde68a;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 215, 0, 0.4),
+    0 0 10px rgba(255, 215, 0, 0.3);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
-/* Leaderboard tab - cyan/blue accent for competition */
+.achievements-tab.inactive.hovered::before,
+.achievements-tab.inactive.hovered::after {
+  border-color: #ffd700;
+}
+
+@keyframes goldTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(255, 215, 0, 0.6),
+      inset 0 -1px 0 rgba(255, 170, 0, 0.2),
+      0 0 15px rgba(255, 215, 0, 0.4),
+      0 -3px 10px rgba(255, 215, 0, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(255, 215, 0, 0.8),
+      inset 0 -1px 0 rgba(255, 170, 0, 0.4),
+      0 0 20px rgba(255, 215, 0, 0.5),
+      0 -4px 15px rgba(255, 170, 0, 0.4);
+  }
+}
+
+/* Leaderboard tab - bright cyan for competition */
 .leaderboard-tab.active {
-  background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
-  color: #ffffff;
-  border: 2px solid #00d4ff;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  background: linear-gradient(180deg, 
+    rgba(0, 212, 255, 0.3) 0%, 
+    rgba(0, 100, 200, 0.15) 50%,
+    rgba(15, 20, 30, 0.95) 100%
+  );
+  color: #67e8f9;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 212, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 100, 200, 0.3),
+    0 0 15px rgba(0, 212, 255, 0.5),
+    0 -3px 10px rgba(0, 212, 255, 0.4);
+  text-shadow: 
+    0 0 10px rgba(0, 212, 255, 0.9),
+    0 0 20px rgba(0, 212, 255, 0.5);
+  animation: cyanTabGlow 2s ease-in-out infinite alternate;
+}
+
+.leaderboard-tab.active::before,
+.leaderboard-tab.active::after {
+  border-color: #00d4ff;
 }
 
 .leaderboard-tab.inactive.hovered {
-  background: rgba(0, 212, 255, 0.15);
-  color: #ffffff;
-  border: 2px solid #00d4ff;
-  box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
+  background: linear-gradient(180deg, 
+    rgba(0, 212, 255, 0.2) 0%, 
+    rgba(20, 30, 45, 0.95) 100%
+  );
+  color: #a5f3fc;
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 212, 255, 0.5),
+    0 0 12px rgba(0, 212, 255, 0.4);
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
 }
 
+.leaderboard-tab.inactive.hovered::before,
+.leaderboard-tab.inactive.hovered::after {
+  border-color: #00d4ff;
+}
+
+@keyframes cyanTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 212, 255, 0.7),
+      inset 0 -1px 0 rgba(0, 100, 200, 0.3),
+      0 0 15px rgba(0, 212, 255, 0.5),
+      0 -3px 10px rgba(0, 212, 255, 0.4);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(0, 212, 255, 0.9),
+      inset 0 -1px 0 rgba(0, 100, 200, 0.5),
+      0 0 22px rgba(0, 212, 255, 0.6),
+      0 -4px 15px rgba(0, 212, 255, 0.5);
+  }
+}
+
+/* Cairns tab - mystical purple accent */
+.cairns-tab.active {
+  background: linear-gradient(180deg, 
+    rgba(192, 132, 252, 0.25) 0%, 
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(20, 15, 30, 0.95) 100%
+  );
+  color: #d8b4fe;
+  box-shadow: 
+    inset 0 1px 0 rgba(192, 132, 252, 0.6),
+    inset 0 -1px 0 rgba(139, 92, 246, 0.2),
+    0 0 15px rgba(192, 132, 252, 0.4),
+    0 -3px 10px rgba(192, 132, 252, 0.3);
+  text-shadow: 
+    0 0 10px rgba(192, 132, 252, 0.8),
+    0 0 20px rgba(192, 132, 252, 0.4);
+  animation: purpleTabGlow 2s ease-in-out infinite alternate;
+}
+
+.cairns-tab.active::before,
+.cairns-tab.active::after {
+  border-color: #c084fc;
+}
+
+.cairns-tab.inactive.hovered {
+  background: linear-gradient(180deg, 
+    rgba(192, 132, 252, 0.15) 0%, 
+    rgba(30, 25, 40, 0.95) 100%
+  );
+  color: #e9d5ff;
+  box-shadow: 
+    inset 0 1px 0 rgba(192, 132, 252, 0.4),
+    0 0 10px rgba(192, 132, 252, 0.3);
+  text-shadow: 0 0 8px rgba(192, 132, 252, 0.5);
+}
+
+.cairns-tab.inactive.hovered::before,
+.cairns-tab.inactive.hovered::after {
+  border-color: #c084fc;
+}
+
+@keyframes purpleTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(192, 132, 252, 0.6),
+      inset 0 -1px 0 rgba(139, 92, 246, 0.2),
+      0 0 15px rgba(192, 132, 252, 0.4),
+      0 -3px 10px rgba(192, 132, 252, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(192, 132, 252, 0.8),
+      inset 0 -1px 0 rgba(139, 92, 246, 0.4),
+      0 0 20px rgba(192, 132, 252, 0.5),
+      0 -4px 15px rgba(139, 92, 246, 0.4);
+  }
+}
+
+/* Memory Grid tab - neural purple/cyan mix */
+.memory-grid-tab.active {
+  background: linear-gradient(180deg, 
+    rgba(124, 58, 237, 0.25) 0%, 
+    rgba(0, 212, 255, 0.15) 50%,
+    rgba(20, 15, 35, 0.95) 100%
+  );
+  color: #a78bfa;
+  box-shadow: 
+    inset 0 1px 0 rgba(124, 58, 237, 0.6),
+    inset 0 -1px 0 rgba(0, 212, 255, 0.2),
+    0 0 15px rgba(124, 58, 237, 0.4),
+    0 -3px 10px rgba(0, 212, 255, 0.3);
+  text-shadow: 
+    0 0 10px rgba(124, 58, 237, 0.8),
+    0 0 20px rgba(0, 212, 255, 0.4);
+  animation: neuralTabGlow 2s ease-in-out infinite alternate;
+}
+
+.memory-grid-tab.active::before,
+.memory-grid-tab.active::after {
+  border-color: #7c3aed;
+}
+
+.memory-grid-tab.inactive.hovered {
+  background: linear-gradient(180deg, 
+    rgba(124, 58, 237, 0.15) 0%, 
+    rgba(25, 20, 40, 0.95) 100%
+  );
+  color: #c4b5fd;
+  box-shadow: 
+    inset 0 1px 0 rgba(124, 58, 237, 0.4),
+    0 0 10px rgba(124, 58, 237, 0.3);
+  text-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+}
+
+.memory-grid-tab.inactive.hovered::before,
+.memory-grid-tab.inactive.hovered::after {
+  border-color: #7c3aed;
+}
+
+@keyframes neuralTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(124, 58, 237, 0.6),
+      inset 0 -1px 0 rgba(0, 212, 255, 0.2),
+      0 0 15px rgba(124, 58, 237, 0.4),
+      0 -3px 10px rgba(0, 212, 255, 0.3);
+}
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(124, 58, 237, 0.8),
+      inset 0 -1px 0 rgba(0, 212, 255, 0.4),
+      0 0 20px rgba(124, 58, 237, 0.5),
+      0 -4px 15px rgba(0, 212, 255, 0.4);
+  }
+}
+
+/* Matronage tab - warm orange/red accent */
+.matronage-tab.active {
+  background: linear-gradient(180deg, 
+    rgba(251, 146, 60, 0.25) 0%, 
+    rgba(239, 68, 68, 0.15) 50%,
+    rgba(25, 18, 15, 0.95) 100%
+  );
+  color: #fdba74;
+  box-shadow: 
+    inset 0 1px 0 rgba(251, 146, 60, 0.6),
+    inset 0 -1px 0 rgba(239, 68, 68, 0.2),
+    0 0 15px rgba(251, 146, 60, 0.4),
+    0 -3px 10px rgba(251, 146, 60, 0.3);
+  text-shadow: 
+    0 0 10px rgba(251, 146, 60, 0.8),
+    0 0 20px rgba(251, 146, 60, 0.4);
+  animation: warmTabGlow 2s ease-in-out infinite alternate;
+}
+
+.matronage-tab.active::before,
+.matronage-tab.active::after {
+  border-color: #fb923c;
+}
+
+.matronage-tab.inactive.hovered {
+  background: linear-gradient(180deg, 
+    rgba(251, 146, 60, 0.15) 0%, 
+    rgba(35, 25, 20, 0.95) 100%
+  );
+  color: #fed7aa;
+  box-shadow: 
+    inset 0 1px 0 rgba(251, 146, 60, 0.4),
+    0 0 10px rgba(251, 146, 60, 0.3);
+  text-shadow: 0 0 8px rgba(251, 146, 60, 0.5);
+}
+
+.matronage-tab.inactive.hovered::before,
+.matronage-tab.inactive.hovered::after {
+  border-color: #fb923c;
+}
+
+@keyframes warmTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(251, 146, 60, 0.6),
+      inset 0 -1px 0 rgba(239, 68, 68, 0.2),
+      0 0 15px rgba(251, 146, 60, 0.4),
+      0 -3px 10px rgba(251, 146, 60, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(251, 146, 60, 0.8),
+      inset 0 -1px 0 rgba(239, 68, 68, 0.4),
+      0 0 20px rgba(251, 146, 60, 0.5),
+      0 -4px 15px rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* Encyclopedia tab - knowledge blue/teal */
+.encyclopedia-tab.active {
+  background: linear-gradient(180deg, 
+    rgba(20, 184, 166, 0.25) 0%, 
+    rgba(6, 182, 212, 0.15) 50%,
+    rgba(15, 25, 25, 0.95) 100%
+  );
+  color: #5eead4;
+  box-shadow: 
+    inset 0 1px 0 rgba(20, 184, 166, 0.6),
+    inset 0 -1px 0 rgba(6, 182, 212, 0.2),
+    0 0 15px rgba(20, 184, 166, 0.4),
+    0 -3px 10px rgba(20, 184, 166, 0.3);
+  text-shadow: 
+    0 0 10px rgba(20, 184, 166, 0.8),
+    0 0 20px rgba(20, 184, 166, 0.4);
+  animation: tealTabGlow 2s ease-in-out infinite alternate;
+}
+
+.encyclopedia-tab.active::before,
+.encyclopedia-tab.active::after {
+  border-color: #14b8a6;
+}
+
+.encyclopedia-tab.inactive.hovered {
+  background: linear-gradient(180deg, 
+    rgba(20, 184, 166, 0.15) 0%, 
+    rgba(20, 30, 30, 0.95) 100%
+  );
+  color: #99f6e4;
+  box-shadow: 
+    inset 0 1px 0 rgba(20, 184, 166, 0.4),
+    0 0 10px rgba(20, 184, 166, 0.3);
+  text-shadow: 0 0 8px rgba(20, 184, 166, 0.5);
+}
+
+.encyclopedia-tab.inactive.hovered::before,
+.encyclopedia-tab.inactive.hovered::after {
+  border-color: #14b8a6;
+}
+
+@keyframes tealTabGlow {
+  0% {
+    box-shadow: 
+      inset 0 1px 0 rgba(20, 184, 166, 0.6),
+      inset 0 -1px 0 rgba(6, 182, 212, 0.2),
+      0 0 15px rgba(20, 184, 166, 0.4),
+      0 -3px 10px rgba(20, 184, 166, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 1px 0 rgba(20, 184, 166, 0.8),
+      inset 0 -1px 0 rgba(6, 182, 212, 0.4),
+      0 0 20px rgba(20, 184, 166, 0.5),
+      0 -4px 15px rgba(6, 182, 212, 0.4);
+  }
+}
+
+/* === DISABLED STATE === */
 .tab.disabled {
   background: rgba(20, 25, 35, 0.6) !important;
-  color: #64748b !important;
-  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #475569 !important;
   cursor: not-allowed !important;
   box-shadow: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+}
+
+.tab.disabled::before,
+.tab.disabled::after {
+  opacity: 0 !important;
 }
 
 .tab.disabled:hover {
   background: rgba(20, 25, 35, 0.6) !important;
-  color: #64748b !important;
-  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #475569 !important;
   box-shadow: none !important;
 }
 
-.tab.active {
-  background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
-  color: #ffffff;
-  border: 2px solid #00d4ff;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
-}
-
-.tab.inactive {
-  background: rgba(30, 41, 59, 0.8);
-  color: #94a3b8;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-}
-
-.tab.inactive.hovered {
-  background: rgba(0, 212, 255, 0.15);
-  color: #ffffff;
-  border: 2px solid #00d4ff;
-  box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
-}
-
+/* === INDICATOR STYLES === */
 .offline-indicator {
   color: #ef4444;
   font-size: 10px;
+  text-shadow: 0 0 6px #ef4444;
 }
 
 .tab.active .offline-indicator {
@@ -166,7 +624,7 @@
   color: #475569;
 } 
 
-/* Mobile responsive styles */
+/* === MOBILE RESPONSIVE === */
 @media (max-width: 768px) {
   .interface-tabs {
     position: relative;
@@ -174,8 +632,11 @@
     flex-wrap: wrap;
     gap: 4px;
     padding: 8px;
-    background: rgba(15, 23, 35, 0.95);
-    border-radius: 8px 8px 0 0;
+    background: linear-gradient(180deg, 
+      rgba(15, 23, 35, 0.98) 0%, 
+      rgba(20, 30, 45, 0.95) 100%
+    );
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
     justify-content: center;
   }
   
@@ -183,10 +644,18 @@
     height: 36px;
     padding: 0 10px;
     font-size: 9px;
-    margin-right: 0;
     flex: 1;
     min-width: 70px;
     max-width: 100px;
+    /* Simpler clip-path for mobile */
+    clip-path: polygon(
+      0 4px,
+      4px 0,
+      calc(100% - 4px) 0,
+      100% 4px,
+      100% 100%,
+      0 100%
+    );
   }
   
   /* Reset fixed widths on mobile */
@@ -200,6 +669,12 @@
   .achievements-tab {
     width: auto;
   }
+  
+  .tab::before,
+  .tab::after {
+    width: 6px;
+    height: 6px;
+  }
 }
 
 @media (max-width: 400px) {
@@ -208,5 +683,6 @@
     padding: 0 6px;
     font-size: 8px;
     min-width: 60px;
+    letter-spacing: 0.5px;
   }
 } 
