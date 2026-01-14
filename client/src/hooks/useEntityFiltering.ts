@@ -240,7 +240,6 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'dropped_item':
     case 'harvestable_resource':
     case 'rain_collector':
-    case 'broth_pot':
     case 'animal_corpse':
     case 'player_corpse':
     case 'wild_animal':
@@ -254,6 +253,13 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'broth_pot':
+      // CRITICAL: Broth pot sits ON TOP of campfires/fumaroles (same posY position).
+      // Adding a significant offset (10) ensures broth_pot ALWAYS sorts AFTER its heat source
+      // through natural Y-sorting. The offset must be large enough to survive the sort
+      // algorithm's partitioning, but small enough not to affect sorting relative to
+      // entities that are actually at different Y positions (10px is within visual overlap).
+      return entity.posY + 10;
     case 'cairn': {
       // Cairns: posY is the visual base (where stones meet ground), but the sprite
       // has extra space at the bottom. The visual base is offset upward from sprite bottom.
@@ -1882,7 +1888,17 @@ export function useEntityFiltering(
     // eliminating O(n log n) getEntityY() calls during sorting.
     // Special case checks still run, but the final Y comparison uses simple numbers.
     allEntities.sort((a, b) => {
-      // ABSOLUTE FIRST CHECK: Player vs ALK Station - tall structure Y-sorting
+      // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
+      // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
+      // CRITICAL: This must be THE VERY FIRST check to ensure no other logic can interfere
+      if (a.type === 'broth_pot' && (b.type === 'campfire' || b.type === 'fumarole')) {
+        return 1; // Broth pot renders after (above) campfire/fumarole
+      }
+      if (b.type === 'broth_pot' && (a.type === 'campfire' || a.type === 'fumarole')) {
+        return -1; // Broth pot renders after (above) campfire/fumarole
+      }
+      
+      // SECOND CHECK: Player vs ALK Station - tall structure Y-sorting
       // This MUST be first to ensure correct rendering for large structures
       // CRITICAL: The ALK station sprite is 1024x1024 but only ~775px has actual building content
       // The top ~24% is transparent PNG. When rendered at 480px, ~115px is transparent at top.
@@ -1959,18 +1975,9 @@ export function useEntityFiltering(
         return -1; // Flying bird renders after (above) non-flying entities
       }
       
+      // NOTE: Broth pot vs campfire/fumarole check moved to ABSOLUTE FIRST CHECK at top of comparator
       
-      // ABSOLUTE SECOND CHECK: Broth pot MUST render above campfires and fumaroles
-      // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
-      // Moving this to very top ensures no other logic can interfere
-      if (a.type === 'broth_pot' && (b.type === 'campfire' || b.type === 'fumarole')) {
-        return 1; // Broth pot renders after (above) campfire/fumarole
-      }
-      if (b.type === 'broth_pot' && (a.type === 'campfire' || a.type === 'fumarole')) {
-        return -1; // Broth pot renders after (above) campfire/fumarole
-      }
-      
-      // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - SECOND CHECK
+      // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - THIRD CHECK
       // This MUST run early to guarantee walls are never obscured by fog
       // Walls represent the building structure and should always be visible above fog
       // Check BOTH type strings explicitly to ensure we catch all cases

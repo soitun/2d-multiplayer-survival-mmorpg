@@ -1024,26 +1024,38 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         setIsGeneratingRecipe(true);
         
         // Start generating recipe
-        console.log('[AI Brewing] Detected 3 ingredients, starting recipe generation:', ingredientNames);
+        console.log('[AI Brewing] ===== STARTING RECIPE GENERATION =====');
+        console.log('[AI Brewing] Ingredients:', ingredientNames);
+        console.log('[AI Brewing] Recipe hash:', recipeHashStr);
 
         // Async function to generate and cache the recipe
         const generateAndCacheRecipe = async () => {
+            console.log('[AI Brewing] generateAndCacheRecipe() called');
             try {
-                // Generate recipe via Gemini API (with icon generation enabled)
+                console.log('[AI Brewing] Calling generateFullBrewRecipe...');
+                // Generate recipe via Gemini API (icon generation DISABLED for now - was hanging)
                 const result = await generateFullBrewRecipe(
                     ingredientNames,
                     getIngredientRarities(ingredientNames),
-                    true // Enable icon generation via Gemini
+                    false // TEMPORARILY DISABLED - icon generation was hanging
                 );
 
-                console.log('[AI Brewing] Recipe generated:', result.recipe.name);
+                console.log('[AI Brewing] ===== RECIPE RESULT RECEIVED =====');
+                console.log('[AI Brewing] Recipe name:', result.recipe.name);
+                console.log('[AI Brewing] Cached:', result.cached);
 
                 // Convert recipe to JSON for server
                 const recipeJson = recipeToServerJson(result.recipe, ingredientNames);
+                console.log('[AI Brewing] Recipe JSON to send:', recipeJson.substring(0, 200) + '...');
 
                 // Cache the recipe on the server via reducer
-                console.log('[AI Brewing] Caching recipe on server...');
-                connection.reducers.createGeneratedBrew(recipeJson, result.icon_base64 ?? undefined);
+                console.log('[AI Brewing] Caching recipe on server via createGeneratedBrew reducer...');
+                try {
+                    connection.reducers.createGeneratedBrew(recipeJson, result.icon_base64 ?? undefined);
+                    console.log('[AI Brewing] createGeneratedBrew reducer called successfully');
+                } catch (reducerError) {
+                    console.error('[AI Brewing] createGeneratedBrew reducer call FAILED:', reducerError);
+                }
 
                 // Remember this hash and recipe name so we don't regenerate
                 lastGeneratedHashRef.current = recipeHashStr;
@@ -1062,6 +1074,33 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         generateAndCacheRecipe();
 
     }, [attachedBrothPot, connection, itemDefinitions]);
+
+    // Register reducer callback to track if createGeneratedBrew succeeds or fails
+    useEffect(() => {
+        if (!connection?.reducers) return;
+
+        const handleReducerResult = (ctx: any, recipeJson: string, iconBase64: string | undefined) => {
+            console.log('[AI Brewing] ===== REDUCER CALLBACK FIRED =====');
+            console.log('[AI Brewing] Event status:', ctx.event?.status);
+            console.log('[AI Brewing] Event message:', ctx.event?.message);
+            
+            if (ctx.event?.status === 'Committed') {
+                console.log('[AI Brewing] ✅ createGeneratedBrew reducer COMMITTED successfully!');
+            } else if (ctx.event?.status === 'Failed') {
+                console.error('[AI Brewing] ❌ createGeneratedBrew reducer FAILED:', ctx.event?.message || ctx.event?.status);
+            } else {
+                console.log('[AI Brewing] ⚠️ createGeneratedBrew reducer status:', ctx.event?.status);
+            }
+        };
+
+        connection.reducers.onCreateGeneratedBrew(handleReducerResult);
+
+        return () => {
+            if (connection?.reducers?.removeOnCreateGeneratedBrew) {
+                connection.reducers.removeOnCreateGeneratedBrew(handleReducerResult);
+            }
+        };
+    }, [connection]);
 
     // Check if we have a cached recipe ready for the current ingredients
     // Now checks BOTH local state AND server's brew_recipe_cache table
@@ -1706,19 +1745,19 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             const shouldShowPreparing = has3Ingredients && hasEnoughWater && notSeawater && notCooking && noOutput && hasHeatSource;
                             
                             // Debug log to help troubleshoot
-                            if (has3Ingredients && hasEnoughWater && notSeawater) {
-                                console.log('[BrothPot Status] Conditions:', {
-                                    has3Ingredients,
-                                    hasEnoughWater,
-                                    notSeawater,
-                                    notCooking,
-                                    noOutput,
-                                    hasHeatSource,
-                                    shouldShowPreparing,
-                                    outputItemInstanceId: attachedBrothPot.outputItemInstanceId,
-                                    isCooking: attachedBrothPot.isCooking
-                                });
-                            }
+                            // if (has3Ingredients && hasEnoughWater && notSeawater) {
+                            //     console.log('[BrothPot Status] Conditions:', {
+                            //         has3Ingredients,
+                            //         hasEnoughWater,
+                            //         notSeawater,
+                            //         notCooking,
+                            //         noOutput,
+                            //         hasHeatSource,
+                            //         shouldShowPreparing,
+                            //         outputItemInstanceId: attachedBrothPot.outputItemInstanceId,
+                            //         isCooking: attachedBrothPot.isCooking
+                            //     });
+                            // }
                             
                             if (!shouldShowPreparing) return null;
                             

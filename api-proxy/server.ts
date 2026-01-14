@@ -36,6 +36,8 @@ const PORT = parseInt(process.env.PORT || process.env.PROXY_PORT || '8002', 10);
 // CORS configuration - allow both local dev and production origins
 const allowedOrigins = [
   'http://localhost:3008',
+  'http://localhost:3009',
+  'http://localhost:8002',
   'http://localhost:5173',
   // Production URLs - Railway and custom domain
   'https://broth-and-bullets-production-client-production.up.railway.app',
@@ -49,6 +51,29 @@ console.log('🔒 CORS Configuration:');
 console.log('   Allowed origins:', allowedOrigins);
 console.log('   CLIENT_URL env var:', process.env.CLIENT_URL);
 console.log('   NODE_ENV:', process.env.NODE_ENV);
+
+// Handle preflight OPTIONS requests explicitly (must be before other middleware)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin as string | undefined;
+    console.log(`[CORS OPTIONS] Preflight request from: ${origin}`);
+    
+    // In development, allow all origins; in production, check allowlist
+    if (process.env.NODE_ENV !== 'production' || !origin || allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin || '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+      console.log(`[CORS OPTIONS] ✅ Preflight approved for: ${origin}`);
+      return res.sendStatus(204);
+    } else {
+      console.error(`[CORS OPTIONS] ❌ Preflight rejected for: ${origin}`);
+      return res.sendStatus(403);
+    }
+  }
+  next();
+});
 
 // Middleware
 app.use(cors({
@@ -76,7 +101,11 @@ app.use(cors({
       }
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.raw({ type: 'audio/*', limit: '50mb' }));

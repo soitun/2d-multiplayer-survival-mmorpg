@@ -24,6 +24,7 @@ export interface BrewRecipe {
   category: BrewCategory;
   effect_type: EffectType | null;
   icon_subject: string;
+  ingredients?: string[]; // Optional: included when recipe needs to be sent to server
 }
 
 export type BrewCategory =
@@ -150,9 +151,19 @@ export async function generateBrewRecipe(
     throw new Error('Exactly 3 ingredients required for brewing');
   }
 
-  console.log('[BrewingAI] Generating recipe for:', ingredients);
+  console.log('[BrewingAI] ===== generateBrewRecipe START =====');
+  console.log('[BrewingAI] Ingredients:', ingredients);
+  console.log('[BrewingAI] API URL:', GEMINI_BREW_URL);
+
+  // Add timeout to prevent hanging
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.error('[BrewingAI] !!! FETCH TIMEOUT after 60s !!!');
+    controller.abort();
+  }, 60000); // 60 second timeout
 
   try {
+    console.log('[BrewingAI] Sending fetch request...');
     const response = await fetch(GEMINI_BREW_URL, {
       method: 'POST',
       headers: {
@@ -162,19 +173,32 @@ export async function generateBrewRecipe(
         ingredients,
         ingredient_rarities: ingredientRarities,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    console.log('[BrewingAI] Fetch response received, status:', response.status);
 
     if (!response.ok) {
+      console.error('[BrewingAI] Response NOT OK:', response.status, response.statusText);
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `API request failed: ${response.status}`);
     }
 
+    console.log('[BrewingAI] Parsing response JSON...');
     const recipe: BrewRecipe = await response.json();
+    console.log('[BrewingAI] ===== Recipe parsed successfully =====');
+    console.log('[BrewingAI] Recipe name:', recipe.name);
+    console.log('[BrewingAI] Recipe category:', recipe.category);
     
-    console.log('[BrewingAI] Generated recipe:', recipe.name);
     return recipe;
-  } catch (error) {
-    console.error('[BrewingAI] Recipe generation failed:', error);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    console.error('[BrewingAI] ===== Recipe generation FAILED =====');
+    if (error.name === 'AbortError') {
+      console.error('[BrewingAI] Request was aborted (timeout)');
+    } else {
+      console.error('[BrewingAI] Error:', error);
+    }
     throw error;
   }
 }
@@ -188,14 +212,25 @@ export async function generateBrewRecipe(
 export async function generateBrewIcon(subject: string): Promise<string | null> {
   console.log('[BrewingAI] Generating icon for:', subject);
 
+  // Add timeout to prevent hanging
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.log('[BrewingAI] Icon generation timed out after 30s');
+    controller.abort();
+  }, 30000); // 30 second timeout
+
   try {
+    console.log('[BrewingAI] Sending icon request to:', GEMINI_ICON_URL);
     const response = await fetch(GEMINI_ICON_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ subject }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    console.log('[BrewingAI] Icon response received, status:', response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -203,7 +238,9 @@ export async function generateBrewIcon(subject: string): Promise<string | null> 
       return null;
     }
 
+    console.log('[BrewingAI] Parsing icon response JSON...');
     const data: BrewIconResponse = await response.json();
+    console.log('[BrewingAI] Icon response parsed:', { placeholder: data.placeholder, hasIcon: !!data.icon_base64 });
     
     if (data.placeholder) {
       console.log('[BrewingAI] Icon generation returned placeholder (feature not available)');
@@ -216,8 +253,13 @@ export async function generateBrewIcon(subject: string): Promise<string | null> 
     }
 
     return null;
-  } catch (error) {
-    console.error('[BrewingAI] Icon generation failed:', error);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.error('[BrewingAI] Icon generation aborted (timeout)');
+    } else {
+      console.error('[BrewingAI] Icon generation failed:', error);
+    }
     return null;
   }
 }
@@ -239,14 +281,16 @@ export async function generateFullBrewRecipe(
   ingredientRarities: number[] = [0.3, 0.3, 0.3],
   generateIcon: boolean = true
 ): Promise<BrewGenerationResult> {
+  console.log('[BrewingAI] generateFullBrewRecipe starting for:', ingredients);
   const recipeHash = computeRecipeHash(ingredients);
   
   // Check local cache first
   const cachedRecipe = getLocalCachedRecipe(recipeHash);
   if (cachedRecipe) {
     console.log('[BrewingAI] Using locally cached recipe for hash:', recipeHash.toString());
+    console.log('[BrewingAI] NOTE: Recipe is locally cached but will still be sent to server for caching');
     return {
-      recipe: cachedRecipe,
+      recipe: { ...cachedRecipe, ingredients }, // Include ingredients for server
       icon_base64: getLocalCachedIcon(recipeHash) ?? null,
       recipe_hash: recipeHash,
       cached: true,
@@ -254,7 +298,9 @@ export async function generateFullBrewRecipe(
   }
 
   // Generate new recipe via AI
+  console.log('[BrewingAI] Calling generateBrewRecipe...');
   const recipe = await generateBrewRecipe(ingredients, ingredientRarities);
+  console.log('[BrewingAI] Recipe received:', recipe.name);
   
   // Add ingredients to recipe data for server verification
   const recipeWithIngredients = {
@@ -262,16 +308,25 @@ export async function generateFullBrewRecipe(
     ingredients,
   };
 
-  // Generate icon if requested
+  // Generate icon if requested (but don't let it block recipe caching)
   let iconBase64: string | null = null;
   if (generateIcon) {
-    iconBase64 = await generateBrewIcon(recipe.icon_subject);
+    console.log('[BrewingAI] Starting icon generation (non-blocking)...');
+    try {
+      iconBase64 = await generateBrewIcon(recipe.icon_subject);
+      console.log('[BrewingAI] Icon generation completed:', iconBase64 ? 'with icon' : 'no icon');
+    } catch (iconError) {
+      console.error('[BrewingAI] Icon generation error (continuing without icon):', iconError);
+      iconBase64 = null;
+    }
   }
 
   // Cache locally
+  console.log('[BrewingAI] Caching recipe locally...');
   cacheRecipeLocally(recipeHash, recipe);
   cacheIconLocally(recipeHash, iconBase64);
 
+  console.log('[BrewingAI] generateFullBrewRecipe completed successfully');
   return {
     recipe: recipeWithIngredients as BrewRecipe,
     icon_base64: iconBase64,

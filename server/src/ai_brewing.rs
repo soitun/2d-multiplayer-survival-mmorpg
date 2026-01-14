@@ -237,9 +237,9 @@ fn validate_recipe_data(recipe: &AiBrewRecipeData) -> Result<(), String> {
         }
     }
     
-    // Brew time validation
-    if recipe.brew_time_secs < 30 || recipe.brew_time_secs > 600 {
-        return Err("Brew time out of range (30-600 seconds)".to_string());
+    // Brew time validation (fast-paced PvP game - quick brewing)
+    if recipe.brew_time_secs < 15 || recipe.brew_time_secs > 30 {
+        return Err("Brew time out of range (15-30 seconds)".to_string());
     }
     
     // Category validation
