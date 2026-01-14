@@ -532,11 +532,14 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     }, [sovaMessageAdder]);
     
     // === SOVA Tutorial Sounds (abstracted to useSovaTutorials hook) ===
-    // Handles: crash intro (5s), tutorial hint (3.5min), first resource, memory shard tutorials
+    // Handles: crash intro (5s), tutorial hint (3.5min), first resource, memory shard, rune stone, alk station tutorials
     useSovaTutorials({
         localPlayerId,
         showSovaSoundBoxRef,
         sovaMessageAdderRef,
+        localPlayerPosition: predictedPosition,
+        runeStones: props.runeStones,
+        alkStations: props.alkStations,
     });
 
     // === QUEST NOTIFICATION HANDLERS (abstracted to useQuestNotifications hook) ===

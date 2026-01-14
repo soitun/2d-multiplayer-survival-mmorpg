@@ -90,7 +90,7 @@ pub enum SoundType {
     Explosion,               // explosion.mp3 (1 variation - loud explosion sound, audible from far away)
     ExplosiveDud,            // explosive_dud.mp3 (1 variation - fizzle sound when explosive fails to detonate)
     DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
-    SovaMemoryShardTutorial, // sova_memory_shard_tutorial.mp3 (SOVA explains memory shards on first pickup)
+    SovaMemoryShardTutorial, // sova_tutorial_memory_shard.mp3 (SOVA explains memory shards on first pickup)
     TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
     ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
     ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
@@ -200,7 +200,7 @@ impl SoundType {
             SoundType::Explosion => "explosion",
             SoundType::ExplosiveDud => "explosive_dud",
             SoundType::DoorDestroyed => "door_destroyed",
-            SoundType::SovaMemoryShardTutorial => "sova_memory_shard_tutorial",
+            SoundType::SovaMemoryShardTutorial => "sova_tutorial_memory_shard",
             SoundType::TillDirt => "till_dirt",
             SoundType::ErrorTillingFailed => "error_tilling_failed",
             SoundType::ErrorTillingDirt => "error_tilling_dirt",

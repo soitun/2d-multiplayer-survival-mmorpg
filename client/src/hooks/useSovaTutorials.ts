@@ -35,10 +35,25 @@ export interface SovaMessage {
 export type ShowSovaSoundBoxFn = (audio: HTMLAudioElement, label: string) => void;
 export type SovaMessageAdderFn = (message: SovaMessage) => void;
 
+// Minimal interfaces for the entity types we need (just position data)
+interface RuneStoneData {
+    posX: number;
+    posY: number;
+}
+
+interface AlkStationData {
+    worldPosX: number;
+    worldPosY: number;
+}
+
 interface UseSovaTutorialsProps {
     localPlayerId: string | null | undefined;
     showSovaSoundBoxRef: MutableRefObject<ShowSovaSoundBoxFn | null | undefined>;
     sovaMessageAdderRef: MutableRefObject<SovaMessageAdderFn | null | undefined>;
+    // Optional entity data for proximity-based tutorials
+    localPlayerPosition?: { x: number; y: number } | null;
+    runeStones?: Map<string, RuneStoneData>;
+    alkStations?: Map<string, AlkStationData>;
 }
 
 // ============================================================================
@@ -62,7 +77,7 @@ const TUTORIALS = {
     },
     memoryShard: {
         storageKey: 'broth_memory_shard_tutorial_played',
-        audioFile: '/sounds/sova_memory_shard_tutorial.mp3',
+        audioFile: '/sounds/sova_tutorial_memory_shard.mp3',
         soundBoxLabel: 'SOVA: Memory Shard Warning',
         eventName: 'sova-memory-shard-tutorial',
         message: `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`,
@@ -73,6 +88,20 @@ const TUTORIALS = {
         soundBoxLabel: 'SOVA: Neural Resonance Detected',
         eventName: 'sova-first-hostile-encounter',
         message: `Wait... I'm picking up something strange. Neural resonance patterns—fragmented, hostile. They're not quite... real. More like echoes. Apparitions formed from collective fear and fractured memories. They sense vulnerable minds—yours is lit up like a beacon right now. Shelter can block their attacks, but don't get comfortable. Stay too long in one place and the larger ones will start tearing through your walls. Your best options? Keep moving until dawn, or stand your ground and fight. They can be killed. They're not invincible—just relentless.`,
+    },
+    runeStone: {
+        storageKey: 'broth_rune_stone_tutorial_played',
+        audioFile: '/sounds/sova_tutorial_rune_stone.mp3',
+        soundBoxLabel: 'SOVA: Anomalous Structure Detected',
+        eventName: 'sova-rune-stone-tutorial',
+        message: `Hold on — I'm picking up some unusual readings from that structure. Scanning now. It's old. Pre-industrial, possibly ancient. These markings... they're some kind of resonance pattern. I'm detecting three distinct signatures across the island — green ones seem to accelerate biological growth, red ones affect material synthesis, and blue ones... those give off the same frequency as Memory Shards. Interesting. They also emit a faint light field at night. Approach the stone and read the inscription — it should tell you exactly what this one does.`,
+    },
+    alkStation: {
+        storageKey: 'broth_alk_station_tutorial_played',
+        audioFile: '/sounds/sova_tutorial_alk_station.mp3',
+        soundBoxLabel: 'SOVA: Military Frequency Detected',
+        eventName: 'sova-alk-station-tutorial',
+        message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kompound. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
     },
 } as const;
 
@@ -200,14 +229,25 @@ function playSovaTutorial(
 // Main Hook
 // ============================================================================
 
+// Proximity detection distance for tutorials (in pixels)
+const TUTORIAL_PROXIMITY_DISTANCE = 600;
+const TUTORIAL_PROXIMITY_DISTANCE_SQ = TUTORIAL_PROXIMITY_DISTANCE * TUTORIAL_PROXIMITY_DISTANCE;
+
 export function useSovaTutorials({
     localPlayerId,
     showSovaSoundBoxRef,
     sovaMessageAdderRef,
+    localPlayerPosition,
+    runeStones,
+    alkStations,
 }: UseSovaTutorialsProps): void {
     
     // Track if component is mounted to avoid state updates after unmount
     const isMountedRef = useRef(true);
+    
+    // Track if we've already fired the proximity events this session (to avoid spamming)
+    const hasFiredRuneStoneEvent = useRef(false);
+    const hasFiredAlkStationEvent = useRef(false);
     
     useEffect(() => {
         isMountedRef.current = true;
@@ -384,6 +424,142 @@ export function useSovaTutorials({
         window.addEventListener(eventName, handleEvent as EventListener);
         return () => window.removeEventListener(eventName, handleEvent as EventListener);
     }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+
+    // ========================================================================
+    // Part 5: Rune Stone Tutorial (Event-driven)
+    // Plays the first time the player approaches a rune stone.
+    // Explains the three rune stone types and their effects.
+    // ========================================================================
+    useEffect(() => {
+        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.runeStone;
+        
+        const handleEvent = () => {
+            console.log('[SovaTutorials] 🪨 Rune stone tutorial event received');
+            
+            // Already played before? Skip entirely
+            if (hasBeenPlayed(storageKey)) {
+                console.log('[SovaTutorials] 🪨 Rune stone tutorial already played, skipping');
+                return;
+            }
+            
+            // Intro still playing? Skip this time, but DON'T mark as played
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] 🪨 Intro still playing - skipping rune stone tutorial (will play next time)');
+                return;
+            }
+            
+            // Mark as played FIRST to prevent duplicate plays
+            markAsPlayed(storageKey);
+            console.log('[SovaTutorials] 🪨 Playing rune stone tutorial NOW');
+            
+            playSovaTutorial(
+                {
+                    audioFile,
+                    soundBoxLabel,
+                    message,
+                    messageId: `sova-rune-stone-tutorial-${Date.now()}`,
+                },
+                showSovaSoundBoxRef.current,
+                sovaMessageAdderRef.current
+            );
+        };
+
+        window.addEventListener(eventName, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName, handleEvent as EventListener);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+
+    // ========================================================================
+    // Part 6: ALK Station Tutorial (Event-driven)
+    // Plays the first time the player approaches an ALK station.
+    // Explains the contract system and how to use stations.
+    // ========================================================================
+    useEffect(() => {
+        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.alkStation;
+        
+        const handleEvent = () => {
+            console.log('[SovaTutorials] 🏭 ALK station tutorial event received');
+            
+            // Already played before? Skip entirely
+            if (hasBeenPlayed(storageKey)) {
+                console.log('[SovaTutorials] 🏭 ALK station tutorial already played, skipping');
+                return;
+            }
+            
+            // Intro still playing? Skip this time, but DON'T mark as played
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] 🏭 Intro still playing - skipping ALK station tutorial (will play next time)');
+                return;
+            }
+            
+            // Mark as played FIRST to prevent duplicate plays
+            markAsPlayed(storageKey);
+            console.log('[SovaTutorials] 🏭 Playing ALK station tutorial NOW');
+            
+            playSovaTutorial(
+                {
+                    audioFile,
+                    soundBoxLabel,
+                    message,
+                    messageId: `sova-alk-station-tutorial-${Date.now()}`,
+                },
+                showSovaSoundBoxRef.current,
+                sovaMessageAdderRef.current
+            );
+        };
+
+        window.addEventListener(eventName, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName, handleEvent as EventListener);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+
+    // ========================================================================
+    // Part 7: Proximity Detection for Rune Stones and ALK Stations
+    // Fires tutorial events when player first approaches these structures.
+    // ========================================================================
+    useEffect(() => {
+        // Skip if no player position or no entity data
+        if (!localPlayerPosition || !localPlayerId) return;
+        
+        const playerX = localPlayerPosition.x;
+        const playerY = localPlayerPosition.y;
+        
+        // Check rune stone proximity
+        if (runeStones && runeStones.size > 0 && !hasFiredRuneStoneEvent.current) {
+            // Don't fire if already played
+            if (!hasBeenPlayed(TUTORIALS.runeStone.storageKey)) {
+                for (const runeStone of runeStones.values()) {
+                    const dx = playerX - runeStone.posX;
+                    const dy = playerY - runeStone.posY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                        console.log('[SovaTutorials] 🪨 Player approached rune stone - firing tutorial event');
+                        hasFiredRuneStoneEvent.current = true;
+                        window.dispatchEvent(new Event(TUTORIALS.runeStone.eventName));
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Check ALK station proximity
+        if (alkStations && alkStations.size > 0 && !hasFiredAlkStationEvent.current) {
+            // Don't fire if already played
+            if (!hasBeenPlayed(TUTORIALS.alkStation.storageKey)) {
+                for (const alkStation of alkStations.values()) {
+                    const dx = playerX - alkStation.worldPosX;
+                    const dy = playerY - alkStation.worldPosY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                        console.log('[SovaTutorials] 🏭 Player approached ALK station - firing tutorial event');
+                        hasFiredAlkStationEvent.current = true;
+                        window.dispatchEvent(new Event(TUTORIALS.alkStation.eventName));
+                        break;
+                    }
+                }
+            }
+        }
+    }, [localPlayerPosition, localPlayerId, runeStones, alkStations]);
 }
 
 export default useSovaTutorials;
