@@ -154,16 +154,23 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
     // Unified search/invite field for invite tab
     const [playerSearchFilter, setPlayerSearchFilter] = useState('');
 
-    // Keyboard blocking when input is focused - prevents WASD/arrows from moving player
+    // Keyboard blocking when input is focused - prevents WASD/arrows/game hotkeys from triggering game actions
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Block movement keys when input is focused
+            // Block movement and game hotkeys when input is focused
             if (isInputFocused) {
                 // Block WASD and arrow keys from moving player
                 if (e.key === 'w' || e.key === 'W' || e.key === 'a' || e.key === 'A' ||
                     e.key === 's' || e.key === 'S' || e.key === 'd' || e.key === 'D' ||
                     e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
                     e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.stopPropagation();
+                }
+                // Block game hotkeys (Y, G, E, R, F, Q, Tab) to prevent tab switching and game actions
+                if (e.key === 'y' || e.key === 'Y' || e.key === 'g' || e.key === 'G' ||
+                    e.key === 'e' || e.key === 'E' || e.key === 'r' || e.key === 'R' ||
+                    e.key === 'f' || e.key === 'F' || e.key === 'q' || e.key === 'Q' ||
+                    e.key === 'Tab') {
                     e.stopPropagation();
                 }
                 // Spacebar needs special handling - stop propagation but don't prevent default

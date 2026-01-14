@@ -296,6 +296,21 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
               e.target.style.boxShadow = 'none';
               onSearchFocusChange?.(false); // Unblock player movement
             }}
+            onKeyDown={(e) => {
+              // Block game control keys from bubbling up to the game
+              const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'y', 'r', 'q', 'tab'];
+              const key = e.key.toLowerCase();
+              
+              if (gameControlKeys.includes(key)) {
+                e.stopPropagation();
+              }
+              
+              // Handle Escape key to blur the input
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
           />
           {searchQuery && (
             <button

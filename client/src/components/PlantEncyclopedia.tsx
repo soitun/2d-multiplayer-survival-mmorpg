@@ -424,22 +424,22 @@ const PlantEncyclopedia: React.FC<PlantEncyclopediaProps> = ({ plantConfigs, dis
             placeholder="Search plants, yields, or seeds..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              // Prevent ALL game control keys from bubbling up to the game
-              const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm'];
-              const key = e.key.toLowerCase();
-              
-              if (gameControlKeys.includes(key)) {
-                // Prevent game actions but allow typing in the input
-                e.stopPropagation();
-              }
-              
-              // Handle Escape key to blur the input and ensure game controls are restored
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }
-            }}
+onKeyDown={(e) => {
+                              // Prevent ALL game control keys from bubbling up to the game
+                              const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'y', 'r', 'q', 'tab'];
+                              const key = e.key.toLowerCase();
+                              
+                              if (gameControlKeys.includes(key)) {
+                                // Prevent game actions but allow typing in the input
+                                e.stopPropagation();
+                              }
+                              
+                              // Handle Escape key to blur the input and ensure game controls are restored
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }
+                            }}
             onFocus={() => {
               console.log('[PlantEncyclopedia] Search input focused - should block game controls');
             }}

@@ -305,11 +305,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         // --- Handle Other Progressive Effects (HealthRegen, Bleed, item-based Damage) ---
         // Wet, WaterDrinking, and broth buff effects don't need per-tick processing (except PassiveHealthRegen)
         // Broth buff effects (Intoxicated, SpeedBoost, etc.) are time-based flags only
+        // BrewCooldown is also a time-based flag that just prevents consuming another brew
         let is_broth_buff_effect = matches!(effect.effect_type, 
             EffectType::Intoxicated | EffectType::SpeedBoost | 
             EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | 
             EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
-            EffectType::PoisonCoating | EffectType::HarvestBoost);
+            EffectType::PoisonCoating | EffectType::HarvestBoost | EffectType::BrewCooldown);
         
         if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun || is_broth_buff_effect {
             // These effects are purely time-based, no per-tick processing needed

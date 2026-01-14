@@ -560,32 +560,52 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     const [activeTab, setActiveTab] = useState<AlkTab>('seasonal');
     const [nearbyStationId, setNearbyStationId] = useState<number | null>(null);
     const [isQuantityInputFocused, setIsQuantityInputFocused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     const connection = useGameConnection();
     
     // Block movement keys while panel is open to prevent character movement during UI interaction
-    // Also block when quantity input is focused (to prevent movement while typing)
+    // Also block when quantity input or search input is focused (to prevent movement while typing)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Handle Escape to close
+            // Handle Escape to close (or clear search first)
             if (e.key === 'Escape') {
+                if (searchQuery && isSearchFocused) {
+                    // Clear search first if focused on search
+                    setSearchQuery('');
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return;
+                }
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 onClose();
                 return;
             }
             // Block arrow keys from moving the player
-            // Always block if quantity input is focused, otherwise only block if not in input fields
+            // Always block if any input is focused
+            const isInputFocused = isQuantityInputFocused || isSearchFocused;
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                if (isQuantityInputFocused || !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+                if (isInputFocused || !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
                     e.stopPropagation();
                 }
             }
             // Block WASD movement keys while panel is open
-            // Always block if quantity input is focused, otherwise only block if not in input fields
+            // Always block if any input is focused
             if (e.key === 'w' || e.key === 'W' || e.key === 'a' || e.key === 'A' || 
                 e.key === 's' || e.key === 'S' || e.key === 'd' || e.key === 'D') {
-                if (isQuantityInputFocused || !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+                if (isInputFocused || !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+                    e.stopPropagation();
+                }
+            }
+            // Block common game hotkeys (Y, G, E, etc.) when input is focused
+            // to prevent tab switching or other game actions while typing
+            if (isInputFocused) {
+                if (e.key === 'y' || e.key === 'Y' || e.key === 'g' || e.key === 'G' ||
+                    e.key === 'e' || e.key === 'E' || e.key === 'r' || e.key === 'R' ||
+                    e.key === 'f' || e.key === 'F' || e.key === 'q' || e.key === 'Q' ||
+                    e.key === 'Tab') {
                     e.stopPropagation();
                 }
             }
@@ -596,7 +616,7 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown, true);
         };
-    }, [onClose, isQuantityInputFocused]);
+    }, [onClose, isQuantityInputFocused, isSearchFocused, searchQuery]);
     
     // Count Memory Shards in player's inventory (this is the real shard count)
     const inventoryShardCount = useMemo(() => {
@@ -683,6 +703,34 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
             .filter(c => getKindTag(c.kind) === 'DailyBonus' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
+    // Global search across all contracts
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        
+        const query = searchQuery.toLowerCase().trim();
+        const allActiveContracts = Array.from(alkContracts.values())
+            .filter(c => c.isActive && isNotMemoryShard(c));
+        
+        return allActiveContracts.filter(contract => {
+            // Search by item name
+            const itemName = contract.itemName.trim().toLowerCase();
+            if (itemName.includes(query)) return true;
+            
+            // Search by category/kind name
+            const kindName = getContractKindName(contract.kind).toLowerCase();
+            if (kindName.includes(query)) return true;
+            
+            // Search by item definition name if available
+            const itemDef = itemDefinitions.get(contract.itemDefId.toString());
+            if (itemDef?.name?.toLowerCase().includes(query)) return true;
+            
+            return false;
+        });
+    }, [alkContracts, searchQuery, itemDefinitions]);
+    
+    // Check if search mode is active
+    const isSearchActive = searchQuery.trim().length > 0;
+    
     // Get player's contracts - sorted by date submitted (most recent first)
     const myContracts = useMemo(() => {
         if (!playerIdentity) return [];
@@ -726,8 +774,52 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
         connection.connection.reducers.deliverAlkContract(playerContractId, nearbyStationId);
     }, [connection, nearbyStationId]);
     
-    // Render contracts for the active tab
+    // Render contracts for the active tab (or search results)
     const renderContracts = () => {
+        // If search is active, show search results instead of tab content
+        if (isSearchActive) {
+            if (searchResults.length === 0) {
+                return (
+                    <div className="no-contracts">
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔍</div>
+                        No contracts found for "{searchQuery}"
+                        <br />
+                        <span style={{ fontSize: '12px', opacity: 0.7 }}>
+                            Try searching for item names like "wood", "stone", "salmon", etc.
+                        </span>
+                    </div>
+                );
+            }
+            
+            return (
+                <div className="contracts-list search-results">
+                    <div className="search-results-header" style={{ 
+                        padding: '8px 12px', 
+                        marginBottom: '8px', 
+                        color: '#00ffff',
+                        fontSize: '13px',
+                        borderBottom: '1px solid rgba(0, 170, 255, 0.3)'
+                    }}>
+                        Found {searchResults.length} contract{searchResults.length !== 1 ? 's' : ''} matching "{searchQuery}"
+                    </div>
+                    {searchResults.map(contract => (
+                        <ContractCard
+                            key={contract.contractId.toString()}
+                            contract={contract}
+                            itemDef={itemDefinitions.get(contract.itemDefId.toString()) || null}
+                            onAccept={handleAcceptContract}
+                            isAccepted={acceptedContractIds.has(contract.contractId.toString())}
+                            currentSeason={currentSeason}
+                            onQuantityInputFocusChange={setIsQuantityInputFocused}
+                            inventoryItems={inventoryItems}
+                            itemDefinitions={itemDefinitions}
+                            playerIdentity={playerIdentity}
+                        />
+                    ))}
+                </div>
+            );
+        }
+        
         let contracts: AlkContract[] = [];
         
         switch (activeTab) {
@@ -867,6 +959,63 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
                 {currentSeason === 1 && "☀️ Summer: Agricultural peak. Pumpkins and corn contracts active."}
                 {currentSeason === 2 && "🍂 Autumn: Harvest season. Root vegetables and salmon at premium rates."}
                 {currentSeason === 3 && "❄️ Winter: Preserved goods and pelts in demand. Stay warm."}
+            </div>
+            
+            {/* Search Bar */}
+            <div className="alk-search-bar" style={{
+                padding: '8px 16px',
+                background: 'linear-gradient(135deg, rgba(15, 25, 50, 0.8), rgba(10, 20, 40, 0.9))',
+                borderBottom: '1px solid rgba(0, 170, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+            }}>
+                <span style={{ color: '#00aaff', fontSize: '16px' }}>🔍</span>
+                <input
+                    type="text"
+                    placeholder="Search contracts by item name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    style={{
+                        flex: 1,
+                        background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
+                        border: isSearchFocused 
+                            ? '2px solid rgba(0, 255, 255, 0.6)' 
+                            : '2px solid rgba(0, 170, 255, 0.3)',
+                        borderRadius: '4px',
+                        padding: '8px 12px',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSearchFocused 
+                            ? '0 0 12px rgba(0, 255, 255, 0.3), inset 0 0 8px rgba(0, 170, 255, 0.1)' 
+                            : 'inset 0 0 8px rgba(0, 170, 255, 0.1)'
+                    }}
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(255, 100, 100, 0.3), rgba(200, 50, 50, 0.4))',
+                            border: '2px solid rgba(255, 100, 100, 0.4)',
+                            borderRadius: '4px',
+                            padding: '6px 10px',
+                            color: '#ff8888',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.2s ease'
+                        }}
+                        title="Clear search (Esc)"
+                    >
+                        ✕ Clear
+                    </button>
+                )}
             </div>
             
             {/* Primary Tabs - Always visible */}
