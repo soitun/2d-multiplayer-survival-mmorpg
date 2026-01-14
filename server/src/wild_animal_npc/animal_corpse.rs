@@ -17,7 +17,7 @@ use crate::environment::calculate_chunk_index;
 use super::core::AnimalSpecies; // Use AnimalSpecies from core module
 
 // Define constants for animal corpses
-const DEFAULT_ANIMAL_CORPSE_DESPAWN_SECONDS: u64 = 180; // 3 minutes default
+const DEFAULT_ANIMAL_CORPSE_DESPAWN_SECONDS: u64 = 300; // 5 minutes - more forgiving if interrupted while hunting
 pub(crate) const ANIMAL_CORPSE_COLLISION_RADIUS: f32 = 16.0; // Slightly smaller than player corpse
 pub(crate) const ANIMAL_CORPSE_COLLISION_Y_OFFSET: f32 = 8.0; // Smaller Y offset
 pub(crate) const PLAYER_ANIMAL_CORPSE_COLLISION_DISTANCE_SQUARED: f32 = (crate::PLAYER_RADIUS + ANIMAL_CORPSE_COLLISION_RADIUS) * (crate::PLAYER_RADIUS + ANIMAL_CORPSE_COLLISION_RADIUS);

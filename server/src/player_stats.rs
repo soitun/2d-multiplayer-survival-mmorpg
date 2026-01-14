@@ -131,8 +131,9 @@ pub(crate) const INSANITY_THRESHOLD_90: f32 = 90.0; // Critical warning threshol
 pub(crate) const INSANITY_THRESHOLD_100: f32 = 100.0; // Maximum threshold (Entrainment)
 
 // Add constants for starting values (when spawning/respawning)
-pub(crate) const PLAYER_STARTING_HUNGER: f32 = 100.0; // Start at 40% of max (100/250)
-pub(crate) const PLAYER_STARTING_THIRST: f32 = 100.0; // Start at 40% of max (100/250)
+// Increased from 40% to 60% to give new players more breathing room before survival pressure kicks in
+pub(crate) const PLAYER_STARTING_HUNGER: f32 = 150.0; // Start at 60% of max (150/250)
+pub(crate) const PLAYER_STARTING_THIRST: f32 = 150.0; // Start at 60% of max (150/250)
 
 // Cold-induced hunger drain constants
 pub(crate) const HUNGER_DRAIN_MULTIPLIER_LOW_WARMTH: f32 = 1.5; // 50% faster hunger drain when cold

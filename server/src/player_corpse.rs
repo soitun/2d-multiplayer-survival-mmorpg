@@ -17,7 +17,7 @@ use crate::models::{ItemLocation, ContainerType, EquipmentSlotType, ContainerLoc
 use crate::active_equipment::active_equipment;
 
 // Define constants for the corpse
-const DEFAULT_CORPSE_DESPAWN_SECONDS: u64 = 300; // Default to 5 minutes if no items or no respawn times set
+const DEFAULT_CORPSE_DESPAWN_SECONDS: u64 = 480; // Default to 8 minutes - more forgiving for recovering gear
 pub(crate) const CORPSE_COLLISION_RADIUS: f32 = 18.0; // Similar to box/campfire
 pub(crate) const CORPSE_COLLISION_Y_OFFSET: f32 = 10.0; // Similar to box/campfire
 pub(crate) const PLAYER_CORPSE_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + CORPSE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + CORPSE_COLLISION_RADIUS);
