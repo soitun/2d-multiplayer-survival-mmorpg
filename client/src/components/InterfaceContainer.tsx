@@ -665,159 +665,173 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
 
   // Render content based on current view
   const renderContent = () => {
-    switch (currentView) {
-      case 'minimap':
-        return (
-          <div style={{ 
-            ...contentContainerStyle,
-            padding: '0',
-            background: 'transparent',
-            border: 'none',
-            position: 'relative',
-          }}>
-            {children}
-            {/* Toggle Controls Container */}
-            <div style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
+    // Always render the minimap canvas to prevent remounting issues when switching tabs
+    // This keeps the canvas in the DOM so it maintains its size and state
+    const minimapContent = (
+      <div 
+        key="minimap-content"
+        style={{ 
+          ...contentContainerStyle,
+          padding: '0',
+          background: 'transparent',
+          border: 'none',
+          position: currentView === 'minimap' ? 'relative' : 'absolute',
+          // Override alignItems to stretch so canvas fills the container
+          // This is critical for accurate minimap click coordinate conversion
+          alignItems: 'stretch',
+          // Hide when not on minimap tab, but keep in DOM to preserve canvas state
+          display: currentView === 'minimap' ? 'flex' : 'none',
+        }}
+      >
+        {children}
+        {/* Toggle Controls Container */}
+        <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          zIndex: 1002,
+          pointerEvents: 'auto', // Ensure controls receive mouse events
+        }}>
+          {/* Grid Coordinates Toggle Checkbox */}
+          <label
+            style={{
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
               gap: '6px',
-              zIndex: 1002,
-              pointerEvents: 'auto', // Ensure controls receive mouse events
-            }}>
-              {/* Grid Coordinates Toggle Checkbox */}
-              <label
-                style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontFamily: '"Courier New", monospace',
+              color: '#00d4ff',
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(0, 212, 255, 0.3)',
+              userSelect: 'none',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+              e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showGridCoordinates}
+              onChange={(e) => handleToggleGridCoordinates(e.target.checked)}
+              style={{
                 cursor: 'pointer',
-                fontSize: '11px',
-                fontFamily: '"Courier New", monospace',
-                color: '#00d4ff',
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: '1px solid rgba(0, 212, 255, 0.3)',
-                userSelect: 'none',
-                transition: 'all 0.2s ease',
+                width: '14px',
+                height: '14px',
+                accentColor: '#00d4ff',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-                e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.6)';
+            />
+            <span style={{ textShadow: '0 0 4px rgba(0, 212, 255, 0.8)' }}>
+              Show Grid
+            </span>
+          </label>
+            
+          {/* Weather Overlay Toggle Checkbox */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontFamily: '"Courier New", monospace',
+              color: '#4682B4',
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(70, 130, 180, 0.3)',
+              userSelect: 'none',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+              e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+              e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.3)';
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showWeatherOverlay}
+              onChange={(e) => handleToggleWeatherOverlay(e.target.checked)}
+              style={{
+                cursor: 'pointer',
+                width: '14px',
+                height: '14px',
+                accentColor: '#4682B4',
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+            />
+            <span style={{ textShadow: '0 0 4px rgba(70, 130, 180, 0.8)' }}>
+              Weather
+            </span>
+          </label>
+            
+          {/* Show Names Toggle Checkbox */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontFamily: '"Courier New", monospace',
+              color: '#D2691E',
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(210, 105, 30, 0.3)',
+              userSelect: 'none',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+              e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+              e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.3)';
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showNames}
+              onChange={(e) => handleToggleShowNames(e.target.checked)}
+              style={{
+                cursor: 'pointer',
+                width: '14px',
+                height: '14px',
+                accentColor: '#D2691E',
               }}
-            >
-              <input
-                type="checkbox"
-                checked={showGridCoordinates}
-                onChange={(e) => handleToggleGridCoordinates(e.target.checked)}
-                style={{
-                  cursor: 'pointer',
-                  width: '14px',
-                  height: '14px',
-                  accentColor: '#00d4ff',
-                }}
-              />
-              <span style={{ textShadow: '0 0 4px rgba(0, 212, 255, 0.8)' }}>
-                Show Grid
-              </span>
-            </label>
-              
-              {/* Weather Overlay Toggle Checkbox */}
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  fontFamily: '"Courier New", monospace',
-                  color: '#4682B4',
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(70, 130, 180, 0.3)',
-                  userSelect: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-                  e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.6)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                  e.currentTarget.style.borderColor = 'rgba(70, 130, 180, 0.3)';
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={showWeatherOverlay}
-                  onChange={(e) => handleToggleWeatherOverlay(e.target.checked)}
-                  style={{
-                    cursor: 'pointer',
-                    width: '14px',
-                    height: '14px',
-                    accentColor: '#4682B4',
-                  }}
-                />
-                <span style={{ textShadow: '0 0 4px rgba(70, 130, 180, 0.8)' }}>
-                  Weather
-                </span>
-              </label>
-              
-              {/* Show Names Toggle Checkbox */}
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  fontFamily: '"Courier New", monospace',
-                  color: '#D2691E',
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(210, 105, 30, 0.3)',
-                  userSelect: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-                  e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.6)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                  e.currentTarget.style.borderColor = 'rgba(210, 105, 30, 0.3)';
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={showNames}
-                  onChange={(e) => handleToggleShowNames(e.target.checked)}
-                  style={{
-                    cursor: 'pointer',
-                    width: '14px',
-                    height: '14px',
-                    accentColor: '#D2691E',
-                  }}
-                />
-                <span style={{ textShadow: '0 0 4px rgba(210, 105, 30, 0.8)' }}>
-                  Show Names
-                </span>
-              </label>
-            </div>
-            {/* Show loading overlay on top of minimap content */}
-            {isMinimapLoading && LoadingOverlay}
-          </div>
-        );
-      case 'encyclopedia':
+            />
+            <span style={{ textShadow: '0 0 4px rgba(210, 105, 30, 0.8)' }}>
+              Show Names
+            </span>
+          </label>
+        </div>
+        {/* Show loading overlay on top of minimap content */}
+        {isMinimapLoading && LoadingOverlay}
+      </div>
+    );
+
+    // Render other content based on current view
+    const otherContent = (() => {
+      switch (currentView) {
+        case 'minimap':
+          return null; // Minimap is always rendered above
+        case 'encyclopedia':
         return (
           <div className="encyclopedia-content" style={{
             ...contentContainerStyle,
@@ -988,12 +1002,17 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
           </div>
         );
       default:
-        return (
-          <div style={contentContainerStyle}>
-            {children}
-          </div>
-        );
-    }
+        return null;
+      }
+    })();
+
+    // Return both minimap (always in DOM) and other content
+    return (
+      <>
+        {minimapContent}
+        {otherContent}
+      </>
+    );
   };
 
   return (

@@ -689,7 +689,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             EffectType::Intoxicated | EffectType::SpeedBoost | 
             EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | 
             EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
-            EffectType::PoisonCoating | EffectType::HarvestBoost);
+            EffectType::PoisonCoating | EffectType::HarvestBoost | EffectType::BrewCooldown);
         
         if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment || 
            effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun ||
@@ -2701,7 +2701,7 @@ pub fn apply_broth_effect_from_category(
             apply_passive_health_regen_effect(ctx, player_id, item_def_id)
         },
         _ => {
-            // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological
+            // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, technological
             // These don't apply special effects - their benefits are from consumable stats only
             log::debug!("[BrothEffect] Category '{}' has no special effect - using consumable stats", category);
             Ok(())

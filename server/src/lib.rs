@@ -1841,12 +1841,98 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
             }
             // --- End Initialize Quest System ---
             
+            // --- Spawn 3 Beach Lyme Grass near spawn for first quest ---
+            // This helps new players complete their first tutorial quest quickly
+            spawn_starter_beach_lyme_grass(ctx, spawn_x, spawn_y);
+            // --- End Spawn Starter Beach Lyme Grass ---
+            
             Ok(())
         },
         Err(e) => {
             log::error!("Failed to insert new player {} ({:?}): {}", username, sender_id, e);
             Err(format!("Failed to register player: Database error."))
         }
+    }
+}
+
+/// Spawns 3 Beach Lyme Grass harvestable resources near a new player's spawn point.
+/// This helps new players complete their first tutorial quest quickly.
+fn spawn_starter_beach_lyme_grass(ctx: &ReducerContext, spawn_x: f32, spawn_y: f32) {
+    use crate::plants_database::PlantType;
+    use crate::harvestable_resource::{create_harvestable_resource, harvestable_resource as HarvestableResourceTableTrait};
+    use crate::environment::calculate_chunk_index;
+    
+    const SPAWN_COUNT: u8 = 3;
+    const MIN_DISTANCE: f32 = 300.0;  // Minimum distance from player spawn (~1.5 character widths)
+    const MAX_DISTANCE: f32 = 1200.0;  // Maximum distance from player spawn (~3 character widths)
+    const MIN_SEPARATION: f32 = 600.0; // Minimum separation between grass spawns
+    
+    log::info!("🌿 Spawning {} starter Beach Lyme Grass near new player at ({:.1}, {:.1})", 
+               SPAWN_COUNT, spawn_x, spawn_y);
+    
+    let mut spawned_positions: Vec<(f32, f32)> = Vec::new();
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: u32 = 50;
+    
+    while spawned_positions.len() < SPAWN_COUNT as usize && attempts < MAX_ATTEMPTS {
+        attempts += 1;
+        
+        // Generate random position around spawn point
+        let angle = ctx.rng().gen_range(0.0..std::f32::consts::TAU);
+        let distance = ctx.rng().gen_range(MIN_DISTANCE..MAX_DISTANCE);
+        
+        let grass_x = spawn_x + angle.cos() * distance;
+        let grass_y = spawn_y + angle.sin() * distance;
+        
+        // Check tile type - Beach Lyme Grass should be on Beach tiles
+        let tile_x = (grass_x / TILE_SIZE_PX as f32).floor() as i32;
+        let tile_y = (grass_y / TILE_SIZE_PX as f32).floor() as i32;
+        
+        if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+            // Beach Lyme Grass can spawn on Beach tiles
+            if tile_type != TileType::Beach {
+                continue;
+            }
+        } else {
+            continue;
+        }
+        
+        // Check separation from other spawned grass
+        let mut too_close = false;
+        for (prev_x, prev_y) in &spawned_positions {
+            let dx = grass_x - prev_x;
+            let dy = grass_y - prev_y;
+            if dx * dx + dy * dy < MIN_SEPARATION * MIN_SEPARATION {
+                too_close = true;
+                break;
+            }
+        }
+        if too_close {
+            continue;
+        }
+        
+        // Spawn the Beach Lyme Grass
+        let chunk_index = calculate_chunk_index(grass_x, grass_y);
+        let resource = create_harvestable_resource(
+            PlantType::BeachLymeGrass,
+            grass_x,
+            grass_y,
+            chunk_index,
+            false // Not player-planted (spawned by system for tutorial)
+        );
+        
+        ctx.db.harvestable_resource().insert(resource);
+        spawned_positions.push((grass_x, grass_y));
+        
+        log::info!("🌿 Spawned starter Beach Lyme Grass #{} at ({:.1}, {:.1})", 
+                   spawned_positions.len(), grass_x, grass_y);
+    }
+    
+    if spawned_positions.len() < SPAWN_COUNT as usize {
+        log::warn!("🌿 Only spawned {}/{} starter Beach Lyme Grass (couldn't find enough valid beach positions)", 
+                   spawned_positions.len(), SPAWN_COUNT);
+    } else {
+        log::info!("🌿 Successfully spawned all {} starter Beach Lyme Grass for new player", SPAWN_COUNT);
     }
 }
 

@@ -924,11 +924,17 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     let mut actual_attack_angle_degrees = item_def.attack_arc_degrees.unwrap_or(90.0);
 
     // Check if the item is a spear and adjust its properties
+    // SPEARS: Thrusting weapons with FOCUSED arc and VERY LONG range
+    // The 60° arc is a balance between precision thrusting and forgiving the 4-directional limitation
+    // (server only stores up/down/left/right, so we need some tolerance for diagonal aiming)
     if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" {
-        // Spears have even longer range
-        actual_attack_range = PLAYER_RADIUS * 6.0; // ~192px - spears excel at reach
-        // Keep default arc for spears unless overridden
-        log::debug!("{} detected: Using custom range {:.1}, angle {:.1}", item_def.name, actual_attack_range, actual_attack_angle_degrees);
+        // Spears have the longest melee range - their defining advantage
+        actual_attack_range = PLAYER_RADIUS * 8.0; // ~256px - excellent reach for thrusting
+        // 60° arc (30° each side) - narrower than swing weapons, but forgiving enough
+        // for the cardinal-direction limitation
+        actual_attack_angle_degrees = 60.0;
+        log::debug!("{} detected: Using THRUST hitbox - range {:.1}px, arc {:.1}°", 
+                   item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
     
     // Scythe: VERY extended range + VERY wide arc for efficient grass clearing

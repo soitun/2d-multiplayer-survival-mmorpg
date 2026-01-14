@@ -13,6 +13,45 @@ interface StatusEffectsPanelProps {
   effects: StatusEffect[];
 }
 
+/**
+ * Format duration intelligently - show minutes:seconds if over 59 seconds
+ */
+function formatDuration(seconds: number): string {
+  const roundedSeconds = Math.ceil(seconds);
+  
+  if (roundedSeconds <= 59) {
+    return `${roundedSeconds}s`;
+  }
+  
+  const minutes = Math.floor(roundedSeconds / 60);
+  const remainingSeconds = roundedSeconds % 60;
+  
+  // Pad seconds with leading zero if needed
+  const paddedSeconds = remainingSeconds.toString().padStart(2, '0');
+  
+  return `${minutes}:${paddedSeconds}`;
+}
+
+/**
+ * Format duration for tooltip (more verbose)
+ */
+function formatDurationVerbose(seconds: number): string {
+  const roundedSeconds = Math.ceil(seconds);
+  
+  if (roundedSeconds <= 59) {
+    return `${roundedSeconds}s remaining`;
+  }
+  
+  const minutes = Math.floor(roundedSeconds / 60);
+  const remainingSeconds = roundedSeconds % 60;
+  
+  if (remainingSeconds === 0) {
+    return `${minutes}m remaining`;
+  }
+  
+  return `${minutes}m ${remainingSeconds}s remaining`;
+}
+
 const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
   const [hoveredEffect, setHoveredEffect] = useState<string | null>(null);
   const [interpolatedWetness, setInterpolatedWetness] = useState<number>(0);
@@ -258,7 +297,7 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
                           })()
                         : effect.id === 'venom'
                         ? 'Persistent until cured'
-                        : `${Math.ceil(effect.duration)}s remaining`
+                        : formatDurationVerbose(effect.duration)
                       }
                     </span>
                   </div>
@@ -316,7 +355,7 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
                     })()
                   : effect.id === 'venom'
                   ? '∞'
-                  : `${Math.ceil(effect.duration)}s`
+                  : formatDuration(effect.duration)
                 }
               </span>
             )}

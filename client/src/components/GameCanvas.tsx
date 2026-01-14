@@ -466,7 +466,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Track minimap canvas size for hook (must be declared before useMinimapInteraction)
-  const [minimapCanvasSizeState, setMinimapCanvasSizeState] = useState({ width: 650, height: 650 });
+  // Initial value of 1 - will be set by useEffect when minimap opens
+  const [minimapCanvasSizeState, setMinimapCanvasSizeState] = useState({ width: 1, height: 1 });
 
   // Minimap weather overlay state (separate from game canvas weather overlay)
   // This controls the informative weather display on the minimap (always available)
@@ -4197,31 +4198,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [connection]);
 
-  // --- Dynamically resize canvas on mobile to fill container ---
+  // --- Dynamically resize canvas to fill container (both mobile and desktop) ---
+  // This ensures the canvas logical size matches the display size, eliminating CSS scaling distortion
   useEffect(() => {
     if (!isMinimapOpen || !minimapCanvasRef.current) return;
 
     const canvas = minimapCanvasRef.current;
-    
-    if (!isMobile) {
-      // Desktop: use fixed size
-      canvas.width = 650;
-      canvas.height = 650;
-      setMinimapCanvasSizeState({ width: 650, height: 650 });
-      return;
-    }
-
-    // Mobile: fill container
     const container = canvas.parentElement;
     if (!container) return;
 
     const updateCanvasSize = () => {
-      // Get container dimensions
+      // Get container dimensions (actual display size)
       const rect = container.getBoundingClientRect();
       const containerWidth = Math.floor(rect.width);
       const containerHeight = Math.floor(rect.height);
 
-      // Update canvas resolution to match container size (for crisp rendering)
+      // Update canvas logical resolution to match display size
+      // This eliminates non-uniform CSS scaling and ensures 1:1 pixel mapping
       if (canvas.width !== containerWidth || canvas.height !== containerHeight) {
         canvas.width = containerWidth;
         canvas.height = containerHeight;
@@ -4530,10 +4523,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           >
             <canvas
               ref={minimapCanvasRef}
-              width={isMobile ? 1 : 650} // Start with 1 on mobile, will be resized by useEffect
-              height={isMobile ? 1 : 650} // Start with 1 on mobile, will be resized by useEffect
-              style={{ 
-                width: '100%', 
+              width={1} // Initial value - will be resized by useEffect to match container
+              height={1} // Initial value - will be resized by useEffect to match container
+              style={{
+                width: '100%',
                 height: '100%',
                 display: 'block' // Remove inline spacing
               }}

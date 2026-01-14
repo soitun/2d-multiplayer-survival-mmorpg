@@ -50,9 +50,10 @@ export function useMinimapInteraction({
     const worldPixelHeight = gameConfig.worldHeight * gameConfig.tileSize;
     
     // On mobile, use full canvas dimensions; on desktop, use fixed dimensions
+    // IMPORTANT: These dimensions MUST match the drawing code in Minimap.tsx (BASE_MINIMAP_WIDTH = 750)
     const isMobile = canvasSize.width <= 768 || canvasSize.height <= 768;
-    const MINIMAP_WIDTH = isMobile ? canvasSize.width : 600;
-    const MINIMAP_HEIGHT = isMobile ? canvasSize.height : Math.round(600 * (worldPixelHeight / worldPixelWidth));
+    const MINIMAP_WIDTH = isMobile ? canvasSize.width : 750;
+    const MINIMAP_HEIGHT = isMobile ? canvasSize.height : Math.round(750 * (worldPixelHeight / worldPixelWidth));
 
     // --- Base Scale Calculation ---
     const baseScale = useMemo(() => {
@@ -280,43 +281,51 @@ export function useMinimapInteraction({
             return;
         }
 
-        const rect = canvasRef.current.getBoundingClientRect();
-        const clickXCanvas = event.clientX - rect.left;
-        const clickYCanvas = event.clientY - rect.top;
-
-        // Account for canvas scaling between display size and logical canvas size
         const canvas = canvasRef.current;
-        const displayWidth = canvas.offsetWidth;   // Actual displayed width
-        const displayHeight = canvas.offsetHeight; // Actual displayed height
+        const rect = canvas.getBoundingClientRect();
         
-        // Use canvasSize (logical dimensions) to match the drawing code coordinate system
-        const logicalWidth = canvasSize.width;     // Logical canvas width (same as canvasWidth in drawing)
-        const logicalHeight = canvasSize.height;   // Logical canvas height (same as canvasHeight in drawing)
+        // Get click position relative to canvas element (in CSS/display pixels)
+        const clickXDisplay = event.clientX - rect.left;
+        const clickYDisplay = event.clientY - rect.top;
+
+        // Get the actual canvas dimensions (logical pixels) - read directly from canvas, not state
+        // This ensures we're using the exact same values as the drawing code
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
         
-        // Calculate scaling factors from display to logical space
-        const scaleX = logicalWidth / displayWidth;
-        const scaleY = logicalHeight / displayHeight;
+        // Get the display dimensions (CSS pixels)
+        const displayWidth = rect.width;
+        const displayHeight = rect.height;
         
-        // Convert click coordinates from display space to logical canvas space
-        const clickXLogical = clickXCanvas * scaleX;
-        const clickYLogical = clickYCanvas * scaleY;
+        // Convert click from display pixels to logical canvas pixels
+        // This handles any CSS scaling (e.g., width: 100%)
+        const clickXLogical = (clickXDisplay / displayWidth) * canvasWidth;
+        const clickYLogical = (clickYDisplay / displayHeight) * canvasHeight;
 
-        // Use the EXACT same minimap positioning as the drawing code (in logical space)
-        // On mobile, fill canvas (0,0); on desktop, center
-        const minimapX = isMobile ? 0 : (logicalWidth - MINIMAP_WIDTH) / 2;
-        const minimapY = isMobile ? 0 : (logicalHeight - MINIMAP_HEIGHT) / 2;
-
-        let worldX: number | undefined; // Initialize as undefined
-        let worldY: number | undefined;
-        const clickXMinimap = clickXLogical - minimapX; // Click relative to minimap UI top-left (in logical space)
-        const clickYMinimap = clickYLogical - minimapY;
-
-        const currentScale = baseScale * minimapZoom;
-
-        // Use the same coordinate system as the minimap drawing
-        // This matches the logic in drawMinimapOntoCanvas exactly
+        // --- Use EXACT same calculations as drawMinimapOntoCanvas in Minimap.tsx ---
         
-        // Calculate the same values as in drawMinimapOntoCanvas
+        // Determine if mobile based on canvas dimensions (same check as drawing code)
+        const isMobileCanvas = canvasWidth <= 768 || canvasHeight <= 768;
+        
+        // Calculate minimap dimensions (must match Minimap.tsx exactly)
+        // In Minimap.tsx: BASE_MINIMAP_WIDTH = 750
+        const BASE_MINIMAP_WIDTH = 750;
+        const minimapWidth = isMobileCanvas ? canvasWidth : BASE_MINIMAP_WIDTH;
+        const minimapHeight = isMobileCanvas ? canvasHeight : Math.round(BASE_MINIMAP_WIDTH * (worldPixelHeight / worldPixelWidth));
+        
+        // Calculate minimap position within canvas (centered on desktop, 0,0 on mobile)
+        const minimapX = isMobileCanvas ? 0 : (canvasWidth - minimapWidth) / 2;
+        const minimapY = isMobileCanvas ? 0 : (canvasHeight - minimapHeight) / 2;
+
+        // Calculate base scale (must match Minimap.tsx exactly)
+        const baseScaleX = minimapWidth / worldPixelWidth;
+        const baseScaleY = minimapHeight / worldPixelHeight;
+        const baseUniformScale = Math.min(baseScaleX, baseScaleY);
+        
+        // Calculate current scale based on zoom
+        const currentScale = baseUniformScale * minimapZoom;
+
+        // Calculate view center in world coordinates
         let viewCenterXWorld: number;
         let viewCenterYWorld: number;
 
@@ -324,60 +333,49 @@ export function useMinimapInteraction({
             // World centered
             viewCenterXWorld = worldPixelWidth / 2;
             viewCenterYWorld = worldPixelHeight / 2;
-        } else if (localPlayer) {
+        } else {
             // Player centered + offset
             viewCenterXWorld = localPlayer.positionX + viewCenterOffset.x;
             viewCenterYWorld = localPlayer.positionY + viewCenterOffset.y;
-        } else {
-            // Fallback to world center if no player
-            viewCenterXWorld = worldPixelWidth / 2;
-            viewCenterYWorld = worldPixelHeight / 2;
         }
 
-        const viewWidthWorld = MINIMAP_WIDTH / currentScale;
-        const viewHeightWorld = MINIMAP_HEIGHT / currentScale;
+        // Calculate view bounds in world coordinates
+        const viewWidthWorld = minimapWidth / currentScale;
+        const viewHeightWorld = minimapHeight / currentScale;
         const viewMinXWorld = viewCenterXWorld - viewWidthWorld / 2;
         const viewMinYWorld = viewCenterYWorld - viewHeightWorld / 2;
 
+        // Calculate draw offsets (for reference/debugging)
         const drawOffsetX = minimapX - viewMinXWorld * currentScale;
         const drawOffsetY = minimapY - viewMinYWorld * currentScale;
 
         // Convert click to world coordinates
-        // Since clickXMinimap is already relative to minimap top-left,
-        // we need to add the view's world origin back
-        worldX = clickXMinimap / currentScale + viewMinXWorld;
-        worldY = clickYMinimap / currentScale + viewMinYWorld;
+        // Click position relative to minimap top-left (in logical canvas pixels)
+        const clickXMinimap = clickXLogical - minimapX;
+        const clickYMinimap = clickYLogical - minimapY;
+        
+        // Convert to world coordinates (inverse of drawing formula)
+        // Drawing: screenX = drawOffsetX + worldX * currentScale
+        //        = minimapX + (worldX - viewMinXWorld) * currentScale
+        // Inverse: worldX = (screenX - minimapX) / currentScale + viewMinXWorld
+        const worldX = clickXMinimap / currentScale + viewMinXWorld;
+        const worldY = clickYMinimap / currentScale + viewMinYWorld;
 
-        // DEBUG: Log all the coordinate calculation values
-        console.log(`[Minimap] Debug coordinate calculation:
-          displaySize: ${displayWidth}x${displayHeight}
-          logicalSize: ${logicalWidth}x${logicalHeight}
-          canvasSize: ${canvasSize.width}x${canvasSize.height}
-          scaleFactors: ${scaleX}, ${scaleY}
-          clickDisplay: (${clickXCanvas}, ${clickYCanvas})
-          clickLogical: (${clickXLogical}, ${clickYLogical})
-          minimapPos: (${minimapX}, ${minimapY})
-          clickMinimap: (${clickXMinimap}, ${clickYMinimap})
-          drawOffset: (${drawOffsetX}, ${drawOffsetY})
-          currentScale: ${currentScale}
-          worldCoords: (${worldX}, ${worldY})`);
+        // Clamp to world bounds and call reducer
+        const clampedWorldX = Math.max(0, Math.min(worldPixelWidth, Math.round(worldX)));
+        const clampedWorldY = Math.max(0, Math.min(worldPixelHeight, Math.round(worldY)));
 
-        // Clamp and call reducer only if worldX/Y were successfully calculated
-        if (worldX !== undefined && worldY !== undefined) {
-            const clampedWorldX = Math.max(0, Math.min(worldPixelWidth, Math.round(worldX)));
-            const clampedWorldY = Math.max(0, Math.min(worldPixelHeight, Math.round(worldY)));
-
-            console.log(`[Minimap] Click at canvas pos: (${clickXCanvas}, ${clickYCanvas}) -> world: (${clampedWorldX}, ${clampedWorldY})`);
-            try {
-                connection.reducers.setPlayerPin(clampedWorldX, clampedWorldY);
-            } catch (err) {
-                console.error("Error calling setPlayerPin reducer:", err);
-            }
+        // DEBUG: Uncomment for coordinate debugging
+        // console.log(`[Minimap] Pin placed at world (${clampedWorldX}, ${clampedWorldY})`);
+        try {
+            connection.reducers.setPlayerPin(clampedWorldX, clampedWorldY);
+        } catch (err) {
+            console.error("Error calling setPlayerPin reducer:", err);
         }
 
     }, [ 
-        isMinimapOpen, checkMouseOverMinimap, connection, canvasRef, canvasSize, 
-        minimapZoom, localPlayer, baseScale, viewCenterOffset.x, viewCenterOffset.y, 
+        isMinimapOpen, checkMouseOverMinimap, connection, canvasRef,
+        minimapZoom, localPlayer, viewCenterOffset.x, viewCenterOffset.y, 
         worldPixelWidth, worldPixelHeight 
     ]);
 

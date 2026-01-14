@@ -12,6 +12,7 @@
 import { useEffect, useState, useCallback, MutableRefObject } from 'react';
 import { Identity } from 'spacetimedb';
 import { QuestCompletionData } from '../components/QuestNotifications';
+import { isAnySovaAudioPlaying } from './useSovaSoundBox';
 
 // ============================================================================
 // Types
@@ -238,12 +239,16 @@ export function useQuestNotifications({
             });
             
             // Play SOVA mission complete voice line + progress unlocked SFX
+            // BUT only if SOVA isn't already playing (tutorials, cairn lore, intro, etc.)
             try {
-                const sovaAudio = new Audio('/sounds/sova_mission_complete.mp3');
-                sovaAudio.volume = 0.8;
-                sovaAudio.play().catch(() => {});
+                if (!isAnySovaAudioPlaying()) {
+                    const sovaAudio = new Audio('/sounds/sova_mission_complete.mp3');
+                    sovaAudio.volume = 0.8;
+                    sovaAudio.play().catch(() => {});
+                }
                 
                 // Play progress_unlocked.mp3 with debounce (only once if multiple notifications)
+                // This SFX is short so it can play even if SOVA is speaking
                 const now = Date.now();
                 const lastPlayed = (window as any).__progressUnlockedLastPlayed || 0;
                 if (now - lastPlayed > 500) { // 500ms debounce

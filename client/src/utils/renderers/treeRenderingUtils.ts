@@ -300,6 +300,7 @@ export function renderTree(
     // Calculate if tree visually overlaps and occludes the player
     const MIN_ALPHA = 0.3; // Minimum opacity when tree is blocking player
     const MAX_ALPHA = 1.0; // Full opacity when not blocking
+    const TRANSPARENCY_Y_THRESHOLD = 40; // Player must be this many pixels ABOVE tree base before transparency kicks in
     
     let treeAlpha = MAX_ALPHA;
     
@@ -321,7 +322,7 @@ export function renderTree(
         const treeLeft = tree.posX - treeVisualWidth / 2;
         const treeRight = tree.posX + treeVisualWidth / 2;
         const treeTop = tree.posY - treeVisualHeight; // Tree extends upward
-        const treeBottom = tree.posY; // Tree base
+        const treeBottom = tree.posY - TRANSPARENCY_Y_THRESHOLD; // Effective bottom for overlap check (player must be above this)
         
         // Player bounding box (approximate)
         const playerSize = 48;
@@ -335,9 +336,10 @@ export function renderTree(
         const overlapsVertically = playerBottom > treeTop && playerTop < treeBottom;
         
         // Tree should be transparent if:
-        // 1. It overlaps with player visually
-        // 2. Tree renders AFTER player (tree.posY > player.posY means tree is in front in Y-sort)
-        if (overlapsHorizontally && overlapsVertically && tree.posY > localPlayerPosition.y) {
+        // 1. It overlaps with player visually (with threshold buffer)
+        // 2. Tree renders AFTER player (tree.posY > player.posY + threshold means tree is clearly in front in Y-sort)
+        // The threshold ensures player must clearly move ABOVE the tree base, not just be at the same level
+        if (overlapsHorizontally && overlapsVertically && tree.posY > localPlayerPosition.y + TRANSPARENCY_Y_THRESHOLD) {
             // Calculate how much the player is behind the tree (for smooth fade)
             const depthDifference = tree.posY - localPlayerPosition.y;
             const maxDepthForFade = 100; // Max distance for fade effect

@@ -207,7 +207,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Memory Shard - Common technological foundational resource
-        basic_material("Memory Shard", "A rugged cognitive archive from the crashed Sovereign Tide flagship. These modular data chips stored tactical memory blocks and were designed to survive extreme conditions.", 5000)
+        basic_material("Memory Shard", "A rugged cognitive archive from found on the island. These modular data chips stored tactical memory blocks and were designed to survive extreme conditions.", 5000)
             .icon("memory_shard.png")
             .respawn_time(600) // 10 minutes - common foundational resource
             .build(),

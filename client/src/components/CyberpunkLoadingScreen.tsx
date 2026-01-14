@@ -104,6 +104,19 @@ window.__STOP_LOADING_SCREEN_SOVA_AUDIO__ = () => {
     }
 };
 
+// Global function to check if any loading screen SOVA audio is playing
+// Used by achievement/level up/mission notifications to avoid overlapping
+// @ts-ignore
+window.__LOADING_SCREEN_AUDIO_IS_PLAYING__ = () => {
+    for (let i = 1; i <= 21; i++) {
+        const audio = preloadedAudioFiles[i.toString()];
+        if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+            return true;
+        }
+    }
+    return false;
+};
+
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
 

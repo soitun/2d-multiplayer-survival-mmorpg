@@ -17,11 +17,55 @@
  * // Render the component in your JSX:
  * return <>{SovaSoundBoxComponent}</>
  * ```
+ * 
+ * Other components can check if SOVA is speaking using:
+ * - window.__SOVA_SOUNDBOX_IS_PLAYING__() - returns true if SovaSoundBox audio is playing
+ * - isSovaSoundBoxPlaying() - exported function for type-safe access
  */
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import React from 'react';
 import SovaSoundBox from '../components/SovaSoundBox';
+
+// Declare global window functions for checking SOVA playback state
+declare global {
+  interface Window {
+    __SOVA_SOUNDBOX_IS_PLAYING__?: () => boolean;
+    __SOVA_SOUNDBOX_AUDIO_REF__?: HTMLAudioElement | null;
+    __LOADING_SCREEN_AUDIO_IS_PLAYING__?: () => boolean;
+    __STOP_LOADING_SCREEN_SOVA_AUDIO__?: () => void;
+  }
+}
+
+/**
+ * Check if SOVA SoundBox is currently playing audio.
+ * Use this to prevent achievement/level up/mission sounds from interrupting tutorials.
+ */
+export function isSovaSoundBoxPlaying(): boolean {
+  if (typeof window !== 'undefined' && typeof window.__SOVA_SOUNDBOX_IS_PLAYING__ === 'function') {
+    return window.__SOVA_SOUNDBOX_IS_PLAYING__();
+  }
+  return false;
+}
+
+/**
+ * Check if loading screen SOVA audio is currently playing.
+ * Use this to prevent achievement/level up/mission sounds from interrupting intro.
+ */
+export function isLoadingScreenAudioPlaying(): boolean {
+  if (typeof window !== 'undefined' && typeof window.__LOADING_SCREEN_AUDIO_IS_PLAYING__ === 'function') {
+    return window.__LOADING_SCREEN_AUDIO_IS_PLAYING__();
+  }
+  return false;
+}
+
+/**
+ * Check if ANY SOVA audio is currently playing (SoundBox OR loading screen).
+ * This is the main function to use when checking if short notification sounds should be skipped.
+ */
+export function isAnySovaAudioPlaying(): boolean {
+  return isSovaSoundBoxPlaying() || isLoadingScreenAudioPlaying();
+}
 
 export interface SovaSoundState {
   audio: HTMLAudioElement | null;
@@ -44,6 +88,29 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   const [soundState, setSoundState] = useState<SovaSoundState | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Expose global function to check if SOVA is playing
+  // This allows achievement/level up/mission notifications to check before playing
+  useEffect(() => {
+    window.__SOVA_SOUNDBOX_AUDIO_REF__ = audioRef.current;
+    window.__SOVA_SOUNDBOX_IS_PLAYING__ = () => {
+      const audio = audioRef.current;
+      if (!audio) return false;
+      // Check if audio exists, is not paused, and hasn't ended
+      return !audio.paused && !audio.ended && audio.currentTime > 0;
+    };
+
+    return () => {
+      // Clean up on unmount
+      delete window.__SOVA_SOUNDBOX_IS_PLAYING__;
+      delete window.__SOVA_SOUNDBOX_AUDIO_REF__;
+    };
+  }, []);
+
+  // Update the global ref whenever audioRef changes
+  useEffect(() => {
+    window.__SOVA_SOUNDBOX_AUDIO_REF__ = audioRef.current;
+  }, [soundState]);
+
   const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA') => {
     // Stop any existing SovaSoundBox audio first
     if (audioRef.current) {
@@ -61,6 +128,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     }
 
     audioRef.current = audio;
+    window.__SOVA_SOUNDBOX_AUDIO_REF__ = audio;
     setSoundState({
       audio,
       label,
@@ -74,6 +142,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
       audioRef.current.currentTime = 0;
     }
     audioRef.current = null;
+    window.__SOVA_SOUNDBOX_AUDIO_REF__ = null;
     setSoundState(null);
   }, []);
 

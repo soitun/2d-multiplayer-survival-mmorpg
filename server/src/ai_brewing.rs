@@ -60,17 +60,16 @@ pub struct BrewRecipeCache {
 /// - endurance_broth: StaminaBoost (50% reduced hunger/thirst drain)
 /// - healing_elixir: PassiveHealthRegen (slow 1-hour health regen)
 /// - harvester_brew: HarvestBoost (50% bonus mining/chopping yield)
-/// - weapon_coating: PoisonCoating (attacks inflict poison)
+/// - weapon_coating: PoisonCoating (attacks inflict poison)i noticed the 60s "recentyl consumed a brew" disapepars immediately its supposed to last 60 seconds i see it just momentaryil on @client/src/components/StatusEffectsPanel.tsx but then itj ust disappears make sure this works
 /// Categories without special effects (use consumable stats only):
 /// - healing_broth, medicinal_tea: Use consumable_health_gain stat
-/// - nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew: Various stat effects
+/// - nutritional_drink, maritime_specialty, technological, utility_brew: Various stat effects
 pub const VALID_BREW_CATEGORIES: &[&str] = &[
     // === CATEGORIES WITH NO SPECIAL EFFECTS (stats only) ===
     "healing_broth",       // Heals via consumable_health_gain stat
     "medicinal_tea",       // Heals via consumable_health_gain stat
     "nutritional_drink",   // Hunger/thirst via consumable stats
     "maritime_specialty",  // Various stat boosts
-    "cooking_base",        // Base ingredient for other recipes
     "technological",       // Tech/utility items
     "utility_brew",        // Misc utility effects via stats
     
@@ -124,7 +123,7 @@ pub fn map_category_to_effect(category: &str) -> Option<EffectType> {
         "weapon_coating" => Some(EffectType::PoisonCoating),   // Attacks inflict poison on targets
         
         // These categories use stats only (no special effect):
-        // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, cooking_base, technological, utility_brew
+        // medicinal_tea, healing_broth, nutritional_drink, maritime_specialty, technological, utility_brew
         _ => None,
     }
 }
@@ -588,4 +587,3 @@ pub fn start_ai_brewing(
 // ============================================================================
 
 pub use crate::ai_brewing::brew_recipe_cache as BrewRecipeCacheTableTrait;
-

@@ -70,6 +70,30 @@ import { useContainer } from '../hooks/useContainer';
 import { ContainerType, isFuelContainer, getContainerConfig, extractContainerItems, createContainerCallbacks } from '../utils/containerUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 
+// Import brew effect registration for particle coloring
+import { registerBrewEffect, clearBrewEffect } from '../utils/renderers/brothPotRenderingUtils';
+
+/**
+ * Helper to extract ingredient names from a broth pot
+ */
+function getIngredientNamesFromPot(
+    pot: SpacetimeDBBrothPot | undefined | null,
+    itemDefinitions: Map<string, ItemDefinition>
+): string[] {
+    if (!pot) return [];
+    
+    const ingredientDefIds = [pot.ingredientDefId0, pot.ingredientDefId1, pot.ingredientDefId2];
+    const ingredientNames: string[] = [];
+    
+    for (const defId of ingredientDefIds) {
+        if (defId === null || defId === undefined) continue;
+        const def = itemDefinitions.get(defId.toString());
+        if (def) ingredientNames.push(def.name);
+    }
+    
+    return ingredientNames;
+}
+
 // Helper function to format decay time estimate
 function formatDecayTime(hours: number): string {
     if (hours < 1) {
@@ -1033,11 +1057,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
             console.log('[AI Brewing] generateAndCacheRecipe() called');
             try {
                 console.log('[AI Brewing] Calling generateFullBrewRecipe...');
-                // Generate recipe via Gemini API (icon generation DISABLED for now - was hanging)
+                // Generate recipe via Gemini API + icon via Retro Diffusion
                 const result = await generateFullBrewRecipe(
                     ingredientNames,
                     getIngredientRarities(ingredientNames),
-                    false // TEMPORARILY DISABLED - icon generation was hanging
+                    true // Icon generation enabled via Retro Diffusion API
                 );
 
                 console.log('[AI Brewing] ===== RECIPE RESULT RECEIVED =====');
@@ -1171,6 +1195,46 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         }
         return false;
     }, [container.containerType, container.containerEntity]);
+
+    // Register brew effect type for particle coloring when pot is cooking
+    useEffect(() => {
+        if (!attachedBrothPot) return;
+        
+        const potId = attachedBrothPot.id;
+        
+        if (attachedBrothPot.isCooking) {
+            // Try to get effect type from recipe cache
+            const ingredientNames = getIngredientNamesFromPot(attachedBrothPot, itemDefinitions);
+            if (ingredientNames.length === 3) {
+                const recipeHash = computeRecipeHash(ingredientNames);
+                const recipeHashBigInt = BigInt(recipeHash);
+                
+                // Look up in server cache
+                try {
+                    for (const cachedRecipe of connection?.db?.brewRecipeCache?.iter() || []) {
+                        if (cachedRecipe.recipeHash === recipeHashBigInt) {
+                            // Found the recipe - register effect and category
+                            registerBrewEffect(potId, cachedRecipe.effectType, cachedRecipe.category);
+                            return; // Effect registered, done
+                        }
+                    }
+                } catch {
+                    // Ignore iteration errors
+                }
+            }
+            
+            // No cached recipe found - register with just name for fallback
+            registerBrewEffect(potId, null, null);
+        } else {
+            // Not cooking - clear the effect registration
+            clearBrewEffect(potId);
+        }
+        
+        return () => {
+            // Cleanup on unmount
+            clearBrewEffect(potId);
+        };
+    }, [attachedBrothPot?.id, attachedBrothPot?.isCooking, connection, itemDefinitions]);
 
     // Create special context menu handler for water container slot
     const waterContainerContextMenuHandler = useCallback((event: React.MouseEvent, itemInfo: PopulatedItem, slotIndex: number) => {

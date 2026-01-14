@@ -1872,7 +1872,8 @@ export function drawMinimapOntoCanvas({
           const y = pinScreenCoords.y;
           const size = PIN_SIZE;
           
-          // console.log(`[Minimap] Drawing pin - World coords: (${playerPin.pinX}, ${playerPin.pinY}) -> Screen coords: (${x}, ${y})`);
+          // DEBUG: Log drawing parameters (uncomment for debugging)
+          // console.log(`[Minimap DRAW] Pin at world (${playerPin.pinX}, ${playerPin.pinY}) -> screen (${x.toFixed(1)}, ${y.toFixed(1)})`);
           
           // Save context for styling
           ctx.save();

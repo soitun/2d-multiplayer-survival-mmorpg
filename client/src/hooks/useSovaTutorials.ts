@@ -60,17 +60,12 @@ const TUTORIALS = {
         soundBoxLabel: 'SOVA: Press V to Talk',
         message: `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`,
     },
-    firstResource: {
-        storageKey: 'broth_first_resource_tutorial_played', // Managed by sound system
-        audioFile: '/sounds/sova_first_resource_tutorial.mp3',
-        soundBoxLabel: 'SOVA: Survival Tip',
-        eventName: 'sova-first-resource-tutorial',
-    },
     memoryShard: {
-        storageKey: 'broth_memory_shard_tutorial_played', // Managed by sound system
+        storageKey: 'broth_memory_shard_tutorial_played',
         audioFile: '/sounds/sova_memory_shard_tutorial.mp3',
         soundBoxLabel: 'SOVA: Memory Shard Warning',
         eventName: 'sova-memory-shard-tutorial',
+        message: `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`,
     },
     firstHostileEncounter: {
         storageKey: 'broth_first_hostile_encounter_played',
@@ -305,11 +300,12 @@ export function useSovaTutorials({
     // Part 3: Memory Shard Tutorial (Event-driven)
     // Plays the first time a memory shard is picked up AFTER intro finishes.
     // If intro is still playing, we skip entirely and wait for next pickup.
+    // Triggered by: useSoundSystem.ts when it receives SovaMemoryShardTutorial sound event
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName } = TUTORIALS.memoryShard;
+        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.memoryShard;
         
-        const handleEvent = (event: CustomEvent<{ message: string; timestamp: Date }>) => {
+        const handleEvent = () => {
             console.log('[SovaTutorials] 🔮 Memory shard tutorial event received');
             
             // Already played before? Skip entirely
@@ -333,7 +329,7 @@ export function useSovaTutorials({
                 {
                     audioFile,
                     soundBoxLabel,
-                    message: event.detail.message,
+                    message,
                     messageId: `sova-memory-shard-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,

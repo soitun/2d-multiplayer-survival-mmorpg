@@ -993,6 +993,13 @@ export const renderYSortedEntities = ({
           const isFalling = isTreeFalling ? isTreeFalling(treeId) : false;
           const fallProgress = isFalling && getFallProgress ? getFallProgress(treeId) : undefined;
           
+          // BUGFIX: Skip rendering destroyed trees that are no longer falling
+          // This guards against cache race conditions where the tree is still in the
+          // cached visible list after the falling animation ends
+          if (tree.health === 0 && !isFalling) {
+              return; // Skip this tree - it's destroyed and animation is done
+          }
+          
           renderTree(ctx, tree, nowMs, cycleProgress, false, false, localPlayerPosition, treeShadowsEnabled, isFalling, fallProgress);
       } else if (type === 'stone') {
           // Render stone with its shadow in the normal order (shadow first, then stone)

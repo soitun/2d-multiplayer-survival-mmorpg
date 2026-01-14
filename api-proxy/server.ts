@@ -377,7 +377,6 @@ const BREW_CATEGORIES = [
   'psychoactive',       // Special effects, vision quests, high-risk
   'nutritional_drink',  // Hunger/thirst satisfaction
   'maritime_specialty', // Coastal/island specific
-  'cooking_base',       // Used in other recipes
   'technological',      // Sci-fi/crashed ship themed
 ];
 
@@ -413,7 +412,6 @@ CATEGORIES (choose one):
 - psychoactive: Special effects, risky (variable stats)
 - nutritional_drink: Hunger/thirst satisfaction (health: 10-30, hunger: 50-90, thirst: 40-80)
 - maritime_specialty: Coastal themed (variable stats)
-- cooking_base: Intermediate ingredient (minimal stats)
 - technological: Sci-fi themed (unique effects)
 
 EFFECT TYPES (optional, use only when appropriate - IMPORTANT: Apply these when the brew category or ingredients suggest them):
@@ -600,25 +598,38 @@ app.post('/api/gemini/icon', async (req, res) => {
     // The rd_plus__mc_item prompt style is specifically designed for game item icons
     const iconPrompt = `${subject}`;
 
-    const response = await fetch('https://api.retrodiffusion.ai/v1/inferences', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-RD-Token': RETRO_DIFFUSION_API_KEY,
-      },
-      body: JSON.stringify({
-        prompt: iconPrompt,
-        width: 48,
-        height: 48,
-        num_images: 1,
-        seed: seed,
-        prompt_style: 'rd_plus__mc_item', // Minecraft item style - perfect for game icons
-        tile_x: false,
-        tile_y: false,
-        upscale_output_factor: 1,
-        remove_bg: true, // Transparent background for game icons
-      }),
-    });
+    // Add timeout to prevent hanging (20 seconds for image generation)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log(`[Proxy] Retro Diffusion timeout after 20s for: ${subject}`);
+      controller.abort();
+    }, 20000);
+
+    let response;
+    try {
+      response = await fetch('https://api.retrodiffusion.ai/v1/inferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RD-Token': RETRO_DIFFUSION_API_KEY,
+        },
+        body: JSON.stringify({
+          prompt: iconPrompt,
+          width: 48,
+          height: 48,
+          num_images: 1,
+          seed: seed,
+          prompt_style: 'rd_plus__mc_item', // Minecraft item style - perfect for game icons
+          tile_x: false,
+          tile_y: false,
+          upscale_output_factor: 1,
+          remove_bg: true, // Transparent background for game icons
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -632,29 +643,61 @@ app.post('/api/gemini/icon', async (req, res) => {
     }
 
     const data = await response.json() as { 
+      base64_images?: string[]; // Correct field per RetroDiffusion API docs
+      output_images?: string[];
+      output_urls?: string[];
+      created_at?: number;
+      credit_cost?: number;
+      remaining_credits?: number;
+      // Legacy/fallback formats
       images?: Array<{ url?: string; base64?: string }>;
       image?: { url?: string; base64?: string };
-      data?: string; // Base64 string directly
+      data?: string;
     };
     
-    // Retro Diffusion API may return images in different formats
-    // Check for base64 data in various possible response structures
+    console.log(`[Proxy] Retro Diffusion response keys: ${Object.keys(data).join(', ')}`);
+    
+    // Retro Diffusion API returns base64 images in "base64_images" array
     let base64Image: string | undefined;
     
-    if (data.images && data.images[0]) {
+    // Primary: Check base64_images array (per API docs)
+    if (data.base64_images && data.base64_images.length > 0) {
+      base64Image = data.base64_images[0];
+      console.log(`[Proxy] Found image in base64_images array (length: ${base64Image.length})`);
+    }
+    // Fallback: Check output_images
+    else if (data.output_images && data.output_images.length > 0) {
+      base64Image = data.output_images[0];
+      console.log(`[Proxy] Found image in output_images array`);
+    }
+    // Legacy fallback formats
+    else if (data.images && data.images[0]) {
       base64Image = data.images[0].base64 || data.images[0].url;
+      console.log(`[Proxy] Found image in legacy images array`);
     } else if (data.image) {
       base64Image = data.image.base64 || data.image.url;
+      console.log(`[Proxy] Found image in legacy image object`);
     } else if (typeof data.data === 'string') {
       base64Image = data.data;
+      console.log(`[Proxy] Found image in data string`);
+    } else {
+      console.log(`[Proxy] No image found in response. Full response: ${JSON.stringify(data).substring(0, 500)}`);
+    }
+    
+    // Check output_urls if no base64 image found
+    if (!base64Image && data.output_urls && data.output_urls.length > 0) {
+      base64Image = data.output_urls[0];
+      console.log(`[Proxy] Found URL in output_urls array`);
     }
     
     // If we got a URL instead of base64, fetch it and convert
     if (base64Image && base64Image.startsWith('http')) {
       try {
+        console.log(`[Proxy] Fetching image from URL...`);
         const imageResponse = await fetch(base64Image);
         const imageBuffer = await imageResponse.arrayBuffer();
         base64Image = Buffer.from(imageBuffer).toString('base64');
+        console.log(`[Proxy] Successfully converted URL to base64 (length: ${base64Image.length})`);
       } catch (fetchError) {
         console.error('[Proxy] Failed to fetch image URL:', fetchError);
         base64Image = undefined;
@@ -683,6 +726,16 @@ app.post('/api/gemini/icon', async (req, res) => {
     });
 
   } catch (error: any) {
+    // Handle timeout gracefully - return placeholder instead of error
+    if (error.name === 'AbortError') {
+      console.log(`[Proxy] Retro Diffusion timed out for: ${req.body?.subject}`);
+      return res.json({
+        icon_base64: null,
+        placeholder: true,
+        description: req.body?.subject || 'unknown',
+        error: 'Icon generation timed out'
+      });
+    }
     console.error('[Proxy] Retro Diffusion icon error:', error);
     res.status(500).json({ error: error.message || 'Icon generation failed' });
   }

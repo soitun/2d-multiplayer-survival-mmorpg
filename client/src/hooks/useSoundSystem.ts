@@ -1111,52 +1111,18 @@ export const useSoundSystem = ({
                 return; // Don't play the stop_bandaging sound itself
             }
             
-            // === SOVA First Resource Tutorial - triggers on first resource interaction ===
-            // Resource interaction sounds: tree_chop, stone_hit, harvest_plant, item_pickup, barrel_hit
-            const RESOURCE_INTERACTION_SOUNDS = ['tree_chop', 'stone_hit', 'harvest_plant', 'item_pickup', 'barrel_hit'];
-            const FIRST_RESOURCE_STORAGE_KEY = 'broth_sova_first_resource_played';
-            
-            if (RESOURCE_INTERACTION_SOUNDS.includes(soundType)) {
-                // Only trigger for the local player
-                if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
-                    // Check if first resource tutorial has already been played
-                    if (!localStorage.getItem(FIRST_RESOURCE_STORAGE_KEY)) {
-                        console.log(`🌿 [SOVA Tutorial] First resource interaction detected (${soundType}) - triggering tutorial`);
-                        
-                        // Mark as played immediately to prevent multiple triggers
-                        localStorage.setItem(FIRST_RESOURCE_STORAGE_KEY, 'true');
-                        
-                        // Emit custom event for GameScreen to handle (plays audio + shows waveform + adds chat message)
-                        const tutorialMessage = `Good on you for taking initiative — gathering resources is the key to survival out here. Your first priority should be shelter. Find a safe spot, gather some wood and rope — you can craft rope from plant fibers — and build yourself a basic shelter. Maybe throw a sleeping bag inside too. That gives you a respawn point if things go sideways. Which they will. Trust me.`;
-                        
-                        window.dispatchEvent(new CustomEvent('sova-first-resource-tutorial', {
-                            detail: {
-                                message: tutorialMessage,
-                                timestamp: new Date()
-                            }
-                        }));
-                    }
-                }
-            }
-            
-            // Special handling for SOVA memory shard tutorial - emit event for GameScreen to handle
-            // GameScreen will play the audio with the SovaSoundBox waveform visualization
+            // Special handling for SOVA memory shard tutorial - emit event for useSovaTutorials to handle
+            // useSovaTutorials will play the audio with the SovaSoundBox waveform visualization
             if (soundType === 'sova_memory_shard_tutorial') {
                 // Only trigger for the local player who picked up the shard
                 if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
                     console.log(`🔮 [SOVA Tutorial] Memory shard tutorial triggered for local player`);
                     
-                    // Emit custom event for GameScreen to handle (plays audio + shows waveform + adds chat message)
-                    const tutorialMessage = `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`;
-                    
-                    window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial', {
-                        detail: {
-                            message: tutorialMessage,
-                            timestamp: new Date()
-                        }
-                    }));
+                    // Emit event for useSovaTutorials.ts to handle
+                    // (audio file, message, and sound box label are defined there)
+                    window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial'));
                 }
-                // Don't play through sound system - GameScreen handles this with SovaSoundBox
+                // Don't play through sound system - useSovaTutorials handles this with SovaSoundBox
                 return;
             }
             
