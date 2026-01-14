@@ -754,4 +754,3 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
 };
 
 export default PlantedSeedTooltip;
-
