@@ -50,7 +50,7 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 5) // Makes 1 arrow, takes 5 seconds
+            .crafting_output(1, 2) // Makes 1 arrow, takes 2 seconds
             .respawn_time(240)
             .build(),
 

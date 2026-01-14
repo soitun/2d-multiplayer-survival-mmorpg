@@ -160,11 +160,33 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         .ok_or_else(|| format!("No configuration found for plant type: {:?}", resource.plant_type))?;
 
     // Calculate primary yield amount
-    let primary_yield_amount = if config.primary_yield.1 == config.primary_yield.2 {
-        config.primary_yield.1 // Fixed amount
+    // Player-planted crops (farming) yield 2-5 items to make farming rewarding
+    // Wild plants use their normal config-based yield
+    let primary_yield_amount = if resource.is_player_planted {
+        // Farming bonus: 2-5 items per harvest (avg 3.2x wild yield)
+        // Weighted to feel generous while not being overpowered
+        // This makes farming significantly more profitable than wild foraging
+        let roll: f32 = ctx.rng().gen_range(0.0..1.0);
+        if roll < 0.30 {
+            2 // 30% chance: 2 items
+        } else if roll < 0.65 {
+            3 // 35% chance: 3 items  
+        } else if roll < 0.90 {
+            4 // 25% chance: 4 items
+        } else {
+            5 // 10% chance: 5 items (jackpot!)
+        }
+    } else if config.primary_yield.1 == config.primary_yield.2 {
+        config.primary_yield.1 // Fixed amount for wild plants
     } else {
-        ctx.rng().gen_range(config.primary_yield.1..=config.primary_yield.2) // Random range
+        ctx.rng().gen_range(config.primary_yield.1..=config.primary_yield.2) // Random range for wild plants
     };
+
+    // Log farming bonus yields
+    if resource.is_player_planted {
+        log::info!("🌾 FARM HARVEST: Player {:?} harvesting {:?} - yield: {} items (farming bonus!)", 
+                   player_id, resource.plant_type, primary_yield_amount);
+    }
 
     // Collect resource and schedule respawn
     // NOTE: Seasonal respawn multiplier is automatically applied to wild plants in collect_resource_and_schedule_respawn

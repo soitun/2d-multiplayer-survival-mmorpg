@@ -22,7 +22,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 30 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 45)
+            .crafting_output(1, 15)
             .respawn_time(900)
             .attack_interval(0.6)
             .build(),
@@ -41,7 +41,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 125 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 7)
             .attack_interval(0.8)
             .build(),
 
@@ -59,7 +59,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 50 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 10)
+            .crafting_output(1, 3)
             .attack_interval(0.5)
             .build(),
 
@@ -72,7 +72,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 7)
             .respawn_time(420)
             .attack_interval(1.0)
             .build(),
@@ -99,7 +99,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
             ])
-            .crafting_output(1, 45)
+            .crafting_output(1, 15)
             .respawn_time(900)
             .attack_interval(0.7)
             .build(),
@@ -113,7 +113,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
             ])
-            .crafting_output(1, 10)
+            .crafting_output(1, 3)
             .respawn_time(300)
             .attack_interval(0.7)
             .build(),
@@ -141,7 +141,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
             ])
-            .crafting_output(1, 45)
+            .crafting_output(1, 15)
             .respawn_time(900)
             .attack_interval(1.0)
             .build(),
@@ -170,7 +170,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 20 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 5)
+            .crafting_output(1, 2)
             .respawn_time(30)
             .attack_interval(0.5)
             .build(),
@@ -199,7 +199,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 2 },
             ])
-            .crafting_output(1, 3)
+            .crafting_output(1, 1)
             .respawn_time(300)
             .build(),
 
@@ -223,7 +223,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
             ])
-            .crafting_output(1, 10)
+            .crafting_output(1, 3)
             .respawn_time(300)
             .build(),
 
@@ -255,7 +255,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 35 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 8 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(300)
             .attack_interval(0.6)
             .build(),
@@ -288,7 +288,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 75 },
             ])
-            .crafting_output(1, 60)
+            .crafting_output(1, 20)
             .respawn_time(900)
             .build(),
 
@@ -301,7 +301,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 7)
             .respawn_time(480)
             .build(),
 

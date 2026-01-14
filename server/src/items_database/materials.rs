@@ -196,7 +196,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
             ])
-            .crafting_output(1, 8)
+            .crafting_output(1, 3)
             .respawn_time(360)
             .build(),
 

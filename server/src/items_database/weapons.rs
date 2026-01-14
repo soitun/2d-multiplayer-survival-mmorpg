@@ -113,7 +113,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Stone".to_string(), quantity: 200 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 8)
             .respawn_time(300)
             .build(),
 
@@ -129,7 +129,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 60)
+            .crafting_output(1, 20)
             .respawn_time(600)
             .build(),
 
@@ -165,7 +165,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 25 },
             ])
-            .crafting_output(1, 45)
+            .crafting_output(1, 15)
             .respawn_time(480)
             .build(),
 
@@ -185,7 +185,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 20 },
             ])
-            .crafting_output(1, 75)
+            .crafting_output(1, 25)
             .respawn_time(720)
             .build(),
 
@@ -202,7 +202,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 5 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 15) // Quick to craft
+            .crafting_output(1, 5) // Quick to craft
             .respawn_time(300)
             .build(),
 
@@ -215,7 +215,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 300 },
             ])
-            .crafting_output(1, 30)
+            .crafting_output(1, 10)
             .respawn_time(300)
             .build(),
 
@@ -229,7 +229,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 300 },
                 CostIngredient { item_name: "Stone".to_string(), quantity: 100 },
             ])
-            .crafting_output(1, 30)
+            .crafting_output(1, 10)
             .respawn_time(420)
             .build(),
 
@@ -267,7 +267,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 30)
+            .crafting_output(1, 10)
             .respawn_time(300)
             .build(),
 
@@ -289,7 +289,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 30 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 45) // 45 seconds to craft
+            .crafting_output(1, 15) // 15 seconds to craft
             .respawn_time(600) // 10 min respawn in world
             .build(),
 
@@ -309,7 +309,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 90) // 90 seconds to craft
+            .crafting_output(1, 30) // 30 seconds to craft
             .respawn_time(900) // 15 min respawn in world
             .build(),
 
@@ -331,7 +331,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 60) // 60 seconds to craft
+            .crafting_output(1, 20) // 20 seconds to craft
             .respawn_time(900) // 15 min respawn in world
             .build(),
 
@@ -354,7 +354,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 25 }, // For grip/springs
             ])
-            .crafting_output(1, 120) // 2 minutes to craft
+            .crafting_output(1, 40) // 40 seconds to craft
             .respawn_time(1800) // 30 min respawn in world (rare find)
             .build(),
 
@@ -374,7 +374,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 25 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 40 }, // For grip/internals
             ])
-            .crafting_output(1, 180) // 3 minutes to craft
+            .crafting_output(1, 60) // 60 seconds to craft
             .respawn_time(2400) // 40 min respawn in world (ultra rare find)
             .build(),
     ]
