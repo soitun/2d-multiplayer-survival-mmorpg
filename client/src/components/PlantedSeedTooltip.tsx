@@ -10,6 +10,9 @@ const TILE_TYPE_TILLED = 13;
 const TILE_SIZE_PX = 48;
 const CHUNK_SIZE_TILES = 16;
 
+// Prepared soil bonus (matches server PREPARED_SOIL_GROWTH_MULTIPLIER)
+const PREPARED_SOIL_GROWTH_MULTIPLIER = 1.5;
+
 interface PlantedSeedTooltipProps {
   seed: PlantedSeed;
   visible: boolean;
@@ -59,15 +62,20 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   // Calculate growth percentage
   const growthPercent = Math.round(seed.growthProgress * 100);
   
-  // Calculate time until maturity
-  const timeUntilMatureMs = seed.willMatureAt.toDate().getTime() - currentTime;
+  // Is the plant fully grown?
   const isFullyGrown = seed.growthProgress >= 1.0;
   
   // Calculate time already spent growing
   const timeSpentGrowingMs = currentTime - seed.plantedAt.toDate().getTime();
   
+  // Note: timeUntilMatureMs will be calculated dynamically below after we compute growth multiplier
+  
   // Format time duration
   const formatTimeDuration = (ms: number): string => {
+    if (!isFinite(ms) || ms === Infinity) {
+      return 'Stalled';
+    }
+    
     const seconds = Math.floor(Math.abs(ms) / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -342,6 +350,150 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   const currentWeather = seedChunkWeather?.currentWeather?.tag || worldState?.currentWeather.tag || 'Clear';
   const currentTimeOfDay = worldState?.timeOfDay.tag || 'Noon';
   const isMushroomPlant = isMushroom();
+
+  // --- Growth Multiplier Calculations (matching server logic) ---
+
+  // Time of day growth multiplier (matches server get_time_of_day_growth_multiplier)
+  const getTimeOfDayMultiplier = (timeOfDay: string): number => {
+    switch (timeOfDay) {
+      case 'Dawn': return 0.3;
+      case 'TwilightMorning': return 0.5;
+      case 'Morning': return 1.0;
+      case 'Noon': return 1.5;
+      case 'Afternoon': return 1.2;
+      case 'Dusk': return 0.4;
+      case 'TwilightEvening': return 0.2;
+      case 'Night': return 0.0;
+      case 'Midnight': return 0.0;
+      default: return 1.0;
+    }
+  };
+
+  // Weather growth multiplier (matches server get_weather_growth_multiplier)
+  const getWeatherMultiplier = (weather: string): number => {
+    switch (weather) {
+      case 'Clear': return 1.0;
+      case 'LightRain': return 1.3;
+      case 'ModerateRain': return 1.6;
+      case 'HeavyRain': return 1.4;
+      case 'HeavyStorm': return 0.8;
+      default: return 1.0;
+    }
+  };
+
+  // Cloud cover multiplier (matches server)
+  // Normal plants: 60% reduction from heavy clouds (0.4x min)
+  // Mushrooms: clouds help (+36% max)
+  const getCloudMultiplier = (coverage: number, isMushroom: boolean): number => {
+    if (isMushroom) {
+      // Mushrooms benefit from clouds
+      return 1.0 + (coverage * 0.36);
+    } else {
+      // Regular plants are penalized by clouds
+      return Math.max(0.4, 1.0 - (coverage * 0.6));
+    }
+  };
+
+  // Light source multiplier (matches server logic)
+  const getLightMultiplier = (effects: { nearCampfire: boolean; nearLantern: boolean; nearFurnace: boolean }): number => {
+    let totalEffect = 0;
+    
+    // Campfire: -40% max (negative)
+    if (effects.nearCampfire) {
+      totalEffect -= 0.4;
+    }
+    
+    // Lantern: +80% max (positive)
+    if (effects.nearLantern) {
+      totalEffect += 0.8;
+    }
+    
+    // Furnace: +60% max (positive, slightly less than lantern)
+    if (effects.nearFurnace) {
+      totalEffect += 0.6;
+    }
+    
+    return Math.max(0.2, Math.min(2.0, 1.0 + totalEffect));
+  };
+
+  // Mushroom bonus multiplier (matches server logic)
+  const getMushroomBonusMultiplier = (isMushroom: boolean, nearTree: boolean, timeOfDay: string): number => {
+    if (!isMushroom) return 1.0;
+    
+    const bonusFactors: number[] = [];
+    
+    // Tree cover bonus
+    if (nearTree) {
+      bonusFactors.push(1.5); // +50% from tree cover
+    }
+    
+    // Night time bonus
+    switch (timeOfDay) {
+      case 'Night': bonusFactors.push(1.5); break;
+      case 'Midnight': bonusFactors.push(1.6); break;
+      case 'TwilightEvening': bonusFactors.push(1.3); break;
+      case 'TwilightMorning': bonusFactors.push(1.3); break;
+      case 'Dusk': bonusFactors.push(1.2); break;
+      case 'Dawn': bonusFactors.push(1.1); break;
+    }
+    
+    if (bonusFactors.length === 0) return 1.0;
+    
+    // Average the bonuses and cap at 2.0x
+    const avgBonus = bonusFactors.reduce((a, b) => a + b, 0) / bonusFactors.length;
+    return Math.min(2.0, avgBonus);
+  };
+
+  // Calculate total growth multiplier
+  const calculateTotalGrowthMultiplier = (): number => {
+    const baseTimeMultiplier = getTimeOfDayMultiplier(currentTimeOfDay);
+    const weatherMultiplier = getWeatherMultiplier(currentWeather);
+    const cloudMultiplier = getCloudMultiplier(cloudCoverage, isMushroomPlant);
+    const lightMultiplier = getLightMultiplier(lightEffects);
+    const mushroomBonus = getMushroomBonusMultiplier(isMushroomPlant, nearTree, currentTimeOfDay);
+    const waterMult = waterPatchEffect.multiplier;
+    const fertilizerMult = fertilizerPatchEffect.multiplier;
+    const soilMult = onPreparedSoil ? PREPARED_SOIL_GROWTH_MULTIPLIER : 1.0;
+    
+    // Green rune stone bonus (matches server: 1.5x = +50%)
+    const greenRuneMult = nearGreenRuneStone ? 1.5 : 1.0;
+    
+    // If green rune stone is active, apply ALL positive bonuses but ignore penalties
+    if (greenRuneMult > 1.0) {
+      const positiveLightMult = Math.max(1.0, lightMultiplier);
+      return greenRuneMult * waterMult * fertilizerMult * mushroomBonus * soilMult * positiveLightMult;
+    }
+    
+    // Normal calculation with all factors
+    return baseTimeMultiplier * weatherMultiplier * cloudMultiplier * lightMultiplier * mushroomBonus * waterMult * fertilizerMult * soilMult;
+  };
+
+  const totalGrowthMultiplier = calculateTotalGrowthMultiplier();
+
+  // Calculate dynamic time until maturity based on current conditions
+  // This gives a real-time accurate estimate that updates as conditions change
+  const calculateDynamicTimeRemaining = (): number => {
+    if (isFullyGrown || totalGrowthMultiplier <= 0) {
+      return 0;
+    }
+    
+    const remainingProgress = 1.0 - seed.growthProgress;
+    // Base growth rate: progress per second at 1x multiplier
+    const baseGrowthRate = 1.0 / Number(seed.baseGrowthTimeSecs);
+    // Actual growth rate with current conditions
+    const actualGrowthRate = baseGrowthRate * totalGrowthMultiplier;
+    
+    if (actualGrowthRate <= 0) {
+      // Growth is stalled (e.g., night time for non-mushroom plants)
+      return Infinity;
+    }
+    
+    // Time remaining in milliseconds
+    const remainingSeconds = remainingProgress / actualGrowthRate;
+    return remainingSeconds * 1000;
+  };
+
+  const timeUntilMatureMs = calculateDynamicTimeRemaining();
   
   // Get plant type name (format the tag nicely)
   const plantTypeName = seed.plantType.tag
@@ -430,6 +582,23 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
             {isFullyGrown ? '✓ Ready to Harvest!' : formatTimeDuration(timeUntilMatureMs)}
           </span>
         </div>
+        
+        {!isFullyGrown && (
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Growth Rate:</span>
+            <span className={`${styles.infoValue} ${
+              totalGrowthMultiplier >= 1.5 ? styles.positive :
+              totalGrowthMultiplier <= 0.5 ? styles.negative :
+              totalGrowthMultiplier === 0 ? styles.negative :
+              styles.neutral
+            }`}>
+              {totalGrowthMultiplier === 0 
+                ? '⏸️ Paused' 
+                : `${Math.round(totalGrowthMultiplier * 100)}%`
+              }
+            </span>
+          </div>
+        )}
       </div>
       
       {/* Growth Conditions Section */}
@@ -576,7 +745,7 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
           
           {/* Base Growth Time Note */}
           <div className={styles.baseTimeNote}>
-            * Times shown are estimates that adjust based on conditions
+            * Time updates in real-time based on current conditions
           </div>
         </div>
       )}
