@@ -73,6 +73,11 @@ const DEFAULT_CONFIG: MusicSystemConfig = {
     preloadAll: true,
 };
 
+// Random pause configuration
+const PAUSE_PROBABILITY = 0.4; // 40% chance of pausing between songs
+const MIN_PAUSE_DURATION_MS = 2 * 60 * 1000; // 2 minutes minimum
+const MAX_PAUSE_DURATION_MS = 5 * 60 * 1000; // 5 minutes maximum
+
 // Music system state
 interface MusicSystemState {
     isPlaying: boolean;
@@ -86,6 +91,8 @@ interface MusicSystemState {
     volume: number; // Current volume (0-1)
     shuffleMode: boolean; // Track shuffle mode in state
     currentZone: MusicZone; // Current music zone
+    isPaused: boolean; // Whether we're in a random pause period
+    pauseEndTime: number | null; // Timestamp when pause should end (ms since epoch)
 }
 
 // Player position for zone detection
@@ -300,6 +307,8 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         volume: finalConfig.volume,
         shuffleMode: finalConfig.shuffleMode,
         currentZone: 'normal',
+        isPaused: false,
+        pauseEndTime: null,
     });
 
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -318,6 +327,9 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
     // Forward reference for nextTrack function
     const nextTrackRef = useRef<(() => Promise<void>) | null>(null);
+    
+    // Ref to track pause timeout
+    const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Update refs when state changes
     useEffect(() => {
@@ -477,6 +489,12 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
     const startMusic = useCallback(async (forceZone?: MusicZone) => {
         // console.log('🎵 Starting music system...');
         
+        // Clear any active pause timeout when starting music
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+        
         // Use stateRef to get the most current state
         const currentState = stateRef.current;
         const zoneToUse = forceZone ?? currentState.currentZone;
@@ -490,14 +508,26 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             // console.log(`🎵 Creating new shuffled playlist for zone: ${zoneToUse}`);
             currentPlaylist = createShuffledPlaylist(zoneTracks.length);
             startPosition = 0;
-            setState(prev => ({ ...prev, playlist: currentPlaylist, playlistPosition: 0, currentZone: zoneToUse }));
+            setState(prev => ({ 
+                ...prev, 
+                playlist: currentPlaylist, 
+                playlistPosition: 0, 
+                currentZone: zoneToUse,
+                isPaused: false,
+                pauseEndTime: null,
+            }));
         }
         
         // If we're at the beginning (position 0), randomize the starting position
         // This ensures each game session starts with a different song
         if (startPosition === 0) {
             startPosition = Math.floor(Math.random() * currentPlaylist.length);
-            setState(prev => ({ ...prev, playlistPosition: startPosition }));
+            setState(prev => ({ 
+                ...prev, 
+                playlistPosition: startPosition,
+                isPaused: false,
+                pauseEndTime: null,
+            }));
             // console.log(`🎵 Randomized starting position: ${startPosition + 1}/${currentPlaylist.length}`);
         }
 
@@ -509,6 +539,12 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
     // Stop music
     const stopMusic = useCallback(() => {
         // console.log('🎵 Stopping music...');
+        
+        // Clear any active pause timeout
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
         
         if (currentAudioRef.current) {
             currentAudioRef.current.pause();
@@ -525,8 +561,60 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             isPlaying: false,
             currentTrack: null,
             currentTrackIndex: -1,
+            isPaused: false,
+            pauseEndTime: null,
         }));
     }, []);
+
+    // Resume from pause
+    const resumeFromPause = useCallback(async (): Promise<void> => {
+        const currentState = stateRef.current;
+        
+        if (!currentState.isPlaying || !currentState.isPaused) {
+            return;
+        }
+
+        // Clear pause timeout
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+
+        // Clear pause state
+        setState(prev => ({ 
+            ...prev, 
+            isPaused: false, 
+            pauseEndTime: null 
+        }));
+
+        // Continue to next track
+        const zoneTracks = ZONE_TRACKS[currentState.currentZone] || NORMAL_TRACKS;
+        let nextPosition = currentState.playlistPosition + 1;
+        let playlistToUse = currentState.playlist;
+        
+        // If we've reached the end of the playlist, shuffle a new one
+        if (nextPosition >= currentState.playlist.length) {
+            const newPlaylist = createShuffledPlaylist(zoneTracks.length);
+            playlistToUse = newPlaylist;
+            nextPosition = 0;
+            
+            setState(prev => ({ 
+                ...prev, 
+                playlist: newPlaylist, 
+                playlistPosition: nextPosition 
+            }));
+        } else {
+            setState(prev => ({ 
+                ...prev, 
+                playlistPosition: nextPosition 
+            }));
+        }
+
+        const nextTrackIndex = playlistToUse[nextPosition];
+        // console.log(`🎵 Resuming from pause, playing track ${nextPosition + 1}/${playlistToUse.length}: ${zoneTracks[nextTrackIndex]?.displayName}`);
+        
+        await playTrack(nextTrackIndex);
+    }, [playTrack]);
 
     // Next track
     const nextTrack = useCallback(async (): Promise<void> => {
@@ -538,6 +626,41 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             return;
         }
 
+        // Randomly decide if we should pause
+        const shouldPause = Math.random() < PAUSE_PROBABILITY;
+        
+        if (shouldPause) {
+            // Calculate random pause duration
+            const pauseDuration = MIN_PAUSE_DURATION_MS + 
+                Math.random() * (MAX_PAUSE_DURATION_MS - MIN_PAUSE_DURATION_MS);
+            const pauseEndTime = Date.now() + pauseDuration;
+            
+            // console.log(`🎵 Random pause: ${Math.round(pauseDuration / 1000 / 60 * 10) / 10} minutes`);
+            
+            // Set pause state
+            setState(prev => ({ 
+                ...prev, 
+                isPaused: true, 
+                pauseEndTime 
+            }));
+
+            // Set up timeout to resume after pause
+            pauseTimeoutRef.current = setTimeout(() => {
+                resumeFromPause().catch((error: Error) => {
+                    console.error('🎵 Error resuming from pause:', error);
+                    setState(prev => ({ 
+                        ...prev, 
+                        error: `Failed to resume from pause: ${error.message || 'Unknown error'}`,
+                        isPaused: false,
+                        pauseEndTime: null
+                    }));
+                });
+            }, pauseDuration);
+            
+            return;
+        }
+
+        // No pause, continue to next track normally
         const zoneTracks = ZONE_TRACKS[currentState.currentZone] || NORMAL_TRACKS;
         // console.log(`🎵 Moving to next track. Current position: ${currentState.playlistPosition}/${currentState.playlist.length}`);
 
@@ -567,7 +690,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         // console.log(`🎵 Playing track ${nextPosition + 1}/${playlistToUse.length}: ${zoneTracks[nextTrackIndex]?.displayName}`);
         
         await playTrack(nextTrackIndex);
-    }, [playTrack]);
+    }, [playTrack, resumeFromPause]);
 
     // Set the nextTrack ref after the function is defined
     useEffect(() => {
@@ -581,6 +704,12 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         
         if (!currentState.isPlaying) return;
 
+        // Clear any active pause timeout if manually skipping
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+
         let prevPosition = currentState.playlistPosition - 1;
         
         // If we're at the beginning, go to end of playlist
@@ -588,7 +717,12 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             prevPosition = currentState.playlist.length - 1;
         }
 
-        setState(prev => ({ ...prev, playlistPosition: prevPosition }));
+        setState(prev => ({ 
+            ...prev, 
+            playlistPosition: prevPosition,
+            isPaused: false,
+            pauseEndTime: null,
+        }));
         const prevTrackIndex = currentState.playlist[prevPosition];
         await playTrack(prevTrackIndex);
     }, [playTrack]);
@@ -671,6 +805,10 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         return () => {
             // console.log('🎵 Music system cleanup');
             cleanupEventListeners(); // Clean up any active event listeners
+            if (pauseTimeoutRef.current) {
+                clearTimeout(pauseTimeoutRef.current);
+                pauseTimeoutRef.current = null;
+            }
             if (currentAudioRef.current) {
                 currentAudioRef.current.pause();
             }
@@ -679,7 +817,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             }
             musicCache.clear();
         };
-    }, [finalConfig.enabled, preloadAllTracks]);
+    }, [finalConfig.enabled, preloadAllTracks, cleanupEventListeners]);
 
     // Zone detection and switching
     const detectedZone = useMemo(() => {
@@ -741,6 +879,12 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             return;
         }
 
+        // Clear any active pause timeout if manually selecting a track
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+
         // console.log(`🎵 Playing specific track: ${zoneTracks[trackIndex]?.displayName}`);
         
         // Update playlist position to match the selected track
@@ -754,12 +898,16 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             setState(prev => ({ 
                 ...prev, 
                 playlist: newPlaylist, 
-                playlistPosition: newPosition 
+                playlistPosition: newPosition,
+                isPaused: false,
+                pauseEndTime: null,
             }));
         } else {
             setState(prev => ({ 
                 ...prev, 
-                playlistPosition: newPosition 
+                playlistPosition: newPosition,
+                isPaused: false,
+                pauseEndTime: null,
             }));
         }
 
@@ -777,6 +925,8 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         error: state.error,
         volume: state.volume,
         shuffleMode: state.shuffleMode,
+        isPaused: state.isPaused,
+        pauseEndTime: state.pauseEndTime,
         
         // Controls
         start: startMusic,
