@@ -128,4 +128,5 @@ export type DeathPlayer = { tag: "DeathPlayer" };
 export type PlayerHurt = { tag: "PlayerHurt" };
 export type Heartbeat = { tag: "Heartbeat" };
 export type StopHeartbeat = { tag: "StopHeartbeat" };
+export type Thunder = { tag: "Thunder" };
 

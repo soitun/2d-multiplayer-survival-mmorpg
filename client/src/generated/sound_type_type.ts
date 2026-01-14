@@ -129,7 +129,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.DeathPlayer |
   SoundTypeVariants.PlayerHurt |
   SoundTypeVariants.Heartbeat |
-  SoundTypeVariants.StopHeartbeat;
+  SoundTypeVariants.StopHeartbeat |
+  SoundTypeVariants.Thunder;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -241,6 +242,7 @@ export const SoundType = {
   PlayerHurt: { tag: "PlayerHurt" } as const,
   Heartbeat: { tag: "Heartbeat" } as const,
   StopHeartbeat: { tag: "StopHeartbeat" } as const,
+  Thunder: { tag: "Thunder" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -346,6 +348,7 @@ export const SoundType = {
       { name: "PlayerHurt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Heartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StopHeartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Thunder", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },
