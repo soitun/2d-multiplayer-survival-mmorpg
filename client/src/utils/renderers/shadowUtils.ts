@@ -469,6 +469,7 @@ export function drawDynamicGroundShadow({
  * @param shakeTrackingMaps Object containing the tracking maps for this entity type
  * @param shakeDurationMs Duration of the shake effect in milliseconds
  * @param shakeIntensityPx Maximum shake intensity in pixels
+ * @param onNewShake Optional callback when a NEW shake is detected (useful for triggering hit particles)
  * @returns Object with shakeOffsetX and shakeOffsetY values
  */
 export function calculateShakeOffsets(
@@ -479,7 +480,8 @@ export function calculateShakeOffsets(
     lastKnownServerTimes: Map<string, number>;
   },
   shakeDurationMs: number = 300,
-  shakeIntensityPx: number = 6
+  shakeIntensityPx: number = 6,
+  onNewShake?: () => void
 ): { shakeOffsetX: number; shakeOffsetY: number } {
   let shakeOffsetX = 0;
   let shakeOffsetY = 0;
@@ -494,6 +496,11 @@ export function calculateShakeOffsets(
       // NEW shake detected! Record both server time and client time
       shakeTrackingMaps.lastKnownServerTimes.set(entityId, serverShakeTime);
       shakeTrackingMaps.clientStartTimes.set(entityId, Date.now());
+      
+      // Trigger callback if provided (e.g., to spawn hit particles)
+      if (onNewShake) {
+        onNewShake();
+      }
     }
     
     // Calculate animation based on client time

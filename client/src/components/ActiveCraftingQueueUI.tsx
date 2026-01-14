@@ -114,7 +114,7 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Cancel button - appears on hover */}
+      {/* Cancel button - appears on hover, centered over item icon */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -123,35 +123,39 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
         title="Cancel crafting"
         style={{
           position: 'absolute',
-          top: '4px',
-          right: '4px',
-          width: '18px',
-          height: '18px',
+          // Position centered over the item icon (14px padding + 14px half icon width = 28px center)
+          left: '14px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '28px',
+          height: '28px',
           padding: 0,
-          background: isHovering ? 'rgba(255, 51, 102, 0.3)' : 'transparent',
-          border: isHovering ? '1px solid rgba(255, 51, 102, 0.6)' : '1px solid transparent',
-          borderRadius: '2px',
-          color: isHovering ? '#ff3366' : 'transparent',
+          background: isHovering ? 'rgba(255, 51, 102, 0.85)' : 'transparent',
+          border: isHovering ? '2px solid rgba(255, 51, 102, 0.9)' : '2px solid transparent',
+          borderRadius: '4px',
+          color: isHovering ? '#ffffff' : 'transparent',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '12px',
+          fontSize: '16px',
           fontWeight: 'bold',
           zIndex: 10,
           transition: 'all 0.2s ease-out',
           textShadow: isHovering ? '0 0 6px rgba(255, 51, 102, 0.8)' : 'none',
-          boxShadow: isHovering ? '0 0 10px rgba(255, 51, 102, 0.4)' : 'none',
+          boxShadow: isHovering ? '0 0 15px rgba(255, 51, 102, 0.6)' : 'none',
+          opacity: isHovering ? 1 : 0,
+          pointerEvents: isHovering ? 'auto' : 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 51, 102, 0.5)';
-          e.currentTarget.style.border = '1px solid rgba(255, 51, 102, 0.8)';
-          e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.6)';
+          e.currentTarget.style.background = 'rgba(255, 51, 102, 0.95)';
+          e.currentTarget.style.border = '2px solid rgba(255, 100, 130, 1)';
+          e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 51, 102, 0.8)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = isHovering ? 'rgba(255, 51, 102, 0.3)' : 'transparent';
-          e.currentTarget.style.border = isHovering ? '1px solid rgba(255, 51, 102, 0.6)' : '1px solid transparent';
-          e.currentTarget.style.boxShadow = isHovering ? '0 0 10px rgba(255, 51, 102, 0.4)' : 'none';
+          e.currentTarget.style.background = isHovering ? 'rgba(255, 51, 102, 0.85)' : 'transparent';
+          e.currentTarget.style.border = isHovering ? '2px solid rgba(255, 51, 102, 0.9)' : '2px solid transparent';
+          e.currentTarget.style.boxShadow = isHovering ? '0 0 15px rgba(255, 51, 102, 0.6)' : 'none';
         }}
       >
         ✕

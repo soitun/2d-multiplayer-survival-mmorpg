@@ -39,6 +39,7 @@ pub struct ShardkinBehavior;
 // Shardkin-specific constants
 const STRUCTURE_ATTACK_CHANCE: f32 = 0.30; // 30% chance to attack structures when player camping
 const STRUCTURE_ATTACK_DAMAGE: f32 = 5.0; // Low damage to structures (primarily creates urgency)
+const SHELTER_STANDOFF_DISTANCE: f32 = 240.0; // Distance to maintain from sheltered players
 
 impl AnimalBehavior for ShardkinBehavior {
     fn get_stats(&self) -> AnimalStats {
@@ -110,7 +111,27 @@ impl AnimalBehavior for ShardkinBehavior {
                             return Ok(());
                         }
                         
+                        // If player is sheltered, maintain standoff distance
+                        // Shardkin circles outside the shelter waiting for player to emerge
+                        if target_player.is_inside_building {
+                            // Only initiate circling behavior, don't try to approach closer
+                            if distance < SHELTER_STANDOFF_DISTANCE {
+                                // Push back to standoff distance
+                                let dx = animal.pos_x - target_player.position_x;
+                                let dy = animal.pos_y - target_player.position_y;
+                                if distance > 1.0 {
+                                    let push_dist = SHELTER_STANDOFF_DISTANCE - distance + 15.0;
+                                    let push_x = (dx / distance) * push_dist;
+                                    let push_y = (dy / distance) * push_dist;
+                                    update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
+                                }
+                            }
+                            // Stay in chasing state but effectively patrol near shelter
+                            return Ok(());
+                        }
+                        
                         // Check if player is camping and we should attack structures
+                        // (Currently disabled - structure attack not implemented for Shardkin)
                         if target_player.is_inside_building && rng.gen::<f32>() < STRUCTURE_ATTACK_CHANCE * 0.01 {
                             // Look for a structure to attack (handled by structure attack system)
                             // For now, continue chasing until structure attack logic is added
@@ -179,6 +200,44 @@ impl AnimalBehavior for ShardkinBehavior {
         dt: f32,
         rng: &mut impl Rng,
     ) {
+        // If chasing a sheltered player, circle at standoff distance instead of standard patrol
+        if animal.state == AnimalState::Chasing {
+            if let Some(target_id) = animal.target_player_id {
+                if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                    if target_player.is_inside_building {
+                        // Circle around the shelter at standoff distance
+                        let dx = animal.pos_x - target_player.position_x;
+                        let dy = animal.pos_y - target_player.position_y;
+                        let distance = (dx * dx + dy * dy).sqrt();
+                        
+                        // Calculate orbit angle and circle around
+                        let current_angle = dy.atan2(dx);
+                        let orbit_speed = 1.2; // Radians per second
+                        let new_angle = current_angle + orbit_speed * dt;
+                        
+                        // Target position on circle
+                        let target_x = target_player.position_x + SHELTER_STANDOFF_DISTANCE * new_angle.cos();
+                        let target_y = target_player.position_y + SHELTER_STANDOFF_DISTANCE * new_angle.sin();
+                        
+                        move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
+                        
+                        // Enforce minimum distance from shelter
+                        let new_dx = animal.pos_x - target_player.position_x;
+                        let new_dy = animal.pos_y - target_player.position_y;
+                        let new_dist = (new_dx * new_dx + new_dy * new_dy).sqrt();
+                        
+                        if new_dist < SHELTER_STANDOFF_DISTANCE && new_dist > 1.0 {
+                            let push_dist = SHELTER_STANDOFF_DISTANCE - new_dist + 10.0;
+                            let push_x = (new_dx / new_dist) * push_dist;
+                            let push_y = (new_dy / new_dist) * push_dist;
+                            update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+        
         // Standard patrol behavior - Shardkin wander quickly
         execute_standard_patrol(ctx, animal, stats, dt, rng);
     }

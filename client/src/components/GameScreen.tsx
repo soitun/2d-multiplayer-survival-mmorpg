@@ -1231,6 +1231,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     musicVolume={musicVolume}
                     onMusicVolumeChange={onMusicVolumeChange}
                     isVisible={isMusicPanelVisible}
+                    onClose={() => setIsMusicPanelVisible(false)}
                 />
             )}
             <Chat

@@ -63,24 +63,53 @@ const RAIN_PROBABILITY_BASE: f32 = 0.005; // Per-second probability - increased 
 const RAIN_PROBABILITY_SEASONAL_MODIFIER: f32 = 0.10; // Additional variability (reduced from 0.15)
 const MIN_TIME_BETWEEN_RAIN_CYCLES: f32 = 600.0; // 10 minutes minimum between rain events (reduced to allow more frequent rain)
 
-// Weather variation constants
-// These values are tuned to create realistic weather fronts with good regional variation:
-// - More chunks updated per tick = faster weather changes across the map
-// - Longer propagation distance = weather fronts can spread further (more realistic)
-// - Distance decay = nearby chunks more likely to share weather, distant chunks less likely
-// - Lower base propagation = weather doesn't spread too uniformly, preserving regional differences
-const CHUNKS_PER_UPDATE: usize = 25; // Process 25 chunks per tick (~4% of 625-chunk map) for gradual weather evolution
-const WEATHER_PROPAGATION_DISTANCE: u32 = 3; // Increased from 2 - weather spreads to chunks 3 away (smoother gradients)
-const WEATHER_PROPAGATION_DECAY: f32 = 0.8; // Each distance step reduces propagation chance by 20% (distance 1 = 100%, distance 2 = 80%, distance 3 = 64%)
+// === EMERGENT WEATHER SYSTEM CONSTANTS ===
+// Complex adaptive system approach: simple local rules create large-scale coherent weather fronts
+// Key principles:
+// - Neighbor consensus: chunks conform to their neighborhood majority
+// - Interior stability: chunks surrounded by same weather are rock-stable
+// - Edge-only evolution: only boundary chunks between weather types can change
+// - Inertia: established weather resists change
+// - Symmetry: Clear weather is a first-class type, forms large fronts just like rain
 
-// Weather front system - designed for realistic storm movement and dissipation
-// Weather fronts move across the map and naturally weaken at their edges
-const WEATHER_FRONT_MIN_DURATION_MINUTES: f32 = 3.0; // Fronts last at least 3 minutes (match MIN_RAIN_DURATION)
-const WEATHER_FRONT_MAX_DURATION_MINUTES: f32 = 15.0; // Fronts start dissipating after 15 minutes
-const WEATHER_EDGE_DECAY_RATE: f32 = 0.0001; // Edges decay VERY slowly (0.01% per second)
-const WEATHER_CORE_STABILITY: f32 = 0.98; // Core of fronts is extremely stable
-const WEATHER_EDGE_STABILITY: f32 = 0.85; // Edges are fairly stable (not too aggressive)
-const WEATHER_NEIGHBOR_THRESHOLD: u32 = 2; // Need 2+ neighbors to be "core" vs "edge"s
+const CHUNKS_PER_UPDATE: usize = 40; // Process more chunks per tick for responsive weather evolution
+
+// --- Neighbor Consensus Parameters ---
+// Chunks conform to the dominant weather type in their neighborhood
+const CONSENSUS_THRESHOLD: f32 = 0.5; // Need 50%+ of neighbors to agree before changing (4+ of 8 neighbors)
+const CONSENSUS_CONFORM_BASE_CHANCE: f32 = 0.25; // 25% base chance - faster edge evolution!
+
+// --- Interior Stability Parameters ---
+// Chunks deep inside a weather front are stable but CAN change
+const INTERIOR_NEIGHBOR_THRESHOLD: u32 = 6; // 6+ same-weather neighbors = interior chunk
+const INTERIOR_CHANGE_CHANCE: f32 = 0.02; // 2% chance per update - allows gradual front drift
+
+// --- Weather Inertia (Momentum) ---
+// Weather that has persisted longer is harder to displace
+const WEATHER_INERTIA_SCALE_SECONDS: f32 = 180.0; // 3 minutes to reach max stability (was 5)
+const WEATHER_INERTIA_MAX: f32 = 0.3; // Only 30% max resistance (was 50%) - more dynamic!
+
+// --- Nucleation Parameters ---
+// New weather can spontaneously appear - this is how new fronts are born
+// INCREASED: Weather should be dynamic, not frozen!
+const SPONTANEOUS_RAIN_CHANCE: f32 = 0.015; // 1.5% per update - new rain fronts spawn frequently
+const SPONTANEOUS_CLEAR_CHANCE: f32 = 0.012; // 1.2% per update - clearing also happens
+const NUCLEATION_ISOLATION_THRESHOLD: u32 = 4; // Up to 4 neighbors - more nucleation opportunities
+
+// --- Weather Type Transition Rules ---
+// When weather changes, it transitions gradually (storms weaken before clearing)
+// This creates smooth boundaries between weather types
+const GRADUAL_TRANSITION_CHANCE: f32 = 0.7; // 70% chance to transition gradually vs jump to neighbor weather
+
+// --- Active Propagation (supplements consensus system) ---
+// Propagation helps fronts move faster by actively spreading weather to neighbors
+// With consensus as the primary mechanism, propagation is now symmetric
+const WEATHER_PROPAGATION_DISTANCE: u32 = 2; // Spread to chunks up to 2 away
+const BASE_PROPAGATION_CHANCE: f32 = 0.08; // 8% base chance per update (same for all weather types - symmetric!)
+
+// --- Legacy Constants (kept for compatibility with duration/timing logic) ---
+const WEATHER_FRONT_MIN_DURATION_MINUTES: f32 = 3.0; // Minimum time before weather can change
+const WEATHER_FRONT_MAX_DURATION_MINUTES: f32 = 20.0; // After this, weather becomes more susceptible to change
 
 // --- Seasonal Weather Modifiers ---
 // These modify base weather constants based on current season (Aleutian Islands climate)
@@ -112,38 +141,38 @@ impl SeasonalWeatherConfig {
     pub fn for_season(season: &Season) -> Self {
         match season {
             Season::Spring => Self {
-                // Spring: Frequent light showers, moderate conditions
+                // Spring: Mix of light showers and occasional storms
                 rain_probability_multiplier: 1.2,      // 20% more likely to rain
                 duration_multiplier: 0.9,              // Slightly shorter events
                 propagation_multiplier: 1.0,           // Normal spread
-                rain_type_distribution: [0.55, 0.30, 0.12, 0.03], // Mostly light/moderate
+                rain_type_distribution: [0.40, 0.30, 0.20, 0.10], // 10% storms (was 3%)
                 decay_multiplier: 1.1,                 // Slightly faster clearing
                 rain_cooldown_multiplier: 0.8,         // Less time between showers
             },
             Season::Summer => Self {
-                // Summer: Driest season, rare but sometimes intense afternoon storms
+                // Summer: Driest, but when it rains it can storm HARD
                 rain_probability_multiplier: 0.5,      // 50% less likely to rain
                 duration_multiplier: 0.7,              // Much shorter events
                 propagation_multiplier: 0.8,           // Slower spread (isolated storms)
-                rain_type_distribution: [0.40, 0.35, 0.20, 0.05], // More varied, occasional storms
+                rain_type_distribution: [0.25, 0.30, 0.30, 0.15], // 15% storms - summer thunderstorms!
                 decay_multiplier: 1.5,                 // Faster clearing (hot sun)
                 rain_cooldown_multiplier: 1.5,         // More time between rain
             },
             Season::Autumn => Self {
-                // Autumn: Wettest season, long persistent storms, frequent heavy rain
+                // Autumn: Wettest season, frequent heavy storms
                 rain_probability_multiplier: 1.8,      // 80% more likely to rain
                 duration_multiplier: 1.5,              // Much longer events
                 propagation_multiplier: 1.3,           // Faster spread (large fronts)
-                rain_type_distribution: [0.25, 0.35, 0.30, 0.10], // More heavy rain/storms
+                rain_type_distribution: [0.15, 0.25, 0.35, 0.25], // 25% storms - autumn gales!
                 decay_multiplier: 0.6,                 // Slower clearing (persistent)
                 rain_cooldown_multiplier: 0.5,         // Little break between storms
             },
             Season::Winter => Self {
-                // Winter: Cold intense storms, moderate frequency, very long-lasting
+                // Winter: Cold INTENSE storms, dramatic weather
                 rain_probability_multiplier: 1.3,      // 30% more likely
                 duration_multiplier: 1.8,              // Very long-lasting storms
                 propagation_multiplier: 1.2,           // Good spread
-                rain_type_distribution: [0.20, 0.30, 0.35, 0.15], // Heavy rain/storms common
+                rain_type_distribution: [0.10, 0.20, 0.40, 0.30], // 30% storms - winter gales!
                 decay_multiplier: 0.4,                 // Very slow clearing (cold)
                 rain_cooldown_multiplier: 0.7,         // Moderate breaks
             },
@@ -202,8 +231,9 @@ fn reseed_weather_for_season(ctx: &ReducerContext, new_season: &Season) -> Resul
         // Use SEASONAL rain type distribution
         let rain_type = seasonal_config.select_rain_type(rng.gen::<f32>());
         
-        // Create a small cluster of rainy chunks around the center (3x3 area)
-        let front_radius = 1;
+        // Create a larger cluster of rainy chunks around the center
+        // Needs to be big enough to have "interior" chunks that survive consensus
+        let front_radius = 3; // 7x7 area
         
         for dy in -(front_radius as i32)..=(front_radius as i32) {
             for dx in -(front_radius as i32)..=(front_radius as i32) {
@@ -211,9 +241,9 @@ fn reseed_weather_for_season(ctx: &ReducerContext, new_season: &Season) -> Resul
                 let chunk_y = (center_y as i32 + dy).max(0).min(WORLD_HEIGHT_CHUNKS as i32 - 1) as u32;
                 let chunk_index = chunk_y * WORLD_WIDTH_CHUNKS + chunk_x;
                 
-                // Distance-based rain chance
+                // Most chunks in the radius get rain - only edges are uncertain
                 let distance_from_center = ((dx * dx + dy * dy) as f32).sqrt();
-                let rain_chance = 1.0 - (distance_from_center / (front_radius as f32 + 1.0)) * 0.7;
+                let rain_chance = 1.0 - (distance_from_center / (front_radius as f32 + 1.0)) * 0.4; // Gentler falloff
                 
                 if rng.gen::<f32>() < rain_chance {
                     let chunk_weather = ChunkWeather {
@@ -249,7 +279,7 @@ fn reseed_weather_for_season(ctx: &ReducerContext, new_season: &Season) -> Resul
     Ok((cleared_count, rainy_chunks_count))
 }
 
-#[derive(Clone, Debug, PartialEq, spacetimedb::SpacetimeType)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, spacetimedb::SpacetimeType)]
 pub enum WeatherType {
     Clear,
     LightRain,
@@ -539,6 +569,193 @@ fn count_weather_neighbors(ctx: &ReducerContext, chunk_index: u32, weather_type:
     neighbor_count
 }
 
+// === EMERGENT WEATHER SYSTEM HELPER FUNCTIONS ===
+
+/// Gets all 8 immediate neighbor chunk indices (or fewer at map edges)
+fn get_immediate_neighbors(chunk_index: u32) -> Vec<u32> {
+    let chunk_x = (chunk_index % WORLD_WIDTH_CHUNKS) as i32;
+    let chunk_y = (chunk_index / WORLD_WIDTH_CHUNKS) as i32;
+    let mut neighbors = Vec::with_capacity(8);
+    
+    for dy in -1..=1 {
+        for dx in -1..=1 {
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+            let check_x = chunk_x + dx;
+            let check_y = chunk_y + dy;
+            if check_x >= 0 && check_x < WORLD_WIDTH_CHUNKS as i32 &&
+               check_y >= 0 && check_y < WORLD_HEIGHT_CHUNKS as i32 {
+                let neighbor_index = (check_y as u32) * WORLD_WIDTH_CHUNKS + (check_x as u32);
+                neighbors.push(neighbor_index);
+            }
+        }
+    }
+    neighbors
+}
+
+/// Counts neighbors by weather type - returns a map of weather type to count
+/// Also returns total neighbor count (may be <8 at map edges)
+fn count_neighbors_by_weather_type(ctx: &ReducerContext, chunk_index: u32) -> (std::collections::HashMap<WeatherType, u32>, u32) {
+    use std::collections::HashMap;
+    let neighbors = get_immediate_neighbors(chunk_index);
+    let total = neighbors.len() as u32;
+    let mut counts: HashMap<WeatherType, u32> = HashMap::new();
+    
+    let chunk_weather_table = ctx.db.chunk_weather();
+    
+    for neighbor_idx in neighbors {
+        let weather = if let Some(nw) = chunk_weather_table.chunk_index().find(&neighbor_idx) {
+            nw.current_weather.clone()
+        } else {
+            WeatherType::Clear // Uninitialized chunks default to Clear
+        };
+        *counts.entry(weather).or_insert(0) += 1;
+    }
+    
+    (counts, total)
+}
+
+/// Groups weather types into "rainy" vs "clear" for consensus calculation
+/// Returns (clear_count, rainy_count, total)
+fn count_neighbors_rainy_vs_clear(ctx: &ReducerContext, chunk_index: u32) -> (u32, u32, u32) {
+    let (counts, total) = count_neighbors_by_weather_type(ctx, chunk_index);
+    
+    let clear_count = *counts.get(&WeatherType::Clear).unwrap_or(&0);
+    let rainy_count = total - clear_count; // Everything else is some form of rain
+    
+    (clear_count, rainy_count, total)
+}
+
+/// Gets the dominant neighbor weather type and consensus strength
+/// Returns (dominant_weather, consensus_strength) where consensus is 0.0 to 1.0
+fn get_neighbor_consensus(ctx: &ReducerContext, chunk_index: u32) -> (WeatherType, f32) {
+    let (counts, total) = count_neighbors_by_weather_type(ctx, chunk_index);
+    
+    if total == 0 {
+        return (WeatherType::Clear, 0.0);
+    }
+    
+    // Find the weather type with most neighbors
+    let (dominant, count) = counts.into_iter()
+        .max_by_key(|(_, c)| *c)
+        .unwrap_or((WeatherType::Clear, 0));
+    
+    let consensus = count as f32 / total as f32;
+    (dominant, consensus)
+}
+
+/// Checks if a chunk is "interior" - surrounded by same weather type
+/// Interior chunks are extremely stable and resist change
+fn is_interior_chunk(ctx: &ReducerContext, chunk_index: u32, current_weather: &WeatherType) -> bool {
+    let (counts, _total) = count_neighbors_by_weather_type(ctx, chunk_index);
+    let same_weather_count = *counts.get(current_weather).unwrap_or(&0);
+    same_weather_count >= INTERIOR_NEIGHBOR_THRESHOLD
+}
+
+/// Calculates weather inertia (stability from persistence)
+/// Weather that has lasted longer is harder to change
+/// Returns 0.0 to WEATHER_INERTIA_MAX
+fn get_weather_inertia(chunk_weather: &ChunkWeather, now: spacetimedb::Timestamp) -> f32 {
+    if let Some(start) = chunk_weather.weather_start_time {
+        let duration_secs = (now.to_micros_since_unix_epoch() - start.to_micros_since_unix_epoch()) as f32 / 1_000_000.0;
+        let normalized = (duration_secs / WEATHER_INERTIA_SCALE_SECONDS).min(1.0);
+        normalized * WEATHER_INERTIA_MAX
+    } else {
+        0.0
+    }
+}
+
+/// Checks if a chunk can nucleate new weather (spontaneous change in isolated area)
+/// Nucleation only happens when the chunk is relatively isolated from similar weather
+fn can_nucleate_weather(ctx: &ReducerContext, chunk_index: u32, target_weather_is_rainy: bool) -> bool {
+    let (clear_count, rainy_count, _total) = count_neighbors_rainy_vs_clear(ctx, chunk_index);
+    
+    if target_weather_is_rainy {
+        // Want to nucleate rain: must have very few rainy neighbors
+        rainy_count <= NUCLEATION_ISOLATION_THRESHOLD
+    } else {
+        // Want to nucleate clear: must have very few clear neighbors  
+        clear_count <= NUCLEATION_ISOLATION_THRESHOLD
+    }
+}
+
+/// Determines what weather a chunk should transition to based on neighbor consensus
+/// Returns Some(new_weather) if chunk should change, None if it should stay
+fn should_conform_to_neighbors(
+    ctx: &ReducerContext,
+    chunk_index: u32,
+    current_weather: &WeatherType,
+    inertia: f32,
+    rng: &mut impl Rng,
+) -> Option<WeatherType> {
+    let (dominant_neighbor, consensus) = get_neighbor_consensus(ctx, chunk_index);
+    
+    // No change if consensus below threshold
+    if consensus < CONSENSUS_THRESHOLD {
+        return None;
+    }
+    
+    // No change if already matches dominant
+    if dominant_neighbor == *current_weather {
+        return None;
+    }
+    
+    // Calculate conform chance based on consensus strength and inertia
+    // Higher consensus = higher chance, higher inertia = lower chance
+    let consensus_bonus = (consensus - CONSENSUS_THRESHOLD) * 2.0; // 0.5 = 0%, 0.75 = 50%, 1.0 = 100%
+    let conform_chance = CONSENSUS_CONFORM_BASE_CHANCE * (1.0 + consensus_bonus) * (1.0 - inertia);
+    
+    if rng.gen::<f32>() < conform_chance {
+        // Decide whether to transition gradually or jump directly to neighbor weather
+        if rng.gen::<f32>() < GRADUAL_TRANSITION_CHANCE {
+            // Gradual transition - step toward dominant weather
+            Some(gradual_weather_transition(current_weather, &dominant_neighbor))
+        } else {
+            // Direct jump to neighbor weather
+            Some(dominant_neighbor)
+        }
+    } else {
+        None
+    }
+}
+
+/// Returns a gradual transition step from current weather toward target weather
+/// e.g., HeavyStorm -> HeavyRain -> ModerateRain -> LightRain -> Clear (and vice versa)
+fn gradual_weather_transition(current: &WeatherType, target: &WeatherType) -> WeatherType {
+    // Define weather "intensity" for ordering
+    let intensity = |w: &WeatherType| -> i32 {
+        match w {
+            WeatherType::Clear => 0,
+            WeatherType::LightRain => 1,
+            WeatherType::ModerateRain => 2,
+            WeatherType::HeavyRain => 3,
+            WeatherType::HeavyStorm => 4,
+        }
+    };
+    
+    let current_intensity = intensity(current);
+    let target_intensity = intensity(target);
+    
+    // Step one level toward target
+    let new_intensity = if target_intensity > current_intensity {
+        current_intensity + 1
+    } else if target_intensity < current_intensity {
+        current_intensity - 1
+    } else {
+        current_intensity // Already at target
+    };
+    
+    // Convert back to weather type
+    match new_intensity {
+        0 => WeatherType::Clear,
+        1 => WeatherType::LightRain,
+        2 => WeatherType::ModerateRain,
+        3 => WeatherType::HeavyRain,
+        _ => WeatherType::HeavyStorm,
+    }
+}
+
 /// Gets nearby chunk indices for weather propagation (including diagonals)
 /// Returns chunks within propagation_distance with their distance from source
 /// Returns Vec<(chunk_index, distance)> where distance is 1 for immediate neighbors, 2 for next ring, etc.
@@ -575,166 +792,81 @@ fn get_nearby_chunk_indices(chunk_index: u32, propagation_distance: u32) -> Vec<
     nearby_chunks
 }
 
-/// Propagates weather from one chunk to nearby chunks (weather fronts)
-/// Stronger weather has higher propagation chance
-/// Season affects propagation speed - autumn storms spread faster, summer storms stay isolated
+/// Propagates weather from one chunk to nearby chunks (SYMMETRIC - supplements consensus system)
+/// With the new emergent weather system, propagation is symmetric:
+/// - Clear weather and Rain weather propagate at the SAME rate
+/// - The consensus system is the primary mechanism for coherent fronts
+/// - Propagation helps fronts move faster by actively spreading to neighbors
 fn propagate_weather_to_nearby_chunks(
     ctx: &ReducerContext,
     source_chunk_index: u32,
     source_weather: &WeatherType,
-    mut rng: &mut impl Rng,
+    rng: &mut impl Rng,
 ) -> Result<(), String> {
-    // Get current season for propagation modifier
-    let world_state = ctx.db.world_state().iter().next();
-    let seasonal_config = world_state
-        .map(|ws| SeasonalWeatherConfig::for_season(&ws.current_season))
-        .unwrap_or_else(|| SeasonalWeatherConfig::for_season(&Season::Spring)); // Default to spring
+    let now = ctx.timestamp;
     
-    // Base propagation probability based on weather intensity
-    // EMERGENT SYSTEM: Clear weather DOMINATES - propagates much faster than rain to naturally erode fronts
-    let base_propagation_chance = match source_weather {
-        WeatherType::Clear => 0.30,        // 30% - Clear weather aggressively erodes rain fronts
-        WeatherType::LightRain => 0.05,     // 5% - Light rain spreads very slowly
-        WeatherType::ModerateRain => 0.08,  // 8% - Moderate spread
-        WeatherType::HeavyRain => 0.10,     // 10% - Good spread
-        WeatherType::HeavyStorm => 0.12,    // 12% - Strongest spread for storms
-    };
-    
-    // Apply seasonal propagation modifier (rain spreads faster in autumn, slower in summer)
-    // Clear weather propagation is INVERTED - clears faster in summer, slower in winter
-    let propagation_modifier = if matches!(source_weather, WeatherType::Clear) {
-        // Invert for clear weather: summer clears faster, winter clears slower
-        2.0 - seasonal_config.propagation_multiplier
-    } else {
-        seasonal_config.propagation_multiplier
-    };
-    
-    if base_propagation_chance == 0.0 {
-        return Ok(());
-    }
-    
-    // Get nearby chunks up to WEATHER_PROPAGATION_DISTANCE away
+    // Get nearby chunks (immediate neighbors only for simplicity)
     let nearby_chunks = get_nearby_chunk_indices(source_chunk_index, WEATHER_PROPAGATION_DISTANCE);
     
     for (nearby_index, distance) in nearby_chunks {
         let mut nearby_weather = get_or_create_chunk_weather(ctx, nearby_index);
         
-        // Determine if propagation should occur based on weather strength
-        let should_propagate = match (&nearby_weather.current_weather, source_weather) {
-            // Clear weather acts as an "eraser", degrading any rain type
-            (WeatherType::LightRain | WeatherType::ModerateRain | WeatherType::HeavyRain | WeatherType::HeavyStorm, WeatherType::Clear) => true,
-            
-            // Any weather can spread to clear chunks
-            (WeatherType::Clear, _) => true,
-            
-            // Stronger weather can overwrite weaker weather (intensification)
-            (WeatherType::LightRain, WeatherType::ModerateRain | WeatherType::HeavyRain | WeatherType::HeavyStorm) => true,
-            (WeatherType::ModerateRain, WeatherType::HeavyRain | WeatherType::HeavyStorm) => true,
-            (WeatherType::HeavyRain, WeatherType::HeavyStorm) => true,
-            
-            _ => false, // Don't overwrite equal or stronger weather (unless it's Clear eroding rain)
-        };
-        
-        if !should_propagate {
-            continue; // Skip this chunk if propagation shouldn't occur
+        // Skip if neighbor already has the same weather type
+        if nearby_weather.current_weather == *source_weather {
+            continue;
         }
         
-        // Calculate propagation chance with seasonal and erosion modifiers
-        let mut propagation_chance = base_propagation_chance * propagation_modifier;
+        // SYMMETRIC: All weather types have the same base propagation chance
+        // The consensus system handles which weather "wins" - propagation just helps spread
+        let propagation_chance = BASE_PROPAGATION_CHANCE / (distance as f32); // Distance decay
         
-        // Clear weather gets bonus when eroding storms (emergent pressure system)
-        if matches!(source_weather, WeatherType::Clear) && matches!(nearby_weather.current_weather, WeatherType::HeavyStorm | WeatherType::HeavyRain) {
-            // More intense storms are harder to erode, but clear weather gets bonus
-            let erosion_bonus = match nearby_weather.current_weather {
-                WeatherType::HeavyStorm => 0.15,  // +15% bonus when eroding storms
-                WeatherType::HeavyRain => 0.10,    // +10% bonus when eroding heavy rain
-                _ => 0.0,
-            };
-            propagation_chance += erosion_bonus;
-        }
+        // Check inertia of the target chunk - established weather resists change
+        let target_inertia = get_weather_inertia(&nearby_weather, now);
+        let effective_chance = propagation_chance * (1.0 - target_inertia * 0.5); // Inertia reduces chance by up to 50%
         
-        // Apply distance decay: each step reduces chance by WEATHER_PROPAGATION_DECAY
-        let distance_multiplier = WEATHER_PROPAGATION_DECAY.powi(distance as i32 - 1);
-        propagation_chance *= distance_multiplier;
-        
-        // Check if we should propagate to this chunk
-        if rng.gen::<f32>() < propagation_chance {
-            // Propagate weather (with distance-based transitions for smoother gradients)
-            let propagated_weather = match source_weather {
-                    WeatherType::Clear => {
-                        // Erosion Mechanic: Clear weather gradually weakens rain instead of instantly removing it
-                        match nearby_weather.current_weather {
-                            WeatherType::HeavyStorm => WeatherType::HeavyRain,
-                            WeatherType::HeavyRain => WeatherType::ModerateRain,
-                            WeatherType::ModerateRain => WeatherType::LightRain,
-                            _ => WeatherType::Clear, // LightRain becomes Clear
-                        }
-                    },
-                    WeatherType::HeavyStorm => {
-                        // Distance-based degradation: closer chunks more likely to stay intense
-                        let stay_chance = 0.85 - (distance as f32 * 0.15); // 85% at dist 1, 70% at dist 2, 55% at dist 3
-                        if rng.gen::<f32>() < stay_chance {
-                            WeatherType::HeavyStorm
-                        } else {
-                            WeatherType::HeavyRain
-                        }
-                    }
-                    WeatherType::HeavyRain => {
-                        let stay_chance = 0.75 - (distance as f32 * 0.15); // 75% at dist 1, 60% at dist 2, 45% at dist 3
-                        if rng.gen::<f32>() < stay_chance {
-                            WeatherType::HeavyRain
-                        } else {
-                            WeatherType::ModerateRain
-                        }
-                    }
-                    WeatherType::ModerateRain => {
-                        let stay_chance = 0.65 - (distance as f32 * 0.15); // 65% at dist 1, 50% at dist 2, 35% at dist 3
-                        if rng.gen::<f32>() < stay_chance {
-                            WeatherType::ModerateRain
-                        } else {
-                            WeatherType::LightRain
-                        }
-                    }
-                    WeatherType::LightRain => {
-                        // Light rain can degrade to clear at distance 3
-                        if distance >= 3 && rng.gen::<f32>() < 0.3 {
-                            WeatherType::Clear
-                        } else {
-                            WeatherType::LightRain
-                        }
-                    }
-                };
-                
-                // Check if HeavyStorm is transitioning to something else (storm ending)
-                let was_heavy_storm = matches!(nearby_weather.current_weather, WeatherType::HeavyStorm);
-                
-                nearby_weather.current_weather = propagated_weather.clone();
-                nearby_weather.rain_intensity = match propagated_weather {
-                    WeatherType::Clear => 0.0,
-                    WeatherType::LightRain => rng.gen_range(0.2..=0.4),
-                    WeatherType::ModerateRain => rng.gen_range(0.5..=0.7),
-                    WeatherType::HeavyRain => rng.gen_range(0.8..=1.0),
-                    WeatherType::HeavyStorm => 1.0,
-                };
-                nearby_weather.weather_start_time = Some(ctx.timestamp);
-                nearby_weather.weather_duration = Some(rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS));
-                nearby_weather.last_update = ctx.timestamp;
-                
-                // Thunder/lightning disabled for now
-                // TODO: Re-enable thunder system after debugging
-                
-                ctx.db.chunk_weather().chunk_index().update(nearby_weather.clone());
-                
-                // Spawn storm debris on beaches when HeavyStorm ends
-                // Storm debris = individual HarvestableResources (driftwood) + DroppedItems (seaweed, coral fragments, shells)
-                if was_heavy_storm && !matches!(propagated_weather, WeatherType::HeavyStorm) {
-                    if let Err(e) = crate::coral::spawn_storm_debris_on_beaches(ctx, nearby_index) {
-                        log::error!("Failed to spawn storm debris after HeavyStorm ended in chunk {}: {}", nearby_index, e);
-                    }
+        if rng.gen::<f32>() < effective_chance {
+            // Use gradual transition instead of direct replacement
+            let new_weather = gradual_weather_transition(&nearby_weather.current_weather, source_weather);
+            
+            // Check if HeavyStorm is ending (for storm debris)
+            let was_heavy_storm = matches!(nearby_weather.current_weather, WeatherType::HeavyStorm);
+            
+            // Apply the weather change
+            nearby_weather.current_weather = new_weather.clone();
+            nearby_weather.weather_start_time = Some(now);
+            nearby_weather.last_update = now;
+            
+            match &new_weather {
+                WeatherType::Clear => {
+                    nearby_weather.rain_intensity = 0.0;
+                    nearby_weather.weather_duration = None;
+                    nearby_weather.last_rain_end_time = Some(now);
+                    nearby_weather.last_thunder_time = None;
+                    nearby_weather.next_thunder_time = None;
+                },
+                _ => {
+                    nearby_weather.rain_intensity = match new_weather {
+                        WeatherType::LightRain => rng.gen_range(0.2..=0.4),
+                        WeatherType::ModerateRain => rng.gen_range(0.5..=0.7),
+                        WeatherType::HeavyRain => rng.gen_range(0.8..=1.0),
+                        WeatherType::HeavyStorm => 1.0,
+                        _ => 0.0,
+                    };
+                    nearby_weather.weather_duration = Some(rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS));
                 }
-                
-                log::debug!("Weather propagated from chunk {} to chunk {}: {:?}", 
-                           source_chunk_index, nearby_index, propagated_weather);
+            }
+            
+            ctx.db.chunk_weather().chunk_index().update(nearby_weather.clone());
+            
+            // Spawn storm debris on beaches when HeavyStorm ends
+            if was_heavy_storm && !matches!(new_weather, WeatherType::HeavyStorm) {
+                if let Err(e) = crate::coral::spawn_storm_debris_on_beaches(ctx, nearby_index) {
+                    log::error!("Failed to spawn storm debris after HeavyStorm ended in chunk {}: {}", nearby_index, e);
+                }
+            }
+            
+            log::debug!("Weather propagated from chunk {} to chunk {}: {:?} -> {:?}", 
+                       source_chunk_index, nearby_index, source_weather, new_weather);
         }
     }
     
@@ -1187,48 +1319,59 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
     
     let chunk_weather_table = ctx.db.chunk_weather();
     let all_chunk_weather: Vec<ChunkWeather> = chunk_weather_table.iter().collect();
+    let total_possible_chunks = WORLD_WIDTH_CHUNKS * WORLD_HEIGHT_CHUNKS;
     
-    // If no chunks have weather yet, initialize weather with concentrated fronts
-    // This creates localized weather systems that grow naturally, not scattered seeds
-    if all_chunk_weather.is_empty() {
-        // Get seasonal config for initial weather generation
+    // Count how many chunks have rainy weather
+    let rainy_chunk_count = all_chunk_weather.iter()
+        .filter(|cw| !matches!(cw.current_weather, WeatherType::Clear))
+        .count();
+    
+    // AGGRESSIVE INITIALIZATION: If we don't have enough chunks initialized OR not enough rain
+    // Initialize the ENTIRE map with weather!
+    let chunks_initialized = all_chunk_weather.len();
+    let needs_full_init = chunks_initialized < (total_possible_chunks as usize / 2); // Less than 50% of map has weather chunks
+    let needs_rain_init = rainy_chunk_count < 10; // Less than 10 rainy chunks
+    
+    if needs_full_init || needs_rain_init {
+        log::info!("🌧️ FULL WEATHER INITIALIZATION: {} chunks exist, {} rainy, {} total possible", 
+                   chunks_initialized, rainy_chunk_count, total_possible_chunks);
+        
         let seasonal_config = SeasonalWeatherConfig::for_season(&world_state.current_season);
         
-        // Scale number of fronts based on map size AND season
-        // Small maps (≤400×400 tiles): 1 front
-        // Medium maps (≤800×800 tiles): 2 fronts  
-        // Large maps (≤1200×1200 tiles): 3 fronts
-        // Very large maps (>1200×1200 tiles): 4+ fronts
-        // Season multiplier: autumn gets more fronts, summer gets fewer
-        let total_tiles = crate::WORLD_WIDTH_PX * crate::WORLD_HEIGHT_PX;
-        let base_fronts = ((total_tiles as f32 / (400.0 * 400.0)).sqrt().ceil() as u32).max(1).min(6);
-        let seasonal_front_modifier = seasonal_config.rain_probability_multiplier;
-        let num_fronts = ((base_fronts as f32 * seasonal_front_modifier).round() as u32).max(1).min(8);
+        // Create multiple large weather fronts spread across the map
+        // Aim for ~25-35% rain coverage
+        let num_fronts = 6.max((total_possible_chunks / 150) as u32).min(12); // More fronts for bigger maps
+        let front_radius = 5; // 11x11 chunk areas = ~100 chunks per front
         
-        log::info!("🌧️ Initializing weather for {:?}: {} fronts (base: {}, seasonal modifier: {:.2})", 
-                   world_state.current_season, num_fronts, base_fronts, seasonal_front_modifier);
+        log::info!("🌧️ Creating {} weather fronts with radius {} for {:?}", 
+                   num_fronts, front_radius, world_state.current_season);
         
         for front_idx in 0..num_fronts {
-            // Pick a random center point for this weather front
-            let center_x = rng.gen_range(0..WORLD_WIDTH_CHUNKS);
-            let center_y = rng.gen_range(0..WORLD_HEIGHT_CHUNKS);
+            // Spread fronts across the map using a grid pattern with randomization
+            let grid_cols = (num_fronts as f32).sqrt().ceil() as u32;
+            let grid_rows = (num_fronts + grid_cols - 1) / grid_cols;
+            let col = front_idx % grid_cols;
+            let row = front_idx / grid_cols;
             
-            // Use SEASONAL rain type distribution instead of fixed percentages
+            // Base position from grid, then add randomization
+            let base_x = (col as f32 + 0.5) * (WORLD_WIDTH_CHUNKS as f32 / grid_cols as f32);
+            let base_y = (row as f32 + 0.5) * (WORLD_HEIGHT_CHUNKS as f32 / grid_rows as f32);
+            let center_x = ((base_x + rng.gen_range(-3.0..3.0)) as u32).min(WORLD_WIDTH_CHUNKS - 1);
+            let center_y = ((base_y + rng.gen_range(-3.0..3.0)) as u32).min(WORLD_HEIGHT_CHUNKS - 1);
+            
+            // Use SEASONAL rain type distribution
             let rain_type = seasonal_config.select_rain_type(rng.gen::<f32>());
             
-            // Create a VERY small cluster of rainy chunks around the center (3x3 area only)
-            let front_radius = 1; // Always 3x3 for minimal initial coverage
-            
+            // Create a large cluster of rainy chunks
             for dy in -(front_radius as i32)..=(front_radius as i32) {
                 for dx in -(front_radius as i32)..=(front_radius as i32) {
                     let chunk_x = (center_x as i32 + dx).max(0).min(WORLD_WIDTH_CHUNKS as i32 - 1) as u32;
                     let chunk_y = (center_y as i32 + dy).max(0).min(WORLD_HEIGHT_CHUNKS as i32 - 1) as u32;
                     let chunk_index = chunk_y * WORLD_WIDTH_CHUNKS + chunk_x;
                     
-                    // Not all chunks in the radius get rain (creates more natural edges)
-                    // Center chunks more likely to have rain than edge chunks
+                    // High probability of rain within the front
                     let distance_from_center = ((dx * dx + dy * dy) as f32).sqrt();
-                    let rain_chance = 1.0 - (distance_from_center / (front_radius as f32 + 1.0)) * 0.7; // More aggressive falloff
+                    let rain_chance = 1.0 - (distance_from_center / (front_radius as f32 + 1.0)) * 0.3;
                     
                     if rng.gen::<f32>() < rain_chance {
                         let mut chunk_weather = get_or_create_chunk_weather(ctx, chunk_index);
@@ -1242,7 +1385,6 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
                             _ => 0.0,
                         };
                         chunk_weather.weather_start_time = Some(now);
-                        // Apply seasonal duration modifier to initial weather
                         let base_duration = rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS);
                         chunk_weather.weather_duration = Some(base_duration * seasonal_config.duration_multiplier);
                         chunk_weather.last_update = now;
@@ -1252,21 +1394,43 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
                 }
             }
             
-            log::info!("🌧️ Created weather front #{} at ({}, {}) with {:?}", 
-                       front_idx + 1, center_x, center_y, rain_type);
+            log::info!("🌧️ Created front #{} at ({}, {}) with {:?}", front_idx + 1, center_x, center_y, rain_type);
         }
         
-        // Count how many chunks actually got rain
-        let rainy_chunks = ctx.db.chunk_weather().iter()
-            .filter(|cw| cw.current_weather != WeatherType::Clear)
+        // NOW initialize ALL remaining chunks as Clear (so the entire map has weather data)
+        log::info!("🌧️ Initializing all remaining chunks as Clear...");
+        let mut clear_count = 0u32;
+        for chunk_y in 0..WORLD_HEIGHT_CHUNKS {
+            for chunk_x in 0..WORLD_WIDTH_CHUNKS {
+                let chunk_index = chunk_y * WORLD_WIDTH_CHUNKS + chunk_x;
+                if chunk_weather_table.chunk_index().find(&chunk_index).is_none() {
+                    let chunk_weather = ChunkWeather {
+                        chunk_index,
+                        current_weather: WeatherType::Clear,
+                        rain_intensity: 0.0,
+                        weather_start_time: Some(now),
+                        weather_duration: None,
+                        last_rain_end_time: None,
+                        last_thunder_time: None,
+                        next_thunder_time: None,
+                        last_update: now,
+                    };
+                    if let Ok(_) = ctx.db.chunk_weather().try_insert(chunk_weather) {
+                        clear_count += 1;
+                    }
+                }
+            }
+        }
+        
+        // Final count
+        let final_rainy = ctx.db.chunk_weather().iter()
+            .filter(|cw| !matches!(cw.current_weather, WeatherType::Clear))
             .count();
+        let final_total = ctx.db.chunk_weather().iter().count();
         
-        log::info!("🌧️ Initialized weather system: {} fronts created, {} total rainy chunks", 
-                   num_fronts, rainy_chunks);
+        log::info!("🌧️ Weather initialization complete: {} rainy chunks, {} clear chunks, {} total ({}% rain coverage)", 
+                   final_rainy, clear_count, final_total, (final_rainy * 100) / final_total.max(1));
         
-        // IMPORTANT: Return early after initialization to prevent immediate propagation
-        // This gives the initial weather state time to be observed before it starts spreading
-        // Propagation will begin on the next tick (1 second later)
         return Ok(());
     }
     
@@ -1327,11 +1491,29 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
         if let Some(mut chunk_weather) = chunk_weather_table.chunk_index().find(&chunk_index) {
             update_single_chunk_weather(ctx, &mut chunk_weather, world_state, elapsed_seconds, &mut rng, storm_coverage)?;
             
-            // Propagate weather to nearby chunks (but only 10% of the time to prevent exponential growth)
-            // This creates gradual, realistic weather front movement over minutes, not seconds
-            if rng.gen::<f32>() < 0.1 {
+            // ALWAYS propagate from rainy chunks to help fronts expand
+            // Only 30% of the time for clear chunks to prevent clear from dominating
+            let propagation_chance = if matches!(chunk_weather.current_weather, WeatherType::Clear) {
+                0.3
+            } else {
+                0.8 // High chance to propagate rain - helps fronts grow!
+            };
+            
+            if rng.gen::<f32>() < propagation_chance {
                 propagate_weather_to_nearby_chunks(ctx, chunk_index, &chunk_weather.current_weather, &mut rng)?;
             }
+        }
+    }
+    
+    // EXPANSION: Also create and initialize some random chunks to expand the weather system
+    // This ensures weather can reach all parts of the map, not just where players are
+    let total_chunks = WORLD_WIDTH_CHUNKS * WORLD_HEIGHT_CHUNKS;
+    let expansion_count = 5.min(total_chunks as usize / 50); // Create up to 5 new random chunks per tick
+    for _ in 0..expansion_count {
+        let random_chunk = rng.gen_range(0..total_chunks);
+        if chunk_weather_table.chunk_index().find(&random_chunk).is_none() {
+            // Create this chunk - it will start as Clear and can nucleate rain
+            get_or_create_chunk_weather(ctx, random_chunk);
         }
     }
     
@@ -1342,252 +1524,183 @@ fn update_chunk_weather_system(ctx: &ReducerContext, world_state: &WorldState, e
     Ok(())
 }
 
-/// Updates weather for a single chunk
+/// Updates weather for a single chunk using EMERGENT WEATHER SYSTEM
+/// Key principles:
+/// - Neighbor consensus: chunks conform to their neighborhood majority
+/// - Interior stability: chunks surrounded by same weather are rock-stable  
+/// - Edge-only evolution: only boundary chunks between weather types can change
+/// - Inertia: established weather resists change
+/// - Symmetry: Clear weather is a first-class type (forms large fronts just like rain)
 fn update_single_chunk_weather(
     ctx: &ReducerContext,
     chunk_weather: &mut ChunkWeather,
     world_state: &WorldState,
-    _tick_elapsed_seconds: f32, // Unused, we calculate effective elapsed time
+    _tick_elapsed_seconds: f32,
     rng: &mut impl Rng,
-    storm_coverage: f32, // Fraction 0.0-1.0 of map covered by storms
+    storm_coverage: f32, // Still used for negative feedback at extreme coverage
 ) -> Result<(), String> {
     let now = ctx.timestamp;
-    
-    // Get seasonal weather configuration
+    let chunk_index = chunk_weather.chunk_index;
+    let current_weather = chunk_weather.current_weather.clone();
     let seasonal_config = SeasonalWeatherConfig::for_season(&world_state.current_season);
     
-    // Calculate actual time since this chunk was last updated
-    // This ensures probabilities are scaled correctly regardless of update frequency (random sampling)
-    let time_since_last_update = (now.to_micros_since_unix_epoch() - chunk_weather.last_update.to_micros_since_unix_epoch()) as f32 / 1_000_000.0;
-    let effective_elapsed = time_since_last_update.max(0.1); // Ensure valid delta
+    // === STEP 1: INTERIOR STABILITY CHECK ===
+    // Chunks deep inside a weather front are extremely stable - skip most logic
+    let is_interior = is_interior_chunk(ctx, chunk_index, &current_weather);
     
-    match chunk_weather.current_weather {
+    if is_interior {
+        // Interior chunks only change with very low probability (prevents permanent lockup)
+        if rng.gen::<f32>() < INTERIOR_CHANGE_CHANCE {
+            // Even interior chunks can slowly evolve - check neighbor consensus
+            let inertia = get_weather_inertia(chunk_weather, now);
+            if let Some(new_weather) = should_conform_to_neighbors(ctx, chunk_index, &current_weather, inertia, rng) {
+                apply_weather_change(ctx, chunk_weather, new_weather, now, rng, &seasonal_config)?;
+            }
+        }
+        // Update timestamp and return - interior chunks are stable
+        chunk_weather.last_update = now;
+        update_rain_intensity_visual(chunk_weather, now);
+        ctx.db.chunk_weather().chunk_index().update(chunk_weather.clone());
+        return Ok(());
+    }
+    
+    // === STEP 2: EDGE CHUNK - CHECK NEIGHBOR CONSENSUS ===
+    // Edge chunks (at boundaries between weather types) evolve based on neighbor majority
+    let inertia = get_weather_inertia(chunk_weather, now);
+    
+    if let Some(new_weather) = should_conform_to_neighbors(ctx, chunk_index, &current_weather, inertia, rng) {
+        // Chunk is conforming to neighbor consensus
+        apply_weather_change(ctx, chunk_weather, new_weather, now, rng, &seasonal_config)?;
+    } else {
+        // === STEP 3: NUCLEATION - SPONTANEOUS WEATHER CHANGE ===
+        // Very rare spontaneous weather changes in isolated areas (creates new fronts)
+        let is_currently_rainy = !matches!(current_weather, WeatherType::Clear);
+        
+        // Apply seasonal modifier to nucleation chances
+        let rain_nucleation_chance = SPONTANEOUS_RAIN_CHANCE * seasonal_config.rain_probability_multiplier;
+        let clear_nucleation_chance = SPONTANEOUS_CLEAR_CHANCE * seasonal_config.decay_multiplier;
+        
+        // Negative feedback: reduce rain nucleation if coverage is very high
+        let coverage_damper = if storm_coverage > 0.4 {
+            1.0 / (1.0 + (storm_coverage - 0.4) * 3.0)
+        } else {
+            1.0
+        };
+        
+        // Negative feedback: reduce clear nucleation if coverage is very low  
+        let clear_coverage_boost = if storm_coverage < 0.2 {
+            0.3 // Much less likely to clear if barely any rain
+        } else {
+            1.0
+        };
+        
+        if !is_currently_rainy {
+            // Currently clear - check for rain nucleation
+            if can_nucleate_weather(ctx, chunk_index, true) {
+                if rng.gen::<f32>() < rain_nucleation_chance * coverage_damper * (1.0 - inertia) {
+                    // Nucleate rain! Use seasonal distribution for rain type
+                    let rain_type = seasonal_config.select_rain_type(rng.gen::<f32>());
+                    log::info!("🌧️ Rain nucleated in chunk {} ({:?}) - isolated area spawning new front", 
+                              chunk_index, rain_type);
+                    apply_weather_change(ctx, chunk_weather, rain_type, now, rng, &seasonal_config)?;
+                }
+            }
+        } else {
+            // Currently rainy - check for clear nucleation
+            if can_nucleate_weather(ctx, chunk_index, false) {
+                if rng.gen::<f32>() < clear_nucleation_chance * clear_coverage_boost * (1.0 - inertia) {
+                    // Nucleate clearing!
+                    log::info!("🌤️ Clear nucleated in chunk {} - isolated area spawning new clear front", chunk_index);
+                    apply_weather_change(ctx, chunk_weather, WeatherType::Clear, now, rng, &seasonal_config)?;
+                }
+            }
+        }
+    }
+    
+    // === STEP 4: UPDATE VISUALS ===
+    chunk_weather.last_update = now;
+    update_rain_intensity_visual(chunk_weather, now);
+    ctx.db.chunk_weather().chunk_index().update(chunk_weather.clone());
+    
+    Ok(())
+}
+
+/// Applies a weather change to a chunk, handling all side effects
+fn apply_weather_change(
+    ctx: &ReducerContext,
+    chunk_weather: &mut ChunkWeather,
+    new_weather: WeatherType,
+    now: spacetimedb::Timestamp,
+    rng: &mut impl Rng,
+    seasonal_config: &SeasonalWeatherConfig,
+) -> Result<(), String> {
+    let old_weather = chunk_weather.current_weather.clone();
+    let chunk_index = chunk_weather.chunk_index;
+    
+    // Don't do anything if weather isn't actually changing
+    if new_weather == old_weather {
+        return Ok(());
+    }
+    
+    chunk_weather.current_weather = new_weather.clone();
+    chunk_weather.weather_start_time = Some(now);
+    
+    // Set appropriate duration and intensity
+    match &new_weather {
         WeatherType::Clear => {
-            // Check if we should start rain (with seasonal cooldown modifier)
-            let adjusted_cooldown = MIN_TIME_BETWEEN_RAIN_CYCLES * seasonal_config.rain_cooldown_multiplier;
-            let should_check_rain = if let Some(last_rain_end) = chunk_weather.last_rain_end_time {
-                let time_since_last_rain = (now.to_micros_since_unix_epoch() - last_rain_end.to_micros_since_unix_epoch()) as f32 / 1_000_000.0;
-                time_since_last_rain >= adjusted_cooldown
-            } else {
-                true // No previous rain recorded
+            chunk_weather.rain_intensity = 0.0;
+            chunk_weather.weather_duration = None;
+            chunk_weather.last_rain_end_time = Some(now);
+            chunk_weather.last_thunder_time = None;
+            chunk_weather.next_thunder_time = None;
+            
+            log::debug!("🌤️ Chunk {} changed from {:?} to Clear", chunk_index, old_weather);
+        },
+        rain_type => {
+            let base_duration = rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS);
+            chunk_weather.weather_duration = Some(base_duration * seasonal_config.duration_multiplier);
+            
+            chunk_weather.rain_intensity = match rain_type {
+                WeatherType::LightRain => rng.gen_range(0.2..=0.4),
+                WeatherType::ModerateRain => rng.gen_range(0.5..=0.7),
+                WeatherType::HeavyRain => rng.gen_range(0.8..=1.0),
+                WeatherType::HeavyStorm => 1.0,
+                _ => 0.0,
             };
             
-            if should_check_rain {
-                // Calculate rain probability based on time of day and cycle
-                let time_modifier = match world_state.time_of_day {
-                    TimeOfDay::Dawn | TimeOfDay::Dusk => 1.3, // Higher chance during transitions
-                    TimeOfDay::TwilightMorning | TimeOfDay::TwilightEvening => 1.2,
-                    TimeOfDay::Night | TimeOfDay::Midnight => 1.1, // Slightly higher at night
-                    _ => 1.0,
-                };
-                
-                // Minor cyclic variation (small wave pattern over cycles)
-                let cyclic_modifier = 1.0 + (world_state.cycle_count as f32 * 0.1).sin() * RAIN_PROBABILITY_SEASONAL_MODIFIER;
-                
-                // Negative feedback: reduce rain chance if coverage is VERY high (prevents total map saturation)
-                let coverage_damper = 1.0 / (1.0 + storm_coverage.max(0.0) * 2.0); // At 50% coverage, reduces rain chance by ~2x (gentler)
-                
-                // Apply SEASONAL MODIFIER - this is the main seasonal effect on rain probability
-                let rain_probability = RAIN_PROBABILITY_BASE 
-                    * time_modifier 
-                    * cyclic_modifier 
-                    * seasonal_config.rain_probability_multiplier  // <-- Seasonal effect
-                    * effective_elapsed 
-                    * coverage_damper;
-                
-                // Debug logging for rain start (only log occasionally to avoid spam)
-                if chunk_weather.chunk_index % 100 == 0 {
-                    log::debug!("Rain check chunk {}: prob={:.4}, elapsed={:.1}s, coverage={:.2}, season={:?}", 
-                               chunk_weather.chunk_index, rain_probability, effective_elapsed, storm_coverage, world_state.current_season);
-                }
-                
-                if rng.gen::<f32>() < rain_probability {
-                    log::info!("🌧️ Rain starting in chunk {} ({:?})! Type will be determined...", 
-                              chunk_weather.chunk_index, world_state.current_season);
-                    
-                    // Use SEASONAL rain type distribution instead of fixed percentages
-                    let rain_type = seasonal_config.select_rain_type(rng.gen::<f32>());
-                    
-                    // Apply SEASONAL duration modifier
-                    let base_duration = rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS);
-                    let rain_duration = base_duration * seasonal_config.duration_multiplier;
-                    
-                    let rain_intensity = match rain_type {
-                        WeatherType::LightRain => rng.gen_range(0.2..=0.4),
-                        WeatherType::ModerateRain => rng.gen_range(0.5..=0.7),
-                        WeatherType::HeavyRain => rng.gen_range(0.8..=1.0),
-                        WeatherType::HeavyStorm => 1.0, // Maximum intensity
-                        _ => 0.0,
-                    };
-                    
-                    chunk_weather.current_weather = rain_type.clone();
-                    chunk_weather.rain_intensity = rain_intensity;
-                    chunk_weather.weather_start_time = Some(now);
-                    chunk_weather.weather_duration = Some(rain_duration);
-                    chunk_weather.last_update = now;
-                    
-                    // Extinguish unprotected campfires in this chunk during heavy rain/storms
-                    if matches!(rain_type, WeatherType::HeavyRain | WeatherType::HeavyStorm) {
-                        extinguish_campfires_in_chunk(ctx, chunk_weather.chunk_index, &rain_type)?;
-                    }
-                    
-                    // Update the chunk weather
-                    ctx.db.chunk_weather().chunk_index().update(chunk_weather.clone());
+            // Extinguish unprotected campfires in this chunk during heavy rain/storms
+            if matches!(rain_type, WeatherType::HeavyRain | WeatherType::HeavyStorm) {
+                if !matches!(old_weather, WeatherType::HeavyRain | WeatherType::HeavyStorm) {
+                    // Only extinguish when transitioning INTO heavy weather
+                    extinguish_campfires_in_chunk(ctx, chunk_index, rain_type)?;
                 }
             }
-        },
-        WeatherType::LightRain | WeatherType::ModerateRain | WeatherType::HeavyRain | WeatherType::HeavyStorm => {
-            // Check if rain should end
-            if let (Some(start_time), Some(duration)) = (chunk_weather.weather_start_time, chunk_weather.weather_duration) {
-                let rain_elapsed = (now.to_micros_since_unix_epoch() - start_time.to_micros_since_unix_epoch()) as f32 / 1_000_000.0;
-                let _rain_progress = rain_elapsed / duration; // 0.0 to 1.0
-                
-                if rain_elapsed >= duration {
-                    // End rain
-                    chunk_weather.current_weather = WeatherType::Clear;
-                    chunk_weather.rain_intensity = 0.0;
-                    chunk_weather.weather_start_time = None;
-                    chunk_weather.weather_duration = None;
-                    chunk_weather.last_rain_end_time = Some(now);
-                    chunk_weather.last_thunder_time = None;
-                    chunk_weather.next_thunder_time = None;
-                    chunk_weather.last_update = now;
-                    
-                    ctx.db.chunk_weather().chunk_index().update(chunk_weather.clone());
-                } else {
-                    // WEATHER FRONT SYSTEM: Edges decay, cores remain stable
-                    // This creates realistic storm fronts that shrink from the edges inward
-                    
-                    let duration_minutes = rain_elapsed / 60.0;
-                    
-                    // Count weather neighbors to determine if this is core or edge
-                    let neighbor_count = count_weather_neighbors(ctx, chunk_weather.chunk_index, &chunk_weather.current_weather);
-                    let is_core = neighbor_count >= WEATHER_NEIGHBOR_THRESHOLD;
-                    
-                    // Core chunks are very stable, edge chunks decay naturally
-                    let base_stability = if is_core {
-                        WEATHER_CORE_STABILITY // 0.95 - cores are very stable
-                    } else {
-                        WEATHER_EDGE_STABILITY // 0.6 - edges are less stable
-                    };
-                    
-                    // Weather fronts have a natural lifecycle
-                    let stability = if duration_minutes < WEATHER_FRONT_MIN_DURATION_MINUTES {
-                        // Formation phase - no decay yet
-                        base_stability
-                    } else if duration_minutes < WEATHER_FRONT_MAX_DURATION_MINUTES {
-                        // Maturity phase - stable
-                        base_stability
-                    } else {
-                        // Dissipation phase - gradually loses stability after max duration
-                        let overtime_minutes = duration_minutes - WEATHER_FRONT_MAX_DURATION_MINUTES;
-                        base_stability * (1.0 / (1.0 + overtime_minutes * 0.1)) // Slow decay
-                    };
-                    
-                    // Positive feedback: increase decay if global storm coverage is VERY high (only at extreme levels)
-                    let coverage_multiplier = if storm_coverage > 0.6 {
-                        1.0 + (storm_coverage - 0.6) * 1.5 // Only kicks in above 60% coverage
-                    } else {
-                        1.0
-                    };
-                    
-                    // Only check decay if weather has been around long enough
-                    if duration_minutes >= WEATHER_FRONT_MIN_DURATION_MINUTES {
-                        // Edge chunks decay faster than core chunks
-                        let base_decay_rate = if is_core {
-                            WEATHER_EDGE_DECAY_RATE * 0.2 // Core decays 5x slower
-                        } else {
-                            WEATHER_EDGE_DECAY_RATE // Edges decay at normal rate
-                        };
-                        
-                        // Apply SEASONAL decay modifier - winter storms persist, summer clears fast
-                        let decay_rate = base_decay_rate * seasonal_config.decay_multiplier;
-                        
-                        // Calculate decay probability
-                        let decay_probability = (1.0 - stability) * decay_rate * effective_elapsed * coverage_multiplier;
-                        
-                        // Check if weather should decay based on stability
-                        if rng.gen::<f32>() < decay_probability {
-                            // Capture current weather before modifying
-                            let old_weather = chunk_weather.current_weather.clone();
-                            
-                            // Weaken the weather type (natural progression toward clear)
-                            let new_weather = match old_weather {
-                                WeatherType::HeavyStorm => WeatherType::HeavyRain,
-                                WeatherType::HeavyRain => WeatherType::ModerateRain,
-                                WeatherType::ModerateRain => WeatherType::LightRain,
-                                WeatherType::LightRain => WeatherType::Clear, // Light rain can clear completely
-                                _ => old_weather.clone(),
-                            };
-                            
-                            if new_weather == WeatherType::Clear {
-                                // Weather cleared naturally - reached stability threshold
-                                chunk_weather.current_weather = WeatherType::Clear;
-                                chunk_weather.rain_intensity = 0.0;
-                                chunk_weather.weather_start_time = None;
-                                chunk_weather.weather_duration = None;
-                                chunk_weather.last_rain_end_time = Some(now);
-                                chunk_weather.last_thunder_time = None;
-                                chunk_weather.next_thunder_time = None;
-                                
-                                log::debug!("🌤️ Natural clearing: Chunk {} weather cleared from {:?} (duration: {:.1}s, stability: {:.2}, season: {:?})", 
-                                          chunk_weather.chunk_index, old_weather, rain_elapsed, stability, world_state.current_season);
-                            } else {
-                                // Weather weakened but continues - reset stability with new type
-                                chunk_weather.current_weather = new_weather.clone();
-                                chunk_weather.rain_intensity = match new_weather {
-                                    WeatherType::LightRain => rng.gen_range(0.2..=0.4),
-                                    WeatherType::ModerateRain => rng.gen_range(0.5..=0.7),
-                                    WeatherType::HeavyRain => rng.gen_range(0.8..=1.0),
-                                    _ => chunk_weather.rain_intensity,
-                                };
-                                // Reset start time to give weakened weather fresh stability
-                                chunk_weather.weather_start_time = Some(now);
-                                // Shorter duration for weakened weather (with seasonal modifier)
-                                let base_weakened_duration = rng.gen_range(MIN_RAIN_DURATION_SECONDS..=MAX_RAIN_DURATION_SECONDS * 0.7);
-                                chunk_weather.weather_duration = Some(base_weakened_duration * seasonal_config.duration_multiplier);
-                                
-                                log::debug!("🌦️ Natural decay: Chunk {} weather weakened from {:?} to {:?} (duration: {:.1}s, stability: {:.2}, season: {:?})", 
-                                          chunk_weather.chunk_index, old_weather, new_weather, rain_elapsed, stability, world_state.current_season);
-                            }
-                        }
-                    }
-                    
-                    // If stability drops very low, clear (only for very old weather)
-                    // This prevents infinite persistence but is rare
-                    // Apply seasonal modifier - winter storms can persist longer
-                    let persistence_threshold = 0.1 / seasonal_config.decay_multiplier.max(0.1);
-                    if duration_minutes >= WEATHER_FRONT_MAX_DURATION_MINUTES && stability < persistence_threshold {
-                        log::debug!("🌤️ Weather front dissipated: Chunk {} clearing {:?} (duration: {:.1}s, stability: {:.2}, season: {:?})", 
-                                  chunk_weather.chunk_index, chunk_weather.current_weather, rain_elapsed, stability, world_state.current_season);
-                        chunk_weather.current_weather = WeatherType::Clear;
-                        chunk_weather.rain_intensity = 0.0;
-                        chunk_weather.weather_start_time = None;
-                        chunk_weather.weather_duration = None;
-                        chunk_weather.last_rain_end_time = Some(now);
-                        chunk_weather.last_thunder_time = None;
-                        chunk_weather.next_thunder_time = None;
-                    }
-                    
-                    // Vary intensity slightly during rain (existing behavior)
-                    let intensity_variation = (rain_elapsed * 0.1).sin() * 0.1;
-                    let base_intensity = match chunk_weather.current_weather {
-                        WeatherType::LightRain => 0.3,
-                        WeatherType::ModerateRain => 0.6,
-                        WeatherType::HeavyRain => 0.9,
-                        WeatherType::HeavyStorm => 1.0,
-                        _ => 0.0,
-                    };
-                    chunk_weather.rain_intensity = (base_intensity + intensity_variation).max(0.1).min(1.0);
-                    chunk_weather.last_update = now;
-                    
-                    ctx.db.chunk_weather().chunk_index().update(chunk_weather.clone());
-                }
-            }
-        },
+            
+            log::debug!("🌧️ Chunk {} changed from {:?} to {:?}", chunk_index, old_weather, rain_type);
+        }
     }
     
     Ok(())
+}
+
+/// Updates rain intensity for visual variation (cosmetic only)
+fn update_rain_intensity_visual(chunk_weather: &mut ChunkWeather, now: spacetimedb::Timestamp) {
+    if let Some(start_time) = chunk_weather.weather_start_time {
+        let elapsed = (now.to_micros_since_unix_epoch() - start_time.to_micros_since_unix_epoch()) as f32 / 1_000_000.0;
+        let intensity_variation = (elapsed * 0.1).sin() * 0.1;
+        
+        let base_intensity = match chunk_weather.current_weather {
+            WeatherType::Clear => 0.0,
+            WeatherType::LightRain => 0.3,
+            WeatherType::ModerateRain => 0.6,
+            WeatherType::HeavyRain => 0.9,
+            WeatherType::HeavyStorm => 1.0,
+        };
+        
+        if base_intensity > 0.0 {
+            chunk_weather.rain_intensity = (base_intensity + intensity_variation).max(0.1).min(1.0);
+        }
+    }
 }
 
 /// Extinguishes campfires in a specific chunk during heavy weather

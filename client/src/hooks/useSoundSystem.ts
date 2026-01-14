@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
 import { Identity } from 'spacetimedb';
+import { calculateChunkIndex } from '../utils/chunkUtils';
 
 interface SoundSystemProps {
     soundEvents: Map<string, SpacetimeDB.SoundEvent>;
@@ -9,6 +10,7 @@ interface SoundSystemProps {
     localPlayerIdentity: Identity | null;
     masterVolume?: number; // 0-1 scale (up to 100%) for regular sounds
     environmentalVolume?: number; // 0-1 scale for environmental sounds (rain, wind, etc.)
+    chunkWeather?: Map<string, SpacetimeDB.ChunkWeather>; // Chunk-based weather for filtering rain sounds
 }
 
 // Sound strategy enum for different types of sounds
@@ -110,6 +112,8 @@ const SOUND_DEFINITIONS = {
     unlock_sound: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Memory grid skill/faction unlock sound (client-side immediate for instant feedback)
     cairn_unlock: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Cairn unlock sound (client-side immediate for instant feedback when player first unlocks a cairn)
     crow_stealing: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Crow stealing sound when successfully stealing from player
+    // Thunder sound - global weather effect
+    thunder: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.5, maxDistance: Infinity, isEnvironmental: true }, // Thunder sound (11 variations)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -370,6 +374,17 @@ const PRELOAD_SOUNDS = [
     'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
     'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
+    'thunder.mp3',                                             // 11 thunder variations
+    'thunder1.mp3',
+    'thunder2.mp3',
+    'thunder3.mp3',
+    'thunder4.mp3',
+    'thunder5.mp3',
+    'thunder6.mp3',
+    'thunder7.mp3',
+    'thunder8.mp3',
+    'thunder9.mp3',
+    'thunder10.mp3',
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -686,6 +701,8 @@ const playLocalSound = async (
                 variationCount = 1; // error_seaweed_above_water.mp3
             } else if (soundType === 'stun') {
                 variationCount = 1; // stun.mp3
+            } else if (soundType === 'thunder') {
+                variationCount = 11; // thunder.mp3, thunder1.mp3 through thunder10.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);
@@ -1026,13 +1043,28 @@ export const useSoundSystem = ({
     localPlayerPosition, 
     localPlayerIdentity,
     masterVolume = 0.8,
-    environmentalVolume = 0.7
+    environmentalVolume = 0.7,
+    chunkWeather
 }: SoundSystemProps) => {
     const processedSoundEventsRef = useRef<Set<string>>(new Set());
     const isInitializedRef = useRef(false);
     const lastSoundProcessTimeRef = useRef<number>(0);
     const SOUND_PROCESSING_DEBOUNCE_MS = 500; // Minimum 500ms between sound processing
     const pendingSoundCreationRef = useRef<Set<string>>(new Set()); // Track sounds being created
+    
+    // Helper function to check if player's current chunk has rain
+    const isPlayerInRainyChunk = useCallback((): boolean => {
+        if (!localPlayerPosition || !chunkWeather) return false;
+        
+        const chunkIndex = calculateChunkIndex(localPlayerPosition.x, localPlayerPosition.y);
+        const chunkWeatherData = chunkWeather.get(chunkIndex.toString());
+        
+        if (!chunkWeatherData) return false;
+        
+        const weatherTag = chunkWeatherData.currentWeather?.tag;
+        return weatherTag === 'LightRain' || weatherTag === 'ModerateRain' || 
+               weatherTag === 'HeavyRain' || weatherTag === 'HeavyStorm';
+    }, [localPlayerPosition, chunkWeather]);
     
     // Preload sounds on first mount
     useEffect(() => {
@@ -1278,6 +1310,18 @@ export const useSoundSystem = ({
             // Skip inactive sounds - already handled above
             if (!continuousSound.isActive) {
                 return;
+            }
+            
+            // 🌧️ RAIN SOUND FILTERING: Skip global rain sounds if player is NOT in a rainy chunk
+            // This prevents hearing rain when player is in a Clear weather zone
+            const isRainSound = continuousSound.filename.includes('rain');
+            if (isRainSound) {
+                const playerInRain = isPlayerInRainyChunk();
+                if (!playerInRain) {
+                    // Player is in a clear zone - stop any existing rain sound and skip processing
+                    cleanupLoopingSound(objectId, "player not in rainy chunk");
+                    return;
+                }
             }
 
             // Check if we're already playing this sound OR if it's being created
@@ -1620,7 +1664,7 @@ export const useSoundSystem = ({
 
         // console.log(`🔊 Active looping sounds: ${activeLoopingSounds.size}, Active seamless sounds: ${activeSeamlessLoopingSounds.size}, Current active objects: ${currentActiveSounds.size}`);
 
-    }, [continuousSounds, localPlayerPosition, localPlayerIdentity, masterVolume, environmentalVolume]);
+    }, [continuousSounds, localPlayerPosition, localPlayerIdentity, masterVolume, environmentalVolume, isPlayerInRainyChunk, chunkWeather]);
     
     // Periodic cleanup to prevent sound leaks
     useEffect(() => {

@@ -552,6 +552,7 @@ function AppContent() {
         localPlayerIdentity,
         masterVolume: soundVolume,
         environmentalVolume: environmentalVolume,
+        chunkWeather, // Pass chunk weather to filter rain sounds based on player's location
     });
 
     // --- Register Refrigerator Reducer Error Callbacks ---

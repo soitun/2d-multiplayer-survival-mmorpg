@@ -38,8 +38,8 @@ import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_
 import { gameConfig } from '../../config/gameConfig';
 import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
 // Import individual rendering functions
-import { renderTree } from './treeRenderingUtils';
-import { renderStone } from './stoneRenderingUtils';
+import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './treeRenderingUtils';
+import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
 import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from './woodenStorageBoxRenderingUtils';
@@ -81,7 +81,7 @@ import { renderFumarole } from './fumaroleRenderingUtils';
 // Import basalt column renderer
 import { renderBasaltColumn } from './basaltColumnRenderingUtils';
 // Import living coral renderer (underwater harvestable resource)
-import { renderLivingCoral } from './livingCoralRenderingUtils';
+import { renderLivingCoral, renderCoralDestructionEffects, renderCoralHitEffects } from './livingCoralRenderingUtils';
 // Import ALK station renderer
 import { renderAlkStation } from './alkStationRenderingUtils';
 // Import compound building renderer
@@ -1545,6 +1545,18 @@ export const renderYSortedEntities = ({
           console.warn('Unhandled entity type for Y-sorting (first pass):', type, entity);
       } 
   });
+
+  // PASS 1.5: Render particle effects (AFTER entities so particles appear on top)
+  
+  // Hit impact effects (small chips flying off when attacking - triggered every hit)
+  renderTreeHitEffects(ctx, nowMs);    // Bark chips, leaves, splinters
+  renderStoneHitEffects(ctx, nowMs);   // Rock chips, sparks
+  renderCoralHitEffects(ctx, nowMs);   // Coral fragments, bubbles
+  
+  // Destruction effects (big debris explosions when entity is fully destroyed)
+  renderTreeImpactEffects(ctx, nowMs);     // Twigs, leaves, dirt, dust cloud from falling trees
+  renderStoneDestructionEffects(ctx, nowMs); // Rock chunks, sparks, dust cloud from mined stones
+  renderCoralDestructionEffects(ctx, nowMs); // Coral fragments, bubbles, sand cloud from harvested coral
 
   // PASS 2: REMOVED - North walls are now rendered in Pass 1 for correct Y-sorting with players/placeables
   // This fixes the issue where north walls would always render on top of entities on the tile south of the foundation

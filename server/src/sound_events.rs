@@ -110,7 +110,7 @@ pub enum SoundType {
     PlayerHurt,              // player_hurt.mp3 (3 variations - player grunts when taking damage)
     Heartbeat,            // heartbeat.mp3 (looping - plays when player health is critically low)
     StopHeartbeat,           // Special signal to stop heartbeat sound
-    // Thunder removed - system disabled for now
+    Thunder,                 // thunder.mp3 (11 variations - thunder, thunder1 through thunder10)
     // Add more as needed - extensible system
 }
 
@@ -220,6 +220,7 @@ impl SoundType {
             SoundType::PlayerHurt => "player_hurt",
             SoundType::Heartbeat => "heartbeat",
             SoundType::StopHeartbeat => "stop_heartbeat",
+            SoundType::Thunder => "thunder",
         }
     }
 
@@ -328,6 +329,7 @@ impl SoundType {
             SoundType::PlayerHurt => 3, // player_hurt.mp3, player_hurt1.mp3, player_hurt2.mp3 (grunts when hit)
             SoundType::Heartbeat=> 1, // heartbeat.mp3 (looping sound)
             SoundType::StopHeartbeat => 1, // Signal to stop heartbeat
+            SoundType::Thunder => 11, // thunder.mp3, thunder1.mp3 through thunder10.mp3 (11 variations)
         }
     }
 
@@ -1415,8 +1417,13 @@ pub fn stop_normal_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String
 }
 
 // ============================================================================
-// THUNDER/LIGHTNING SYSTEM - DISABLED FOR NOW
+// THUNDER SOUND
 // ============================================================================
-// TODO: Re-enable thunder system after debugging
-// The thunder sound schedule table, reducers, and functions have been removed
-// to prevent spam issues. Will be reintroduced later with proper fixes.
+
+/// Emit thunder sound globally (audible to all players regardless of position)
+/// This uses the 11 thunder variations (thunder.mp3, thunder1.mp3 through thunder10.mp3)
+pub fn emit_thunder_sound(ctx: &ReducerContext, volume: f32) {
+    if let Err(e) = emit_global_sound(ctx, SoundType::Thunder, volume) {
+        log::warn!("Failed to emit thunder sound: {}", e);
+    }
+}

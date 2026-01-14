@@ -19,6 +19,7 @@ interface MusicControlPanelProps {
     musicVolume: number;
     onMusicVolumeChange: (volume: number) => void;
     isVisible: boolean;
+    onClose?: () => void;
 }
 
 // Custom Tooltip Component
@@ -68,7 +69,7 @@ const CustomTooltip: React.FC<TooltipProps> = ({ text, children }) => {
                         fontFamily: UI_FONT_FAMILY,
                         border: '1px solid #00aaff',
                         boxShadow: '0 0 15px rgba(0, 170, 255, 0.6)',
-                        zIndex: 1000,
+                        zIndex: 10000,
                         textShadow: '0 0 4px rgba(0, 255, 255, 0.8)',
                         whiteSpace: 'nowrap',
                         pointerEvents: 'none'
@@ -98,9 +99,9 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
     musicSystem,
     musicVolume,
     onMusicVolumeChange,
-    isVisible
+    isVisible,
+    onClose
 }) => {
-    const [isMinimized, setIsMinimized] = useState(false);
     // Optimistic UI state - show selected track immediately on click
     const [optimisticSelectedTrack, setOptimisticSelectedTrack] = useState<string | null>(null);
 
@@ -259,96 +260,7 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
     // DayNightCycleTracker: top: 15px, width: 240px, height: ~120-140px when expanded, ~40px when minimized
     const topPosition = '170px'; // Position well below the expanded tracker
 
-    // Minimized view - just controls
-    if (isMinimized) {
-        return (
-            <div 
-                onWheel={handlePanelWheel}
-                style={{
-                    position: 'fixed',
-                    top: topPosition,
-                    right: '15px',
-                    background: UI_BG_COLOR,
-                    color: '#00ffff',
-                    padding: '12px 16px', // Increased padding
-                    borderRadius: '6px',
-                    border: `2px solid ${UI_BORDER_COLOR}`,
-                    boxShadow: UI_SHADOW,
-                    zIndex: 49, // Below DayNightCycleTracker
-                    fontSize: '14px', // Increased from 12px
-                    fontFamily: UI_FONT_FAMILY,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px', // Increased gap
-                    textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
-                }}
-            >
-                <CustomTooltip text="Previous Track">
-                    <button
-                        onClick={handlePreviousTrack}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '14px', // Increased
-                            padding: '6px', // Increased padding
-                        }}
-                    >
-                        ⏮️
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text={isPlaying ? 'Pause Music' : 'Play Music'}>
-                    <button
-                        onClick={togglePlayPause}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '16px', // Increased
-                            padding: '6px', // Increased padding
-                        }}
-                    >
-                        {isPlaying ? '⏸️' : '▶️'}
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text="Next Track">
-                    <button
-                        onClick={handleNextTrack}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '14px', // Increased
-                            padding: '6px', // Increased padding
-                        }}
-                    >
-                        ⏭️
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text="Expand Playlist">
-                    <button
-                        onClick={() => setIsMinimized(false)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '12px', // Increased
-                            padding: '6px', // Increased padding
-                            opacity: 0.7,
-                        }}
-                    >
-                        📋
-                    </button>
-                </CustomTooltip>
-            </div>
-        );
-    }
-
-    // Full expanded view
+    // Full view
     return (
         <div 
             onWheel={handlePanelWheel}
@@ -363,7 +275,7 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                 border: `2px solid ${UI_BORDER_COLOR}`,
                 fontFamily: UI_FONT_FAMILY,
                 boxShadow: UI_SHADOW,
-                zIndex: 49, // Below DayNightCycleTracker
+                zIndex: 9999, // Above all other UI elements
                 width: '340px', // Increased width
                 fontSize: '14px', // Increased base font size
                 textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
@@ -381,19 +293,19 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                     🎵 NEURAL HARMONY
                 </span>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <CustomTooltip text="Minimize Panel">
+                    <CustomTooltip text="Close Panel">
                         <button
-                            onClick={() => setIsMinimized(true)}
+                            onClick={() => onClose?.()}
                             style={{
                                 background: 'transparent',
                                 border: 'none',
-                                color: '#00ffff',
+                                color: '#ff6b6b',
                                 cursor: 'pointer',
-                                fontSize: '12px', // Increased
-                                opacity: 0.7,
+                                fontSize: '12px',
+                                opacity: 0.8,
                             }}
                         >
-                            ➖
+                            ✕
                         </button>
                     </CustomTooltip>
                 </div>

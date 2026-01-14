@@ -40,6 +40,7 @@ pub struct ShoreboundBehavior;
 // Shorebound-specific constants - AGGRESSIVE: They attack quickly!
 const STALK_MIN_DISTANCE: f32 = 80.0; // Minimum circling distance (closer!)
 const STALK_MAX_DISTANCE: f32 = 150.0; // Maximum circling distance (closer!)
+const SHELTER_STANDOFF_DISTANCE: f32 = 240.0; // Distance to maintain from sheltered players
 const STALK_ORBIT_SPEED: f32 = 1.5; // Radians per second for circling (faster orbiting)
 const STALK_APPROACH_RATE: f32 = 40.0; // How fast to approach while stalking (much faster)
 const STALK_RETREAT_RATE: f32 = 25.0; // How fast to back off
@@ -129,6 +130,14 @@ impl AnimalBehavior for ShoreboundBehavior {
                             return Ok(());
                         }
                         
+                        // If player is sheltered, maintain standoff distance and just circle
+                        // Shorebound doesn't attack structures, so just wait outside
+                        if target_player.is_inside_building {
+                            // Keep circling at standoff distance, don't charge
+                            animal.stalk_distance = animal.stalk_distance.max(SHELTER_STANDOFF_DISTANCE);
+                            return Ok(()); // Stay in stalking state, don't charge
+                        }
+                        
                         // AGGRESSIVE: If already in attack range during stalking, immediately charge!
                         if distance <= stats.attack_range * 1.2 {
                             transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_id), "in range - immediate charge!");
@@ -159,8 +168,21 @@ impl AnimalBehavior for ShoreboundBehavior {
             AnimalState::Chasing => {
                 if let Some(target_id) = animal.target_player_id {
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                        let distance = get_player_distance(animal, &target_player);
+                        
+                        // If player entered a shelter, go back to stalking at standoff distance
+                        // Shorebound doesn't attack structures
+                        if target_player.is_inside_building {
+                            transition_to_state(animal, AnimalState::Stalking, current_time, Some(target_id), "player sheltered - circle outside");
+                            // Set stalk distance to standoff distance
+                            let dx = animal.pos_x - target_player.position_x;
+                            let dy = animal.pos_y - target_player.position_y;
+                            animal.stalk_angle = dy.atan2(dx);
+                            animal.stalk_distance = SHELTER_STANDOFF_DISTANCE.max(distance);
+                            return Ok(());
+                        }
+                        
                         if !is_player_in_chase_range(animal, &target_player, stats) {
-                            let distance = get_player_distance(animal, &target_player);
                             if distance > stats.chase_trigger_range * 1.3 {
                                 // Go back to stalking instead of patrol
                                 transition_to_state(animal, AnimalState::Stalking, current_time, Some(target_id), "player retreated - resume stalking");
@@ -229,9 +251,17 @@ impl AnimalBehavior for ShoreboundBehavior {
                         animal.stalk_angle -= 2.0 * PI;
                     }
                     
-                    // Gradually approach
-                    if animal.stalk_distance > STALK_MIN_DISTANCE + 20.0 {
+                    // Determine minimum distance based on whether player is sheltered
+                    let min_distance = if target_player.is_inside_building {
+                        SHELTER_STANDOFF_DISTANCE // Keep distance from shelter
+                    } else {
+                        STALK_MIN_DISTANCE + 20.0
+                    };
+                    
+                    // Gradually approach, but respect minimum distance
+                    if animal.stalk_distance > min_distance {
                         animal.stalk_distance -= STALK_APPROACH_RATE * dt;
+                        animal.stalk_distance = animal.stalk_distance.max(min_distance);
                     }
                     
                     // Calculate target position on circle around player
@@ -241,16 +271,21 @@ impl AnimalBehavior for ShoreboundBehavior {
                     // Move towards that position
                     move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
                     
-                    // COLLISION ENFORCEMENT: Ensure we don't end up inside the player
-                    // even with the circling behavior
+                    // COLLISION ENFORCEMENT: Ensure we don't end up inside the player/shelter
                     let dx = animal.pos_x - target_player.position_x;
                     let dy = animal.pos_y - target_player.position_y;
                     let distance = (dx * dx + dy * dy).sqrt();
-                    const MIN_PLAYER_DISTANCE: f32 = 60.0; // Minimum distance during stalking
                     
-                    if distance < MIN_PLAYER_DISTANCE && distance > 1.0 {
-                        // Push away from player
-                        let push_distance = MIN_PLAYER_DISTANCE - distance + 10.0;
+                    // Use larger minimum distance if player is sheltered
+                    let enforce_min_dist = if target_player.is_inside_building {
+                        SHELTER_STANDOFF_DISTANCE
+                    } else {
+                        60.0 // Normal minimum distance during stalking
+                    };
+                    
+                    if distance < enforce_min_dist && distance > 1.0 {
+                        // Push away from player/shelter
+                        let push_distance = enforce_min_dist - distance + 10.0;
                         let push_x = (dx / distance) * push_distance;
                         let push_y = (dy / distance) * push_distance;
                         super::core::update_animal_position(animal, animal.pos_x + push_x, animal.pos_y + push_y);

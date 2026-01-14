@@ -17,6 +17,580 @@ const VERTEX_SHAKE_SEGMENTS = 6; // Number of vertical segments for vertex-based
 const clientStoneShakeStartTimes = new Map<string, number>(); // stoneId -> client timestamp when shake started
 const lastKnownServerStoneShakeTimes = new Map<string, number>(); // stoneId -> last known server timestamp
 
+// ============================================================================
+// STONE DESTRUCTION DEBRIS SYSTEM - AAA Pixel Art Quality
+// ============================================================================
+
+// Stone debris particle interface
+interface StoneDebrisParticle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    rotation: number;
+    rotationSpeed: number;
+    type: 'rock_chunk' | 'rock_shard' | 'dust' | 'spark';
+    color: string;
+    alpha: number;
+    gravity: number;
+    bounceCount: number;
+    maxBounces: number;
+}
+
+// Dust cloud particle for stone
+interface StoneDustParticle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    alpha: number;
+    expandRate: number;
+    color: string;
+}
+
+// Stone destruction effect state
+interface StoneDestructionEffect {
+    stoneId: string;
+    startTime: number;
+    x: number;
+    y: number;
+    duration: number;
+    debris: StoneDebrisParticle[];
+    dust: StoneDustParticle[];
+    oreType: 'stone' | 'metal' | 'sulfur' | 'memory';
+}
+
+// Track active stone destruction effects
+const activeStoneDestructions = new Map<string, StoneDestructionEffect>();
+
+// Track previous stone states to detect destruction
+const previousStoneHealthStates = new Map<string, boolean>(); // stoneId -> wasHealthy
+
+/**
+ * Check if a stone has an active destruction effect (for entity filtering)
+ * This allows destroyed stones to remain visible while their debris effect plays
+ */
+export function hasActiveStoneDestruction(stoneId: string): boolean {
+    return activeStoneDestructions.has(stoneId);
+}
+
+/**
+ * Get active stone destruction IDs (for debugging)
+ */
+export function getActiveStoneDestructionCount(): number {
+    return activeStoneDestructions.size;
+}
+
+// Destruction effect constants
+const STONE_DESTRUCTION_DURATION_MS = 1200;
+const NUM_STONE_DEBRIS_PARTICLES = 16;
+const NUM_STONE_DUST_PARTICLES = 10;
+
+// ============================================================================
+// STONE HIT IMPACT PARTICLES - Smaller chips on each hit
+// ============================================================================
+
+interface StoneHitParticle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    rotation: number;
+    rotationSpeed: number;
+    color: string;
+    alpha: number;
+    gravity: number;
+}
+
+interface StoneHitEffect {
+    stoneId: string;
+    startTime: number;
+    x: number;
+    y: number;
+    duration: number;
+    particles: StoneHitParticle[];
+}
+
+// Track active hit effects
+const activeStoneHitEffects = new Map<string, StoneHitEffect>();
+
+// Hit effect constants (smaller/quicker than destruction)
+const STONE_HIT_DURATION_MS = 500;
+const NUM_STONE_HIT_PARTICLES = 8;
+
+// Base gray colors that always appear on stone hits
+const STONE_GRAY_COLORS = ['#6b6b6b', '#7a7a7a', '#5c5c5c', '#888888', '#4d4d4d'];
+
+/**
+ * Generate hit impact particles for stone
+ */
+function generateStoneHitParticles(x: number, y: number, oreType: 'stone' | 'metal' | 'sulfur' | 'memory'): StoneHitParticle[] {
+    const particles: StoneHitParticle[] = [];
+    const oreColors = STONE_COLORS[oreType];
+    
+    for (let i = 0; i < NUM_STONE_HIT_PARTICLES; i++) {
+        // Upward spray with some horizontal spread
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.9; // Mostly upward
+        const speed = 3 + Math.random() * 4;
+        
+        // Mix of chunks and sparks - 70% chunks, 30% sparks
+        const isSpark = Math.random() < 0.25;
+        
+        // Always include some gray chunks, mix in ore color
+        // First half particles are gray, second half are ore-colored
+        const useGrayColor = i < NUM_STONE_HIT_PARTICLES / 2;
+        let color: string;
+        
+        if (isSpark) {
+            color = oreColors.sparks[Math.floor(Math.random() * oreColors.sparks.length)];
+        } else if (useGrayColor) {
+            color = STONE_GRAY_COLORS[Math.floor(Math.random() * STONE_GRAY_COLORS.length)];
+        } else {
+            color = oreColors.chunks[Math.floor(Math.random() * oreColors.chunks.length)];
+        }
+        
+        particles.push({
+            x: x + (Math.random() - 0.5) * 24,
+            y: y - 25 - Math.random() * 25, // Start near impact point
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3, // Stronger upward boost
+            size: isSpark ? (2 + Math.random() * 2) : (4 + Math.random() * 5), // LARGER chunks (4-9px)
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.6,
+            color,
+            alpha: 0.95,
+            gravity: isSpark ? 0.18 : 0.28,
+        });
+    }
+    
+    return particles;
+}
+
+/**
+ * Trigger hit impact effect for stone
+ */
+export function triggerStoneHitEffect(stoneId: string, x: number, y: number, oreType: 'stone' | 'metal' | 'sulfur' | 'memory'): void {
+    // Allow multiple hit effects by using unique keys
+    const effectKey = `${stoneId}_${Date.now()}`;
+    
+    const effect: StoneHitEffect = {
+        stoneId,
+        startTime: Date.now(),
+        x,
+        y,
+        duration: STONE_HIT_DURATION_MS,
+        particles: generateStoneHitParticles(x, y, oreType),
+    };
+    
+    activeStoneHitEffects.set(effectKey, effect);
+}
+
+/**
+ * Render stone hit impact effects
+ */
+export function renderStoneHitEffects(ctx: CanvasRenderingContext2D, nowMs: number): void {
+    const effectsToRemove: string[] = [];
+    
+    activeStoneHitEffects.forEach((effect, effectKey) => {
+        const elapsed = nowMs - effect.startTime;
+        const progress = elapsed / effect.duration;
+        
+        if (progress >= 1) {
+            effectsToRemove.push(effectKey);
+            return;
+        }
+        
+        ctx.save();
+        
+        // Render particles
+        effect.particles.forEach((particle) => {
+            // Update physics
+            particle.vy += particle.gravity;
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.rotation += particle.rotationSpeed;
+            particle.vx *= 0.98; // Air drag
+            
+            // Fade out
+            const fadeStart = 0.5;
+            const particleAlpha = progress > fadeStart 
+                ? particle.alpha * (1 - (progress - fadeStart) / (1 - fadeStart))
+                : particle.alpha;
+            
+            if (particleAlpha < 0.01) return;
+            
+            ctx.save();
+            ctx.translate(particle.x, particle.y);
+            ctx.rotate(particle.rotation);
+            ctx.globalAlpha = particleAlpha;
+            ctx.fillStyle = particle.color;
+            
+            // Draw chip shape
+            if (particle.size > 2) {
+                // Rock chip - irregular polygon
+                ctx.beginPath();
+                ctx.moveTo(-particle.size / 2, 0);
+                ctx.lineTo(0, -particle.size / 2);
+                ctx.lineTo(particle.size / 2, -particle.size / 4);
+                ctx.lineTo(particle.size / 3, particle.size / 2);
+                ctx.lineTo(-particle.size / 3, particle.size / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Spark - small circle
+                ctx.beginPath();
+                ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        });
+        
+        ctx.restore();
+    });
+    
+    effectsToRemove.forEach(key => activeStoneHitEffects.delete(key));
+}
+
+// Color palettes for different ore types (AAA pixel art style)
+const STONE_COLORS = {
+    stone: {
+        chunks: ['#6B6B6B', '#808080', '#5A5A5A', '#7A7A7A', '#4D4D4D'],
+        dust: ['rgba(100, 100, 100, 0.6)', 'rgba(80, 80, 80, 0.5)', 'rgba(120, 120, 120, 0.4)'],
+        sparks: ['#FFFFFF', '#E0E0E0', '#C0C0C0'],
+    },
+    metal: {
+        chunks: ['#8B7355', '#A08060', '#6B5344', '#9A8A6A', '#5C4433'],
+        dust: ['rgba(139, 115, 85, 0.6)', 'rgba(100, 80, 60, 0.5)', 'rgba(160, 128, 96, 0.4)'],
+        sparks: ['#FFD700', '#FFA500', '#FFFF00'],
+    },
+    sulfur: {
+        chunks: ['#B5A642', '#D4C55A', '#8B8B00', '#C0B030', '#9A9A00'],
+        dust: ['rgba(181, 166, 66, 0.6)', 'rgba(140, 130, 50, 0.5)', 'rgba(200, 180, 80, 0.4)'],
+        sparks: ['#FFFF00', '#FFEE00', '#FFDD00'],
+    },
+    memory: {
+        chunks: ['#4A6B8A', '#5A7B9A', '#3A5B7A', '#6A8BAA', '#2A4B6A'],
+        dust: ['rgba(74, 107, 138, 0.6)', 'rgba(60, 90, 120, 0.5)', 'rgba(90, 120, 150, 0.4)'],
+        sparks: ['#00FFFF', '#00E0FF', '#00C0FF'],
+    },
+};
+
+/**
+ * Get ore type from stone entity
+ */
+export function getStoneOreType(stone: Stone): 'stone' | 'metal' | 'sulfur' | 'memory' {
+    const oreType = (stone as any).oreType;
+    if (oreType) {
+        if (oreType.tag === 'Metal' || oreType === 'Metal') return 'metal';
+        if (oreType.tag === 'Sulfur' || oreType === 'Sulfur') return 'sulfur';
+        if (oreType.tag === 'Memory' || oreType === 'Memory') return 'memory';
+    }
+    return 'stone';
+}
+
+/**
+ * Check if a stone should be visible for destruction effect - call this from entity filtering
+ * This function detects destruction transitions and triggers effects
+ * Returns true if the stone has an active or newly-triggered destruction effect
+ */
+export function checkStoneDestructionVisibility(stone: Stone): boolean {
+    const stoneId = stone.id.toString();
+    const isDestroyed = stone.respawnAt && stone.respawnAt.microsSinceUnixEpoch !== 0n;
+    const wasHealthy = previousStoneHealthStates.get(stoneId);
+    
+    // If already has an active effect, keep it visible
+    if (activeStoneDestructions.has(stoneId)) {
+        return true;
+    }
+    
+    // Check for destruction transition: was healthy, now destroyed
+    if (wasHealthy === true && isDestroyed) {
+        // Trigger the effect!
+        const oreType = getStoneOreType(stone);
+        triggerStoneDestructionEffect(stoneId, stone.posX, stone.posY, oreType);
+        return true;
+    }
+    
+    // Update tracking for next frame
+    previousStoneHealthStates.set(stoneId, !isDestroyed);
+    
+    return false;
+}
+
+/**
+ * Generate debris particles for stone destruction
+ */
+function generateStoneDebris(x: number, y: number, oreType: 'stone' | 'metal' | 'sulfur' | 'memory'): StoneDebrisParticle[] {
+    const particles: StoneDebrisParticle[] = [];
+    const colors = STONE_COLORS[oreType];
+    
+    for (let i = 0; i < NUM_STONE_DEBRIS_PARTICLES; i++) {
+        // Explosion outward from center
+        const angle = (Math.random() * Math.PI * 2);
+        const speed = 3 + Math.random() * 6;
+        
+        // Determine particle type
+        const typeRoll = Math.random();
+        let type: 'rock_chunk' | 'rock_shard' | 'dust' | 'spark';
+        let color: string;
+        let size: number;
+        let gravity: number;
+        let maxBounces: number;
+        
+        if (typeRoll < 0.35) {
+            type = 'rock_chunk';
+            color = colors.chunks[Math.floor(Math.random() * colors.chunks.length)];
+            size = 4 + Math.random() * 8; // 4-12px
+            gravity = 0.25;
+            maxBounces = 2;
+        } else if (typeRoll < 0.65) {
+            type = 'rock_shard';
+            color = colors.chunks[Math.floor(Math.random() * colors.chunks.length)];
+            size = 2 + Math.random() * 4; // 2-6px
+            gravity = 0.2;
+            maxBounces = 3;
+        } else if (typeRoll < 0.85) {
+            type = 'dust';
+            color = colors.chunks[Math.floor(Math.random() * colors.chunks.length)];
+            size = 1 + Math.random() * 2; // 1-3px
+            gravity = 0.05;
+            maxBounces = 0;
+        } else {
+            type = 'spark';
+            color = colors.sparks[Math.floor(Math.random() * colors.sparks.length)];
+            size = 1 + Math.random() * 2; // 1-3px
+            gravity = 0.1;
+            maxBounces = 0;
+        }
+        
+        particles.push({
+            x: x + (Math.random() - 0.5) * 30,
+            y: y - 20 - Math.random() * 30, // Start from center of stone
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3 - Math.random() * 4, // Initial upward burst
+            size,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.6,
+            type,
+            color,
+            alpha: 0.9 + Math.random() * 0.1,
+            gravity,
+            bounceCount: 0,
+            maxBounces,
+        });
+    }
+    
+    return particles;
+}
+
+/**
+ * Generate dust cloud for stone destruction
+ */
+function generateStoneDustCloud(x: number, y: number, oreType: 'stone' | 'metal' | 'sulfur' | 'memory'): StoneDustParticle[] {
+    const particles: StoneDustParticle[] = [];
+    const colors = STONE_COLORS[oreType];
+    
+    for (let i = 0; i < NUM_STONE_DUST_PARTICLES; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.5 + Math.random() * 1.5;
+        
+        particles.push({
+            x: x + (Math.random() - 0.5) * 40,
+            y: y - 10 - Math.random() * 20,
+            vx: Math.cos(angle) * speed,
+            vy: -0.5 - Math.random() * 1.0, // Rise slowly
+            size: 12 + Math.random() * 20,
+            alpha: 0.5 + Math.random() * 0.2,
+            expandRate: 0.4 + Math.random() * 0.4,
+            color: colors.dust[Math.floor(Math.random() * colors.dust.length)],
+        });
+    }
+    
+    return particles;
+}
+
+/**
+ * Trigger stone destruction effect
+ */
+export function triggerStoneDestructionEffect(
+    stoneId: string,
+    x: number,
+    y: number,
+    oreType: 'stone' | 'metal' | 'sulfur' | 'memory'
+): void {
+    if (activeStoneDestructions.has(stoneId)) return;
+    
+    const effect: StoneDestructionEffect = {
+        stoneId,
+        startTime: Date.now(),
+        x,
+        y,
+        duration: STONE_DESTRUCTION_DURATION_MS,
+        debris: generateStoneDebris(x, y, oreType),
+        dust: generateStoneDustCloud(x, y, oreType),
+        oreType,
+    };
+    
+    activeStoneDestructions.set(stoneId, effect);
+}
+
+/**
+ * Render stone destruction effects - AAA pixel art quality
+ */
+export function renderStoneDestructionEffects(
+    ctx: CanvasRenderingContext2D,
+    nowMs: number
+): void {
+    const effectsToRemove: string[] = [];
+    
+    activeStoneDestructions.forEach((effect, stoneId) => {
+        const elapsed = nowMs - effect.startTime;
+        const progress = elapsed / effect.duration;
+        
+        if (progress >= 1) {
+            effectsToRemove.push(stoneId);
+            return;
+        }
+        
+        ctx.save();
+        
+        // === PHASE 1: DUST CLOUD (first 80%) ===
+        if (progress < 0.8) {
+            const dustProgress = progress / 0.8;
+            const dustFade = 1 - Math.pow(dustProgress, 0.6);
+            
+            effect.dust.forEach((dust) => {
+                dust.x += dust.vx;
+                dust.y += dust.vy;
+                dust.size += dust.expandRate;
+                dust.vy *= 0.97;
+                
+                const dustAlpha = dust.alpha * dustFade * (1 - dustProgress * 0.4);
+                if (dustAlpha > 0.01) {
+                    const gradient = ctx.createRadialGradient(
+                        dust.x, dust.y, 0,
+                        dust.x, dust.y, dust.size
+                    );
+                    gradient.addColorStop(0, dust.color.replace(/[\d.]+\)$/, `${dustAlpha * 0.7})`));
+                    gradient.addColorStop(0.5, dust.color.replace(/[\d.]+\)$/, `${dustAlpha * 0.4})`));
+                    gradient.addColorStop(1, dust.color.replace(/[\d.]+\)$/, '0)'));
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(dust.x, dust.y, dust.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+        
+        // === PHASE 2: DEBRIS PARTICLES (full animation) ===
+        const debrisFade = progress > 0.6 ? 1 - ((progress - 0.6) / 0.4) : 1;
+        
+        effect.debris.forEach((particle) => {
+            // Physics update
+            particle.vy += particle.gravity;
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.rotation += particle.rotationSpeed;
+            particle.vx *= 0.98;
+            
+            // Ground bounce
+            const groundY = effect.y + 5;
+            if (particle.y > groundY && particle.bounceCount < particle.maxBounces) {
+                particle.y = groundY;
+                particle.vy = -particle.vy * 0.35;
+                particle.vx *= 0.6;
+                particle.bounceCount++;
+                particle.rotationSpeed *= 0.4;
+            } else if (particle.y > groundY) {
+                particle.y = groundY;
+                particle.vy = 0;
+                particle.vx *= 0.92;
+            }
+            
+            const particleAlpha = particle.alpha * debrisFade;
+            if (particleAlpha < 0.05) return;
+            
+            ctx.save();
+            ctx.translate(particle.x, particle.y);
+            ctx.rotate(particle.rotation);
+            ctx.globalAlpha = particleAlpha;
+            ctx.fillStyle = particle.color;
+            
+            switch (particle.type) {
+                case 'rock_chunk':
+                    // Irregular polygon chunk
+                    ctx.beginPath();
+                    ctx.moveTo(-particle.size / 2, -particle.size / 3);
+                    ctx.lineTo(particle.size / 3, -particle.size / 2);
+                    ctx.lineTo(particle.size / 2, particle.size / 4);
+                    ctx.lineTo(-particle.size / 4, particle.size / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+                    
+                case 'rock_shard':
+                    // Sharp triangular shard
+                    ctx.beginPath();
+                    ctx.moveTo(0, -particle.size);
+                    ctx.lineTo(particle.size / 2, particle.size / 2);
+                    ctx.lineTo(-particle.size / 2, particle.size / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+                    
+                case 'dust':
+                    // Small soft circle
+                    ctx.beginPath();
+                    ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 'spark':
+                    // Bright small dot with glow
+                    ctx.shadowColor = particle.color;
+                    ctx.shadowBlur = 4;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    break;
+            }
+            
+            ctx.restore();
+        });
+        
+        // === PHASE 3: IMPACT BURST (first 15%) ===
+        if (progress < 0.15) {
+            const burstProgress = progress / 0.15;
+            const burstRadius = 30 + burstProgress * 50;
+            const burstAlpha = 0.5 * (1 - burstProgress);
+            
+            ctx.strokeStyle = `rgba(255, 255, 255, ${burstAlpha})`;
+            ctx.lineWidth = 3 - burstProgress * 2;
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y - 20, burstRadius, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    });
+    
+    effectsToRemove.forEach(id => activeStoneDestructions.delete(id));
+}
+
+/**
+ * Clean up stone destruction effect
+ */
+export function cleanupStoneDestructionEffect(stoneId: string): void {
+    activeStoneDestructions.delete(stoneId);
+    previousStoneHealthStates.delete(stoneId);
+}
+
 // Define the configuration for rendering stones
 const stoneConfig: GroundEntityConfig<Stone> = {
     // shouldRender: (entity) => entity.health > 0, // Removed: Filtering should happen before calling renderStone
@@ -68,8 +642,13 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             const lastKnownServerTime = lastKnownServerStoneShakeTimes.get(stoneId) || 0;
             
             if (serverShakeTime !== lastKnownServerTime) {
+                // NEW shake detected! Update tracking and trigger hit effect
                 lastKnownServerStoneShakeTimes.set(stoneId, serverShakeTime);
                 clientStoneShakeStartTimes.set(stoneId, Date.now());
+                
+                // Trigger hit impact particles! (This runs before applyEffects)
+                const oreType = getStoneOreType(entity);
+                triggerStoneHitEffect(stoneId, entity.posX, entity.posY, oreType);
             }
             
             const clientStartTime = clientStoneShakeStartTimes.get(stoneId);
@@ -118,18 +697,11 @@ const stoneConfig: GroundEntityConfig<Stone> = {
         let shakeDirectionX = 0;
         let shakeDirectionY = 0;
 
+        const stoneId = entity.id.toString();
+
         if (entity.lastHitTime) { 
-            const stoneId = entity.id.toString();
-            const serverShakeTime = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            
-            // Check if this is a NEW shake by comparing server timestamps
-            const lastKnownServerTime = lastKnownServerStoneShakeTimes.get(stoneId) || 0;
-            
-            if (serverShakeTime !== lastKnownServerTime) {
-                // NEW shake detected! Record both server time and client time
-                lastKnownServerStoneShakeTimes.set(stoneId, serverShakeTime);
-                clientStoneShakeStartTimes.set(stoneId, nowMs);
-            }
+            // NOTE: Hit effect is triggered in drawCustomGroundShadow (runs first)
+            // This block handles the shake animation for the stone sprite
             
             // Calculate animation based on client time
             const clientStartTime = clientStoneShakeStartTimes.get(stoneId);
@@ -152,7 +724,6 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             }
         } else {
             // Clean up tracking when stone is not being hit
-            const stoneId = entity.id.toString();
             clientStoneShakeStartTimes.delete(stoneId);
             lastKnownServerStoneShakeTimes.delete(stoneId);
         }
@@ -189,7 +760,17 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             return;
         }
 
-        // Draw stone in vertical segments with vertex-based shaking
+        // FIRST: Draw a static backdrop to fill any gaps from segment shake
+        // This prevents 1-2px gaps from showing through
+        ctx.drawImage(
+            img,
+            -targetImgWidth / 2,
+            -targetImgHeight / 2,
+            targetImgWidth,
+            targetImgHeight
+        );
+
+        // THEN: Draw stone in vertical segments with vertex-based shaking on top
         // Base (bottom) has minimal shake, top has maximum shake
         const segmentHeight = targetImgHeight / VERTEX_SHAKE_SEGMENTS;
         
@@ -241,6 +822,7 @@ imageManager.preloadImage(memoryImage);
 
 /**
  * Renders a single stone entity onto the canvas using the generic renderer.
+ * Also tracks destruction state to trigger debris effects.
  */
 export function renderStone(
     ctx: CanvasRenderingContext2D, 
@@ -250,6 +832,24 @@ export function renderStone(
     onlyDrawShadow?: boolean,    // New flag
     skipDrawingShadow?: boolean // New flag
 ) {
+    const stoneId = stone.id.toString();
+    const isDestroyed = stone.respawnAt && stone.respawnAt.microsSinceUnixEpoch !== 0n;
+    const wasHealthy = previousStoneHealthStates.get(stoneId);
+    
+    // Check for destruction transition: was healthy, now destroyed
+    if (wasHealthy && isDestroyed && !activeStoneDestructions.has(stoneId)) {
+        const oreType = getStoneOreType(stone);
+        triggerStoneDestructionEffect(stoneId, stone.posX, stone.posY, oreType);
+    }
+    
+    // Update tracking
+    previousStoneHealthStates.set(stoneId, !isDestroyed);
+    
+    // Don't render the stone sprite if it's destroyed (only show debris)
+    if (isDestroyed) {
+        return;
+    }
+    
     renderConfiguredGroundEntity({
         ctx,
         entity: stone,

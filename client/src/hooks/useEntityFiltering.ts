@@ -64,6 +64,8 @@ import {
 } from '../utils/typeGuards';
 import { InterpolatedGrassData } from './useGrassInterpolation'; // Import InterpolatedGrassData
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition, getAllCompoundBuildings } from '../config/compoundBuildings'; // Import compound buildings config
+import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
+import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
 
 export interface ViewportBounds {
   viewMinX: number;
@@ -900,7 +902,7 @@ export function useEntityFiltering(
 
   let cachedVisibleStones = useMemo(() => {
     if (!playerPos) return [];
-    
+
     return getCachedFilteredEntities(
       stones,
       'stones',
@@ -908,7 +910,9 @@ export function useEntityFiltering(
       PERFORMANCE_MODE.STONE_CULL_DISTANCE_SQ,
       PERFORMANCE_MODE.MAX_STONES_PER_FRAME,
       playerPos,
-      (stone) => stone.health > 0 && isEntityInView(stone, viewBounds, stableTimestamp)
+      // Include stones with health > 0 OR stones with active/newly-triggered destruction effect
+      // checkStoneDestructionVisibility detects destruction transitions and triggers effects
+      (stone) => (stone.health > 0 || checkStoneDestructionVisibility(stone)) && isEntityInView(stone, viewBounds, stableTimestamp)
     );
   }, [stones, playerPos, viewBounds, stableTimestamp, frameCounter]);
 
@@ -1273,9 +1277,10 @@ export function useEntityFiltering(
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 
   // Living corals filtering - underwater coral reefs (uses combat system)
+  // Include corals that are not respawning OR have active destruction effects
   const visibleLivingCorals = useMemo(() =>
-    livingCorals ? Array.from(livingCorals.values()).filter(e => 
-      isNotRespawning(e.respawnAt) && isEntityInView(e, viewBounds, stableTimestamp) // Skip if respawning (fully harvested)
+    livingCorals ? Array.from(livingCorals.values()).filter(e =>
+      (isNotRespawning(e.respawnAt) || hasActiveCoralDestruction(e.id.toString())) && isEntityInView(e, viewBounds, stableTimestamp)
     ) : [],
     [livingCorals, isEntityInView, viewBounds, stableTimestamp]
   );
@@ -1768,7 +1773,8 @@ export function useEntityFiltering(
     // Aggregate all entity types with pre-computed sort keys
     visiblePlayers.forEach(e => addEntity('player', e));
     visibleTrees.forEach(e => addEntity('tree', e));
-    visibleStones.forEach(e => { if (e.health > 0) addEntity('stone', e); });
+    // Include stones with health > 0 OR stones with active destruction effects
+    visibleStones.forEach(e => { if (e.health > 0 || hasActiveStoneDestruction(e.id.toString())) addEntity('stone', e); });
     visibleRuneStones.forEach(e => addEntity('rune_stone', e));
     visibleCairns.forEach(e => addEntity('cairn', e));
     visibleWoodenStorageBoxes.forEach(e => addEntity('wooden_storage_box', e));
@@ -1792,7 +1798,8 @@ export function useEntityFiltering(
     visibleFumaroles.forEach(e => addEntity('fumarole', e)); // ADDED: Fumaroles
     visibleBasaltColumns.forEach(e => addEntity('basalt_column', e)); // ADDED: Basalt columns
     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-    visibleLivingCorals.forEach(e => addEntity('living_coral', e)); // Living corals (uses combat)
+    // Include living corals that are healthy OR have active destruction effects
+    visibleLivingCorals.forEach(e => { if (isNotRespawning(e.respawnAt) || hasActiveCoralDestruction(e.id.toString())) addEntity('living_coral', e); }); // Living corals (uses combat)
     visibleAlkStations.forEach(e => addEntity('alk_station', e)); // ADDED: ALK delivery stations
     visibleCompoundBuildings.forEach(e => addEntity('compound_building', e)); // ADDED: Static compound buildings
     visibleSleepingBags.forEach(e => addEntity('sleeping_bag', e)); // ADDED: Sleeping bags
