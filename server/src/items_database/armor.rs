@@ -189,7 +189,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 2 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 7)
             .respawn_time(480)
             .build(),
 
@@ -259,7 +259,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Animal Bone".to_string(), quantity: 60 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 8 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 10)
             .respawn_time(480)
             .build(),
 
@@ -376,7 +376,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 8 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 10)
             .respawn_time(450)
             .build(),
 
@@ -448,7 +448,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
-            .crafting_output(1, 18)
+            .crafting_output(1, 7)
             .respawn_time(420)
             .build(),
 
@@ -470,7 +470,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 30 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 6 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 10)
             .respawn_time(420)
             .build(),
 
@@ -558,7 +558,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 18 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
             ])
-            .crafting_output(1, 18)
+            .crafting_output(1, 7)
             .respawn_time(420)
             .build(),
 
@@ -610,7 +610,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 7)
             .respawn_time(540)
             .build(),
 
@@ -634,7 +634,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 38)
+            .crafting_output(1, 10)
             .respawn_time(540)
             .build(),
 
@@ -755,7 +755,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Fox Fur".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 18)
+            .crafting_output(1, 7)
             .respawn_time(420)
             .build(),
 
@@ -878,7 +878,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wolf Fur".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 10)
             .respawn_time(480)
             .build(),
 

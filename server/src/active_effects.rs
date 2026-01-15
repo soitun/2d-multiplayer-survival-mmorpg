@@ -90,6 +90,9 @@ pub enum EffectType {
     
     // === STUN EFFECT (from blunt weapons) ===
     Stun,              // Immobilizes player completely for a short duration (from blunt/crushing weapons)
+    
+    // === SHIPWRECK PROTECTION EFFECT ===
+    LagunovGhost,      // Protected by Admiral Lagunov's ghost spirit near shipwreck (hostile NPCs avoid this area)
 }
 
 // Table defining food poisoning risks for different food items
@@ -153,9 +156,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             continue;
         }
 
-    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, safe zone, and fishing village bonus - they are managed by other systems, not the effect tick system
+    // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, safe zone, fishing village bonus, and Lagunov's Ghost - they are managed by other systems, not the effect tick system
     // These effects are permanent until removed by other systems, so skip them entirely
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus || effect.effect_type == EffectType::NearCookingStation {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus || effect.effect_type == EffectType::NearCookingStation || effect.effect_type == EffectType::LagunovGhost {
         continue;
     }
     
@@ -201,7 +204,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -656,6 +659,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // Stun is a time-based immobilization effect from blunt weapons
                             // Movement is blocked in player_movement.rs when this effect is active
                             // No per-tick stat changes, just a flag that expires
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::LagunovGhost => {
+                            // Lagunov's Ghost is an informational effect for shipwreck protection
+                            // No per-tick processing needed - managed by proximity system
                             amount_this_tick = 0.0;
                         },
                     }
@@ -2535,6 +2543,94 @@ fn remove_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) {
     for effect_id in effects_to_remove {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
         log::info!("Removed fishing village bonus effect {} from player {:?}", effect_id, player_id);
+    }
+}
+
+// ============================================================================
+// LAGUNOV'S GHOST EFFECT SYSTEM (SHIPWRECK PROTECTION)
+// ============================================================================
+// The LagunovGhost effect is applied when players are within the shipwreck
+// protection radius. This is an informational effect - the actual protection
+// (hostile NPCs avoiding the area) is handled by the NPC AI system.
+// The effect serves as visual feedback that the player is in a protected zone.
+
+/// Updates the Lagunov's Ghost effect for a player based on shipwreck proximity
+/// Call this during player stat updates or movement processing
+pub fn update_lagunov_ghost_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    let is_in_shipwreck_zone = crate::shipwreck::is_position_protected_by_shipwreck(ctx, player_x, player_y);
+    let has_lagunov_ghost_effect = player_has_lagunov_ghost_effect(ctx, player_id);
+    
+    log::debug!("Lagunov's Ghost status check for player {:?}: in_zone={}, has_effect={}", 
+        player_id, is_in_shipwreck_zone, has_lagunov_ghost_effect);
+    
+    if is_in_shipwreck_zone {
+        // Apply Lagunov's Ghost effect if not present
+        if !has_lagunov_ghost_effect {
+            log::info!("Applying Lagunov's Ghost effect to player {:?} (shipwreck protection)", player_id);
+            apply_lagunov_ghost_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove Lagunov's Ghost effect when player leaves
+        if has_lagunov_ghost_effect {
+            log::info!("Removing Lagunov's Ghost effect from player {:?}", player_id);
+            remove_lagunov_ghost_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the Lagunov's Ghost effect active
+pub fn player_has_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::LagunovGhost)
+}
+
+/// Applies Lagunov's Ghost effect to a player
+fn apply_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent while in zone
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let lagunov_ghost_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future,
+        total_amount: None,
+        amount_applied_so_far: None,
+        effect_type: EffectType::LagunovGhost,
+        tick_interval_micros: 0, // No tick processing needed
+        next_tick_at: very_far_future,
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(lagunov_ghost_effect) {
+        Ok(_) => {
+            log::info!("Applied Lagunov's Ghost effect to player {:?}", player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply Lagunov's Ghost effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply Lagunov's Ghost effect".to_string())
+        }
+    }
+}
+
+/// Removes Lagunov's Ghost effect from a player
+fn remove_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::LagunovGhost {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed Lagunov's Ghost effect {} from player {:?}", effect_id, player_id);
     }
 }
 

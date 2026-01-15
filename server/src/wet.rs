@@ -197,6 +197,11 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool 
         return true;
     }
     
+    // NEW: Check if player is inside a shipwreck protection zone (ancient shelter)
+    if crate::shipwreck::is_position_protected_by_shipwreck(ctx, player.position_x, player.position_y) {
+        return true;
+    }
+    
     // Check if player is near any burning campfire (warmth radius provides rain protection)
     for campfire in ctx.db.campfire().iter() {
         if !campfire.is_burning {
@@ -296,7 +301,19 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
             )
         };
         
-        let is_indoors = is_inside_shelter || is_inside_building;
+        // NEW: Check if player is inside a shipwreck protection zone
+        // Shipwrecks serve as protected "safe zones" for new players - hostile NPCs won't approach
+        let is_inside_shipwreck = if is_inside_shelter || is_inside_building {
+            false // Skip check if already protected
+        } else {
+            crate::shipwreck::is_position_protected_by_shipwreck(
+                ctx,
+                player.position_x,
+                player.position_y
+            )
+        };
+        
+        let is_indoors = is_inside_shelter || is_inside_building || is_inside_shipwreck;
         
         // Only update if state changed to avoid unnecessary DB writes
         if player.is_inside_building != is_indoors {
@@ -304,8 +321,8 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
             updated_player.is_inside_building = is_indoors;
             ctx.db.player().identity().update(updated_player);
             log::debug!(
-                "Player {:?} indoor state changed: {} -> {} (shelter={}, building={})",
-                player_id, player.is_inside_building, is_indoors, is_inside_shelter, is_inside_building
+                "Player {:?} indoor state changed: {} -> {} (shelter={}, building={}, shipwreck={})",
+                player_id, player.is_inside_building, is_indoors, is_inside_shelter, is_inside_building, is_inside_shipwreck
             );
         }
     }

@@ -129,7 +129,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 7)
             .respawn_time(600)
             .build(),
 
@@ -148,7 +148,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 75 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 15 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(240)
             .build(),
 
@@ -165,7 +165,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 25 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(480)
             .build(),
 
@@ -185,7 +185,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 20 },
             ])
-            .crafting_output(1, 25)
+            .crafting_output(1, 10)
             .respawn_time(720)
             .build(),
 
@@ -250,7 +250,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 50 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 45)
+            .crafting_output(1, 10)
             .respawn_time(360)
             .build(),
 
@@ -289,8 +289,8 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 30 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 15) // 15 seconds to craft
-            .respawn_time(600) // 10 min respawn in world
+            .crafting_output(1, 5)
+            .respawn_time(600)
             .build(),
 
         // === TIER 2: Crossbow - Mid Game Ranged Weapon ===
@@ -309,8 +309,8 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
             ])
-            .crafting_output(1, 30) // 30 seconds to craft
-            .respawn_time(900) // 15 min respawn in world
+            .crafting_output(1, 10)
+            .respawn_time(900)
             .build(),
 
         // === UNDERWATER RANGED WEAPONS ===
@@ -331,8 +331,8 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Animal Leather".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 20) // 20 seconds to craft
-            .respawn_time(900) // 15 min respawn in world
+            .crafting_output(1, 7)
+            .respawn_time(900)
             .build(),
 
         // === FIREARMS ===
@@ -354,8 +354,8 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 25 }, // For grip/springs
             ])
-            .crafting_output(1, 40) // 40 seconds to craft
-            .respawn_time(1800) // 30 min respawn in world (rare find)
+            .crafting_output(1, 10)
+            .respawn_time(1800)
             .build(),
 
         // === TIER 4: PP-91 KEDR - Endgame Submachine Gun ===
@@ -374,8 +374,8 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 25 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 40 }, // For grip/internals
             ])
-            .crafting_output(1, 60) // 60 seconds to craft
-            .respawn_time(2400) // 40 min respawn in world (ultra rare find)
+            .crafting_output(1, 15)
+            .respawn_time(2400)
             .build(),
     ]
 }

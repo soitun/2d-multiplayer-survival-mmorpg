@@ -1034,6 +1034,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent while near cooking station
                         };
                         break;
+                    case 'LagunovGhost':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'lagunov_ghost',
+                            name: "Lagunov's Ghost",
+                            emoji: '⚓',
+                            type: 'positive' as const,
+                            description: "The spirit of Admiral Lagunov lingers after her recent sacrifice, shielding you from night terrors while you remain near the wreck. The bravery that doomed her ship now keeps others safe.",
+                            // No duration - permanent while in shipwreck zone
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)
@@ -1248,7 +1259,8 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 effectData.id === 'safe_zone' || 
                 effectData.id === 'fumarole' || 
                 effectData.id === 'hot_spring' || 
-                effectData.id === 'blue_runestone'
+                effectData.id === 'blue_runestone' ||
+                effectData.id === 'lagunov_ghost'
             );
             
             if (effectApplies && effectData && (bufferedRemainingTime > 0 || isPermanentEffect)) {

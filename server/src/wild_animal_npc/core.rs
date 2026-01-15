@@ -49,6 +49,10 @@ use crate::door::door as DoorTableTrait; // ADDED: For structure attacks
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
 // Runestone imports for hostile NPC deterrence
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_DETERRENCE_RADIUS};
+// Monument safe zone imports - hostile NPCs actively avoid these areas
+use crate::alk::alk_station as AlkStationTableTrait;
+use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::shipwreck_part as ShipwreckPartTableTrait;
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -99,6 +103,14 @@ const ANIMAL_ACTIVE_ZONE_SQUARED: f32 = ANIMAL_ACTIVE_ZONE_RADIUS * ANIMAL_ACTIV
 // Animals within active zone but outside this range will stay Idle (not wander)
 const WANDER_ACTIVATION_DISTANCE: f32 = 900.0; // ~viewport width
 const WANDER_ACTIVATION_DISTANCE_SQUARED: f32 = WANDER_ACTIVATION_DISTANCE * WANDER_ACTIVATION_DISTANCE;
+
+// === MONUMENT EXCLUSION ZONES - Hostile NPCs actively avoid these areas ===
+// These zones match the building restriction radii to prevent NPC griefing
+// Hostile NPCs will patrol around these zones, not enter them at all
+const ALK_CENTRAL_EXCLUSION_MULTIPLIER: f32 = 7.0; // ~1750px for central compound
+const ALK_SUBSTATION_EXCLUSION_MULTIPLIER: f32 = 3.0; // ~600px for substations
+const FISHING_VILLAGE_EXCLUSION_RADIUS: f32 = 800.0; // Same as building restriction
+const FISHING_VILLAGE_EXCLUSION_RADIUS_SQ: f32 = FISHING_VILLAGE_EXCLUSION_RADIUS * FISHING_VILLAGE_EXCLUSION_RADIUS;
 
 // === ANIMAL WALKING SOUND CONSTANTS ===
 // DISABLED: Animal walking sounds temporarily removed due to duplicate sound playback issues
@@ -1007,11 +1019,95 @@ fn update_animal_ai_state(
 
     // CENTRALIZED FEAR LOGIC - Foundation fear applies to most animals regardless of group size
     // Fire/torch fear can be ignored by groups (group courage), but foundations should always be feared
-    // EXCEPTION: Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) fear NOTHING
+    // EXCEPTION: Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) fear NOTHING except monument zones
     
-    // Check if this is a hostile NPC that doesn't fear anything
+    // Check if this is a hostile NPC that doesn't fear anything (except monument zones)
     let is_fearless_hostile = matches!(animal.species, 
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+    
+    // MONUMENT EXCLUSION ZONE - Hostile NPCs actively avoid protected monument areas (ALK, Fishing Village)
+    // This prevents players from griefing NPCs by standing in safe zones and killing them
+    // Hostile NPCs will patrol around these zones, never entering them
+    // NOTE: Shipwrecks use per-part zones below, not this monument system
+    if is_fearless_hostile {
+        if let Some((zone_x, zone_y, exclusion_radius)) = get_monument_exclusion_zone(ctx, animal.pos_x, animal.pos_y) {
+            // We're inside a monument exclusion zone - push out immediately
+            let dx = animal.pos_x - zone_x;
+            let dy = animal.pos_y - zone_y;
+            let dist = (dx * dx + dy * dy).sqrt();
+            
+            if dist > 1.0 {
+                // Push outward to just outside the exclusion zone
+                let push_dist = exclusion_radius - dist + 100.0; // 100px buffer outside
+                let new_x = animal.pos_x + (dx / dist) * push_dist;
+                let new_y = animal.pos_y + (dy / dist) * push_dist;
+                update_animal_position(animal, new_x, new_y);
+                
+                log::info!("{:?} {} pushed out of monument zone at ({:.0}, {:.0}) - new position ({:.1}, {:.1})",
+                          animal.species, animal.id, zone_x, zone_y, new_x, new_y);
+            } else {
+                // At center - push in arbitrary direction
+                let new_x = zone_x + exclusion_radius + 100.0;
+                update_animal_position(animal, new_x, animal.pos_y);
+            }
+            
+            // Clear any target player that's inside the zone (don't chase into safe zones)
+            if let Some(target_id) = animal.target_player_id {
+                if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                    if get_monument_exclusion_zone(ctx, target_player.position_x, target_player.position_y).is_some() {
+                        // Target is in a safe zone - forget about them
+                        animal.target_player_id = None;
+                        transition_to_state(animal, AnimalState::Patrolling, current_time, None, "target in safe zone");
+                        log::debug!("{:?} {} abandoning target {:?} - player is in monument safe zone",
+                                  animal.species, animal.id, target_id);
+                    }
+                }
+            }
+        }
+        
+        // SHIPWRECK PART AVOIDANCE - Check each individual shipwreck part (192px zones)
+        // This works like shelter avoidance - small zones around each part, not one big monument zone
+        // NOTE: Protection zones are centered at visual center of sprites (using Y-offset)
+        for part in ctx.db.shipwreck_part().iter() {
+            let dx = animal.pos_x - part.world_x;
+            // Apply Y-offset to check distance from visual center, not anchor point
+            let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
+            let dy = animal.pos_y - protection_center_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS_SQ {
+                // Inside a shipwreck part zone - push out
+                let dist = dist_sq.sqrt();
+                if dist > 1.0 {
+                    let push_dist = crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS - dist + 30.0; // 30px buffer
+                    let new_x = animal.pos_x + (dx / dist) * push_dist;
+                    let new_y = animal.pos_y + (dy / dist) * push_dist;
+                    update_animal_position(animal, new_x, new_y);
+                    
+                    log::debug!("{:?} {} pushed out of shipwreck part zone at ({:.0}, {:.0})",
+                              animal.species, animal.id, part.world_x, protection_center_y);
+                } else {
+                    // At center - push in arbitrary direction
+                    let new_x = part.world_x + crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS + 30.0;
+                    update_animal_position(animal, new_x, animal.pos_y);
+                }
+                break; // Only need to push out of one zone at a time
+            }
+        }
+        
+        // Clear target if player is in any shipwreck part zone
+        if let Some(target_id) = animal.target_player_id {
+            if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                if crate::shipwreck::is_position_protected_by_shipwreck(ctx, target_player.position_x, target_player.position_y) {
+                    // Target is in a shipwreck part zone - forget about them
+                    animal.target_player_id = None;
+                    transition_to_state(animal, AnimalState::Patrolling, current_time, None, "target in shipwreck zone");
+                    log::debug!("{:?} {} abandoning target {:?} - player is in shipwreck part zone",
+                              animal.species, animal.id, target_id);
+                }
+            }
+        }
+    }
     
     // Check foundation fear first (applies to ALL animals EXCEPT hostile NPCs)
     let should_fear_foundations = !is_fearless_hostile && is_foundation_nearby(ctx, animal.pos_x, animal.pos_y);
@@ -1461,11 +1557,19 @@ fn execute_attack(
         
         // <<< SAFE ZONE CHECK - Players in safe zones are immune to animal damage >>>
         if crate::active_effects::player_has_safe_zone_effect(ctx, target.identity) {
-            log::info!("Animal {:?} {} attack blocked - Player {:?} is in a safe zone", 
+            log::info!("Animal {:?} {} attack blocked - Player {:?} is in a safe zone",
                 animal.species, animal.id, target.identity);
             return Ok(()); // No damage applied
         }
         // <<< END SAFE ZONE CHECK >>>
+        
+        // <<< SHIPWRECK PROTECTION CHECK - Players in shipwreck zones are immune to hostile NPC damage >>>
+        if animal.is_hostile_npc && crate::shipwreck::is_position_protected_by_shipwreck(ctx, target.position_x, target.position_y) {
+            log::info!("🚢 Animal {:?} {} attack blocked - Player {:?} is in shipwreck protection zone",
+                animal.species, animal.id, target.identity);
+            return Ok(()); // No damage applied - player protected by shipwreck
+        }
+        // <<< END SHIPWRECK PROTECTION CHECK >>>
         
         // Get species-specific damage and effects
         let raw_damage = behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng)?;
@@ -1599,7 +1703,19 @@ fn should_animal_wander(all_players: &[Player], animal: &WildAnimal) -> bool {
 }
 
 fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &AnimalStats, nearby_players: &[Player]) -> Option<Player> {
+    // Check if this is a hostile NPC that should respect shipwreck protection zones
+    let is_hostile_npc = matches!(animal.species, 
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+    
     for player in nearby_players {
+        // 🚢 SHIPWRECK PROTECTION: Hostile NPCs cannot detect players inside shipwreck protection zones
+        // This prevents aggro sounds and chase behavior when player is safely sheltered
+        if is_hostile_npc && crate::shipwreck::is_position_protected_by_shipwreck(ctx, player.position_x, player.position_y) {
+            log::debug!("🚢 {:?} {} cannot detect player {} - inside shipwreck protection zone",
+                       animal.species, animal.id, player.identity);
+            continue; // Skip this player entirely - they're protected by the shipwreck
+        }
+        
         // 🤿 SNORKEL STEALTH: Players using snorkel are completely hidden underwater
         // Animals cannot detect snorkeling players at all - they're invisible beneath the surface
         if player.is_snorkeling {
@@ -1607,11 +1723,11 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
                        animal.species, animal.id, player.identity);
             continue; // Skip this player entirely - they're hidden underwater
         }
-        
+
         // 🐺 WOLF FUR INTIMIDATION: Animals are intimidated by players wearing full wolf fur set
         // Intimidated animals will not detect or chase the player
         // 🦭 EXCEPTION: Walruses are never intimidated - they're too massive and defensive!
-        if animal.species != AnimalSpecies::ArcticWalrus && 
+        if animal.species != AnimalSpecies::ArcticWalrus &&
            crate::armor::intimidates_animals(ctx, player.identity) {
             log::debug!("🐺 {:?} {} intimidated by player {} wearing wolf fur - skipping detection",
                        animal.species, animal.id, player.identity);
@@ -1734,6 +1850,43 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
                         let push_factor = RUNE_STONE_DETERRENCE_RADIUS / dist;
                         proposed_x = rune_stone.pos_x + rdx * push_factor;
                         proposed_y = rune_stone.pos_y + rdy * push_factor;
+                    }
+                }
+            }
+            
+            // MONUMENT SAFE ZONE DETERRENCE: Block entry into all monument exclusion zones
+            // This prevents hostile NPCs from entering ALK stations and fishing village
+            // NOTE: Shipwrecks use per-part avoidance below, not this monument system
+            if let Some((zone_x, zone_y, exclusion_radius)) = get_monument_exclusion_zone(ctx, proposed_x, proposed_y) {
+                let mdx = proposed_x - zone_x;
+                let mdy = proposed_y - zone_y;
+                let dist = (mdx * mdx + mdy * mdy).sqrt();
+                
+                if dist > 0.0 {
+                    // Push to just outside the exclusion zone
+                    let push_factor = (exclusion_radius + 50.0) / dist; // 50px buffer
+                    proposed_x = zone_x + mdx * push_factor;
+                    proposed_y = zone_y + mdy * push_factor;
+                }
+            }
+            
+            // SHIPWRECK PART AVOIDANCE: Block entry into individual shipwreck part zones (192px each)
+            // This works like shelter avoidance - small zones around each part, not one big zone
+            // NOTE: Protection zones are centered at visual center of sprites (using Y-offset)
+            for part in ctx.db.shipwreck_part().iter() {
+                let sdx = proposed_x - part.world_x;
+                // Apply Y-offset to check distance from visual center, not anchor point
+                let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
+                let sdy = proposed_y - protection_center_y;
+                let dist_sq = sdx * sdx + sdy * sdy;
+                
+                if dist_sq < crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS_SQ {
+                    // Would enter shipwreck part protection zone - push back to boundary
+                    let dist = dist_sq.sqrt();
+                    if dist > 0.0 {
+                        let push_factor = (crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS + 20.0) / dist; // 20px buffer
+                        proposed_x = part.world_x + sdx * push_factor;
+                        proposed_y = protection_center_y + sdy * push_factor;
                     }
                 }
             }
@@ -2534,6 +2687,99 @@ pub fn is_position_in_shelter(ctx: &ReducerContext, x: f32, y: f32) -> bool {
         }
     }
     false
+}
+
+/// Check if a position is inside any monument exclusion zone
+/// Returns Some((center_x, center_y, exclusion_radius)) if inside a zone, None otherwise
+/// Hostile NPCs use this to actively avoid entering protected areas like:
+/// - ALK stations (central compound and substations)
+/// - Fishing village
+/// NOTE: Shipwrecks are NOT included here - they use per-part avoidance like shelters
+pub fn get_monument_exclusion_zone(ctx: &ReducerContext, x: f32, y: f32) -> Option<(f32, f32, f32)> {
+    // Check ALK stations
+    for station in ctx.db.alk_station().iter() {
+        let dx = x - station.world_pos_x;
+        let dy = y - station.world_pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        // Calculate exclusion radius based on station type
+        let exclusion_radius = if station.station_id == 0 {
+            station.interaction_radius * ALK_CENTRAL_EXCLUSION_MULTIPLIER // Central compound ~1750px
+        } else {
+            station.interaction_radius * ALK_SUBSTATION_EXCLUSION_MULTIPLIER // Substations ~600px
+        };
+        let exclusion_radius_sq = exclusion_radius * exclusion_radius;
+        
+        if dist_sq < exclusion_radius_sq {
+            return Some((station.world_pos_x, station.world_pos_y, exclusion_radius));
+        }
+    }
+    
+    // Check Fishing Village (use campfire as center)
+    for part in ctx.db.fishing_village_part().iter() {
+        if part.part_type == "campfire" {
+            let dx = x - part.world_x;
+            let dy = y - part.world_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < FISHING_VILLAGE_EXCLUSION_RADIUS_SQ {
+                return Some((part.world_x, part.world_y, FISHING_VILLAGE_EXCLUSION_RADIUS));
+            }
+        }
+    }
+    
+    // NOTE: Shipwrecks intentionally NOT included here
+    // Shipwrecks use per-part protection zones (192px per part) like shelters
+    // See is_position_in_shipwreck_part_zone() for shipwreck avoidance
+    
+    None
+}
+
+/// Check if a position is inside any shipwreck part's protection zone (192px per part)
+/// This is similar to shelter avoidance - small zones around each individual part
+/// Hostile NPCs avoid these small zones, not a single large monument zone
+/// NOTE: Returns visual center position (with Y-offset applied), not anchor position
+pub fn is_position_in_shipwreck_part_zone(ctx: &ReducerContext, x: f32, y: f32) -> Option<(f32, f32)> {
+    crate::shipwreck::is_position_protected_by_shipwreck(ctx, x, y)
+        .then(|| {
+            // Find the closest part to return its position (visual center)
+            for part in ctx.db.shipwreck_part().iter() {
+                let dx = x - part.world_x;
+                // Apply Y-offset to check distance from visual center, not anchor point
+                let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
+                let dy = y - protection_center_y;
+                let dist_sq = dx * dx + dy * dy;
+                
+                if dist_sq < crate::shipwreck::SHIPWRECK_PROTECTION_RADIUS_SQ {
+                    return Some((part.world_x, protection_center_y));
+                }
+            }
+            None
+        })
+        .flatten()
+}
+
+/// Push a position out of a monument exclusion zone
+/// Returns the new position if pushed, or original position if not in a zone
+pub fn push_out_of_monument_zone(ctx: &ReducerContext, x: f32, y: f32) -> (f32, f32) {
+    if let Some((zone_center_x, zone_center_y, exclusion_radius)) = get_monument_exclusion_zone(ctx, x, y) {
+        let dx = x - zone_center_x;
+        let dy = y - zone_center_y;
+        let dist = (dx * dx + dy * dy).sqrt();
+        
+        if dist > 1.0 {
+            // Push outward to just outside the exclusion zone
+            let push_dist = exclusion_radius - dist + 50.0; // 50px buffer outside
+            let new_x = x + (dx / dist) * push_dist;
+            let new_y = y + (dy / dist) * push_dist;
+            return (new_x, new_y);
+        } else {
+            // At center - push in arbitrary direction
+            return (zone_center_x + exclusion_radius + 50.0, y);
+        }
+    }
+    
+    (x, y)
 }
 
 // Fire fear helper functions

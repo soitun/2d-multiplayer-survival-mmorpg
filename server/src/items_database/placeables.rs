@@ -129,7 +129,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
                 CostIngredient { item_name: "Kayak Paddle".to_string(), quantity: 1 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(600)
             .build(),
 
@@ -188,7 +188,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Stone".to_string(), quantity: 100 }, // Reduced from 200 - easier to gather
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },  // Reduced from 20 - blessing cloth lining
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 7)
             .respawn_time(600)
             .build(),
 
@@ -202,8 +202,8 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 200 }, // For frame structure
                 CostIngredient { item_name: "Stone".to_string(), quantity: 50 }, // For anchoring and stability
             ])
-            .crafting_output(1, 20)
-            .respawn_time(900) // 15 minutes - valuable water infrastructure
+            .crafting_output(1, 7)
+            .respawn_time(900)
             .build(),
 
         // === COOKING EQUIPMENT ===
@@ -216,7 +216,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 40)
+            .crafting_output(1, 10)
             .respawn_time(1800)
             .build(),
 
@@ -243,7 +243,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 5)
             .respawn_time(300)
             .build(),
 
@@ -256,7 +256,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Wood".to_string(), quantity: 25 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(600)
             .build(),
 
@@ -274,7 +274,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Animal Fat".to_string(), quantity: 10 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
-            .crafting_output(1, 15)
+            .crafting_output(1, 5)
             .respawn_time(900)
             .build(),
 
@@ -292,7 +292,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
-            .crafting_output(1, 20)
+            .crafting_output(1, 7)
             .respawn_time(1200)
             .build(),
     ]

@@ -516,6 +516,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             log::warn!("Failed to update fishing village bonus status for player {:?}: {}", player_id, e);
         }
         // <<< END FISHING VILLAGE BONUS EFFECT MANAGEMENT >>>
+        
+        // <<< ADD LAGUNOV'S GHOST (SHIPWRECK PROTECTION) EFFECT MANAGEMENT >>>
+        // Update Lagunov's Ghost status based on player position (informational - hostile NPCs avoid shipwrecks)
+        if let Err(e) = crate::active_effects::update_lagunov_ghost_status(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update Lagunov's Ghost status for player {:?}: {}", player_id, e);
+        }
+        // <<< END LAGUNOV'S GHOST EFFECT MANAGEMENT >>>
 
         // <<< ADD COOKING STATION PROXIMITY EFFECT MANAGEMENT >>>
         // Update cooking station status based on player position (enables advanced food recipes)

@@ -1174,7 +1174,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("anti_venom.png")
             .stackable(5)
             .crafting_cost(vec![CostIngredient { item_name: "Cable Viper Gland".to_string(), quantity: 1 }])
-            .crafting_output(1, 20)
+            .crafting_output(1, 5)
             .build(),
 
         // === MUSHROOMS ===

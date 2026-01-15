@@ -15,6 +15,8 @@ interface DebugContextType {
     toggleAttackRangeDebug: () => void;
     showYSortDebug: boolean;
     toggleYSortDebug: () => void;
+    showShipwreckDebug: boolean;
+    toggleShipwreckDebug: () => void;
 }
 
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
@@ -39,6 +41,7 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
     const [showCollisionDebug, setShowCollisionDebug] = useState(false);
     const [showAttackRangeDebug, setShowAttackRangeDebug] = useState(false);
     const [showYSortDebug, setShowYSortDebug] = useState(false);
+    const [showShipwreckDebug, setShowShipwreckDebug] = useState(false);
 
     const toggleAutotileDebug = () => {
         setShowAutotileDebug(prev => !prev);
@@ -75,6 +78,11 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         console.log('[DebugContext] Y-sort debug overlay:', !showYSortDebug ? 'enabled' : 'disabled');
     };
 
+    const toggleShipwreckDebug = () => {
+        setShowShipwreckDebug(prev => !prev);
+        console.log('[DebugContext] Shipwreck protection debug overlay:', !showShipwreckDebug ? 'enabled' : 'disabled');
+    };
+
     const value = {
         showAutotileDebug,
         toggleAutotileDebug,
@@ -90,6 +98,8 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         toggleAttackRangeDebug,
         showYSortDebug,
         toggleYSortDebug,
+        showShipwreckDebug,
+        toggleShipwreckDebug,
     };
 
     return (

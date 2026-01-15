@@ -119,6 +119,7 @@ import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtil
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
+import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
@@ -239,6 +240,7 @@ interface GameCanvasProps {
   showCollisionDebug: boolean;
   showAttackRangeDebug: boolean;
   showYSortDebug: boolean;
+  showShipwreckDebug: boolean;
   minimapCache: any; // Add this for minimapCache
   isGameMenuOpen: boolean; // Add this prop
   onAutoActionStatesChange?: (isAutoAttacking: boolean) => void;
@@ -390,6 +392,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   showCollisionDebug,
   showAttackRangeDebug,
   showYSortDebug,
+  showShipwreckDebug,
   minimapCache,
   isGameMenuOpen,
   onAutoActionStatesChange,
@@ -3931,6 +3934,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         now_ms // Pass nowMs to enable particle rendering
       );
     });
+
+    // Shipwreck Night Lights - Eerie blue/purple glow for protected zones
+    // Shipwrecks serve as safe havens for new players - hostile NPCs won't approach
+    if (shipwreckParts && shipwreckParts.size > 0) {
+      renderAllShipwreckNightLights(
+        ctx,
+        shipwreckParts,
+        currentCycleProgress,
+        currentCameraOffsetX,
+        currentCameraOffsetY,
+        -currentCameraOffsetX, // viewMinX
+        -currentCameraOffsetX + currentCanvasWidth, // viewMaxX
+        -currentCameraOffsetY, // viewMinY
+        -currentCameraOffsetY + currentCanvasHeight, // viewMaxY
+        now_ms
+      );
+      
+      // DEBUG: Visible protection zone circles for shipwreck parts
+      // Shows purple circle (protection zone), green crosshair (visual center), red dot (anchor point)
+      // Toggle via Debug Panel -> SHIPWRECK button
+      if (showShipwreckDebug) {
+        renderAllShipwreckDebugZones(
+          ctx,
+          shipwreckParts,
+          currentCameraOffsetX,
+          currentCameraOffsetY,
+          -currentCameraOffsetX, // viewMinX
+          -currentCameraOffsetX + currentCanvasWidth, // viewMaxX
+          -currentCameraOffsetY, // viewMinY
+          -currentCameraOffsetY + currentCanvasHeight // viewMaxY
+        );
+      }
+    }
 
      // Homestead hearth interaction indicators (for hold actions like grant building privilege)
      // Hearth visual is 125x125, so use 125 for height to match the visual

@@ -105,7 +105,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .stackable(5)
             .cook_time(15.0)
             .cooked_item("Metal Fragments")
-            .crafting_output(4, 15) // 4 metal fragments per tin can
+            .crafting_output(4, 3) // 4 metal fragments per tin can
             .respawn_time(600)
             .build(),
 
@@ -123,7 +123,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .cook_time(12.0)
             .cooked_item("Metal Fragments")
-            .crafting_output(2, 10) // 2 metal fragments per hook
+            .crafting_output(2, 2) // 2 metal fragments per hook
             .build(),
 
         // NOTE: Seaweed moved to consumables.rs - it's an edible item, not a material

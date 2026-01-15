@@ -150,6 +150,10 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
     if (effectId === 'agrarian_rune') {
       return '#50C878'; // True emerald green (darker, richer than default positive)
     }
+    // Special case for shipwreck Lagunov's Ghost - eerie blue/purple
+    if (effectId === 'lagunov_ghost') {
+      return '#8c64dc'; // Mystical purple-blue (matches shipwreck night glow)
+    }
     switch (type) {
       case 'positive': return '#00ff88';
       case 'negative': return '#ff4444';
@@ -167,6 +171,10 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
     }
     if (effectId === 'agrarian_rune') {
       return '0 0 8px rgba(80, 200, 120, 0.6)'; // Emerald green glow
+    }
+    // Special case for shipwreck Lagunov's Ghost - eerie purple glow
+    if (effectId === 'lagunov_ghost') {
+      return '0 0 8px rgba(140, 100, 220, 0.6)'; // Mystical purple glow
     }
     switch (type) {
       case 'positive': return '0 0 8px rgba(0, 255, 136, 0.6)';

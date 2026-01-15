@@ -11,7 +11,7 @@ use spacetimedb::spacetimedb_lib::ScheduleAt;
 use std::time::Duration;
 
 use crate::{TileType, TILE_SIZE_PX, world_pos_to_tile_coords};
-use crate::environment::{CHUNK_SIZE_TILES, is_position_on_monument};
+use crate::environment::CHUNK_SIZE_TILES;
 // Import table traits for database access
 use crate::world_chunk_data;
 use crate::player;
@@ -35,7 +35,11 @@ pub const PREPARED_SOIL_GROWTH_MULTIPLIER: f32 = 1.5; // +50% growth
 // --- Tilled Tile Metadata Table ---
 
 /// Stores metadata about tilled tiles for tracking reversion
-#[spacetimedb::table(name = tilled_tile_metadata, public)]
+#[spacetimedb::table(
+    name = tilled_tile_metadata, 
+    public,
+    index(name = idx_tile_coords, btree(columns = [tile_x, tile_y]))
+)]
 #[derive(Clone, Debug)]
 pub struct TilledTileMetadata {
     #[primary_key]
@@ -90,13 +94,13 @@ pub fn init_tilled_tile_system(ctx: &ReducerContext) -> Result<(), String> {
 // --- Helper Functions ---
 
 /// Check if a tile at the given world position is already tilled
+/// Uses btree index on (tile_x, tile_y) for O(1) lookup instead of O(n) table scan
 pub fn is_tile_tilled(ctx: &ReducerContext, tile_x: i32, tile_y: i32) -> bool {
-    for metadata in ctx.db.tilled_tile_metadata().iter() {
-        if metadata.tile_x == tile_x && metadata.tile_y == tile_y {
-            return true;
-        }
-    }
-    false
+    ctx.db.tilled_tile_metadata()
+        .idx_tile_coords()
+        .filter((tile_x, tile_y))
+        .next()
+        .is_some()
 }
 
 /// Get the growth multiplier for prepared soil (Dirt or Tilled tiles)
@@ -137,19 +141,8 @@ pub fn till_tile_at_position(
     // Convert world position to tile coordinates
     let (tile_x, tile_y) = world_pos_to_tile_coords(world_x, world_y);
     
-    // Check if position is on a monument (not tillable)
-    if is_position_on_monument(ctx, world_x, world_y) {
-        log::debug!("Cannot till at ({}, {}): monument area", tile_x, tile_y);
-        return TillResult::CannotTill;
-    }
-    
-    // Check if tile is already tilled
-    if is_tile_tilled(ctx, tile_x, tile_y) {
-        log::debug!("Tile at ({}, {}) is already tilled", tile_x, tile_y);
-        return TillResult::AlreadyTilled;
-    }
-    
-    // Get current tile type
+    // Get current tile type first - this is O(1) via chunk index
+    // We need this anyway, so do it early to combine monument check
     let current_tile_type = match crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
         Some(t) => t,
         None => {
@@ -157,6 +150,19 @@ pub fn till_tile_at_position(
             return TillResult::Error("Could not get tile type".to_string());
         }
     };
+    
+    // Check if tile is a protected monument type (hot spring water or quarry)
+    // This check uses the tile type we already fetched - no extra lookup needed
+    if matches!(current_tile_type, TileType::HotSpringWater | TileType::Quarry) {
+        log::debug!("Cannot till at ({}, {}): monument tile type {:?}", tile_x, tile_y, current_tile_type);
+        return TillResult::CannotTill;
+    }
+    
+    // Check if tile is already tilled - O(1) via btree index
+    if is_tile_tilled(ctx, tile_x, tile_y) {
+        log::debug!("Tile at ({}, {}) is already tilled", tile_x, tile_y);
+        return TillResult::AlreadyTilled;
+    }
     
     // Check if tile type can be tilled
     // Natural Dirt is already "prepared soil" - treat as already tilled
@@ -298,19 +304,20 @@ pub fn process_tilled_tile_reversions(
         return Err("Tilled tile reversion can only be run by scheduler".to_string());
     }
     
-    // PERFORMANCE: Skip if no tilled tiles exist
-    if ctx.db.tilled_tile_metadata().iter().next().is_none() {
-        return Ok(());
-    }
-    
     let now = ctx.timestamp;
     let mut reverted_count = 0;
     
-    // Collect tiles that need to be reverted
+    // Collect tiles that need to be reverted (expiration time has passed)
+    // This runs every 5 minutes and typically processes a small number of tiles
     let tiles_to_revert: Vec<_> = ctx.db.tilled_tile_metadata()
         .iter()
         .filter(|m| m.reverts_at <= now)
         .collect();
+    
+    // Early exit if nothing to revert
+    if tiles_to_revert.is_empty() {
+        return Ok(());
+    }
     
     // Revert each expired tile
     for metadata in tiles_to_revert {
