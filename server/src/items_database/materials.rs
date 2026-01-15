@@ -212,6 +212,36 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600) // 10 minutes - common foundational resource
             .build(),
 
+        // === TREE BARK & SEED MATERIALS ===
+        // Secondary and tertiary yields from tree harvesting
+
+        // Pine Bark - Secondary yield from conifer trees (pine, spruce, hemlock)
+        basic_material("Pine Bark", "Rough, resinous bark stripped from pine trees. Used for tanning, crafting, and as kindling. Rich in tannins and aromatic oils.", 500)
+            .icon("tree_bark.png")
+            .fuel(3.0)  // Burns slower than wood due to oils
+            .respawn_time(300)
+            .build(),
+
+        // Birch Bark - Secondary yield from deciduous trees (oak, ash, willow)
+        basic_material("Birch Bark", "Paper-thin, flexible bark from deciduous trees. Prized for waterproof crafting, writing surfaces, and fire-starting. Burns hot and clean.", 500)
+            .icon("tree_bark_birch.png")
+            .fuel(4.0)  // Burns hotter than regular bark
+            .respawn_time(300)
+            .build(),
+
+        // Pinecone - Tertiary yield from conifer trees (rare drop)
+        basic_material("Pinecone", "A mature pinecone containing viable seeds. Can be planted to grow a new pine tree, or used as fuel. The seeds inside are edible and nutritious.", 100)
+            .icon("pinecone.png")
+            .fuel(2.0)  // Light fuel value
+            .respawn_time(300)
+            .build(),
+
+        // Birch Catkin - Tertiary yield from deciduous trees (rare drop)
+        basic_material("Birch Catkin", "A drooping flower cluster from deciduous trees containing seeds. Can be planted to grow a new tree. The catkins have minor medicinal properties.", 100)
+            .icon("birch_catkin.png")
+            .respawn_time(300)
+            .build(),
+
         // === ANIMAL MATERIALS ===
 
         // Cable Viper Gland - Poison gland

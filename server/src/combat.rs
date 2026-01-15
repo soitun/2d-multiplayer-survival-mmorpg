@@ -1365,6 +1365,14 @@ pub fn damage_tree(
     // NEW: Resource depletion system - limit yield to remaining resources
     let mut actual_yield = std::cmp::min(yield_amount, tree.resource_remaining);
     
+    // Player-planted trees yield less wood (60% of normal)
+    // This is already factored into resource_remaining, but also affects per-hit yield
+    // to maintain consistency throughout the chopping process
+    if tree.is_player_planted {
+        actual_yield = ((actual_yield as f32) * tree::PLAYER_PLANTED_YIELD_PERCENT) as u32;
+        actual_yield = actual_yield.max(1); // Always yield at least 1
+    }
+    
     // <<< BROTH EFFECT: HarvestBoost gives 50% bonus yield from chopping >>>
     if active_effects::player_has_harvest_boost_effect(ctx, attacker_id) {
         let original_yield = actual_yield;
@@ -1431,14 +1439,96 @@ pub fn damage_tree(
         ) {
             log::error!("Failed to track quest progress for wood gathering: {}", e);
         }
+        
+        // === SECONDARY & TERTIARY TREE YIELDS (Bark and Seeds) ===
+        // Better cutting tools have higher chances of yielding bark and tree seeds
+        // Bark is secondary (higher chance), seeds/cones are tertiary (lower chance)
+        
+        // Determine tool quality from player's equipped item
+        let (bark_chance, seed_chance) = if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+            if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+                if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+                    if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+                        match item_def.name.as_str() {
+                            // Metal Hatchet - Best for tree harvesting (highest chances)
+                            "Metal Hatchet" => (0.25, 0.12),
+                            // Stone Hatchet - Good for tree harvesting  
+                            "Stone Hatchet" => (0.18, 0.08),
+                            // Bush Knife (Machete) - Decent but not specialized for trees
+                            "Bush Knife" => (0.15, 0.06),
+                            // Battle Axe - Heavy weapon, decent bark yield
+                            "Battle Axe" => (0.20, 0.07),
+                            // Combat Ladle, Rock, and other basic tools - minimal chances
+                            "Rock" | "Combat Ladle" => (0.05, 0.02),
+                            // Any other tool - small chance
+                            _ => (0.08, 0.03),
+                        }
+                    } else {
+                        (0.05, 0.02) // No item def found
+                    }
+                } else {
+                    (0.05, 0.02) // No equipped item found
+                }
+            } else {
+                (0.03, 0.01) // Nothing equipped (bare hands)
+            }
+        } else {
+            (0.03, 0.01) // No active equipment record
+        };
+        
+        // Determine tree category based on tree type
+        // Conifer trees (Pine Bark + Pinecone): spruce, hemlock, pine variants
+        // Deciduous trees (Birch Bark + Birch Catkin): birch, alder, willow
+        let is_conifer = matches!(
+            tree.tree_type,
+            tree::TreeType::SitkaSpruce |        // Classic tall spruce
+            tree::TreeType::MountainHemlock |    // Mountain hemlock variant A
+            tree::TreeType::MountainHemlock2 |   // Mountain hemlock variant B
+            tree::TreeType::DwarfPine |          // Stunted alpine pine
+            tree::TreeType::MountainHemlockSnow | // Snow-covered hemlock
+            tree::TreeType::KrummholzSpruce      // Twisted wind-sculpted spruce
+        );
+        // Deciduous: SiberianBirch, SitkaAlder/SitkaAlder2, ArcticWillow
+        
+        let (bark_name, seed_name) = if is_conifer {
+            ("Pine Bark", "Pinecone")
+        } else {
+            ("Birch Bark", "Birch Catkin")
+        };
+        
+        // Roll for secondary yield (bark)
+        let bark_roll: f32 = rng.gen_range(0.0..1.0);
+        if bark_roll < bark_chance {
+            let bark_amount = rng.gen_range(1..=3);
+            if let Ok(_) = grant_resource(ctx, attacker_id, bark_name, bark_amount) {
+                log::info!("🌲 Tree secondary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
+                    attacker_id, bark_amount, bark_name, bark_roll, bark_chance);
+            }
+        }
+        
+        // Roll for tertiary yield (seeds/cones) - rarer than bark
+        let seed_roll: f32 = rng.gen_range(0.0..1.0);
+        if seed_roll < seed_chance {
+            let seed_amount = 1; // Seeds are always 1 at a time
+            if let Ok(_) = grant_resource(ctx, attacker_id, seed_name, seed_amount) {
+                log::info!("🌰 Tree tertiary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
+                    attacker_id, seed_amount, seed_name, seed_roll, seed_chance);
+            }
+        }
     }
     
     if tree_destroyed {
         // Final chop bonus: Reward players for completing the tree with a MASSIVE bonus!
         // Bonus is 20-40% of the tree's INITIAL health converted to resources - always feels rewarding!
         // This means ~20-40 wood for a standard tree (100 HP), regardless of tool quality
+        // Player-planted trees get reduced bonus (60% of normal)
         let bonus_percentage = rng.gen_range(0.20..=0.40); // 20-40% of tree's initial health
-        let final_chop_bonus = ((TREE_INITIAL_HEALTH as f32) * bonus_percentage).ceil() as u32;
+        let mut final_chop_bonus = ((TREE_INITIAL_HEALTH as f32) * bonus_percentage).ceil() as u32;
+        
+        // Reduce final bonus for player-planted trees (consistent with overall yield reduction)
+        if tree.is_player_planted {
+            final_chop_bonus = ((final_chop_bonus as f32) * tree::PLAYER_PLANTED_YIELD_PERCENT) as u32;
+        }
         
         if final_chop_bonus > 0 {
             let bonus_result = grant_resource(ctx, attacker_id, resource_name_to_grant, final_chop_bonus);
@@ -1463,8 +1553,6 @@ pub fn damage_tree(
             }
         }
         
-        log::info!("Tree {} destroyed by Player {:?}. Scheduling respawn.", tree_id, attacker_id);
-        
         // Award XP and update stats for tree chopped
         if let Err(e) = crate::player_progression::award_xp(ctx, attacker_id, crate::player_progression::XP_TREE_CHOPPED) {
             log::error!("Failed to award XP for tree chop: {}", e);
@@ -1486,22 +1574,31 @@ pub fn damage_tree(
             log::error!("Failed to track quest progress for tree destruction: {}", e);
         }
         
-        // Calculate random respawn time for trees
-        let respawn_duration_secs = if tree::MIN_TREE_RESPAWN_TIME_SECS >= tree::MAX_TREE_RESPAWN_TIME_SECS {
-            tree::MIN_TREE_RESPAWN_TIME_SECS
-        } else {
-            rng.gen_range(tree::MIN_TREE_RESPAWN_TIME_SECS..=tree::MAX_TREE_RESPAWN_TIME_SECS)
-        };
-        let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
-        tree.respawn_at = respawn_time;
-        
-        // Store tree position before updating database
+        // Store tree position for campfire protection checks
         const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0; // 100px protection radius (matches campfire.rs)
         let tree_pos_x = tree.pos_x;
         let tree_pos_y = tree.pos_y;
         
-        // Update tree in database first so protection checks see it as destroyed
-        ctx.db.tree().id().update(tree.clone());
+        // Player-planted trees: Delete permanently (no respawn)
+        // Wild trees: Schedule respawn
+        if tree.is_player_planted {
+            log::info!("Tree {} destroyed by Player {:?}. Player-planted tree - deleting permanently (no respawn).", tree_id, attacker_id);
+            ctx.db.tree().id().delete(tree_id);
+        } else {
+            log::info!("Tree {} destroyed by Player {:?}. Scheduling respawn.", tree_id, attacker_id);
+            
+            // Calculate random respawn time for wild trees
+            let respawn_duration_secs = if tree::MIN_TREE_RESPAWN_TIME_SECS >= tree::MAX_TREE_RESPAWN_TIME_SECS {
+                tree::MIN_TREE_RESPAWN_TIME_SECS
+            } else {
+                rng.gen_range(tree::MIN_TREE_RESPAWN_TIME_SECS..=tree::MAX_TREE_RESPAWN_TIME_SECS)
+            };
+            let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
+            tree.respawn_at = respawn_time;
+            
+            // Update tree in database so protection checks see it as destroyed
+            ctx.db.tree().id().update(tree.clone());
+        }
         
         // Check for campfires that were protected by this tree and extinguish them if no longer protected
         for mut campfire in ctx.db.campfire().iter() {

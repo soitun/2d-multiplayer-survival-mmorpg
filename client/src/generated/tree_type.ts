@@ -42,6 +42,7 @@ export type Tree = {
   chunkIndex: number,
   lastHitTime: __Timestamp | undefined,
   respawnAt: __Timestamp,
+  isPlayerPlanted: boolean,
 };
 let _cached_Tree_type_value: __AlgebraicTypeType | null = null;
 
@@ -66,6 +67,7 @@ export const Tree = {
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "isPlayerPlanted", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Tree_type_value;
   },

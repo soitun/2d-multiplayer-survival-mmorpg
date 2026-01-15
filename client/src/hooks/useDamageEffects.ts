@@ -125,17 +125,6 @@ export function useDamageEffects(
                           prevLastHitTime !== undefined && // not first render
                           (prevLastHitTime === null || currentLastHitTime > prevLastHitTime);
     
-    // DEBUG: Log all values to trace the issue
-    if (currentLastHitTime !== null || prevLastHitTime !== undefined) {
-      console.log('[DamageEffects] Check:', {
-        currentLastHitTime: currentLastHitTime?.toString() ?? 'null',
-        prevLastHitTime: prevLastHitTime === undefined ? 'undefined' : (prevLastHitTime?.toString() ?? 'null'),
-        wasHitInCombat,
-        prevHealth,
-        currentHealth,
-      });
-    }
-    
     // Trigger effects when lastHitTime changed - the server only updates this for actual damage
     // Use health decrease if we can detect it, otherwise use default damage amount
     // (Health and lastHitTime updates might arrive in separate React renders)

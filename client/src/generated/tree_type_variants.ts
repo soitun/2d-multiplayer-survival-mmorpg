@@ -28,14 +28,14 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type AleppoPine = { tag: "AleppoPine" };
-export type MannaAsh = { tag: "MannaAsh" };
-export type MannaAsh2 = { tag: "MannaAsh2" };
-export type DownyOak = { tag: "DownyOak" };
-export type StonePine = { tag: "StonePine" };
-export type StonePine2 = { tag: "StonePine2" };
+export type SiberianBirch = { tag: "SiberianBirch" };
+export type SitkaAlder = { tag: "SitkaAlder" };
+export type SitkaAlder2 = { tag: "SitkaAlder2" };
+export type ArcticWillow = { tag: "ArcticWillow" };
+export type SitkaSpruce = { tag: "SitkaSpruce" };
+export type MountainHemlock = { tag: "MountainHemlock" };
+export type MountainHemlock2 = { tag: "MountainHemlock2" };
 export type DwarfPine = { tag: "DwarfPine" };
 export type MountainHemlockSnow = { tag: "MountainHemlockSnow" };
-export type ArcticWillow = { tag: "ArcticWillow" };
 export type KrummholzSpruce = { tag: "KrummholzSpruce" };
 

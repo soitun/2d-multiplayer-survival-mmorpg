@@ -619,29 +619,31 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
         let targetWidth: number;
         
         switch (treeTypeKey) {
-            case 'AleppoPine':
+            // Deciduous trees
+            case 'SiberianBirch':
                 imageSource = birchImage;
                 targetWidth = 320; // 33% shorter than Sitka Spruce
                 break;
-            case 'MannaAsh':
-                imageSource = mountainHemlockImage;
-                targetWidth = 400; // 17% shorter than Sitka Spruce
-                break;
-            case 'MannaAsh2':
-                imageSource = mountainHemlockImage2;
-                targetWidth = 400; // Same size as MannaAsh variant A
-                break;
-            case 'DownyOak':
-                imageSource = sitkaSpruceImage;
-                targetWidth = 480; // Full size (same as old uniform height)
-                break;
-            case 'StonePine':
+            case 'SitkaAlder':
                 imageSource = beachBirchImage;
                 targetWidth = 360; // 25% shorter than Sitka Spruce
                 break;
-            case 'StonePine2':
+            case 'SitkaAlder2':
                 imageSource = beachBirchImage2;
-                targetWidth = 360; // Same size as StonePine variant A
+                targetWidth = 360; // Same size as SitkaAlder variant A
+                break;
+            // Conifer trees
+            case 'SitkaSpruce':
+                imageSource = sitkaSpruceImage;
+                targetWidth = 480; // Full size (same as old uniform height)
+                break;
+            case 'MountainHemlock':
+                imageSource = mountainHemlockImage;
+                targetWidth = 400; // 17% shorter than Sitka Spruce
+                break;
+            case 'MountainHemlock2':
+                imageSource = mountainHemlockImage2;
+                targetWidth = 400; // Same size as MountainHemlock variant A
                 break;
             case 'DwarfPine':
                 imageSource = dwarfPineImage;

@@ -30,6 +30,9 @@ import {
 import { PlantType } from "./plant_type_type";
 // Mark import as potentially unused
 declare type __keep_PlantType = PlantType;
+import { TreeType } from "./tree_type_type";
+// Mark import as potentially unused
+declare type __keep_TreeType = TreeType;
 
 
 export type PlantedSeed = {
@@ -46,6 +49,7 @@ export type PlantedSeed = {
   baseGrowthTimeSecs: bigint,
   lastGrowthUpdate: __Timestamp,
   fertilizedAt: __Timestamp | undefined,
+  targetTreeType: TreeType | undefined,
 };
 let _cached_PlantedSeed_type_value: __AlgebraicTypeType | null = null;
 
@@ -74,6 +78,7 @@ export const PlantedSeed = {
       { name: "baseGrowthTimeSecs", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "lastGrowthUpdate", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "fertilizedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "targetTreeType", algebraicType: __AlgebraicTypeValue.createOptionType(TreeType.getTypeScriptAlgebraicType()) },
     );
     return _cached_PlantedSeed_type_value;
   },

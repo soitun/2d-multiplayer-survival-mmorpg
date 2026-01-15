@@ -87,6 +87,10 @@ pub enum PlantType {
     MetalOrePile,   // Pile of metal ore - alpine/quarry areas only, rare
     SulfurPile,     // Pile of sulfur deposits - alpine/volcanic areas only, rare
     CharcoalPile,   // Pile of charcoal - forest areas (old burn sites), rare
+    
+    // === TREE SAPLINGS (Planted trees that grow into actual Tree entities) ===
+    ConiferSapling,   // Planted from Pinecone - grows into a conifer tree
+    DeciduousSapling, // Planted from Birch Catkin - grows into a deciduous tree
 }
 
 // --- Plant Configuration System ---
@@ -1143,6 +1147,50 @@ lazy_static! {
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
         });
         
+        // === TREE SAPLINGS ===
+        // These are special plants that grow into Tree entities when mature.
+        // Longer growth time balances the renewable wood source.
+        // Player-planted trees yield less wood than wild trees.
+        
+        configs.insert(PlantType::ConiferSapling, PlantConfig {
+            entity_name: "Conifer Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Pinecone".to_string(),
+            seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives seeds
+            // Growth time: 45-60 minutes - significant investment for renewable wood
+            // Balanced for wood economy: faster than wild tree respawn (10-20 min)
+            // but requires active farming and yields less wood
+            min_respawn_time_secs: 2700, // 45 minutes to grow
+            max_respawn_time_secs: 3600, // 60 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Can plant anywhere (not water)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
+        });
+        
+        configs.insert(PlantType::DeciduousSapling, PlantConfig {
+            entity_name: "Deciduous Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Birch Catkin".to_string(),
+            seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives seeds
+            // Growth time: 40-55 minutes - slightly faster than conifers
+            // Deciduous trees grow faster in real life
+            min_respawn_time_secs: 2400, // 40 minutes to grow
+            max_respawn_time_secs: 3300, // 55 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Can plant anywhere (not water)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
+        });
+        
         configs
     };
 }
@@ -1244,8 +1292,9 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
         PlantType::CharcoalPile => PlantCategory::ResourcePile,
         
-        // Special
-        PlantType::MemoryShard | PlantType::SeaweedBed => PlantCategory::Special,
+        // Special (includes tree saplings which become Tree entities when mature)
+        PlantType::MemoryShard | PlantType::SeaweedBed |
+        PlantType::ConiferSapling | PlantType::DeciduousSapling => PlantCategory::Special,
     }
 }
 
@@ -1470,9 +1519,10 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::ArcticHairgrass => Some(47),
         PlantType::Fireweed => Some(48),
         
-        // ===== NOT TRACKED (Resource piles, special items) =====
+        // ===== NOT TRACKED (Resource piles, special items, tree saplings) =====
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
-        PlantType::CharcoalPile | PlantType::MemoryShard | PlantType::SeaweedBed => None,
+        PlantType::CharcoalPile | PlantType::MemoryShard | PlantType::SeaweedBed |
+        PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
     }
 } 

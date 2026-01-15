@@ -31,6 +31,9 @@ import { PlantedSeed } from "./planted_seed_type";
 import { PlantType } from "./plant_type_type";
 // Mark import as potentially unused
 declare type __keep_PlantType = PlantType;
+import { TreeType } from "./tree_type_type";
+// Mark import as potentially unused
+declare type __keep_TreeType = TreeType;
 
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];

@@ -51,6 +51,9 @@ pub struct PlantedSeed {
     pub base_growth_time_secs: u64, // Base time needed to reach maturity
     pub last_growth_update: Timestamp, // Last time growth was calculated
     pub fertilized_at: Option<Timestamp>, // When fertilizer was applied (None = not fertilized)
+    /// For tree saplings only: the specific tree type this will become when mature.
+    /// Determined at planting time based on seed type + biome. None for non-tree plants.
+    pub target_tree_type: Option<crate::tree::TreeType>,
 }
 
 // --- Growth Schedule Table ---
@@ -1016,6 +1019,115 @@ pub fn plant_seed(
         }
     }
     
+    // === TREE SEED VALIDATION ===
+    // Tree seeds (Pinecone, Birch Catkin) have special planting restrictions
+    let is_pinecone = item_def.name == "Pinecone";
+    let is_birch_catkin = item_def.name == "Birch Catkin";
+    let is_tree_seed = is_pinecone || is_birch_catkin;
+    
+    if is_tree_seed {
+        // === BIOME RESTRICTIONS ===
+        // Conifers (Pinecone) cannot be planted on beach tiles - they don't survive salt spray
+        if is_pinecone && crate::environment::is_position_on_beach_tile(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Pinecone cannot be planted on beach tiles - conifers don't grow on beaches");
+            return Err("Cannot plant Pinecone on beach - conifer trees don't grow in sandy, salt-spray environments.".to_string());
+        }
+        
+        // Birch Catkin can be planted on: Grass, Forest, Beach, Tundra (NOT Alpine - too rocky)
+        if is_birch_catkin && crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y) {
+            log::error!("PLANT_SEED: Birch Catkin cannot be planted on alpine tiles - too rocky for deciduous trees");
+            return Err("Cannot plant Birch Catkin on alpine terrain - the rocky soil can't support deciduous trees.".to_string());
+        }
+        
+        // Tree seeds need clearance from other planted seeds
+        // Using tree trunk radius (24px) + additional buffer for the tree crown (120px total)
+        // This ensures the tree won't immediately engulf adjacent plants when it matures
+        const TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS: f32 = 120.0;
+        const TREE_SEED_MIN_DISTANCE_SQ: f32 = TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS * TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS;
+        
+        // Check distance to all other planted seeds
+        for other_seed in ctx.db.planted_seed().iter() {
+            let dx = plant_pos_x - other_seed.pos_x;
+            let dy = plant_pos_y - other_seed.pos_y;
+            let distance_sq = dx * dx + dy * dy;
+            
+            if distance_sq < TREE_SEED_MIN_DISTANCE_SQ {
+                let distance = distance_sq.sqrt();
+                log::error!("PLANT_SEED: {} cannot be planted within {} pixels of other seeds (found {} at {:.1}px away)", 
+                    item_def.name, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS, other_seed.seed_type, distance);
+                return Err(format!(
+                    "Cannot plant {} here - too close to another planted seed ({} at {:.0}px away). Trees need at least {:.0}px clearance from other plants.",
+                    item_def.name, other_seed.seed_type, distance, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS
+                ));
+            }
+        }
+        
+        log::info!("PLANT_SEED: Tree seed {} passed all planting checks", item_def.name);
+    }
+    
+    // === DETERMINE TARGET TREE TYPE FOR TREE SEEDS ===
+    // For tree seeds (Pinecone, Birch Catkin), determine the exact tree type NOW based on biome
+    // This is stored in the PlantedSeed so the client can render the correct sprite during growth
+    let target_tree_type: Option<crate::tree::TreeType> = if is_tree_seed {
+        use crate::tree::TreeType;
+        
+        let is_beach = crate::environment::is_position_on_beach_tile(ctx, plant_pos_x, plant_pos_y);
+        let is_alpine = crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y);
+        let is_tundra = crate::environment::is_position_on_tundra_tile(ctx, plant_pos_x, plant_pos_y);
+        
+        let roll: u32 = ctx.rng().gen_range(0..100);
+        
+        let tree_type = if is_pinecone {
+            // Conifers (Pinecone) - note: beach is blocked at planting time
+            if is_alpine {
+                // Alpine: DwarfPine and MountainHemlockSnow (adapted to high altitude)
+                if roll < 65 {
+                    TreeType::DwarfPine           // 65% - Stunted alpine tree
+                } else {
+                    TreeType::MountainHemlockSnow // 35% - Snow-covered hemlock
+                }
+            } else if is_tundra {
+                // Tundra: KrummholzSpruce (twisted wind-sculpted) dominates
+                if roll < 80 {
+                    TreeType::KrummholzSpruce  // 80% - Twisted wind-sculpted spruce
+                } else {
+                    TreeType::DwarfPine        // 20% - Stunted dwarf pine
+                }
+            } else {
+                // Temperate (grass/forest): Full-size conifers
+                if roll < 50 {
+                    TreeType::SitkaSpruce       // 50% - Classic tall spruce
+                } else if roll < 80 {
+                    TreeType::MountainHemlock2  // 30% - Common hemlock variant
+                } else {
+                    TreeType::MountainHemlock   // 20% - Less common hemlock
+                }
+            }
+        } else {
+            // Deciduous (Birch Catkin) - note: alpine is blocked at planting time
+            if is_beach {
+                // Beach: SitkaAlder variants (salt-tolerant)
+                if roll < 55 {
+                    TreeType::SitkaAlder   // 55% - Alder variant A
+                } else {
+                    TreeType::SitkaAlder2  // 45% - Alder variant B
+                }
+            } else if is_tundra {
+                // Tundra: ArcticWillow (cold-hardy shrub-tree)
+                TreeType::ArcticWillow  // 100% - Only deciduous that survives here
+            } else {
+                // Temperate (grass/forest): SiberianBirch
+                TreeType::SiberianBirch  // 100% - Classic white bark birch
+            }
+        };
+        
+        log::info!("PLANT_SEED: Tree type {:?} determined for {} (beach={}, alpine={}, tundra={})", 
+            tree_type, item_def.name, is_beach, is_alpine, is_tundra);
+        Some(tree_type)
+    } else {
+        None // Non-tree plants don't have a target tree type
+    };
+    
     // Convert click position to tile coordinates and snap to tile center
     // All planted seeds snap to tile center for consistent one-per-tile behavior
     let (tile_x, tile_y) = crate::world_pos_to_tile_coords(plant_pos_x, plant_pos_y);
@@ -1073,6 +1185,7 @@ pub fn plant_seed(
         base_growth_time_secs: growth_time_secs,
         last_growth_update: ctx.timestamp,
         fertilized_at: None, // Not fertilized initially
+        target_tree_type, // For tree saplings: the specific tree type this will become
     };
     
     match ctx.db.planted_seed().try_insert(planted_seed) {
@@ -1471,10 +1584,21 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
 
 // --- Growth Helper Functions ---
 
-/// Converts a planted seed into its corresponding harvestable resource
+/// Converts a planted seed into its corresponding entity (tree or harvestable resource)
 fn grow_plant_to_resource(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(), String> {
     // Plant type is now stored directly in the planted seed (from centralized database)
     let plant_type = plant.plant_type;
+    
+    // Check if this is a tree sapling (becomes a Tree entity, not HarvestableResource)
+    let is_tree_sapling = matches!(
+        plant_type,
+        PlantType::ConiferSapling | PlantType::DeciduousSapling
+    );
+    
+    if is_tree_sapling {
+        // Tree saplings grow into actual Tree entities
+        return grow_tree_sapling_to_tree(ctx, plant);
+    }
     
     // Create the harvestable resource using the unified system
     let harvestable_resource = crate::harvestable_resource::create_harvestable_resource(
@@ -1499,6 +1623,65 @@ fn grow_plant_to_resource(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(
                 plant_type, plant.seed_type, e
             );
             Err(format!("Failed to create harvestable resource: {}", e))
+        }
+    }
+}
+
+/// Grows a tree sapling into an actual Tree entity
+/// Player-planted trees:
+/// - Don't respawn when chopped (deleted permanently)
+/// - Yield 60% of normal wood
+/// Tree type was determined at planting time and stored in target_tree_type
+fn grow_tree_sapling_to_tree(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(), String> {
+    use crate::tree::{Tree, PLAYER_PLANTED_RESOURCES_MIN, PLAYER_PLANTED_RESOURCES_MAX, TREE_INITIAL_HEALTH};
+    use rand::Rng;
+    
+    // Use the tree type that was determined at planting time
+    let tree_type = plant.target_tree_type.clone().ok_or_else(|| {
+        log::error!("grow_tree_sapling_to_tree called but target_tree_type is None for plant {:?}", plant.plant_type);
+        format!("Tree sapling has no target_tree_type set: {:?}", plant.plant_type)
+    })?;
+    
+    log::info!(
+        "🌱 Tree sapling maturing into {:?} at ({:.1}, {:.1})", 
+        tree_type, plant.pos_x, plant.pos_y
+    );
+    
+    // Calculate reduced resources for player-planted trees (60% of normal)
+    let resource_amount = ctx.rng().gen_range(PLAYER_PLANTED_RESOURCES_MIN..=PLAYER_PLANTED_RESOURCES_MAX);
+    
+    // Create the tree entity
+    let new_tree = Tree {
+        id: 0, // Auto-inc
+        pos_x: plant.pos_x,
+        pos_y: plant.pos_y,
+        health: TREE_INITIAL_HEALTH,
+        resource_remaining: resource_amount,
+        tree_type: tree_type.clone(),
+        chunk_index: plant.chunk_index,
+        last_hit_time: None,
+        respawn_at: spacetimedb::Timestamp::UNIX_EPOCH, // Not respawning (active tree)
+        is_player_planted: true, // Mark as player-planted for reduced yield and no respawn
+    };
+    
+    match ctx.db.tree().try_insert(new_tree) {
+        Ok(inserted_tree) => {
+            log::info!(
+                "🌳 Tree sapling matured! {:?} from {} at ({:.1}, {:.1}), Tree ID: {}, Resources: {}",
+                tree_type, plant.seed_type, plant.pos_x, plant.pos_y, inserted_tree.id, resource_amount
+            );
+            
+            // Emit a special sound for tree maturation (like a rustle)
+            crate::sound_events::emit_tree_creaking_sound(ctx, plant.pos_x, plant.pos_y, plant.planted_by);
+            
+            Ok(())
+        }
+        Err(e) => {
+            log::error!(
+                "Failed to create tree from {:?} sapling at ({:.1}, {:.1}): {}",
+                tree_type, plant.pos_x, plant.pos_y, e
+            );
+            Err(format!("Failed to create tree: {}", e))
         }
     }
 } 

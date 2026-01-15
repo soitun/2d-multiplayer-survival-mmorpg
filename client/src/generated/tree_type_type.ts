@@ -30,15 +30,15 @@ import {
 import * as TreeTypeVariants from './tree_type_variants'
 
 // The tagged union or sum type for the algebraic type `TreeType`.
-export type TreeType = TreeTypeVariants.AleppoPine |
-  TreeTypeVariants.MannaAsh |
-  TreeTypeVariants.MannaAsh2 |
-  TreeTypeVariants.DownyOak |
-  TreeTypeVariants.StonePine |
-  TreeTypeVariants.StonePine2 |
+export type TreeType = TreeTypeVariants.SiberianBirch |
+  TreeTypeVariants.SitkaAlder |
+  TreeTypeVariants.SitkaAlder2 |
+  TreeTypeVariants.ArcticWillow |
+  TreeTypeVariants.SitkaSpruce |
+  TreeTypeVariants.MountainHemlock |
+  TreeTypeVariants.MountainHemlock2 |
   TreeTypeVariants.DwarfPine |
   TreeTypeVariants.MountainHemlockSnow |
-  TreeTypeVariants.ArcticWillow |
   TreeTypeVariants.KrummholzSpruce;
 
 let _cached_TreeType_type_value: __AlgebraicTypeType | null = null;
@@ -51,30 +51,30 @@ export const TreeType = {
   // assert!(foo.tag === "A");
   // assert!(foo.value === 42);
   // ```
-  AleppoPine: { tag: "AleppoPine" } as const,
-  MannaAsh: { tag: "MannaAsh" } as const,
-  MannaAsh2: { tag: "MannaAsh2" } as const,
-  DownyOak: { tag: "DownyOak" } as const,
-  StonePine: { tag: "StonePine" } as const,
-  StonePine2: { tag: "StonePine2" } as const,
+  SiberianBirch: { tag: "SiberianBirch" } as const,
+  SitkaAlder: { tag: "SitkaAlder" } as const,
+  SitkaAlder2: { tag: "SitkaAlder2" } as const,
+  ArcticWillow: { tag: "ArcticWillow" } as const,
+  SitkaSpruce: { tag: "SitkaSpruce" } as const,
+  MountainHemlock: { tag: "MountainHemlock" } as const,
+  MountainHemlock2: { tag: "MountainHemlock2" } as const,
   DwarfPine: { tag: "DwarfPine" } as const,
   MountainHemlockSnow: { tag: "MountainHemlockSnow" } as const,
-  ArcticWillow: { tag: "ArcticWillow" } as const,
   KrummholzSpruce: { tag: "KrummholzSpruce" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TreeType_type_value) return _cached_TreeType_type_value;
     _cached_TreeType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
     _cached_TreeType_type_value.value.variants.push(
-      { name: "AleppoPine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "MannaAsh", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "MannaAsh2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DownyOak", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StonePine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StonePine2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SiberianBirch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaAlder", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaAlder2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ArcticWillow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlock", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlock2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DwarfPine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "MountainHemlockSnow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ArcticWillow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "KrummholzSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TreeType_type_value;

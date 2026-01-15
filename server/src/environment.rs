@@ -1762,23 +1762,23 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 
                 // Determine tree type based on biome and position
                 let tree_type = if is_position_on_beach_tile(ctx, pos_x, pos_y) {
-                    // Beach tiles: StonePine variants
+                    // Beach tiles: SitkaAlder variants (deciduous)
                     if tree_type_roll < 0.5 {
-                        crate::tree::TreeType::StonePine
+                        crate::tree::TreeType::SitkaAlder
                     } else {
-                        crate::tree::TreeType::StonePine2
+                        crate::tree::TreeType::SitkaAlder2
                     }
                 } else if is_position_on_alpine_tile(ctx, pos_x, pos_y) {
                     // Alpine biome: Mix of DwarfPine, ArcticWillow, and MountainHemlockSnow
                     if tree_type_roll < 0.45 {
-                        crate::tree::TreeType::DwarfPine // 45% - common alpine tree
+                        crate::tree::TreeType::DwarfPine // 45% - common alpine conifer
                     } else if tree_type_roll < 0.80 {
-                        crate::tree::TreeType::ArcticWillow // 35% - hardy shrub-tree (alpine only)
+                        crate::tree::TreeType::ArcticWillow // 35% - hardy deciduous shrub-tree
                     } else {
-                        crate::tree::TreeType::MountainHemlockSnow // 20% - rare snow-covered hemlock
+                        crate::tree::TreeType::MountainHemlockSnow // 20% - rare snow-covered conifer
                     }
                 } else if is_position_on_tundra_tile(ctx, pos_x, pos_y) {
-                    // Tundra biome: Mostly KrummholzSpruce (twisted wind-sculpted trees)
+                    // Tundra biome: Mostly KrummholzSpruce (twisted wind-sculpted conifers)
                     if tree_type_roll < 0.70 {
                         crate::tree::TreeType::KrummholzSpruce // 70% - common twisted spruce
                     } else {
@@ -1786,14 +1786,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                 } else {
                     // Temperate biome: standard tree types with weighted probability
-                    if tree_type_roll < 0.6 { // 60% chance for DownyOak
-                        crate::tree::TreeType::DownyOak
-                    } else if tree_type_roll < 0.8 { // 20% chance for AleppoPine
-                        crate::tree::TreeType::AleppoPine
-                    } else if tree_type_roll < 0.86 { // 6% chance for MannaAsh (variant c - less common)
-                        crate::tree::TreeType::MannaAsh
-                    } else { // 14% chance for MannaAsh2 (variant d - more common)
-                        crate::tree::TreeType::MannaAsh2
+                    if tree_type_roll < 0.6 { // 60% chance for SitkaSpruce (conifer)
+                        crate::tree::TreeType::SitkaSpruce
+                    } else if tree_type_roll < 0.8 { // 20% chance for SiberianBirch (deciduous)
+                        crate::tree::TreeType::SiberianBirch
+                    } else if tree_type_roll < 0.86 { // 6% chance for MountainHemlock (conifer - variant c)
+                        crate::tree::TreeType::MountainHemlock
+                    } else { // 14% chance for MountainHemlock2 (conifer - variant d)
+                        crate::tree::TreeType::MountainHemlock2
                     }
                 };
                 
@@ -1807,6 +1807,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     chunk_index: chunk_idx, // Set the chunk index
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                    is_player_planted: false, // Wild trees respawn and yield full resources
                 }
             },
             (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args

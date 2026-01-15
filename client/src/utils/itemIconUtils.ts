@@ -45,6 +45,12 @@ import boneIcon from '../assets/items/bone.png';
 import boneFragmentsIcon from '../assets/items/bone_fragments.png';
 import animalFatIcon from '../assets/items/animal_fat.png';
 
+// Tree bark and seed materials
+import pineBarkIcon from '../assets/items/tree_bark.png';
+import birchBarkIcon from '../assets/items/tree_bark_birch.png';
+import pineconeIcon from '../assets/items/pinecone.png';
+import birchCatkinIcon from '../assets/items/birch_catkin.png';
+
 // Animal materials
 import animalLeatherIcon from '../assets/items/animal_leather.png';
 import cableViperGlandIcon from '../assets/items/cable_viper_gland.png';
@@ -514,6 +520,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'bone.png': boneIcon,
   'bone_fragments.png': boneFragmentsIcon,
   'animal_fat.png': animalFatIcon,
+  
+  // Tree bark and seed materials
+  'tree_bark.png': pineBarkIcon,
+  'tree_bark_birch.png': birchBarkIcon,
+  'pinecone.png': pineconeIcon,
+  'birch_catkin.png': birchCatkinIcon,
   
   // Animal materials
   'animal_leather.png': animalLeatherIcon,

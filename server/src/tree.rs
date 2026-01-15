@@ -28,21 +28,31 @@ pub(crate) const TREE_MAX_RESOURCES: u32 = 500; // Maximum wood per tree (reduce
 pub(crate) const MIN_TREE_RESPAWN_TIME_SECS: u64 = 600;  // 10 minutes
 pub(crate) const MAX_TREE_RESPAWN_TIME_SECS: u64 = 1200; // 20 minutes
 
+// Player-Planted Tree Constants
+/// Player-planted trees yield this percentage of resources compared to wild trees
+pub(crate) const PLAYER_PLANTED_YIELD_PERCENT: f32 = 0.60; // 60% of normal yield
+/// Player-planted trees have this percentage of resources compared to wild trees
+pub(crate) const PLAYER_PLANTED_RESOURCES_MIN: u32 = 90;  // 60% of 150
+pub(crate) const PLAYER_PLANTED_RESOURCES_MAX: u32 = 300; // 60% of 500
+
 // --- Tree Enums and Structs ---
 
-// Define the different types of trees
+// Define the different types of trees (names match actual sprite files)
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, SpacetimeType)]
 pub enum TreeType {
-    AleppoPine,
-    MannaAsh,   // Variant A (mountain_hemlock_c) - less common
-    MannaAsh2,  // Variant B (mountain_hemlock_d) - more common
-    DownyOak,
-    StonePine,  // Variant A for trees that spawn on beach tiles
-    StonePine2, // Variant B for trees that spawn on beach tiles
-    DwarfPine,  // Stunted, wind-bent tree for Alpine biome (sparse)
-    MountainHemlockSnow, // Rare snow-covered hemlock for Alpine biome
-    ArcticWillow, // Short, hardy shrub-tree for Tundra biome (common)
-    KrummholzSpruce, // Wind-sculpted twisted spruce for Tundra biome (rare)
+    // Deciduous trees (Birch Bark + Birch Catkin)
+    SiberianBirch,      // siberian_birch_c.png - white bark birch
+    SitkaAlder,         // sitka_alder_c.png - variant A for beach tiles
+    SitkaAlder2,        // sitka_alder_d.png - variant B for beach tiles
+    ArcticWillow,       // arctic_willow.png - short tundra shrub-tree
+    
+    // Conifer trees (Pine Bark + Pinecone)
+    SitkaSpruce,        // sitka_spruce_c.png - classic tall spruce
+    MountainHemlock,    // mountain_hemlock_c.png - variant A, less common
+    MountainHemlock2,   // mountain_hemlock_d.png - variant B, more common
+    DwarfPine,          // dwarf_pine.png - stunted alpine tree
+    MountainHemlockSnow, // mountain_hemlock_snow.png - snow-covered alpine
+    KrummholzSpruce,    // krummholz_spruce.png - twisted wind-sculpted spruce
 }
 
 #[spacetimedb::table(name = tree, public)]
@@ -63,4 +73,7 @@ pub struct Tree {
     /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
     pub respawn_at: Timestamp,
+    /// Whether this tree was planted by a player (from Pinecone/Birch Catkin).
+    /// Player-planted trees: don't respawn, yield less wood (60% of normal).
+    pub is_player_planted: bool,
 }
