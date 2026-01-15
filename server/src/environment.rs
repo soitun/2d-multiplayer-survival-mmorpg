@@ -4246,13 +4246,27 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         }
     );
 
-    // Respawn Trees
+    // Get current season BEFORE respawn checks (used for trees and harvestable resources)
+    let current_season = crate::world_state::get_current_season(ctx)
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to get current season for respawn check: {}, defaulting to Spring", e);
+            crate::world_state::Season::Spring
+        });
+
+    // Respawn Trees - SEASONAL: Trees do NOT respawn during winter
+    // This creates wood scarcity in winter, incentivizing stockpiling and tree farming
+    let is_winter = matches!(current_season, crate::world_state::Season::Winter);
     check_and_respawn_resource!(
         ctx,
         tree,
         crate::tree::Tree,
         "Tree",
-        |t: &crate::tree::Tree| t.health == 0,
+        |t: &crate::tree::Tree| {
+            // Trees can only respawn if:
+            // 1. They are depleted (health == 0)
+            // 2. It's NOT winter (trees are dormant in winter)
+            t.health == 0 && !is_winter
+        },
         |t: &mut crate::tree::Tree| {
             t.health = crate::tree::TREE_INITIAL_HEALTH;
             // Generate new random resource amount for respawned tree
@@ -4264,11 +4278,6 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
     );
 
     // Respawn Harvestable Resources (Unified System) with Seasonal Filtering
-    let current_season = crate::world_state::get_current_season(ctx)
-        .unwrap_or_else(|e| {
-            log::warn!("Failed to get current season for respawn check: {}, defaulting to Spring", e);
-            crate::world_state::Season::Spring
-        });
     
     check_and_respawn_resource!(
         ctx,

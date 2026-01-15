@@ -229,18 +229,8 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
-        // Pinecone - Tertiary yield from conifer trees (rare drop)
-        basic_material("Pinecone", "A mature pinecone containing viable seeds. Can be planted to grow a new pine tree, or used as fuel. The seeds inside are edible and nutritious.", 100)
-            .icon("pinecone.png")
-            .fuel(2.0)  // Light fuel value
-            .respawn_time(300)
-            .build(),
-
-        // Birch Catkin - Tertiary yield from deciduous trees (rare drop)
-        basic_material("Birch Catkin", "A drooping flower cluster from deciduous trees containing seeds. Can be planted to grow a new tree. The catkins have minor medicinal properties.", 100)
-            .icon("birch_catkin.png")
-            .respawn_time(300)
-            .build(),
+        // NOTE: Pinecone and Birch Catkin are defined in seeds.rs as Placeable items
+        // They can be planted to grow trees
 
         // === ANIMAL MATERIALS ===
 

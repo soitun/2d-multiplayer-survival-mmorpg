@@ -513,5 +513,28 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .consumable(0.5, 1.0, 0.5) // health, hunger, thirst - fibrous
             .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
+
+        // === TREE SEEDS (for player tree planting) ===
+
+        // Pinecone - Plantable conifer seed (from chopping conifer trees)
+        // Grows into spruce, hemlock, or pine depending on biome
+        ItemBuilder::new("Pinecone", "A mature pinecone containing viable seeds. Can be planted to grow a conifer tree (spruce, hemlock, or pine depending on terrain). Also usable as fuel.", ItemCategory::Placeable)
+            .icon("pinecone.png")
+            .stackable(20)
+            .respawn_time(300)
+            .fuel(2.0) // Light fuel value
+            .consumable(1.0, 3.0, -1.0) // health, hunger, thirst - pine nuts are edible and nutritious
+            .cookable(25.0, "Charcoal") // Overcooking burns them
+            .build(),
+
+        // Birch Catkin - Plantable deciduous seed (from chopping deciduous trees)
+        // Grows into birch, alder, or willow depending on biome
+        ItemBuilder::new("Birch Catkin", "A drooping flower cluster containing seeds. Can be planted to grow a deciduous tree (birch, alder, or willow depending on terrain). Has mild medicinal properties.", ItemCategory::Placeable)
+            .icon("birch_catkin.png")
+            .stackable(30)
+            .respawn_time(300)
+            .consumable(2.0, 1.0, 0.5) // health, hunger, thirst - mild medicinal properties
+            .cookable(20.0, "Charcoal") // Overcooking burns them
+            .build(),
     ]
 }

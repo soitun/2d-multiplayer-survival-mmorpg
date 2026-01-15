@@ -36,6 +36,8 @@ export function isPlantableSeed(itemDef: ItemDefinition): boolean {
     name.includes('bulbs') || // "Bear Garlic Bulbs"
     name.includes('potato') || // "Seed Potato"
     name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
+    name.includes('pinecone') || // "Pinecone" - tree seed for conifers
+    name.includes('catkin') || // "Birch Catkin" - tree seed for deciduous trees
     description.includes('plant') ||
     description.includes('grow') ||
     description.includes('deploy')
@@ -183,6 +185,8 @@ export function isSeedItemValid(itemName: string, itemDefinitions?: Map<string, 
     name.includes('cuttings') || // "Mint Cuttings"
     name.includes('bulbs') || // "Bear Garlic Bulbs"
     name.includes('potato') || // "Seed Potato"
-    name.includes('frond') // "Seaweed Frond" - underwater plant propagation
+    name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
+    name.includes('pinecone') || // "Pinecone" - tree seed for conifers
+    name.includes('catkin') // "Birch Catkin" - tree seed for deciduous trees
   );
 } 
