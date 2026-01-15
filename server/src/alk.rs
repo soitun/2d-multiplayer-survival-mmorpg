@@ -78,7 +78,7 @@ pub const PLAYER_ALK_STATION_COLLISION_DISTANCE_SQUARED: f32 =
 // ============================================================================
 
 /// Days per season (matches world_state)
-pub const DAYS_PER_SEASON: u32 = 90;
+pub const DAYS_PER_SEASON: u32 = 240; // 240 in-game days = 5 real-life days per season
 
 /// Days per ALK cycle (bonus contracts refresh)
 pub const DAYS_PER_ALK_CYCLE: u32 = 24;
@@ -406,7 +406,7 @@ fn seed_alk_state(ctx: &ReducerContext) -> Result<(), String> {
     // Get current world state for initial values
     let world_state = ctx.db.world_state().iter().next();
     let (world_day, season_index) = match world_state {
-        Some(ws) => (ws.day_of_year + (ws.year - 1) * 360, (ws.day_of_year - 1) / DAYS_PER_SEASON),
+        Some(ws) => (ws.day_of_year + (ws.year - 1) * 960, (ws.day_of_year - 1) / DAYS_PER_SEASON),
         None => (1, 0),
     };
     
@@ -857,7 +857,7 @@ fn generate_initial_contracts(ctx: &ReducerContext) -> Result<(), String> {
     
     let world_state = ctx.db.world_state().iter().next();
     let (world_day, season_index) = match world_state {
-        Some(ws) => (ws.day_of_year + (ws.year - 1) * 360, (ws.day_of_year - 1) / DAYS_PER_SEASON),
+        Some(ws) => (ws.day_of_year + (ws.year - 1) * 960, (ws.day_of_year - 1) / DAYS_PER_SEASON),
         None => (1, 0),
     };
     
@@ -1877,7 +1877,7 @@ pub fn process_alk_contract_refresh(ctx: &ReducerContext, _args: AlkContractRefr
         None => return Ok(()),
     };
     
-    let current_world_day = world_state.day_of_year + (world_state.year - 1) * 360;
+    let current_world_day = world_state.day_of_year + (world_state.year - 1) * 960;
     let current_season_index = (world_state.day_of_year - 1) / DAYS_PER_SEASON;
     let current_daily_cycle = current_world_day / DAYS_PER_ALK_CYCLE;
     
@@ -2087,7 +2087,7 @@ pub fn accept_alk_contract(
     // Get world day for tracking
     let world_state = ctx.db.world_state().iter().next();
     let world_day = match world_state {
-        Some(ws) => ws.day_of_year + (ws.year - 1) * 360,
+        Some(ws) => ws.day_of_year + (ws.year - 1) * 960,
         None => 1,
     };
     
@@ -2579,7 +2579,7 @@ pub fn debug_refresh_alk_contracts(ctx: &ReducerContext) -> Result<(), String> {
     
     let world_state = ctx.db.world_state().iter().next();
     let (world_day, season_index) = match world_state {
-        Some(ws) => (ws.day_of_year + (ws.year - 1) * 360, (ws.day_of_year - 1) / DAYS_PER_SEASON),
+        Some(ws) => (ws.day_of_year + (ws.year - 1) * 960, (ws.day_of_year - 1) / DAYS_PER_SEASON),
         None => (1, 0),
     };
     

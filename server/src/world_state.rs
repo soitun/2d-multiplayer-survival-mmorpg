@@ -33,7 +33,9 @@ const NIGHT_DURATION_SECONDS: f32 = 600.0;  // 10 minutes (doubled for meaningfu
 const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 30 minutes total
 
 // Season duration constants for plant respawn calculations
-pub const SEASON_DURATION_HOURS: f32 = 90.0 * 24.0; // 90 days per season * 24 hours per day = 2160 hours
+// 240 in-game days per season × 30 min per day = 120 real hours = 5 real days per season
+pub const DAYS_PER_SEASON: u32 = 240;
+pub const SEASON_DURATION_HOURS: f32 = 240.0 * 24.0; // 240 days per season * 24 hours per day = 5760 hours
 
 // Full moon occurs roughly every 3 cycles (adjust as needed)
 const FULL_MOON_CYCLE_INTERVAL: u32 = 3;
@@ -290,10 +292,10 @@ pub enum WeatherType {
 
 #[derive(Clone, Debug, PartialEq, spacetimedb::SpacetimeType)]
 pub enum Season {
-    Spring,  // Days 1-90 (March 20 - June 20)
-    Summer,  // Days 91-180 (June 21 - September 20)
-    Autumn,  // Days 181-270 (September 21 - December 20)
-    Winter,  // Days 271-360 (December 21 - March 19)
+    Spring,  // Days 1-240 (~5 real days)
+    Summer,  // Days 241-480 (~5 real days)
+    Autumn,  // Days 481-720 (~5 real days)
+    Winter,  // Days 721-960 (~5 real days)
 }
 
 #[derive(Clone, Debug, PartialEq, spacetimedb::SpacetimeType)]
@@ -392,7 +394,7 @@ pub struct WorldState {
     pub last_tick: Timestamp,
     // Season tracking
     pub current_season: Season,
-    pub day_of_year: u32, // 1-360 in our perfect calendar
+    pub day_of_year: u32, // 1-960 in our perfect calendar (4 seasons × 240 days)
     pub year: u32, // Which year we're in
     // Weather fields
     pub current_weather: WeatherType,
@@ -1009,12 +1011,12 @@ pub fn debug_set_season(ctx: &ReducerContext, season_str: String) -> Result<(), 
     // Set the season
     world_state.current_season = new_season.clone();
     
-    // Update day_of_year to match the season
+    // Update day_of_year to match the season (middle of each 240-day season)
     world_state.day_of_year = match new_season {
-        Season::Spring => 45,  // Middle of Spring (day 45 of 1-90)
-        Season::Summer => 135, // Middle of Summer (day 135 of 91-180)
-        Season::Autumn => 225, // Middle of Autumn (day 225 of 181-270)
-        Season::Winter => 315, // Middle of Winter (day 315 of 271-360)
+        Season::Spring => 120,  // Middle of Spring (day 120 of 1-240)
+        Season::Summer => 360,  // Middle of Summer (day 360 of 241-480)
+        Season::Autumn => 600,  // Middle of Autumn (day 600 of 481-720)
+        Season::Winter => 840,  // Middle of Winter (day 840 of 721-960)
     };
     
     world_state.last_tick = ctx.timestamp;
@@ -1120,7 +1122,7 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
         // Update season and calendar when a new day starts (cycle wraps)
         let (new_day_of_year, new_year, new_season) = if did_wrap {
             let next_day = world_state.day_of_year + 1;
-            if next_day > 360 { // New year starts
+            if next_day > 960 { // New year starts (960 days = 4 seasons × 240 days)
                 let next_year = world_state.year + 1;
                 log::info!("New year started! Year {} -> Year {}", world_state.year, next_year);
                 (1, next_year, calculate_season(1)) // Start new year with day 1
@@ -1208,15 +1210,16 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
     Ok(())
 }
 
-/// Calculates the current season based on day of year (1-360)
-/// Perfect calendar: Spring (1-90), Summer (91-180), Autumn (181-270), Winter (271-360)
+/// Calculates the current season based on day of year (1-960)
+/// Perfect calendar: Spring (1-240), Summer (241-480), Autumn (481-720), Winter (721-960)
+/// Each season = 240 in-game days = 5 real-life days
 fn calculate_season(day_of_year: u32) -> Season {
     match day_of_year {
-        1..=90 => Season::Spring,   // Days 1-90 (March 20 - June 20)
-        91..=180 => Season::Summer, // Days 91-180 (June 21 - September 20)
-        181..=270 => Season::Autumn, // Days 181-270 (September 21 - December 20)
-        271..=360 => Season::Winter, // Days 271-360 (December 21 - March 19)
-        _ => Season::Spring, // Fallback, though this shouldn't happen with our 360-day year
+        1..=240 => Season::Spring,    // Days 1-240 (~5 real days)
+        241..=480 => Season::Summer,  // Days 241-480 (~5 real days)
+        481..=720 => Season::Autumn,  // Days 481-720 (~5 real days)
+        721..=960 => Season::Winter,  // Days 721-960 (~5 real days)
+        _ => Season::Spring, // Fallback, though this shouldn't happen with our 960-day year
     }
 }
 

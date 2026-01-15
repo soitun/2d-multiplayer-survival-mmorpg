@@ -45,6 +45,10 @@ const SEASON_COLORS = {
     winter: '#87CEEB',
 };
 
+// Season constants (must match server)
+const DAYS_PER_SEASON = 240;
+const DAYS_PER_YEAR = 960;
+
 interface DayNightCycleTrackerProps {
     worldState: WorldState | null;
     chunkWeather: Map<string, any>;
@@ -320,6 +324,9 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
 
     const anyProgressFlash = progressFlash || secondaryProgressFlash || tertiaryProgressFlash;
     const dialPosition = `${worldState.cycleProgress * 100}%`;
+    
+    // Calculate day within current season (1 to DAYS_PER_SEASON)
+    const dayInSeason = ((worldState.dayOfYear - 1) % DAYS_PER_SEASON) + 1;
 
     // ==================== MOBILE VIEW ====================
     if (isMobile) {
@@ -371,6 +378,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                             <span style={{ fontSize: '10px', color: getSeasonColor(worldState.currentSeason), fontWeight: 'bold' }}>
                                 {getSeasonDisplay(worldState.currentSeason)}
                             </span>
+                            <span style={{ fontSize: '8px', color: '#9ca3af' }}>{dayInSeason}/{DAYS_PER_SEASON}</span>
                             <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
                             <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>Day {worldState.cycleCount}</span>
                             <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
@@ -484,7 +492,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                     boxShadow: `0 0 20px ${getSeasonColor(worldState.currentSeason)}60`,
                                 }}>
                                     <span style={{ color: getSeasonColor(worldState.currentSeason) }}>
-                                        {getSeasonDisplay(worldState.currentSeason)}
+                                        {getSeasonDisplay(worldState.currentSeason)} • Day {dayInSeason}/{DAYS_PER_SEASON}
                                     </span>
                                     <span className="uplink-tooltip-caret" style={{ borderLeftColor: getSeasonColor(worldState.currentSeason) }} />
                                 </div>
@@ -680,6 +688,9 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                         fontWeight: 'bold',
                                         textShadow: `0 0 6px ${getSeasonColor(worldState.currentSeason)}80`,
                                     }}>{getSeasonDisplay(worldState.currentSeason)}</span>
+                                    <span style={{ fontSize: '8px', color: '#6b7280' }}>
+                                        {dayInSeason}/{DAYS_PER_SEASON}
+                                    </span>
                                 </div>
                             </div>
                             
@@ -690,7 +701,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                         {getTimeOfDayDisplay(worldState.timeOfDay).toUpperCase()}
                                         {worldState.isFullMoon && (worldState.timeOfDay.tag === 'Night' || worldState.timeOfDay.tag === 'Midnight') && ' • FULL MOON'}
                                     </span>
-                                    <span style={{ fontSize: '8px', color: '#6b7280' }}>Day {worldState.dayOfYear}/360</span>
+                                    <span style={{ fontSize: '8px', color: '#6b7280' }}>Day {worldState.dayOfYear}/{DAYS_PER_YEAR}</span>
                                 </div>
                                 
                                 {/* Day Cycle Progress Bar */}
