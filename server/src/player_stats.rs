@@ -289,14 +289,16 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
 
         // --- Clear stale hit time to prevent stuck white hit flash state ---
         // Hit effect duration is ~500ms (200ms shake + 300ms latency buffer)
-        // Clear if older than 1 second to be safe
+        // BUT burn effects tick every 2 seconds, so we need to keep last_hit_time valid
+        // between burn ticks to ensure client sees continuous damage feedback
+        // Clear if older than 2.5 seconds (longer than burn tick interval of 2s)
         let mut should_clear_hit_time = false;
         if let Some(last_hit_time) = player.last_hit_time {
             let hit_age_micros = current_time.to_micros_since_unix_epoch()
                 .saturating_sub(last_hit_time.to_micros_since_unix_epoch());
             let hit_age_ms = hit_age_micros / 1_000;
             
-            if hit_age_ms > 1000 {
+            if hit_age_ms > 2500 {
                 // Hit effect has expired - mark for clearing to prevent stuck white state
                 should_clear_hit_time = true;
                 player.last_hit_time = None;
@@ -1085,12 +1087,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             current_player.last_stat_update = current_time;
             // Preserve cleared last_hit_time if it was cleared above
             // Only clear if the current player's hit time is still stale (to avoid overwriting new hits)
+            // Use 2500ms threshold to match burn tick interval (2s) + buffer
             if should_clear_hit_time {
                 if let Some(current_hit_time) = current_player.last_hit_time {
                     let current_hit_age_micros = current_time.to_micros_since_unix_epoch()
                         .saturating_sub(current_hit_time.to_micros_since_unix_epoch());
                     let current_hit_age_ms = current_hit_age_micros / 1_000;
-                    if current_hit_age_ms > 1000 {
+                    if current_hit_age_ms > 2500 {
                         current_player.last_hit_time = None;
                     }
                 } else {
@@ -1109,12 +1112,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
              current_player.last_stat_update = current_time;
              // Only clear last_hit_time if we explicitly marked it for clearing (stale hit time)
              // AND the current value is still stale - don't overwrite NEW hits from other reducers
+             // Use 2500ms threshold to match burn tick interval (2s) + buffer
              if should_clear_hit_time {
                  if let Some(current_hit_time) = current_player.last_hit_time {
                      let current_hit_age_micros = current_time.to_micros_since_unix_epoch()
                          .saturating_sub(current_hit_time.to_micros_since_unix_epoch());
                      let current_hit_age_ms = current_hit_age_micros / 1_000;
-                     if current_hit_age_ms > 1000 {
+                     if current_hit_age_ms > 2500 {
                          current_player.last_hit_time = None;
                      }
                  }
