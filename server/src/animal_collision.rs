@@ -436,6 +436,7 @@ pub fn check_animal_collision(
 }
 
 /// Checks if a position would collide with players
+/// IMPORTANT: Pushback must be gentle enough that animals can still reach attack range!
 pub fn check_player_collision(
     ctx: &ReducerContext,
     proposed_x: f32,
@@ -443,10 +444,11 @@ pub fn check_player_collision(
     is_attacking: bool,
 ) -> Option<(f32, f32)> {
     // Use different collision radius based on whether animal is attacking
+    // These radii define the "no-overlap" zone - animals should stop at this distance
     let collision_radius = if is_attacking {
-        ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS // Closer distance for attacking
+        ANIMAL_PLAYER_ATTACK_COLLISION_RADIUS // 50px - closer distance for attacking
     } else {
-        ANIMAL_PLAYER_COLLISION_RADIUS // Normal distance for non-combat
+        ANIMAL_PLAYER_COLLISION_RADIUS // 65px - normal distance for non-combat
     };
     
     for player in ctx.db.player().iter() {
@@ -466,18 +468,21 @@ pub fn check_player_collision(
             // Calculate how much the animal needs to be pushed to reach minimum distance
             let overlap = collision_radius - distance;
             
-            // Use stronger pushback that scales with how much overlap there is
-            // This prevents fast-moving animals from stepping inside the player
-            let pushback_distance = if is_attacking {
-                // When attacking, push back to attack collision radius + small buffer
-                overlap + ANIMAL_SEPARATION_DISTANCE
+            // CRITICAL FIX: Pushback should ONLY move animal to collision boundary + small buffer
+            // Previous values (40-80px) were pushing animals outside their attack range!
+            // 
+            // Correct pushback: just enough to reach collision_radius + small buffer
+            // This allows animals to stay within attack range (most are 72-120px)
+            let buffer = if is_attacking {
+                3.0 // Minimal buffer when attacking - let them stay close
             } else {
-                // Non-combat: push back to safe distance + buffer
-                overlap + ANIMAL_SEPARATION_DISTANCE * 2.0
+                5.0 // Small buffer when not attacking
             };
             
-            // Ensure minimum pushback to actually separate
-            let actual_pushback = pushback_distance.max(COLLISION_PUSHBACK_FORCE * 0.5);
+            let pushback_distance = overlap + buffer;
+            
+            // Minimum pushback of 2px to ensure some separation
+            let actual_pushback = pushback_distance.max(2.0);
             
             let pushback_x = (dx / distance) * actual_pushback;
             let pushback_y = (dy / distance) * actual_pushback;

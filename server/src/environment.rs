@@ -937,14 +937,14 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
         }
         
         AnimalSpecies::Vole => {
-            // 🐹 VOLE HABITAT: Tundra and grassland areas - burrows in soft ground
-            // Voles prefer grass and dirt tiles, away from beaches and water
+            // 🐹 VOLE HABITAT: Tundra, grassland, and forest areas - burrows in soft ground
+            // Voles prefer grass, dirt, and forest floor tiles, away from beaches and water
             if matches!(tile_type, TileType::Beach | TileType::Sand | TileType::Asphalt) {
                 return false; // Voles don't like beaches or hard surfaces
             }
             
-            // Must be on grass or dirt
-            if !matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad | TileType::Tundra) {
+            // Must be on grass, dirt, or forest - expanded habitat for better early-game availability
+            if !matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad | TileType::Tundra | TileType::Forest) {
                 return false;
             }
             
@@ -2842,14 +2842,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
     // Define species distribution (weighted probabilities)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 25),      // 25% - Common
+        (AnimalSpecies::CinderFox, 19),      // 19% - Common (reduced to make room for more voles)
         (AnimalSpecies::ArcticWalrus, 12),   // 12% - Common (beaches only)
         (AnimalSpecies::BeachCrab, 15),      // 15% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
         (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
         (AnimalSpecies::Crow, 8),            // 8% - Inland thief bird
-        (AnimalSpecies::Vole, 12),           // 12% - Common prey animal (tundra/grassland)
+        (AnimalSpecies::Vole, 18),           // 18% - Common prey animal (tundra/grassland/forest) - INCREASED for early-game food
         (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();

@@ -11,6 +11,7 @@ interface SoundSystemProps {
     masterVolume?: number; // 0-1 scale (up to 100%) for regular sounds
     environmentalVolume?: number; // 0-1 scale for environmental sounds (rain, wind, etc.)
     chunkWeather?: Map<string, SpacetimeDB.ChunkWeather>; // Chunk-based weather for filtering rain sounds
+    currentSeason?: SpacetimeDB.Season | null; // Current season - used to mute rain sounds in winter (snow doesn't make rain sounds)
 }
 
 // Sound strategy enum for different types of sounds
@@ -73,6 +74,7 @@ const SOUND_DEFINITIONS = {
     growl_walrus: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.3, maxDistance: 1000 }, // Walrus growl when disturbed or patrolling
     growl_crow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 500 }, // Crow caw when detecting players
     growl_tern: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 500 }, // Tern screech when detecting players
+    animal_burrow: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 300 }, // Digging sound when animals (e.g., voles) burrow underground
     // Movement sounds - server only for proper synchronization
     walking: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.7, maxDistance: 400 }, // Player footsteps when moving
     swimming: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 450 }, // Player swimming sounds in water
@@ -679,6 +681,8 @@ const playLocalSound = async (
                 variationCount = 4; // growl_crow.mp3, growl_crow1.mp3, growl_crow2.mp3, growl_crow3.mp3
             } else if (soundType === 'growl_tern') {
                 variationCount = 4; // growl_tern.mp3, growl_tern1.mp3, growl_tern2.mp3, growl_tern3.mp3
+            } else if (soundType === 'animal_burrow') {
+                variationCount = 1; // animal_burrow.mp3
             } else if (soundType === 'walking') {
                 variationCount = 4; // walking.mp3, walking1.mp3, walking2.mp3, walking3.mp3
             } else if (soundType === 'swimming') {
@@ -1044,7 +1048,8 @@ export const useSoundSystem = ({
     localPlayerIdentity,
     masterVolume = 0.8,
     environmentalVolume = 0.7,
-    chunkWeather
+    chunkWeather,
+    currentSeason
 }: SoundSystemProps) => {
     const processedSoundEventsRef = useRef<Set<string>>(new Set());
     const isInitializedRef = useRef(false);
@@ -1312,10 +1317,17 @@ export const useSoundSystem = ({
                 return;
             }
             
-            // 🌧️ RAIN SOUND FILTERING: Skip global rain sounds if player is NOT in a rainy chunk
-            // This prevents hearing rain when player is in a Clear weather zone
+            // 🌧️ RAIN SOUND FILTERING: Skip rain sounds in winter (snow is silent) or if player is NOT in a rainy chunk
             const isRainSound = continuousSound.filename.includes('rain');
             if (isRainSound) {
+                // ❄️ In winter, precipitation is snow which doesn't make rain sounds
+                const isWinter = currentSeason?.tag === 'Winter';
+                if (isWinter) {
+                    // Winter - stop any existing rain sound (snow is silent)
+                    cleanupLoopingSound(objectId, "winter - snow is silent");
+                    return;
+                }
+                
                 const playerInRain = isPlayerInRainyChunk();
                 if (!playerInRain) {
                     // Player is in a clear zone - stop any existing rain sound and skip processing
@@ -1664,7 +1676,7 @@ export const useSoundSystem = ({
 
         // console.log(`🔊 Active looping sounds: ${activeLoopingSounds.size}, Active seamless sounds: ${activeSeamlessLoopingSounds.size}, Current active objects: ${currentActiveSounds.size}`);
 
-    }, [continuousSounds, localPlayerPosition, localPlayerIdentity, masterVolume, environmentalVolume, isPlayerInRainyChunk, chunkWeather]);
+    }, [continuousSounds, localPlayerPosition, localPlayerIdentity, masterVolume, environmentalVolume, isPlayerInRainyChunk, chunkWeather, currentSeason]);
     
     // Periodic cleanup to prevent sound leaks
     useEffect(() => {

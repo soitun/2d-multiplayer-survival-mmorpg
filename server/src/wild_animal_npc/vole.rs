@@ -39,15 +39,15 @@ pub struct VoleBehavior;
 impl AnimalBehavior for VoleBehavior {
     fn get_stats(&self) -> AnimalStats {
         AnimalStats {
-            max_health: 20.0, // Very fragile - one hit kill with most weapons
+            max_health: 35.0, // INCREASED from 20 - survives weak attacks so players can see them scurry!
             attack_damage: 2.0, // Basically harmless - tiny nibble
             attack_range: 30.0, // Very short range
             attack_speed_ms: 1500, // Slow attacks (voles don't fight)
-            movement_speed: 100.0, // Fast scurrying patrol
-            sprint_speed: 220.0, // VERY fast when fleeing
-            perception_range: 200.0, // Alert and watchful
-            perception_angle_degrees: 270.0, // Wide field of view for safety
-            patrol_radius: 60.0, // Small patrol area
+            movement_speed: 140.0, // INCREASED - fast scurrying patrol for better visibility
+            sprint_speed: 280.0, // INCREASED from 220 - VERY fast when fleeing
+            perception_range: 250.0, // INCREASED - more alert and watchful
+            perception_angle_degrees: 300.0, // INCREASED - nearly 360 awareness
+            patrol_radius: 80.0, // INCREASED - more visible patrol area
             chase_trigger_range: 0.0, // NEVER chases - always flees
             flee_trigger_health_percent: 100.0, // Always flee when player detected
             hide_duration_ms: VOLE_BURROW_DURATION_MS, // Burrow duration
@@ -90,22 +90,26 @@ impl AnimalBehavior for VoleBehavior {
     ) -> Result<(), String> {
         match animal.state {
             AnimalState::Patrolling | AnimalState::Idle => {
-                // Voles ALWAYS flee when a player is detected
+                // Voles ALWAYS flee when a player is detected - highly visible scurrying behavior!
                 if let Some(player) = detected_player {
                     let distance = get_player_distance(animal, player);
                     
-                    // Decide: burrow or flee
-                    // 30% chance to burrow if player is close, otherwise flee
-                    if distance < 150.0 && rng.gen::<f32>() < 0.3 {
-                        // Burrow to hide!
+                    // Primarily flee (visible behavior) - rarely burrow (with visual/audio feedback now!)
+                    // Only 10% chance to burrow if player is VERY close
+                    if distance < 100.0 && rng.gen::<f32>() < 0.1 {
+                        // Rare emergency burrow - player is right on top of vole
                         animal.hide_until = Some(Timestamp::from_micros_since_unix_epoch(
                             current_time.to_micros_since_unix_epoch() + (stats.hide_duration_ms as i64 * 1000)
                         ));
                         transition_to_state(animal, AnimalState::Burrowed, current_time, None, "emergency burrow");
+                        
+                        // 🔊 BURROW SOUND: Emit digging sound when vole burrows
+                        crate::sound_events::emit_animal_burrow_sound(ctx, animal.pos_x, animal.pos_y, player.identity);
+                        
                         log::debug!("Vole {} burrowing to hide from player {} at distance {:.1}", 
                                    animal.id, player.identity, distance);
                     } else {
-                        // Flee!
+                        // 90% chance to flee - players should see voles scurrying away!
                         set_flee_destination_away_from_threat(animal, player.position_x, player.position_y, VOLE_FLEE_DISTANCE, rng);
                         transition_to_state(animal, AnimalState::Fleeing, current_time, None, "player spotted flee");
                         log::debug!("Vole {} fleeing from player {} at distance {:.1}", 
@@ -151,6 +155,10 @@ impl AnimalBehavior for VoleBehavior {
                                     current_time.to_micros_since_unix_epoch() + (stats.hide_duration_ms as i64 * 1000)
                                 ));
                                 transition_to_state(animal, AnimalState::Burrowed, current_time, None, "flee destination burrow");
+                                
+                                // 🔊 BURROW SOUND: Emit digging sound when vole burrows
+                                crate::sound_events::emit_animal_burrow_sound(ctx, animal.pos_x, animal.pos_y, player.identity);
+                                
                                 log::debug!("Vole {} reached flee destination but player nearby - burrowing!", animal.id);
                             } else {
                                 transition_to_state(animal, AnimalState::Patrolling, current_time, None, "flee successful");
@@ -240,23 +248,27 @@ impl AnimalBehavior for VoleBehavior {
 
     fn handle_damage_response(
         &self,
-        _ctx: &ReducerContext,
+        ctx: &ReducerContext,
         animal: &mut WildAnimal,
         attacker: &Player,
         stats: &AnimalStats,
         current_time: Timestamp,
         rng: &mut impl Rng,
     ) -> Result<(), String> {
-        // When hit, always try to burrow or flee
-        if rng.gen::<f32>() < 0.5 {
-            // 50% chance to panic burrow
+        // When hit, primarily flee (more visible) - burrow now has visual/audio feedback!
+        if rng.gen::<f32>() < 0.15 {
+            // 15% chance to panic burrow
             animal.hide_until = Some(Timestamp::from_micros_since_unix_epoch(
                 current_time.to_micros_since_unix_epoch() + (stats.hide_duration_ms as i64 * 1000)
             ));
             transition_to_state(animal, AnimalState::Burrowed, current_time, None, "panic burrow");
+            
+            // 🔊 BURROW SOUND: Emit digging sound when vole panic burrows
+            crate::sound_events::emit_animal_burrow_sound(ctx, animal.pos_x, animal.pos_y, attacker.identity);
+            
             log::info!("Vole {} panic burrowing after being hit!", animal.id);
         } else {
-            // Flee in panic
+            // 85% chance to flee in panic (more visible behavior)
             set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, VOLE_FLEE_DISTANCE * 1.5, rng);
             transition_to_state(animal, AnimalState::Fleeing, current_time, None, "panic flee");
             log::info!("Vole {} panic fleeing after being hit!", animal.id);

@@ -106,6 +106,7 @@ pub enum SoundType {
     DeathVole,               // death_vole.mp3 (1 variation - when voles die)
     DeathWolverine,          // death_wolverine.mp3 (1 variation - when wolverines die)
     DeathPlayer,             // death_player.mp3 (2 variations - when players die/get knocked out)
+    AnimalBurrow,            // animal_burrow.mp3 (1 variation - when animals burrow underground)
     // Player feedback sounds
     PlayerHurt,              // player_hurt.mp3 (3 variations - player grunts when taking damage)
     Heartbeat,            // heartbeat.mp3 (looping - plays when player health is critically low)
@@ -216,6 +217,7 @@ impl SoundType {
             SoundType::DeathVole => "death_vole",
             SoundType::DeathWolverine => "death_wolverine",
             SoundType::DeathPlayer => "death_player",
+            SoundType::AnimalBurrow => "animal_burrow",
             // Player feedback sounds
             SoundType::PlayerHurt => "player_hurt",
             SoundType::Heartbeat => "heartbeat",
@@ -325,6 +327,7 @@ impl SoundType {
             SoundType::DeathVole => 1, // death_vole.mp3 (tiny squeak)
             SoundType::DeathWolverine => 1, // death_wolverine.mp3 (fierce snarl)
             SoundType::DeathPlayer => 2, // death_player.mp3, death_player1.mp3 (2 variations)
+            SoundType::AnimalBurrow => 1, // animal_burrow.mp3 (digging/burrowing sound)
             // Player feedback sounds
             SoundType::PlayerHurt => 3, // player_hurt.mp3, player_hurt1.mp3, player_hurt2.mp3 (grunts when hit)
             SoundType::Heartbeat=> 1, // heartbeat.mp3 (looping sound)
@@ -818,6 +821,11 @@ pub fn emit_shardkin_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, p
 /// Emit a drowned watch roar sound (night brute hostile NPC)
 pub fn emit_drowned_watch_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlDrownedWatch, pos_x, pos_y, 1.5, 1200.0, player_id);
+}
+
+/// Emit animal burrow sound (when animals like voles dig underground)
+pub fn emit_animal_burrow_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::AnimalBurrow, pos_x, pos_y, 0.8, 300.0, player_id);
 }
 
 /// Emit walking/footstep sound (when player moves)

@@ -551,6 +551,7 @@ function AppContent() {
         masterVolume: soundVolume,
         environmentalVolume: environmentalVolume,
         chunkWeather, // Pass chunk weather to filter rain sounds based on player's location
+        currentSeason: worldState?.currentSeason, // Pass season to mute rain sounds in winter (snow is silent)
     });
 
     // --- Register Refrigerator Reducer Error Callbacks ---

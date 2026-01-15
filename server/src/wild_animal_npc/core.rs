@@ -2010,25 +2010,32 @@ fn clamp_to_world_bounds(animal: &mut WildAnimal) {
 
 /// Enforces minimum distance between animal and player to prevent overlap
 /// This is critical for fast-moving hostile NPCs that can overshoot during chase
+/// IMPORTANT: Animals must be pushed to a distance that's WITHIN their attack range!
 fn enforce_minimum_player_distance(animal: &mut WildAnimal, player: &Player, stats: &AnimalStats) {
     let dx = animal.pos_x - player.position_x;
     let dy = animal.pos_y - player.position_y;
     let distance_sq = dx * dx + dy * dy;
     let distance = distance_sq.sqrt();
     
-    // Use attack range as the minimum distance (that's where the animal should stop)
-    // Add a small buffer to ensure visual separation
-    let min_distance = stats.attack_range * 0.85; // Slightly inside attack range for visual clarity
-    
-    // Also enforce an absolute minimum to prevent standing inside player regardless of attack range
+    // Absolute minimum distance to prevent visual overlap
     const ABSOLUTE_MIN_DISTANCE: f32 = 45.0; // Matches ANIMAL_COLLISION_RADIUS
-    let effective_min_distance = min_distance.max(ABSOLUTE_MIN_DISTANCE);
     
-    if distance < effective_min_distance {
+    // Calculate where animal should be pushed to:
+    // - Must be at least ABSOLUTE_MIN_DISTANCE away (prevents standing inside player)
+    // - Must be WITHIN attack range so animal can actually attack
+    // Target position: midpoint between min collision distance and attack range
+    let target_distance = ((ABSOLUTE_MIN_DISTANCE + stats.attack_range) / 2.0).max(ABSOLUTE_MIN_DISTANCE);
+    
+    // Only push if animal is closer than the minimum collision distance
+    if distance < ABSOLUTE_MIN_DISTANCE {
         // Calculate push direction
         if distance > 1.0 {
-            // Normal case: push away from player
-            let push_distance = effective_min_distance - distance + 15.0; // Extra buffer for safety
+            // Normal case: push away from player to target distance
+            // Ensure we don't push BEYOND attack range (cap at attack_range - 5px for safety margin)
+            let max_push_target = stats.attack_range - 5.0;
+            let actual_target = target_distance.min(max_push_target);
+            
+            let push_distance = actual_target - distance;
             let push_x = (dx / distance) * push_distance;
             let push_y = (dy / distance) * push_distance;
             
@@ -2036,13 +2043,16 @@ fn enforce_minimum_player_distance(animal: &mut WildAnimal, player: &Player, sta
             let new_y = animal.pos_y + push_y;
             update_animal_position(animal, new_x, new_y);
             
-            log::debug!("[CollisionEnforce] Pushed {:?} {} back from player, distance was {:.1}px -> {:.1}px", 
-                       animal.species, animal.id, distance, effective_min_distance + 15.0);
+            log::debug!("[CollisionEnforce] Pushed {:?} {} back from player, distance was {:.1}px -> {:.1}px (attack_range: {:.1})", 
+                       animal.species, animal.id, distance, actual_target, stats.attack_range);
         } else {
             // Edge case: animal is almost exactly on top of player (distance ~= 0)
             // Push in a random-ish direction based on animal ID to avoid stuck state
             let angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI); // Golden angle distribution
-            let push_distance = effective_min_distance + 20.0;
+            
+            // Push to target distance, capped within attack range
+            let max_push_target = stats.attack_range - 5.0;
+            let push_distance = target_distance.min(max_push_target);
             let push_x = angle.cos() * push_distance;
             let push_y = angle.sin() * push_distance;
             
@@ -2050,8 +2060,8 @@ fn enforce_minimum_player_distance(animal: &mut WildAnimal, player: &Player, sta
             let new_y = animal.pos_y + push_y;
             update_animal_position(animal, new_x, new_y);
             
-            log::warn!("[CollisionEnforce] Emergency push for {:?} {} - was ON TOP of player!", 
-                      animal.species, animal.id);
+            log::warn!("[CollisionEnforce] Emergency push for {:?} {} - was ON TOP of player! Pushed to {:.1}px", 
+                      animal.species, animal.id, push_distance);
         }
     }
 }
@@ -2265,8 +2275,14 @@ pub fn damage_wild_animal_with_weapon(
     weapon_name: Option<&str>,
 ) -> Result<(), String> {
     let mut rng = ctx.rng();
-    
+
     if let Some(mut animal) = ctx.db.wild_animal().id().find(&animal_id) {
+        // BURROWED PROTECTION: Animals that are burrowed underground cannot be attacked
+        if animal.state == AnimalState::Burrowed {
+            log::debug!("Cannot attack burrowed {:?} {} - it's underground!", animal.species, animal.id);
+            return Ok(()); // Silently ignore the attack - animal is safely hidden
+        }
+        
         let old_health = animal.health;
         animal.health = (animal.health - damage).max(0.0);
         animal.last_hit_time = Some(ctx.timestamp);
@@ -2552,6 +2568,12 @@ pub fn damage_wild_animal_by_animal(
     
     let mut target_animal = ctx.db.wild_animal().id().find(&target_animal_id)
         .ok_or_else(|| format!("Target animal {} not found", target_animal_id))?;
+    
+    // BURROWED PROTECTION: Animals that are burrowed underground cannot be attacked
+    if target_animal.state == AnimalState::Burrowed {
+        log::debug!("Cannot attack burrowed {:?} {} - it's underground!", target_animal.species, target_animal.id);
+        return Ok(false); // Attack missed - animal is safely hidden
+    }
     
     let old_health = target_animal.health;
     target_animal.health = (target_animal.health - damage).max(0.0);

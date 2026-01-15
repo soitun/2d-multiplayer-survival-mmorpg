@@ -26,9 +26,8 @@ const VIGNETTE_DECAY_EXPONENT = 1.5;     // How quickly vignette fades
 
 // --- Low Health Configuration ---
 const LOW_HEALTH_THRESHOLD = 25;         // Health % to trigger heartbeat (25%)
-const CRITICAL_HEALTH_THRESHOLD = 15;    // Health % for faster heartbeat (15%)
-const HEARTBEAT_INTERVAL_NORMAL = 1200;  // ms between beats at low health
-const HEARTBEAT_INTERVAL_CRITICAL = 800; // ms between beats at critical health
+const CRITICAL_HEALTH_THRESHOLD = 15;    // Health % for critical health visual effects
+const HEARTBEAT_INTERVAL = 1200;         // ms between beats (constant speed)
 
 interface DamageEffectsResult {
   // Screen shake offset to apply to camera
@@ -259,16 +258,15 @@ export function useDamageEffects(
     if (nowLowHealth && !wasLowHealth) {
       // Started low health - begin heartbeat
       console.log('[Heartbeat] Starting heartbeat - player at low health:', healthPercent.toFixed(1) + '%');
-      const interval = nowCritical ? HEARTBEAT_INTERVAL_CRITICAL : HEARTBEAT_INTERVAL_NORMAL;
       
       // Clear any existing interval
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
       
-      // Play immediately and start interval
+      // Play immediately and start interval (constant speed regardless of health level)
       playHeartbeat();
-      heartbeatIntervalRef.current = setInterval(playHeartbeat, interval);
+      heartbeatIntervalRef.current = setInterval(playHeartbeat, HEARTBEAT_INTERVAL);
       
     } else if (!nowLowHealth && wasLowHealth) {
       // Recovered from low health - stop heartbeat
@@ -282,17 +280,8 @@ export function useDamageEffects(
         heartbeatAudioRef.current.currentTime = 0;
       }
       setHeartbeatPulse(0);
-      
-    } else if (nowCritical !== wasCritical && nowLowHealth) {
-      // Crossed critical threshold while still at low health - adjust heartbeat speed
-      console.log('[Heartbeat] Adjusting heartbeat speed - critical:', nowCritical, 'health:', healthPercent.toFixed(1) + '%');
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
-      
-      const interval = nowCritical ? HEARTBEAT_INTERVAL_CRITICAL : HEARTBEAT_INTERVAL_NORMAL;
-      heartbeatIntervalRef.current = setInterval(playHeartbeat, interval);
     }
+    // Note: Heartbeat speed stays constant - no speed adjustment at critical health
     
     // Update refs for next comparison
     wasLowHealthRef.current = nowLowHealth;

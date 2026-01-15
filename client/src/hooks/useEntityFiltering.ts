@@ -1149,6 +1149,10 @@ export function useEntityFiltering(
       // This ensures animals transitioning between chunks remain visible
       if (e.health <= 0) return false;
       
+      // BURROWED STATE: Animals that are burrowed underground are invisible and should be filtered out
+      // This prevents them from appearing in visible lists and being targeted
+      if (e.state.tag === 'Burrowed') return false;
+      
       // Check viewport with generous padding for animals
       const paddedBounds = {
         viewMinX: viewBounds.viewMinX - animalPadding,

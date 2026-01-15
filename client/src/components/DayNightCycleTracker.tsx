@@ -218,7 +218,17 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
         }
     };
 
-    const getWeatherDisplay = (weather: any) => {
+    const getWeatherDisplay = (weather: any, isWinter: boolean = false) => {
+        if (isWinter) {
+            switch (weather.tag) {
+                case 'Clear': return 'Clear';
+                case 'LightRain': return 'Light Snow';
+                case 'ModerateRain': return 'Snow';
+                case 'HeavyRain': return 'Heavy Snow';
+                case 'HeavyStorm': return 'Blizzard';
+                default: return 'Unknown';
+            }
+        }
         switch (weather.tag) {
             case 'Clear': return 'Clear';
             case 'LightRain': return 'Light Rain';
@@ -229,7 +239,17 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
         }
     };
 
-    const getWeatherEmoji = (weather: any) => {
+    const getWeatherEmoji = (weather: any, isWinter: boolean = false) => {
+        if (isWinter) {
+            switch (weather.tag) {
+                case 'Clear': return '❄️';
+                case 'LightRain': return '🌨️';
+                case 'ModerateRain': return '🌨️';
+                case 'HeavyRain': return '❄️';
+                case 'HeavyStorm': return '🌬️';
+                default: return '❄️';
+            }
+        }
         switch (weather.tag) {
             case 'Clear': return '☀️';
             case 'LightRain': return '🌦️';
@@ -327,6 +347,9 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
     
     // Calculate day within current season (1 to DAYS_PER_SEASON)
     const dayInSeason = ((worldState.dayOfYear - 1) % DAYS_PER_SEASON) + 1;
+    
+    // Check if it's winter (for snow vs rain display)
+    const isWinter = worldState.currentSeason?.tag === 'Winter';
 
     // ==================== MOBILE VIEW ====================
     if (isMobile) {
@@ -382,7 +405,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                             <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
                             <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>Day {worldState.cycleCount}</span>
                             <span style={{ color: `${ACCENT_CYAN}50` }}>|</span>
-                            <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather)}</span>
+                            <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather, isWinter)}</span>
                         </div>
 
                         {/* Day Progress */}
@@ -547,7 +570,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                 display: 'inline-block',
                                 transform: hoveredElement === 'weather' ? 'scale(1.2)' : 'scale(1)',
                             }}>
-                                {getWeatherEmoji(displayWeather)}
+                                {getWeatherEmoji(displayWeather, isWinter)}
                             </span>
                             {hoveredElement === 'weather' && (
                                 <div className="uplink-tooltip" style={{
@@ -555,7 +578,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                     boxShadow: `0 0 20px ${ACCENT_CYAN}60`,
                                 }}>
                                     <span style={{ color: '#9ca3af' }}>
-                                        {getWeatherDisplay(displayWeather)}
+                                        {getWeatherDisplay(displayWeather, isWinter)}
                                         {displayRainIntensity > 0 && ` (${Math.round(displayRainIntensity * 100)}%)`}
                                     </span>
                                     <span className="uplink-tooltip-caret" style={{ borderLeftColor: ACCENT_CYAN }} />
@@ -721,8 +744,8 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                             
                             {/* Weather */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather)}</span>
-                                <span style={{ fontSize: '10px', color: '#9ca3af' }}>{getWeatherDisplay(displayWeather)}</span>
+                                <span style={{ fontSize: '14px' }}>{getWeatherEmoji(displayWeather, isWinter)}</span>
+                                <span style={{ fontSize: '10px', color: '#9ca3af' }}>{getWeatherDisplay(displayWeather, isWinter)}</span>
                                 {displayRainIntensity > 0 && (
                                     <span style={{ fontSize: '9px', color: ACCENT_CYAN }}>
                                         {Math.round(displayRainIntensity * 100)}%

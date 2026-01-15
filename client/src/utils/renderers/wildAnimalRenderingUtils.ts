@@ -101,6 +101,138 @@ interface AnimalHitState {
 
 const animalHitStates = new Map<string, AnimalHitState>();
 
+// --- Burrow effect tracking for visual feedback when animals burrow underground ---
+const BURROW_EFFECT_DURATION_MS = 800; // How long the dirt particles last
+const BURROW_PARTICLE_COUNT = 12; // Number of dirt particles to spawn
+
+interface BurrowEffectState {
+    posX: number;
+    posY: number;
+    startTime: number;
+    particles: Array<{
+        offsetX: number;
+        offsetY: number;
+        velocityX: number;
+        velocityY: number;
+        size: number;
+        color: string;
+    }>;
+}
+
+const activeBurrowEffects = new Map<string, BurrowEffectState>();
+
+// Track animals we've already processed for burrowing to avoid duplicate effects
+const processedBurrowAnimals = new Map<string, bigint>(); // animalId -> stateChangeTime
+
+/**
+ * Check if an animal just started burrowing and create effect if needed
+ */
+function checkAndCreateBurrowEffect(animal: WildAnimal, nowMs: number) {
+    const animalId = animal.id.toString();
+    const stateChangeTime = animal.stateChangeTime?.microsSinceUnixEpoch ?? 0n;
+    
+    // Check if this animal is burrowed and we haven't already processed this burrow
+    if (animal.state.tag === 'Burrowed') {
+        const lastProcessed = processedBurrowAnimals.get(animalId);
+        
+        if (lastProcessed !== stateChangeTime) {
+            // New burrow! Create the effect
+            processedBurrowAnimals.set(animalId, stateChangeTime);
+            
+            // Generate random particles
+            const particles: BurrowEffectState['particles'] = [];
+            for (let i = 0; i < BURROW_PARTICLE_COUNT; i++) {
+                const angle = (Math.PI * 2 * i) / BURROW_PARTICLE_COUNT + (Math.random() - 0.5) * 0.5;
+                const speed = 40 + Math.random() * 60;
+                particles.push({
+                    offsetX: (Math.random() - 0.5) * 20,
+                    offsetY: (Math.random() - 0.5) * 10,
+                    velocityX: Math.cos(angle) * speed,
+                    velocityY: Math.sin(angle) * speed - 50, // Upward bias
+                    size: 3 + Math.random() * 4,
+                    color: Math.random() > 0.5 ? '#8B7355' : '#6B5344', // Brown/dirt colors
+                });
+            }
+            
+            activeBurrowEffects.set(animalId, {
+                posX: animal.posX,
+                posY: animal.posY,
+                startTime: nowMs,
+                particles,
+            });
+        }
+    }
+}
+
+/**
+ * Process all wild animals to check for new burrow events
+ * This should be called each frame BEFORE renderBurrowEffects to detect newly burrowed animals
+ */
+export function processWildAnimalsForBurrowEffects(wildAnimals: Map<string, WildAnimal>, nowMs: number) {
+    wildAnimals.forEach(animal => {
+        checkAndCreateBurrowEffect(animal, nowMs);
+    });
+}
+
+/**
+ * Renders active burrow effects (dirt particles flying up from ground)
+ */
+export function renderBurrowEffects(ctx: CanvasRenderingContext2D, nowMs: number) {
+    const effectsToRemove: string[] = [];
+    
+    activeBurrowEffects.forEach((effect, animalId) => {
+        const elapsed = nowMs - effect.startTime;
+        
+        if (elapsed >= BURROW_EFFECT_DURATION_MS) {
+            effectsToRemove.push(animalId);
+            return;
+        }
+        
+        const progress = elapsed / BURROW_EFFECT_DURATION_MS;
+        const alpha = 1 - progress; // Fade out over time
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        
+        // Render each particle
+        effect.particles.forEach(particle => {
+            const t = elapsed / 1000; // Time in seconds
+            const gravity = 150; // Gravity acceleration
+            
+            // Calculate particle position with gravity
+            const px = effect.posX + particle.offsetX + particle.velocityX * t;
+            const py = effect.posY + particle.offsetY + particle.velocityY * t + 0.5 * gravity * t * t;
+            
+            // Draw particle as a small dirt clump
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(px, py, particle.size * (1 - progress * 0.5), 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        ctx.restore();
+    });
+    
+    // Clean up finished effects
+    effectsToRemove.forEach(id => {
+        activeBurrowEffects.delete(id);
+        // Keep processedBurrowAnimals entry to prevent re-triggering
+    });
+}
+
+/**
+ * Clean up burrow tracking when animal no longer exists
+ */
+export function cleanupBurrowTracking(activeAnimalIds: Set<string>) {
+    // Remove tracking for animals that no longer exist
+    for (const animalId of processedBurrowAnimals.keys()) {
+        if (!activeAnimalIds.has(animalId)) {
+            processedBurrowAnimals.delete(animalId);
+            activeBurrowEffects.delete(animalId);
+        }
+    }
+}
+
 // --- Movement interpolation for smoother animal movement ---
 interface AnimalMovementState {
     lastServerX: number;
@@ -243,7 +375,15 @@ export function renderWildAnimal({
     animationFrame = 0,
     localPlayerPosition
 }: WildAnimalRenderProps) {
-    // REMOVED: No more burrowing state checks - all animals should always be visible
+    // Check for burrow effect BEFORE skipping burrowed animals
+    // This allows us to detect when an animal JUST burrowed and create the particle effect
+    checkAndCreateBurrowEffect(animal, nowMs);
+    
+    // BURROWED STATE: Animals that are burrowed underground are completely invisible
+    // This is used by voles to hide from predators and players
+    if (animal.state.tag === 'Burrowed') {
+        return; // Don't render - animal is underground
+    }
 
     const animalId = animal.id.toString();
     

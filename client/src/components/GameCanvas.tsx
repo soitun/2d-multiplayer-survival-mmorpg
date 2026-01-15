@@ -144,7 +144,7 @@ import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
-import { renderWildAnimal, preloadWildAnimalImages } from '../utils/renderers/wildAnimalRenderingUtils';
+import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
 import { renderEquippedItem } from '../utils/renderers/equippedItemRenderingUtils';
 import { renderFumarole, preloadFumaroleImages } from '../utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole rendering
@@ -3256,6 +3256,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
+    // --- Render animal burrow effects (dirt particles when animals burrow underground) ---
+    // Process all wild animals to detect newly burrowed animals
+    processWildAnimalsForBurrowEffects(wildAnimals, now_ms);
+    // Render the active burrow particle effects
+    renderBurrowEffects(ctx, now_ms);
+    // --- END BURROW EFFECTS ---
+
     // --- Render sea stack water lines (ABOVE sea stacks) ---
     // Skip water lines when snorkeling - player is underwater, no surface water effects visible
     if (!isSnorkeling) {
@@ -3577,8 +3584,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       rainIntensity = worldState.rainIntensity;
     }
     
-    // Only render rain if weather overlay is enabled (performance toggle)
+    // Only render rain/snow if weather overlay is enabled (performance toggle)
     // Don't render rain when snorkeling - player is underwater!
+    // In winter, render snow instead of rain (same server mechanics, different visuals)
+    const isWinter = worldState?.currentSeason?.tag === 'Winter';
     if (showWeatherOverlay && rainIntensity > 0 && !isSnorkeling) {
       renderRain(
         ctx,
@@ -3587,7 +3596,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         currentCanvasWidth,
         currentCanvasHeight,
         rainIntensity,
-        deltaTimeRef.current / 1000 // Convert milliseconds to seconds
+        deltaTimeRef.current / 1000, // Convert milliseconds to seconds
+        isWinter // Render snow instead of rain in winter
       );
     }
     // --- End Rain Rendering ---
