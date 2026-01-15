@@ -295,9 +295,10 @@ fn get_crowding_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: 
     multiplier.max(0.1) // Ensure minimum 10% growth rate
 }
 
-/// Calculate mushroom-specific bonus multiplier based on low-light conditions
-/// Mushrooms thrive in darkness: tree cover, cloud cover, and night time
-/// Returns a multiplier bonus (e.g., 1.5x = 50% bonus) for mushrooms in ideal conditions
+/// Calculate shade-loving plant bonus multiplier based on environmental conditions
+/// - Mushrooms thrive in darkness: tree cover AND night time bonuses
+/// - Berries prefer partial shade: tree cover bonus only (they still need sunlight)
+/// Returns a multiplier bonus (e.g., 1.5x = 50% bonus) for plants in ideal conditions
 fn get_mushroom_bonus_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f32, plant_type: &PlantType, time_of_day: &crate::world_state::TimeOfDay) -> f32 {
     // Check if this is a mushroom plant type
     let is_mushroom = matches!(plant_type,
@@ -309,42 +310,66 @@ fn get_mushroom_bonus_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f3
         PlantType::DestroyingAngel
     );
     
-    if !is_mushroom {
-        return 1.0; // No bonus for non-mushroom plants
+    // Check if this is a berry plant type (berry bushes grow well in forest edges)
+    let is_berry = matches!(plant_type,
+        PlantType::Lingonberries |
+        PlantType::Cloudberries |
+        PlantType::Bilberries |
+        PlantType::WildStrawberries |
+        PlantType::RowanBerries |
+        PlantType::Cranberries |
+        PlantType::Crowberry
+    );
+    
+    // Check if this is a shade-tolerant herbaceous plant (forest edge species)
+    // These plants evolved in forest margins and tolerate partial shade
+    let is_shade_tolerant_herb = matches!(plant_type,
+        PlantType::BorealNettle |  // Nettles thrive in forest edges and disturbed areas
+        PlantType::Chicory         // Deep-rooted, tolerates woodland edges
+    );
+    
+    // Exit early if not a shade-loving plant
+    if !is_mushroom && !is_berry && !is_shade_tolerant_herb {
+        return 1.0; // No bonus for other plants
     }
     
     let mut bonus_factors = Vec::new();
     
-    // 1. Tree cover bonus - mushrooms grow better near trees
+    // 1. Tree cover bonus - shade-loving plants grow better near trees
+    // Mushrooms, berries, and forest-edge herbs naturally thrive with partial shade
     const TREE_COVER_DISTANCE_SQ: f32 = 150.0 * 150.0; // Same as spawn validation distance
-    let mut has_tree_cover = false;
     for tree in ctx.db.tree().iter() {
         let dx = plant_x - tree.pos_x;
         let dy = plant_y - tree.pos_y;
         let distance_sq = dx * dx + dy * dy;
         
         if distance_sq <= TREE_COVER_DISTANCE_SQ {
-            has_tree_cover = true;
-            // Closer trees = more bonus (up to 1.5x at very close range)
+            // Closer trees = more bonus
             let distance = distance_sq.sqrt();
-            let proximity_bonus = 1.0 + (1.0 - (distance / 150.0).min(1.0)) * 0.5; // 1.0x to 1.5x
+            // Mushrooms: up to 1.5x at very close range (they love shade)
+            // Berries: up to 1.35x at very close range (partial shade)
+            // Shade-tolerant herbs (nettle, chicory): up to 1.30x (forest edge plants)
+            let max_bonus = if is_mushroom { 0.5 } else if is_berry { 0.35 } else { 0.30 };
+            let proximity_bonus = 1.0 + (1.0 - (distance / 150.0).min(1.0)) * max_bonus;
             bonus_factors.push(proximity_bonus);
             break; // Only need one tree for cover
         }
     }
     
-    // 2. Night time bonus - mushrooms grow better in darkness
-    let night_bonus = match time_of_day {
-        crate::world_state::TimeOfDay::Night => 1.5,      // 50% bonus at night
-        crate::world_state::TimeOfDay::Midnight => 1.6,   // 60% bonus at midnight (darkest)
-        crate::world_state::TimeOfDay::TwilightEvening => 1.3, // 30% bonus at evening twilight
-        crate::world_state::TimeOfDay::TwilightMorning => 1.3, // 30% bonus at morning twilight
-        crate::world_state::TimeOfDay::Dusk => 1.2,       // 20% bonus at dusk
-        crate::world_state::TimeOfDay::Dawn => 1.1,       // 10% bonus at dawn
-        _ => 1.0, // No bonus during day
-    };
-    if night_bonus > 1.0 {
-        bonus_factors.push(night_bonus);
+    // 2. Night time bonus - MUSHROOMS ONLY (berries need sunlight for photosynthesis)
+    if is_mushroom {
+        let night_bonus = match time_of_day {
+            crate::world_state::TimeOfDay::Night => 1.5,      // 50% bonus at night
+            crate::world_state::TimeOfDay::Midnight => 1.6,   // 60% bonus at midnight (darkest)
+            crate::world_state::TimeOfDay::TwilightEvening => 1.3, // 30% bonus at evening twilight
+            crate::world_state::TimeOfDay::TwilightMorning => 1.3, // 30% bonus at morning twilight
+            crate::world_state::TimeOfDay::Dusk => 1.2,       // 20% bonus at dusk
+            crate::world_state::TimeOfDay::Dawn => 1.1,       // 10% bonus at dawn
+            _ => 1.0, // No bonus during day
+        };
+        if night_bonus > 1.0 {
+            bonus_factors.push(night_bonus);
+        }
     }
     
     // Calculate combined bonus
@@ -387,6 +412,99 @@ fn get_shelter_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f
 fn get_fertilizer_growth_multiplier(ctx: &ReducerContext, plant: &PlantedSeed) -> f32 {
     // Check for nearby fertilizer patches (like water patches work)
     crate::fertilizer_patch::get_fertilizer_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
+}
+
+// =============================================================================
+// ECOLOGICAL BONUS MULTIPLIERS
+// These functions provide enhanced bonuses for plants based on real-world ecology
+// =============================================================================
+
+/// Check if a plant type is water-loving (benefits more from moisture)
+/// These plants evolved in wet environments and thrive near water sources
+fn is_water_loving_plant(plant_type: &PlantType) -> bool {
+    matches!(plant_type,
+        PlantType::BorealNettle |    // Nettles love moist, nutrient-rich soil
+        PlantType::Cranberries |     // Bog plant, needs very wet conditions
+        PlantType::Corn |            // Traditional "Three Sisters" - grows near water
+        PlantType::Reed |            // Aquatic/wetland plant
+        PlantType::Cabbage           // Leafy vegetable needs consistent moisture
+    )
+}
+
+/// Calculate enhanced water bonus multiplier for water-loving plants
+/// Returns a multiplier to amplify the base water patch bonus
+/// Water-loving plants get 50% more benefit from water patches
+pub fn get_water_loving_multiplier(plant_type: &PlantType, base_water_multiplier: f32) -> f32 {
+    if !is_water_loving_plant(plant_type) {
+        return base_water_multiplier; // No enhancement for other plants
+    }
+    
+    // If water bonus is active (>1.0), enhance it by 50%
+    // E.g., 1.5x water bonus becomes 1.75x for water-loving plants
+    if base_water_multiplier > 1.0 {
+        let bonus_portion = base_water_multiplier - 1.0;
+        1.0 + (bonus_portion * 1.5) // 50% more benefit from water
+    } else {
+        base_water_multiplier // No enhancement if no water bonus
+    }
+}
+
+/// Check if a plant type is nitrogen-loving (benefits more from fertilizer)
+/// These are heavy-feeding plants that evolved in nutrient-rich environments
+fn is_nitrogen_loving_plant(plant_type: &PlantType) -> bool {
+    matches!(plant_type,
+        PlantType::BorealNettle |    // Famous nitrogen indicator plant
+        PlantType::Corn |            // Heavy nitrogen feeder
+        PlantType::Cabbage |         // Heavy feeding brassica
+        PlantType::Pumpkin           // Vigorous grower, heavy feeder
+    )
+}
+
+/// Calculate enhanced fertilizer bonus multiplier for nitrogen-loving plants
+/// Returns a multiplier to amplify the base fertilizer patch bonus
+/// Nitrogen-loving plants get 75% more benefit from fertilizer
+pub fn get_nitrogen_loving_multiplier(plant_type: &PlantType, base_fertilizer_multiplier: f32) -> f32 {
+    if !is_nitrogen_loving_plant(plant_type) {
+        return base_fertilizer_multiplier; // No enhancement for other plants
+    }
+    
+    // If fertilizer bonus is active (>1.0), enhance it by 75%
+    // E.g., 2.0x fertilizer bonus becomes 2.75x for nitrogen-loving plants
+    if base_fertilizer_multiplier > 1.0 {
+        let bonus_portion = base_fertilizer_multiplier - 1.0;
+        1.0 + (bonus_portion * 1.75) // 75% more benefit from fertilizer
+    } else {
+        base_fertilizer_multiplier // No enhancement if no fertilizer bonus
+    }
+}
+
+/// Check if a plant type is a root crop (benefits more from tilled soil)
+/// Root vegetables need loose, well-worked soil for proper root development
+fn is_root_crop(plant_type: &PlantType) -> bool {
+    matches!(plant_type,
+        PlantType::Potato |      // Tubers need loose soil to expand
+        PlantType::Carrot |      // Long roots need stone-free, loose soil
+        PlantType::Beets |       // Root vegetable needs well-worked soil
+        PlantType::Horseradish   // Deep tap root needs loose soil
+    )
+}
+
+/// Calculate enhanced soil bonus multiplier for root crops
+/// Returns a multiplier to amplify the base tilled soil bonus
+/// Root crops get 60% more benefit from prepared soil
+pub fn get_root_crop_soil_multiplier(plant_type: &PlantType, base_soil_multiplier: f32) -> f32 {
+    if !is_root_crop(plant_type) {
+        return base_soil_multiplier; // No enhancement for other plants
+    }
+    
+    // If soil bonus is active (>1.0), enhance it by 60%
+    // E.g., 1.5x soil bonus becomes 1.8x for root crops
+    if base_soil_multiplier > 1.0 {
+        let bonus_portion = base_soil_multiplier - 1.0;
+        1.0 + (bonus_portion * 1.6) // 60% more benefit from prepared soil
+    } else {
+        base_soil_multiplier // No enhancement if no soil bonus
+    }
 }
 
 /// Check if a plant type is beach-specific (native to sandy/coastal environments)
@@ -458,14 +576,21 @@ fn calculate_initial_growth_multiplier(
     // Get base multipliers
     let (base_time_multiplier, _season, current_time_of_day) = calculate_growth_rate_multiplier(ctx);
     
-    // Calculate individual multipliers
-    let water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, pos_x, pos_y);
+    // Calculate individual multipliers with ecological bonuses
+    // Water-loving plants (nettle, cranberries, corn, reed, cabbage) get 50% more benefit
+    let base_water_mult = crate::water_patch::get_water_patch_growth_multiplier(ctx, pos_x, pos_y);
+    let water_multiplier = get_water_loving_multiplier(plant_type, base_water_mult);
+    
     let fertilizer_multiplier = 1.0; // No fertilizer patches at planting time (would need a planted seed)
-    let soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, pos_x, pos_y);
+    
+    // Root crops (potato, carrot, beets, horseradish) get 60% more benefit from tilled soil
+    let base_soil_mult = crate::tilled_tiles::get_soil_growth_multiplier(ctx, pos_x, pos_y);
+    let soil_multiplier = get_root_crop_soil_multiplier(plant_type, base_soil_mult);
+    
     let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, pos_x, pos_y, plant_type);
     let beach_multiplier = get_beach_tile_penalty_multiplier(ctx, pos_x, pos_y, plant_type);
     
-    // Calculate mushroom bonus if applicable
+    // Calculate shade-loving plant bonus if applicable (mushrooms, berries, nettle, chicory)
     let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, pos_x, pos_y, plant_type, &current_time_of_day);
     
     // If green rune stone is active, apply positive bonuses only (ignore penalties)
@@ -1247,16 +1372,23 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             shelter_multiplier = get_shelter_penalty_multiplier(ctx, plant.pos_x, plant.pos_y);
             
             // Calculate water patch bonus for this specific plant
-            water_multiplier = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            // Water-loving plants (nettle, cranberries, corn, reed, cabbage) get 50% more benefit
+            let base_water_mult = crate::water_patch::get_water_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            water_multiplier = get_water_loving_multiplier(&plant.plant_type, base_water_mult);
             
             // Calculate fertilizer bonus for this specific plant (checks for nearby patches)
-            fertilizer_multiplier = get_fertilizer_growth_multiplier(ctx, &plant);
+            // Nitrogen-loving plants (nettle, corn, cabbage, pumpkin) get 75% more benefit
+            let base_fertilizer_mult = get_fertilizer_growth_multiplier(ctx, &plant);
+            fertilizer_multiplier = get_nitrogen_loving_multiplier(&plant.plant_type, base_fertilizer_mult);
             
             // Calculate mushroom-specific bonus (tree cover and night time only - cloud is handled above)
+            // Also applies to berries (tree cover only) and shade-tolerant herbs (nettle, chicory)
             mushroom_bonus = get_mushroom_bonus_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, &current_time_of_day);
             
             // Calculate prepared soil bonus (Dirt or Tilled tiles get +50% growth)
-            soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            // Root crops (potato, carrot, beets, horseradish) get 60% more benefit from tilled soil
+            let base_soil_mult = crate::tilled_tiles::get_soil_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
+            soil_multiplier = get_root_crop_soil_multiplier(&plant.plant_type, base_soil_mult);
             
             // Calculate beach tile penalty (non-beach plants struggle in sandy/saline soil)
             beach_multiplier = get_beach_tile_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);

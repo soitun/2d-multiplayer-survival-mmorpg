@@ -315,6 +315,9 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
           borderRadius: '8px',
           minWidth: '250px',
           maxWidth: '280px',
+          minHeight: '310px', // Match DayNightCycleTracker expanded height
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
           fontFamily: "'Courier New', 'Consolas', monospace",
         }}>
@@ -355,35 +358,51 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
             </div>
           </div>
           
-          {/* Content */}
-          <div style={{ padding: '14px 16px' }}>
-            {/* Title */}
+          {/* Content - flex-grow to fill available space */}
+          <div style={{ 
+            padding: '16px 16px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center', // Center content horizontally
+          }}>
+            {/* Title - use primary color for achievements (gold) */}
             <div style={{
-              fontSize: activeNotification.type === 'level_up' ? '24px' : '13px',
+              fontSize: activeNotification.type === 'level_up' ? '26px' : '14px',
               fontWeight: 'bold',
-              color: '#fff',
+              color: activeNotification.type === 'achievement' ? colors.primary : '#fff',
               textShadow: `0 0 15px ${colors.primary}`,
-              marginBottom: '10px',
-              letterSpacing: activeNotification.type === 'level_up' ? '3px' : '1px',
+              marginBottom: '12px',
+              letterSpacing: activeNotification.type === 'level_up' ? '4px' : '1px',
+              textAlign: 'center',
             }}>
               {activeNotification.title}
             </div>
             
-            {/* Rewards */}
+            {/* Rewards - centered */}
             {activeNotification.rewards.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+              }}>
                 {activeNotification.rewards.map((reward, i) => (
                   <div key={i} style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 8px',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
                     background: `${reward.color}15`,
                     border: `1px solid ${reward.color}40`,
                     borderRadius: '4px',
+                    minWidth: '100px',
                   }}>
                     <span style={{
-                      fontSize: '11px',
+                      fontSize: '13px',
                       fontWeight: 'bold',
                       color: reward.color,
                       textShadow: `0 0 8px ${reward.color}`,
@@ -391,7 +410,7 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
                       {reward.value}
                     </span>
                     <span style={{
-                      fontSize: '8px',
+                      fontSize: '9px',
                       color: '#6b7280',
                       letterSpacing: '1px',
                     }}>
@@ -418,10 +437,11 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
           {/* Click hint */}
           <div style={{
             textAlign: 'center',
-            padding: '6px 0',
+            padding: '8px 0',
             fontSize: '8px',
             color: `${colors.primary}60`,
-            letterSpacing: '1px',
+            letterSpacing: '1.5px',
+            borderTop: `1px solid ${colors.primary}20`,
           }}>
             CLICK TO DISMISS
           </div>

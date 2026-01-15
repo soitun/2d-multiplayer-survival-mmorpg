@@ -1829,9 +1829,15 @@ pub fn apply_burn_effect(
             log::info!("Stacked burn effect {} for player {:?}: added {:.1}s duration, total now {:.1}s (total damage: {:.1})", 
                 existing_effect.effect_id, player_id, duration_seconds, total_duration_seconds, new_total_damage);
             
-            // NOTE: Burn effects trigger last_hit_time when damage is dealt (in tick processing)
-            // This creates visual feedback (red overlay, screenshake) for "you're on fire!"
-            // Unlike cold damage which has no visual combat feedback
+            // <<< IMMEDIATE VISUAL FEEDBACK ON BURN STACK >>>
+            // Set last_hit_time immediately so player sees damage feedback when stepping on fire
+            // This triggers red overlay, screenshake, etc. on the client
+            if let Some(mut player) = ctx.db.player().identity().find(&player_id) {
+                player.last_hit_time = Some(current_time);
+                ctx.db.player().identity().update(player);
+                log::info!("[BurnEffect] Set last_hit_time for player {:?} on burn stack (immediate feedback)", player_id);
+            }
+            // <<< END IMMEDIATE VISUAL FEEDBACK >>>
             
             return Ok(());
         }
@@ -1862,9 +1868,15 @@ pub fn apply_burn_effect(
                 log::info!("Applied new burn effect {} to player {:?}: {:.1} damage over {:.1}s (every {:.1}s)", 
                     inserted_effect.effect_id, player_id, total_damage, duration_seconds, tick_interval_seconds);
                 
-                // NOTE: Burn effects trigger last_hit_time when damage is dealt (in tick processing)
-                // This creates visual feedback (red overlay, screenshake) for "you're on fire!"
-                // Unlike cold damage which has no visual combat feedback
+                // <<< IMMEDIATE VISUAL FEEDBACK ON NEW BURN >>>
+                // Set last_hit_time immediately so player sees damage feedback when stepping on fire
+                // This triggers red overlay, screenshake, etc. on the client
+                if let Some(mut player) = ctx.db.player().identity().find(&player_id) {
+                    player.last_hit_time = Some(current_time);
+                    ctx.db.player().identity().update(player);
+                    log::info!("[BurnEffect] Set last_hit_time for player {:?} on new burn (immediate feedback)", player_id);
+                }
+                // <<< END IMMEDIATE VISUAL FEEDBACK >>>
                 
                 Ok(())
             }

@@ -51,7 +51,8 @@ export function useDamageEffects(
   // Track previous health to detect damage amount
   const prevHealthRef = useRef<number | null>(null);
   // Track previous lastHitTime to detect COMBAT damage (not environmental like cold/burn)
-  const prevLastHitTimeRef = useRef<bigint | null>(null);
+  // Use undefined as initial value to distinguish "first render" from "was null"
+  const prevLastHitTimeRef = useRef<bigint | null | undefined>(undefined);
   
   // Shake state
   const [shakeOffsetX, setShakeOffsetX] = useState(0);
@@ -98,12 +99,12 @@ export function useDamageEffects(
   }, [maxHealth]);
   
   // Detect COMBAT damage and trigger effects
-  // IMPORTANT: Only trigger on lastHitTime changes (attacks), NOT on any health decrease
-  // This prevents the red damage overlay from appearing for environmental damage (cold, burn, hunger, etc.)
+  // IMPORTANT: Only trigger on lastHitTime changes (attacks/burn), NOT on any health decrease
+  // This prevents the red damage overlay from appearing for environmental damage (cold, hunger, etc.)
   useEffect(() => {
     if (!localPlayer) {
       prevHealthRef.current = null;
-      prevLastHitTimeRef.current = null;
+      prevLastHitTimeRef.current = undefined; // Reset to undefined (first render state)
       return;
     }
     
@@ -114,24 +115,41 @@ export function useDamageEffects(
     const currentLastHitTime = localPlayer.lastHitTime?.microsSinceUnixEpoch ?? null;
     const prevLastHitTime = prevLastHitTimeRef.current;
     
-    // Only trigger damage effects if lastHitTime INCREASED (indicates NEW combat hit)
-    // CRITICAL: We must have a previous value to compare against (prevLastHitTime !== null)
-    // This filters out:
-    // - First render (prevLastHitTime is null)
-    // - Environmental damage (cold, burn, hunger, thirst - lastHitTime doesn't change)
-    // - Old hit times from previous sessions
+    // Trigger damage effects when lastHitTime changes (indicates combat/burn hit)
+    // CRITICAL: Use undefined as sentinel for "first render" vs null for "no previous hit"
+    // This correctly handles:
+    // - First render (prevLastHitTime === undefined): DON'T trigger (might be stale from previous session)
+    // - First hit (prevLastHitTime === null, currentLastHitTime !== null): DO trigger
+    // - Subsequent hits (currentLastHitTime > prevLastHitTime): DO trigger
     const wasHitInCombat = currentLastHitTime !== null && 
-                          prevLastHitTime !== null &&
-                          currentLastHitTime > prevLastHitTime;
+                          prevLastHitTime !== undefined && // not first render
+                          (prevLastHitTime === null || currentLastHitTime > prevLastHitTime);
     
-    if (wasHitInCombat && prevHealth !== null && currentHealth < prevHealth) {
-      const damageAmount = prevHealth - currentHealth;
+    // DEBUG: Log all values to trace the issue
+    if (currentLastHitTime !== null || prevLastHitTime !== undefined) {
+      console.log('[DamageEffects] Check:', {
+        currentLastHitTime: currentLastHitTime?.toString() ?? 'null',
+        prevLastHitTime: prevLastHitTime === undefined ? 'undefined' : (prevLastHitTime?.toString() ?? 'null'),
+        wasHitInCombat,
+        prevHealth,
+        currentHealth,
+      });
+    }
+    
+    // Trigger effects when lastHitTime changed - the server only updates this for actual damage
+    // Use health decrease if we can detect it, otherwise use default damage amount
+    // (Health and lastHitTime updates might arrive in separate React renders)
+    if (wasHitInCombat) {
+      let damageAmount = 5.0; // Default for burn/DOT effects
       
-      // Only trigger effects for significant damage (more than 0.5)
-      if (damageAmount > 0.5) {
-        triggerShake(damageAmount);
-        triggerVignette(damageAmount);
+      // If we can detect the health decrease in this render, use actual damage
+      if (prevHealth !== null && currentHealth < prevHealth) {
+        damageAmount = prevHealth - currentHealth;
       }
+      
+      // Trigger effects (minimum threshold removed since server already filters significant damage)
+      triggerShake(damageAmount);
+      triggerVignette(damageAmount);
     }
     
     // Update prev references
