@@ -5,7 +5,7 @@
  * Handles timed intro sequences and event-based tutorial triggers.
  * 
  * Features:
- * - Crash intro (5 seconds after spawn)
+ * - Crash intro (2.5 seconds after spawn)
  * - Tutorial hint (3.5 minutes after spawn)
  * - First resource interaction tutorial (event-driven)
  * - Memory shard tutorial (event-driven)
@@ -63,7 +63,7 @@ interface UseSovaTutorialsProps {
 const TUTORIALS = {
     crashIntro: {
         storageKey: 'broth_sova_intro_crash_played',
-        delayMs: 5 * 1000, // 5 seconds
+        delayMs: 2.5 * 1000, // 2.5 seconds
         audioFile: '/sounds/sova_intro_crash.mp3',
         soundBoxLabel: 'SOVA: Neural Link Established',
         message: `Neural link established. This is SOVA — Sentient Ocular Virtual Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're stranded on an uncharted island somewhere in the Aleutians — no comms, no extraction, no backup. Your survival is now my primary directive. The wreckage scattered supplies across the shoreline, but they won't last. You're going to need to learn how to live off this place. I'll walk you through it — press J anytime to check your current objectives. I've loaded an introductory sequence to get you started, and once you're stable, I'll push daily assignments to keep your skills sharp. For now, head to the beach and start gathering plant fibers from the tall grass along the shoreline. You'll need them for rope, bandages, the basics. One step at a time, agent. Just stay alive.`,

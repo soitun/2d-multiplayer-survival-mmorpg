@@ -6,12 +6,16 @@ import { RESOURCE_IMAGE_SOURCES } from '../utils/renderers/resourceImageConfigs'
 
 // Tile type constants (must match server TileType enum)
 const TILE_TYPE_DIRT = 1;
+const TILE_TYPE_BEACH = 4;
 const TILE_TYPE_TILLED = 13;
 const TILE_SIZE_PX = 48;
 const CHUNK_SIZE_TILES = 16;
 
 // Prepared soil bonus (matches server PREPARED_SOIL_GROWTH_MULTIPLIER)
 const PREPARED_SOIL_GROWTH_MULTIPLIER = 1.5;
+
+// Beach tile penalty for non-beach plants (matches server BEACH_TILE_GROWTH_PENALTY)
+const BEACH_TILE_GROWTH_PENALTY = 0.5; // 50% growth rate
 
 interface PlantedSeedTooltipProps {
   seed: PlantedSeed;
@@ -338,6 +342,54 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     return tileType === TILE_TYPE_DIRT || tileType === TILE_TYPE_TILLED;
   };
 
+  // Check if seed is on beach tile
+  const isOnBeachTile = (): boolean => {
+    if (!worldChunkData) return false;
+    
+    // Calculate tile coordinates from world position
+    const tileX = Math.floor(seed.posX / TILE_SIZE_PX);
+    const tileY = Math.floor(seed.posY / TILE_SIZE_PX);
+    
+    // Calculate chunk coordinates
+    const chunkX = Math.floor(tileX / CHUNK_SIZE_TILES);
+    const chunkY = Math.floor(tileY / CHUNK_SIZE_TILES);
+    
+    // Get the chunk
+    const chunkKey = `${chunkX},${chunkY}`;
+    const chunk = worldChunkData.get(chunkKey);
+    if (!chunk) return false;
+    
+    // Calculate local tile position within the chunk
+    let localTileX = tileX % CHUNK_SIZE_TILES;
+    let localTileY = tileY % CHUNK_SIZE_TILES;
+    
+    // Handle negative tile coordinates
+    if (localTileX < 0) localTileX += CHUNK_SIZE_TILES;
+    if (localTileY < 0) localTileY += CHUNK_SIZE_TILES;
+    
+    // Get tile index and type
+    const tileIndex = localTileY * CHUNK_SIZE_TILES + localTileX;
+    if (tileIndex >= chunk.tileTypes.length) return false;
+    
+    const tileType = chunk.tileTypes[tileIndex];
+    
+    // Check if it's Beach (4)
+    return tileType === TILE_TYPE_BEACH;
+  };
+
+  // Check if plant type is beach-specific (native to sandy/coastal environments)
+  // Beach-specific plants don't suffer growth penalties on beach tiles
+  const isBeachSpecificPlant = (): boolean => {
+    const plantTypeTag = seed.plantType.tag;
+    return plantTypeTag === 'BeachLymeGrass' ||
+           plantTypeTag === 'ScurvyGrass' ||
+           plantTypeTag === 'SeaPlantain' ||
+           plantTypeTag === 'Glasswort' ||
+           plantTypeTag === 'SeaweedBed' ||
+           plantTypeTag === 'Reed' ||
+           plantTypeTag === 'BeachWoodPile';
+  };
+
   const cloudCoverage = calculateCloudCoverage();
   const waterPatchEffect = getWaterPatchEffect();
   const fertilizerPatchEffect = getFertilizerPatchEffect();
@@ -345,6 +397,10 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   const nearGreenRuneStone = isNearGreenRuneStone();
   const lightEffects = calculateLightEffects();
   const onPreparedSoil = isOnPreparedSoil();
+  const onBeachTile = isOnBeachTile();
+  const beachSpecificPlant = isBeachSpecificPlant();
+  // Beach penalty only applies to non-beach plants on beach tiles
+  const hasBeachPenalty = onBeachTile && !beachSpecificPlant;
   
   // Use chunk-specific weather if available, otherwise fall back to global weather
   const currentWeather = seedChunkWeather?.currentWeather?.tag || worldState?.currentWeather.tag || 'Clear';
@@ -454,18 +510,19 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
     const waterMult = waterPatchEffect.multiplier;
     const fertilizerMult = fertilizerPatchEffect.multiplier;
     const soilMult = onPreparedSoil ? PREPARED_SOIL_GROWTH_MULTIPLIER : 1.0;
+    const beachMult = hasBeachPenalty ? BEACH_TILE_GROWTH_PENALTY : 1.0;
     
     // Green rune stone bonus (matches server: 1.5x = +50%)
     const greenRuneMult = nearGreenRuneStone ? 1.5 : 1.0;
     
-    // If green rune stone is active, apply ALL positive bonuses but ignore penalties
+    // If green rune stone is active, apply ALL positive bonuses but ignore penalties (including beach)
     if (greenRuneMult > 1.0) {
       const positiveLightMult = Math.max(1.0, lightMultiplier);
       return greenRuneMult * waterMult * fertilizerMult * mushroomBonus * soilMult * positiveLightMult;
     }
     
-    // Normal calculation with all factors
-    return baseTimeMultiplier * weatherMultiplier * cloudMultiplier * lightMultiplier * mushroomBonus * waterMult * fertilizerMult * soilMult;
+    // Normal calculation with all factors (including beach penalty)
+    return baseTimeMultiplier * weatherMultiplier * cloudMultiplier * lightMultiplier * mushroomBonus * waterMult * fertilizerMult * soilMult * beachMult;
   };
 
   const totalGrowthMultiplier = calculateTotalGrowthMultiplier();
@@ -682,6 +739,16 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
               <span className={styles.conditionLabel}>Prepared Soil:</span>
               <span className={`${styles.conditionValue} ${styles.positive}`}>
                 🌾 Yes +50%
+              </span>
+            </div>
+          )}
+          
+          {/* Beach Tile Penalty (non-beach plants on sandy soil) */}
+          {hasBeachPenalty && (
+            <div className={styles.conditionRow}>
+              <span className={styles.conditionLabel}>Sandy Soil:</span>
+              <span className={`${styles.conditionValue} ${styles.negative}`}>
+                🏖️ Beach −50%
               </span>
             </div>
           )}

@@ -389,6 +389,41 @@ fn get_fertilizer_growth_multiplier(ctx: &ReducerContext, plant: &PlantedSeed) -
     crate::fertilizer_patch::get_fertilizer_patch_growth_multiplier(ctx, plant.pos_x, plant.pos_y)
 }
 
+/// Check if a plant type is beach-specific (native to sandy/coastal environments)
+/// Beach-specific plants don't suffer growth penalties on beach tiles
+fn is_beach_specific_plant(plant_type: &PlantType) -> bool {
+    matches!(plant_type,
+        PlantType::BeachLymeGrass |
+        PlantType::ScurvyGrass |
+        PlantType::SeaPlantain |
+        PlantType::Glasswort |
+        PlantType::SeaweedBed |  // Underwater/coastal plant
+        PlantType::Reed |         // Water/wetland plant
+        PlantType::BeachWoodPile  // Beach debris
+    )
+}
+
+/// Calculate beach tile growth penalty for non-beach plants
+/// Non-beach plants struggle in sandy/saline soil conditions
+/// Returns a multiplier: 0.5 (50% growth rate) for non-beach plants on beach, 1.0 otherwise
+const BEACH_TILE_GROWTH_PENALTY: f32 = 0.5; // 50% growth rate = takes 2x longer
+
+fn get_beach_tile_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f32, plant_type: &PlantType) -> f32 {
+    // Beach-specific plants thrive on beach tiles - no penalty
+    if is_beach_specific_plant(plant_type) {
+        return 1.0;
+    }
+    
+    // Check if the plant is on a beach tile
+    if crate::environment::is_position_on_beach_tile(ctx, plant_x, plant_y) {
+        log::debug!("Plant at ({:.1}, {:.1}) is on beach tile - applying {:.0}% growth penalty",
+                   plant_x, plant_y, (1.0 - BEACH_TILE_GROWTH_PENALTY) * 100.0);
+        return BEACH_TILE_GROWTH_PENALTY;
+    }
+    
+    1.0 // No penalty for non-beach tiles
+}
+
 /// Calculate the effective growth rate for current conditions
 /// Returns (base_multiplier, current_season, time_of_day)
 fn calculate_growth_rate_multiplier(ctx: &ReducerContext) -> (f32, crate::world_state::Season, crate::world_state::TimeOfDay) {
@@ -428,6 +463,7 @@ fn calculate_initial_growth_multiplier(
     let fertilizer_multiplier = 1.0; // No fertilizer patches at planting time (would need a planted seed)
     let soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, pos_x, pos_y);
     let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, pos_x, pos_y, plant_type);
+    let beach_multiplier = get_beach_tile_penalty_multiplier(ctx, pos_x, pos_y, plant_type);
     
     // Calculate mushroom bonus if applicable
     let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, pos_x, pos_y, plant_type, &current_time_of_day);
@@ -438,7 +474,7 @@ fn calculate_initial_growth_multiplier(
     } else {
         // Apply base time multiplier (which includes time of day effects)
         // Note: We don't have full environmental data at planting, so this is an estimate
-        base_time_multiplier.max(0.1) * water_multiplier * mushroom_bonus * soil_multiplier
+        base_time_multiplier.max(0.1) * water_multiplier * mushroom_bonus * soil_multiplier * beach_multiplier
     }
 }
 
@@ -1164,6 +1200,7 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
         let mut fertilizer_multiplier = 1.0f32;
         let mut mushroom_bonus = 1.0f32;
         let mut soil_multiplier = 1.0f32;
+        let mut beach_multiplier = 1.0f32;
         
         let total_growth_multiplier = if is_underwater_plant {
             // Underwater plants grow at a constant rate, only affected by crowding
@@ -1221,19 +1258,22 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             // Calculate prepared soil bonus (Dirt or Tilled tiles get +50% growth)
             soil_multiplier = crate::tilled_tiles::get_soil_growth_multiplier(ctx, plant.pos_x, plant.pos_y);
             
+            // Calculate beach tile penalty (non-beach plants struggle in sandy/saline soil)
+            beach_multiplier = get_beach_tile_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
+            
             // Calculate green rune stone bonus (agrarian effect)
             let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
             
             // PvP-oriented: If green rune stone is active, stack ALL positive bonuses but ignore penalties
             // This guarantees good growth for farmers near green rune stones
             if green_rune_multiplier > 1.0 {
-                // Green rune stone active - apply ALL positive bonuses, ignore penalties (cloud, crowding, shelter, night)
+                // Green rune stone active - apply ALL positive bonuses, ignore penalties (cloud, crowding, shelter, night, beach)
                 // Positive bonuses: rune stone, water, fertilizer, soil, mushroom, light (if beneficial)
                 let positive_light = light_multiplier.max(1.0); // Only keep light bonus, not penalty
                 green_rune_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier * positive_light
             } else {
                 // No green rune stone - apply all normal modifiers (including penalties)
-                base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier
+                base_growth_multiplier * cloud_multiplier * light_multiplier * crowding_multiplier * shelter_multiplier * water_multiplier * fertilizer_multiplier * mushroom_bonus * soil_multiplier * beach_multiplier
             }
         };
         
@@ -1282,9 +1322,9 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             plants_updated += 1;
             
             if growth_increment > 0.0 {
-                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, fertilizer: {:.2}x, mushroom: {:.2}x, soil: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
+                log::debug!("Plant {} ({}) grew from {:.1}% to {:.1}% (time: {:.2}x, weather: {:.2}x, cloud: {:.2}x, light: {:.2}x, crowding: {:.2}x, shelter: {:.2}x, water: {:.2}x, fertilizer: {:.2}x, mushroom: {:.2}x, soil: {:.2}x, beach: {:.2}x, total: {:.2}x) [chunk weather: {:?}]", 
                            plant_id, plant_type, old_progress * 100.0, progress_pct, 
-                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, fertilizer_multiplier, mushroom_bonus, soil_multiplier, total_growth_multiplier, chunk_weather.current_weather);
+                           base_time_multiplier, weather_multiplier, cloud_multiplier, light_multiplier, crowding_multiplier, shelter_multiplier, water_multiplier, fertilizer_multiplier, mushroom_bonus, soil_multiplier, beach_multiplier, total_growth_multiplier, chunk_weather.current_weather);
             }
         }
     }

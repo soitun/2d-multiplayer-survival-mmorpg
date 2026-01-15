@@ -48,8 +48,10 @@ export function useDamageEffects(
   localPlayer: SpacetimeDBPlayer | null | undefined,
   maxHealth: number = 100
 ): DamageEffectsResult {
-  // Track previous health to detect damage
+  // Track previous health to detect damage amount
   const prevHealthRef = useRef<number | null>(null);
+  // Track previous lastHitTime to detect COMBAT damage (not environmental like cold/burn)
+  const prevLastHitTimeRef = useRef<bigint | null>(null);
   
   // Shake state
   const [shakeOffsetX, setShakeOffsetX] = useState(0);
@@ -67,6 +69,9 @@ export function useDamageEffects(
   const [heartbeatPulse, setHeartbeatPulse] = useState(0);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatAudioRef = useRef<HTMLAudioElement | null>(null);
+  // Track previous low health state with ref to avoid dependency issues
+  const wasLowHealthRef = useRef(false);
+  const wasCriticalRef = useRef(false);
   
   // Animation frame ref for shake/vignette animation
   const animationFrameRef = useRef<number | null>(null);
@@ -92,18 +97,34 @@ export function useDamageEffects(
     setVignetteOpacity(VIGNETTE_MAX_OPACITY + damagePercent * 0.2);
   }, [maxHealth]);
   
-  // Detect damage and trigger effects
+  // Detect COMBAT damage and trigger effects
+  // IMPORTANT: Only trigger on lastHitTime changes (attacks), NOT on any health decrease
+  // This prevents the red damage overlay from appearing for environmental damage (cold, burn, hunger, etc.)
   useEffect(() => {
     if (!localPlayer) {
       prevHealthRef.current = null;
+      prevLastHitTimeRef.current = null;
       return;
     }
     
     const currentHealth = localPlayer.health;
     const prevHealth = prevHealthRef.current;
     
-    // Check for damage (health decreased)
-    if (prevHealth !== null && currentHealth < prevHealth) {
+    // Get current lastHitTime as bigint for comparison (microseconds since epoch)
+    const currentLastHitTime = localPlayer.lastHitTime?.microsSinceUnixEpoch ?? null;
+    const prevLastHitTime = prevLastHitTimeRef.current;
+    
+    // Only trigger damage effects if lastHitTime INCREASED (indicates NEW combat hit)
+    // CRITICAL: We must have a previous value to compare against (prevLastHitTime !== null)
+    // This filters out:
+    // - First render (prevLastHitTime is null)
+    // - Environmental damage (cold, burn, hunger, thirst - lastHitTime doesn't change)
+    // - Old hit times from previous sessions
+    const wasHitInCombat = currentLastHitTime !== null && 
+                          prevLastHitTime !== null &&
+                          currentLastHitTime > prevLastHitTime;
+    
+    if (wasHitInCombat && prevHealth !== null && currentHealth < prevHealth) {
       const damageAmount = prevHealth - currentHealth;
       
       // Only trigger effects for significant damage (more than 0.5)
@@ -113,9 +134,10 @@ export function useDamageEffects(
       }
     }
     
-    // Update prev health reference
+    // Update prev references
     prevHealthRef.current = currentHealth;
-  }, [localPlayer?.health, triggerShake, triggerVignette]);
+    prevLastHitTimeRef.current = currentLastHitTime;
+  }, [localPlayer?.health, localPlayer?.lastHitTime, triggerShake, triggerVignette]);
   
   // Animation loop for shake and vignette decay
   useEffect(() => {
@@ -170,11 +192,15 @@ export function useDamageEffects(
   }, []);
   
   // Low health detection and heartbeat
+  // NOTE: Using refs for wasLowHealth/wasCritical to avoid dependency array issues
+  // that would cause the cleanup to run and kill the interval on every state change
   useEffect(() => {
     if (!localPlayer || localPlayer.isDead) {
       setIsLowHealth(false);
       setIsCriticalHealth(false);
       setHeartbeatPulse(0);
+      wasLowHealthRef.current = false;
+      wasCriticalRef.current = false;
       
       // Stop heartbeat audio
       if (heartbeatAudioRef.current) {
@@ -189,18 +215,43 @@ export function useDamageEffects(
     }
     
     const healthPercent = (localPlayer.health / maxHealth) * 100;
-    const wasLowHealth = isLowHealth;
-    const wasCritical = isCriticalHealth;
+    const wasLowHealth = wasLowHealthRef.current;
+    const wasCritical = wasCriticalRef.current;
     
     const nowLowHealth = healthPercent <= LOW_HEALTH_THRESHOLD;
     const nowCritical = healthPercent <= CRITICAL_HEALTH_THRESHOLD;
     
+    // Update state for UI
     setIsLowHealth(nowLowHealth);
     setIsCriticalHealth(nowCritical);
+    
+    // Helper function to play heartbeat sound and pulse
+    const playHeartbeat = () => {
+      // Pulse animation: 0 -> 1 -> 0 over ~300ms
+      setHeartbeatPulse(1);
+      setTimeout(() => setHeartbeatPulse(0.5), 100);
+      setTimeout(() => setHeartbeatPulse(0), 200);
+      
+      // Play heartbeat sound (client-side, loud and clear)
+      try {
+        if (!heartbeatAudioRef.current) {
+          heartbeatAudioRef.current = new Audio('/sounds/heartbeat.mp3');
+        }
+        // Set volume HIGH - this is a critical warning sound
+        heartbeatAudioRef.current.volume = 0.85;
+        heartbeatAudioRef.current.currentTime = 0;
+        heartbeatAudioRef.current.play().catch((err) => {
+          console.warn('[Heartbeat] Audio play failed:', err.message);
+        });
+      } catch (e) {
+        console.warn('[Heartbeat] Audio error:', e);
+      }
+    };
     
     // Handle heartbeat sound and pulse
     if (nowLowHealth && !wasLowHealth) {
       // Started low health - begin heartbeat
+      console.log('[Heartbeat] Starting heartbeat - player at low health:', healthPercent.toFixed(1) + '%');
       const interval = nowCritical ? HEARTBEAT_INTERVAL_CRITICAL : HEARTBEAT_INTERVAL_NORMAL;
       
       // Clear any existing interval
@@ -208,32 +259,13 @@ export function useDamageEffects(
         clearInterval(heartbeatIntervalRef.current);
       }
       
-      // Start heartbeat pulse animation
-      const startHeartbeat = () => {
-        // Pulse animation: 0 -> 1 -> 0 over ~300ms
-        setHeartbeatPulse(1);
-        setTimeout(() => setHeartbeatPulse(0.5), 100);
-        setTimeout(() => setHeartbeatPulse(0), 200);
-        
-        // Play heartbeat sound (client-side, not from server)
-        try {
-          if (!heartbeatAudioRef.current) {
-            heartbeatAudioRef.current = new Audio('/sounds/heartbeat.mp3');
-            heartbeatAudioRef.current.volume = 0.4;
-          }
-          heartbeatAudioRef.current.currentTime = 0;
-          heartbeatAudioRef.current.play().catch(() => {
-            // Ignore autoplay errors
-          });
-        } catch (e) {
-          // Ignore audio errors
-        }
-      };
+      // Play immediately and start interval
+      playHeartbeat();
+      heartbeatIntervalRef.current = setInterval(playHeartbeat, interval);
       
-      startHeartbeat();
-      heartbeatIntervalRef.current = setInterval(startHeartbeat, interval);
     } else if (!nowLowHealth && wasLowHealth) {
       // Recovered from low health - stop heartbeat
+      console.log('[Heartbeat] Stopping heartbeat - player recovered:', healthPercent.toFixed(1) + '%');
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
         heartbeatIntervalRef.current = null;
@@ -243,37 +275,38 @@ export function useDamageEffects(
         heartbeatAudioRef.current.currentTime = 0;
       }
       setHeartbeatPulse(0);
+      
     } else if (nowCritical !== wasCritical && nowLowHealth) {
-      // Crossed critical threshold - adjust heartbeat speed
+      // Crossed critical threshold while still at low health - adjust heartbeat speed
+      console.log('[Heartbeat] Adjusting heartbeat speed - critical:', nowCritical, 'health:', healthPercent.toFixed(1) + '%');
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
       
       const interval = nowCritical ? HEARTBEAT_INTERVAL_CRITICAL : HEARTBEAT_INTERVAL_NORMAL;
-      
-      const doHeartbeat = () => {
-        setHeartbeatPulse(1);
-        setTimeout(() => setHeartbeatPulse(0.5), 100);
-        setTimeout(() => setHeartbeatPulse(0), 200);
-        
-        try {
-          if (heartbeatAudioRef.current) {
-            heartbeatAudioRef.current.currentTime = 0;
-            heartbeatAudioRef.current.play().catch(() => {});
-          }
-        } catch (e) {}
-      };
-      
-      heartbeatIntervalRef.current = setInterval(doHeartbeat, interval);
+      heartbeatIntervalRef.current = setInterval(playHeartbeat, interval);
     }
     
-    // Cleanup on unmount
+    // Update refs for next comparison
+    wasLowHealthRef.current = nowLowHealth;
+    wasCriticalRef.current = nowCritical;
+    
+    // NO cleanup here - we don't want to clear the interval when deps change
+    // The interval is managed explicitly above
+  }, [localPlayer?.health, localPlayer?.isDead, maxHealth]);
+  
+  // Separate cleanup effect that only runs on unmount
+  useEffect(() => {
     return () => {
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+      if (heartbeatAudioRef.current) {
+        heartbeatAudioRef.current.pause();
       }
     };
-  }, [localPlayer?.health, localPlayer?.isDead, maxHealth, isLowHealth, isCriticalHealth]);
+  }, []);
   
   return {
     shakeOffsetX,

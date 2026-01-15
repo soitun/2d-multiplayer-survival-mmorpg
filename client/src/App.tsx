@@ -17,8 +17,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginScreen from './components/LoginScreen';
 import GameScreen from './components/GameScreen';
 import CyberpunkLoadingScreen, { CyberpunkErrorBar } from './components/CyberpunkLoadingScreen';
-import AchievementNotification from './components/AchievementNotification';
-import LevelUpNotification from './components/LevelUpNotification';
 
 // Blog Components
 import BlogPage from './blog/BlogPage';
@@ -1412,17 +1410,13 @@ function AppContent() {
                             mobileSprintOverride={mobileSprintOverride}
                             // SOVA Sound Box callback
                             showSovaSoundBox={showSovaSoundBox}
-                        />
-                        {/* Player Progression Notifications */}
-                        <AchievementNotification 
-                            notifications={Array.from(achievementUnlockNotifications.values())}
+                            // Player progression notifications (unified in UplinkNotifications)
+                            levelUpNotifications={Array.from(levelUpNotifications.values())}
+                            achievementUnlockNotifications={Array.from(achievementUnlockNotifications.values())}
                             onOpenAchievements={() => {
                                 setInterfaceInitialView('achievements');
                                 setIsMinimapOpen(true);
                             }}
-                        />
-                        <LevelUpNotification 
-                            notifications={Array.from(levelUpNotifications.values())} 
                         />
                         {/* SOVA Sound Box - Deterministic voice notifications */}
                         {SovaSoundBoxComponent}

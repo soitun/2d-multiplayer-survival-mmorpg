@@ -113,8 +113,62 @@ pub struct ProcessEffectsSchedule {
     #[primary_key]
     #[auto_inc]
     pub job_id: u64,
-    pub job_name: String, 
+    pub job_name: String,
     pub scheduled_at: ScheduleAt,
+}
+
+/// Updates indoor status for all online players
+/// This runs every tick regardless of active effects to ensure the is_inside_building flag
+/// is properly set/cleared when entering/leaving shelters, buildings, and shipwreck zones
+fn update_all_players_indoor_status(ctx: &ReducerContext) {
+    use crate::player as PlayerTableTrait;
+    
+    for player in ctx.db.player().iter() {
+        // Skip offline or dead players
+        if !player.is_online || player.is_dead {
+            continue;
+        }
+        
+        // Check if inside a shelter (fast AABB check)
+        let mut is_inside_shelter = false;
+        for shelter in ctx.db.shelter().iter() {
+            if shelter.is_destroyed {
+                continue;
+            }
+            if crate::shelter::is_player_inside_shelter(player.position_x, player.position_y, &shelter) {
+                is_inside_shelter = true;
+                break;
+            }
+        }
+        
+        // Only check building perimeter if NOT already in shelter (optimization)
+        let is_inside_building = if is_inside_shelter {
+            false
+        } else {
+            crate::building_enclosure::is_player_inside_building(ctx, player.position_x, player.position_y)
+        };
+        
+        // Check if inside a shipwreck protection zone
+        let is_inside_shipwreck = if is_inside_shelter || is_inside_building {
+            false
+        } else {
+            crate::shipwreck::is_position_protected_by_shipwreck(ctx, player.position_x, player.position_y)
+        };
+        
+        let is_indoors = is_inside_shelter || is_inside_building || is_inside_shipwreck;
+        
+        // Only update if state changed to avoid unnecessary DB writes
+        if player.is_inside_building != is_indoors {
+            let mut updated_player = player.clone();
+            updated_player.is_inside_building = is_indoors;
+            ctx.db.player().identity().update(updated_player);
+            log::debug!(
+                "Player {:?} indoor state changed: {} -> {} (shelter={}, building={}, shipwreck={})",
+                player.identity, player.is_inside_building, is_indoors, 
+                is_inside_shelter, is_inside_building, is_inside_shipwreck
+            );
+        }
+    }
 }
 
 pub fn schedule_effect_processing(ctx: &ReducerContext) -> Result<(), String> {
@@ -137,6 +191,10 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
     if ctx.sender != ctx.identity() {
         return Err("process_active_consumable_effects_tick can only be called by the scheduler.".to_string());
     }
+
+    // ALWAYS update indoor status for all players, regardless of active effects
+    // This ensures the is_inside_building flag is properly cleared when leaving protected areas
+    update_all_players_indoor_status(ctx);
 
     // PERFORMANCE: Quick exit if no active effects exist (most common case when idle)
     if ctx.db.active_consumable_effect().iter().next().is_none() {
@@ -422,6 +480,17 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                                 
                                 // Normal damage application for conscious players
                                 player_to_update.health = (player_to_update.health - amount_this_tick).clamp(MIN_STAT_VALUE, MAX_HEALTH_VALUE);
+                                
+                                // <<< BURN DAMAGE TRIGGERS LAST_HIT_TIME FOR VISUAL DAMAGE EFFECTS >>>
+                                // Only burn damage should trigger visual damage feedback (red overlay, screenshake)
+                                // NOT bleed, venom, or entrainment - burn is visceral "you're on fire!" feedback
+                                // NOTE: Cold damage does NOT trigger this - it uses a separate damage system
+                                if effect.effect_type == EffectType::Burn && amount_this_tick > 0.0 {
+                                    player_to_update.last_hit_time = Some(current_time);
+                                    log::info!("[BurnDamage] Setting last_hit_time for player {:?} - burn damage {:.1} dealt", 
+                                        effect.player_id, amount_this_tick);
+                                }
+                                // <<< END BURN DAMAGE EFFECTS >>>
                             }
                             // --- END KNOCKED OUT IMMUNITY ---
                             
@@ -670,6 +739,13 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
 
                     if (player_to_update.health - old_health).abs() > f32::EPSILON {
                         player_effect_applied_this_iteration = true;
+                        if effect.effect_type == EffectType::Burn {
+                            log::info!("[BurnDamage] Health changed for player {:?}: {:.1} -> {:.1}, player_effect_applied=true", 
+                                effect.player_id, old_health, player_to_update.health);
+                        }
+                    } else if effect.effect_type == EffectType::Burn {
+                        log::info!("[BurnDamage] Health NOT changed for player {:?} (old={:.1}, new={:.1}), player_effect_applied=false", 
+                            effect.player_id, old_health, player_to_update.health);
                     }
                     
                     // For SeawaterPoisoning, Venom, and Entrainment, we don't track amount_applied_so_far
@@ -789,6 +865,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             current_player.is_dead = player.is_dead;
             current_player.death_timestamp = player.death_timestamp;
             current_player.last_update = player.last_update;
+            // Update last_hit_time for burn damage visual effects (red overlay, screenshake)
+            if player.last_hit_time.is_some() {
+                log::info!("[EffectTick] Persisting last_hit_time for player {:?} - last_hit_time is Some", player_id);
+            }
+            current_player.last_hit_time = player.last_hit_time;
             
             ctx.db.player().identity().update(current_player);
             log::debug!("[EffectTick] Final update for player {:?} applied to DB (health fields only).", player_id);
@@ -1748,11 +1829,9 @@ pub fn apply_burn_effect(
             log::info!("Stacked burn effect {} for player {:?}: added {:.1}s duration, total now {:.1}s (total damage: {:.1})", 
                 existing_effect.effect_id, player_id, duration_seconds, total_duration_seconds, new_total_damage);
             
-            // Trigger white flash when stacking burn effects (each time burn is applied/extended)
-            if let Some(mut player) = ctx.db.player().identity().find(&player_id) {
-                player.last_hit_time = Some(current_time);
-                ctx.db.player().identity().update(player);
-            }
+            // NOTE: Burn effects trigger last_hit_time when damage is dealt (in tick processing)
+            // This creates visual feedback (red overlay, screenshake) for "you're on fire!"
+            // Unlike cold damage which has no visual combat feedback
             
             return Ok(());
         }
@@ -1783,11 +1862,9 @@ pub fn apply_burn_effect(
                 log::info!("Applied new burn effect {} to player {:?}: {:.1} damage over {:.1}s (every {:.1}s)", 
                     inserted_effect.effect_id, player_id, total_damage, duration_seconds, tick_interval_seconds);
                 
-                // Set last_hit_time to trigger flash white effect (same as when player takes damage)
-                if let Some(mut player) = ctx.db.player().identity().find(&player_id) {
-                    player.last_hit_time = Some(current_time);
-                    ctx.db.player().identity().update(player);
-                }
+                // NOTE: Burn effects trigger last_hit_time when damage is dealt (in tick processing)
+                // This creates visual feedback (red overlay, screenshake) for "you're on fire!"
+                // Unlike cold damage which has no visual combat feedback
                 
                 Ok(())
             }

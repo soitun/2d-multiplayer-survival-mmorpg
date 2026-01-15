@@ -1564,10 +1564,20 @@ fn execute_attack(
         // <<< END SAFE ZONE CHECK >>>
         
         // <<< SHIPWRECK PROTECTION CHECK - Players in shipwreck zones are immune to hostile NPC damage >>>
-        if animal.is_hostile_npc && crate::shipwreck::is_position_protected_by_shipwreck(ctx, target.position_x, target.position_y) {
-            log::info!("🚢 Animal {:?} {} attack blocked - Player {:?} is in shipwreck protection zone",
-                animal.species, animal.id, target.identity);
-            return Ok(()); // No damage applied - player protected by shipwreck
+        // Only check if NPC is near a shipwreck AND player is in protection zone
+        if animal.is_hostile_npc {
+            let npc_near_shipwreck = ctx.db.shipwreck_part().iter().any(|part| {
+                let dx = animal.pos_x - part.world_x;
+                let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
+                let dy = animal.pos_y - protection_center_y;
+                dx * dx + dy * dy < 500.0 * 500.0
+            });
+            
+            if npc_near_shipwreck && crate::shipwreck::is_position_protected_by_shipwreck(ctx, target.position_x, target.position_y) {
+                log::info!("🚢 Animal {:?} {} attack blocked - Player {:?} is in shipwreck protection zone",
+                    animal.species, animal.id, target.identity);
+                return Ok(()); // No damage applied - player protected by shipwreck
+            }
         }
         // <<< END SHIPWRECK PROTECTION CHECK >>>
         
@@ -1707,10 +1717,26 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
     let is_hostile_npc = matches!(animal.species, 
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
     
+    // Pre-compute if NPC is near any shipwreck (within 500px) - only then check player protection
+    // This optimization prevents NPCs far from shipwrecks from incorrectly skipping players
+    let npc_near_shipwreck = if is_hostile_npc {
+        ctx.db.shipwreck_part().iter().any(|part| {
+            let dx = animal.pos_x - part.world_x;
+            // Use the Y-offset for consistent zone calculation
+            let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
+            let dy = animal.pos_y - protection_center_y;
+            // 500px radius - generous buffer around the 192px protection zones
+            dx * dx + dy * dy < 500.0 * 500.0
+        })
+    } else {
+        false
+    };
+    
     for player in nearby_players {
         // 🚢 SHIPWRECK PROTECTION: Hostile NPCs cannot detect players inside shipwreck protection zones
         // This prevents aggro sounds and chase behavior when player is safely sheltered
-        if is_hostile_npc && crate::shipwreck::is_position_protected_by_shipwreck(ctx, player.position_x, player.position_y) {
+        // Only check if NPC is actually near a shipwreck (optimization + correctness)
+        if npc_near_shipwreck && crate::shipwreck::is_position_protected_by_shipwreck(ctx, player.position_x, player.position_y) {
             log::debug!("🚢 {:?} {} cannot detect player {} - inside shipwreck protection zone",
                        animal.species, animal.id, player.identity);
             continue; // Skip this player entirely - they're protected by the shipwreck

@@ -157,7 +157,7 @@ pub struct PlayerStats {
     pub trees_chopped: u32,
     pub stones_mined: u32,
     pub corals_mined: u32,        // Underwater coral mining
-    pub plants_harvested: u32,    // Foraging wild plants
+    pub plants_harvested: u32,    // Count of wild plant harvest actions (not items yielded)
     pub unique_fish_bitmask: u32, // Bitmask tracking unique fish types caught (bit 0 = Twigfish, etc.)
     pub unique_plant_bitmask: u64, // Bitmask tracking unique plant types harvested (64 bits for 58 plants)
     pub seeds_planted: u32,       // Count of seeds/crops planted by player

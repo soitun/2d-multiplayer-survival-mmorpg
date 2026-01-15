@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
-import { isAnySovaAudioPlaying } from '../hooks/useSovaSoundBox';
+import { queueNotificationSound } from '../utils/notificationSoundQueue';
 
 interface LevelUpNotificationProps {
   notifications: SpacetimeDB.LevelUpNotification[];
@@ -107,28 +107,11 @@ const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({
           shownAtRefs.current.set(id, Date.now());
         }
         
-        // Play SOVA level up voice line + progress unlocked SFX for truly new notifications
-        // BUT only if SOVA isn't already playing (tutorials, cairn lore, intro, etc.)
-        try {
-          if (!isAnySovaAudioPlaying()) {
-            const sovaAudio = new Audio('/sounds/sova_level_up.mp3');
-            sovaAudio.volume = 0.8;
-            sovaAudio.play().catch(() => {});
-          }
-          
-          // Play progress_unlocked.mp3 with debounce (only once if multiple notifications)
-          // This SFX is short so it can play even if SOVA is speaking
-          const now = Date.now();
-          const lastPlayed = (window as any).__progressUnlockedLastPlayed || 0;
-          if (now - lastPlayed > 500) { // 500ms debounce
-            (window as any).__progressUnlockedLastPlayed = now;
-            const sfxAudio = new Audio('/sounds/progress_unlocked.mp3');
-            sfxAudio.volume = 0.5;
-            sfxAudio.play().catch(() => {});
-          }
-        } catch (err) {
-          // Ignore audio errors
-        }
+        // Queue level up sound - the queue manager handles:
+        // - Not playing over other SOVA sounds (tutorials, cairn lore, intro)
+        // - Not playing over other notification sounds (achievements, missions)
+        // - Playing SFX with debounce
+        queueNotificationSound('level_up');
         
         const timeout = setTimeout(() => {
           dismissNotification(id, false); // Auto-dismiss, not from click

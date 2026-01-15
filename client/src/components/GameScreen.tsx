@@ -33,7 +33,8 @@ import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
 import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
 // SovaDirectivesIndicator has been merged into DayNightCycleTracker
 import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
-import { QuestCompletionNotification, QuestCompletionData } from './QuestNotifications'; // ADDED: Quest notifications
+import UplinkNotifications from './UplinkNotifications'; // Unified notifications in uplink style
+import * as SpacetimeDB from '../generated';
 
 // Import types used by props
 import {
@@ -326,6 +327,11 @@ interface GameScreenProps {
     questCompletionNotifications?: Map<string, any>;
     questProgressNotifications?: Map<string, any>;
     sovaQuestMessages?: Map<string, any>;
+
+    // Player progression notifications (unified in UplinkNotifications)
+    levelUpNotifications?: SpacetimeDB.LevelUpNotification[];
+    achievementUnlockNotifications?: SpacetimeDB.AchievementUnlockNotification[];
+    onOpenAchievements?: () => void;
 
     // Matronage system
     matronages?: Map<string, any>;
@@ -1461,11 +1467,15 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onDismiss={dismissCairnNotification}
             />
 
-            {/* Quest Completion Notification - Celebration popup */}
-            <QuestCompletionNotification
-                notification={questCompletionNotification}
-                onDismiss={dismissQuestCompletionNotification}
-                onOpenQuestsPanel={openQuestsPanel}
+            {/* Unified Uplink Notifications - Level up, Achievement, Mission complete */}
+            {/* Renders in same position as DayNightCycleTracker for diegetic feel */}
+            <UplinkNotifications
+                levelUpNotifications={props.levelUpNotifications || []}
+                achievementNotifications={props.achievementUnlockNotifications || []}
+                questCompletionNotification={questCompletionNotification}
+                onDismissQuestCompletion={dismissQuestCompletionNotification}
+                onOpenAchievements={props.onOpenAchievements}
+                onOpenQuests={openQuestsPanel}
             />
 
         </div>

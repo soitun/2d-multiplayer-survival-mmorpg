@@ -12,7 +12,7 @@
 import { useEffect, useState, useCallback, MutableRefObject } from 'react';
 import { Identity } from 'spacetimedb';
 import { QuestCompletionData } from '../components/QuestNotifications';
-import { isAnySovaAudioPlaying } from './useSovaSoundBox';
+import { queueNotificationSound } from '../utils/notificationSoundQueue';
 
 // ============================================================================
 // Types
@@ -238,28 +238,11 @@ export function useQuestNotifications({
                 unlockedRecipe: notification.unlockedRecipe || undefined,
             });
             
-            // Play SOVA mission complete voice line + progress unlocked SFX
-            // BUT only if SOVA isn't already playing (tutorials, cairn lore, intro, etc.)
-            try {
-                if (!isAnySovaAudioPlaying()) {
-                    const sovaAudio = new Audio('/sounds/sova_mission_complete.mp3');
-                    sovaAudio.volume = 0.8;
-                    sovaAudio.play().catch(() => {});
-                }
-                
-                // Play progress_unlocked.mp3 with debounce (only once if multiple notifications)
-                // This SFX is short so it can play even if SOVA is speaking
-                const now = Date.now();
-                const lastPlayed = (window as any).__progressUnlockedLastPlayed || 0;
-                if (now - lastPlayed > 500) { // 500ms debounce
-                    (window as any).__progressUnlockedLastPlayed = now;
-                    const sfxAudio = new Audio('/sounds/progress_unlocked.mp3');
-                    sfxAudio.volume = 0.5;
-                    sfxAudio.play().catch(() => {});
-                }
-            } catch (err) {
-                // Ignore audio errors
-            }
+            // Queue mission complete sound - the queue manager handles:
+            // - Not playing over other SOVA sounds (tutorials, cairn lore, intro)
+            // - Not playing over other notification sounds (level ups, achievements)
+            // - Playing SFX with debounce
+            queueNotificationSound('mission_complete');
         });
     }, [questCompletionNotifications, playerIdentity, seenQuestCompletionIds]);
 

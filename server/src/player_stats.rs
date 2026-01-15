@@ -1107,9 +1107,17 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
              let mut current_player = players.identity().find(&player_id)
                  .expect("Player should exist during stats update");
              current_player.last_stat_update = current_time;
-             // Preserve cleared last_hit_time if it was cleared above
-             if player.last_hit_time.is_none() {
-                 current_player.last_hit_time = None;
+             // Only clear last_hit_time if we explicitly marked it for clearing (stale hit time)
+             // AND the current value is still stale - don't overwrite NEW hits from other reducers
+             if should_clear_hit_time {
+                 if let Some(current_hit_time) = current_player.last_hit_time {
+                     let current_hit_age_micros = current_time.to_micros_since_unix_epoch()
+                         .saturating_sub(current_hit_time.to_micros_since_unix_epoch());
+                     let current_hit_age_ms = current_hit_age_micros / 1_000;
+                     if current_hit_age_ms > 1000 {
+                         current_player.last_hit_time = None;
+                     }
+                 }
              }
              players.identity().update(current_player);
              log::trace!("Updated player {:?} last_stat_update timestamp anyway.", player_id);

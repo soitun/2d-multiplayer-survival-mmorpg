@@ -929,7 +929,7 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
                      a_player_is_in_hot_zone_this_tick = true; // A player is in the zone
 
                      // Apply burn effect using the centralized function from active_effects.rs
-                     // log::info!("[CampfireProcess {}] Player {:?} IS IN DAMAGE RADIUS. Applying burn effect.", campfire_id, player_entity.identity);
+                     log::info!("[CampfireProcess {}] Player {:?} IS IN DAMAGE RADIUS (dist_sq={:.1}). Applying burn effect.", campfire_id, player_entity.identity, dist_sq);
                      
                      match crate::active_effects::apply_burn_effect(
                          ctx, 
@@ -940,11 +940,11 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
                          0 // 0 for environmental/campfire source
                      ) {
                          Ok(_) => {
-                             // log::info!("[CampfireProcess {}] Successfully applied/extended burn effect for player {:?}", campfire_id, player_entity.identity);
+                             log::info!("[CampfireProcess {}] Successfully applied/extended burn effect for player {:?}", campfire_id, player_entity.identity);
                              applied_damage_this_tick = true;
                          }
                          Err(e) => {
-                             // log::error!("[CampfireProcess {}] FAILED to apply burn effect for player {:?}: {}", campfire_id, player_entity.identity, e);
+                             log::error!("[CampfireProcess {}] FAILED to apply burn effect for player {:?}: {}", campfire_id, player_entity.identity, e);
                          }
                      }
                  }

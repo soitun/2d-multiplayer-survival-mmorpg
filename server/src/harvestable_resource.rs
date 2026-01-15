@@ -159,33 +159,52 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
     let config = PLANT_CONFIGS.get(&resource.plant_type)
         .ok_or_else(|| format!("No configuration found for plant type: {:?}", resource.plant_type))?;
 
-    // Calculate primary yield amount
-    // Player-planted crops (farming) yield 2-5 items to make farming rewarding
-    // Wild plants use their normal config-based yield
-    let primary_yield_amount = if resource.is_player_planted {
-        // Farming bonus: 2-5 items per harvest (avg 3.2x wild yield)
-        // Weighted to feel generous while not being overpowered
-        // This makes farming significantly more profitable than wild foraging
+    // Calculate farming multiplier for player-planted crops
+    // Farming should yield 3-4x more than wild foraging to reward the time investment
+    // This applies to BOTH primary AND secondary yields
+    let farming_multiplier: f32 = if resource.is_player_planted {
+        // Random multiplier between 2.5x and 4.0x (average ~3.25x)
+        // Weighted distribution for better feel:
+        // 20% chance: 2.5x (unlucky)
+        // 35% chance: 3.0x (normal)
+        // 30% chance: 3.5x (good)
+        // 15% chance: 4.0x (great harvest!)
         let roll: f32 = ctx.rng().gen_range(0.0..1.0);
-        if roll < 0.30 {
-            2 // 30% chance: 2 items
-        } else if roll < 0.65 {
-            3 // 35% chance: 3 items  
-        } else if roll < 0.90 {
-            4 // 25% chance: 4 items
+        if roll < 0.20 {
+            2.5
+        } else if roll < 0.55 {
+            3.0
+        } else if roll < 0.85 {
+            3.5
         } else {
-            5 // 10% chance: 5 items (jackpot!)
+            4.0
         }
-    } else if config.primary_yield.1 == config.primary_yield.2 {
-        config.primary_yield.1 // Fixed amount for wild plants
     } else {
-        ctx.rng().gen_range(config.primary_yield.1..=config.primary_yield.2) // Random range for wild plants
+        1.0 // No multiplier for wild plants
+    };
+
+    // Calculate primary yield amount
+    // Get base yield from config, then apply farming multiplier
+    let base_primary_yield = if config.primary_yield.1 == config.primary_yield.2 {
+        config.primary_yield.1 // Fixed amount
+    } else {
+        ctx.rng().gen_range(config.primary_yield.1..=config.primary_yield.2) // Random range
+    };
+    let primary_yield_amount = ((base_primary_yield as f32) * farming_multiplier).round() as u32;
+
+    // Calculate secondary yield min/max with farming multiplier applied
+    let (secondary_min, secondary_max) = if let Some((_, min, max, _)) = &config.secondary_yield {
+        let scaled_min = ((*min as f32) * farming_multiplier).round() as u32;
+        let scaled_max = ((*max as f32) * farming_multiplier).round() as u32;
+        (scaled_min, scaled_max)
+    } else {
+        (0, 0)
     };
 
     // Log farming bonus yields
     if resource.is_player_planted {
-        log::info!("🌾 FARM HARVEST: Player {:?} harvesting {:?} - yield: {} items (farming bonus!)", 
-                   player_id, resource.plant_type, primary_yield_amount);
+        log::info!("🌾 FARM HARVEST: Player {:?} harvesting {:?} - multiplier: {:.1}x, primary yield: {} items (base: {}), secondary range: {}-{} (farming bonus!)", 
+                   player_id, resource.plant_type, farming_multiplier, primary_yield_amount, base_primary_yield, secondary_min, secondary_max);
     }
 
     // Collect resource and schedule respawn
@@ -197,9 +216,9 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         &config.primary_yield.0, // primary item name
         primary_yield_amount,
         config.secondary_yield.as_ref().map(|(name, _, _, _)| name.as_str()), // secondary item name
-        config.secondary_yield.as_ref().map(|(_, min, _, _)| *min).unwrap_or(0), // secondary min
-        config.secondary_yield.as_ref().map(|(_, _, max, _)| *max).unwrap_or(0), // secondary max
-        config.secondary_yield.as_ref().map(|(_, _, _, chance)| *chance).unwrap_or(0.0), // secondary chance
+        secondary_min, // Apply farming multiplier to secondary min
+        secondary_max, // Apply farming multiplier to secondary max
+        config.secondary_yield.as_ref().map(|(_, _, _, chance)| *chance).unwrap_or(0.0), // secondary chance (unchanged)
         &mut ctx.rng().clone(),
         resource.id,
         resource.pos_x,
@@ -256,11 +275,11 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         PlantType::CharcoalPile
     );
     
-    // Track plants harvested for achievements (count items received)
+    // Track plants harvested for achievements (count harvest ACTIONS, not items received)
     // Only track for actual plants, not debris/piles
+    // NOTE: We track 1 per harvest action to match quest tracking behavior
     if is_actual_plant {
-        let harvest_count = primary_yield_amount as u64;
-        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "plants_harvested", harvest_count) {
+        if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "plants_harvested", 1) {
             log::warn!("Failed to check harvest achievements: {}", e);
         }
         
