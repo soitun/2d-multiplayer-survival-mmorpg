@@ -217,10 +217,10 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
     const getWeatherDisplay = (weather: any) => {
         switch (weather.tag) {
             case 'Clear': return 'Clear';
-            case 'LightRain': return 'Drizzle';
-            case 'ModerateRain': return 'Rain';
-            case 'HeavyRain': return 'Storm';
-            case 'HeavyStorm': return 'Tempest';
+            case 'LightRain': return 'Light Rain';
+            case 'ModerateRain': return 'Moderate Rain';
+            case 'HeavyRain': return 'Heavy Rain';
+            case 'HeavyStorm': return 'Heavy Storm';
             default: return 'Unknown';
         }
     };
