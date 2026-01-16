@@ -1478,34 +1478,10 @@ export const useInputHandler = ({
                 }
 
                 // Default action for other items (tools, melee weapons) or if unarmed
-                if (localPlayerId && connectionRef.current?.reducers) {
-                    // console.log("[InputHandler MOUSEDOWN] Calling useEquippedItem for melee/tool or unarmed.");
-                    try {
-                        // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
-                        registerLocalPlayerSwing();
-                        // 🔊 IMMEDIATE SOUND: Only play generic swing for non-resource tools
-                        const activeItem = activeEquipmentsRef.current.get(localPlayerId);
-                        const itemDef = itemDefinitionsRef.current.get(activeItem?.equippedItemDefId?.toString() || '');
-                        
-                        // Don't play immediate sounds for resource gathering tools - let server handle those
-                        const isResourceTool = itemDef?.name && (
-                            itemDef.name.toLowerCase().includes('hatchet') || 
-                            itemDef.name.toLowerCase().includes('axe') ||
-                            itemDef.name.toLowerCase().includes('pickaxe') ||
-                            itemDef.name.toLowerCase().includes('pick')
-                        );
-                        
-                        if (!isResourceTool) {
-                            // Play immediate sound for combat weapons and other tools
-                            // playWeaponSwingSound(0.8);
-                        }
-                        connectionRef.current.reducers.useEquippedItem();
-                    } catch (e) {
-                        // ignore for now
-                    }
-                } else {
-                    // console.warn("[InputHandler MOUSEDOWN] Cannot use item: No localPlayerId or connection/reducers.");
-                }
+                // ⚠️ FIX: Use attemptSwing() which has proper cooldown checks
+                // Previously this block called registerLocalPlayerSwing() + useEquippedItem() without
+                // checking cooldowns, causing animations to play even when server rejected the attack
+                attemptSwing();
             } else if (event.button === 2) { // Right Click
                 if (isPlayerDead) return;
                 if (isInventoryOpen) return;
