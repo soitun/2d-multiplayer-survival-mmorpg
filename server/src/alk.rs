@@ -512,9 +512,9 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
     // Roads go from corners (tile 20, 20 etc.) to center
     // Terminal asphalt is created where roads meet the beach near the island edge
     // Island radius is approximately 35% of map size, terminals are near the edge
-    // We place substations at ~70% of island radius along diagonals (inside the terminal asphalt areas)
+    // We place substations at ~90% of island radius along diagonals (near the beach terminals)
     let island_radius = world_width.min(world_height) * 0.35;
-    let substation_distance = island_radius * 0.70; // 70% of island radius - on the terminal asphalt
+    let substation_distance = island_radius * 0.90; // 90% of island radius - near the beach edge
     let diag = substation_distance / 1.414; // Divide by sqrt(2) for diagonal positioning
     
     log::info!("🏭 ALK station positioning:");

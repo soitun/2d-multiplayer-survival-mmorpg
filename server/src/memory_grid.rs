@@ -223,7 +223,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "bone-shiv" => Some((180, vec!["crossbow"])),       // Hunting branch - stealth weapon
         "metal-dagger" => Some((400, vec!["bone-shiv"])),   // Hunting branch - assassin upgrade
         "scythe" => Some((500, vec!["reed-bellows"])),      // Crafting branch - farming tool
-        "kayak-paddle" => Some((480, vec!["bone-gaff-hook"])), // Water branch - navigation
+        "kayak-paddle" => Some((480, vec!["reed-snorkel"])), // Water branch - navigation
         
         // ============================================
         // TIER 2 - Specialization (200-280 shards)
@@ -232,7 +232,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "bone-arrow" => Some((200, vec!["crossbow"])),          // Branch 1: Crossbow → bone-arrow
         "reed-harpoon-gun" => Some((300, vec!["reed-harpoon"])), // Branch 3: Reed-harpoon → reed-harpoon-gun (underwater ranged)
         "reed-harpoon-dart" => Some((200, vec!["reed-harpoon-gun"])), // Branch 3: Reed-harpoon-gun → darts (ammunition)
-        "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook (SPLIT POINT)
+        "reed-snorkel" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → reed-snorkel (SPLIT POINT) - Reed Diver's Helm
         "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight (SPLIT POINT)
         "headlamp" => Some((300, vec!["lantern"])),             // Branch 4: Lantern → headlamp (tallow hands-free light)
         "reed-bellows" => Some((280, vec!["metal-pickaxe"])),   // Branch 5: Metal-pickaxe → reed-bellows (SPLIT POINT)
@@ -243,10 +243,10 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "fire-arrow" => Some((480, vec!["bone-arrow"])),
-        // Branch 3 UPPER (Fishing path @ 112°)
-        "reed-fishing-rod" => Some((520, vec!["bone-gaff-hook"])),
+        // Branch 3 UPPER (Diving path @ 112°)
+        "diving-pick" => Some((520, vec!["reed-snorkel"])),
         // Branch 3 LOWER (Water Collection path @ 128°)
-        "reed-rain-collector" => Some((560, vec!["bone-gaff-hook"])),
+        "reed-rain-collector" => Some((560, vec!["reed-snorkel"])),
         // Branch 4 UPPER (Cooking path @ 172°)
         "barbecue" => Some((600, vec!["flashlight"])),
         // Branch 4 LOWER (Food Storage path @ 188°)
@@ -262,8 +262,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         // Branch 1 (linear)
         "hollow-reed-arrow" => Some((1200, vec!["fire-arrow"])),
-        // Branch 3 UPPER (Fishing/Diving path)
-        "reed-snorkel" => Some((1400, vec!["reed-fishing-rod"])),
         // Branch 3 CENTER (Water Mobility path)
         "reed-flippers" => Some((1000, vec!["kayak-paddle"])),
         // Branch 3 LOWER (Water Collection)
@@ -291,8 +289,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // Branch 1 (linear)
         "9x18mm-round" => Some((2400, vec!["hollow-reed-arrow"])),
         // NOTE: Shelter removed from Memory Grid - now craftable from start as a beginner base
-        // Branch 3 UPPER (Diving/Coral path)
-        "diving-pick" => Some((2200, vec!["reed-snorkel"])),
         // Branch 4 UPPER (Cooking)
         "cooking-station" => Some((1400, vec!["barbecue"])),
         // Branch 5 UPPER (Passive Bonuses)
@@ -521,14 +517,14 @@ fn get_node_display_name(node_id: &str) -> String {
         "reed-harpoon-gun" => "Reed Harpoon Gun".to_string(),
         "reed-harpoon-dart" => "Reed Harpoon Dart".to_string(),
         "bone-arrow" => "Bone Arrow".to_string(),
-        "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
+        "reed-snorkel" => "Reed Diver's Helm".to_string(),
         "flashlight" => "Flashlight".to_string(),
         "headlamp" => "Headlamp".to_string(),
         "reed-bellows" => "Reed Bellows".to_string(),
         
         // Tier 3
         "fire-arrow" => "Fire Arrow".to_string(),
-        "reed-fishing-rod" => "Primitive Reed Fishing Rod".to_string(),
+        "diving-pick" => "Diving Pick".to_string(),
         "reed-rain-collector" => "Reed Rain Collector".to_string(),
         "barbecue" => "Barbecue".to_string(),
         "refrigerator" => "Refrigerator".to_string(),
@@ -537,7 +533,6 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 4
         "hollow-reed-arrow" => "Hollow Reed Arrow".to_string(),
-        "reed-snorkel" => "Reed Diver's Helm".to_string(),
         "reed-flippers" => "Reed Flippers".to_string(),
         "plastic-water-jug" => "Plastic Water Jug".to_string(),
         "cooking-station" => "Cooking Station".to_string(),
@@ -548,7 +543,6 @@ fn get_node_display_name(node_id: &str) -> String {
         // Tier 5
         "9x18mm-round" => "9x18mm Round".to_string(),
         // NOTE: Shelter removed from Memory Grid - now always craftable
-        "diving-pick" => "Diving Pick".to_string(),
         "crafting-speed-2" => "Crafting Speed II".to_string(),
         
         // Tier 4 (Demolition)
@@ -661,14 +655,14 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         "Reed Harpoon Gun" => Some("reed-harpoon-gun"),
         "Reed Harpoon Dart" => Some("reed-harpoon-dart"), // Separate unlock after the gun
         "Bone Arrow" => Some("bone-arrow"),
-        "Bone Gaff Hook" => Some("bone-gaff-hook"),
+        "Reed Diver's Helm" => Some("reed-snorkel"),
         "Flashlight" => Some("flashlight"),
         "Headlamp" => Some("headlamp"),
         "Reed Bellows" => Some("reed-bellows"),
         
         // Tier 3 items
         "Fire Arrow" => Some("fire-arrow"),
-        "Primitive Reed Fishing Rod" => Some("reed-fishing-rod"),
+        "Diving Pick" => Some("diving-pick"),
         "Reed Rain Collector" => Some("reed-rain-collector"),
         "Barbecue" => Some("barbecue"),
         "Refrigerator" => Some("refrigerator"),
@@ -676,7 +670,6 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 4 items
         "Hollow Reed Arrow" => Some("hollow-reed-arrow"),
-        "Reed Diver's Helm" => Some("reed-snorkel"),
         "Reed Flippers" => Some("reed-flippers"),
         "Plastic Water Jug" => Some("plastic-water-jug"),
         "Cooking Station" => Some("cooking-station"),
@@ -690,7 +683,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         // Tier 5 items
         "9x18mm Round" => Some("9x18mm-round"),
         // NOTE: Shelter removed - now always craftable as a starter base
-        "Diving Pick" => Some("diving-pick"),
+        // NOTE: Bone Gaff Hook and Primitive Reed Fishing Rod removed - now always craftable to not gate fishing
         
         // Tier 6 items
         "Makarov PM" => Some("makarov-pm"),

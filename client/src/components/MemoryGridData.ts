@@ -364,16 +364,16 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['Reed Harpoon Dart']
   },
   { 
-    id: 'bone-gaff-hook', 
-    name: 'Bone Gaff Hook', 
-    description: 'Unlocks crafting Bone Gaff Hooks - a sharp, curved bone hook for fishing and combat.', 
+    id: 'reed-snorkel', 
+    name: 'Reed Diver\'s Helm',
+    description: 'Unlocks crafting the Reed Diver\'s Helm - allows limited underwater exploration.',
     cost: 260, 
     tier: 2, 
     prerequisites: ['reed-harpoon'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 220), // Branch 3: Lower utility path (SPLIT POINT)
     category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Bone Gaff Hook']
+    unlocksItems: ['Reed Diver\'s Helm']
   },
   { 
     id: 'flashlight', 
@@ -456,18 +456,18 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Large Wooden Storage Box']
   },
-  // Branch 3 UPPER (Fishing path)
+  // Branch 3 UPPER (Diving path)
   { 
-    id: 'reed-fishing-rod', 
-    name: 'Primitive Reed Fishing Rod', 
-    description: 'Unlocks crafting the Primitive Reed Fishing Rod - catch fish and aquatic resources.', 
+    id: 'diving-pick', 
+    name: 'Diving Pick', 
+    description: 'Unlocks crafting the Diving Pick - a specialized underwater tool required to harvest living coral. Yields Limestone, Coral Fragments, and rare Pearls.', 
     cost: 520, 
     tier: 3, 
-    prerequisites: ['bone-gaff-hook'], 
+    prerequisites: ['reed-snorkel'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 320),
     category: 'tool' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Primitive Reed Fishing Rod']
+    unlocksItems: ['Diving Pick']
   },
   // Branch 3 CENTER (Water navigation)
   { 
@@ -476,7 +476,7 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting the Kayak Paddle - a sturdy double-bladed paddle for water navigation. Can also be used as an improvised weapon.', 
     cost: 480, 
     tier: 3, 
-    prerequisites: ['bone-gaff-hook'], 
+    prerequisites: ['reed-snorkel'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3, 320),
     category: 'tool' as const, 
     status: 'locked' as const,
@@ -489,7 +489,7 @@ export const MEMORY_GRID_NODES = [
     description: 'Unlocks crafting Reed Rain Collectors - automatically gather fresh water during storms (40L).', 
     cost: 560, 
     tier: 3, 
-    prerequisites: ['bone-gaff-hook'], 
+    prerequisites: ['reed-snorkel'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 + SPLIT_OFFSET, 320),
     category: 'crafting' as const, 
     status: 'locked' as const,
@@ -603,19 +603,6 @@ export const MEMORY_GRID_NODES = [
     category: 'crafting' as const, 
     status: 'locked' as const,
     unlocksItems: ['Metal Door']
-  },
-  // Branch 3 UPPER (Fishing/Diving path)
-  { 
-    id: 'reed-snorkel', 
-    name: 'Reed Diver\'s Helm',
-    description: 'Unlocks crafting the Reed Diver\'s Helm - allows limited underwater exploration.',
-    cost: 1400, 
-    tier: 4, 
-    prerequisites: ['reed-fishing-rod'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 420), // Upper path
-    category: 'tool' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Reed Diver\'s Helm']
   },
   // Branch 3 CENTER (Water Mobility path)
   { 
@@ -738,19 +725,6 @@ export const MEMORY_GRID_NODES = [
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 520), // Upper path
     category: 'passive' as const, 
     status: 'locked' as const
-  },
-  // Branch 3 UPPER (Diving/Coral path)
-  { 
-    id: 'diving-pick', 
-    name: 'Diving Pick', 
-    description: 'Unlocks crafting the Diving Pick - a specialized underwater tool required to harvest living coral. Yields Limestone, Coral Fragments, and rare Pearls.', 
-    cost: 2200, 
-    tier: 5, 
-    prerequisites: ['reed-snorkel'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 520), // Upper diving path
-    category: 'tool' as const, 
-    status: 'locked' as const,
-    unlocksItems: ['Diving Pick']
   },
 
   // ============================================
@@ -1110,7 +1084,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Reed Harpoon Dart': 'reed-harpoon-dart', // Separate unlock after the gun
   'Bone Arrow': 'bone-arrow',
   'Bush Knife': 'bush-knife',
-  'Bone Gaff Hook': 'bone-gaff-hook',
+  'Reed Diver\'s Helm': 'reed-snorkel',
   'Flashlight': 'flashlight',
   'Headlamp': 'headlamp',
   'Reed Bellows': 'reed-bellows',
@@ -1118,7 +1092,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 3 items
   'Fire Arrow': 'fire-arrow',
   'Large Wooden Storage Box': 'large-wooden-storage-box',
-  'Primitive Reed Fishing Rod': 'reed-fishing-rod',
+  'Diving Pick': 'diving-pick',
   'Reed Rain Collector': 'reed-rain-collector',
   'Barbecue': 'barbecue',
   'Refrigerator': 'refrigerator',
@@ -1127,7 +1101,6 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 4 items
   'Hollow Reed Arrow': 'hollow-reed-arrow',
   'Metal Door': 'metal-door',
-  'Reed Diver\'s Helm': 'reed-snorkel',
   'Reed Flippers': 'reed-flippers',
   'Plastic Water Jug': 'plastic-water-jug',
   'Cooking Station': 'cooking-station',
@@ -1141,7 +1114,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   // Tier 5 items
   '9x18mm Round': '9x18mm-round',
   // NOTE: Shelter removed - now always craftable as a starter base
-  'Diving Pick': 'diving-pick',
+  // NOTE: Bone Gaff Hook and Primitive Reed Fishing Rod removed - now always craftable to not gate fishing
   
   // Tier 6 items
   'Makarov PM': 'makarov-pm',
@@ -1157,6 +1130,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
 // Stone Hatchet, Stone Pickaxe, Torch, Rock, Blueprint
 // Bandage, Bone Club, Bone Knife, Combat Ladle, Repair Hammer
 // Rope, Cloth
+// Bone Gaff Hook, Primitive Reed Fishing Rod (fishing not gated)
 
 export const canCraftItem = (itemName: string, purchasedNodes: Set<string>): boolean => {
   const requiredNode = ITEM_TO_NODE_MAP[itemName];

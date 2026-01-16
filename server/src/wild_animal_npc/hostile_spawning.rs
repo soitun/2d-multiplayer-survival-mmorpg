@@ -40,6 +40,16 @@ use super::core::{
 use crate::player as PlayerTableTrait;
 use crate::active_connection as ActiveConnectionTableTrait;
 
+// Settlement intensity table imports
+use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
+use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
+use crate::campfire::campfire as CampfireTableTrait;
+use crate::furnace::furnace as FurnaceTableTrait;
+use crate::barbecue::barbecue as BarbecueTableTrait;
+use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
+use crate::shelter::shelter as ShelterTableTrait;
+use crate::lantern::lantern as LanternTableTrait;
+
 // --- Constants ---
 
 const TILE_SIZE: f32 = TILE_SIZE_PX as f32;
@@ -83,6 +93,34 @@ const RUNESTONE_DETERRENCE_RADIUS_SQ: f32 = RUNE_STONE_DETERRENCE_RADIUS * RUNE_
 const CAMPING_STATIONARY_TIME_MS: i64 = 60_000; // 60 seconds stationary = camping
 const CAMPING_MOVEMENT_THRESHOLD_PX: f32 = 500.0; // Must move 500px (~10 tiles) to reset camping timer
                                                    // This allows movement within a medium-sized base (4-5 foundations)
+
+// Settlement intensity constants
+// The more valuable structures near a player, the more apparitions are attracted
+const SETTLEMENT_CHECK_RADIUS_PX: f32 = 1500.0; // ~31 tiles - check within this radius
+const SETTLEMENT_CHECK_RADIUS_SQ: f32 = SETTLEMENT_CHECK_RADIUS_PX * SETTLEMENT_CHECK_RADIUS_PX;
+
+// Settlement intensity thresholds and multipliers
+// Solo player with nothing: 0.6x spawn rate (easier start)
+// Small camp (few structures): 1.0x (baseline)
+// Medium settlement: 1.3x
+// Large settlement with multiple players: 1.6x+
+const BASE_SETTLEMENT_MULTIPLIER: f32 = 0.6; // Start low for new/solo players
+const MAX_SETTLEMENT_MULTIPLIER: f32 = 2.0;  // Cap at 2x to prevent overwhelming spawns
+
+// Value weights for different structure types (apparitions are drawn to civilization)
+const VALUE_PLANTED_CROP: f32 = 3.0;      // Growing crops are valuable targets
+const VALUE_MATURE_CROP: f32 = 2.0;       // Harvestable player-planted resources
+const VALUE_STORAGE: f32 = 5.0;           // Storage boxes attract attention
+const VALUE_FURNACE: f32 = 4.0;           // Industrial structures
+const VALUE_COOKING: f32 = 3.0;           // Campfires, barbecues
+const VALUE_SHELTER: f32 = 4.0;           // Player shelters
+const VALUE_FOUNDATION: f32 = 1.0;        // Building foundations (capped)
+const VALUE_PER_NEARBY_PLAYER: f32 = 15.0; // Each additional player adds significant value
+const MAX_FOUNDATION_VALUE: f32 = 10.0;   // Cap foundation contribution to avoid wall spam
+
+// Settlement value thresholds
+const SETTLEMENT_VALUE_FOR_BASELINE: f32 = 20.0;  // This much value = 1.0x multiplier
+const SETTLEMENT_VALUE_FOR_MAX: f32 = 100.0;      // This much value = max multiplier
 
 // ============================================================================
 // NIGHT PHASE SYSTEM - Creates tension arc through the night
@@ -137,6 +175,220 @@ impl NightPhase {
             NightPhase::NotNight => "Daytime",
         }
     }
+}
+
+// ============================================================================
+// SETTLEMENT INTENSITY SYSTEM - More civilization = more apparition attention
+// ============================================================================
+// Apparitions are drawn to signs of life and civilization. A lone survivor
+// with a campfire faces less pressure than a thriving settlement with farms,
+// storage, and multiple residents. This creates a risk/reward dynamic:
+// - Frontier living: Safer but less productive
+// - Settlement building: More rewarding but attracts more danger
+//
+// PERFORMANCE: Uses chunk-based queries to avoid O(n) full table scans.
+// Only queries chunks within SETTLEMENT_CHECK_RADIUS of the player.
+// ============================================================================
+
+use crate::environment::{CHUNK_SIZE_PX, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
+
+/// Get all chunk indices within the settlement check radius of a position
+/// Returns a Vec of chunk indices to query (typically 9-25 chunks)
+fn get_nearby_chunk_indices(player_x: f32, player_y: f32) -> Vec<u32> {
+    // Calculate how many chunks the radius spans
+    let chunks_radius = (SETTLEMENT_CHECK_RADIUS_PX / CHUNK_SIZE_PX).ceil() as i32;
+    
+    // Get player's chunk coordinates
+    let player_chunk_x = (player_x / CHUNK_SIZE_PX) as i32;
+    let player_chunk_y = (player_y / CHUNK_SIZE_PX) as i32;
+    
+    let mut chunks = Vec::with_capacity(((chunks_radius * 2 + 1) * (chunks_radius * 2 + 1)) as usize);
+    
+    for dy in -chunks_radius..=chunks_radius {
+        for dx in -chunks_radius..=chunks_radius {
+            let chunk_x = player_chunk_x + dx;
+            let chunk_y = player_chunk_y + dy;
+            
+            // Bounds check
+            if chunk_x >= 0 && chunk_x < WORLD_WIDTH_CHUNKS as i32 &&
+               chunk_y >= 0 && chunk_y < WORLD_HEIGHT_CHUNKS as i32 {
+                let chunk_idx = (chunk_y as u32) * WORLD_WIDTH_CHUNKS + (chunk_x as u32);
+                chunks.push(chunk_idx);
+            }
+        }
+    }
+    
+    chunks
+}
+
+/// Calculate settlement intensity multiplier based on nearby valuable structures
+/// Returns a multiplier from BASE_SETTLEMENT_MULTIPLIER to MAX_SETTLEMENT_MULTIPLIER
+/// 
+/// PERFORMANCE: O(chunks * items_per_chunk) instead of O(all_items)
+/// Uses chunk_index btree queries and early exit optimization.
+fn calculate_settlement_intensity(
+    ctx: &ReducerContext,
+    player_x: f32,
+    player_y: f32,
+    nearby_player_count: usize,
+) -> f32 {
+    let mut total_value: f32 = 0.0;
+    
+    // Pre-calculate nearby chunks once
+    let nearby_chunks = get_nearby_chunk_indices(player_x, player_y);
+    
+    // Macro to check distance and add value (reduces code duplication)
+    macro_rules! check_distance_add_value {
+        ($pos_x:expr, $pos_y:expr, $value:expr) => {{
+            let dx = $pos_x - player_x;
+            let dy = $pos_y - player_y;
+            if dx * dx + dy * dy <= SETTLEMENT_CHECK_RADIUS_SQ {
+                total_value += $value;
+                // Early exit if we've hit max value
+                if total_value >= SETTLEMENT_VALUE_FOR_MAX {
+                    return calculate_final_multiplier(total_value, nearby_player_count);
+                }
+            }
+        }};
+    }
+    
+    // Count planted seeds (growing crops) - uses chunk_index
+    for chunk_idx in &nearby_chunks {
+        for seed in ctx.db.planted_seed().chunk_index().filter(chunk_idx) {
+            check_distance_add_value!(seed.pos_x, seed.pos_y, VALUE_PLANTED_CROP);
+        }
+    }
+    
+    // Count player-planted harvestable resources (mature crops) - uses chunk_index
+    for chunk_idx in &nearby_chunks {
+        for resource in ctx.db.harvestable_resource().chunk_index().filter(chunk_idx) {
+            if resource.is_player_planted && resource.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH {
+                check_distance_add_value!(resource.pos_x, resource.pos_y, VALUE_MATURE_CROP);
+            }
+        }
+    }
+    
+    // Count campfires - uses chunk_index
+    for chunk_idx in &nearby_chunks {
+        for campfire in ctx.db.campfire().chunk_index().filter(chunk_idx) {
+            if !campfire.is_destroyed {
+                check_distance_add_value!(campfire.pos_x, campfire.pos_y, VALUE_COOKING);
+            }
+        }
+    }
+    
+    // Count storage boxes - uses chunk_index
+    for chunk_idx in &nearby_chunks {
+        for storage in ctx.db.wooden_storage_box().chunk_index().filter(chunk_idx) {
+            if !storage.is_destroyed {
+                check_distance_add_value!(storage.pos_x, storage.pos_y, VALUE_STORAGE);
+            }
+        }
+    }
+    
+    // Count shelters - full table scan (typically very few shelters, no btree index)
+    for shelter in ctx.db.shelter().iter() {
+        if !shelter.is_destroyed {
+            check_distance_add_value!(shelter.pos_x, shelter.pos_y, VALUE_SHELTER);
+        }
+    }
+    
+    // Count foundations (capped) - uses idx_chunk btree index
+    let mut foundation_value: f32 = 0.0;
+    'foundation_loop: for chunk_idx in &nearby_chunks {
+        for foundation in ctx.db.foundation_cell().idx_chunk().filter(chunk_idx) {
+            if !foundation.is_destroyed {
+                let foundation_x = (foundation.cell_x as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                let foundation_y = (foundation.cell_y as f32 * FOUNDATION_TILE_SIZE_PX as f32) + (FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                let dx = foundation_x - player_x;
+                let dy = foundation_y - player_y;
+                if dx * dx + dy * dy <= SETTLEMENT_CHECK_RADIUS_SQ {
+                    foundation_value += VALUE_FOUNDATION;
+                    if foundation_value >= MAX_FOUNDATION_VALUE {
+                        break 'foundation_loop; // Cap foundation contribution
+                    }
+                }
+            }
+        }
+    }
+    total_value += foundation_value.min(MAX_FOUNDATION_VALUE);
+    
+    // Skip smaller tables (furnace, barbecue, lantern) if already near max
+    // These are typically few in number and don't justify the query overhead
+    if total_value < SETTLEMENT_VALUE_FOR_MAX * 0.8 {
+        // Count furnaces - typically few per settlement
+        for chunk_idx in &nearby_chunks {
+            for furnace in ctx.db.furnace().chunk_index().filter(chunk_idx) {
+                if !furnace.is_destroyed {
+                    check_distance_add_value!(furnace.pos_x, furnace.pos_y, VALUE_FURNACE);
+                }
+            }
+        }
+        
+        // Count barbecues - full table scan (typically very few, no btree index)
+        for bbq in ctx.db.barbecue().iter() {
+            if !bbq.is_destroyed {
+                check_distance_add_value!(bbq.pos_x, bbq.pos_y, VALUE_COOKING);
+            }
+        }
+        
+        // Count lanterns - full table scan (typically few per settlement, no btree index)
+        for lantern in ctx.db.lantern().iter() {
+            if !lantern.is_destroyed {
+                check_distance_add_value!(lantern.pos_x, lantern.pos_y, VALUE_COOKING);
+            }
+        }
+    }
+    
+    calculate_final_multiplier(total_value, nearby_player_count)
+}
+
+/// Calculate the final multiplier from total settlement value
+#[inline]
+fn calculate_final_multiplier(mut total_value: f32, nearby_player_count: usize) -> f32 {
+    // Add value for each additional nearby player (more people = bigger target)
+    if nearby_player_count > 1 {
+        total_value += (nearby_player_count - 1) as f32 * VALUE_PER_NEARBY_PLAYER;
+    }
+    
+    // Calculate multiplier based on settlement value
+    // 0 value = BASE_SETTLEMENT_MULTIPLIER (0.6x)
+    // SETTLEMENT_VALUE_FOR_BASELINE (20) = 1.0x
+    // SETTLEMENT_VALUE_FOR_MAX (100) = MAX_SETTLEMENT_MULTIPLIER (2.0x)
+    let multiplier = if total_value <= 0.0 {
+        BASE_SETTLEMENT_MULTIPLIER
+    } else if total_value < SETTLEMENT_VALUE_FOR_BASELINE {
+        let progress = total_value / SETTLEMENT_VALUE_FOR_BASELINE;
+        BASE_SETTLEMENT_MULTIPLIER + progress * (1.0 - BASE_SETTLEMENT_MULTIPLIER)
+    } else if total_value < SETTLEMENT_VALUE_FOR_MAX {
+        let progress = (total_value - SETTLEMENT_VALUE_FOR_BASELINE) / (SETTLEMENT_VALUE_FOR_MAX - SETTLEMENT_VALUE_FOR_BASELINE);
+        1.0 + progress * (MAX_SETTLEMENT_MULTIPLIER - 1.0)
+    } else {
+        MAX_SETTLEMENT_MULTIPLIER
+    };
+    
+    log::debug!("🏘️ [Settlement] Value: {:.1}, Multiplier: {:.2}x (players: {})", 
+               total_value, multiplier, nearby_player_count);
+    
+    multiplier
+}
+
+/// Count players within the settlement check radius
+fn count_nearby_players(ctx: &ReducerContext, player_x: f32, player_y: f32, exclude_identity: &spacetimedb::Identity) -> usize {
+    ctx.db.player().iter()
+        .filter(|p| {
+            if p.is_dead || !p.is_online || &p.identity == exclude_identity {
+                return false;
+            }
+            // Check if they have an active connection
+            if ctx.db.active_connection().identity().find(&p.identity).is_none() {
+                return false;
+            }
+            let dx = p.position_x - player_x;
+            let dy = p.position_y - player_y;
+            dx * dx + dy * dy <= SETTLEMENT_CHECK_RADIUS_SQ
+        })
+        .count()
 }
 
 // --- Player Camping Tracker Table ---
@@ -296,7 +548,16 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         // Check if player is camping (for Drowned Watch eligibility)
         let is_camping = check_player_is_camping(ctx, player, current_time);
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, &mut rng);
+        // Calculate settlement intensity - more civilization = more apparition attention
+        let nearby_player_count = count_nearby_players(ctx, player.position_x, player.position_y, &player.identity);
+        let settlement_multiplier = calculate_settlement_intensity(
+            ctx, 
+            player.position_x, 
+            player.position_y,
+            nearby_player_count + 1, // Include this player in the count
+        );
+        
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, settlement_multiplier, &mut rng);
     }
     
     Ok(())
@@ -353,6 +614,7 @@ fn try_spawn_hostiles_for_player(
     current_time: Timestamp,
     is_camping: bool,
     night_phase: NightPhase,
+    settlement_multiplier: f32,
     rng: &mut impl Rng,
 ) {
     let player_x = player.position_x;
@@ -376,14 +638,15 @@ fn try_spawn_hostiles_for_player(
     // Base chances are modified by:
     // 1. Night phase multipliers (early/peak/desperate)
     // 2. Camping status (being stationary increases pressure)
+    // 3. Settlement intensity (more civilization = more apparition attention)
     // =========================================================================
     
     // 1. Try Shorebound (stalker) - Primary threat, scouts early, pressures throughout
-    // Base: 55% chance, modified by phase (Early: 33%, Peak: 55%, Desperate: 44%)
+    // Base: 55% chance, modified by phase, camping, and settlement intensity
     if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
         let base_chance = 0.55;
         let camping_bonus = if is_camping { 0.15 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shorebound_mult;
+        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_B_MAX_PX, rng) {
@@ -394,11 +657,11 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 2. Try Shardkin (swarmer) - Swarms emerge mid-night, peak during desperate hour
-    // Base: 40% chance, modified by phase (Early: 12%, Peak: 40%, Desperate: 48%)
+    // Base: 40% chance, modified by phase, camping, and settlement intensity
     if shardkin_count < MAX_SHARDKIN_NEAR_PLAYER && total_hostiles + 1 < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
         let base_chance = 0.40;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shardkin_mult;
+        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             // Group size scales with phase - bigger swarms later in night
@@ -444,12 +707,12 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 3. Try Drowned Watch (brute) - Only emerges late night, terrifying finale
-    // Base: 15% chance, modified by phase (Early: 0%, Peak: 7.5%, Desperate: 22.5%)
-    // Camping bonus: +20% (37.5% in desperate hour while camping!)
+    // Base: 15% chance, modified by phase, camping, and settlement intensity
+    // Camping bonus: +20% - large settlements attract the big ones!
     if drowned_watch_count < MAX_DROWNED_WATCH_NEAR_PLAYER && total_hostiles + 1 <= MAX_TOTAL_HOSTILES_NEAR_PLAYER {
         let base_chance = 0.15;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * drowned_mult;
+        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_C_MIN_PX, RING_C_MAX_PX, rng) {
@@ -766,7 +1029,7 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
 
 use crate::door::{door as DoorTableTrait, Door};
 use crate::building::{wall_cell as WallCellTableTrait, WallCell};
-use crate::shelter::shelter as ShelterTableTrait;
+// Note: ShelterTableTrait already imported at the top of the file
 
 /// Find the nearest door, wall, or shelter that a hostile can attack
 /// Returns (structure_id, structure_type, distance_sq)
