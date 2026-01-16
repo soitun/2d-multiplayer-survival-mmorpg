@@ -25,13 +25,18 @@ const carouselItems: CarouselItem[] = [
     },
     {
         title: "Living Economy",
-        description: "Master a complex economy system with player-driven marketplaces and auction houses. Corner markets on rare materials, establish trading empires, and become the wealthiest babushka in the land through shrewd business dealings.",
+        description: "Master a dynamic economy where prices shift based on real supply and demand. No auction houses here—just raw market forces. Sell surplus when prices peak, stock up when they crash. Seasonal harvests and weather events create opportunities for clever traders.",
         icon: livingEconomy,
     },
     {
         title: "Dynamic Seasons",
         description: "Experience realistic weather patterns and seasonal changes with a dynamic cloud system. Crops grow differently in each season, harsh winters test your food stores, and spring rains bring abundant harvests.",
         icon: dynamicSeasons,
+    },
+    {
+        title: "Survive the Night",
+        description: "Days last 20 minutes—time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
+        icon: chooseCombat,
     },
     {
         title: "Endless Brewing",

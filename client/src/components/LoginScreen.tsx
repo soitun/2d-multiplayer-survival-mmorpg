@@ -1367,10 +1367,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 }}>
                                     Where <strong>Rust's</strong> intense survival meets <strong>Blazing Beaks'</strong> quirky combat, all wrapped in <strong>Stardew Valley's&nbsp;</strong>
                                     cozy farming vibes. Survive as a resourceful babushka in this top-down multiplayer experience where
-                                    every meal matters and every trade counts. Start with basic gear, hunt wild animals, grow crops,
-                                    and brew nourishing soups that keep you alive through harsh winters. Build from simple shelters to
-                                    thriving homesteads, domesticate livestock, and establish trading networks with neighboring clans
-                                    across one massive persistent world.
+                                    every meal matters and every trade counts. Farm during the day, but prepare for the night—something 
+                                    ancient corrupts this island, and when darkness falls, memory apparitions hunt the living. Build from 
+                                    simple shelters to thriving homesteads, work together to survive, and uncover the mystery that haunts 
+                                    this persistent world.
                                 </p>
                             </div>
 
@@ -1690,27 +1690,27 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     {[
                                         {
                                             question: "WHAT IS BROTH & BULLETS?",
-                                            answer: "A top-down multiplayer survival game where resourceful babushkas build thriving homesteads from nothing. Master the art of cooking life-saving meals, establish profitable trade routes, defend your territory with crossbows and cunning, and grow from a humble survivor into a powerful clan leader in one massive persistent world."
+                                            answer: "A top-down multiplayer survival game where resourceful babushkas build thriving homesteads together. Master the art of cooking life-saving meals, collaborate with neighbors to weather harsh seasons, establish trade networks, and grow from a humble survivor into a respected community leader in one massive persistent world. It's intense survival—but you're in it together."
                                         },
                                         {
                                             question: "HOW DO I START SURVIVING?",
-                                            answer: "You begin with basic survival gear and a lifetime of accumulated wisdom. Hunt wild animals for meat and pelts, gather plant fibers to weave into clothing and shelter materials, collect wood and stone to build your first camp fire. Cook hearty meals to stay fed and warm through the changing seasons."
+                                            answer: "You begin with basic survival gear and a lifetime of accumulated wisdom. Hunt wild animals, gather plant fibers, collect wood and stone to build your first campfire. Days last 20 minutes—use them wisely to farm, craft, and prepare. When the 10-minute night falls, find shelter or face the memory apparitions that emerge from the darkness. Work with neighbors to survive what you couldn't alone."
                                         },
                                         {
                                             question: "WHAT'S SO SPECIAL ABOUT BREWING?",
-                                            answer: "Every recipe matters for survival! Brew healing broths from gathered herbs, create nutritious soups from farmed vegetables, ferment preserves for long winters, and craft warming drinks for harsh climates. Master brewers become invaluable clan members whose recipes can mean the difference between thriving and starving."
+                                            answer: "Every recipe matters for survival! Brew healing broths from gathered herbs, create nutritious soups from farmed vegetables, ferment preserves to store food through harsh winters, and craft warming drinks to survive freezing temperatures. Preservation is key—learn to dry, pickle, and ferment your harvest before the seasons turn. Master brewers become invaluable community members whose recipes can mean the difference between thriving and starving."
                                         },
                                         {
                                             question: "CAN I FARM AND RAISE ANIMALS?",
-                                            answer: "Absolutely! Plant and tend crops from seeds you've gathered or traded for. Domesticate wild animals like chickens, goats, and pigs. Build fences to protect your livestock from predators and rival players. Your farm becomes the foundation of both your survival and your trading empire."
+                                            answer: "Absolutely! Plant and tend crops through the changing seasons—but beware of harsh weather. Heavy rain can damage crops, frost can kill them, and drought brings its own challenges. Learn to preserve your harvest through drying, fermenting, and storage. Build fences to protect livestock from wild predators. Your farm becomes the foundation of both your survival and your community's food security."
                                         },
                                         {
-                                            question: "HOW DOES BUILDING AND TERRITORY WORK?",
-                                            answer: "Start with simple shelters made from plant fiber and wood, then expand into proper homesteads with kitchens, storage, workshops, and defensive walls. Claim territory through use and defense—what you can build and protect becomes yours to develop and trade from."
+                                            question: "HOW DOES BUILDING WORK?",
+                                            answer: "Start with simple shelters made from plant fiber and wood, then expand into proper homesteads with kitchens, storage, workshops, and insulated walls. Build structures that protect against the elements—roofs keep out rain, walls block wind, and proper insulation helps survive freezing winters. Coordinate with neighbors to create thriving villages with shared resources and communal spaces."
                                         },
                                         {
-                                            question: "HOW COMPLEX IS THE ECONOMY?",
-                                            answer: "Trade drives everything! Start by bartering surplus crops and crafted goods with neighbors. As your operation grows, establish supply chains with distant clans, corner markets on rare ingredients, and become a trading mogul. Seasonal changes, supply shortages, and player conflicts create constantly shifting opportunities."
+                                            question: "HOW DOES TRADING WORK?",
+                                            answer: "A dynamic market system adjusts prices based on real supply and demand across the server. Sell your surplus crops when prices are high, stock up on materials when they're cheap. No player-run auction houses—instead, prices shift naturally as the community produces and consumes resources. Seasonal harvests, weather events, and community needs create constantly shifting opportunities for clever traders."
                                         },
                                         {
                                             question: "WHERE ARE WE IN DEVELOPMENT?",
@@ -1724,7 +1724,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                         textAlign: 'center',
                                                         margin: '0',
                                                     }}>
-                                                        We're currently in the primitive stage of our tech tree—plenty of broth, but the bullets are still to come! Right now it's crossbows, fire arrows, and good old-fashioned clan warfare. We're building our foundation of survival, farming, cooking, and trading before advancing to more complex technologies. The persistent world is live and growing!
+                                                        We've progressed from primitive survival to firearms! Crossbows, fire arrows, and now guns help you survive not just the harsh elements, but the mysterious memory apparitions that emerge during the 10-minute nights—echoes of something corrupted by an unknown force on the island. Days last 20 minutes, giving you time to farm, trade, and prepare before darkness falls. The persistent world is live and growing!
                                                     </p>
 
                                                     <div style={{
@@ -1778,6 +1778,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                                     { name: "🌐 Core Multiplayer & World", status: "100%" },
                                                                     { name: "🎒 Inventory & Items (Primitive Tech Tree)", status: "100%" },
                                                                     { name: "⚔️ Melee Combat & Ranged Weapons", status: "100%" },
+                                                                    { name: "🔫 Firearms & Advanced Combat", status: "100%" },
                                                                     { name: "🍳 Survival & Cooking", status: "100%" },
                                                                     { name: "🏠 Simple Shelters & Storage", status: "100%" },
                                                                     { name: "🔐 Authentication", status: "100%" },
@@ -1789,6 +1790,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                                     { name: "🎣 Simple Fishing", status: "100%" },
                                                                     { name: "🔧 Tool & Weapon Durability", status: "100%" },
                                                                     { name: "👥 Social & Team Features", status: "100%" },
+                                                                    { name: "🌙 Day/Night Cycle (20/10 min)", status: "100%" },
+                                                                    { name: "👻 Memory Apparitions", status: "100%" },
                                                                 ].map((feature, index) => (
                                                                     <tr key={index} style={{
                                                                         backgroundColor: 'rgba(0, 100, 0, 0.2)',
@@ -1828,7 +1831,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
                                                                 {/* Planned Features */}
                                                                 {[
-                                                                    { name: "🔫 Firearms & Advanced Combat", status: "50%" },
                                                                     { name: "🤖 Neutral Faction & NPCs", status: "10%" },
                                                                     { name: "🔑 Social Auth (Steam, Discord, Twitch)", status: "0%" },
                                                                     { name: "🔬 Advanced Tech Tree", status: "0%" },
@@ -1876,8 +1878,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                             )
                                         },
                                         {
+                                            question: "IS THIS A PVP GAME?",
+                                            answer: "Broth & Bullets is a mutual survival experience—you're fighting the island, not each other. When night falls, memory apparitions emerge to hunt the living, and you'll need every neighbor you have. Collaborate to survive harsh winters, defend against the corrupted echoes, and build communities that can weather any storm. Optional PvP zones are planned for the future, but the core experience is about cooperation against an ancient, mysterious threat."
+                                        },
+                                        {
                                             question: "WHAT'S THE LONG-TERM VISION?",
-                                            answer: "A thriving community of persistent servers where players build lasting legacies. Whether you prefer cozy farming and crafting or diving into competitive player-driven economies, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, and emergent gameplay that grows more interesting as our community builds together."
+                                            answer: "A thriving community of persistent servers where players build lasting legacies together. Whether you prefer cozy daytime farming or intense night survival against the corrupted apparitions, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, dynamic seasons, and unraveling the mystery of what ancient force haunts this island."
                                         }
                                     ].map((faq, index) => (
                                         <div key={index} style={{

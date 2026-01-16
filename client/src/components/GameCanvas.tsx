@@ -1176,6 +1176,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     players,
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
+    playerCorpses, // ADDED: Player corpses for protection check
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
     showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification, // ADDED: Cairn unlock notification callback

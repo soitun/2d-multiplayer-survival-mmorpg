@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
 import { useLatest } from './useLatest';
 import * as SpacetimeDB from '../generated';
-import { DbConnection, Player, ItemDefinition, ActiveEquipment, WoodenStorageBox, Stash } from '../generated';
+import { DbConnection, Player, ItemDefinition, ActiveEquipment, WoodenStorageBox, Stash, PlayerCorpse } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from './usePlacementManager'; // Assuming usePlacementManager exports these
 import { BuildingMode } from './useBuildingManager'; // ADDED: Building mode enum
@@ -80,6 +80,7 @@ interface InputHandlerProps {
     players: Map<string, Player>;
     cairns: Map<string, SpacetimeDBCairn>; // ADDED: Cairns for lore lookup
     playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
+    playerCorpses: Map<string, PlayerCorpse>; // ADDED: Player corpses for protection check
     
     onSetInteractingWith: (target: any | null) => void;
     addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // ADDED: SOVA message adder for cairn lore
@@ -168,6 +169,7 @@ export const useInputHandler = ({
     players,
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
+    playerCorpses, // ADDED: Player corpses for protection check
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
     showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification, // ADDED: Cairn unlock notification callback
@@ -1210,6 +1212,26 @@ export const useInputHandler = ({
                                         tapActionTaken = true;
                                         break;
                                     case 'corpse':
+                                        // Check corpse protection before opening
+                                        const corpseId = currentTarget.id.toString();
+                                        const corpse = playerCorpses?.get(corpseId);
+                                        
+                                        if (corpse && corpse.lockedUntil && localPlayer) {
+                                            const now = Date.now();
+                                            const lockExpires = Number(corpse.lockedUntil.microsSinceUnixEpoch / 1000n);
+                                            const isOwner = corpse.playerIdentity.toHexString() === localPlayer.identity.toHexString();
+                                            
+                                            if (now < lockExpires && !isOwner) {
+                                                // Corpse is protected and player is not the owner - play Sova sound
+                                                console.log('[E-Tap ACTION] Corpse protected - playing sova_corpse_protected.mp3');
+                                                const sovaAudio = new Audio('/sounds/sova_corpse_protected.mp3');
+                                                sovaAudio.volume = 0.8;
+                                                sovaAudio.play().catch(err => console.warn('Failed to play corpse protection sound:', err));
+                                                tapActionTaken = true;
+                                                break;
+                                            }
+                                        }
+                                        
                                         // console.log('[E-Tap ACTION] Opening corpse interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'player_corpse', id: currentTarget.id });
                                         tapActionTaken = true;

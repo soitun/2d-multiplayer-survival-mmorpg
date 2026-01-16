@@ -25,6 +25,11 @@ pub(crate) const PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED: f32 = 64.0 * 64.0; 
 pub(crate) const NUM_CORPSE_SLOTS: usize = 30 + 6; // 24 inv + 6 hotbar + 6 equipment (Head=30, Chest=31, Legs=32, Feet=33, Hands=34, Back=35)
 pub(crate) const PLAYER_CORPSE_INITIAL_HEALTH: u32 = 100; // Health for harvesting the corpse itself
 
+// --- Corpse Protection Constants ---
+/// Duration in seconds that a corpse is protected from looting by non-owners.
+/// Only the player who died can loot their corpse during this time.
+const CORPSE_PROTECTION_SECONDS: u64 = 600; // 10 minutes
+
 // Import required items
 use crate::environment::calculate_chunk_index;
 use crate::inventory_management::{self, ItemContainer, ContainerItemClearer};
@@ -61,6 +66,11 @@ pub struct PlayerCorpse {
     pub health: u32,
     pub max_health: u32,
     pub last_hit_time: Option<Timestamp>,
+
+    // --- Corpse Protection ---
+    /// Timestamp until which this corpse is protected from looting by non-owners.
+    /// Only the player_identity can loot this corpse until this time passes.
+    pub locked_until: Option<Timestamp>,
 
     // --- Inventory Slots (0-NUM_CORPSE_SLOTS-1) ---
     // Conceptually: Player inv (0-23), hotbar (24-29), equipment (30-34)
@@ -400,6 +410,7 @@ pub fn process_corpse_despawn(ctx: &ReducerContext, args: PlayerCorpseDespawnSch
  ******************************************************************************/
 
 /// Helper to validate player distance and fetch corpse/player entities.
+/// Also checks corpse protection - non-owners cannot loot protected corpses.
 fn validate_corpse_interaction(
     ctx: &ReducerContext,
     corpse_id: u32,
@@ -414,6 +425,21 @@ fn validate_corpse_interaction(
     if dist_sq > PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED {
         return Err("Too far away from corpse".to_string());
     }
+
+    // <<< CORPSE PROTECTION CHECK >>>
+    // Only the owner can loot their corpse during the protection period.
+    // Non-owners receive a specific error that the client can detect to play the Sova voice line.
+    if let Some(locked_until) = corpse.locked_until {
+        if ctx.timestamp < locked_until && ctx.sender != corpse.player_identity {
+            log::info!(
+                "[CorpseProtection] Player {:?} attempted to loot protected corpse {} belonging to {:?}. Protection expires at {:?}.",
+                ctx.sender, corpse_id, corpse.player_identity, locked_until
+            );
+            return Err("CORPSE_PROTECTED".to_string());
+        }
+    }
+    // <<< END CORPSE PROTECTION CHECK >>>
+
     Ok((player, corpse))
 }
 
@@ -653,6 +679,7 @@ fn transfer_inventory_to_corpse(ctx: &ReducerContext, dead_player: &Player) -> R
         health: PLAYER_CORPSE_INITIAL_HEALTH, // Initialize health
         max_health: PLAYER_CORPSE_INITIAL_HEALTH, // Initialize max_health
         last_hit_time: None, // Initialize last_hit_time
+        locked_until: Some(ctx.timestamp + Duration::from_secs(CORPSE_PROTECTION_SECONDS)), // Protected for 10 minutes
         slot_instance_id_0: None, slot_def_id_0: None,
         slot_instance_id_1: None, slot_def_id_1: None,
         slot_instance_id_2: None, slot_def_id_2: None,
@@ -963,6 +990,7 @@ pub fn create_offline_corpse(ctx: &ReducerContext, player: &Player) -> Result<u3
         health: PLAYER_CORPSE_INITIAL_HEALTH,
         max_health: PLAYER_CORPSE_INITIAL_HEALTH,
         last_hit_time: None,
+        locked_until: Some(ctx.timestamp + Duration::from_secs(CORPSE_PROTECTION_SECONDS)), // Protected for 10 minutes
         slot_instance_id_0: None, slot_def_id_0: None,
         slot_instance_id_1: None, slot_def_id_1: None,
         slot_instance_id_2: None, slot_def_id_2: None,
