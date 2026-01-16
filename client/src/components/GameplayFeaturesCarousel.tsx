@@ -25,7 +25,7 @@ const carouselItems: CarouselItem[] = [
     },
     {
         title: "Living Economy",
-        description: "Master a dynamic economy where prices shift based on real supply and demand. No auction houses here—just raw market forces. Sell surplus when prices peak, stock up when they crash. Seasonal harvests and weather events create opportunities for clever traders.",
+        description: "Master a dynamic economy where prices shift based on real supply and demand. No auction houses here, just raw market forces. Sell surplus when prices peak, stock up when they crash. Seasonal harvests and weather events create opportunities for clever traders.",
         icon: livingEconomy,
     },
     {
@@ -35,7 +35,7 @@ const carouselItems: CarouselItem[] = [
     },
     {
         title: "Survive the Night",
-        description: "Days last 20 minutes—time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
+        description: "Days last 20 minutes, time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
         icon: chooseCombat,
     },
     {

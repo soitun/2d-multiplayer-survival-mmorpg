@@ -101,7 +101,7 @@ import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtil
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
-import { renderInteractionLabels } from '../utils/renderers/labelRenderingUtils.ts';
+import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
 import { detectHotSprings } from '../utils/hotSpringDetector'; // ADDED: Hot spring detection
 import { renderHotSprings } from '../utils/renderers/hotSpringRenderingUtils'; // ADDED: Hot spring rendering
@@ -3401,6 +3401,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       doors: visibleDoorsMap, // ADDED: Doors
       alkStations: alkStations || new Map(), // ADDED: ALK Stations for E label rendering
     });
+    
+    // Render local player status tags (AUTO ATTACK, AUTO WALK indicators)
+    // These are LOCAL ONLY - not visible to other players
+    if (localPlayer && !localPlayer.isDead) {
+      // Get local player's screen position (use predicted position if available)
+      const localPlayerScreenX = currentPredictedPosition?.x ?? localPlayer.positionX;
+      const localPlayerScreenY = currentPredictedPosition?.y ?? localPlayer.positionY;
+      
+      renderLocalPlayerStatusTags({
+        ctx,
+        playerX: localPlayerScreenX,
+        playerY: localPlayerScreenY,
+        isAutoAttacking,
+        isAutoWalking,
+      });
+    }
+    
     renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
       worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,

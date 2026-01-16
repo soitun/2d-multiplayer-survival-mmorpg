@@ -5,6 +5,7 @@ import { queueNotificationSound } from '../utils/notificationSoundQueue';
 interface AchievementNotificationProps {
   notifications: SpacetimeDB.AchievementUnlockNotification[];
   onOpenAchievements?: () => void;
+  achievementDefinitions?: Map<string, SpacetimeDB.AchievementDefinition>;
 }
 
 const MAX_NOTIFICATIONS = 3;
@@ -43,6 +44,7 @@ const CLICK_GUARD_MS = 1000;
 const AchievementNotification: React.FC<AchievementNotificationProps> = ({ 
   notifications,
   onOpenAchievements,
+  achievementDefinitions,
 }) => {
   const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.AchievementUnlockNotification[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
@@ -220,6 +222,16 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
                       <span className="glitch-layer-2">{notif.achievementName}</span>
                       <span className="main-name">{notif.achievementName}</span>
                     </div>
+                    
+                    {/* Achievement description */}
+                    {achievementDefinitions && (() => {
+                      const achievementDef = achievementDefinitions.get(notif.achievementId);
+                      return achievementDef?.description ? (
+                        <div className="achievement-description">
+                          {achievementDef.description}
+                        </div>
+                      ) : null;
+                    })()}
                     
                     {/* Rewards row */}
                     <div className="achievement-rewards">
@@ -554,6 +566,16 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
         .achievement-name .glitch-layer-2 {
           color: #ff006e;
           animation: achievementGlitch2 0.5s infinite;
+        }
+        
+        /* Achievement description */
+        .achievement-description {
+          font-family: 'Courier New', 'Consolas', monospace;
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.7);
+          margin-top: 4px;
+          margin-bottom: 8px;
+          line-height: 1.4;
         }
         
         /* Rewards */

@@ -74,6 +74,13 @@ const LABEL_STROKE_STYLE = "black";
 const LABEL_LINE_WIDTH = 2;
 const LABEL_TEXT_ALIGN = "center";
 
+// Status tag styling constants
+const STATUS_TAG_FONT = '10px "Courier New", Consolas, Monaco, monospace';
+const STATUS_TAG_PADDING_X = 8;
+const STATUS_TAG_PADDING_Y = 4;
+const STATUS_TAG_BORDER_RADIUS = 4;
+const STATUS_TAG_SPACING = 4; // Space between multiple tags
+
 // 🎯 CYBERPUNK: SOVA Overlay styling constants
 const SOVA_BACKGROUND_COLOR = "rgba(0, 0, 0, 0.85)"; // Semi-transparent black
 const SOVA_BORDER_COLOR = "#00aaff"; // Bright blue border
@@ -475,4 +482,175 @@ export function renderInteractionLabels({
     }
 
     ctx.restore(); // Restore original context state
+}
+
+/**
+ * Interface for local player status tags rendering params
+ */
+interface RenderLocalPlayerStatusTagsParams {
+    ctx: CanvasRenderingContext2D;
+    playerX: number;      // Player's world X position (screen coordinates)
+    playerY: number;      // Player's world Y position (screen coordinates)
+    isAutoAttacking: boolean;
+    isAutoWalking: boolean;
+}
+
+/**
+ * Draws a single status tag with cyberpunk styling
+ */
+function drawStatusTag(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    bgColor: string,
+    borderColor: string,
+    textColor: string,
+    glowColor: string
+): { width: number; height: number } {
+    ctx.save();
+    
+    // Measure text to get dimensions
+    ctx.font = STATUS_TAG_FONT;
+    const textMetrics = ctx.measureText(text);
+    const textWidth = textMetrics.width;
+    const textHeight = 10; // Font size
+    
+    // Calculate tag dimensions
+    const tagWidth = textWidth + (STATUS_TAG_PADDING_X * 2);
+    const tagHeight = textHeight + (STATUS_TAG_PADDING_Y * 2);
+    const tagX = x - tagWidth / 2;
+    const tagY = y;
+    
+    // Draw outer glow effect
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Draw background with rounded corners
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(tagX, tagY, tagWidth, tagHeight, STATUS_TAG_BORDER_RADIUS);
+    } else {
+        // Fallback for browsers without roundRect support
+        const r = STATUS_TAG_BORDER_RADIUS;
+        ctx.moveTo(tagX + r, tagY);
+        ctx.lineTo(tagX + tagWidth - r, tagY);
+        ctx.quadraticCurveTo(tagX + tagWidth, tagY, tagX + tagWidth, tagY + r);
+        ctx.lineTo(tagX + tagWidth, tagY + tagHeight - r);
+        ctx.quadraticCurveTo(tagX + tagWidth, tagY + tagHeight, tagX + tagWidth - r, tagY + tagHeight);
+        ctx.lineTo(tagX + r, tagY + tagHeight);
+        ctx.quadraticCurveTo(tagX, tagY + tagHeight, tagX, tagY + tagHeight - r);
+        ctx.lineTo(tagX, tagY + r);
+        ctx.quadraticCurveTo(tagX, tagY, tagX + r, tagY);
+        ctx.closePath();
+    }
+    ctx.fill();
+    
+    // Reset shadow for border
+    ctx.shadowBlur = 0;
+    
+    // Draw border
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(tagX, tagY, tagWidth, tagHeight, STATUS_TAG_BORDER_RADIUS);
+    } else {
+        const r = STATUS_TAG_BORDER_RADIUS;
+        ctx.moveTo(tagX + r, tagY);
+        ctx.lineTo(tagX + tagWidth - r, tagY);
+        ctx.quadraticCurveTo(tagX + tagWidth, tagY, tagX + tagWidth, tagY + r);
+        ctx.lineTo(tagX + tagWidth, tagY + tagHeight - r);
+        ctx.quadraticCurveTo(tagX + tagWidth, tagY + tagHeight, tagX + tagWidth - r, tagY + tagHeight);
+        ctx.lineTo(tagX + r, tagY + tagHeight);
+        ctx.quadraticCurveTo(tagX, tagY + tagHeight, tagX, tagY + tagHeight - r);
+        ctx.lineTo(tagX, tagY + r);
+        ctx.quadraticCurveTo(tagX, tagY, tagX + r, tagY);
+        ctx.closePath();
+    }
+    ctx.stroke();
+    
+    // Draw text
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, tagY + tagHeight / 2);
+    
+    ctx.restore();
+    
+    return { width: tagWidth, height: tagHeight };
+}
+
+/**
+ * Renders local player status tags below the player sprite.
+ * Shows "AUTO ATTACK (Z)" and/or "AUTO WALK (Q)" when active.
+ * These tags are LOCAL ONLY - not visible to other players.
+ */
+export function renderLocalPlayerStatusTags({
+    ctx,
+    playerX,
+    playerY,
+    isAutoAttacking,
+    isAutoWalking,
+}: RenderLocalPlayerStatusTagsParams): void {
+    // Skip if no active statuses
+    if (!isAutoAttacking && !isAutoWalking) return;
+    
+    ctx.save();
+    
+    // Position tags below the player sprite
+    // Player sprite is approximately 64px tall (32px * 2 scale), so position below feet
+    const baseY = playerY + 40; // Below player sprite
+    
+    // Collect active tags
+    const tags: Array<{
+        text: string;
+        bgColor: string;
+        borderColor: string;
+        textColor: string;
+        glowColor: string;
+    }> = [];
+    
+    if (isAutoAttacking) {
+        tags.push({
+            text: 'AUTO ATTACK (Z)',
+            bgColor: 'rgba(139, 0, 0, 0.85)',      // Dark red background
+            borderColor: '#ff4444',                 // Bright red border
+            textColor: '#ffaaaa',                   // Light red text
+            glowColor: 'rgba(255, 68, 68, 0.6)',   // Red glow
+        });
+    }
+    
+    if (isAutoWalking) {
+        tags.push({
+            text: 'AUTO WALK (Q)',
+            bgColor: 'rgba(0, 60, 100, 0.85)',     // Dark blue background
+            borderColor: '#00aaff',                 // Bright cyan border
+            textColor: '#aaddff',                   // Light cyan text
+            glowColor: 'rgba(0, 170, 255, 0.6)',   // Cyan glow
+        });
+    }
+    
+    // Calculate total height needed for all tags
+    let currentY = baseY;
+    
+    // Render each tag
+    for (const tag of tags) {
+        const { height } = drawStatusTag(
+            ctx,
+            tag.text,
+            playerX,
+            currentY,
+            tag.bgColor,
+            tag.borderColor,
+            tag.textColor,
+            tag.glowColor
+        );
+        currentY += height + STATUS_TAG_SPACING;
+    }
+    
+    ctx.restore();
 } 

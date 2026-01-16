@@ -1472,6 +1472,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             <UplinkNotifications
                 levelUpNotifications={props.levelUpNotifications || []}
                 achievementNotifications={props.achievementUnlockNotifications || []}
+                achievementDefinitions={props.achievementDefinitions}
                 questCompletionNotification={questCompletionNotification}
                 onDismissQuestCompletion={dismissQuestCompletionNotification}
                 onOpenAchievements={props.onOpenAchievements}

@@ -25,10 +25,17 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     },
 
     getTargetDimensions: (_img, entity) => {
-        // If we have the actual item sprite, use a smaller size for better visibility
+        // If we have the actual item sprite, use appropriate size
         if (entity.itemDef && entity.itemDef.iconAssetName) {
             const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName);
             if (itemIconUrl) {
+                // Vole skull is tiny - half the size of other items
+                if (entity.itemDef.name === "Vole Skull") {
+                    return {
+                        width: 24,  // Half size for tiny vole skull
+                        height: 24,
+                    };
+                }
                 // Actual item sprites are typically smaller and more detailed
                 return {
                     width: 48,  // Good size for actual item sprites

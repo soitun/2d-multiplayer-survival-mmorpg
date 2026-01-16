@@ -59,8 +59,12 @@ function hasEntrainmentEffect(
 
 /**
  * Plays a random Entrainment quote
+ * @param onBeforePlay Optional callback to call BEFORE audio.play() - used to set up SovaSoundBox
+ *                     to prevent race conditions with notification sounds
  */
-function playEntrainmentQuote(): HTMLAudioElement | null {
+function playEntrainmentQuote(
+  onBeforePlay?: (audio: HTMLAudioElement) => void
+): HTMLAudioElement | null {
   const quoteNumber = Math.floor(Math.random() * ENTRAINMENT_QUOTE_COUNT) + 1;
   const soundFilename = `sova_entrainment_${quoteNumber}.mp3`;
   const soundPath = `/sounds/${soundFilename}`;
@@ -94,6 +98,12 @@ function playEntrainmentQuote(): HTMLAudioElement | null {
     // Apply slight pitch variation for glitchy effect (simple approach)
     // Note: Full Web Audio API distortion would require more complex setup
     // For now, we'll rely on the audio files themselves having distortion baked in
+    
+    // CRITICAL: Call onBeforePlay BEFORE audio.play() to set __SOVA_SOUNDBOX_IS_ACTIVE__ flag
+    // This prevents notification sounds from sneaking in during the async play() window
+    if (onBeforePlay) {
+      onBeforePlay(audio);
+    }
     
     audio.play().then(() => {
       // console.log(`[SOVA Entrainment] Successfully started playing quote ${quoteNumber}`);
@@ -190,13 +200,13 @@ export function useEntrainmentSovaSounds({
         return;
       }
       
-      const audio = playEntrainmentQuote();
+      // Pass callback to set up SovaSoundBox BEFORE audio.play() to prevent race conditions
+      const audio = playEntrainmentQuote((audioElement) => {
+        if (onSoundPlayRef.current) {
+          onSoundPlayRef.current(audioElement, 'SOVA: Entrainment');
+        }
+      });
       currentQuoteAudioRef.current = audio;
-      
-      // Show sound box if callback is provided
-      if (audio && onSoundPlayRef.current) {
-        onSoundPlayRef.current(audio, 'SOVA: Entrainment');
-      }
       
       // Add message to SOVA chat tab (switches to tab and flashes it)
       if (onAddMessageRef.current) {
@@ -245,14 +255,14 @@ export function useEntrainmentSovaSounds({
     
     if (stillHasEntrainment) {
       // console.log('[SOVA Entrainment] Calling playEntrainmentQuote()');
-      const audio = playEntrainmentQuote();
+      // Pass callback to set up SovaSoundBox BEFORE audio.play() to prevent race conditions
+      const audio = playEntrainmentQuote((audioElement) => {
+        if (onSoundPlayRef.current) {
+          onSoundPlayRef.current(audioElement, 'SOVA: Entrainment');
+        }
+      });
       currentQuoteAudioRef.current = audio;
       // console.log(`[SOVA Entrainment] Audio created: ${!!audio}`);
-      
-      // Show sound box if callback is provided
-      if (audio && onSoundPlayRef.current) {
-        onSoundPlayRef.current(audio, 'SOVA: Entrainment');
-      }
       
       // Add message to SOVA chat tab (switches to tab and flashes it)
       if (onAddMessageRef.current) {

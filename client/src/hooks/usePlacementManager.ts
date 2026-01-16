@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection, ItemDefinition } from '../generated'; // Import connection type and ItemDefinition
 import { TILE_SIZE } from '../config/gameConfig';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement } from '../utils/plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine } from '../utils/plantsUtils';
 import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
 import { playImmediateSound } from './useSoundSystem';
 
@@ -340,11 +340,45 @@ function isTundraPlacementBlocked(connection: DbConnection | null, worldX: numbe
 }
 
 /**
- * Checks if placement should be blocked due to water tiles.
+ * Checks if Pinecone (conifer tree seed) placement is blocked.
+ * Pinecones cannot be planted on beach tiles - conifers don't grow in sandy, salt-spray environments.
+ * Returns true if placement should be blocked.
+ */
+function isPineconePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Pinecones cannot be planted on beach tiles
+  if (isPositionOnBeach(connection, worldX, worldY)) {
+    return true; // Block if on beach
+  }
+  
+  return false; // Valid placement
+}
+
+/**
+ * Checks if Birch Catkin (deciduous tree seed) placement is blocked.
+ * Birch Catkins cannot be planted on alpine tiles - deciduous trees can't grow on rocky alpine terrain.
+ * Returns true if placement should be blocked.
+ */
+function isBirchCatkinPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Birch Catkins cannot be planted on alpine tiles
+  if (isPositionOnAlpine(connection, worldX, worldY)) {
+    return true; // Block if on alpine
+  }
+  
+  return false; // Valid placement
+}
+
+/**
+ * Checks if placement should be blocked due to water tiles or terrain restrictions.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
  * Seaweed Fronds have special handling and require water (no shore restriction).
  * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
+ * Pinecone (conifer) cannot be planted on beach tiles.
+ * Birch Catkin (deciduous) cannot be planted on alpine tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
   if (!connection || !placementInfo) {
@@ -383,6 +417,22 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   // Special case: Seeds that require tundra placement (Crowberry Seeds, Fireweed Seeds)
   if (requiresTundraPlacement(placementInfo.itemName)) {
     return isTundraPlacementBlocked(connection, worldX, worldY);
+  }
+
+  // Special case: Pinecone (conifer tree seed) - cannot be planted on beach tiles
+  if (isPineconeBlockedOnBeach(placementInfo.itemName)) {
+    if (isPineconePlacementBlocked(connection, worldX, worldY)) {
+      console.log('[WaterPlacement] Pinecone blocked: Cannot plant on beach tiles');
+      return true;
+    }
+  }
+
+  // Special case: Birch Catkin (deciduous tree seed) - cannot be planted on alpine tiles
+  if (isBirchCatkinBlockedOnAlpine(placementInfo.itemName)) {
+    if (isBirchCatkinPlacementBlocked(connection, worldX, worldY)) {
+      console.log('[WaterPlacement] Birch Catkin blocked: Cannot plant on alpine tiles');
+      return true;
+    }
   }
 
   // List of items that cannot be placed on water

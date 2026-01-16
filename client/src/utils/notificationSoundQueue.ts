@@ -63,8 +63,15 @@ export function queueNotificationSound(type: NotificationSoundType): void {
   
   // If SOVA is currently speaking (tutorial, intro, cairn lore, etc.), SKIP entirely
   // Don't queue - just drop the sound. The visual notification is still shown.
-  if (isAnySovaAudioPlaying()) {
-    console.log(`[NotificationSoundQueue] Skipping ${type} sound - SOVA is speaking`);
+  // 
+  // IMPORTANT: isAnySovaAudioPlaying() checks multiple sources:
+  // 1. SovaSoundBox "is active" flag (set immediately when showSovaSoundBox is called)
+  // 2. SovaSoundBox actual playback state
+  // 3. Loading screen audio
+  // 4. Cairn audio (both pending and playing states)
+  const sovaPlaying = isAnySovaAudioPlaying();
+  if (sovaPlaying) {
+    console.log(`[NotificationSoundQueue] ⏸️ SKIPPING ${type} sound - SOVA is speaking (checked: SovaSoundBox active/playing, LoadingScreen, CairnAudio)`);
     return;
   }
   
@@ -106,8 +113,9 @@ async function processQueue(): Promise<void> {
     }
     
     // If SOVA started speaking while we were processing, skip remaining sounds
+    // This can happen if cairn/tutorial audio starts during queue processing
     if (isAnySovaAudioPlaying()) {
-      console.log(`[NotificationSoundQueue] Skipping ${nextSound.type} - SOVA started speaking`);
+      console.log(`[NotificationSoundQueue] ⏸️ SKIPPING ${nextSound.type} - SOVA started speaking during queue processing`);
       // Clear the rest of the queue too
       soundQueue = [];
       break;
@@ -229,6 +237,24 @@ function playSfxSound(): void {
  */
 export function isNotificationSoundPlaying(): boolean {
   return isProcessingQueue || (currentAudio !== null && !currentAudio.paused);
+}
+
+/**
+ * Stop any currently playing notification sound.
+ * Called by showSovaSoundBox when SOVA needs to speak - SOVA takes priority.
+ */
+export function stopNotificationSound(): void {
+  if (currentAudio) {
+    console.log('[NotificationSoundQueue] 🛑 Stopping notification sound - SOVA taking priority');
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  // Also clear the queue to prevent pending sounds from playing over SOVA
+  if (soundQueue.length > 0) {
+    console.log(`[NotificationSoundQueue] 🛑 Clearing ${soundQueue.length} pending sounds - SOVA taking priority`);
+    soundQueue = [];
+  }
 }
 
 /**

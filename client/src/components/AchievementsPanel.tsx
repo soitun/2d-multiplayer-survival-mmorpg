@@ -541,6 +541,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
                       fontSize: '14px',
                       color: isUnlocked ? '#ffd700' : '#ffffff',
                       marginBottom: '4px',
+                      textAlign: 'left',
                     }}>
                       {achievement.name}
                       {isUnlocked && <span style={{ marginLeft: '8px' }}>✓</span>}
@@ -550,6 +551,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
                       color: 'rgba(255, 255, 255, 0.7)',
                       marginBottom: '6px',
                       lineHeight: '1.4',
+                      textAlign: 'left',
                     }}>
                       {achievement.description}
                     </div>

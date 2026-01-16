@@ -18,6 +18,11 @@ function getLoreAudioFilename(loreIndex: number): string {
 // Currently playing audio reference to prevent overlaps
 let currentCairnAudio: HTMLAudioElement | null = null;
 
+// Flag to indicate cairn audio is pending (created but not yet playing)
+// This prevents race conditions where notification sounds could sneak in
+// during the time between createCairnLoreAudio and audio.play()
+let cairnAudioPending: boolean = false;
+
 /**
  * Create cairn lore audio element without playing it
  * Used when we want to pass the audio to SovaSoundBox for playback
@@ -26,9 +31,9 @@ let currentCairnAudio: HTMLAudioElement | null = null;
  * @returns The audio element, or null if creation failed
  */
 export function createCairnLoreAudio(loreIndex: number, volume: number = 0.8): HTMLAudioElement | null {
-  // If already playing, don't create new audio
-  if (currentCairnAudio && !currentCairnAudio.paused) {
-    console.log('[CairnAudio] Audio already playing, skipping new audio creation');
+  // If already playing or pending, don't create new audio
+  if (cairnAudioPending || (currentCairnAudio && !currentCairnAudio.paused)) {
+    console.log('[CairnAudio] Audio already playing or pending, skipping new audio creation');
     return null;
   }
 
@@ -47,23 +52,31 @@ export function createCairnLoreAudio(loreIndex: number, volume: number = 0.8): H
     const audio = new Audio(audioPath);
     audio.volume = volume;
     
+    // CRITICAL: Set pending flag IMMEDIATELY to prevent race conditions
+    // This flag is checked by isCairnAudioPlaying() and prevents notification
+    // sounds from playing during the brief window before audio.play() completes
+    cairnAudioPending = true;
+    
     // Store reference
     currentCairnAudio = audio;
 
-    // Clear reference when audio ends
+    // Clear references when audio ends
     audio.onended = () => {
       console.log(`[CairnAudio] Audio finished: ${filename}`);
       currentCairnAudio = null;
+      cairnAudioPending = false;
     };
 
     audio.onerror = (e) => {
       console.error(`[CairnAudio] Audio error for ${filename}:`, e);
       currentCairnAudio = null;
+      cairnAudioPending = false;
     };
 
     return audio;
   } catch (error) {
     console.error(`[CairnAudio] Error creating audio for ${filename}:`, error);
+    cairnAudioPending = false;
     return null;
   }
 }
@@ -90,7 +103,9 @@ export async function playCairnLoreAudio(loreIndex: number, volume: number = 0.8
       .catch((error) => {
         const filename = getLoreAudioFilename(loreIndex);
         console.warn(`[CairnAudio] Failed to play audio ${filename}:`, error);
+        // Clear both the audio reference AND the pending flag on failure
         currentCairnAudio = null;
+        cairnAudioPending = false;
         // Don't reject - we want the cairn interaction to continue even if audio fails
         resolve();
       });
@@ -101,6 +116,7 @@ export async function playCairnLoreAudio(loreIndex: number, volume: number = 0.8
  * Stop currently playing cairn audio
  */
 export function stopCairnLoreAudio(): void {
+  cairnAudioPending = false;
   if (currentCairnAudio) {
     currentCairnAudio.pause();
     currentCairnAudio.currentTime = 0;
@@ -110,9 +126,19 @@ export function stopCairnLoreAudio(): void {
 }
 
 /**
- * Check if cairn audio is currently playing
+ * Check if cairn audio is currently playing or pending (about to play).
+ * 
+ * IMPORTANT: This includes a "pending" check that returns true immediately
+ * when createCairnLoreAudio is called, BEFORE audio.play() completes.
+ * This prevents race conditions where notification sounds could sneak in
+ * during the brief window between audio creation and playback start.
  */
 export function isCairnAudioPlaying(): boolean {
+  // Check pending flag first - this catches the race condition window
+  if (cairnAudioPending) {
+    return true;
+  }
+  // Also check actual playback state
   return currentCairnAudio !== null && !currentCairnAudio.paused;
 }
 

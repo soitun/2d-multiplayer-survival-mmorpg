@@ -40,7 +40,7 @@ import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
 import { CAIRN_LORE_TIDBITS, CairnLoreEntry } from '../data/cairnLoreData';
 import { playImmediateSound } from './useSoundSystem';
 import { Cairn as SpacetimeDBCairn } from '../generated';
-import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount } from '../utils/cairnAudioUtils';
+import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
 import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
 
@@ -984,11 +984,16 @@ export const useInputHandler = ({
                                                             showSovaSoundBox(loreAudio, `SOVA: ${loreEntry.title}`);
                                                         }).catch(err => {
                                                             console.warn(`[Cairn] Failed to play lore audio:`, err);
+                                                            // CRITICAL: Clear the pending flag if audio fails to play
+                                                            // Otherwise notification sounds will be blocked forever
+                                                            stopCairnLoreAudio();
                                                         });
                                                     } else {
                                                         // Fallback: play without SovaSoundBox
                                                         loreAudio.play().catch(err => {
                                                             console.warn(`[Cairn] Failed to play lore audio (fallback):`, err);
+                                                            // CRITICAL: Clear the pending flag if audio fails to play
+                                                            stopCairnLoreAudio();
                                                         });
                                                     }
                                                 }

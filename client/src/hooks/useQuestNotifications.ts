@@ -169,12 +169,15 @@ export function useQuestNotifications({
                 try {
                     const audio = new Audio(`/sounds/${message.audioFile}`);
                     audio.volume = 0.8;
-                    audio.play().then(() => {
-                        if (showSovaSoundBoxRef.current) {
-                            const label = SOVA_LABEL_MAP[message.messageType] || 'SOVA: Quest Update';
-                            showSovaSoundBoxRef.current(audio, label);
-                        }
-                    }).catch(err => {
+                    
+                    // CRITICAL: Show sound box BEFORE calling play() to set the __SOVA_SOUNDBOX_IS_ACTIVE__ flag
+                    // This prevents notification sounds from sneaking in during the async play() window
+                    if (showSovaSoundBoxRef.current) {
+                        const label = SOVA_LABEL_MAP[message.messageType] || 'SOVA: Quest Update';
+                        showSovaSoundBoxRef.current(audio, label);
+                    }
+                    
+                    audio.play().catch(err => {
                         console.warn('[QuestNotifications] Failed to play SOVA quest audio:', err);
                     });
                 } catch (err) {

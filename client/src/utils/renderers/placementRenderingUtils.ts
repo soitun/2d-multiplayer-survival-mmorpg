@@ -13,7 +13,7 @@ import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRen
 import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, and Cooking Station dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement } from '../plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
@@ -400,11 +400,13 @@ function isTundraPlacementBlocked(connection: DbConnection | null, worldX: numbe
 }
 
 /**
- * Checks if placement should be blocked due to water tiles.
+ * Checks if placement should be blocked due to water tiles or terrain restrictions.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
  * Seaweed Fronds have special handling and require water (no shore restriction).
  * Beach Lyme Grass Seeds and Scurvy Grass Seeds have special handling and require beach tiles.
+ * Pinecone (conifer tree seed) cannot be planted on beach tiles.
+ * Birch Catkin (deciduous tree seed) cannot be planted on alpine tiles.
  */
 function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo: PlacementItemInfo | null, worldX: number, worldY: number): boolean {
     if (!connection || !placementInfo) {
@@ -439,6 +441,20 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     // Special case: Seeds that require tundra placement (Crowberry Seeds, Fireweed Seeds)
     if (requiresTundraPlacement(placementInfo.itemName)) {
         return isTundraPlacementBlocked(connection, worldX, worldY);
+    }
+
+    // Special case: Pinecone (conifer tree seed) - cannot be planted on beach tiles
+    if (isPineconeBlockedOnBeach(placementInfo.itemName)) {
+        if (isPositionOnBeach(connection, worldX, worldY)) {
+            return true; // Block Pinecone on beach
+        }
+    }
+
+    // Special case: Birch Catkin (deciduous tree seed) - cannot be planted on alpine tiles
+    if (isBirchCatkinBlockedOnAlpine(placementInfo.itemName)) {
+        if (isPositionOnAlpine(connection, worldX, worldY)) {
+            return true; // Block Birch Catkin on alpine
+        }
     }
 
     // List of items that cannot be placed on water

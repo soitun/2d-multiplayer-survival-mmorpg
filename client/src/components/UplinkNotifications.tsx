@@ -29,6 +29,7 @@ interface UplinkNotification {
   type: NotificationType;
   title: string;
   subtitle?: string;
+  description?: string;
   rewards: { label: string; value: string; color: string }[];
   timestamp: number;
 }
@@ -61,6 +62,8 @@ interface UplinkNotificationsProps {
   levelUpNotifications: SpacetimeDB.LevelUpNotification[];
   // Achievement notifications
   achievementNotifications: SpacetimeDB.AchievementUnlockNotification[];
+  // Achievement definitions (for looking up descriptions)
+  achievementDefinitions?: Map<string, SpacetimeDB.AchievementDefinition>;
   // Quest completion (from useQuestNotifications)
   questCompletionNotification: {
     id: string;
@@ -85,6 +88,7 @@ const CLICK_GUARD_MS = 800;
 const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
   levelUpNotifications,
   achievementNotifications,
+  achievementDefinitions,
   questCompletionNotification,
   onDismissQuestCompletion,
   isTrackerMinimized = false,
@@ -150,11 +154,15 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
         return newSet;
       });
       
+      // Look up description from achievement definitions
+      const achievementDef = achievementDefinitions?.get(notif.achievementId);
+      
       queueNotification({
         id: `achievement-${id}`,
         type: 'achievement',
         title: notif.achievementName,
         subtitle: 'ACHIEVEMENT UNLOCKED',
+        description: achievementDef?.description,
         rewards: [
           ...(notif.xpAwarded > 0 ? [{ label: 'XP', value: `+${notif.xpAwarded}`, color: ACCENT_CYAN }] : []),
           ...(notif.titleAwarded ? [{ label: 'TITLE', value: notif.titleAwarded, color: ACCENT_PINK }] : []),
@@ -164,7 +172,7 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
       
       queueNotificationSound('achievement');
     });
-  }, [achievementNotifications, seenAchievements, queueNotification]);
+  }, [achievementNotifications, achievementDefinitions, seenAchievements, queueNotification]);
 
   // Process quest completion notification
   useEffect(() => {
@@ -373,12 +381,26 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
               fontWeight: 'bold',
               color: activeNotification.type === 'achievement' ? colors.primary : '#fff',
               textShadow: `0 0 15px ${colors.primary}`,
-              marginBottom: '12px',
+              marginBottom: activeNotification.description ? '8px' : '12px',
               letterSpacing: activeNotification.type === 'level_up' ? '4px' : '1px',
               textAlign: 'center',
             }}>
               {activeNotification.title}
             </div>
+            
+            {/* Description (for achievements) */}
+            {activeNotification.description && (
+              <div style={{
+                fontSize: '11px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                textAlign: 'center',
+                marginBottom: '12px',
+                lineHeight: '1.4',
+                maxWidth: '220px',
+              }}>
+                {activeNotification.description}
+              </div>
+            )}
             
             {/* Rewards - centered */}
             {activeNotification.rewards.length > 0 && (

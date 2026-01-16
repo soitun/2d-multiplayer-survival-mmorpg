@@ -79,7 +79,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
 
         // Primary Gathering Tools
         basic_tool("Stone Hatchet", "A simple hatchet for chopping wood.", 
-                  TargetType::Tree, 60, 80, 25, 35, "Wood")
+                  TargetType::Tree, 35, 50, 12, 18, "Wood")
             .icon("stone_hatchet.png")
             .pvp_damage(15, 20)
             .crafting_cost(vec![
@@ -92,7 +92,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         basic_tool("Metal Hatchet", "A robust metal hatchet that cuts through wood efficiently. Gathers significantly more wood than its stone counterpart.",
-                  TargetType::Tree, 80, 120, 50, 70, "Wood")
+                  TargetType::Tree, 60, 80, 25, 35, "Wood")
             .icon("metal_hatchet.png")
             .pvp_damage(22, 30)
             .crafting_cost(vec![
@@ -119,7 +119,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         basic_tool("Stone Pickaxe", "A simple pickaxe for breaking rocks.",
-                  TargetType::Stone, 60, 120, 13, 22, "Stone")
+                  TargetType::Stone, 40, 70, 8, 14, "Stone")
             .icon("stone_pickaxe.png")
             .equippable(None)
             .pvp_damage(18, 25)
@@ -133,7 +133,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         basic_tool("Metal Pickaxe", "A sturdy metal pickaxe that breaks rocks efficiently. Gathers significantly more stone than its stone counterpart.",
-                  TargetType::Stone, 80, 160, 26, 44, "Stone")
+                  TargetType::Stone, 60, 120, 13, 22, "Stone")
             .icon("metal_pickaxe.png")
             .equippable(None)
             .pvp_damage(25, 35)

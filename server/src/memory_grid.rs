@@ -231,6 +231,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // ============================================
         "bone-arrow" => Some((200, vec!["crossbow"])),          // Branch 1: Crossbow → bone-arrow
         "reed-harpoon-gun" => Some((300, vec!["reed-harpoon"])), // Branch 3: Reed-harpoon → reed-harpoon-gun (underwater ranged)
+        "reed-harpoon-dart" => Some((200, vec!["reed-harpoon-gun"])), // Branch 3: Reed-harpoon-gun → darts (ammunition)
         "bone-gaff-hook" => Some((260, vec!["reed-harpoon"])),  // Branch 3: Reed-harpoon → bone-gaff-hook (SPLIT POINT)
         "flashlight" => Some((220, vec!["lantern"])),           // Branch 4: Lantern → flashlight (SPLIT POINT)
         "headlamp" => Some((300, vec!["lantern"])),             // Branch 4: Lantern → headlamp (tallow hands-free light)
@@ -518,6 +519,7 @@ fn get_node_display_name(node_id: &str) -> String {
         
         // Tier 2
         "reed-harpoon-gun" => "Reed Harpoon Gun".to_string(),
+        "reed-harpoon-dart" => "Reed Harpoon Dart".to_string(),
         "bone-arrow" => "Bone Arrow".to_string(),
         "bone-gaff-hook" => "Bone Gaff Hook".to_string(),
         "flashlight" => "Flashlight".to_string(),
@@ -657,7 +659,7 @@ pub fn get_required_node_for_item(item_name: &str) -> Option<&'static str> {
         
         // Tier 2 items
         "Reed Harpoon Gun" => Some("reed-harpoon-gun"),
-        "Reed Harpoon Dart" => Some("reed-harpoon-gun"), // Unlocked together with the gun
+        "Reed Harpoon Dart" => Some("reed-harpoon-dart"), // Separate unlock after the gun
         "Bone Arrow" => Some("bone-arrow"),
         "Bone Gaff Hook" => Some("bone-gaff-hook"),
         "Flashlight" => Some("flashlight"),

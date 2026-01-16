@@ -166,17 +166,20 @@ export const renderEquippedItem = (
   // Items are now 64x64px, so we need much larger scales than before
   // Melee weapons need to be larger to be visible - using 0.9 scale (57px)
   // Skulls and fertilizer render at larger size (0.75 scale = 48px)
+  // Vole skull is tiny - half the size of other skulls (0.375 scale = 24px)
   // Other items use 0.7 scale (45px)
+  const isVoleSkull = itemDef.name === "Vole Skull";
   const isSkull = itemDef.name === "Human Skull" || itemDef.name === "Fox Skull" || 
                    itemDef.name === "Wolf Skull" || itemDef.name === "Viper Skull" || 
-                   itemDef.name === "Walrus Skull";
+                   itemDef.name === "Walrus Skull" || itemDef.name === "Wolverine Skull";
   const isFertilizer = itemDef.name === "Fertilizer";
   const isMeleeWeapon = itemDef.category?.tag === "Weapon";
   // Updated scales for 64x64px images: 
   // - Melee weapons: 0.9 scale (57px) for visibility
   // - Skulls/fertilizer: 0.75 scale (48px)
+  // - Vole skull: 0.375 scale (24px) - half the size of other skulls
   // - Other items: 0.7 scale (45px)
-  const scale = isMeleeWeapon ? 0.9 : (isSkull || isFertilizer) ? 0.75 : 0.7; 
+  const scale = isVoleSkull ? 0.5 : (isMeleeWeapon ? 0.9 : (isSkull || isFertilizer) ? 0.75 : 0.7); 
   const itemWidth = itemImgFromCaller.width * scale;
   const itemHeight = itemImgFromCaller.height * scale;
   let itemOffsetX = 0; 

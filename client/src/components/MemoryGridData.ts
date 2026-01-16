@@ -342,14 +342,26 @@ export const MEMORY_GRID_NODES = [
   { 
     id: 'reed-harpoon-gun', 
     name: 'Reed Harpoon Gun', 
-    description: 'Unlocks crafting the Reed Harpoon Gun and Reed Harpoon Darts - a pneumatic underwater ranged weapon. Works both above and below water.', 
+    description: 'Unlocks crafting the Reed Harpoon Gun - a pneumatic underwater ranged weapon. Works both above and below water. Requires Reed Harpoon Darts as ammunition.', 
     cost: 300, 
     tier: 2, 
     prerequisites: ['reed-harpoon'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET, 220), // Branch 3: Upper water combat path
     category: 'weapon' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Reed Harpoon Gun', 'Reed Harpoon Dart']
+    unlocksItems: ['Reed Harpoon Gun']
+  },
+  { 
+    id: 'reed-harpoon-dart', 
+    name: 'Reed Harpoon Dart', 
+    description: 'Unlocks crafting Reed Harpoon Darts - specialized ammunition for the Reed Harpoon Gun. The bone tip is weighted for stability underwater.',
+    cost: 200, 
+    tier: 2, 
+    prerequisites: ['reed-harpoon-gun'], 
+    position: getRadialPosition(BRANCH_ANGLES.BRANCH_3 - SPLIT_OFFSET * 2.5, 320), // Branch 3: Continues from gun, moved right to avoid overlap
+    category: 'weapon' as const, 
+    status: 'locked' as const,
+    unlocksItems: ['Reed Harpoon Dart']
   },
   { 
     id: 'bone-gaff-hook', 
@@ -1095,7 +1107,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   
   // Tier 2 items
   'Reed Harpoon Gun': 'reed-harpoon-gun',
-  'Reed Harpoon Dart': 'reed-harpoon-gun', // Unlocked together with the gun
+  'Reed Harpoon Dart': 'reed-harpoon-dart', // Separate unlock after the gun
   'Bone Arrow': 'bone-arrow',
   'Bush Knife': 'bush-knife',
   'Bone Gaff Hook': 'bone-gaff-hook',

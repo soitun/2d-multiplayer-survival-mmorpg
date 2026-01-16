@@ -780,6 +780,15 @@ pub fn find_targets_in_cone(
     }
     
     // Check wild animals
+    // HITBOX_RADIUS accounts for the animal's physical size when checking cone intersection
+    // This allows hits to register when the weapon passes through ANY part of the animal,
+    // not just the exact center point. Without this, narrow-arc weapons like spears miss frequently.
+    const WILD_ANIMAL_MELEE_HITBOX_RADIUS: f32 = 40.0; // Generous hitbox for melee attacks
+    // Y_OFFSET moves the targeting point UP from the feet position to the visual body center
+    // Animal sprites are bottom-anchored (pos_y = feet), but players aim at the body
+    // Without this offset, attacks only connect when aiming at the bottom half of the sprite
+    const WILD_ANIMAL_TARGET_Y_OFFSET: f32 = 40.0; // Offset to target body center instead of feet
+    
     for wild_animal in ctx.db.wild_animal().iter() {
         // Skip dead animals or animals that are burrowed
         if wild_animal.health <= 0.0 || wild_animal.state == crate::wild_animal_npc::AnimalState::Burrowed {
@@ -787,7 +796,9 @@ pub fn find_targets_in_cone(
         }
         
         let dx = wild_animal.pos_x - player.position_x;
-        let dy = wild_animal.pos_y - player.position_y;
+        // Apply Y offset to target the visual body center, not the feet position
+        let target_y = wild_animal.pos_y - WILD_ANIMAL_TARGET_Y_OFFSET;
+        let dy = target_y - player.position_y;
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq < (attack_range * attack_range) && dist_sq > 0.0 {
@@ -796,9 +807,18 @@ pub fn find_targets_in_cone(
             let target_vec_y = dy / distance;
 
             let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
-            let angle_rad = dot_product.acos();
+            let angle_to_center_rad = dot_product.clamp(-1.0, 1.0).acos(); // Clamp to avoid NaN from floating point errors
+            
+            // Account for the animal's hitbox radius when checking cone intersection
+            // The angular radius is the angle subtended by the hitbox from the player's perspective
+            // Using atan(radius/distance) gives us the angle from center to edge of hitbox
+            let angular_radius = (WILD_ANIMAL_MELEE_HITBOX_RADIUS / distance).atan();
+            
+            // Hit registers if ANY part of the hitbox circle intersects the attack cone
+            // This means: angle_to_center - angular_radius <= half_attack_angle
+            let effective_angle = (angle_to_center_rad - angular_radius).max(0.0);
 
-            if angle_rad <= half_attack_angle_rad {
+            if effective_angle <= half_attack_angle_rad {
                 // Check if line of sight is blocked by shelter walls
                 if is_line_blocked_by_shelter(
                     ctx,
@@ -807,7 +827,7 @@ pub fn find_targets_in_cone(
                     player.position_x,
                     player.position_y,
                     wild_animal.pos_x,
-                    wild_animal.pos_y,
+                    target_y, // Use offset target position for LOS check too
                 ) {
                     log::debug!(
                         "Player {:?} cannot attack WildAnimal {}: line of sight blocked by shelter",

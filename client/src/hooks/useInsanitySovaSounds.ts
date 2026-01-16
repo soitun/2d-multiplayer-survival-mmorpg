@@ -30,8 +30,14 @@ const SOUND_VARIATIONS_PER_THRESHOLD = 3;
 /**
  * Plays a random SOVA sound for the given insanity threshold
  * Returns the audio element so we can track when it finishes
+ * @param threshold The insanity threshold (25, 50, 75, 90, or 100)
+ * @param onBeforePlay Optional callback to call BEFORE audio.play() - used to set up SovaSoundBox
+ *                     to prevent race conditions with notification sounds
  */
-function playInsanitySovaSound(threshold: number): HTMLAudioElement | null {
+function playInsanitySovaSound(
+  threshold: number,
+  onBeforePlay?: (audio: HTMLAudioElement) => void
+): HTMLAudioElement | null {
   // Randomly select one of the variations for this threshold
   const variation = Math.floor(Math.random() * SOUND_VARIATIONS_PER_THRESHOLD) + 1;
   const soundFilename = `sova_insanity_${threshold}_${variation}.mp3`;
@@ -40,6 +46,12 @@ function playInsanitySovaSound(threshold: number): HTMLAudioElement | null {
   try {
     const audio = new Audio(soundPath);
     audio.volume = 0.7; // SOVA sounds should be noticeable but not overwhelming
+    
+    // CRITICAL: Call onBeforePlay BEFORE audio.play() to set __SOVA_SOUNDBOX_IS_ACTIVE__ flag
+    // This prevents notification sounds from sneaking in during the async play() window
+    if (onBeforePlay) {
+      onBeforePlay(audio);
+    }
     
     audio.play().catch((error) => {
       console.warn(`Failed to play SOVA insanity sound ${soundFilename}:`, error);
@@ -125,13 +137,13 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
             pendingThresholdRef.current = threshold;
           } else {
             console.log(`[SOVA] Insanity threshold ${threshold}% crossed - playing sound`);
-            const audio = playInsanitySovaSound(threshold);
+            // Pass callback to set up SovaSoundBox BEFORE audio.play() to prevent race conditions
+            const audio = playInsanitySovaSound(threshold, (audioElement) => {
+              if (onSoundPlayRef.current) {
+                onSoundPlayRef.current(audioElement, getInsanityLabel(threshold));
+              }
+            });
             currentAudioRef.current = audio;
-            
-            // Show sound box if callback is provided
-            if (audio && onSoundPlayRef.current) {
-              onSoundPlayRef.current(audio, getInsanityLabel(threshold));
-            }
             
             // Add message to SOVA chat tab (switches to tab and flashes it)
             if (onAddMessageRef.current) {
@@ -164,13 +176,13 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
                   const pendingThreshold = pendingThresholdRef.current;
                   pendingThresholdRef.current = null;
                   console.log(`[SOVA] Playing queued insanity threshold ${pendingThreshold}% sound`);
-                  const nextAudio = playInsanitySovaSound(pendingThreshold);
+                  // Pass callback to set up SovaSoundBox BEFORE audio.play() to prevent race conditions
+                  const nextAudio = playInsanitySovaSound(pendingThreshold, (audioElement) => {
+                    if (onSoundPlayRef.current) {
+                      onSoundPlayRef.current(audioElement, getInsanityLabel(pendingThreshold));
+                    }
+                  });
                   currentAudioRef.current = nextAudio;
-                  
-                  // Show sound box for queued sound
-                  if (nextAudio && onSoundPlayRef.current) {
-                    onSoundPlayRef.current(nextAudio, getInsanityLabel(pendingThreshold));
-                  }
                   
                   // Add message to SOVA chat tab for queued sound
                   if (onAddMessageRef.current) {
@@ -202,13 +214,13 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
                       if (pendingThresholdRef.current !== null) {
                         const nextPending = pendingThresholdRef.current;
                         pendingThresholdRef.current = null;
-                        const finalAudio = playInsanitySovaSound(nextPending);
+                        // Pass callback to set up SovaSoundBox BEFORE audio.play() to prevent race conditions
+                        const finalAudio = playInsanitySovaSound(nextPending, (audioElement) => {
+                          if (onSoundPlayRef.current) {
+                            onSoundPlayRef.current(audioElement, getInsanityLabel(nextPending));
+                          }
+                        });
                         currentAudioRef.current = finalAudio;
-                        
-                        // Show sound box for final queued sound
-                        if (finalAudio && onSoundPlayRef.current) {
-                          onSoundPlayRef.current(finalAudio, getInsanityLabel(nextPending));
-                        }
                         
                         // Add message to SOVA chat tab for final queued sound
                         if (onAddMessageRef.current) {

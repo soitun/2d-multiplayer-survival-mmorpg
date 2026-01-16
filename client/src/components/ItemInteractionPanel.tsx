@@ -89,7 +89,9 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             itemName === "Fox Skull" || 
             itemName === "Wolf Skull" || 
             itemName === "Viper Skull" ||
-            itemName === "Walrus Skull") {
+            itemName === "Walrus Skull" ||
+            itemName === "Vole Skull" ||
+            itemName === "Wolverine Skull") {
             actions.push({
                 label: 'Crush',
                 action: 'crush',

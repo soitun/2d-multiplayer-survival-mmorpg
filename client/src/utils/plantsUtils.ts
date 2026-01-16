@@ -139,6 +139,49 @@ export function requiresTundraPlacement(itemName: string, itemDef?: ItemDefiniti
 }
 
 /**
+ * Determines if a tree seed (Pinecone) is blocked from beach tiles
+ * Conifers (spruce, hemlock, pine) don't grow in sandy, salt-spray beach environments
+ */
+export function isPineconeBlockedOnBeach(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('pinecone');
+}
+
+/**
+ * Determines if a tree seed (Birch Catkin) is blocked from alpine tiles
+ * Deciduous trees (birch, alder, willow) can't grow on rocky alpine terrain
+ */
+export function isBirchCatkinBlockedOnAlpine(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('catkin') || name.includes('birch catkin');
+}
+
+/**
+ * Determines if a seed is a conifer tree seed (Pinecone)
+ * These grow into spruce, hemlock, or pine trees
+ */
+export function isConiferSeed(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('pinecone');
+}
+
+/**
+ * Determines if a seed is a deciduous tree seed (Birch Catkin)
+ * These grow into birch, alder, or willow trees
+ */
+export function isDeciduousSeed(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('catkin') || name.includes('birch catkin');
+}
+
+/**
+ * Determines if a seed is any tree seed (Pinecone or Birch Catkin)
+ */
+export function isTreeSeed(itemName: string): boolean {
+  return isConiferSeed(itemName) || isDeciduousSeed(itemName);
+}
+
+/**
  * Determines if a seed can be planted on land (most seeds)
  * Uses name/description patterns to infer land suitability
  */

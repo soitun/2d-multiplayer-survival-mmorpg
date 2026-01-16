@@ -29,6 +29,7 @@ const ITEM_ICON_MAPPINGS: Record<string, string> = {
   'Plastic Water Jug': 'water_jug.png',
   'Headlamp': 'tallow_head_lamp.png',
   'Lantern': 'lantern_off.png',
+  'PP-91 KEDR': 'pp91_kedr.png', // Icon filename doesn't have dash
 };
 
 // Helper to get item icon from item name

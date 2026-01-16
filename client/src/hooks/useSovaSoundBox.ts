@@ -26,25 +26,42 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import React from 'react';
 import SovaSoundBox from '../components/SovaSoundBox';
+import { isCairnAudioPlaying } from '../utils/cairnAudioUtils';
+import { stopNotificationSound } from '../utils/notificationSoundQueue';
 
 // Declare global window functions for checking SOVA playback state
 declare global {
   interface Window {
     __SOVA_SOUNDBOX_IS_PLAYING__?: () => boolean;
     __SOVA_SOUNDBOX_AUDIO_REF__?: HTMLAudioElement | null;
+    __SOVA_SOUNDBOX_IS_ACTIVE__?: boolean; // Flag set immediately when showSovaSoundBox is called
     __LOADING_SCREEN_AUDIO_IS_PLAYING__?: () => boolean;
     __STOP_LOADING_SCREEN_SOVA_AUDIO__?: () => void;
   }
 }
 
 /**
- * Check if SOVA SoundBox is currently playing audio.
+ * Check if SOVA SoundBox is currently playing audio or is active (about to play).
  * Use this to prevent achievement/level up/mission sounds from interrupting tutorials.
+ * 
+ * IMPORTANT: This check includes an "is active" flag that's set immediately when
+ * showSovaSoundBox is called, BEFORE audio.play() completes. This prevents race
+ * conditions where notification sounds could sneak in during the async play() call.
  */
 export function isSovaSoundBoxPlaying(): boolean {
-  if (typeof window !== 'undefined' && typeof window.__SOVA_SOUNDBOX_IS_PLAYING__ === 'function') {
+  if (typeof window === 'undefined') return false;
+  
+  // Check the "is active" flag first - this is set immediately when showSovaSoundBox is called
+  // and prevents race conditions where audio hasn't started playing yet
+  if (window.__SOVA_SOUNDBOX_IS_ACTIVE__ === true) {
+    return true;
+  }
+  
+  // Also check the actual playback state as a fallback
+  if (typeof window.__SOVA_SOUNDBOX_IS_PLAYING__ === 'function') {
     return window.__SOVA_SOUNDBOX_IS_PLAYING__();
   }
+  
   return false;
 }
 
@@ -60,11 +77,32 @@ export function isLoadingScreenAudioPlaying(): boolean {
 }
 
 /**
- * Check if ANY SOVA audio is currently playing (SoundBox OR loading screen).
+ * Check if ANY SOVA audio is currently playing (SoundBox, loading screen, OR cairn lore).
  * This is the main function to use when checking if short notification sounds should be skipped.
+ * 
+ * Checks multiple sources:
+ * 1. SovaSoundBox component (tutorials, insanity whispers, etc.)
+ * 2. Loading screen intro audio
+ * 3. Cairn lore audio (belt-and-suspenders check in case cairn audio bypasses SovaSoundBox)
  */
 export function isAnySovaAudioPlaying(): boolean {
-  return isSovaSoundBoxPlaying() || isLoadingScreenAudioPlaying();
+  // Check SovaSoundBox (includes the "is active" flag for race condition prevention)
+  if (isSovaSoundBoxPlaying()) {
+    return true;
+  }
+  
+  // Check loading screen audio
+  if (isLoadingScreenAudioPlaying()) {
+    return true;
+  }
+  
+  // Belt-and-suspenders: Also check cairn audio directly
+  // This catches cases where cairn audio might not go through SovaSoundBox
+  if (isCairnAudioPlaying()) {
+    return true;
+  }
+  
+  return false;
 }
 
 export interface SovaSoundState {
@@ -92,17 +130,23 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   // This allows achievement/level up/mission notifications to check before playing
   useEffect(() => {
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = audioRef.current;
+    window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false; // Initialize active flag
+    
     window.__SOVA_SOUNDBOX_IS_PLAYING__ = () => {
       const audio = audioRef.current;
       if (!audio) return false;
       // Check if audio exists, is not paused, and hasn't ended
-      return !audio.paused && !audio.ended && audio.currentTime > 0;
+      // NOTE: Removed audio.currentTime > 0 check - it caused race conditions
+      // where notification sounds could play during the brief moment after play()
+      // is called but before the first frame is rendered
+      return !audio.paused && !audio.ended;
     };
 
     return () => {
       // Clean up on unmount
       delete window.__SOVA_SOUNDBOX_IS_PLAYING__;
       delete window.__SOVA_SOUNDBOX_AUDIO_REF__;
+      window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
     };
   }, []);
 
@@ -112,6 +156,15 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   }, [soundState]);
 
   const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA') => {
+    // CRITICAL: Set active flag IMMEDIATELY before any async operations
+    // This prevents race conditions where notification sounds could sneak in
+    // during the time between showSovaSoundBox being called and audio.play() completing
+    window.__SOVA_SOUNDBOX_IS_ACTIVE__ = true;
+    
+    // CRITICAL: Stop any notification sounds that might be playing
+    // SOVA always takes priority over achievement/level-up/mission sounds
+    stopNotificationSound();
+    
     // Stop any existing SovaSoundBox audio first
     if (audioRef.current) {
       audioRef.current.pause();
@@ -129,6 +182,16 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
 
     audioRef.current = audio;
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = audio;
+    
+    // Set up event listener to clear the active flag when audio ends
+    const clearActiveFlag = () => {
+      window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
+      audio.removeEventListener('ended', clearActiveFlag);
+      audio.removeEventListener('error', clearActiveFlag);
+    };
+    audio.addEventListener('ended', clearActiveFlag);
+    audio.addEventListener('error', clearActiveFlag);
+    
     setSoundState({
       audio,
       label,
@@ -137,6 +200,9 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   }, []);
 
   const hideSovaSoundBox = useCallback(() => {
+    // Clear the active flag when hiding
+    window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
+    
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;

@@ -176,15 +176,16 @@ function playSovaTutorial(
         const audio = new Audio(audioFile);
         audio.volume = 0.8;
         
+        // CRITICAL: Show sound box BEFORE calling play() to set the __SOVA_SOUNDBOX_IS_ACTIVE__ flag
+        // This prevents notification sounds from sneaking in during the async play() window
+        if (showSovaSoundBox) {
+            showSovaSoundBox(audio, soundBoxLabel);
+        }
+        
         audio.play()
             .then(() => {
                 console.log(`[SovaTutorials] Playing: ${soundBoxLabel}`);
                 onAudioStart?.();
-                
-                // Show sound box with waveform
-                if (showSovaSoundBox) {
-                    showSovaSoundBox(audio, soundBoxLabel);
-                }
                 
                 // Send message to SOVA chat
                 if (sovaMessageAdder) {
