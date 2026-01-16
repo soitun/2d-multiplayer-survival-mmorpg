@@ -96,6 +96,12 @@ pub const RESPAWN_TIME_MS: u64 = 5000; // 5 seconds
 /// Distance player is knocked back in PvP
 pub const PVP_KNOCKBACK_DISTANCE: f32 = 32.0;
 
+// --- PvP Configuration ---
+/// When false, players cannot damage other players with any weapon, projectile, or explosive.
+/// Only hostile NPCs and environmental hazards can damage players.
+/// Set to true to enable PvP damage between players.
+pub const PVP_ENABLED: bool = false;
+
 // --- Combat System Types ---
 
 /// Identifiers for specific combat targets
@@ -2047,6 +2053,15 @@ pub fn damage_player(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
     }
     // <<< END SAFE ZONE CHECK >>>
+
+    // <<< PVP CHECK - Block all player-vs-player damage when PvP is disabled >>>
+    // If the attacker is a player (not an NPC) and PvP is disabled, block the damage.
+    // This single check blocks melee, projectile, and explosive damage from players to players.
+    if !PVP_ENABLED && attacker_player_opt.is_some() {
+        log::debug!("PvP disabled - Player {:?} cannot damage player {:?}", attacker_id, target_id);
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
+    }
+    // <<< END PVP CHECK >>>
 
     let mut final_damage = damage; // Start with the damage passed in (already calculated from weapon stats)
 
