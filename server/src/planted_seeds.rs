@@ -524,15 +524,38 @@ fn is_beach_specific_plant(plant_type: &PlantType) -> bool {
     )
 }
 
+/// Check if a tree type is beach-adapted (salt-tolerant coastal trees)
+/// Beach-adapted trees don't suffer growth penalties on beach tiles
+fn is_beach_adapted_tree_type(tree_type: &crate::tree::TreeType) -> bool {
+    matches!(tree_type,
+        crate::tree::TreeType::SitkaAlder |   // Salt-tolerant coastal alder
+        crate::tree::TreeType::SitkaAlder2    // Variant B of coastal alder
+    )
+}
+
 /// Calculate beach tile growth penalty for non-beach plants
 /// Non-beach plants struggle in sandy/saline soil conditions
 /// Returns a multiplier: 0.5 (50% growth rate) for non-beach plants on beach, 1.0 otherwise
 const BEACH_TILE_GROWTH_PENALTY: f32 = 0.5; // 50% growth rate = takes 2x longer
 
-fn get_beach_tile_penalty_multiplier(ctx: &ReducerContext, plant_x: f32, plant_y: f32, plant_type: &PlantType) -> f32 {
+fn get_beach_tile_penalty_multiplier(
+    ctx: &ReducerContext, 
+    plant_x: f32, 
+    plant_y: f32, 
+    plant_type: &PlantType,
+    target_tree_type: Option<&crate::tree::TreeType>
+) -> f32 {
     // Beach-specific plants thrive on beach tiles - no penalty
     if is_beach_specific_plant(plant_type) {
         return 1.0;
+    }
+    
+    // Tree saplings that will become beach-adapted trees also thrive - no penalty
+    // This handles Birch Catkin planted on beach -> becomes SitkaAlder
+    if let Some(tree_type) = target_tree_type {
+        if is_beach_adapted_tree_type(tree_type) {
+            return 1.0;
+        }
     }
     
     // Check if the plant is on a beach tile
@@ -575,6 +598,7 @@ fn calculate_initial_growth_multiplier(
     pos_x: f32,
     pos_y: f32,
     plant_type: &PlantType,
+    target_tree_type: Option<&crate::tree::TreeType>,
 ) -> f32 {
     // Get base multipliers
     let (base_time_multiplier, _season, current_time_of_day) = calculate_growth_rate_multiplier(ctx);
@@ -591,7 +615,7 @@ fn calculate_initial_growth_multiplier(
     let soil_multiplier = get_root_crop_soil_multiplier(plant_type, base_soil_mult);
     
     let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, pos_x, pos_y, plant_type);
-    let beach_multiplier = get_beach_tile_penalty_multiplier(ctx, pos_x, pos_y, plant_type);
+    let beach_multiplier = get_beach_tile_penalty_multiplier(ctx, pos_x, pos_y, plant_type, target_tree_type);
     
     // Calculate shade-loving plant bonus if applicable (mushrooms, berries, nettle, chicory)
     let mushroom_bonus = get_mushroom_bonus_multiplier(ctx, pos_x, pos_y, plant_type, &current_time_of_day);
@@ -1157,7 +1181,7 @@ pub fn plant_seed(
     
     // Calculate initial growth multiplier based on current environmental conditions
     // This gives a better initial estimate for will_mature_at (will be refined by growth ticks)
-    let initial_multiplier = calculate_initial_growth_multiplier(ctx, final_plant_x, final_plant_y, &plant_type);
+    let initial_multiplier = calculate_initial_growth_multiplier(ctx, final_plant_x, final_plant_y, &plant_type, target_tree_type.as_ref());
     let adjusted_growth_secs = if initial_multiplier > 0.0 {
         (growth_time_secs as f32 / initial_multiplier) as u64
     } else {
@@ -1504,7 +1528,8 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             soil_multiplier = get_root_crop_soil_multiplier(&plant.plant_type, base_soil_mult);
             
             // Calculate beach tile penalty (non-beach plants struggle in sandy/saline soil)
-            beach_multiplier = get_beach_tile_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);
+            // Tree saplings with beach-adapted target types (SitkaAlder) don't get penalized
+            beach_multiplier = get_beach_tile_penalty_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type, plant.target_tree_type.as_ref());
             
             // Calculate green rune stone bonus (agrarian effect)
             let green_rune_multiplier = crate::rune_stone::get_green_rune_growth_multiplier(ctx, plant.pos_x, plant.pos_y, &plant.plant_type);

@@ -390,6 +390,14 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
            plantTypeTag === 'BeachWoodPile';
   };
 
+  // Check if tree sapling will become a beach-adapted tree (salt-tolerant coastal trees)
+  // Tree saplings with beach-adapted target types don't suffer beach growth penalties
+  const isBeachAdaptedTreeSapling = (): boolean => {
+    if (!seed.targetTreeType) return false;
+    const treeTypeTag = seed.targetTreeType.tag;
+    return treeTypeTag === 'SitkaAlder' || treeTypeTag === 'SitkaAlder2';
+  };
+
   const cloudCoverage = calculateCloudCoverage();
   const waterPatchEffect = getWaterPatchEffect();
   const fertilizerPatchEffect = getFertilizerPatchEffect();
@@ -399,8 +407,10 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   const onPreparedSoil = isOnPreparedSoil();
   const onBeachTile = isOnBeachTile();
   const beachSpecificPlant = isBeachSpecificPlant();
+  const beachAdaptedTreeSapling = isBeachAdaptedTreeSapling();
   // Beach penalty only applies to non-beach plants on beach tiles
-  const hasBeachPenalty = onBeachTile && !beachSpecificPlant;
+  // Tree saplings growing into beach-adapted trees (SitkaAlder) are exempt
+  const hasBeachPenalty = onBeachTile && !beachSpecificPlant && !beachAdaptedTreeSapling;
   
   // Use chunk-specific weather if available, otherwise fall back to global weather
   const currentWeather = seedChunkWeather?.currentWeather?.tag || worldState?.currentWeather.tag || 'Clear';
